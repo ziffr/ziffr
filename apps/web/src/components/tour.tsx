@@ -1,8 +1,10 @@
 "use client";
 // The guided tour of Demo Mode (GLOSSARY: Demo Mode): a few steps through the made-up company, remembered per browser.
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CheckCircle2, Circle, ChevronDown, ChevronUp, Compass, Minus } from "lucide-react";
+import { CheckCircle2, Circle, ChevronDown, ChevronUp, Compass, Minus, X } from "lucide-react";
+import { OPEN_TOUR } from "@/lib/open-tour";
 
 /** The demo changes nothing, so the tour reads first and only then tries what the demo will refuse (#528). Where visitors may change
  * the demo (spec 0051) the steps that enter a value or define a Metric say it works. */
@@ -31,7 +33,7 @@ const GUEST_STEPS = [
 
 const KEY = "ziffr-tour-v4";
 
-/** The demo's guided tour, bottom right; it folds down to a small round button so it never covers controls. */
+/** The demo's guided tour: bottom right on a larger screen, folding down to a small round button; on a phone a sheet above the tab bar that More opens and the close button puts away. */
 export function Tour({ guest = false, changes = false }: { guest?: boolean; /** Visitors may change the demo: the steps that enter a value say it works. */ changes?: boolean }) {
   const base = guest ? GUEST_STEPS : MEMBER_STEPS;
   const STEPS = changes ? base.map((s) => ({ ...s, body: CHANGES_WORDS[s.title] ?? s.body })) : base;
@@ -39,19 +41,32 @@ export function Tour({ guest = false, changes = false }: { guest?: boolean; /** 
   const key = guest ? `${KEY}-guest` : KEY;
   const [open, setOpen] = useState(false);
   const [small, setSmall] = useState(false);
+  // Drawn only once the browser has said whether this is a phone, so a phone never sees the card flash up first.
+  const [ready, setReady] = useState(false);
+  const [phone, setPhone] = useState(false);
   useEffect(() => {
+    const isPhone = window.matchMedia("(max-width: 767px)").matches;
+    setPhone(isPhone);
     try {
       const s = JSON.parse(localStorage.getItem(key) ?? "null");
       if (s) {
         setDone(s.done);
-        setOpen(s.open);
-        setSmall(Boolean(s.small));
-      } else if (window.matchMedia("(max-width: 767px)").matches) {
-        // On a phone it starts as the small round button, so it does not sit on top of the page (#535).
-        setSmall(true);
-      }
-    } catch {}
+        // On a phone the tour is a sheet the person opens from More, and it never comes back open on its own on the next page (#1120).
+        setOpen(isPhone ? false : s.open);
+        setSmall(isPhone ? true : Boolean(s.small));
+      } else if (isPhone) setSmall(true);
+    } catch { if (isPhone) setSmall(true); }
+    setReady(true);
   }, [key]);
+  // On a phone the sheet puts itself away when a step's link (or anything else) opens another page, so it never follows the visitor around.
+  const path = usePathname();
+  useEffect(() => { if (window.matchMedia("(max-width: 767px)").matches) { setOpen(false); setSmall(true); } }, [path]);
+  // More's "Guided tour" row opens it (phones have no floating button).
+  useEffect(() => {
+    const show = () => { setSmall(false); setOpen(true); };
+    window.addEventListener(OPEN_TOUR, show);
+    return () => window.removeEventListener(OPEN_TOUR, show);
+  }, []);
   const save = (d: boolean[], o: boolean, sm = small) => {
     setDone(d);
     setOpen(o);
@@ -61,16 +76,18 @@ export function Tour({ guest = false, changes = false }: { guest?: boolean; /** 
     } catch {}
   };
   const count = done.filter(Boolean).length;
+  if (!ready) return null;
+  if (small && phone) return null;
   if (small) {
     return (
-      <button onClick={() => save(done, true, false)} aria-label={`Open the guided tour, ${count} of ${STEPS.length} done`} title="Guided tour" className="stock fixed right-4 bottom-4 max-md:[body:has(nav[aria-label=Tabs])_&]:bottom-20 z-40 flex h-11 items-center justify-center gap-1.5 rounded-full px-3.5 text-xs font-medium max-md:w-11 max-md:px-0">
+      <button onClick={() => save(done, true, false)} aria-label={`Open the guided tour, ${count} of ${STEPS.length} done`} title="Guided tour" className="stock fixed right-4 bottom-4 z-40 flex h-11 items-center justify-center gap-1.5 rounded-full px-3.5 text-xs font-medium">
         <Compass aria-hidden className="size-4 text-primary" />
         <span className="fig text-muted-foreground max-md:sr-only">{count}/{STEPS.length}</span>
       </button>
     );
   }
   return (
-    <div className="fixed right-4 bottom-4 max-md:[body:has(nav[aria-label=Tabs])_&]:bottom-20 z-40 w-[min(24rem,calc(100vw-2rem))] stock rounded-[var(--radius-card)]">
+    <div role={phone ? "dialog" : undefined} aria-label={phone ? "Guided tour" : undefined} className="fixed right-4 bottom-4 z-40 w-[min(24rem,calc(100vw-2rem))] stock rounded-[var(--radius-card)] max-md:inset-x-0 max-md:bottom-[calc(3.5rem+env(safe-area-inset-bottom))] max-md:w-auto max-md:rounded-b-none">
       <div className="flex items-center">
         <button onClick={() => save(done, !open)} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-2 py-3 pl-4 text-left text-sm font-medium">
           <Compass className="size-4 shrink-0 text-primary" />
@@ -79,12 +96,12 @@ export function Tour({ guest = false, changes = false }: { guest?: boolean; /** 
           <span className="ml-auto shrink-0 text-xs text-muted-foreground">{count}/{STEPS.length}</span>
           {open ? <ChevronDown className="size-4 shrink-0" /> : <ChevronUp className="size-4 shrink-0" />}
         </button>
-        <button onClick={() => save(done, false, true)} aria-label="Fold the guided tour away" title="Fold away" className="mr-2 ml-1 flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground">
-          <Minus aria-hidden className="size-4" />
+        <button onClick={() => save(done, false, true)} aria-label={phone ? "Close the guided tour" : "Fold the guided tour away"} title={phone ? "Close" : "Fold away"} className="mr-2 ml-1 flex size-8 max-md:size-11 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground">
+          {phone ? <X aria-hidden className="size-4" /> : <Minus aria-hidden className="size-4" />}
         </button>
       </div>
       {open && (
-        <ol className="space-y-1 border-t px-2 py-2">
+        <ol className="max-h-[40dvh] space-y-1 overflow-y-auto border-t px-2 py-2">
           {STEPS.map((s, i) => (
             <li key={i} className="flex gap-2 rounded-lg p-2 hover:bg-muted/60">
               <button aria-label="Mark done" onClick={() => save(done.map((d, j) => (j === i ? !d : d)), open)} className="mt-0.5 shrink-0">

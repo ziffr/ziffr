@@ -135,13 +135,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // Pinned dashboards (#509): only those this person may open now, with nothing but id and name.
   const pinned = await pinnedDashboards(await currentActor());
   const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, guest: role === "guest", demo: await demoEnabled(), sendFeedback: hostedByCloud(await settingsInEffect()) };
-  const demoControls = demo ? (
-    <>
-      <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} roles={await demoRoles()} />
-      {/* A full page load, not a client navigation (#14): the header is drawn again without the demo. */}
-      <a href="/demo/leave" className="flex h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">Leave the demo</a>
-    </>
-  ) : undefined;
+  // On a phone the demo bar is this one control; "Leave the demo" and the guided tour are in More.
+  const demoControls = demo ? <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} roles={await demoRoles()} /> : undefined;
   // The demo saves and sends nothing (spec 0021, #271): say so on every page, and where to get it for real when this Ziffr offers trials.
   // Where visitors may change the demo (spec 0051), the line also says when it starts fresh; elsewhere it stays as it was.
   const demoChanges = demo && demoChangesInEffect(await settingsInEffect());

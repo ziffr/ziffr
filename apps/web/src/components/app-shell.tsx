@@ -5,12 +5,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
-import { Activity, BarChart3, Blocks, Building2, CalendarClock, ChevronRight, ChevronsUpDown, CircleHelp, FlaskConical, Hash, KeyRound, ListChecks, LayoutDashboard, LogOut, MessageSquarePlus, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
+import { Activity, BarChart3, Blocks, Building2, CalendarClock, ChevronRight, ChevronsUpDown, CircleHelp, Compass, FlaskConical, Hash, KeyRound, ListChecks, LayoutDashboard, LogOut, MessageSquarePlus, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
 import { INSTALLATION, MAIN, PhoneAccount, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/nav-parts";
 import { PinnedDashboards, type Pinned } from "@/components/pinned-dashboards";
 import { useShownPins } from "@/components/demo-visit-prefs";
 import { SettingsNav } from "@/components/settings-nav";
 import { inSettings, onPage, type TreeLink } from "@/lib/settings-links";
+import { OPEN_TOUR } from "@/lib/open-tour";
 import { OPEN_SEARCH, SearchDialog } from "@/components/search-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -105,13 +106,13 @@ export function AppShell({ workspace, settings, pinned: pinnedByServer, due, acc
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>
-          <header className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-3 py-1 md:px-4">
+          <header className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-3 py-1 max-md:py-0.5 md:px-4">
             <SidebarTrigger className="hidden md:flex" />
             <Link href="/" className="text-base font-semibold tracking-[-0.03em] md:hidden">Ziffr</Link>
             {/* The demo's controls live in the sidebar footer like the signed-in menu; phones have no sidebar, so they keep this row. */}
-            {demo && <div className="ml-auto flex flex-wrap max-md:order-3 items-center gap-x-3 md:hidden [&_label]:text-xs [&_select]:h-7 [&_a]:h-7 [&_a]:text-xs">{demo}</div>}
+            {demo && <div className="ml-auto flex items-center md:hidden">{demo}</div>}
             {/* Help opens in the side panel: for this screen from here, at the list of chapters from the sidebar's Help entry. */}
-            <HelpButton guide={guide} className={demo ? "max-md:order-2 md:ml-auto" : "ml-auto"} />
+            <HelpButton guide={guide} className={demo ? "md:ml-auto" : "ml-auto"} />
           </header>
           {banners}
           <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-24 sm:px-6 md:pb-10">
@@ -350,7 +351,13 @@ function MoreRows({ pinned, workspace, account, guide, demoPages, onHelp }: { pi
       {demoPages && (
         <>
           <h2 className="mt-3 px-2 pb-1 text-xs font-medium text-muted-foreground">Your settings</h2>
-          <ul>{DEMO_PAGES.map((l) => link(l))}</ul>
+          <ul>
+            {DEMO_PAGES.map((l) => link(l))}
+            {/* The phone's demo bar is one row (Viewing as and Help); these two live here so nothing floats over the page. */}
+            <li><button type="button" className={cn(row, "w-full text-left")} aria-haspopup="dialog" onClick={() => { onHelp(); window.dispatchEvent(new Event(OPEN_TOUR)); }}><Compass aria-hidden />Guided tour</button></li>
+            {/* A full page load, not a client navigation (#14): the frame is drawn again without the demo. */}
+            <li><a href="/demo/leave" className={row}><LogOut aria-hidden />Leave the demo</a></li>
+          </ul>
         </>
       )}
       {account && (

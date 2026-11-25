@@ -19,6 +19,9 @@ beforeEach(() => {
 });
 afterEach(() => { act(() => root.unmount()); host.remove(); });
 
+/** The Dismiss button of a line (the phone's "show all" chevron comes first, so find it by its name). */
+const dismissButton = (el: ParentNode) => [...el.querySelectorAll("button")].find((b) => b.textContent?.includes("Dismiss this announcement")) ?? null;
+
 const draw = (scope: string) => act(() => root.render(<AnnouncementLine items={items} scope={scope} extra={{ "demo-reset": <span> Resets in 9 min.</span> }} />));
 
 describe("AnnouncementLine", () => {
@@ -26,11 +29,11 @@ describe("AnnouncementLine", () => {
     draw("s1");
     expect(host.querySelector("section")?.getAttribute("aria-label")).toBe("Announcement");
     expect(host.textContent).toContain("This is a shared demo. Resets in 9 min.");
-    expect(host.querySelector("button")?.textContent).toContain("Dismiss this announcement");
+    expect(dismissButton(host)).not.toBeNull();
   });
   it("is gone after Dismiss and stays gone for the visit, but comes back for a new one", () => {
     draw("s1");
-    act(() => host.querySelector("button")!.click());
+    act(() => dismissButton(host)!.click());
     expect(host.querySelector("section")).toBeNull();
     act(() => root.unmount());
     root = createRoot(host);
@@ -56,17 +59,19 @@ describe("AnnouncementLine with several", () => {
     const lines = [...host.querySelectorAll("section")];
     expect(lines.length).toBe(3);
     expect(lines[0].textContent).toContain("Warning: Down at six.");
-    expect(lines[0].querySelector("button")).toBeNull();
-    expect(lines[1].querySelector("button")).not.toBeNull();
+    expect(dismissButton(lines[0])).toBeNull();
+    expect(dismissButton(lines[1])).not.toBeNull();
   });
   it("shows three and the rest behind a named button, and dismissing one lets the next in", () => {
     drawMany();
     const more = [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("more"));
     expect(more?.textContent).toBe("+1 more announcement");
-    act(() => host.querySelectorAll("section")[1].querySelector("button")!.click());
+    act(() => dismissButton(host.querySelectorAll("section")[1])!.click());
     expect(host.textContent).not.toContain("One.");
     expect(host.textContent).toContain("Three.");
-    expect(host.textContent).not.toContain("more announcement");
+    expect(host.textContent).not.toContain("+1 more");
+    // A phone shows one line and says how many are behind "+N more".
+    expect(host.textContent).toContain("+2 more announcements");
   });
   it("opens an external link in a new tab safely, and renders markup as plain text", () => {
     act(() => root.render(<AnnouncementLine items={[{ id: "x", text: "<b>bold</b> [x](y)", link: { href: "https://status.example.org/", label: "Status" } }]} scope="s1" />));
