@@ -291,9 +291,9 @@ describe("the work bound", () => {
     const d = drawsOf(2);
     return Array.from({ length: m }, () => Array.from({ length: n }, () => f(d.z)));
   };
-  it("counts one run as n³ · Metrics · (1 + the widest value's size)², the size being 1 for any value in a machine word", () => {
+  it("counts one run as 20 · n³ · Metrics · (1 + the widest value's size in 64-bit words)², the size being 1 for any value in a machine word", () => {
     const p = prepared(bell(24, 3, 1));
-    expect(runWork(p)).toBe(24 ** 3 * 3 * 4);
+    expect(runWork(p)).toBe(20 * 24 ** 3 * 3 * 4);
     const wide = prepared([...bell(24, 2, 1).map((c) => c.map((v) => v * 1e25)), Array.from({ length: 24 }, (_, k) => k * 1e14 + (k % 5))]);
     expect(runWork(wide)).toBeGreaterThan(runWork(p));
   });

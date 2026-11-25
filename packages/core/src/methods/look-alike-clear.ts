@@ -113,11 +113,18 @@ const reaches = (shuffle: Gap | null, real: Gap): boolean => shuffle !== null &&
 
 const FLOOR: Gap = { num: BigInt(CLEARNESS.floor), den: ONE };
 
-/** The units of work one run of the Method (the real kinds, or one shuffle) is counted as: about n³ steps of the joining, each over the Metrics and as dear as the square of the widest value's size. */
+/** The units of work one run of the Method (the real kinds, or one shuffle) is counted as: about n³ steps of the joining, each over the Metrics and as dear as the square of
+ * the widest value's size in 64-bit words, the values as whole numbers on one denominator per Metric (plus one, for the rest of the number), times 20. Calibrated on the time of a run: values to the cent, to 17 digits and of 17 digits
+ * over 24 orders of magnitude take 1 : 2.4 : 5.5, and (1 + words)² is 4 : 9 : 16; at 20 units for about a nanosecond a Look-alike of 6 Metrics over 60 periods to the cent
+ * spends about three tenths of the allowance (a third at most), and values of 24 orders of magnitude with 17 digits each (about 2 seconds) are refused. */
 export function runWork(prepared: Prepared): number {
   const n = prepared.periods.length;
-  const widest = prepared.values.reduce((w, col) => col.reduce((v, f) => Math.max(v, digits(f.num), digits(f.den)), w), 1);
-  return n * n * n * prepared.ids.length * (1 + widest) ** 2;
+  // The values as whole numbers on one denominator per Metric, as the Method works on them: those are the numbers that are multiplied.
+  const widest = prepared.values.reduce((w, col) => {
+    const lcm = col.reduce((l, f) => (l / gcd(l, f.den)) * f.den, ONE);
+    return col.reduce((v, f) => Math.max(v, digits(f.num * (lcm / f.den))), w);
+  }, 1);
+  return 20 * n * n * n * prepared.ids.length * (1 + Math.ceil(widest / 16)) ** 2;
 }
 
 /** The check of kinds already found (`gap` the real kinds' gap², `kinds` the count asked for): the 99 shuffles one by one, each counted as `work` units of the running bound. With `early` it stops at the first shuffle that decides the verdict (more than `allowed` have reached the gap), so `reached` is then only as large as needed. */

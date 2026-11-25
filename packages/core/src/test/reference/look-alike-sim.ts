@@ -149,3 +149,9 @@ export function mostClear(rate: number, runs: number = RUNS): number {
   const exact = runs * rate;
   return FULL ? exact : Math.floor(exact + 3 * Math.sqrt(runs * rate * (1 - rate)));
 }
+
+/** The fewest runs of `runs` that must be called clear where the rate is at least `rate`: exactly the rate at full size, at the quick size the rate less three standard deviations of a sample of that size. */
+export function leastClear(rate: number, runs: number = RUNS): number {
+  const exact = runs * rate;
+  return FULL ? exact : Math.ceil(exact - 3 * Math.sqrt(runs * rate * (1 - rate)));
+}
