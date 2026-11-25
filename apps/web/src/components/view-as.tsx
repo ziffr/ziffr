@@ -9,13 +9,13 @@ const ROLE_NAMES: Record<string, string> = { owner: "Owner", admin: "Admin", mem
 export function ViewAs({ profiles, current, roles }: { profiles: Profile[]; current: string; roles: Record<string, string> }) {
   const [pending, start] = useTransition();
   return (
-    <label className="flex items-center gap-2 text-sm">
-      <span className="text-muted-foreground">Viewing as</span>
+    <label className="flex items-center gap-2 text-sm max-md:text-xs">
+      <span className="text-muted-foreground max-[359px]:sr-only">Viewing as</span>
       <select
         value={current}
         disabled={pending}
         onChange={(e) => start(() => setViewer(e.target.value))}
-        className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 font-medium"
+        className="h-9 max-md:h-11 max-md:text-base rounded-[var(--radius-input)] border border-input bg-card px-2 font-medium"
       >
         {profiles.map((p) => (
           <option key={p.id} value={p.id}>

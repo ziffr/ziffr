@@ -233,7 +233,7 @@ Owners and Admins see an **Announcements** section on the General page, below Re
 - **Cannot be dismissed**: people see no Dismiss button, so keep it for what must be read.
 - **Switched on**.
 
-Under the fields, a **Preview** shows the line as people will see it. **Change** on a row opens the same panel. **Switch off** keeps an Announcement for later and **Switch on** brings it back; **Delete** asks first and removes it for good. At most 10 can be on at once and a Workspace keeps at most 50; a refusal says so in the panel. People see them below the Installation's own lines (see [Announcements](17-your-settings.md#announcements)), three at once with the rest behind **+N more**. Each change is in the Audit log, with the words as they were. The demo has no Workspace Announcements.
+Under the fields, a **Preview** shows the line as people will see it. **Change** on a row opens the same panel. **Switch off** keeps an Announcement for later and **Switch on** brings it back; **Delete** asks first and removes it for good. At most 10 can be on at once and a Workspace keeps at most 50; a refusal says so in the panel. People see them below the Installation's own lines (see [Announcements](17-your-settings.md#announcements)), three at once with the rest behind **+N more** (on a phone, one line at a time: see [Announcements](17-your-settings.md#announcements)). Each change is in the Audit log, with the words as they were. The demo has no Workspace Announcements.
 
 ### Encryption
 
