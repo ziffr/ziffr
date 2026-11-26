@@ -2,8 +2,10 @@
 // drawn from its default Theme: logo (or the Workspace's name), accent, footer. Table layout with inline styles, a
 // web-safe font stack, colours that stay readable when the reader's mail app is dark (a media query for the clients
 // that honour it, and the light colours already checked for contrast for the ones that do not). Everything a person
-// wrote is escaped, and a link is made only from an https: or http: address. The plain-text part is the caller's own
-// text and is always sent too. Pure.
+// wrote is escaped, and a link is made only from an https: or http: address. No whole address is shown as text: the
+// action the caller names is a button, and every address in the words shows where it leads, cut short (mail-links.ts).
+// The plain-text part is the caller's own text and is always sent too. Pure.
+import { aroundAction, shownTarget, unlinked, type MailAction } from "./mail-links";
 import { contrastRatio, onFill, readableOn, type ThemeLook } from "./theme-look";
 import { FONTS } from "./themes";
 
@@ -30,24 +32,30 @@ export function emailLogo(look: Pick<ThemeLook, "logo">, max = 150_000): { conte
   return content.length > 0 && content.length <= max ? { content, contentType } : null;
 }
 
-/** What an email says, besides the brand: its paragraphs (the plain text, blank lines between them), a line under it
- * for the one-click stop link, and a short line shown before it opens (the preheader). */
-export type EmailContent = { text: string; stop?: { label: string; url: string }; preheader?: string;
-  /** One button under the text (a sign-in link): its label and address. The address is also printed once under the
-   * button, small and not as a link, for the reader whose app does not draw buttons. `after` is the paragraphs below it. */
-  action?: { label: string; url: string; fallback: string }; after?: string;
+/** What an email says, besides the brand: its paragraphs (the plain text, blank lines between them), the stop link for
+ * its footer, and a short line shown before it opens (the preheader). */
+export type EmailContent = { text: string;
+  /** The one-click stop link Ziffr added, shown in the footer as the words `link` (else `label`). */
+  stop?: { label: string; url: string; link?: string }; preheader?: string;
+  /** The button, where the line of the text that ends with its address stood. Only an address Ziffr itself added:
+   * without one there is no button, whatever the text holds. */
+  action?: MailAction;
   /** Who is really behind the message, in Ziffr's own words; a fixed line in the footer that no Theme can change or remove. */
   sentBy?: string };
 
-// Text becomes paragraphs; an address that starts with https:// or http:// becomes a link; a "> " line is a quote.
+// An address is linked only when it starts with https:// or http://.
+const safeUrl = (u: string) => /^https?:\/\//i.test(u) ? u : "#";
+
+// Text becomes paragraphs; an address becomes a link that shows where it leads; a "> " line is a quote.
 function paragraphs(text: string, accent: string, rule: string): string {
-  const link = (line: string) => line.split(/(https?:\/\/[^\s<>"']+)/g).map((part, i) => {
+  const link = (line: string) => line.split(/(<https?:\/\/[^\s<>"']+>|https?:\/\/[^\s<>"']+)/g).map((part, i) => {
     if (i % 2 === 0) return esc(part);
-    const url = part.replace(/[.,;:!?)]+$/, "");
-    const rest = part.slice(url.length);
-    return `<a href="${esc(url)}" class="accent" style="color:${accent};text-decoration:underline;">${esc(url)}</a>${esc(rest)}`;
+    const bracketed = part.startsWith("<");
+    const url = bracketed ? part.slice(1, -1) : part.replace(/[.,;:!?)]+$/, "");
+    const rest = bracketed ? "" : part.slice(url.length);
+    return `<a href="${esc(url)}" class="accent" style="color:${accent};text-decoration:underline;word-break:break-word;">${esc(shownTarget(url))}</a>${esc(rest)}`;
   }).join("");
-  return text.replace(/\r\n?/g, "\n").trim().split(/\n{2,}/).map((block) => {
+  return text.replace(/\r\n?/g, "\n").trim().split(/\n{2,}/).filter(Boolean).map((block) => {
     const lines = block.split("\n");
     const quoted = lines.every((l) => l.startsWith(">"));
     const inner = lines.map((l) => link(quoted ? l.replace(/^>\s?/, "") : l)).join("<br>");
@@ -73,11 +81,13 @@ export function emailHtml(look: ThemeLook, content: EmailContent, opts: { logo?:
   const stack = (s: string) => s.replace(/"/g, "'");
   const width = Math.min(look.logoWidth, 200);
   const height = Math.max(16, Math.min(56, Math.round(width / look.logoRatio)));
+  // A name people chose is never a link in the header or the footer, also not one a mail app would make by itself.
+  const name = unlinked(look.name);
   const header = opts.logo
-    ? `<img src="cid:${LOGO_CID}" alt="${esc(look.name)}" height="${height}" style="display:block;height:${height}px;width:auto;max-width:200px;border:0;">`
-    : `<span class="ink" style="font:600 20px/1.2 ${stack(heading)};color:${base.ink};">${esc(look.name)}</span>`;
+    ? `<img src="cid:${LOGO_CID}" alt="${esc(name)}" height="${height}" style="display:block;height:${height}px;width:auto;max-width:200px;border:0;">`
+    : `<span class="ink" style="font:600 20px/1.2 ${stack(heading)};color:${base.ink};">${esc(name)}</span>`;
   // Ziffr's own identity stays in every email: whatever the Theme's footer says, this line says who sent it and through what.
-  const footer = [look.footer, content.sentBy ?? `Sent by Ziffr for ${look.name}`].filter(Boolean);
+  const footer = [unlinked(look.footer), content.sentBy ?? `Sent by Ziffr for ${name}`].filter(Boolean);
   const css = `
     :root { color-scheme: light dark; supported-color-schemes: light dark; }
     ${themeIsDark || opts.scheme ? "" : `@media (prefers-color-scheme: dark) {
@@ -90,19 +100,27 @@ export function emailHtml(look: ThemeLook, content: EmailContent, opts: { logo?:
       .btn { color: ${onFill(night.accent)} !important; }
       .rule { border-color: ${night.rule} !important; }
     }`}`;
-  const safeUrl = (u: string) => /^https?:\/\//i.test(u) ? u : "#";
-  const action = content.action ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 16px;"><tr><td class="bar" align="center" style="background-color:${base.accent};border-radius:6px;"><a href="${esc(safeUrl(content.action.url))}" class="btn" style="display:inline-block;padding:12px 24px;font:600 16px/1.2 ${stack(heading)};color:${onFill(base.accent)};text-decoration:none;border-radius:6px;">${esc(content.action.label)}</a></td></tr></table><p class="muted" style="margin:0 0 16px;font-size:12px;line-height:1.5;color:${base.muted};word-break:break-all;">${esc(content.action.fallback)}<br>${esc(content.action.url)}</p>${content.after ? paragraphs(content.after, base.accent, base.rule) : ""}` : "";
-  const stop = content.stop ? `<p class="muted" style="margin:16px 0 0;font-size:13px;line-height:1.5;color:${base.muted};">${esc(content.stop.label)}: <a href="${esc(content.stop.url)}" class="accent" style="color:${base.accent};text-decoration:underline;">${esc(content.stop.url)}</a></p>` : "";
+  const { action } = content;
+  const prose = (text: string) => paragraphs(text, base.accent, base.rule);
+  // A button every mail app draws: the colour is the table cell's, and so is the padding for Outlook, which ignores a
+  // link's own; a reader's dark mode changes the colours through the classes.
+  const button = (a: MailAction) => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;border-collapse:separate;"><tr><td class="bar" align="center" bgcolor="${base.accent}" style="background-color:${base.accent};border-radius:6px;mso-padding-alt:14px 28px;"><a href="${esc(safeUrl(a.url))}" class="btn" style="display:inline-block;padding:14px 28px;font:600 16px/1.2 ${stack(heading)};color:${onFill(base.accent)};text-decoration:none;border-radius:6px;">${esc(a.label)}</a></td></tr></table>`;
+  let words: string;
+  if (action) {
+    const { before, after } = aroundAction(content.text, action.url);
+    words = `${prose(before)}${button(action)}${prose(after)}`;
+  } else words = prose(content.text);
+  const stop = content.stop ? `<p style="margin:0 0 8px;font-size:13px;"><a href="${esc(safeUrl(content.stop.url))}" class="muted" style="color:${base.muted};text-decoration:underline;">${esc(content.stop.link ?? content.stop.label)}</a></p>` : "";
   const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${esc(look.name)}</title><style>${css}</style></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${esc(name)}</title><style>${css}</style></head>
 <body class="bg" style="margin:0;padding:0;background-color:${base.canvas};">
 ${content.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(content.preheader)}</div>` : ""}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg" style="background-color:${base.canvas};"><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="card" style="max-width:560px;background-color:${base.surface};border-radius:8px;overflow:hidden;">
 <tr><td class="bar" height="4" style="height:4px;line-height:4px;font-size:4px;background-color:${base.accent};">&nbsp;</td></tr>
 <tr><td style="padding:24px 28px 8px;">${header}</td></tr>
-<tr><td class="ink" style="padding:8px 28px 24px;font:16px/1.55 ${stack(body)};color:${base.ink};">${paragraphs(content.text, base.accent, base.rule)}${action}${stop}</td></tr>
-<tr><td class="rule muted" style="padding:16px 28px;border-top:1px solid ${base.rule};font:12px/1.5 ${stack(body)};color:${base.muted};">${footer.map(esc).join("<br>")}</td></tr>
+<tr><td class="ink" style="padding:8px 28px 24px;font:16px/1.55 ${stack(body)};color:${base.ink};">${words}</td></tr>
+<tr><td class="rule muted" style="padding:16px 28px;border-top:1px solid ${base.rule};font:12px/1.5 ${stack(body)};color:${base.muted};">${stop}${footer.map(esc).join("<br>")}</td></tr>
 </table></td></tr></table></body></html>`;
   return html;
 }
