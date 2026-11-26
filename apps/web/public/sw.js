@@ -12,7 +12,8 @@
 // where sign-in happens or programs connect: sign-in links and /auth/callback, /login, the API, the MCP and OAuth
 // routes, and /.well-known.
 
-const CACHE = "ziffr-shell-v1";
+// A changed offline.html needs a new name here: only a changed worker fetches the shell again.
+const CACHE = "ziffr-shell-v2";
 const OFFLINE = "/offline.html";
 const SHELL = [OFFLINE];
 const HANDS_OFF = [/^\/auth\//, /^\/login(\/|$)/, /^\/api\//, /^\/mcp(\/|$)/, /^\/oauth(\/|$)/, /^\/\.well-known\//];

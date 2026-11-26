@@ -6,15 +6,15 @@
 // does not show it (no flash of the setup, no layout jump); desktop and tablet widths never wait.
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { PHONE_TOUCH } from "@/lib/use-media";
 import { PHONE_ACTIONS, PHONE_BUTTON } from "./phone";
 
 const SEEN_KEY = "ziffr.phone-note-seen";
-const PHONE = "(max-width: 640px) and (pointer: coarse)";
 
 /** Whether the note is shown, in this browser. Any storage failure counts as already seen: never nag. */
 function shouldShow(): boolean {
   try {
-    return window.matchMedia(PHONE).matches && window.localStorage.getItem(SEEN_KEY) === null;
+    return window.matchMedia(PHONE_TOUCH).matches && window.localStorage.getItem(SEEN_KEY) === null;
   } catch {
     return false;
   }

@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import "./globals.css";
 import { dueValueCount, getPeopleIn, getProfiles } from "@/lib/data";
 import { currentActor, currentWorkspaceId, myWorkspaces, viewerId } from "@/lib/viewer";
@@ -47,23 +47,17 @@ import { LegalFooter } from "@/components/legal-footer";
 import { QuickLookHost } from "@/components/metric-quick-look";
 import { MetricActionsHost } from "@/components/metric-actions-panel";
 import { ServiceWorker } from "@/components/service-worker";
-import { APP_COLOURS } from "@/lib/app-colours";
+import { ThemeColour } from "@/components/theme-colour";
+import { HomeScreenHint } from "@/components/home-screen-hint";
 import { appearanceFor, appearanceForPerson } from "@/lib/appearance";
 
 export const metadata: Metadata = {
   title: "Ziffr",
   description: "Ziffr keeps the record of your numbers: define any number you care about, collect its values from people and systems, and see, share and discuss them over time. A metric tracker for anyone.",
-  // Installable (#143): manifest.ts is linked by Next itself; iOS reads its own tags for "Add to Home Screen".
+  // Installable (#143): manifest.ts is linked by Next itself; iOS reads its own tags for "Add to Home Screen". There is
+  // deliberately no viewport-fit=cover: without it a phone keeps the page clear of the notch and the home bar by itself.
   icons: { icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }], apple: "/icons/apple-touch-icon.png" },
   appleWebApp: { capable: true, title: "Ziffr", statusBarStyle: "default" },
-};
-
-/** The browser's colour around the page (address bar, installed app's title bar), as the manifest's. */
-export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: APP_COLOURS.background },
-    { media: "(prefers-color-scheme: dark)", color: APP_COLOURS.backgroundDark },
-  ],
 };
 
 export const dynamic = "force-dynamic";
@@ -74,6 +68,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     return (
       <html lang="en">
         <head>
+          <ThemeColour appearance="light" />
           <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
           {/* eslint-disable-next-line @next/next/no-page-custom-font */}
           <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
@@ -90,9 +85,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   if (!demo && !workspaces.length) {
     // Signed in without a Workspace yet: the Installation's lines still show (the same read as the shell, nothing of a person).
     const lines = user ? fromInstallation(await activeInstallationAnnouncements({ demo: false })) : [];
+    const appearance = await appearanceForPerson(person);
     return (
-      <html lang="en" data-appearance={await appearanceForPerson(person)}>
+      <html lang="en" data-appearance={appearance}>
         <head>
+          <ThemeColour appearance={appearance} />
           <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
           {/* eslint-disable-next-line @next/next/no-page-custom-font */}
           <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
@@ -163,11 +160,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       {/* Under the trial bar (spec 0052). */}
       {setup.shown && <SetupLine done={setup.done} total={setup.total} next={setup.next} />}
       {overLimit && <OverLimitBar words={overLimit} />}
+      {/* After signing in, once, on a phone (spec 0055): the demo is no sign-in, and an ended trial has nothing to come back to. */}
+      {!demo && !trial?.ended && <HomeScreenHint wait={setup.shown} />}
     </>
   );
+  const appearance = await appearanceFor(actor, demo);
   return (
-    <html lang="en" data-appearance={await appearanceFor(actor, demo)}>
+    <html lang="en" data-appearance={appearance}>
       <head>
+        <ThemeColour appearance={appearance} />
         <link rel="preconnect" href="https://api.fontshare.com" />
         {/* App Router root layout: these load on every route. */}
         <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
