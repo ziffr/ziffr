@@ -132,7 +132,7 @@ describe("confirming a View Link", () => {
     expect(mail.sent).toHaveLength(1);
     expect(mail.sent[0]).toMatchObject({ to: "jenny@example.test", subject: "Numbers were shared with you on Ziffr" });
     expect(mail.sent[0].text).toContain(`https://ziffr.example.test${done.linkPath}`);
-    // The button is the link Ziffr made, handed on as the action.
+    // The button is the link Ziffr made, handed on by the sender, never looked for in the words.
     expect(mail.sent[0].button).toBe(`https://ziffr.example.test${done.linkPath}`);
     expect(mail.sent[0].text).toContain("> the coffee numbers.");
     expect(mail.sent[0].text).toContain("written by the sender");
