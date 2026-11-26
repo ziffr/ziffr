@@ -35,7 +35,7 @@ export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { 
   const first = fromGuide && fit && suited.length > 0 && !onlySuited ? shown.filter((c) => suits(c, fit)) : [];
   const groups = [...(first.length ? [[`For ${fit!.label}`, first] as const] : []), ...Object.entries(Object.groupBy(first.length ? shown.filter((c) => !first.includes(c)) : shown, (c) => c.category))];
   const restFrom = first.length ? 1 : -1;
-  const chip = (active: boolean) => cn("rounded-full border px-3 py-1 text-xs", active ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-muted/60");
+  const chip = (active: boolean) => cn("inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 py-1 text-sm sm:min-h-0 sm:text-xs", active ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-muted/60");
 
   return (
     <>
@@ -44,7 +44,8 @@ export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { 
           <Search aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input type="search" aria-label="Search the Metric Catalog" placeholder="Search, e.g. churn, margin, tickets" value={query} onChange={(e) => setQuery(e.target.value)} className="pl-8" />
         </div>
-        <div role="group" aria-label="Category" className="flex flex-wrap gap-1.5">
+        {/* On a phone the chips are one row that scrolls sideways (with a fade where it goes on), so the first entry is not pushed below the fold. */}
+        <div role="group" aria-label="Category" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(to_right,#000_calc(100%-2rem),transparent)] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 sm:[mask-image:none] [&::-webkit-scrollbar]:hidden">
           {suited.length > 0 && <button type="button" aria-pressed={onlySuited} onClick={() => setOnlySuited(!onlySuited)} className={chip(onlySuited)}>For {fit!.label} ({suited.length})</button>}
           <button type="button" aria-pressed={category === null} onClick={() => setCategory(null)} className={chip(category === null)}>All ({items.length})</button>
           {categories.map((cat) => (
@@ -70,8 +71,8 @@ export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { 
                 {list!.map((c) => (
                   <Link key={c.id} href={`/metrics/new?catalog=${c.id}${fromGuide ? "&setup=1" : ""}`} className="stock rounded-[var(--radius-card)] p-4 transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)]">
                     <div className="font-medium">{c.name}</div>
-                    <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{c.description}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-[var(--color-ink-2)]">
+                    <p className="mt-1 line-clamp-3 text-sm text-muted-foreground sm:text-xs">{c.description}</p>
+                    <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-[var(--color-ink-2)] max-sm:text-sm">
                       <span className="rounded bg-muted px-1.5 py-0.5">{PERIOD_LABEL[c.period]}</span>
                       <span className="rounded bg-muted px-1.5 py-0.5">{POLARITY_LABEL[c.polarity]}</span>
                       <span className="rounded bg-muted px-1.5 py-0.5">Target {targetText({ ...c, ...(c.format === "currency" ? money : {}), target_min: c.target_min === null ? null : Number(c.target_min), target_max: c.target_max === null ? null : Number(c.target_max) }, numberStyle)}</span>

@@ -252,9 +252,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             <section className="stock rounded-[var(--radius-card)] p-5">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-medium">Comparisons</h2>
-                <nav aria-label="Comparison mode" className="flex gap-1 text-xs">
-                  <Link href={at()} scroll={false} aria-current={!sp.full ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 no-underline", !sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>To date</Link>
-                  <Link href={at({ full: "1" })} scroll={false} aria-current={sp.full ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 no-underline", sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Full periods</Link>
+                <nav aria-label="Comparison mode" className="flex gap-1 text-sm sm:text-xs">
+                  <Link href={at()} scroll={false} aria-current={!sp.full ? "true" : undefined} className={cn("inline-flex min-h-11 items-center rounded-[var(--radius-input)] px-3 no-underline sm:min-h-0 sm:px-2 sm:py-1", !sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>To date</Link>
+                  <Link href={at({ full: "1" })} scroll={false} aria-current={sp.full ? "true" : undefined} className={cn("inline-flex min-h-11 items-center rounded-[var(--radius-input)] px-3 no-underline sm:min-h-0 sm:px-2 sm:py-1", sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Full periods</Link>
                 </nav>
               </div>
               <CompareTable numberStyle={numberStyle} attainmentMethod={attainmentMethod} metric={metric} resolve={resolverFrom(metrics, series)} targets={tSeries} full={Boolean(sp.full)} yearStart={yearStart} />
