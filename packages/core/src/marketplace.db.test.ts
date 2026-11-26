@@ -4,7 +4,7 @@
 // answers too big or malformed are refused; and updates are asked for the whole Installation at once.
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "./db";
-import { checkMarketplaceVersions, installFromMarketplace, marketplaceTransport, marketplaceUpdates, readMarketplacePack, searchMarketplace, updateFromMarketplace, MarketplaceUnavailable } from "./marketplace";
+import { checkMarketplaceVersions, installFromMarketplace, marketplaceReportLinks, marketplaceTransport, marketplaceUpdates, marketplaceWithdrawals, readMarketplacePack, searchMarketplace, updateFromMarketplace, MarketplaceUnavailable } from "./marketplace";
 import { listInstalledPacks } from "./packs";
 import { updatePackFile } from "./pack-updates";
 import { forgetStoredSettings } from "./settings-in-effect";
@@ -49,6 +49,7 @@ beforeEach(async () => {
   forgetStoredSettings();
   await db().from("marketplace_checks").delete().eq("only_row", true);
   await db().from("marketplace_versions").delete().neq("pack_id", "");
+  await db().from("marketplace_withdrawals").delete().neq("pack_id", "");
   // Only this run's test keys: whatever else the database holds stays.
   await db().from("marketplace_revoked_keys").delete().in("key_id", [keys.id, reserve.id]);
 });
@@ -73,6 +74,85 @@ describe("the Marketplace connection", () => {
     const found = await searchMarketplace(w.actor(ann), "  saas   metrics ");
     expect(found.map((p) => p.id)).toEqual(["ziffr/saas-metrics"]);
     expect(sent).toEqual([{ method: "GET", url: "https://market.example.com/v1/packs?q=saas%20metrics", body: undefined }]);
+  });
+
+  it("keeps what the updates answer says was withdrawn, tells the Workspaces that installed it, and removes nothing", async () => {
+    const w = await ws(); const ann = await w.person("owner"); const mia = await w.person("member"); const gus = await w.person("guest");
+    const other = await ws(); const zoe = await other.person("owner");
+    const id = await installFromMarketplace(w.actor(ann), "ziffr/saas-metrics", "1.2.0", { assistantTexts: true });
+    const ask = async (answer: object) => { answers["POST /v1/updates"] = () => ({ status: 200, body: JSON.stringify(answer) }); await checkMarketplaceVersions(true); };
+    const told = () => marketplaceWithdrawals(w.actor(ann));
+    await ask({ updates: [{ id: "ziffr/saas-metrics", version: "1.3.0" }] });
+    expect(await told()).toEqual([]);
+    expect(await marketplaceUpdates(w.actor(ann))).toHaveLength(1);
+    const withdrawn = { id: "ziffr/saas-metrics", reason: "It copied another Pack." };
+    // Hostile entries: a Pack that was not asked about, a reason with a link, a reason too long, nonsense.
+    await ask({ updates: [], withdrawn: [{ id: "someone/not-asked", reason: "x" }, { ...withdrawn, reason: "See https://evil.example now." }, { ...withdrawn, reason: "x".repeat(201) }, null, "no"] });
+    expect(await told()).toEqual([]);
+    await ask({ updates: [], withdrawn: [withdrawn] });
+    expect(await told()).toEqual([{ installId: id, reason: "It copied another Pack." }]);
+    expect(await marketplaceUpdates(w.actor(ann))).toEqual([]);
+    expect(await marketplaceWithdrawals(w.actor(mia, "member"))).toHaveLength(1);
+    expect(await marketplaceWithdrawals(w.actor(gus, "guest"))).toEqual([]);
+    expect(await marketplaceWithdrawals(other.actor(zoe))).toEqual([]);
+    // The installed copy stays as it is.
+    expect((await listInstalledPacks(w.actor(ann)))[0]).toMatchObject({ version: "1.2.0", source: "marketplace" });
+    expect((await db().from("marketplace_withdrawals").select("pack_id")).data).toEqual([{ pack_id: "ziffr/saas-metrics" }]);
+    // An answer without the field, from a Marketplace that does not send it, changes nothing; so does a bad reason now.
+    await ask({ updates: [] });
+    await ask({ updates: [], withdrawn: [{ ...withdrawn, reason: "<b>bold</b>" }] });
+    expect(await told()).toHaveLength(1);
+    // Still said with the connection off.
+    process.env.ZIFFR_MARKETPLACE = "off";
+    expect(await told()).toHaveLength(1);
+    process.env.ZIFFR_MARKETPLACE = "on";
+    // Updated from a file, it is no longer the Marketplace's Pack.
+    await ask({ updates: [], withdrawn: [] });
+    expect(await told()).toEqual([]);
+    await ask({ updates: [], withdrawn: [withdrawn] });
+    await updatePackFile(w.actor(ann), id, JSON.stringify({ ...NO_THEMES, version: "1.4.0" }), { unsigned: true, assistantTexts: true });
+    expect(await told()).toEqual([]);
+  });
+
+  it("links to the report form on a Preview and for installed Marketplace Packs, only while the connection is on", async () => {
+    const w = await ws(); const ann = await w.person("owner"); const mia = await w.person("member"); const gus = await w.person("guest");
+    const form = "https://market.example.com/packs/ziffr/saas-metrics/report?version=1.2.0";
+    const read = await readMarketplacePack(w.actor(ann), "ziffr/saas-metrics", "1.2.0");
+    expect(read.ok && read.preview.report).toBe(form);
+    const id = await installFromMarketplace(w.actor(ann), "ziffr/saas-metrics", "1.2.0", { assistantTexts: true });
+    sent = [];
+    expect(await marketplaceReportLinks(w.actor(ann))).toEqual([{ installId: id, address: form }]);
+    expect(await marketplaceReportLinks(w.actor(mia, "member"))).toHaveLength(1);
+    expect(await marketplaceReportLinks(w.actor(gus, "guest"))).toEqual([]);
+    const other = await ws(); const zoe = await other.person("owner");
+    expect(await marketplaceReportLinks(other.actor(zoe))).toEqual([]);
+    // Updated from a file, it is no longer the Marketplace's Pack.
+    await updatePackFile(w.actor(ann), id, JSON.stringify({ ...NO_THEMES, version: "1.4.0" }), { unsigned: true, assistantTexts: true });
+    expect(await marketplaceReportLinks(w.actor(ann))).toEqual([]);
+    process.env.ZIFFR_MARKETPLACE = "off";
+    expect(await marketplaceReportLinks(w.actor(ann))).toEqual([]);
+    // A link is only built: nothing goes to the Marketplace.
+    expect(sent).toEqual([]);
+  });
+
+  it("keeps a listing's mark of a new creator, and only a true one", async () => {
+    const w = await ws(); const ann = await w.person("owner");
+    const base = { name: "N", summary: "S.", author: "A", license: "MIT", version: "1.0.0" };
+    answers["GET /v1/packs"] = () => ({ status: 200, body: JSON.stringify({ packs: [{ ...base, id: "a/new", newCreator: true, more: "ignored" }, { ...base, id: "a/old", newCreator: false }, { ...base, id: "a/odd", newCreator: "yes" }] }) });
+    expect(await searchMarketplace(w.actor(ann), "")).toEqual([{ ...base, id: "a/new", newCreator: true }, { ...base, id: "a/old" }]);
+    expect(sent.at(-1)!.url).toBe("https://market.example.com/v1/packs?q=");
+  });
+
+  it("remembers whether the statement says a moderator looked, from the Preview to the installed Pack and its updates", async () => {
+    const w = await ws(); const ann = await w.person("owner");
+    answers["GET /v1/packs/ziffr/saas-metrics/versions/1.2.0"] = () => ({ status: 200, body: JSON.stringify(keys.version(V120, { reviewed: true })) });
+    const read = await readMarketplacePack(w.actor(ann), "ziffr/saas-metrics", "1.2.0");
+    expect(read.ok && read.preview.reviewed).toBe(true);
+    const id = await installFromMarketplace(w.actor(ann), "ziffr/saas-metrics", "1.2.0", { assistantTexts: true });
+    expect((await listInstalledPacks(w.actor(ann)))[0].reviewed).toBe(true);
+    // The next version's statement says nobody looked: the mark goes with it.
+    await updateFromMarketplace(w.actor(ann), id, "1.3.0", { assistantTexts: true });
+    expect((await listInstalledPacks(w.actor(ann)))[0]).toMatchObject({ version: "1.3.0", reviewed: false });
   });
 
   it("installs a Pack whose signature holds, as from the Marketplace, without the upload warning", async () => {

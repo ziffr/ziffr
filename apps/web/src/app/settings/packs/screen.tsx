@@ -4,7 +4,7 @@
 // renderer with Sample Data; its only links are its listing's, shown as plain links that tell the site nothing.
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Package, TriangleAlert, Upload } from "lucide-react";
+import { Flag, Package, TriangleAlert, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,16 @@ const ORDER: PackPreviewItem["kind"][] = ["metric", "dashboard", "deck", "workfl
 
 /** A listing's address as a plain link: https only, and the site learns nothing of where the person came from. A
  * link of a Pack nobody signed names its host and says so, so it never passes for one of Ziffr's own. */
+/** "Report this Pack": opens the Marketplace's report form in a new tab, which learns nothing of where the person came
+ * from; Ziffr's server sends nothing. The address is built by the core from checked parts. */
+function ReportLink({ href, name }: { href: string; name: string }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" aria-label={`Report this Pack, ${name}, on the Marketplace (opens a new tab)`} className="inline-flex min-h-9 items-center gap-1 text-xs underline">
+      <Flag aria-hidden className="size-3" /> Report this Pack
+    </a>
+  );
+}
+
 function ListingLink({ href, children, unsigned = false }: { href?: string; children: React.ReactNode; unsigned?: boolean }) {
   if (!href || !href.startsWith("https://")) return null;
   let host = "";
@@ -44,7 +54,7 @@ function ListingLink({ href, children, unsigned = false }: { href?: string; chil
   );
 }
 
-export function PacksScreen({ installed, manages, exportable = null, authorName = "", offers = [], included = [], marketplace = false, updates = [], demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; authorName?: string; offers?: OfferedItem[]; included?: IncludedPackListing[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
+export function PacksScreen({ installed, manages, exportable = null, authorName = "", offers = [], included = [], marketplace = false, updates = [], reports = [], withdrawn = [], demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; authorName?: string; offers?: OfferedItem[]; included?: IncludedPackListing[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; reports?: { installId: number; address: string }[]; withdrawn?: { installId: number; reason: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
   return (
     <div className="space-y-8">
       {manages && <Offers offers={offers} />}
@@ -61,8 +71,11 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
                       <span className="fig text-muted-foreground">{p.version}</span>
                       <span className="text-xs text-muted-foreground">{p.license}</span>
                     </div>
-                    <div className="mt-2"><Publisher author={p.author} logo={p.logo} id={p.packId} signed={p.signed} fromMarketplace={p.source === "marketplace"} included={p.source === "included"} /></div>
+                    <div className="mt-2"><Publisher author={p.author} logo={p.logo} id={p.packId} signed={p.signed} fromMarketplace={p.source === "marketplace"} included={p.source === "included"} reviewed={p.reviewed} /></div>
                     <p className="mt-1 text-muted-foreground">{p.summary}</p>
+                    {withdrawn.filter((w) => w.installId === p.id).map((w) => (
+                      <p key={w.installId} className="mt-2 flex items-start gap-2 rounded-[var(--radius-input)] border border-destructive/40 p-2.5"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> <span className="min-w-0 break-words"><span className="font-medium">Withdrawn from the Marketplace:</span> {w.reason} What you installed stays as it is.</span></p>
+                    ))}
                     <p className="mt-1 text-xs text-muted-foreground">
                       {p.source === "upload" && !p.signed ? `${UNSIGNED} ` : p.source === "included" ? "One of Ziffr\u2019s own Packs. " : "From the Marketplace. "}
                       Installed {new Date(p.installedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{p.installedBy ? ` by ${p.installedBy}` : ""}.
@@ -79,13 +92,14 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
                     {manages && included.filter((i) => i.installed?.installId === p.id && i.update).map((i) => <div key={i.update} className="mt-2"><IncludedUpdate installId={p.id} name={p.name} version={i.update!} /></div>)}
                     {updates.filter((u) => u.installId === p.id).map((u) => <div key={u.version} className="mt-2"><MarketplaceUpdate installId={p.id} name={p.name} version={u.version} /></div>)}
                     {manages && <SetUpFromPack installId={p.id} viewer={viewer} />}
+                    {reports.filter((r) => r.installId === p.id).map((r) => <p key={r.installId} className="mt-2"><ReportLink href={r.address} name={p.name} /></p>)}
                   </li>
                 ))}
               </ul>
             )}
       </section>
       {manages && included.length > 0 && <IncludedPacks packs={included} viewer={viewer} numberStyle={numberStyle} />}
-      {marketplace && <MarketplaceSearch viewer={viewer} numberStyle={numberStyle} />}
+      {marketplace && <MarketplaceSearch installed={installed.map((p) => ({ packId: p.packId, version: p.version }))} viewer={viewer} numberStyle={numberStyle} />}
       {manages && <InstallFromFile viewer={viewer} numberStyle={numberStyle} />}
       {exportable && <ExportPack options={exportable} defaultAuthor={authorName} />}
       {demo && <p className="text-sm text-muted-foreground">The demo installs no Packs: the Workspace is shared by everyone looking at it.</p>}
@@ -175,8 +189,9 @@ export function PackPreviewCard({ preview, viewer, numberStyle, pending, okUnsig
       <div>
         <p className="flex items-center gap-2 text-base font-medium"><Package aria-hidden className="size-4" /> {preview.manifest.name} <span className="fig text-sm font-normal text-muted-foreground">{preview.manifest.version}</span></p>
         <p className="text-muted-foreground">{preview.manifest.summary}</p>
-        <div className="mt-2"><Publisher author={preview.manifest.author.name} logo={preview.logo} id={preview.manifest.id} signed={!preview.unsigned} fromMarketplace={preview.source === "marketplace"} included={preview.source === "included"} /></div>
+        <div className="mt-2"><Publisher author={preview.manifest.author.name} logo={preview.logo} id={preview.manifest.id} signed={!preview.unsigned} fromMarketplace={preview.source === "marketplace"} included={preview.source === "included"} reviewed={preview.reviewed} /></div>
         <p className="mt-1 text-xs text-muted-foreground">Under {preview.manifest.license}. <ListingLink href={preview.manifest.listing?.homepage} unsigned={preview.unsigned}>Its page</ListingLink></p>
+        {preview.report && <p className="mt-1"><ReportLink href={preview.report} name={preview.manifest.name} /></p>}
       </div>
       {preview.unsigned
         ? <p className="flex items-start gap-2 rounded-[var(--radius-input)] bg-muted p-2.5"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> {UNSIGNED}</p>
