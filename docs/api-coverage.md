@@ -341,7 +341,6 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `pastedValueIds` (paste-values.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `pasteMetrics` (paste-values.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `snapshotAccess` (snapshots.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
-- `snapshotDeckSeed` (snapshots.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `restorableWords` (snapshots.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `listFeeds` (feeds.ts): reads Metric names, which opening needs the Workspace's key for (spec 0028); the API has its own list (`listFeedsWithKey`)
 - `listTellSubscriptions` (tell.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads

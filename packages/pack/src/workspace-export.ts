@@ -12,7 +12,7 @@
 // are data (ids are held in Maps, keys are refused by pattern). Nothing here runs or queries what it reads.
 import { checkSchema, MAX_PROBLEMS, parseJson, under, type Problem, type Schema } from "./json-check.js";
 import { appText, APP_TEXT, itemKey, PLAIN, SLIDE_WORDS, WORDS } from "./file-text.js";
-import { checkMetricFileValue, METRIC_FILE_SCHEMA, type MetricFile } from "./metric-file.js";
+import { checkMetricFileValue, METRIC_FILE_SCHEMA, metricFileSchema2, type MetricFile } from "./metric-file.js";
 import { checkDashboardTemplateFileValue, DASHBOARD_TEMPLATE_LIMITS, DASHBOARD_TEMPLATE_SCHEMA, dashboardTemplateReferences, refusedOutsidePack, type DashboardTemplateFile } from "./dashboard-template-file.js";
 import { checkDeckTemplateFileValue, DECK_TEMPLATE_LIMITS, DECK_TEMPLATE_SCHEMA, deckTemplateReferences, deckTemplateSchema2, type DeckTemplateFile } from "./deck-template-file.js";
 import { checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_LIMITS, WORKFLOW_TEMPLATE_SCHEMA, type WorkflowTemplateFile } from "./workflow-template-file.js";
@@ -58,8 +58,9 @@ export const WORKSPACE_EXPORT_LIMITS = {
   groupsOfPerson: 50,
   magnitude: 1e15,
   decimals: 8,
-  /** What a Metric's name and description may hold in the app: its own limits, not the Pack's. */
+  /** What a Metric's name, description and Calculation Note may hold in the app: its own limits, not the Pack's. */
   metricDescription: 2000,
+  metricCalculationNote: 2000,
   metricBytes: 32_768,
   firstYear: 1900,
   lastYear: 2200,
@@ -146,7 +147,7 @@ const EXPORT_VIEW_SCHEMA = loosened(VIEW_DESIGN_SCHEMA);
 
 /** The Metric document's schema in a Workspace Export: the Metric file's, with the app's text rules (a Pack is held to
  * stricter ones because it is shown to strangers; a Workspace's own Metrics are what they typed). */
-const EXPORT_METRIC_SCHEMA: Schema = (() => {
+const EXPORT_METRIC_SCHEMA_1: Schema = (() => {
   const props = METRIC_FILE_SCHEMA.properties!;
   const bound = (b: Schema): Schema => ({ ...b, minimum: -L.magnitude, maximum: L.magnitude });
   return {
@@ -162,6 +163,7 @@ const EXPORT_METRIC_SCHEMA: Schema = (() => {
     },
   };
 })();
+const EXPORT_METRIC_SCHEMAS = { v1: EXPORT_METRIC_SCHEMA_1, v2: metricFileSchema2(appText(L.metricCalculationNote), EXPORT_METRIC_SCHEMA_1) };
 
 /** The JSON Schema of one line of ziffr.workspace-export/1: the one definition the checks run and docs/reference is
  * generated from. The documents inside a record (`metric`, `dashboard`, ...) are held to their own published schemas. */
@@ -195,7 +197,7 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
     record("metric", "A Metric: its Description, Tags, owner and Submitters. Its values are separate records.", {
       id: id("this Metric"),
       key: itemKey("the Metric's key, which a Derived Metric's formula names as {key}: lower-case letters, digits and dashes, unique in the file"),
-      metric: { type: "object", description: "A ziffr.metric/1 document, checked by its schema with the text rules of the app instead of the Pack's: any text without control or direction characters, a description of up to 2000 characters and Target bounds up to 10^15." },
+      metric: { type: "object", description: "A ziffr.metric/1 or ziffr.metric/2 document, checked by its schema with the text rules of the app instead of the Pack's: any text without control or direction characters, a description and a Calculation Note of up to 2000 characters each and Target bounds up to 10^15." },
       tags: { type: "array", maxItems: L.tags, items: { ...appText(L.tag), minLength: 1 }, description: "The Tags put on the Metric." },
       owner: ref("the person who owns it"),
       submitters: refs("the people who send its values", L.submitters),
@@ -431,7 +433,7 @@ export class WorkspaceExportChecker {
         if (this.metricKeys.has(r.key)) at("key", `“${r.key}” is the key of the Metric on line ${this.metricKeys.get(r.key)} already: every Metric needs a key of its own.`);
         this.metricKeys.set(r.key, this.n);
         const sound = doc("metric", "Metric", L.metricBytes, r.metric);
-        const res = sound ? checkMetricFileValue(r.metric, undefined, EXPORT_METRIC_SCHEMA) : undefined;
+        const res = sound ? checkMetricFileValue(r.metric, undefined, EXPORT_METRIC_SCHEMAS) : undefined;
         if (res) merge("metric", res);
         const m = res && res.ok ? res.value : (r.metric as MetricFile);
         this.metrics.set(r.id, { key: r.key, period: m.period, line: this.n });
@@ -563,7 +565,7 @@ export function exportDocumentProblem(kind: ExportDocumentKind, value: unknown):
   };
   switch (kind) {
     case "metric":
-      return size(L.metricBytes, "Metric") ?? first(checkMetricFileValue(value, undefined, EXPORT_METRIC_SCHEMA));
+      return size(L.metricBytes, "Metric") ?? first(checkMetricFileValue(value, undefined, EXPORT_METRIC_SCHEMAS));
     case "theme":
       return size(THEME_FILE_LIMITS.bytes, "Theme") ?? first(checkThemeFileValue(value, new Map(), "standalone", EXPORT_THEME_SCHEMAS));
     case "workflow":

@@ -498,7 +498,7 @@ async function writePass(path: string, limits: WorkspaceExportReaderLimits, pers
     const derived = f.formula !== undefined;
     if (keys.has(r.key)) throw new ImportProblem(`The Metric key “${r.key}” is listed twice.`);
     const made = await createMetric(actor, {
-      name: f.name, description: f.description ?? "", unit: f.unit ?? "", unitPosition: f.unitPosition, format: f.valueFormat, decimals: f.decimals, period: f.period,
+      name: f.name, description: f.description ?? "", calculationNote: f.calculationNote, unit: f.unit ?? "", unitPosition: f.unitPosition, format: f.valueFormat, decimals: f.decimals, period: f.period,
       submissionRule: f.submissionRule, polarity: f.polarity, aggregation: f.aggregation, targetMin: f.targetMin ?? null, targetMax: f.targetMax ?? null,
       attainmentMethod: f.attainmentMethod ?? null,
       // A Derived Metric takes no values, so no Source.

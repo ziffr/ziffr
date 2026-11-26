@@ -34,7 +34,7 @@ Under a Metric's name, its **Tags** show as small chips, at most three and then 
 
 On a phone (under 640 px wide) each Metric is a small card instead of a table row: its name with the quick-look button, how often and where its values come from, the target, then the latest value with its status and date, and the change as an arrow and a signed percentage. Nothing is cut off at the side, text is at least 14 px, and the whole card is one tap. In the **Metric Catalog** on **New metric**, the category chips are one row that scrolls sideways, so the first entries stay on screen. On **Paste values** the labels sit above their fields and the fields and buttons are 44 px tall. Click a row to open the Metric's page. **New metric** (top right) starts a new one. **Paste values** opens a page that records many values at once from a spreadsheet (see [Paste values from a spreadsheet](#paste-values-from-a-spreadsheet)). With no Metrics yet, the list says "No metrics yet" and offers **New metric**.
 
-Each row also has a **Quick look** button beside the Metric's name (it shows on hover or keyboard focus, and always on a phone). It opens a panel on the right, over the list, with the latest value and its on-target label, the change, a trend line, the **Target** and **Owner**, and the latest six values, with **Open the Metric** at the bottom. For a Metric you submit, the panel also has **Record a value**, the same form as on the Metric's page (see below). The same button sits beside a Widget's title on a dashboard. **Esc** or **Close** closes it and you are back where you were; while it is open the keys stay inside it, and on a phone it fills the screen, with a long owner name or address wrapping onto a second line. The page address ends in `?panel=metric-` and the Metric's short name, so a link to it opens the panel.
+Each row also has a **Quick look** button beside the Metric's name (it shows on hover or keyboard focus, and always on a phone). It opens a panel on the right, over the list, with the latest value and its on-target label, the change, a trend line, the **Target** and **Owner**, **How it is calculated** where it is written down (closed until you open it; for a Derived Metric with its formula) and the latest six values, with **Open the Metric** at the bottom. For a Metric you submit, the panel also has **Record a value**, the same form as on the Metric's page (see below). The same button sits beside a Widget's title on a dashboard. **Esc** or **Close** closes it and you are back where you were; while it is open the keys stay inside it, and on a phone it fills the screen, with a long owner name or address wrapping onto a second line. The page address ends in `?panel=metric-` and the Metric's short name, so a link to it opens the panel.
 
 ### Download values
 
@@ -161,7 +161,8 @@ The form is short: three parts, and **More options** below them for what you rar
 | Field | What it does |
 | --- | --- |
 | **Name** | What everyone will call it, such as "Customer satisfaction". Required. |
-| **Description** | What exactly is counted, and what isn't. Would a new colleague understand it? |
+| **Description** | What the number is and why it matters. Would a new colleague understand it? |
+| **How it is calculated** | The **Calculation Note**: exactly what counts and what does not, where the figure comes from and which adjustments are made. For annual recurring revenue, say what happens to one-off fees, discounts and contracts that have not started. Optional, up to 2,000 characters; line breaks are kept. |
 | **Format** | **Number**, **Money** or **Percent**. Choosing **Money** fills in the unit of the Workspace Profile's currency: "€" after the number for euros, "$" before it for dollars, otherwise the currency's code before it, such as "CHF ". You can change it. A Percent Metric's values are numbers such as 12.5, not 0.125. |
 | **Unit** | What stands next to the number, such as "€", "$", "d", "pc" or "%". Any text up to 20 characters; leave it empty for plain numbers. |
 
@@ -208,7 +209,7 @@ After **Create metric**, the Metric's page opens with the note "Metric created. 
 
 ## A Metric's page
 
-The top of the page shows the Metric's name, a **Derived** badge if it is calculated from other Metrics, and its description. Below are three boxes:
+The top of the page shows the Metric's name, a **Derived** badge if it is calculated from other Metrics, and its description. Under it, **How it is calculated** opens the Metric's **Calculation Note** and, for a Derived Metric, its formula written with the names of the Metrics it uses; it is not shown when there is neither. If the formula uses a Metric that is not shared with you, the page says so instead of writing the formula. Below that are three boxes:
 
 - **Latest**: the most recent value with its period and on-target label.
 - **Change vs. previous period**: an arrow and a percentage.
@@ -235,7 +236,7 @@ A Metric's page has one main button, and the rest sit in the **⋯** menu.
 | **⋯** → **Ask me now** | Sends you this period's **Prompt** for the Metric at once, by your own Connector (email, Slack or Telegram), instead of waiting for the Workflow. A message says where it went ("Sent to you on Slack", with a note when that is not your usual way because the Metric does not accept values that way), why it stayed in the Outbox, or why it could not ask now, such as when it already asked in the last ten minutes. At most once every ten minutes per Metric. | The Metric's owner, when they submit it too |
 | **⋯** → **Alert me…** | Opens a panel on the right (on a phone, from the bottom) with your Alerts on this Metric and a form to set another: Ziffr tells you once when the latest value **reaches a share of its target**, **reaches a value** (at or above), **falls below a value**, **changes more than a share** against the period before, or **has no value the day after its Due Date**. Choose a way to be told (your usual way, email, Slack or Telegram) and whether to **Include values not approved yet**; off, you hear only about published or approved values. A kind the Metric cannot give is greyed out with the reason: a share needs a target with a percentage, the Due Date needs a Workflow. The dialog says how many Alerts you hold against the limits (20 in a Workspace, 5 on one Metric) before you hit them. Each Alert can be paused, edited or deleted there. With the preview layout on, it opens as a panel on the right instead of a dialog, with the same content. Not shown in the demo, and not for an Archived Metric. | Everyone with a sign-in who sees the Metric If you have a Personal Webhook, the form also offers **Also send to** with your Webhooks, so a ticked one gets an `alert.fired` message each time the Alert fires (see [Your Alerts](17-your-settings.md#your-alerts)). |
 | **⋯** → **Fill past periods…** | Opens one list of the ways to bring a Metric's past values in, easiest first: **Paste or upload a spreadsheet** (opens Paste history for this Metric), **Fill in a template** (downloads a file that lists the periods without a value, to fill in and bring back to Paste history), **Ask my assistant** (the text described next) and **Send from another system** (opens Connectors → Send values). Paste and template are offered when the Metric takes the web form and you submit it; the assistant and the other system when you submit it at all. | Everyone who submits the Metric |
-| **Ask my assistant** (in the list above) | Opens a text to copy into your own assistant (one connected to Ziffr that can read where your numbers are) that fills in the Metric's last 12 periods once, from the place you name. It tells the assistant to look at which periods already have a value and never record over one, to show you a table of what it found before it records anything, to record each value through Ziffr's tools, and to stop and ask when a number looks off. It is not a schedule: use [Fill from n8n](#who-submits) for numbers that keep coming. Ziffr does not run the text, sends it nowhere and gives the assistant no key; what it records is recorded as you, by the Metric's own rules (an unusual value may wait for Approval). The Metric's name and description are in the text as quoted data, which the text tells the assistant never to obey. | Everyone who submits the Metric |
+| **Ask my assistant** (in the list above) | Opens a text to copy into your own assistant (one connected to Ziffr that can read where your numbers are) that fills in the Metric's last 12 periods once, from the place you name. It tells the assistant to look at which periods already have a value and never record over one, to show you a table of what it found before it records anything, to record each value through Ziffr's tools, and to stop and ask when a number looks off. It is not a schedule: use [Fill from n8n](#who-submits) for numbers that keep coming. Ziffr does not run the text, sends it nowhere and gives the assistant no key; what it records is recorded as you, by the Metric's own rules (an unusual value may wait for Approval). The Metric's name, description and **Calculation Note** are in the text as quoted data, which the text tells the assistant never to obey. | Everyone who submits the Metric |
 | **⋯** → **Analyze** | Opens the Metric on an **Analysis Canvas** (see [Analyze](13-analyze.md)). | Everyone who sees the Metric |
 | **⋯** → **Duplicate** | Starts a new Metric with the same description (see below). | Owners, Admins and Members; not for a Derived Metric |
 | **⋯** → **Add to dashboard** | Places the Metric on one of your dashboards as a widget drawn with the default **Widget Template**. Lists the dashboards you own or may edit, and, below them, **New dashboard with this Metric**: it makes a dashboard named for the Metric, puts the Metric on it and opens it (rename it there). | Everyone who may make dashboards (not Guests); a Guest sees the list only, and nothing when they have no such dashboard |
@@ -243,7 +244,7 @@ A Metric's page has one main button, and the rest sit in the **⋯** menu.
 | **⋯** → **Bring back** | On an Archived Metric: makes it a Metric in use again (see below). | Owners, Admins and the Metric Owner, outside the demo; in a demo that visitors may change, for a Metric a visitor made |
 | **⋯** → **Delete…** | Deletes the Metric (see below). | The Metric Owner, outside the demo |
 | **⋯** → **Who can see this** | Opens a panel on the right that lists everyone with access and why: owner, a Share, a Group, a shared dashboard, or sending in values. For a Guest, people outside what is shared with them show as "Someone". | Everyone who sees the Metric |
-| **⋯** → **Versions** | Shows earlier states of the description (see below). | Everyone who sees the Metric |
+| **⋯** → **Versions** | Shows earlier states of the description and of how it is calculated (see below). | Everyone who sees the Metric |
 
 On a phone, **⋯** stays beside the Metric's name when it is the only button. The **Fill past periods** dialogs fit the screen: the title and **Close** stay where they are, the rest scrolls inside the dialog, and each button sits under its text.
 
@@ -340,7 +341,7 @@ A Derived Metric has no values of its own, so it has no such list. If you submit
 
 ### A period's page
 
-Click a period on the History tab, or **Open this period** after clicking a point on the chart, to open one Metric's page for one period, such as `/metrics/churn-rate/2026-03-01` (a month may also be written `2026-03`). It shows:
+Click a period on the History tab, or **Open this period** after clicking a point on the chart, to open one Metric's page for one period, such as `/metrics/churn-rate/2026-03-01` (a month may also be written `2026-03`). The Metric's name on it leads to the Metric, and on a phone it is large enough to tap with a thumb. The page shows:
 
 - the Metric, the period and its state (for example **Locked** or **Waiting for Approval**), with the value in large figures; after a Correction, the value it was submitted as is struck through;
 - **History**: every step of that period's value in order, with the person, the channel and the date: submitted, entered by someone for the person ("Entered 42 by Ben for Sara"), replaced by a newer value, a Correction proposed, accepted or declined, approved, sent back, published, locked, and unlocked with its reason. A replaced value is struck through, and a value entered for someone that they replaced stays in the list with who entered it;
@@ -355,7 +356,7 @@ The Description tab has four boxes: the Metric Description, the Retention, the W
 
 ### Description
 
-The box lists the **Metric Description**: owner, period, format and decimals, which way is good, target and, for a Derived Metric, its **Formula**, written with the names of the Metrics it uses. For other Metrics it also shows how values arrive and what happens to a second value.
+The box lists the **Metric Description**: owner, Tags, **How it is calculated** (the formula of a Derived Metric, written with the names of the Metrics it uses, and the **Calculation Note**; "Not written down yet." when there is neither), period, format and decimals, which way is good and target. For other than Derived Metrics it also shows how values arrive and what happens to a second value.
 
 **Values arrive by** can be changed right here by the owner and Editors: tick or untick **Web form**, **Mail**, **Slack**, **Telegram** and **API and Feeds**, then **Save**. At least one must stay ticked. From then on, values arriving another way are refused. The note under it says it is about the ways an answer is accepted: a request for a value goes only by one of them, and which of them a person gets is their own choice under **Who gets what, where**.
 
@@ -367,7 +368,7 @@ When you name a new Metric, or rename one, and a Metric you can see already has 
 
 | Field | Notes |
 | --- | --- |
-| **Name**, **Description** | As on the new metric form. Links to the Metric keep working when its name changes. |
+| **Name**, **Description**, **How it is calculated** | As on the new metric form. Links to the Metric keep working when its name changes. A change of how it is calculated is named in the Metric's **Versions**, so everyone can see when it changed. |
 | **Format**, **Unit**, **Stands**, **Decimals** | As on the new metric form; decimals here go up to 6. |
 | **Period** | Fixed once the Metric has values: "duplicate the Metric for another period". |
 | **Which way is good** | The Polarity. |
@@ -388,6 +389,7 @@ To make one, choose **New metric**, then **Calculated from other Metrics**:
 
 1. Give it a **Name**, and if you like a **Description**.
 2. Build the **Formula**: click a Metric in the list to put it into the formula (it is written as its slug in curly brackets, such as `{revenue}`), and type `+ - * /`, brackets and numbers between them. For example `({revenue} - {cost}) / {revenue} * 100`.
+   Below the formula, **In words (optional)** takes what the formula cannot say, such as what its inputs leave out: the Metric's **Calculation Note**.
 3. Under **How is it shown?**, set a **Unit**, **Decimals**, **Period** or **Which way is good**, or leave them empty: Ziffr takes the period of the Metrics it is calculated from, their unit where a sum or difference keeps it, and two decimals where the formula divides. The page of the new Metric says nothing of this; the Description box shows what was chosen, and **Edit details...** changes it.
 4. **Create metric**.
 
@@ -543,7 +545,7 @@ Deleting the Metric, sharing it, choosing its Workflow and Stand-ins, locking pe
 
 ## Versions
 
-**⋯** → **Versions** opens a panel on the right that lists the Metric's description as it was after each change, newest first: who changed it, when, and what changed, such as "Changed its description" or "Takes values from the Feed …". Changes by one person within ten minutes form one Version.
+**⋯** → **Versions** opens a panel on the right that lists the Metric's description as it was after each change, newest first: who changed it, when, and what changed, such as "Changed its description", "Changed how it is calculated" or "Takes values from the Feed …". A change of how the Metric is calculated is always a Version of its own, so you can see when the number began to mean something else and what it said before. Changes by one person within ten minutes form one Version.
 
 The Metric Owner can:
 
@@ -609,7 +611,7 @@ The page is drawn in the look of the Workspace's team default Theme: a header ro
 
 The form shows:
 
-- "Hi …, please report", then the Metric's name and description.
+- "Hi …, please report", then the Metric's name and description. **How it is calculated** is not on the form link: it is for the people the Metric is shared with.
 - **For** the period the value will be recorded for. With no request waiting, it is the period running today. While Ziffr's request for an earlier period is unanswered, **For** is a list that starts at that period, marked **asked for** (see [While a request waits](#while-a-request-waits)). If the period shown already has a value, the form says so and names the Submission Rule, such as "already has 84,000 € (overwrite with the newer value)".
 - When the request for the running period went by several ways and was already answered on Slack, Telegram or email, a note says **Already answered on** that way while the running period is picked. A new value here still follows the Submission Rule.
 - The value, labelled with the Metric's name. Type it as you would write it.

@@ -23,7 +23,7 @@ import type { Period } from "@ziffr/core/types";
 
 /** What the menu offers this person, decided on the server from what they may do. */
 export type MetricToolbarProps = Pick<ObjectToolbarProps, "id" | "people" | "share"> & {
-  metric: { id: number; name: string; slug: string; description: string; unit: string; period: Period };
+  metric: { id: number; name: string; slug: string; description: string; calculationNote?: string | null; unit: string; period: Period };
   /** This Installation's MCP address, or null where it serves none: named in the text for an assistant. */
   mcp: string | null;
   /** Set when they submit the Metric: the form behind Record a value. */

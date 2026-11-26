@@ -10,6 +10,9 @@ import { Box, Tldraw, type Editor, type TLEditorSnapshot } from "tldraw";
 import { ChevronLeft, ChevronRight, Maximize, Minimize, RotateCw, X } from "lucide-react";
 import { ThemeScope } from "@/components/theme-scope";
 import { DeckData, WidgetShapeUtil } from "./widget-shape";
+import { SnapshotPartShapeUtil } from "./kept/part-shape";
+import { KeptNumbers } from "./kept/kept-store";
+import type { Kept } from "./kept/kept-drawing";
 import { DeckMaster, SlideFrameUtil } from "./master";
 import { orderedSlides } from "./layouts";
 import { isDark, slideDesign, themeFor } from "@ziffr/core/themes";
@@ -18,9 +21,9 @@ import { useViewerDark } from "@/lib/use-viewer-dark";
 import { useFullscreen, usePinchZoomed, useStepper } from "@/lib/use-stepper";
 import type { CanvasData } from "@ziffr/core/types";
 
-const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
+const shapeUtils = [WidgetShapeUtil, SnapshotPartShapeUtil, SlideFrameUtil];
 
-export function Slideshow({ deck, data, start, publicNote, back = `/decks/${deck.id}` }: { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; start: number; publicNote?: string; /** Where leaving the presentation goes. */ back?: string }) {
+export function Slideshow({ deck, data, kept = null, start, publicNote, back = `/decks/${deck.id}` }: { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; /** The Snapshot numbers the presenting person gets; a View Link gets none. */ kept?: Kept | null; start: number; publicNote?: string; /** Where leaving the presentation goes. */ back?: string }) {
   const pub = publicNote !== undefined;
   const router = useRouter();
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -61,6 +64,7 @@ export function Slideshow({ deck, data, start, publicNote, back = `/decks/${deck
   const btn = "flex size-10 pointer-coarse:size-11 items-center justify-center rounded-[var(--radius-input)] text-[var(--color-muted)] hover:bg-[var(--muted)] hover:text-[var(--color-ink)] disabled:opacity-30 focus-visible:outline-2 focus-visible:outline-[var(--color-accent-2)]";
   return (
     <DeckData.Provider value={data}>
+      <KeptNumbers.Provider value={kept}>
       <DeckMaster.Provider value={master}>
         <ThemeScope theme={theme} scheme={pub ? "designed" : "follow"} className="slideshow fixed inset-0 z-[var(--z-modal)] flex flex-col bg-[var(--color-desk)]">
           <div className="relative min-h-0 flex-1" {...(zoomed ? {} : step.swipe)} style={{ touchAction: zoomed ? "auto" : "pan-y pinch-zoom", pointerEvents: "auto" }}>
@@ -104,6 +108,7 @@ export function Slideshow({ deck, data, start, publicNote, back = `/decks/${deck
           </nav>
         </ThemeScope>
       </DeckMaster.Provider>
+      </KeptNumbers.Provider>
     </DeckData.Provider>
   );
 }

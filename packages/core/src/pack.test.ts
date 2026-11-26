@@ -6,7 +6,7 @@ import Ajv2020 from "ajv/dist/2020";
 import { describe, expect, it } from "vitest";
 import { checkPack, checkPackValue, PACK_LIMITS, PACK_SCHEMA, versionBelow, type Pack } from "./pack";
 import { aimsAtAssistant } from "./assistant-words";
-import { METRIC_FILE_SCHEMA } from "./metric-file";
+import { METRIC_FILE_2_SCHEMA, METRIC_FILE_SCHEMA } from "./metric-file";
 import { DASHBOARD_TEMPLATE_SCHEMA } from "./dashboard-template-file";
 import { THEME_FILE_2_SCHEMA, THEME_FILE_SCHEMA } from "./theme-file";
 import { EXAMPLE as VIEW, WITH_RECIPE } from "./view-design.test";
@@ -242,6 +242,7 @@ describe("the published schemas", () => {
   const published: [string, object][] = [
     ["docs/reference/pack.schema.json", PACK_SCHEMA],
     ["docs/reference/metric.schema.json", METRIC_FILE_SCHEMA],
+    ["docs/reference/metric-2.schema.json", METRIC_FILE_2_SCHEMA],
     ["docs/reference/dashboard-template.schema.json", DASHBOARD_TEMPLATE_SCHEMA],
     ["docs/reference/theme.schema.json", THEME_FILE_SCHEMA],
     ["docs/reference/theme-2.schema.json", THEME_FILE_2_SCHEMA],
