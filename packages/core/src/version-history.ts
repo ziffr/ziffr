@@ -10,6 +10,7 @@ import { cleanSlides, cleanTokens } from "./theme-tokens";
 import { deckMetricIds, deckMetricIdsAdded } from "./visibility";
 import { snapshotPartProblem } from "./snapshot-parts";
 import { widgetMetricIds } from "./widget-metrics";
+import { withoutUnaskedMetrics } from "./slide-text";
 import { isDashboardView, isView } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import { diffSummary, openVersionSnapshot, recordVersion, VERSION_TYPES, type VersionType } from "./versions";
@@ -220,6 +221,8 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
     }
     case "deck":
       assertWidgetDesigns(s.document);
+      // As a save stores it: a text box lists only the Metrics its words ask for, which were checked above.
+      s.document = withoutUnaskedMetrics(s.document);
       await visitorSharedStaysSeen(actor, "deck", id, deckMetricIds(s.document));
       mustRestore(await db().from("decks").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(s.footer !== undefined ? { footer: s.footer } : {}), document: s.document, updated_at: at }).eq("id", id).eq("workspace_id", ws));
       break;

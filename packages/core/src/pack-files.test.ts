@@ -316,10 +316,12 @@ describe("files as what a Workspace keeps", () => {
   it("makes a Deck Template's slides as the deck editor makes shapes, and fills its Slots", () => {
     const body = deckTemplateFromFile(DECK, new Map(), 12);
     expect(body.themeId).toBe(12);
-    const slides = fromDeckTemplate(body, [[7], [8]], (t) => t.replace("{metric}", "Revenue"));
+    const slides = fromDeckTemplate(body, [[7], [8]]);
     expect(slides.map((s) => s.map((sh) => sh.type))).toEqual([["text", "text"], ["text", "ziffr-widget", "geo", "ziffr-widget"]]);
     const [title, line, box] = slides[1];
-    expect(JSON.stringify(title.props.richText)).toContain("Revenue against its target");
+    // The words keep their Placeholder, and the box names the slide's Metrics it is filled from each time.
+    expect(JSON.stringify(title.props.richText)).toContain("{metric} against its target");
+    expect(title.meta).toEqual({ metrics: [7, 8] });
     expect(line.props).toMatchObject({ template: "line", metricIds: [7], w: 760, h: 500 });
     expect(JSON.parse(String(line.props.settings))).toMatchObject({ window: 8, showTarget: true });
     expect(box.props).toMatchObject({ geo: "rectangle", fill: "semi", color: "light-blue" });

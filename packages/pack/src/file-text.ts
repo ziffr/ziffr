@@ -37,8 +37,8 @@ export function textPasses(pattern: string, text: string): boolean {
   return new RegExp(pattern, "u").test(text) && (!pattern.startsWith(`^${NO_ADDRESS}`) || NO_ADDRESS_READ.test(asRead(text)));
 }
 
-// The Placeholders every text knows. How a Metric is calculated is added only to words that are filled each time they are
-// drawn: filled once into saved words, it would stay for people who may not see the Metric (spec 0060).
+// The Placeholders every text knows. How a Metric is calculated (spec 0060) is added where a format says so: widgets,
+// Slide Elements and, from ziffr.deck-template/3 on, a slide's text and boxes.
 const SHARED_PLACEHOLDERS = "metrics|metric|period|latest|change yoy|change prev|top row|target";
 const withPlaceholders = (names: string) => `^${NO_ADDRESS}(?:${CHARS}|\\{(?:${names})(?: [1-9])?\\})*$`;
 
@@ -47,7 +47,7 @@ const withPlaceholders = (names: string) => `^${NO_ADDRESS}(?:${CHARS}|\\{(?:${n
  * are drawn. */
 export const WORDS = withPlaceholders(`${SHARED_PLACEHOLDERS}|calculation note`);
 
-/** As `WORDS` for words filled once and then saved (a slide's text and boxes): without {calculation note}. */
+/** As `WORDS` for a slide's text and boxes in formats /1 and /2: without {calculation note}. */
 export const SAVED_WORDS = withPlaceholders(SHARED_PLACEHOLDERS);
 
 /** Plain text that may hold the Placeholders of a slide's own words (spec 0057): those above, the quarter, the changes
@@ -68,8 +68,8 @@ export const plainText = (max: number, description = "plain text, without markup
 /** Words of a widget or slide, which may hold Placeholders, of at most `max` characters. */
 export const words = (max: number): Schema => ({ type: "string", maxLength: max, pattern: WORDS, description: "plain text, without markup or web addresses; Placeholders such as {metric} are allowed" });
 
-/** Words filled once and then saved, such as a slide's text, of at most `max` characters. */
-export const savedWords = (max: number): Schema => ({ type: "string", maxLength: max, pattern: SAVED_WORDS, description: "plain text, without markup or web addresses; Placeholders such as {metric} are allowed, {calculation note} only in widgets and Slide Elements" });
+/** Words of a slide's text or box in formats /1 and /2, of at most `max` characters. */
+export const savedWords = (max: number): Schema => ({ type: "string", maxLength: max, pattern: SAVED_WORDS, description: "plain text, without markup or web addresses; Placeholders such as {metric} are allowed, {calculation note} only in widgets and Slide Elements, and in text and boxes from ziffr.deck-template/3 on" });
 
 /** Words of a Slide Element, which may hold a slide's Placeholders, of at most `max` characters. */
 export const slideWords = (max: number): Schema => ({ type: "string", maxLength: max, pattern: SLIDE_WORDS, description: "plain text, without markup or web addresses; Placeholders such as {gap 2 1} are allowed" });

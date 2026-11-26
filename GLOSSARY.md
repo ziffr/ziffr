@@ -283,7 +283,7 @@ A place in a Widget Template or Dashboard Template that is filled with a metric 
 _Avoid_: Variable, parameter, input
 
 **Placeholder**:
-A word in braces in a text that is filled in from the data, such as the metric's name, the latest period or the change against last year. It works in a Finding's words, a widget's title, the texts of a View Design and a deck slide, and shows only what the viewer may see.
+A word in braces in a text that is filled in from the data, such as the metric's name, the latest period or the change against last year. It works in a Finding's words, a widget's title, the texts of a View Design, a Slide Element and a text box on a slide (where **Insert value** writes it), is filled each time the words are shown, and shows only what the viewer may see.
 _Avoid_: Token, variable, merge field
 
 **Widget**:
@@ -546,7 +546,7 @@ A Webhook that one person adds for themselves in one Workspace, once an Owner or
 _Avoid_: My webhook, user webhook, private webhook
 
 **Comes From**:
-What a Pack says of each of its numbers (a person types it, another system sends it, or it is set once as a target), with what Ziffr works out from the Pack: that it calculates a number, which Automation Templates are delivered and what the installer still needs. Shown as "Where the numbers come from". Not a Source (the way a value arrives) and not a thing's origin.
+What a Pack says of each of its numbers (a person is asked for it, another system sends it, or it is set once as a target), with what Ziffr works out from the Pack: that it calculates a number, by which ways a number it says nothing of can arrive, which Automation Templates are delivered and what the installer still needs. Shown as "Where the numbers come from". Not a Source (the way a value arrives) and not a thing's origin.
 _Avoid_: Provenance, data source, lineage
 
 **Automation Template**:

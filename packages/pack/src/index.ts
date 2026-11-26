@@ -3,11 +3,11 @@
 export { checkPack, checkPackValue, FEED_TEMPLATE_IDS, PACK_2_SCHEMA, PACK_FORMAT, PACK_FORMAT_2, PACK_LICENSES, PACK_LIMITS, PACK_SCHEMA, UNSIGNED_WARNING, versionBelow, type Pack, type PackCheck, type PackItem, type PackKind, type PackSource } from "./pack.js";
 export { PACK_POSITION_LIMITS, type PackPosition, type PackRepeat } from "./pack-positions.js";
 export type { PackTotal } from "./pack-totals.js";
-export { COMES_FROM_BY, COMES_FROM_LIMITS, comesFromWords, FEED_TEMPLATE_LABELS, includedAndNeeded, keptOverview, packOverview, readOverview, targetsRead, WORKFLOW_DOES, type KeptOverview, type PackComesFrom, type PackNumber, type PackOverview, type PackWorkflowSummary } from "./comes-from.js";
+export { COMES_FROM_BY, COMES_FROM_LIMITS, comesFromGroups, comesFromWords, FEED_TEMPLATE_LABELS, includedAndNeeded, keptOverview, packOverview, readOverview, targetsRead, WORKFLOW_DOES, type ComesFromGroup, type KeptOverview, type PackComesFrom, type PackNumber, type PackOverview, type PackWorkflowSummary } from "./comes-from.js";
 export { guideRuns, PACK_GUIDE_LIMITS, PACK_GUIDE_SCHEMA, PACK_GUIDE_SECTIONS, type PackGuide, type PackGuideBlock, type PackGuideSection } from "./pack-guide.js";
 export { checkMetricFile, METRIC_FILE_2_SCHEMA, METRIC_FILE_SCHEMA, type MetricFile } from "./metric-file.js";
 export { checkDashboardTemplateFile, DASHBOARD_TEMPLATE_SCHEMA, type DashboardTemplateFile } from "./dashboard-template-file.js";
-export { checkDeckTemplateFile, DECK_TEMPLATE_2_SCHEMA, DECK_TEMPLATE_SCHEMA, type DeckTemplateFile } from "./deck-template-file.js";
+export { checkDeckTemplateFile, DECK_TEMPLATE_2_SCHEMA, DECK_TEMPLATE_3_SCHEMA, DECK_TEMPLATE_SCHEMA, type DeckTemplateFile } from "./deck-template-file.js";
 export { SLIDE_ELEMENT_KINDS, SLIDE_ELEMENT_LIMITS, SLIDE_TONES, type SlideElement, type SlideElementKind, type SlideTone } from "./slide-element.js";
 export { checkWorkflowTemplateFile, WORKFLOW_TEMPLATE_2_SCHEMA, WORKFLOW_TEMPLATE_SCHEMA, type WorkflowTemplateFile } from "./workflow-template-file.js";
 export type { WorkflowTemplateFileStep } from "./kinds.js";

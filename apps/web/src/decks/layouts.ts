@@ -2,6 +2,8 @@
 import { createShapeId, toRichText, type Editor, type TLShapeId } from "tldraw";
 import type { SlideDesign, SlideShape } from "@ziffr/core/types";
 import { SNAPSHOT_PART_SHAPE } from "@ziffr/core/snapshot-parts";
+import { textList } from "@ziffr/core/slide-text";
+import { freeSpot } from "./placement";
 
 export const SLIDE_W = 1280;
 export const SLIDE_H = 720;
@@ -96,7 +98,7 @@ export function placeShapes(editor: Editor, slide: TLShapeId, shapes: SlideShape
     // One by one: a shape the editor cannot read (made by an older editor, or by hand) is left out, never the slide.
     for (const sh of shapes) {
       try {
-        editor.createShape({ id: createShapeId(), parentId: slide, type: sh.type, x: sh.x, y: sh.y, rotation: sh.rotation, opacity: sh.opacity, props: sh.props } as never);
+        editor.createShape({ id: createShapeId(), parentId: slide, type: sh.type, x: sh.x, y: sh.y, rotation: sh.rotation, opacity: sh.opacity, props: sh.props, ...(sh.meta ? { meta: sh.meta } : {}) } as never);
       } catch {
         // Left out on purpose; the rest of the slide stands.
       }
@@ -121,5 +123,20 @@ export function templateSlides(editor: Editor, master: SlideDesign | null, slide
  * Parts stay on their deck: a layout keeps no numbers (spec 0061). */
 export function slideShapes(editor: Editor, slide: TLShapeId): SlideShape[] {
   return editor.getSortedChildIdsForParent(slide).map((cid) => editor.getShape(cid)!).filter((sh) => sh && sh.type !== SNAPSHOT_PART_SHAPE)
-    .map((sh) => JSON.parse(JSON.stringify({ type: sh.type, x: sh.x, y: sh.y, rotation: sh.rotation, opacity: sh.opacity, props: sh.props })) as SlideShape);
+    // Of a shape's own notes only the Metrics a text box names go along: they become the template's Slots.
+    .map((sh) => JSON.parse(JSON.stringify({ type: sh.type, x: sh.x, y: sh.y, rotation: sh.rotation, opacity: sh.opacity, props: sh.props, ...(textList(sh) === undefined ? {} : { meta: { metrics: textList(sh) } }) })) as SlideShape);
+}
+
+/** Where a new shape of a size goes on the slide in view: the first free spot of its content area, beside what is on
+ * the slide. Null while the deck has no slide. */
+export function spotInView(editor: Editor, size: { w: number; h: number }) {
+  const slides = orderedSlides(editor);
+  const slide = slides.find((f) => editor.getShapePageBounds(f)!.collides(editor.getViewportPageBounds())) ?? slides[0];
+  if (!slide) return null;
+  const fb = editor.getShapePageBounds(slide)!;
+  const taken = editor.getSortedChildIdsForParent(slide.id).map((child) => {
+    const b = editor.getShapePageBounds(child)!;
+    return { x: b.x - fb.x, y: b.y - fb.y, w: b.w, h: b.h };
+  });
+  return { slide: slide.id, spot: freeSpot(contentAreas()[0], taken, size, { w: SLIDE_W, h: SLIDE_H }) };
 }

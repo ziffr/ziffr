@@ -1,14 +1,14 @@
 {
-  "format": "ziffr.pack/1",
+  "format": "ziffr.pack/2",
   "id": "ziffr/fulfilment",
   "name": "Operations and fulfilment",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "summary": "Orders shipped, on-time delivery, backlog, stock, stock-outs, output, defects and downtime, with a weekly dashboard and a Workflow that asks for last week's figures on Monday.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.21",
   "audience": {
     "industries": [
       "ecommerce",
@@ -24,10 +24,67 @@
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For a team that ships or makes things and wants to see every week what went out, whether it arrived on time, what is waiting and how the line is running."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "The week's figures: orders shipped, on-time delivery, backlog, stock value, stock-outs, units produced, defect rate and downtime.",
+          "Free room for the Metrics in your Workspace's size: the Set up form says how many it makes and how many fit."
+        ]
+      }
+    ],
+    "firstSteps": [
+      {
+        "type": "heading",
+        "text": "Start here"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Keep the Metrics you want ticked, up to all 8, with the dashboard **Operations weekly** and the Workflow **Monday operations figures**. Leave **Make me the Submitter of their values** ticked if you send the figures yourself, else untick it. Setting up sends no request unless you tick **Send the first requests now**. Choose **Set up**.",
+          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
+          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
+          "Open **Dashboards** and then **Operations weekly**. It fills as values come in."
+        ]
+      }
+    ],
+    "eachPart": [
+      {
+        "type": "list",
+        "items": [
+          "**Orders shipped**, **On-time delivery** and **Order backlog**.",
+          "**Stock value** and **Stock-outs**.",
+          "**Units produced**, **Defect rate** and **Downtime**.",
+          "The dashboard **Operations weekly**.",
+          "The Workflow **Monday operations figures** asks for last week's figures on Monday and publishes them. A figure that is still missing after its Due Date is raised with the Metric's owner."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "We do not produce anything."
+      },
+      {
+        "type": "text",
+        "text": "Leave **Units produced**, **Defect rate** and **Downtime** unticked in Set up. A Slot of the dashboard that suggested one then asks you for another Metric."
+      }
+    ]
+  },
   "contents": {
     "metrics": [
       {
         "key": "orders-shipped",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Orders shipped",
@@ -55,6 +112,7 @@
       },
       {
         "key": "on-time",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "On-time delivery",
@@ -85,6 +143,7 @@
       },
       {
         "key": "backlog",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Order backlog",
@@ -111,6 +170,7 @@
       },
       {
         "key": "stock-value",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Stock value",
@@ -139,6 +199,7 @@
       },
       {
         "key": "stock-outs",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Stock-outs",
@@ -165,6 +226,7 @@
       },
       {
         "key": "output",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Units produced",
@@ -191,6 +253,7 @@
       },
       {
         "key": "defect-rate",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Defect rate",
@@ -221,6 +284,7 @@
       },
       {
         "key": "downtime",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Downtime",

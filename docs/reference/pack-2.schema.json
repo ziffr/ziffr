@@ -533,7 +533,7 @@
         "decks": {
           "type": "array",
           "maxItems": 50,
-          "description": "Deck Templates, each a ziffr.deck-template/1 or ziffr.deck-template/2 document under “template”.",
+          "description": "Deck Templates, each a ziffr.deck-template/1, ziffr.deck-template/2 or ziffr.deck-template/3 document under “template”.",
           "items": {
             "type": "object",
             "properties": {
@@ -550,7 +550,7 @@
               },
               "template": {
                 "type": "object",
-                "description": "A ziffr.deck-template/1 or ziffr.deck-template/2 document, checked by its own schema."
+                "description": "A ziffr.deck-template/1, ziffr.deck-template/2 or ziffr.deck-template/3 document, checked by its own schema."
               }
             },
             "required": [
