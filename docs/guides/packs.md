@@ -158,7 +158,7 @@ How a Workspace's answers rank the Packs: an industry that matches adds 4 points
 
 A Pack in the format `ziffr.pack/2` may also say who does what, as **Positions** such as "Sales lead" that people fill when it is set up, which parts are made once for each salesperson, site or company, its **Repeats**, and which Metrics add those up, its [Totals](#totals). It names no person. It may credit the Packs it builds on and carry a [Pack Guide](#the-pack-guide).
 
-Ziffr checks all of it and installs such a Pack today, unless it holds a Total. **Set up from this Pack does not use Positions or Repeats yet:** it sets the Pack up as if it named none, so nobody is assigned and nothing is shared, and the Workflow Templates it stores keep neither the Positions nor the Tell steps. **A Pack with a Total cannot be installed yet:** Ziffr says so and adds nothing of it. The screens follow in later versions.
+Ziffr checks all of it and installs such a Pack today, unless it holds a Total. The Packs page shows its Positions, Repeats and proposed Shares before and after installing. **Set up from this Pack does not use Positions or Repeats yet:** it sets the Pack up as if it named none, so nobody is assigned and nothing is shared, and the Workflow Templates it stores hold neither the Positions nor the Tell steps. **A Pack with a Total cannot be installed yet:** Ziffr says so and adds nothing of it. The rest follows in later versions.
 
 Keep a file in `ziffr.pack/1` unless it uses something below: an older Ziffr refuses a `/2` file, saying which formats it reads. A whole example:
 

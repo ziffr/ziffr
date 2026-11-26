@@ -229,7 +229,7 @@ export async function updatePack(actor: Actor, installId: number, text: string, 
   const logoChange = was === now ? "same" : !was ? "added" : !now ? "removed" : "changed";
   const { error } = await db().rpc("update_pack", {
     p_workspace: actor.workspaceId, p_install: Number(installId), p_by: actor.personId,
-    p_install_row: { version: res.pack.version, license: res.pack.license, manifest: installManifest(res.pack), item_keys: itemKeys(res.stored), source: origin.source, signed: origin.signed },
+    p_install_row: { version: res.pack.version, license: res.pack.license, manifest: installManifest(res.pack, res.stored), item_keys: itemKeys(res.stored), source: origin.source, signed: origin.signed },
     p_ops: res.ops,
   });
   if (error?.code === "40001") throw new Error("Something of this Pack changed meanwhile; choose the file again to see what an update does now.");

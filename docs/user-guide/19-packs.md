@@ -10,6 +10,20 @@ A **Pack** is a file of ready-made things for a Workspace: Metric Catalog entrie
 
 Each Pack shows "by" its author, with its logo when it has one, in a bordered box next to the name, and says who vouches for both. A Pack installed from the Marketplace says **Published through the Marketplace as @handle**; that is all its signature proves, so it does not say the name or logo were reviewed. A Pack installed from a file says **Uploaded file. The Marketplace did not check it. Its name and logo are what the file says about itself.**, shows the id as the file writes it, and, when the id begins with `ziffr/`, adds **This file says it is from Ziffr. It is not signed by the Marketplace.** There is no badge: read the lines. The logo is shown only here, in the install preview and on the update page, never anywhere else in Ziffr.
 
+## Who does what in a Pack
+
+A Pack may name **Positions**, such as "Sales lead" or "Salesperson": places that people fill when the Pack is set up. It names no person. It may also have **Repeats**: parts that are made once for each line of a list, such as each salesperson or site.
+
+The preview of such a Pack shows this before you install it, and the installed Pack keeps it under **Who does what**:
+
+| Section | What it shows |
+| --- | --- |
+| **Made once for each line of a list (Repeats)** | Each Repeat in the Pack's words, the most lines it takes, and the Metrics, dashboards and Workflows each line gets. |
+| **Who does what (Positions)** | Each Position, whether one person or several fill it (also once per line), and what it does: which Metrics it submits or stands in for, where it approves, which Checklist Items it is told or ticks off, and which Snapshot it gets. |
+| **Shares it proposes** | Each Position the Pack proposes to share Metrics or dashboards with, as Viewer or Editor. Installing shares nothing and sends nothing. |
+
+An item you removed after installing is left out, and so are the Positions of a Workflow Template kept from another version of the Pack. **Set up from this Pack** does not fill Positions yet.
+
 ## Ziffr's own Packs
 
 **Ziffr's own Packs** lists the thirteen Packs that come with this version of Ziffr, for Owners and Admins. Each shows its name, version and summary and what it brings as counts (for example "13 Metrics, 2 dashboards, 2 Workflows"). It works on any Installation, also a self-hosted one with no Marketplace: nothing is downloaded and nothing leaves your server.
