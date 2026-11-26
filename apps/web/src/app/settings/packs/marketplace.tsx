@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
-import { shown, unwrap } from "@/lib/action-error";
+import { Refused, shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -46,7 +46,7 @@ export function MarketplaceSearch({ installed, viewer, numberStyle }: { installe
   useEffect(() => { shownPreview.current?.scrollIntoView({ block: "start" }); }, [preview]);
   const open = (l: MarketplaceListing) => run(async () => {
     const res = unwrap(await readFromMarketplace(l.id, l.version));
-    if (!res.ok) throw new Error(`The Marketplace's file is not a Pack Ziffr can install: ${res.problems[0]?.message ?? ""}`);
+    if (!res.ok) throw new Refused(`The Marketplace's file is not a Pack Ziffr can install: ${res.problems[0]?.message ?? ""}`);
     setOkAssistant(false);
     setPreview({ listing: l, preview: res.preview });
   });
@@ -120,7 +120,7 @@ export function PackUpdate({ name, version, button, from, read: readPlan, apply 
   const run = (f: () => Promise<void>) => start(async () => { try { await f(); } catch (e) { toast.error("Not done", { description: shown(e) }); } });
   const read = () => run(async () => {
     const res = unwrap(await readPlan());
-    if (!res.ok) throw new Error(`The file is not a Pack Ziffr can install: ${res.problems[0]?.message ?? ""}`);
+    if (!res.ok) throw new Refused(`The file is not a Pack Ziffr can install: ${res.problems[0]?.message ?? ""}`);
     setOkAssistant(false);
     setPlan(res.plan);
   });
