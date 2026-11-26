@@ -21,7 +21,7 @@ const POINT = 0.75;
 type Paint = { color: string; transparency: number } | null;
 
 /** A computed CSS colour as PowerPoint takes it, or null for none. */
-export function paintOf(css: string, opacity = 1): Paint {
+function paintOf(css: string, opacity = 1): Paint {
   const n = css.match(/^rgba?\(([^)]+)\)$/)?.[1].split(/[\s,/]+/).filter(Boolean).map(Number);
   if (!n || n.length < 3) return null;
   const alpha = (n[3] ?? 1) * opacity;

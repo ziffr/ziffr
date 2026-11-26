@@ -141,7 +141,7 @@ The **Pool** holds everything you can put on the dashboard. **Filter** at the to
 - **My Widgets**: the Widgets you saved (see [Saving a widget](#saving-a-widget)). Each shows its name and its Widget Template. The **×** next to one deletes it from your Pool, without asking; Widgets already placed from it stay.
 - **Templates**: the built-in **Widget Templates** in four groups, **Views**, **Analyses**, **Findings** and **Layout**; **The Workspace's View Designs**, when Owners or Admins added some (see [View Designs](13-analyze.md#view-designs)); and then **The team's**: Widget Templates colleagues saved, each with its number of Slots and who made it. The full list of built-in templates is in [Templates](05-templates.md#widget-templates). An Analysis on a dashboard reads as it does in [Analyze](13-analyze.md#reading-the-results): Metrics counted at different periods are compared on the longer one, and the result says so.
 
-To place something, drag it onto the dashboard where you want it, or point at it and press **+** to add it.
+To place something, drag it onto the dashboard where you want it, or point at it and press **+** to add it. [Slide Elements](14-decks-and-themes.md#slide-elements), such as a figure or a gap table, are for slides only; a dashboard holds Widgets.
 
 - **A Metric** lands as **Number + sparkline**. The sparkline keeps a small, fixed height, also in a tall card on a phone, so small dips do not look dramatic. You can change that afterwards with **Change view**.
 - **A saved Widget** lands as a copy. Changing the copy does not change your saved Widget, nor the other way round.

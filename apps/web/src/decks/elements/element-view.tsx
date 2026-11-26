@@ -8,7 +8,7 @@ import { columnsModel, figureModel, fillSlideWords, gapModel, metricTableModel, 
 import type { SlideElement, SlideTone, WordsElement } from "@ziffr/core/slide-element";
 
 /** A Theme colour by its role. */
-export const tone = (t: SlideTone | "bad-soft") => `var(--tone-${t})`;
+const tone = (t: SlideTone | "bad-soft") => `var(--tone-${t})`;
 
 /** What an element is drawn from: its figures' context, its size on the slide and the Theme's logo. */
 export type ElementProps = { element: SlideElement; context: SlideContext; w: number; h: number; logo?: string | null };
@@ -84,7 +84,7 @@ const COLUMNS_HEAD = 26;
 
 /** Where a column's value is written: just above the column, or, where the reference line would run through it, just
  * above the line. `baseline` is the writing's foot; its digits reach about 13 pixels up and 4 down. */
-export function clearOf(line: number | null, baseline: number): number {
+function clearOf(line: number | null, baseline: number): number {
   return line !== null && line > baseline - 15 && line < baseline + 5 ? line - 7 : baseline;
 }
 
