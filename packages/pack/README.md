@@ -25,6 +25,10 @@ saas.pack.json:64: contents.dashboards[0].template.slots[1].suggests names “cu
 - A Pack in the format `ziffr.pack/2` may name **Positions** and **Repeats** (who does what when it is set up), add a Repeat up in a **Total**, credit other Packs in `basedOn`, say where each number **comes from** (`comesFrom`; `packOverview` and `includedAndNeeded` work out what a page shows) and carry a **Pack Guide**: plain headings, paragraphs and lists with bold words, which `guideRuns` splits for drawing. `/1` files are read as ever, and a `/2` Workflow Template belongs in a `/2` Pack.
 - Texts that read like instructions to an AI assistant are listed, without failing the check: Ziffr shows them to whoever installs the Pack.
 
+## Check a Marketplace's answers
+
+A Marketplace holds what it sends to the [Marketplace contract](../../docs/reference/marketplace.md) with the same checks Ziffr relies on, from `@ziffr/pack/marketplace` (Node only): `checkMarketplaceAnswer`, `verifyPackStatement`, `checkRevocation` and the schemas. On the command line, `check-answer` takes the kind (`packs`, `version`, `updates`, `updates-request`), the answer's file and, to verify signatures, `--key` and `--reserve-key`.
+
 ## In a program
 
 ```js skip="a fragment: text is the Pack's file"
