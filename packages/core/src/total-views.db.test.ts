@@ -4,14 +4,17 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey, actorForKey } from "./access-keys";
 import { getMetric } from "./api";
-import { addWidget, createDashboard } from "./dashboards";
+import { createDashboard, placeWidget } from "./dashboards";
 import { db } from "./db";
 import { share } from "./sharing";
 import { openSnapshot, showSnapshot, takeSnapshot } from "./snapshots";
 import { workspace } from "./test/db-fixtures";
-import { createTotal } from "./total-changes";
+import { archivedMetricHolds } from "./internal/delivery-send";
+import { createTotal, setTotalPartPeriods } from "./total-changes";
+import { restsOfMessage } from "./total-parts";
 import { closeTotal, openTotal, totalOpening } from "./total-opening";
 import { createViewLink, emptyInLink, openViewLink } from "./view-links";
+import { getMetrics } from "./workspace-data";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -29,7 +32,7 @@ async function setup() {
   const total = await createTotal(owner, { name: "Commit", parts: [ana.id, eva.id] }, noEffects);
   const board = async (name: string, metrics: number[]) => {
     const id = await createDashboard(owner, name);
-    for (const m of metrics) await addWidget(owner, id, { template: "number", metric_ids: [m] });
+    for (const m of metrics) await placeWidget(owner, id, { type: "metric", id: m });
     return id;
   };
   const open = async () => openTotal(owner, total.id, (await totalOpening(owner, total.id)).fingerprint);
@@ -99,5 +102,31 @@ describe("a Total through the API", () => {
     await open();
     expect((await getMetric(his, total.slug)).total).toEqual({ targets: "own", open: true, periods_withheld: false });
     expect((await db().from("metrics").select("total_opened_by").eq("id", total.id).single()).data!.total_opened_by).toBe(sara);
+  });
+});
+
+describe("a message about a Total that waited", () => {
+  it("is judged by what its period counted, also where a Metric has left since", async () => {
+    const { w, owner, ben, ana, eva, total, open } = await setup();
+    for (const m of [total, ana]) await share(owner, "metric", m.id, ben, "viewer");
+    // Eva counted in January only.
+    await setTotalPartPeriods(owner, total.id, eva.id, { last: "2026-01-01" });
+    const metrics = await getMetrics(w.id);
+    const m = metrics.find((x) => x.id === total.id)!;
+    const about = async (period: string) => ({
+      id: 0, workspace_id: w.id, kind: "alert", recipient_id: ben, alert_metric_id: total.id,
+      total_rests: await restsOfMessage(w.id, metrics, m, [period]),
+    });
+    const [january, february] = [await about("2026-01-01"), await about("2026-02-01")];
+    expect(await archivedMetricHolds(january)).toBe("Not sent.");
+    expect(await archivedMetricHolds(february)).toBeNull();
+    expect(await archivedMetricHolds({ ...february, total_rests: null })).toBe("Not sent.");
+    await open();
+    // Judged by the Total as it stands when the message leaves.
+    expect(await archivedMetricHolds(january)).toBeNull();
+    await closeTotal(owner, total.id);
+    expect(await archivedMetricHolds(january)).toBe("Not sent.");
+    // The column takes what is kept.
+    expect((await db().from("deliveries").insert({ workspace_id: w.id, connector: "email", recipient_id: ben, kind: "alert", subject: "s", body: "b", alert_metric_id: total.id, total_rests: january.total_rests })).error).toBeNull();
   });
 });

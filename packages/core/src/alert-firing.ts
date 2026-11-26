@@ -27,6 +27,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { attainmentMethodOf, numberStyleOf } from "./workspace-settings";
 import { getMetrics, getSeriesOf, getSeriesValues, withInputs } from "./workspace-data";
 import { restsOnTotal } from "./totals";
+import { restsOfMessage } from "./total-parts";
 import type { AttainmentMethod } from "./attainment-method";
 import type { NumberStyle } from "./number-style";
 import type { Metric, Point } from "./types";
@@ -242,7 +243,10 @@ async function send(ctx: Ctx, m: Metric, a: Row, c: AlertCondition, view: View):
   const text = claim === "note" ? ALERT_LIMIT_NOTE : alertText(m, c, view, ctx, yearStart);
   // The daily note names no Metric and is not checked for sight when it is sent, so it links to the list only.
   const link = claim === "note" ? "/settings/alerts" : `/metrics/${encodeURIComponent(m.slug)}`;
-  await deliverAlert(ctx.ws, { recipientId: a.person_id, subject: claim === "note" ? "More Alerts fired today" : `Alert: ${m.name}`, text, link, via: a.delivery === "usual" ? undefined : a.delivery, metricId: claim === "note" ? null : m.id, alertId: claim === "note" ? null : a.id });
+  // A message that quotes a Total keeps what the periods it quotes counted, so it is judged again when it leaves.
+  const quoted = view.previous === null ? [view.period] : [view.period, shiftPeriod(view.period, m.period, -1)];
+  const totalRests = claim === "note" ? undefined : await restsOfMessage(ctx.ws, ctx.metrics, m, quoted);
+  await deliverAlert(ctx.ws, { recipientId: a.person_id, subject: claim === "note" ? "More Alerts fired today" : `Alert: ${m.name}`, text, link, via: a.delivery === "usual" ? undefined : a.delivery, metricId: claim === "note" ? null : m.id, alertId: claim === "note" ? null : a.id, totalRests });
 }
 
 /** "week of 9 Nov 2026" inside a sentence. */

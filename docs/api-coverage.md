@@ -399,6 +399,7 @@ Ticketed. MCP follows where the ticket says so.
 
 Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 
+- `restoreTotal` (total-changes.ts): the Workspace import turning a Metric of the file into the Total it was, closed; no person or program asks for it
 - `tagSight` (tag-sight.ts): the one reading of who sees which Tag that the app and the API both use; it changes nothing itself
 - `changeMetricTags` (tags.ts): the one change behind setMetricTags, addMetricTags and removeMetricTags; the API reaches it through `tags` on create and update
 - `resolveTagWidgets` (tag-widgets.ts): works out the Metrics of a widget of all Metrics tagged X for one viewer when a dashboard is drawn; read by the pages

@@ -102,11 +102,10 @@ export async function allowedNow(ws: string, rests: Rests | undefined, sees: (me
   return allowedBy(rests, open, sees);
 }
 
-/** Whether someone may be told a number of a Metric that rests on a Total, by a message written earlier: every Total it
- * rests on is open, or they see every Metric it counts from now on. True for any other Metric. */
-export async function maySeeTotalsNow(ws: string, metrics: Metric[], metric: Metric, sees: (metricId: number) => boolean): Promise<boolean> {
-  if (!restsOnTotal(metric)) return true;
-  const read = metric.total ? [metric] : metrics.filter((m) => m.total && formulaInputs(metric.formula ?? "").includes(m.slug));
-  const parts = await readParts(ws);
-  return read.every((t) => t.total!.open || (parts[t.id] ?? []).every((p) => p.last !== null || sees(p.part)));
+/** What a message that quotes these periods of a Metric rests on, to be kept with it while it waits (mayReadMessage);
+ * nothing for a Metric that rests on no Total. */
+export async function restsOfMessage(ws: string, metrics: Metric[], metric: Metric, periods: readonly string[]): Promise<Rests | undefined> {
+  if (!restsOnTotal(metric)) return undefined;
+  const quoted = periods.map((period) => ({ period, value: 0 }));
+  return restsFor({ metrics: [metric], series: { [metric.slug]: quoted }, targets: {}, pending: {} }, metrics, await readParts(ws));
 }

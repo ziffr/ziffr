@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { canvas, metric, months } from "./test/fixtures";
 import { NOT_SHOWN } from "./total-rules";
-import { allowedBy, gateTotals, restsFor } from "./total-views";
+import { allowedBy, gateTotals, mayReadMessage, restsFor } from "./total-views";
 import type { TotalPart } from "./totals";
 import { shownData } from "./view-links";
 import type { Metric } from "./types";
@@ -42,6 +42,27 @@ describe("what a copy keeps of a Total", () => {
     expect([open(9, "2025-01-01"), open(1, "2026-01-01")]).toEqual([false, false]);
     expect(allowedBy(restsFor(data, data.metrics, {}), new Set([9]), () => true)(9, "2026-01-01")).toBe(false);
     expect(allowedBy(undefined, new Set([9]), () => true)(9, "2026-01-01")).toBe(false);
+  });
+});
+
+describe("a message that waited", () => {
+  // Eva counted in January only: she has left the Total since.
+  const left: Record<number, TotalPart[]> = { 9: [{ part: 1, first: "2026-01-01", last: null }, { part: 2, first: "2026-01-01", last: "2026-01-01" }] };
+  const kept = (periods: string[], t = team()) => restsFor({ metrics: [t], series: { team: periods.map((period) => ({ period, value: 0 })) }, targets: {}, pending: {} }, [t, ana], left);
+  const onlyAna = (id: number) => id === 1;
+  const may = (t: Metric, rests: unknown) => mayReadMessage([t, ana], t, rests, onlyAna);
+
+  it("is judged by what its periods counted, a Metric that has left since included", () => {
+    expect(may(team(), kept(["2026-02-01"]))).toBe(true);
+    expect(may(team(), kept(["2026-01-01"]))).toBe(false);
+    // A change quotes the period before as well.
+    expect(may(team(), kept(["2026-02-01", "2026-01-01"]))).toBe(false);
+    expect(mayReadMessage([team()], team(), kept(["2026-01-01"]), () => true)).toBe(true);
+    expect(may(team("own", true), kept(["2026-01-01"]))).toBe(true);
+  });
+  it("is not sent where it kept nothing of what it quotes, and any other Metric's always is", () => {
+    expect([may(team(), undefined), may(team(), null), may(team(), {}), may(team(), { 9: {} })]).toEqual([false, false, false, false]);
+    expect(may(ana, null)).toBe(true);
   });
 });
 

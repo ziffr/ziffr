@@ -48,6 +48,17 @@ export function allowedBy(rests: Rests | undefined, open: ReadonlySet<number>, s
   };
 }
 
+/** Whether a message that quotes a Metric may be sent to, or read by, someone now. Any Metric that rests on no Total:
+ * yes. Else only where the message kept what the periods it quotes rested on (`kept`), and every one of those is open now
+ * or counted only Metrics they see: judged by what was counted then, a Metric that has left since included. */
+export function mayReadMessage(metrics: readonly Metric[], metric: Metric, kept: unknown, sees: (metricId: number) => boolean): boolean {
+  if (!restsOnTotal(metric)) return true;
+  const rests = (kept ?? undefined) as Rests | undefined;
+  const allowed = allowedBy(rests, new Set(metrics.filter((m) => m.total?.open).map((m) => m.id)), sees);
+  const periods = Object.keys(rests?.[metric.id] ?? {});
+  return periods.length > 0 && periods.every((period) => allowed(metric.id, period));
+}
+
 /** The numbers of the data that rest on a Total, cut to the periods `allowed` gives; left out, none of them goes out. A
  * Total's own target is its own and stays; the added-up targets of its Metrics follow their numbers. A Total that is
  * then empty says so. */

@@ -2,7 +2,7 @@
 // (slack-send.ts) and Telegram (telegram-send.ts). Internal to the core: these check no Actor and no claim, so only a
 // sender that has read the queued Delivery itself, and claimed it before it adds the link, calls them. The app never
 // imports from core/internal (.github/scripts/app-db-access.mjs).
-import { maySeeTotalsNow } from "../total-parts";
+import { mayReadMessage } from "../total-views";
 import { db } from "../db";
 import { ARCHIVED_BEFORE_SENT } from "../archived-metrics";
 import { visibleDashboards, visibleMetricIds } from "../access";
@@ -31,7 +31,7 @@ export async function withFormLink(body: string, d: { workspace_id: string; form
 export const PROMPT_ANSWERED = "Not sent: the request was answered another way first.";
 
 /** What a Delivery is about, as far as its Metric goes. */
-type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; heads_up_key?: string | null; heads_up_told_id?: number | null; tell_workflow_id?: number | null; snapshot_dashboard_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null; sender_id?: string | null; filled_in_observation_id?: number | null };
+type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; heads_up_key?: string | null; heads_up_told_id?: number | null; tell_workflow_id?: number | null; snapshot_dashboard_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null; sender_id?: string | null; filled_in_observation_id?: number | null; total_rests?: unknown };
 
 /** Why a message of a Workflow's (a Tell or a Checklist Item) must not go out: its recipient said "stop telling me" after it was queued. Null otherwise. */
 async function toldStop(d: AboutMetric): Promise<string | null> {
@@ -85,8 +85,8 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
     const m = metrics.find((x) => x.id === d.alert_metric_id);
     if (!m || m.archived_at || !d.recipient_id) return "Not sent.";
     const sight = await visibleMetricIds(ws, d.recipient_id, metrics);
-    // A Total closed while the message waited tells its numbers to no one who no longer may see them.
-    if (!sight.has(m.id) || !(await maySeeTotalsNow(ws, metrics, m, (id) => sight.has(id)))) return "Not sent.";
+    // A Total closed while the message waited tells its numbers to no one who may not see every Metric they counted.
+    if (!sight.has(m.id) || !mayReadMessage(metrics, m, d.total_rests, (id) => sight.has(id))) return "Not sent.";
     // A Tell message (GLOSSARY: Tell) also stops when the person said "stop telling me" after it was queued.
     return toldStop(d);
   }

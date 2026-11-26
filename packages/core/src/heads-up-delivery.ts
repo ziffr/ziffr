@@ -8,6 +8,7 @@
 // (internal/delivery-send.ts), and a person without it gets nothing: no message, and no trace of one. The text is the Takeaway's
 // words about Metrics they see (heads-up-message.ts). Nothing is sent from the demo. A person's counts, timing and choices are
 // their own: nothing here reads another person's. Logs hold no names, no ids and no numbers.
+import { restsOnTotal } from "./totals";
 import type { Actor, WorkspaceRoleName } from "./actor";
 import { visibleMetricIds } from "./access";
 import { db } from "./db";
@@ -44,7 +45,9 @@ export async function deliverHeadsUpsTo(ws: string, personId: string, opts: { no
   const seen = await visibleMetricIds(ws, personId, metrics);
   let made = 0;
   for (const h of items) {
-    if (!h.metrics.every((id) => seen.has(id) && metrics.some((m) => m.id === id && !m.archived_at && !m.inputs_withheld))) continue;
+    // None is written about a Total, or a formula that reads one: a Heads-up looks back over many periods, and a message
+    // cannot be judged again by each of them when it leaves. It stands in the app, worked out as it is read.
+    if (!h.metrics.every((id) => seen.has(id) && metrics.some((m) => m.id === id && !m.archived_at && !m.inputs_withheld && !restsOnTotal(m)))) continue;
     const message = headsUpMessage(h, h.named.map((m) => m.name));
     if (!message) continue;
     const { data: claim, error } = await db().rpc("claim_heads_up_message", { p_ws: ws, p_person: personId, p_key: h.key, p_cap: WEEKLY_CAP, p_now: now.toISOString() });

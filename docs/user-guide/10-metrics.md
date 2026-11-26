@@ -454,7 +454,7 @@ The same rule holds everywhere, judged at the time of reading:
 
 - A **Snapshot** keeps with each period which Metrics it counted. Whoever opens it gets a period if they may see every one of those now, or the Total is open now. So closing a Total also hides it in older Snapshots.
 - A **View Link** shows a Total's numbers only while it is open, or where the link itself shows every Metric counted. Frozen links too. Before you make a link, the panel says which numbers would stay empty.
-- An **Alert** about a Total works with the numbers you may see, and waits until every value counted is approved, also if it asks for values not approved yet. A **Heads-up** about one Metric does the same; Heads-ups that compare two Metrics leave Totals out.
+- An **Alert** about a Total works with the numbers you may see, and waits until every value counted is approved, also if it asks for values not approved yet. A **Heads-up** about one Metric does the same, in the app only: none is sent to you as a message. Heads-ups that compare two Metrics leave Totals out. A message already waiting to be sent, such as during your Quiet Hours, is not sent if a Total it quotes has been closed to you meanwhile.
 - The **API** and the **MCP Server** give a program the periods its key's creator may see, and say that a Total is open and whether periods are left out. No program makes, changes, opens or closes one.
 
 #### Changing what it adds up
