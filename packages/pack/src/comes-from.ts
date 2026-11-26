@@ -23,7 +23,7 @@ export const COMES_FROM_BY = ["person", "system", "target"] as const;
 export type PackComesFrom = { by: (typeof COMES_FROM_BY)[number]; system?: string; note?: string };
 
 /** The n8n templates Ziffr ships, by id, as a person reads them (docs/automations/feed-templates.json). */
-export const FEED_TEMPLATE_LABELS: Record<string, string> = { "google-sheets": "Google Sheets", excel: "Microsoft Excel", stripe: "Stripe", hubspot: "HubSpot", bigquery: "BigQuery", snowflake: "Snowflake" };
+export const FEED_TEMPLATE_LABELS: Record<string, string> = { "google-sheets": "Google Sheets", excel: "Microsoft Excel", stripe: "Stripe", hubspot: "HubSpot", bigquery: "BigQuery", snowflake: "Snowflake", "hubspot-forecast": "HubSpot forecast", "salesforce-forecast": "Salesforce forecast", "pipedrive-forecast": "Pipedrive forecast" };
 
 const L = COMES_FROM_LIMITS;
 const system = { ...plainText(L.system), minLength: 1 };

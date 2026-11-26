@@ -178,7 +178,9 @@ export function targetLabel(polarity: Metric["polarity"], status: "below" | "on"
 }
 
 /** A metric's target as words, e.g. "at least 100 €". */
-export function targetText(m: Pick<Metric, "target_min" | "target_max"> & ValueUnit, style: NumberStyle) {
+export function targetText(m: Pick<Metric, "target_min" | "target_max" | "total"> & ValueUnit, style: NumberStyle) {
+  // A Total may take no range of its own: its target is worked out per period (spec 0058).
+  if (m.total?.targets === "parts") return "Its Metrics’ targets added up";
   const lo = m.target_min !== null ? formatValue(m, Number(m.target_min), style) : null;
   const hi = m.target_max !== null ? formatValue(m, Number(m.target_max), style) : null;
   if (lo && hi) return `${lo} – ${hi}`;

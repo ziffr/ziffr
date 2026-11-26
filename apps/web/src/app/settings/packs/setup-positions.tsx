@@ -80,6 +80,9 @@ export function PositionField({ position, people, chosen, onChange, of }: { posi
 const many = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 const asks = (list: PackSetupPlan["messages"]["now"]) => list.map((m) => `${m.name} (${m.count})`).join(", ");
 
+/** What a proposed Share does for the person's sight, in words. */
+const shows = (s: PackSetupPlan["shares"][number]) => (s.keeps ? "lets them see a number they are not asked for" : s.showsMore ? "shows them more" : "shows them no more than they see");
+
 /** What adding a line does not change of what is there, for the person to do by hand. */
 export function ByHand({ items }: { items: string[] }) {
   return (
@@ -121,7 +124,7 @@ export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow, offerTicks, o
       {plan.shares.length > 0 && (
         <div>
           <h5 className="text-xs font-medium">Shares the Pack proposes</h5>
-          <p className="text-xs text-muted-foreground">Only what you tick is shared. A Share that would show someone more, or lets them change something, starts unticked.</p>
+          <p className="text-xs text-muted-foreground">Only what is ticked is shared. A Share that would show someone more, or lets them change something, starts unticked.{plan.shares.some((s) => s.keeps && s.suggested) && " One that lets a person see a number they would submit, but are not asked for, starts ticked."}</p>
           {byPerson.map((person) => {
             const theirs = plan.shares.filter((s) => s.person === person);
             const on = theirs.filter((s) => ticks[s.id] ?? s.suggested).length;
@@ -138,7 +141,7 @@ export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow, offerTicks, o
                     <li key={s.id}>
                       <label className="flex items-start gap-2 text-xs">
                         <input type="checkbox" className={check} checked={ticks[s.id] ?? s.suggested} onChange={(e) => onTick({ [s.id]: e.target.checked })} />
-                        <span>The {s.kind} {s.item}, as {s.role === "editor" ? "Editor" : "Viewer"} <span className="text-muted-foreground">({s.showsMore ? "shows them more" : "shows them no more than they see"}{s.role === "editor" ? ", and lets them change it" : ""})</span></span>
+                        <span>The {s.kind} {s.item}, as {s.role === "editor" ? "Editor" : "Viewer"} <span className="text-muted-foreground">({shows(s)}{s.role === "editor" ? ", and lets them change it" : ""})</span></span>
                       </label>
                     </li>
                   ))}
@@ -153,7 +156,7 @@ export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow, offerTicks, o
         <fieldset className="space-y-1 text-xs">
           <legend className="font-medium">Add to what is set up</legend>
           {plan.offers.map((o) => (
-            <label key={o.id} className="flex items-start gap-2"><input type="checkbox" className={check} checked={offerTicks[o.id] ?? true} onChange={(e) => onOffer(o.id, e.target.checked)} /> <span>{o.words}</span></label>
+            <label key={o.id} className="flex items-start gap-2"><input type="checkbox" className={check} checked={offerTicks[o.id] ?? o.suggested} onChange={(e) => onOffer(o.id, e.target.checked)} /> <span>{o.words}</span></label>
           ))}
         </fieldset>
       )}
@@ -164,6 +167,7 @@ export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow, offerTicks, o
         <p>{plan.messages.now.length ? `Requests for values sent now: ${asks(plan.messages.now)}.` : "No request for values goes out now."}</p>
         {plan.messages.nextRun.length > 0 && <p>Asked at the Workflow&rsquo;s next run: {asks(plan.messages.nextRun)}.</p>}
         {plan.messages.unasked.length > 0 && <p>Nothing asks these by itself, as their Metrics follow no Workflow: {asks(plan.messages.unasked)}.</p>}
+        {plan.notAsked.map((x) => <p key={x}>{x}</p>)}
         {plan.messages.others > 0 && (
           <label className="mt-1 flex items-start gap-2"><input type="checkbox" className={check} checked={askNow} onChange={(e) => onAskNow(e.target.checked)} /> Ask the others for the current period now ({many(plan.messages.others, "message")})</label>
         )}

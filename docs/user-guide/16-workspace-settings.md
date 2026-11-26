@@ -63,7 +63,7 @@ On a Ziffr that you or your company run (not on hosted Ziffr, where a new Worksp
 
 Ziffr first checks the whole file and writes nothing. If anything is wrong, such as a line that is not allowed, a number that is too large, a name the file never listed, a time zone this Ziffr does not know, or more Metrics than this Ziffr's Workspace Limit allows, the page says which line and why, and no Workspace is made. Only when the file is sound does it create the Workspace and fill it, with a progress bar that you can leave and come back to. If the import stops half-way, for any reason, the half-made Workspace is deleted together with its key. You can only run one import at a time.
 
-The new Workspace has its own key: everything private in it is sealed again under that key, whatever it was sealed with before. What arrives: the Workspace's name, time zone and year start, Groups, Themes, Metrics with their Tags, Target Ranges, Target Series and Projections, every value with its Breakdown and the day it was recorded, dashboards, decks, Workflows and Shares. Values come in as imports, so they count as history. Things to know:
+The new Workspace has its own key: everything private in it is sealed again under that key, whatever it was sealed with before. What arrives: the Workspace's name, time zone and year start, Groups, Themes, Metrics with their Tags, Target Ranges, Target Series and Projections, [Totals](10-metrics.md#adding-up-metrics-a-total) with what they add up (closed, also where one was open), every value with its Breakdown and the day it was recorded, dashboards, decks, Workflows and Shares. Values come in as imports, so they count as history. Things to know:
 
 - **You own every Metric.** The people who owned them get them when they join.
 - **People are not invited yet.** They are on the **Members and Groups** page as invitations that are on hold, with the name, address and role the file gave. Nothing is sent. Change a person's role with the list beside their name if the old one no longer fits, then choose **Invite everyone** when you are ready, within this Ziffr's sending limits; each person's Groups, Shares, the Metrics they owned and the Metrics they send values for are applied when they join. You are not invited yourself: if your own address is in the file, you are the person it names.
@@ -245,7 +245,7 @@ Owners see one line at the end of the page: **Encrypted with a key of its own. D
 
 ### Workspace Export
 
-Only the Workspace's Owner sees **Workspace Export** under **Settings**, in the Workspace group. It downloads what you may see in the Workspace as one file, to keep or for another Ziffr to read as a new Workspace. The record of [Set ups from Packs](19-packs.md#set-up-with-positions) is not in it; what a Set up made is. The page first says what the file will hold (how many Metrics, dashboards, decks, Workflows, Themes, Groups, Shares and people to invite) and what stays out, with the reason for each. With every Metric come its description, its **Calculation Note**, its values, Target Series and Projections. A Metric with a Calculation Note is written in the newer format `ziffr.metric/2`, so a Ziffr from before it cannot import that file and says which formats it reads.
+Only the Workspace's Owner sees **Workspace Export** under **Settings**, in the Workspace group. It downloads what you may see in the Workspace as one file, to keep or for another Ziffr to read as a new Workspace. The record of [Set ups from Packs](19-packs.md#set-up-with-positions) is not in it; what a Set up made is. The page first says what the file will hold (how many Metrics, dashboards, decks, Workflows, Themes, Groups, Shares and people to invite) and what stays out, with the reason for each. With every Metric come its description, its **Calculation Note**, its values, Target Series and Projections. A Metric with a Calculation Note is written in the newer format `ziffr.metric/2`, so a Ziffr from before it cannot import that file and says which formats it reads. A [Total](10-metrics.md#adding-up-metrics-a-total) is in the file only with every Metric it adds up; a file that holds one is `ziffr.workspace-export/2`, which a Ziffr from before Totals does not import.
 
 The file holds every value in the clear, so keep it as private as the Workspace. Ziffr makes it while you download it and keeps no copy; the download is gzipped. People are in it as invitations: name, email address, Workspace Role and Groups, and nothing is sent to them when someone imports it. It holds no Access Key, Feed Key, Webhook address or secret and no Connector link: make those again where you run it. It holds what you may see, so a Metric nobody shared with you is not in it. Nothing is cut short: what the file cannot carry, such as a free layout, a Theme's logo, or a text longer than the file allows, stays out and is listed on the page. The details are in [the format](../reference/workspace-export.md).
 
@@ -356,7 +356,7 @@ In the demo, adding a Contact says "The demo can't be changed."
 
 ### Send values
 
-The **Send values** tab is where everyone finds a working way to put values on their Metrics from a program or another system. Pick one of your Metrics that takes values from the API (its **Values arrive by** includes **API and Feeds**), and a kind of key: a **Feed Key** for a system (Owners and Admins; up to 500 values in one call) or an **Access Key** for you (one value at a time, as you). The page shows the call for this Ziffr's own address in curl, JavaScript, Python and n8n or Zapier, each with a **Copy** button. The key is a placeholder: the page holds no key and sends nothing (make a key under **Settings → Feeds** or **Settings → API keys**). Below it, **What the answers mean** says what a 400, 401, 409, 422 or 429 is and what to do, and **Other ways to connect** points to the ready-made n8n workflows (**Fill from n8n** on a Metric), the AI assistant and the keys. The full list of answers and codes is in the [Feeds guide](../guides/feeds.md).
+The **Send values** tab is where everyone finds a working way to put values on their Metrics from a program or another system. Pick one of your Metrics that takes values from the API (its **Values arrive by** includes **API and Feeds**), and a kind of key: a **Feed Key** for a system (Owners and Admins; up to 500 values in one call) or an **Access Key** for you (one value at a time, as you). The page shows the call for this Ziffr's own address in curl, JavaScript, Python and n8n or Zapier, each with a **Copy** button. The key is a placeholder: the page holds no key and sends nothing (make a key under **Settings → Feeds** or **Settings → API keys**). Below it, **What the answers mean** says what a 400, 401, 409, 422 or 429 is and what to do, and **Other ways to connect** points to the ready-made n8n workflows (**Fill from n8n** on a Metric), the AI assistant and the keys. The full list of answers and codes is in the [Feeds guide](../guides/feeds.md). For a step-by-step with n8n, Zapier, Make, Power Automate, a scheduled script or a system that only sends webhooks, see [Connect any system to Ziffr](../guides/connect-any-system.md).
 
 ### Slack
 
@@ -375,6 +375,8 @@ Once Slack is connected, the box says how Slack knows you: by your email address
 
 A Slack workspace can be connected to one Ziffr Workspace only.
 
+When a Slack or Telegram account becomes yours, Ziffr tells you by email: see [When an account is connected to you](#when-an-account-is-connected-to-you).
+
 ### Telegram
 
 The Telegram box appears when this Ziffr has a Telegram bot (never in the demo). Whoever runs this Ziffr sets the bot up, in the server's settings or on the [Installation settings](18-installation-settings.md) page; if Telegram does not accept its token, the box says so and points them there. It names the bot, such as @acme_ziffr_bot, and says whether Telegram is on in this Workspace. It is off until an Owner or Admin turns it on.
@@ -390,6 +392,27 @@ The Telegram box appears when this Ziffr has a Telegram bot (never in the demo).
 A bot cannot find anyone by email or phone number, so everyone connects their own Telegram, once per Workspace. Contacts without a login connect it on their [personal form](10-metrics.md#the-personal-form-link) and confirm it from an email to the address the Workspace keeps for them, so a Contact needs an email address for this. To stop everything from Ziffr in Telegram, send the bot `/stop`, or block it.
 
 Telegram can read what its bots send and receive, so numbers and questions sent this way pass through Telegram's servers. The box says so as well.
+
+### When an account is connected to you
+
+Ziffr emails a Member when a Telegram or Slack account becomes theirs in a Workspace. The email names the service, the account, the Workspace and the time (in the Workspace's time zone), and goes to the address you sign in with.
+
+| How the account became yours | What the email offers if it was not you |
+| --- | --- |
+| By your own link (**Connect Telegram**) or code (**Link my Slack account**) | A **Not you? Disconnect it** button. It opens a page, without signing in, that asks first; **Disconnect** there ends that connection and any link or code still waiting. The button works for that one connection only. After disconnecting Slack, Ziffr may find your own Slack account again by your email address. |
+| Slack found it by your email address | How to put your own in its place: **Open Connectors**, choose **Link my Slack account** and send the code from your own Slack account. An Owner or Admin can disconnect Slack. |
+
+Either way, also tell an Owner or Admin. Where this Ziffr has no secrets key (`ZIFFR_SECRETS_KEY`), there is no **Not you? Disconnect it** button: the email points you to **Connectors** instead.
+
+If an account that is yours in a Workspace is connected to someone else there, Ziffr emails you that it is not yours any more, without saying whose it is now. A Contact gets this email too, at the address the Workspace keeps for them. Nothing is sent when you connect the account you already have.
+
+When an email goes:
+
+- About an account you have not been emailed about in the last day, it goes.
+- About one you were told about already, at most five an hour and twenty a day go in a Workspace.
+- Beyond twenty emails an hour or sixty a day, one email, **Several account connections in Ziffr**, goes in their place, at most once an hour. It asks you to check **Connectors** and to tell an Owner or Admin.
+
+An email that could not be sent does not count. Where this Ziffr sends no email, they wait in the **Outbox**.
 
 ### Claude and other AI assistants
 
@@ -537,7 +560,7 @@ Owners and Admins also see, below the keys, who has a **Calendar Link**: a secre
 
 **Workspace → Feeds** is for Owners and Admins only. Others see a note to ask an Owner or Admin. The demo has no Feeds.
 
-A **Feed** brings in values from another system, such as a CRM or a data warehouse. It runs outside Ziffr, with a **Feed Key** that can only record values for the Metrics that take the Feed as a Submitter, never read them. It belongs to the Workspace and keeps working when the person who set it up leaves. See [Connecting Ziffr](04-connecting.md#feeds-numbers-from-other-systems) for how Feeds work.
+A **Feed** brings in values from another system, such as a CRM or a data warehouse. It runs outside Ziffr, with a **Feed Key** that can only record values for the Metrics that take the Feed as a Submitter, never read them. It belongs to the Workspace and keeps working when the person who set it up leaves. See [Connecting Ziffr](04-connecting.md#feeds-numbers-from-other-systems) for how Feeds work, and [Connect any system to Ziffr](../guides/connect-any-system.md) for the steps with your own system.
 
 ### Making a Feed
 
@@ -642,7 +665,7 @@ On a phone the filter (**Person**, **What happened**, **From**, **To**, **Show**
 
 ### What is recorded
 
-Role changes and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, Webhooks (added, changed, given a new secret, switched on or off, deleted), new dashboards, new, deleted, archived and brought back Metrics, a Metric's Workflow, a Metric's Retention (set or cancelled) and the Workspace's default Retention, Locks, Workflow runs, Approvals (and values counted without one because nobody else could approve them), Self-checks, Corrections, each Filled-in Value (who filled in a value, for whom, for which period and as whom: the Stand-in, the Metric's owner or the Workflow's owner, and who set the Away that opened it; never the value), the Workspace's name, time, fiscal year and profile, each person's Business Function (the old and the new choice), the Setup Guide's skipped steps and its finish (step names only), each Test Message a person sends themselves (the way and whether it was sent, never an address), Packs installed from Ziffr's own Packs, its Workspace Limit (old and new, and who set it), Slack, Snapshots taken, shown and deleted, exports, sign-ins, and each time an Owner or Admin reads a teammate's Schedule through the API or an assistant (whose, and for which days). When an Access Key (also an assistant's) changes a Metric's name, description, unit, format, period or Submission Rule, the event names the key and the fields, never the new words.
+Role changes and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, Webhooks (added, changed, given a new secret, switched on or off, deleted), new dashboards, new, deleted, archived and brought back Metrics, a Metric's Workflow, a Metric's Retention (set or cancelled) and the Workspace's default Retention, Locks, Workflow runs, Approvals (and values counted without one because nobody else could approve them), Self-checks, Corrections, each Filled-in Value (who filled in a value, for whom, for which period and as whom: the Stand-in, the Metric's owner or the Workflow's owner, and who set the Away that opened it; never the value), the Workspace's name, time, fiscal year and profile, each person's Business Function (the old and the new choice), the Setup Guide's skipped steps and its finish (step names only), each Test Message a person sends themselves (the way and whether it was sent, never an address), Packs installed from Ziffr's own Packs, its Workspace Limit (old and new, and who set it), Slack, each Slack or Telegram account disconnected with the button in [the email about it](#when-an-account-is-connected-to-you) (whose, and which of the two), Snapshots taken, shown and deleted, exports, sign-ins, and each time an Owner or Admin reads a teammate's Schedule through the API or an assistant (whose, and for which days). When an Access Key (also an assistant's) changes a Metric's name, description, unit, format, period or Submission Rule, the event names the key and the fields, never the new words.
 
 Each event names the person, what happened, what it was about (as it was named then), the time and a few details, such as the old and new role. It never holds a value or a message. A Metric, dashboard or deck you may not see appears without its name, as "a Metric you do not see".
 

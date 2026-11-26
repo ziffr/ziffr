@@ -29,7 +29,7 @@ list("docs/user-guide").forEach((f) => {
 const guides = {
   "self-hosting": ["self-hosting", "self-hosting"], email: ["self-hosting", "email"], jobs: ["self-hosting", "jobs"],
   slack: ["self-hosting", "slack"], telegram: ["self-hosting", "telegram"], usage: ["self-hosting", "usage"],
-  api: ["api", "guide"], mcp: ["mcp", "guide"], feeds: ["feeds", "guide"], "github-feed": ["feeds", "github-feed"],
+  api: ["api", "guide"], mcp: ["mcp", "guide"], feeds: ["feeds", "guide"], "connect-any-system": ["feeds", "connect-any-system"], "github-feed": ["feeds", "github-feed"],
   webhooks: ["webhooks", "webhooks"], packs: ["packs-and-themes", "packs"], themes: ["packs-and-themes", "themes"],
   "view-designs": ["packs-and-themes", "view-designs"], "analysis-recipes": ["packs-and-themes", "analysis-recipes"],
   "answer-languages": ["packs-and-themes", "answer-languages"], "calculation-tests": ["contributing", "calculation-tests"],

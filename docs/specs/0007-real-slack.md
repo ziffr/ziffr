@@ -51,6 +51,7 @@ The Slack Connector sends real direct messages and takes real answers. Each Ziff
 - The core is tested against the database with a fake Slack Web API: a local HTTP server in the test that answers `oauth.v2.access`, `users.lookupByEmail`, `conversations.open`, `chat.postMessage` and `auth.revoke` and records what it was sent. No internal function is mocked.
 - Connecting: a good callback stores an encrypted token; a wrong, used, expired or other person's state, a Member, an org install and a Slack workspace connected elsewhere are refused; the token decrypts only for its workspace.
 - Matching: by proven address, by link code, Contacts by address, never by handle, never a deleted user or a bot, never across workspaces.
+- Notices: a member is emailed once when a Slack account becomes theirs, whoever a code takes one from is emailed, and the email's link disconnects that connection only.
 - Sending: queued, sent, failed, retried, waiting on a limit and on `429`; nothing in the demo, without settings or after a disconnect; text escaped.
 - Receiving: a thread reply records a value, replies in a Thread, proposes a Correction, approves; another Slack user, another Slack workspace, an unknown thread, an old Delivery and a repeated event are refused. Route tests cover the signature, its age, `url_verification`, size and dedupe by event id.
 

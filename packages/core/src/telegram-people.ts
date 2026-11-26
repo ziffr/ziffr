@@ -9,6 +9,8 @@ import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { openNames } from "./sealed-columns";
 import { submissionForm } from "./page-data";
+import { telegramAccountName } from "./connection-notice-words";
+import { tellConnected, tellDisconnected } from "./connection-notices";
 import { askContactToConfirm, confirmationAddress, TELEGRAM_CONFIRM_MINUTES, tellChat, type TelegramConfirmRequest } from "./telegram-confirm";
 import { telegramBot, telegramOnIn } from "./telegram-connection";
 import { refuseInDemo } from "./demo";
@@ -85,9 +87,10 @@ export type TelegramLinkOutcome =
   | TelegramConfirmRequest;
 
 /** Takes `/start <code>` from a private chat, once, within ten minutes, if the person who made the code still belongs to
- * its workspace. A member's account is linked to them: whoever was that account in the workspace before is not any
- * more, since the account that proved the code wins. A Contact's is not linked here: they are asked to confirm it by
- * email. `from` is the sender as Telegram names them, shown in that email. */
+ * its workspace. A member's account is linked to them, and they are emailed that it was: whoever was that account in the
+ * workspace before is not any more, since the account that proved the code wins, and is emailed too. A Contact's is not
+ * linked here: they are asked to confirm it by email. `from` is the sender as Telegram names them, shown in those
+ * emails. */
 export async function linkTelegramByCode(input: { code: string; userId: unknown; chatId: unknown; chatType: unknown; from?: unknown }): Promise<TelegramLinkOutcome> {
   if (input.chatType !== "private") return { linked: false, why: "not_private" };
   if (!isTelegramId(input.userId) || !isTelegramId(input.chatId) || !/^[A-Za-z0-9_-]{43}$/.test(String(input.code))) return { linked: false, why: "unknown_code" };
@@ -100,14 +103,18 @@ export async function linkTelegramByCode(input: { code: string; userId: unknown;
   if (!kind || !(await telegramOnIn(c.workspace_id))) return { linked: false, why: "gone" };
   // Decided by who the code is for: a Contact has no sign-in, so their code was made with a form link.
   if (kind === "contact") return askContactToConfirm(c.workspace_id, c.person_id, { userId: input.userId, chatId: input.chatId, from: input.from });
-  await db().from("telegram_links").delete().eq("workspace_id", c.workspace_id).eq("telegram_user_id", input.userId).neq("person_id", c.person_id);
+  const { data: dropped } = await db().from("telegram_links").delete().eq("workspace_id", c.workspace_id).eq("telegram_user_id", input.userId).neq("person_id", c.person_id).select("person_id");
+  for (const d of dropped ?? []) await tellDisconnected({ workspaceId: c.workspace_id, personId: d.person_id as string, service: "telegram", accountId: String(input.userId) });
   // The person's Telegram so far, if another account: it is told, so nobody loses their messages without knowing.
   const { data: before } = await db().from("telegram_links").select("chat_id, telegram_user_id").eq("workspace_id", c.workspace_id).eq("person_id", c.person_id).maybeSingle();
+  const linkedAt = new Date();
   const { error } = await db().from("telegram_links").upsert(
-    { workspace_id: c.workspace_id, person_id: c.person_id, telegram_user_id: input.userId, chat_id: input.chatId, linked_at: new Date().toISOString() },
+    { workspace_id: c.workspace_id, person_id: c.person_id, telegram_user_id: input.userId, chat_id: input.chatId, linked_at: linkedAt.toISOString() },
     { onConflict: "workspace_id,person_id" },
   );
   if (error) return { linked: false, why: "gone" };
+  // By email too, to the member's own address: an account they were not connected to before.
+  if (Number(before?.telegram_user_id) !== input.userId) await tellConnected({ workspaceId: c.workspace_id, personId: c.person_id, service: "telegram", accountId: String(input.userId), account: telegramAccountName(input.from), by: "code", linkedAt });
   const [{ data: w }, { data: p }] = await Promise.all([
     db().from("workspaces").select("name").eq("id", c.workspace_id).maybeSingle(),
     db().from("profiles").select("id, name").eq("id", c.person_id).maybeSingle().then(async (r) => ({ data: r.data ? (await openNames(c.workspace_id, [r.data]))[0] : null })),
