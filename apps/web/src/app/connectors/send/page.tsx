@@ -18,7 +18,7 @@ export default async function SendValuesPage() {
   return (
     <div className="space-y-8">
       <p className="max-w-prose text-sm text-muted-foreground">
-        A program or an automation puts a value on a Metric with one call. Pick a Metric, copy the example, and put your key where it says. Ziffr checks every value as it checks any other: the Metric&rsquo;s Submission Rule, Approval of Unusual Values and Locks.
+        A program or an automation can send a value for a Metric with one request. Pick a Metric, copy the example and put your key where it says. Ziffr checks it like any other value: who may send it, whether it looks unusual and whether the period is already closed.
       </p>
       <SendValues address={SITE_URL} metrics={options} canFeed={canFeed} demo={demo} />
       <section className="stock rounded-[var(--radius-card)] p-5 text-sm">

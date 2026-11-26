@@ -179,7 +179,7 @@ Nothing you type in the Playground is kept unless it is added to the Workspace.
 
 ### Analysis Recipes
 
-The Library lists the built-in recipes by name. Everyone but Guests sees the list; only Owners and Admins are shown the way into the Playground to write one.
+The Library lists the built-in recipes by name. Everyone but Guests sees the list; only Owners and Admins are shown the way into the Playground to write one. On a phone the designs and the recipes stand one under the other, each card as wide as the screen.
 
 An **Analysis Recipe** is an Analysis written as steps of Ziffr's own functions: moving average, difference, growth, share, linear trend and slope, mean, standard deviation, z-score, seasonal index and correlation. A View Design can carry one under `analysis` and draw its results: as a line or bars (`recipe.` and the step's name), as a rule across a plot for one value, or as a number in its words. The recipe works on the Metrics in the design's first Slots, as the Widget shows them (by quarter, when it is shown by quarter), and on nothing else. Every number it gives is computed by Ziffr's verified functions, so it is as trustworthy as any other number in Ziffr.
 

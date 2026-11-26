@@ -115,7 +115,7 @@ function UsageTable({ days }: { days: UsageDay[] }) {
     <div className="space-y-2">
       <h3 className="text-sm font-medium">The last 30 days</h3>
       {rows.length ? (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[40rem] text-sm">
             <thead><tr className="text-left text-xs text-muted-foreground">
               <th scope="col" className="py-1 pr-3 font-normal">Day</th>

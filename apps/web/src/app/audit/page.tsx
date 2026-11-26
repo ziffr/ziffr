@@ -18,6 +18,8 @@ import { filledInDetail } from "./filled-in-detail";
 
 const ROLE: Record<string, string> = { owner: "Owner", admin: "Admin", member: "Member", guest: "Guest", viewer: "Viewer", editor: "Editor" };
 const NOUN: Record<string, string> = { metric: "Metric", dashboard: "dashboard", deck: "deck", group: "Group", person: "person", invitation: "invitation", access_key: "Access Key", workflow: "Workflow", workspace: "workspace", audit_log: "Audit Log" };
+/** A link in a row: 44 px tall to tap on a phone. */
+const TAP = "max-sm:inline-flex max-sm:min-h-11 max-sm:items-center";
 const field = "h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm";
 
 /** The query string of a filter, with one part changed. */
@@ -105,7 +107,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Audit Log" sub={`Who changed who may see or do what, and when. Nothing here can be changed or removed; events are kept for ${await auditKeptWords()}. Times are in ${timeZone}.`}>
+      <PageHeader title="Audit Log" sub={`Who changed what, and when. It cannot be edited; events are kept for ${await auditKeptWords()}. Times are in ${timeZone}.`}>
         <a href={`/audit/export${query(filter)}`} className={buttonVariants({ variant: "outline" })} download>Download CSV</a>
       </PageHeader>
       {demo && <p className="mb-4 text-sm text-muted-foreground">The demo keeps no Audit Log: its people are made up and anyone may act as them.</p>}
@@ -131,11 +133,11 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
         </label>
         <label className="grid w-full min-w-0 gap-1 sm:w-auto">
           <span className="text-muted-foreground">From</span>
-          <Input type="date" name="from" defaultValue={filter.from ?? ""} className="w-40" />
+          <Input type="date" name="from" defaultValue={filter.from ?? ""} className="w-full sm:w-40" />
         </label>
         <label className="grid w-full min-w-0 gap-1 sm:w-auto">
           <span className="text-muted-foreground">To</span>
-          <Input type="date" name="to" defaultValue={filter.to ?? ""} className="w-40" />
+          <Input type="date" name="to" defaultValue={filter.to ?? ""} className="w-full sm:w-40" />
         </label>
         {filter.objectType && <input type="hidden" name="type" value={filter.objectType} />}
         {filter.objectId && <input type="hidden" name="id" value={filter.objectId} />}
@@ -144,7 +146,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       </form>
       {filter.objectType && (
         <p className="mb-4 text-sm">
-          Only events about one {NOUN[filter.objectType]}{filter.objectId ? ` (#${filter.objectId})` : ""}. <Link href={`/audit${query(filter, { type: null, id: null })}`}>Show all</Link>
+          Only events about one {NOUN[filter.objectType]}{filter.objectId ? ` (#${filter.objectId})` : ""}. <Link href={`/audit${query(filter, { type: null, id: null })}`} className={TAP}>Show all</Link>
         </p>
       )}
       {events.length === 0 ? (
@@ -153,8 +155,9 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
         </p>
       ) : (
         <div className="stock overflow-x-auto rounded-[var(--radius-card)]">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
+          {/* On a phone each event is a small card, not a row of four columns. */}
+          <table className="w-full text-sm max-sm:block">
+            <thead className="text-left text-xs text-muted-foreground max-sm:sr-only">
               <tr className="border-b border-border">
                 <th scope="col" className="px-4 py-2 font-medium">When</th>
                 <th scope="col" className="px-4 py-2 font-medium">Who</th>
@@ -162,20 +165,20 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
                 <th scope="col" className="px-4 py-2 font-medium">Details</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border max-sm:block">
               {events.map((e) => {
                 const object = about(e);
                 return (
-                  <tr key={e.id} className="align-baseline">
-                    <td className="fig whitespace-nowrap px-4 py-2 text-xs text-muted-foreground"><time dateTime={e.at}>{when.format(new Date(e.at))}</time></td>
-                    <td className="whitespace-nowrap px-4 py-2 font-medium">
-                      {e.actorId ? <Link href={`/audit${query(filter, { person: e.actorId })}`} className="no-underline hover:underline">{e.actorName}</Link> : e.actorName}
+                  <tr key={e.id} className="align-baseline max-sm:block max-sm:px-4 max-sm:py-3">
+                    <td className="fig whitespace-nowrap px-4 py-2 text-xs text-muted-foreground max-sm:block max-sm:p-0"><time dateTime={e.at}>{when.format(new Date(e.at))}</time></td>
+                    <td className="whitespace-nowrap px-4 py-2 font-medium max-sm:block max-sm:p-0">
+                      {e.actorId ? <Link href={`/audit${query(filter, { person: e.actorId })}`} className={`${TAP} no-underline hover:underline`}>{e.actorName}</Link> : e.actorName}
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 max-sm:block max-sm:p-0">
                       {e.label}
-                      {object && <> {e.objectType && e.objectId ? <Link href={`/audit${query(filter, { type: e.objectType, id: e.objectId })}`} className={cn(e.hidden && "italic text-muted-foreground")}>{object}</Link> : object}</>}
+                      {object && <> {e.objectType && e.objectId ? <Link href={`/audit${query(filter, { type: e.objectType, id: e.objectId })}`} className={cn(TAP, e.hidden && "italic text-muted-foreground")}>{object}</Link> : object}</>}
                     </td>
-                    <td className="px-4 py-2 text-muted-foreground">{detailText(e, (id) => named.get(id) ?? everyone.get(id))}</td>
+                    <td className="px-4 py-2 text-muted-foreground max-sm:block max-sm:p-0 max-sm:empty:hidden">{detailText(e, (id) => named.get(id) ?? everyone.get(id))}</td>
                   </tr>
                 );
               })}

@@ -48,7 +48,7 @@ export function ReadOnlyFrame({ widget, data, className, wordsUnder = false }: {
       <WidgetScaleProvider value={scale}>
       {/* A View Link, a Preview and a Snapshot show the chart and its footer line; the Takeaway words are for the signed-in card's ⋯ menu. */}
       <TakeawayHostProvider value={wordsUnder ? null : HIDDEN_TAKEAWAYS}>
-      <div className="px-4 pt-3 pb-1"><span className="widget-text-sm truncate font-semibold">{title}</span></div>
+      <div className="px-4 pt-3 pb-1"><span className="widget-text-sm truncate font-semibold max-sm:line-clamp-2 max-sm:whitespace-normal">{title}</span></div>
       <div className="flex min-h-0 flex-1 flex-col gap-1.5 px-4 pb-3">
         <div className="@container min-h-0 flex-1"><WidgetBody widget={widget} data={data} /></div>
         {m && kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}

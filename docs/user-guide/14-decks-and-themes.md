@@ -19,6 +19,8 @@ If you follow a link to a deck that is not shared with you, Ziffr says "This dec
 
 ## The deck editor
 
+The editor is made for a larger screen. On a phone a note at the top says "This is easier on a larger screen." and offers **Present**, so you can read and show the deck there; the editor stays below it, fits the width and can still be used, with a shorter canvas so the page scrolls around it.
+
 A deck that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) starts empty. The first time you open it, the editor lays out its slides from today's values, as for a deck made from a Deck Template, and saves them.
 
 The editor has three parts: a row of buttons at the top, a side panel on the left, and the deck canvas, where your slides sit.
@@ -32,7 +34,7 @@ The panel of colours, sizes and fonts opens at the top right of the canvas only 
 | Option | What it does |
 |---|---|
 | **+ Slide** | Adds a new slide at the end. Pick a layout (see below) or one of your team's layouts. |
-| **Present** | Shows the deck one slide at a time, filling the screen. |
+| **Present** | Shows the deck one slide at a time, filling the screen. On a phone this button is in the note at the top. |
 | **Share** | Opens a panel on the right to share the deck with people or Groups. Only the deck's owner sees this button. |
 | **Export** | Opens a menu: **PowerPoint** downloads the deck as a PowerPoint file, **PDF** prepares a PDF to print or save. |
 | **⋯** (More for this deck) | Opens a menu with the rarer things, below. |
@@ -118,9 +120,11 @@ Choose **Present** to show the deck one slide at a time, filling the screen, wit
 - **Next slide**: the right arrow, down arrow, Page Down or the space bar, a click on the right part of the slide, a swipe, or **›** at the bottom.
 - **Previous slide**: the left arrow, up arrow, Page Up, a click on the left part of the slide, a swipe, or **‹**.
 - **First and last slide**: Home and End.
-- **Full screen**: the button at the bottom right. **Stop presenting** (the **×**) or Escape takes you back to the editor.
+- **Full screen**: the button at the bottom right; a browser that cannot do it, such as Safari on an iPhone, does not show it. **Stop presenting** (the **×**) or Escape takes you back to the editor, or to the Decks page if you may only present the deck.
 
 The bar at the bottom shows the deck's name and which slide you are on, such as "3 / 12".
+
+On a phone held upright the slide is as wide as the screen, the deck's name stands above it and below it Ziffr says "Turn your phone sideways for a larger slide, or pinch to zoom." While you are zoomed in, a finger moves around the slide; zoom out to swipe between slides again.
 
 People you shared the deck with as Viewers always open it this way.
 

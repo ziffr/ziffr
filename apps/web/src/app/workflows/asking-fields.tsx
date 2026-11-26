@@ -69,7 +69,7 @@ export function AskingFields({ asking, onChange, disabled, clock, periods, dueWo
           {WEEKDAYS.map((name, i) => {
             const n = i + 1;
             return (
-              <label key={n} className="flex items-center gap-1">
+              <label key={n} className="flex items-center gap-1 max-sm:min-h-11">
                 <input type="checkbox" checked={days.days.includes(n)} className="size-4 accent-[var(--color-ink)]"
                   onChange={(e) => { const next = e.target.checked ? [...days.days, n] : days.days.filter((d) => d !== n); if (next.length) set({ kind: "chosen_weekdays", days: [...new Set(next)].sort((a, b) => a - b) }); }} />
                 {name}

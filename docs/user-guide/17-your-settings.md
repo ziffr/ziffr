@@ -123,7 +123,7 @@ Your assistant can do the same: ask it for "churn march 2026" and it looks the M
 
 ## On a phone
 
-On a phone the demo's note is one line, the bar at the top keeps the **?** button next to the Ziffr name and puts the demo's controls on their own row, the guided tour starts as a small round button, and everything you press is at least 44 px high. The row of Settings pages scrolls sideways and fades out at the edge to say so. The bar at the bottom fits the screen even on the smallest phones (320 px wide), with its labels a little smaller, and never makes the page scroll sideways.
+On a phone the demo's note is one line, the bar at the top keeps the **?** button next to the Ziffr name and puts the demo's controls on their own row, the guided tour starts as a small round button, and everything you press is at least 44 px high. The Workspace's Settings pages have one **Section** menu that names the page you are on. On those pages and on your own settings, a field's name sits above the field and each checkbox has its own line. The bar at the bottom fits the screen even on the smallest phones (320 px wide), with its labels a little smaller, and never makes the page scroll sideways.
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app, with the same layout. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
 ## The Schedule and your calendar
@@ -154,6 +154,7 @@ Above the schedule a switch chooses how it is shown: **List** (the lines above),
 - **Week** has a column for each day, from the Workspace's first day of the week (Monday, unless an Owner or Admin chose Sunday in **Workspace → General**), with today marked. Each duty is a small card in its kind's colour, with its words as in the list; click it to open what the list line opens. On a phone the week becomes an agenda, one day under the other.
 - **Month** shows up to three cards per day, and **+ 2 more** opens that day's whole list below the grid. On a phone each day shows dots for its duties instead; touch a day to read its duties below the grid.
 - Something **Overdue** sits on today, marked as late, with the day it was originally due. Tasks without a due date and Questions stay under **No date**, in every view.
+- On a phone the choices above the schedule and the **List**, **Week** and **Month** switch are large enough to tap with a thumb.
 - With the keyboard, the arrow keys move between days, Enter opens a day, and a screen reader reads each day with its duties as a list.
 
 Your assistant can read the same list: ask it "What do I have to do in Ziffr this week?" (see [Working with an assistant](#working-with-an-assistant)).

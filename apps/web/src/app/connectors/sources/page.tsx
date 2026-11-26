@@ -47,7 +47,7 @@ export default async function SourcesPage() {
         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {forms.map((t) => (
             <li key={t.id}>
-              <Link href={`/submit/${t.code}`} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-muted/40">
+              <Link href={`/submit/${t.code}`} className="flex min-h-11 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-muted/40">
                 <span className="font-medium">{metricNames[t.metric_id]}</span>
                 <Person p={peopleById[t.submitter_id]} />
               </Link>

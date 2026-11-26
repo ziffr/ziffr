@@ -10,6 +10,8 @@ Open the Workflows page from the sidebar: **Workspace → Workflows**. Owners, A
 
 The page has three parts: the list of Workflows on the left, the steps of the chosen Workflow in the middle, with what happened in each period under them, and on the right the Metrics that use it and when it runs.
 
+On a phone the page shows one thing at a time: first the list of Workflows, and when you choose one, its steps on a screen of their own, with **All workflows** at the top to go back.
+
 ### What happened, period by period
 
 Under the steps, **What happened, period by period** shows a timeline for each period of the Workflow, the newest first and open, the earlier ones folded (the last four). Each period says how many values are in, such as "5 of 6 in" (the values and the Workflow's checklist Tasks to tick off count together), and whether it is published or locked. Under it are the events in order, with their day and time in the Workspace's time zone:

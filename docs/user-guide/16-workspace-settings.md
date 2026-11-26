@@ -35,7 +35,7 @@ Choose **Workspace** in the sidebar to open its pages. They are:
 
 A Guest sees only what is shared with them, and never who else is in the Workspace: other people's names, emails and Slack handles do not appear anywhere. Whoever owns, edits, approves or comments on what is shared with them reads as "Someone", **Who can see this** shows them only their own line ("Viewer", or "Viewer through" a Group they are in), and search finds only themselves. A Version history of a Theme is not open to them. Their **Connectors** page shows their own Delivery Preferences, their **Workflows** are those of the Metrics shared with them (the page still opens from a link), and **Changes** lists changes to what they may see.
 
-General, Packs, Library, Access Keys, Feeds and Usage open inside the settings area. It has a side list with two parts: **You** (**My schedule**, your **Profile**, your **Appearance**, your **Deliveries**, your **Alerts** and your **Connected assistants**, see [Signing in and your own settings](17-your-settings.md)) and **Workspace**, the same pages as the menu. On a phone the side list becomes one row that you scroll sideways; the bar at the top keeps the ? button next to the Ziffr name.
+General, Packs, Library, Access Keys, Feeds and Usage open inside the settings area. It has a side list in three parts: **Workspace** (**General**, **Size and Retention**, **Themes**, **Packs**, **Library**, **Tags** and, for the Owner, **Workspace Export**), **Programs** (**Access Keys**, **Feeds**, **Webhooks**) and **Records** (**Changes**, **Usage**, **Audit log**), showing only the pages your role can use. On a phone the side list becomes one **Section** menu at the top that always names the page you are on, and each checkbox on these pages has its own line; the bar at the top keeps the ? button next to the Ziffr name. Your own pages (**My schedule**, **Profile**, **Appearance**, **Deliveries**, **Alerts** and **Connected assistants**, see [Signing in and your own settings](17-your-settings.md)) open from your menu at the bottom of the sidebar (on a phone, in **More**).
 
 ### In the sidebar
 
@@ -409,6 +409,8 @@ If you stopped Prompts and reminders by email, a note at the top of **Channels**
 
 The **Who gets what** tab: a table of **Delivery Preferences**: one row per person and one column each for **Questions**, **Tasks**, **Prompts and reminders** and **Replies and updates**.
 
+On a phone each person is a card, with the four choices under their name.
+
 - The first row, **Team default**, covers everyone who leaves a column open. Only Owners and Admins change it. Without a team default, Ziffr uses email.
 - Your own row is marked "you". Change it here or under **Your Deliveries**. Everyone else's row is greyed out.
 - Under **Prompts and reminders** a person can pick up to three ways, in order: the first select is the first way, the others are **Also by**. A Prompt goes by every way in the list at once and the first answer counts; reminders go by the first way only. The team default can be a list too. Where there is neither, the column reads "Default: every way you've connected".
@@ -630,7 +632,9 @@ Owners (not Admins) get one plain-text email a month about the same lists, in th
 
 **Workspace → Audit log** is for Owners and Admins only. It is the **Audit Log**: who changed who may see or do what, and the decisions taken on numbers. Nothing in it can be changed or removed, and events are kept for two years, or for the days the Installation Admin has set (the page says how long). Times are shown in the Workspace's time zone.
 
-On a phone the filter (**Person**, **What happened**, **From**, **To**, **Show**) stacks one field under the other, and the row of Settings pages above it scrolls sideways and fades out at its right edge to say so. The bar at the bottom of the screen fits even a phone 320 px wide.
+On a phone each event is a small card (when, who, what, details) instead of a table row.
+
+On a phone the filter (**Person**, **What happened**, **From**, **To**, **Show**) stacks one field under the other, and the **Section** menu above it names the Settings page you are on. The bar at the bottom of the screen fits even a phone 320 px wide.
 
 ### What is recorded
 

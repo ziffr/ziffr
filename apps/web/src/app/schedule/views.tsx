@@ -223,7 +223,7 @@ export function ScheduleViews({ person, list, today, span, overdue, days, weekSt
             role="radio"
             aria-checked={view === v.id}
             onClick={() => pick(v.id)}
-            className={cn("rounded-[var(--radius-sm)] px-3 py-1 text-sm font-medium focus-visible:outline-2 focus-visible:outline-ring", view === v.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+            className={cn("min-h-11 rounded-[var(--radius-sm)] px-3 py-1 text-sm font-medium sm:min-h-0 focus-visible:outline-2 focus-visible:outline-ring", view === v.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
           >
             {v.label}
           </button>

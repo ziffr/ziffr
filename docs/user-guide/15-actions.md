@@ -73,6 +73,8 @@ A Checklist Task has no Metric to see, so a different rule decides who reads it:
 
 The Schedule has three views, switched at the top. They show only what you may see: an Action only if you may read its Thread, and an event only about a Metric you see.
 
+On a phone the choices at the top (view, kind, filters) are larger so a thumb can tap them, and the fields are big enough that the page does not zoom in.
+
 ### To do
 
 The default. It lists what you have to do, overdue first and then by Due Date: values to submit, Approvals waiting for you, and the Tasks and Questions given to you. See [My schedule and your calendar](17-your-settings.md#the-schedule-and-your-calendar). **Values**, **Approvals**, **Tasks** and **Questions** above the list narrow it to one kind. Above the list, **To close** shows the Actions you asked that were answered or done, so you can close them; they count in the number next to Schedule.

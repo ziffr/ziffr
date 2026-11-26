@@ -45,14 +45,14 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href="/schedule" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Schedule</Link>
+      <Link href="/schedule" className="mb-3 inline-flex items-center gap-1 text-sm max-sm:min-h-11 text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Schedule</Link>
       <div className="stock rounded-[var(--radius-card)] p-5">
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <StatusBadge status={a.status} kind={a.kind} />
           <span className="rounded-[var(--radius-input)] border border-[var(--color-rule-2)] px-1.5 py-0.5 text-xs font-medium capitalize">{a.kind}</span>
           {a.due_date && <span className="text-xs">due {formatDate(a.due_date)}</span>}
           {/* A Checklist Task has no Metric: it names its Workflow and period instead (spec 0045). */}
-          {m === null ? <>{about?.workflow ? <Link href={`/workflows?id=${about.workflow.id}`} className="font-medium text-foreground hover:underline">{about.workflow.name}</Link> : null}<span>{about?.period}</span></> : <>{seesMetric ? <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link> : <span className="font-medium text-foreground">{m.name}</span>}<span>{periodLabel(a.period_start, m.period, yearStart)}</span></>}
+          {m === null ? <>{about?.workflow ? <Link href={`/workflows?id=${about.workflow.id}`} className="font-medium text-foreground hover:underline max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">{about.workflow.name}</Link> : null}<span>{about?.period}</span></> : <>{seesMetric ? <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">{m.name}</Link> : <span className="font-medium text-foreground">{m.name}</span>}<span>{periodLabel(a.period_start, m.period, yearStart)}</span></>}
           {a.breakdown_label && <span>row <span className="font-medium text-foreground">{a.breakdown_label}</span></span>}
           {obs && m && <><span className="fig text-foreground">{formatValue(m, obs.value, numberStyle)}</span>{obs.original_value !== null && <span className="line-through">{formatValue(m, obs.original_value, numberStyle)}</span>}</>}
         </div>
@@ -90,7 +90,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
                 <li key={d.id}>{d.kind} to {people[d.recipient_id]?.name.split(" ")[0]} via {CONNECTORS[d.connector as ConnectorId]?.label}{d.external_ref ? ` (${d.external_ref})` : ""}, {formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</li>
               ))}
             </ul>
-            <Link href="/connectors/outbox" className="mt-1 inline-block underline">Outbox</Link>
+            <Link href="/connectors/outbox" className="mt-1 inline-block underline max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">Outbox</Link>
           </details>
         )}
       </div>
