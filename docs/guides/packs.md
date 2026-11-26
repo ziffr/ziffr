@@ -254,7 +254,7 @@ Say for every number somebody or something has to send where it comes from, with
 | `system` | with `system` only, and needed then: the kind of system, such as “CRM”, at most 60 characters |
 | `note` | optional, at most 300 characters |
 
-Do not write it on a Derived Metric or a [Total](#totals): Ziffr calculates those and shows from which entries. Name the n8n templates that fill an entry in [`feeds`](#filling-the-metrics-from-other-systems); say only what they really do. Ziffr shows a table **Where the numbers come from** and what is **Included** and **still needed** before installing and in Help, and Set up asks nobody for a number another system sends unless the person chooses to. A number without `comesFrom` shows as **The Pack does not say**; the Marketplace lists a Pack only when every number that takes values has it.
+Do not write it on a Derived Metric or a [Total](#totals): Ziffr calculates those and shows from which entries. Name the n8n templates that fill an entry in [`feeds`](#filling-the-metrics-from-other-systems); say only what they really do. Ziffr shows a table **Where the numbers come from** and what is **Included** and **still needed** before installing and in Help, and Set up asks nobody for a number another system sends unless the person chooses to. A number without `comesFrom` is described by what Ziffr can do with it, from its `sources` and your `feeds`: **Ask a person**, **Ask a person, or another system sends it**, **Ask a person, or fill it from Google Sheets (template included)**, or for a number only the API takes **Another system sends it**. The Marketplace lists a Pack only when every number that takes values has `comesFrom`.
 
 ### Credit
 
