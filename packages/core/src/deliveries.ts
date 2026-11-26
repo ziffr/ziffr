@@ -257,6 +257,12 @@ export async function deliverTest(ws: string, input: { recipientId: string; subj
   return deliverPlain(ws, "test", { recipientId: input.recipientId, senderId: null, subject: input.subject, text: input.text, link: "/", via: input.via, keep: input.keep });
 }
 
+/** A Screen Link (GLOSSARY: Screen Link; spec 0055) to the person themself: a notice by email only, sent at once. The
+ * recipient is the caller's own person id; `text` is fixed words and `link` a path of the fixed list (desktop-screens.ts). */
+export async function deliverScreenLink(ws: string, input: { recipientId: string; subject: string; text: string; link: string; keep?: string }): Promise<number | null> {
+  return deliverPlain(ws, "notice", { ...input, senderId: null, via: "email" });
+}
+
 /** One plain message of a kind that is not about an Action: a notice, an Alert, a Heads-up, a Checklist Item, a Filled-in Value or a Test Message. */
 async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | "checklist" | "filled_in" | "test", input: { keep?: string; recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; quiet?: boolean; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; snapshotDashboardId?: number; queue?: boolean; headsUpMetrics?: readonly number[]; headsUpKey?: string; headsUpToldId?: number; formTokenId?: number | null; filledInObservationId?: number }): Promise<number | null> {
   const via = input.via ?? await connectorFor(ws, input.recipientId, "reply", null);

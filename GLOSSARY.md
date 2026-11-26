@@ -429,6 +429,10 @@ _Avoid_: Wizard, onboarding, tour
 The part of a business a person works in, picked by that person from a fixed list (sales, marketing, finance, operations, customer support, people and HR, product and engineering, management, something else). Set per Workspace, optional, and seen only by the person and the Workspace's Owners and Admins. Ziffr uses it to suggest Packs and who is asked for what.
 _Avoid_: Department, team (that is a Group), role (that is a Workspace Role), job title
 
+**Screen Link**:
+A Delivery a person asks Ziffr to email to themselves from their phone: the address of a screen that is made for building, such as the deck editor, to open on a larger screen. It holds fixed words and that address, goes only to the person's own email address and counts in the same limit as Test Messages.
+_Avoid_: Magic link, share link, handoff
+
 **Test Message**:
 A Delivery a person sends to themselves through one Connector (email, Slack or Telegram) to see that it reaches them. It asks for nothing, cannot be answered, and never goes to anyone else.
 _Avoid_: Ping, test notification
