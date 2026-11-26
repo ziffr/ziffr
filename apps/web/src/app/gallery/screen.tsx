@@ -18,6 +18,7 @@ import { Preview, TemplatePreview } from "@/components/preview";
 import { useSlotFill } from "@/components/slot-dialog";
 import { TEMPLATE_GROUPS, builtinTemplates } from "@/components/template-groups";
 import { told } from "@/lib/action-toast";
+import { useMedia } from "@/lib/use-media";
 import { TEMPLATES } from "@/views/templates";
 import { slopeWith, widgetWith } from "./widget-with";
 
@@ -47,6 +48,8 @@ type Dashboard = { id: number; name: string };
 /** The Gallery: the Metric picker, the grouped cards, and the step that adds a chosen view to a dashboard. */
 export function GalleryScreen({ data: sent, metricId, dashboards, canCreate, demo }: { data: CanvasData; metricId: number | null; dashboards: Dashboard[]; canCreate: boolean; demo: boolean }) {
   const router = useRouter();
+  // On a phone a view is drawn as wide as the screen, as on a dashboard there: scaled down, its labels cannot be read.
+  const phone = useMedia("(max-width: 639px)");
   const { data, ensure } = useCanvasSeries(sent);
   const slotFill = useSlotFill(data);
   const choices = useMemo(() => inUse(data.metrics).sort((a, b) => a.name.localeCompare(b.name)), [data.metrics]);
@@ -132,14 +135,14 @@ export function GalleryScreen({ data: sent, metricId, dashboards, canCreate, dem
             {g.items.map((t) => {
               const { widget, why } = ready ? forView(t.id) : { widget: null, why: null };
               return (
-                <li key={t.id} className="stock flex h-full flex-col gap-3 rounded-[var(--radius-card)] p-4">
+                <li key={t.id} className="stock flex h-full flex-col gap-3 rounded-[var(--radius-card)] p-4 max-sm:p-2">
                   <div className="flex flex-1 flex-col justify-center gap-2">
-                    <Fitted>{(w) => widget ? <Preview widget={widget} data={data} size={TEMPLATES[t.id].size} width={w} />
+                    <Fitted>{(w) => widget ? <Preview widget={widget} data={data} size={TEMPLATES[t.id].size} width={w} reflow={phone} />
                       : metric && !why ? <p className="py-10 text-sm text-muted-foreground">Drawing…</p>
-                      : <TemplatePreview template={t.id} viewer={data.viewer} numberStyle={data.numberStyle} width={w} />}</Fitted>
-                    {why && <p className="text-xs text-muted-foreground">{why}</p>}
+                      : <TemplatePreview template={t.id} viewer={data.viewer} numberStyle={data.numberStyle} width={w} reflow={phone} />}</Fitted>
+                    {why && <p className="text-xs text-muted-foreground max-sm:px-2">{why}</p>}
                   </div>
-                  <div className="flex items-end justify-between gap-3">
+                  <div className="flex items-end justify-between gap-3 max-sm:flex-col max-sm:items-stretch max-sm:px-2 max-sm:pb-2">
                     <div className="min-w-0"><p className="font-medium">{t.label}</p><p className="text-sm text-muted-foreground">{t.blurb}</p></div>
                     <Button size="sm" variant="outline" className="shrink-0" onClick={() => void use(t.id)}>Use this…</Button>
                   </div>

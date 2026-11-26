@@ -15,6 +15,8 @@ import { deckAddition } from "@ziffr/core/deck-additions";
 import { cookies } from "next/headers";
 import { followDemoSuccessor } from "@/lib/demo-follow";
 import { DECK_ADD_COOKIE, readIntent } from "@/lib/deck-add-intent";
+import { MonitorPlay } from "lucide-react";
+import { LargerScreenNote } from "@/components/larger-screen-note";
 
 export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; snapshot?: string; template?: string; fills?: string; add?: string }> }) {
   const id = Number((await params).id);
@@ -63,15 +65,20 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
     getGroups(),
   ]);
   return (
-    <DeckEditorLoader
-      deck={{ id: deck.id, name: deck.name, document: waiting ? null : deck.document, theme_id: deck.theme_id, footer: deck.footer }}
-      data={data}
-      saved={saved}
-      seed={seed}
-      templateSeed={templateSeed}
-      addition={addition}
-      deckTemplates={(await listDeckTemplates(actor)).filter((t) => t.owner_id === actor.personId).map(({ id, name, description, slots }) => ({ id, name, description, slots }))}
-      sharing={role === "owner" ? { shares, groups, ownerId: deck.owner_id, canInvite: can(actor, "manage-members"), reveals: await revealedBy(deckMetricIds(deck.document), deck.owner_id) } : null}
-    />
+    <>
+      <LargerScreenNote href={`/decks/${deck.id}/present`} action={<><MonitorPlay aria-hidden /> Present</>}>
+        Slides are laid out with a mouse or a trackpad. On a phone you can read and present this deck.
+      </LargerScreenNote>
+      <DeckEditorLoader
+        deck={{ id: deck.id, name: deck.name, document: waiting ? null : deck.document, theme_id: deck.theme_id, footer: deck.footer }}
+        data={data}
+        saved={saved}
+        seed={seed}
+        templateSeed={templateSeed}
+        addition={addition}
+        deckTemplates={(await listDeckTemplates(actor)).filter((t) => t.owner_id === actor.personId).map(({ id, name, description, slots }) => ({ id, name, description, slots }))}
+        sharing={role === "owner" ? { shares, groups, ownerId: deck.owner_id, canInvite: can(actor, "manage-members"), reveals: await revealedBy(deckMetricIds(deck.document), deck.owner_id) } : null}
+      />
+    </>
   );
 }

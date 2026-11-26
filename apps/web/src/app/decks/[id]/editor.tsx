@@ -285,7 +285,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
     <DeckData.Provider value={data}>
       <DeckMaster.Provider value={master}>
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Presentation aria-hidden className="size-5 text-muted-foreground" />
+        <Presentation aria-hidden className="size-5 text-muted-foreground max-sm:hidden" />
         {/* At least room for a name of a few words: the buttons wrap to the next line before the name is cut. */}
         <label className="min-w-[min(100%,20rem)] flex-1">
           <span className="sr-only">Deck name</span>
@@ -327,7 +327,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
+        {/* On a phone the note above the editor carries this button. */}
+        <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline", className: "max-sm:hidden" })}><MonitorPlay aria-hidden /> Present</Link>
         {sharing && <ShareSheet objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} canInvite={sharing.canInvite} />}
         <DropdownMenu>
           <DropdownMenuTrigger className={buttonVariants()} disabled={!editor || busy !== null}><FileDown aria-hidden /> {busy === "pptx" ? "Exporting…" : busy === "pdf" ? "Preparing…" : "Export"} <ChevronDown aria-hidden /></DropdownMenuTrigger>
@@ -367,7 +368,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
         <VersionsSheetOpen type="deck" id={deck.id} people={data.people} reload="page" />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
+      {/* The one column may shrink on a phone: without the minimum of 0 the Pool and the canvas set the page's width. */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
         <div className="order-2 space-y-4 lg:order-1">
           <Pool data={data} saved={saved} onAdd={(s) => place(s)} hint="Drag onto a slide, or click + to add to the slide in view." />
           {slotFill.dialog}
@@ -386,7 +388,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
           {deckSlides && <SaveDeckDialog deckId={deck.id} slides={deckSlides} data={data} existing={deckTemplates} onClose={() => setDeckSlides(null)} />}
         </div>
         <div
-          className="order-1 h-[calc(100vh-13rem)] min-h-[32rem] overflow-hidden rounded-[var(--radius-card)] border border-border lg:order-2"
+          // Shorter on a phone: a finger on the canvas moves the slides, so the page needs room around it to scroll.
+          className="order-1 h-[calc(100vh-13rem)] min-h-[32rem] overflow-hidden rounded-[var(--radius-card)] border border-border max-sm:h-[24rem] max-sm:min-h-0 lg:order-2"
           // Capture phase: our Pool drags are handled here before tldraw's own drop handling
           // (which would turn the JSON into a text shape). Other drops (files, images) pass through.
           onDragOverCapture={(e) => {

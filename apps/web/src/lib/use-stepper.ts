@@ -47,5 +47,21 @@ export function useFullscreen() {
     const p = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
     p?.catch(() => {});
   };
-  return { on, toggle };
+  // An iPhone cannot put a page into full screen: a button that does nothing is not offered.
+  const supported = typeof document !== "undefined" && Boolean(document.fullscreenEnabled);
+  return { on, toggle, supported };
+}
+
+/** Whether the person has pinched into the page, so a finger should move around it rather than step on. */
+export function usePinchZoomed() {
+  const [zoomed, setZoomed] = useState(false);
+  useEffect(() => {
+    const view = window.visualViewport;
+    if (!view) return;
+    const read = () => setZoomed(view.scale > 1.05);
+    read();
+    view.addEventListener("resize", read);
+    return () => view.removeEventListener("resize", read);
+  }, []);
+  return zoomed;
 }
