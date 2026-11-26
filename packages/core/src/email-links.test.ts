@@ -160,6 +160,7 @@ describe("Deliveries by email", () => {
     ["/settings/export", "Download your data"], ["/settings/workspace/download", "Download your data"], ["/workflows?id=3", "Open the Workflow"],
     ["/dashboards/3", "Open the dashboard"], ["/dashboards/3/snapshots/9", "Open the Snapshot"], ["/?panel=feedback", "Open My feedback"], ["/", "Open Ziffr"],
     [`/api/confirm-reply/${"a".repeat(43)}`, "Check your reply"], [`/api/confirm-telegram/1.2.${"b".repeat(60)}.${"c".repeat(32)}.${"d".repeat(32)}.${"e".repeat(43)}`, "Check the request"], ["/settings/webhooks", "Open in Ziffr"], ["/analyze#heads-ups", "Open in Ziffr"],
+    [`/api/disconnect-chat/${"a".repeat(80)}.${"b".repeat(43)}`, "Not you? Disconnect it"], ["/connectors?account=slack", "Open Connectors"],
   ])("a notice that leads to %s", async (to, words) => {
     await check(await delivery("notice", plainBody("email", "Something happened.", to)), [`${SITE}${to}`, words]);
   });
