@@ -1,9 +1,9 @@
 "use client";
-// The personal form link's form (GLOSSARY: Token, Submission Rule): the value or a Breakdown, and the result of the
-// last submission. The result is what the server action returned, Ziffr's own words; nothing from the page's URL is
+// The personal form link's form (GLOSSARY: Token, Submission Rule, Prompt): the period, the value or a Breakdown, and
+// the result of the last submission. The result is what the server action returned, Ziffr's own words; nothing from the page's URL is
 // ever shown (ticket 183), so a link cannot make Ziffr's frame say what its sender wants. On a phone (spec 0055) it is
 // one field and one button, the Breakdown behind a button, and after saving the next value that is due.
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { submitWebForm, type WebFormResult } from "@/app/actions";
 import { recordValue } from "@/app/series-actions";
@@ -12,14 +12,24 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { BreakdownField } from "./breakdown-field";
+import type { PeriodOffer } from "./period-choices";
+import { RecordPeriod } from "./record-period";
 
 type Props = {
   code: string;
   label: string;
   placeholder: string;
   numberStyle: NumberStyle;
-  /** An earlier period the signed-in person records instead of the current one; the core checks it again. */
+  /** An earlier period the signed-in person's address names; the core checks it again. */
   named?: { metricId: number; period: string } | null;
+  /** The periods the form may be set to, and which one it starts with. */
+  offer: PeriodOffer;
+  /** The Metric's Submission Rule in words, said beside a value the period already holds. */
+  rule: string;
+  /** The note that the request for the running period was answered on another way, shown while that period is picked. */
+  answered?: React.ReactNode;
+  /** Notes shown between the period and the form. */
+  children?: React.ReactNode;
   /** The next value of the signed-in person's own that is due. */
   next?: { href: string; name: string; periodLabel: string } | null;
   /** True when the person is known and nothing else of theirs is due. */
@@ -30,20 +40,28 @@ type Props = {
  * person's Record a value. Both end in the same intake with the same rules. */
 export function sendForm(code: string, named: Props["named"]) {
   if (!named) return submitWebForm.bind(null, code);
-  return async (_previous: WebFormResult, form: FormData): Promise<WebFormResult> => {
+  return async (previous: WebFormResult, form: FormData): Promise<WebFormResult> => {
+    // Another period picked from the list is the form link's to record: it takes the running one and those asked for.
+    const picked = form.get("period");
+    if (picked !== null && picked !== named.period) return submitWebForm(code, previous, form);
     const r = await recordValue(named.metricId, { value: String(form.get("value") ?? ""), breakdown: String(form.get("breakdown") ?? ""), period: named.period });
     return "error" in r ? { ok: false, detail: r.error } : r;
   };
 }
 
-/** The form, posting to the server action; for the current period it works without JavaScript too. */
-export function SubmitForm({ code, label, placeholder, numberStyle, named = null, next = null, nothingDue = false }: Props) {
+/** The period and the form, posting to the server action; unless the address names an earlier period it works without
+ * JavaScript too. */
+export function SubmitForm({ code, label, placeholder, numberStyle, named = null, offer, rule, answered, children, next = null, nothingDue = false }: Props) {
   const [result, action, pending] = useActionState<WebFormResult, FormData>(sendForm(code, named), null);
   // Controlled, so a refusal does not empty the field (React resets uncontrolled fields after an action); the
   // value is cleared only when it was recorded.
   const [value, setValue] = useState("");
   const [breakdown, setBreakdown] = useState(false);
   const [again, setAgain] = useState(false);
+  // What the person picked holds while the form offers it; a period that stopped waiting gives way to the one to start with.
+  const [picked, setPicked] = useState<string | null>(null);
+  const choice = offer.choices.find((c) => c.start === picked) ?? offer.choices.find((c) => c.start === offer.preselected) ?? offer.choices[0];
+  const id = useId();
   const input = useRef<HTMLInputElement>(null);
   const after = useRef<HTMLDivElement>(null);
   const refused = result && !result.ok ? result.detail : null;
@@ -60,6 +78,9 @@ export function SubmitForm({ code, label, placeholder, numberStyle, named = null
   useEffect(() => { if (again) input.current?.focus(); }, [again]);
   return (
     <>
+      <RecordPeriod choice={choice} choices={offer.choices} selectable={offer.selectable} rule={rule} form={id} onPick={setPicked} className={done && offer.selectable ? "max-sm:hidden" : undefined} />
+      {children}
+      {choice.running && answered}
       {result?.ok && (
         <div role="status" className="mt-4 rounded-lg border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] px-3 py-2 text-sm">{result.detail}</div>
       )}
@@ -74,7 +95,7 @@ export function SubmitForm({ code, label, placeholder, numberStyle, named = null
           <Button type="button" variant="outline" size="lg" className="w-full" onClick={() => setAgain(true)}>Send another value</Button>
         </div>
       )}
-      <form action={action} className={cn("mt-4", done && "max-sm:hidden")}>
+      <form id={id} action={action} className={cn("mt-4", done && "max-sm:hidden")}>
         {/* The heading above names the Metric already: on a phone the field comes straight after the period. */}
         <label htmlFor="value" className="text-sm font-medium max-sm:sr-only">{label}</label>
         <Input
