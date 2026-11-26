@@ -1,8 +1,8 @@
 // The periods Ziffr asked for and still waits on, as a personal form link may record them (GLOSSARY: Prompt, Token,
 // Stand-in, Schedule). A Workflow asks for the period that ended last, while a form link on its own records the running
 // one: this reads, from Ziffr's own Prompts, which periods this one Token's holder was asked for and has not answered.
-// Internal to the core: it checks no Actor. Its caller, the intake, holds the Token, and only periods come out of it,
-// never a value or a person.
+// Internal to the core: it checks no Actor. Its callers hold the Token (the form link's page and the intake), and only
+// periods come out of it, never a value or a person.
 import { db } from "./db";
 import { isArchived } from "./metric-row";
 import { isPeriodStart, type YearStart } from "./periods";
