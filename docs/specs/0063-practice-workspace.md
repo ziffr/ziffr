@@ -53,6 +53,8 @@ Two layers, both failing closed (a check that cannot be made sends nothing): the
 
 **Switching a way on** (email, Slack, Telegram) is off by default, per way, and off again after Start over. Email takes the address the sign-in service holds as verified at that moment; a chat way takes the account the Admin links themself. At the moment of sending, the address or account the message would really go to is compared with it, never only the person: another address or account (also the Admin's own new one), another Installation Admin, a person who is no Installation Admin any more, a message queued before the way was switched off, and a "to" that is not exactly one address all send nothing. A message held earlier is never sent later. Messages already sent are not edited afterwards, and emails carry no reply address.
 
+The database holds the sends too: a send is counted only for a Delivery to the person themself and to the recorded address or chat, and a stored chat connection can only be ended once its way is off.
+
 A test lists every file that calls a way out and fails when a new one appears, until someone says how it keeps this rule.
 
 What would have been sent stays in the Outbox with its words, as Deliveries that were never queued.

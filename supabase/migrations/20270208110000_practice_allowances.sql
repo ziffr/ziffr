@@ -9,13 +9,17 @@ create table practice_ways (
   workspace_id uuid not null references workspaces(id) on delete cascade,
   way text not null check (way in ('email', 'slack', 'telegram')),
   destination text check (char_length(destination) between 1 and 320),
+  -- For email, the inbox that address reaches as the sends are counted by (mail.ts, mailboxKey): what the database can
+  -- hold a send to.
+  address_key text check (char_length(address_key) between 1 and 320),
   switched_at timestamptz not null default now(),
   primary key (workspace_id, way),
-  check (way <> 'email' or destination is not null)
+  check (way <> 'email' or (destination is not null and address_key is not null))
 );
 alter table practice_ways enable row level security;
 revoke all on table practice_ways from public, anon, authenticated;
 select attach_demo_guard('practice_ways');
+insert into demo_closed_tables (table_name, reason) values ('practice_ways', 'The demo is never a Practice Workspace (spec 0063).') on conflict (table_name) do nothing;
 
 -- Only a Practice Workspace has any.
 create function practice_ways_check() returns trigger language plpgsql security definer set search_path = public as $$
@@ -32,6 +36,11 @@ create function practice_way_on(p_workspace uuid, p_way text) returns boolean la
   select exists (select 1 from practice_ways where workspace_id = p_workspace and way = p_way)
 $$;
 
+-- Whether a Delivery of a Practice Workspace is one to the person it was made for.
+create function practice_send_is_ours(p_workspace uuid, p_person text, p_delivery text) returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from deliveries d where d.id = p_delivery::bigint and d.workspace_id = p_workspace and d.recipient_id = p_person)
+$$;
+
 -- 2. The allowances, each named; whatever is not named stays refused.
 create or replace function practice_allows(p_table text, p_row jsonb) returns boolean language sql stable security definer set search_path = public as $$
   select coalesce((
@@ -43,13 +52,19 @@ create or replace function practice_allows(p_table text, p_row jsonb) returns bo
       when p_table = 'webhook_sends' then exists (select 1 from webhooks h where h.id = (p_row->>'webhook_id')::uuid and h.workspace_id = w.id and h.created_by = w.practice_for)
       -- A message to the person themself, by a way they switched on. Never to anyone else, whatever the way.
       when p_table = 'deliveries' then p_row->>'recipient_id' = w.practice_for and practice_way_on(w.id, p_row->>'connector')
-      when p_table = 'email_sends' then practice_way_on(w.id, 'email')
+      -- A send is counted only for a Delivery to the person themself, going to the very destination recorded.
+      when p_table = 'email_sends' then practice_send_is_ours(w.id, w.practice_for, p_row->>'delivery_id') and exists (
+        select 1 from practice_ways y where y.workspace_id = w.id and y.way = 'email' and y.address_key = p_row->>'address_key')
+      when p_table = 'slack_sends' then practice_send_is_ours(w.id, w.practice_for, p_row->>'delivery_id') and exists (
+        select 1 from practice_ways y where y.workspace_id = w.id and y.way = 'slack' and y.destination = lower(p_row->>'recipient_key')
+          and split_part(y.destination, ':', 1) = lower(p_row->>'team_id'))
+      when p_table = 'telegram_sends' then practice_send_is_ours(w.id, w.practice_for, p_row->>'delivery_id') and exists (
+        select 1 from practice_ways y where y.workspace_id = w.id and y.way = 'telegram' and y.destination = p_row->>'chat_id')
       when p_table in ('slack_installations', 'slack_install_states') then practice_way_on(w.id, 'slack')
-      when p_table = 'slack_sends' then practice_way_on(w.id, 'slack')
       -- Only their own account, linked with their own code: never one found by an address.
       when p_table = 'slack_links' then practice_way_on(w.id, 'slack') and p_row->>'person_id' = w.practice_for and p_row->>'matched_by' = 'code'
       when p_table = 'slack_link_codes' then practice_way_on(w.id, 'slack') and p_row->>'person_id' = w.practice_for
-      when p_table in ('telegram_workspaces', 'telegram_sends') then practice_way_on(w.id, 'telegram')
+      when p_table = 'telegram_workspaces' then practice_way_on(w.id, 'telegram')
       when p_table in ('telegram_links', 'telegram_link_codes') then practice_way_on(w.id, 'telegram') and p_row->>'person_id' = w.practice_for
       else false
     end
@@ -77,10 +92,25 @@ drop trigger practice_holds_delivery on deliveries;
 create trigger practice_holds_delivery before insert or update of mail_state, workspace_id, recipient_id, connector on deliveries
   for each row execute function practice_holds_delivery();
 
--- 4. Ending a connection is always possible, also once its way is switched off.
+-- 4. Ending a connection is always possible, also once its way is switched off: a Slack connection revoked, or Telegram
+-- turned off, with nothing else of the row changed. Every other change asks the allowances like a new row.
 create or replace function practice_refuses() returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  was jsonb;
+  becomes jsonb;
 begin
-  if tg_op = 'UPDATE' and tg_table_name in ('slack_installations', 'telegram_workspaces') then return new; end if;
+  if tg_op = 'UPDATE' then
+    was := to_jsonb(old);
+    becomes := to_jsonb(new);
+    if tg_table_name = 'slack_installations' and was->>'revoked_at' is null and becomes->>'revoked_at' is not null
+      and becomes - 'revoked_at' = was - 'revoked_at' then return new; end if;
+    if tg_table_name = 'telegram_workspaces' and was->>'enabled' = 'true' and becomes->>'enabled' = 'false'
+      and becomes - array['enabled', 'changed_by', 'changed_at'] = was - array['enabled', 'changed_by', 'changed_at'] then return new; end if;
+    -- Nor does a row move into a Practice Workspace, or out of one, unasked.
+    if (was->>'workspace_id') is distinct from (becomes->>'workspace_id') and is_practice_workspace((was->>'workspace_id')::uuid) then
+      raise exception using errcode = 'ZF4P2', message = 'practice_refused:' || tg_table_name;
+    end if;
+  end if;
   if is_practice_workspace(new.workspace_id) and not practice_allows(tg_table_name, to_jsonb(new)) then
     raise exception using errcode = 'ZF4P2', message = 'practice_refused:' || tg_table_name;
   end if;
@@ -102,5 +132,5 @@ create trigger practice_way_bind after insert or update on telegram_links for ea
 create trigger practice_way_bind after insert or update on slack_links for each row execute function practice_way_bind();
 
 revoke execute on function practice_ways_check(), practice_way_bind() from public, anon, authenticated;
-revoke execute on function practice_way_on(uuid, text) from public, anon, authenticated;
-grant execute on function practice_way_on(uuid, text) to service_role;
+revoke execute on function practice_way_on(uuid, text), practice_send_is_ours(uuid, text, text) from public, anon, authenticated;
+grant execute on function practice_way_on(uuid, text), practice_send_is_ours(uuid, text, text) to service_role;

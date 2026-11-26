@@ -10,7 +10,7 @@ import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
 import { forgetStaleTelegramTests } from "./installation-telegram-test";
 import { callTelegram, TelegramError } from "./telegram-api";
-import { heldBack, PRACTICE_HELD } from "./practice";
+import { heldBack, mayQueue, PRACTICE_HELD } from "./practice";
 import { telegramOnIn } from "./telegram-connection";
 import { forgetTelegramUser, telegramChatOf } from "./telegram-people";
 import { tellIfAnswered } from "./prompt-ways";
@@ -62,8 +62,8 @@ export async function sendTelegramDelivery(id: number): Promise<SendResult> {
   // Nothing goes out for an Archived Metric, also when it was archived after this was queued.
   const archived = await archivedMetricHolds(d);
   if (archived) return never(archived);
-  // Nothing leaves a Practice Workspace (spec 0063).
-  if (await heldBack(d.workspace_id, "telegram", { recipientId: d.recipient_id })) return keepInOutbox(id, PRACTICE_HELD);
+  // From a Practice Workspace (spec 0063) only to its own person; which chat it goes to is compared below.
+  if (!(await mayQueue(d.workspace_id, "telegram", d.recipient_id))) return keepInOutbox(id, PRACTICE_HELD);
   // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015).
   const held = await trialHoldsBack(d.workspace_id, d.recipient_id);
   if (held) return keepInOutbox(id, held);
@@ -75,6 +75,7 @@ export async function sendTelegramDelivery(id: number): Promise<SendResult> {
   }
   const chat = await telegramChatOf(d.workspace_id, d.recipient_id);
   if (!chat) return never("Not connected to Telegram.");
+  if (await heldBack(d.workspace_id, "telegram", { recipientId: d.recipient_id, destination: String(chat.chatId) })) return keepInOutbox(id, PRACTICE_HELD);
   // Claimed in the database within the limits, so neither parallel sends nor many Deliveries pass them.
   const trial = await claimTrialSend(id);
   if (trial === "wait") return "waiting";

@@ -9,6 +9,7 @@ import { openWorkflowRow } from "./workflow-rows";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
 import { webhookRules } from "./webhook-trial";
+import { heldBack } from "./practice";
 import { deliverNotice, linkTo, refFor } from "./deliveries";
 import { outboundRequest, outboundUrlProblem } from "./outbound-request";
 import { openNames, openOne, openRows } from "./sealed-columns";
@@ -259,8 +260,10 @@ async function sendOne(send: Send, signal?: AbortSignal): Promise<Outcome> {
   // A trial's sends stop when the operator switches trial Webhooks off or the trial ends; a trial never reaches private hosts.
   const rules = await webhookRules(ws);
   if (!rules.allowed) return { state: "dropped" };
-  const { data } = await db().from("webhooks").select("id, name, url, secret, secret_previous, secret_previous_until, events, disabled_at, owner_id, metric_ids").eq("id", send.webhook_id).eq("workspace_id", ws).maybeSingle();
+  const { data } = await db().from("webhooks").select("id, name, url, secret, secret_previous, secret_previous_until, events, disabled_at, owner_id, metric_ids, created_by").eq("id", send.webhook_id).eq("workspace_id", ws).maybeSingle();
   if (!data || data.disabled_at || (send.type !== "ping" && !((data.events as string[]) ?? []).includes(send.type))) return { state: "dropped" };
+  // From a Practice Workspace (spec 0063) only to a Webhook its person made.
+  if (await heldBack(ws, "webhook", { recipientId: String(data.created_by ?? "") })) return { state: "dropped" };
   // A Personal Webhook (spec 0037) hears as its person (buildMessage); while its Workspace does not allow them, or its
   // person is not an Owner, Admin or Member, it hears nothing at all.
   const ownerId = typeof data.owner_id === "string" ? data.owner_id : null;

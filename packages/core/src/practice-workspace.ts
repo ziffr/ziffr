@@ -7,6 +7,7 @@ import { db } from "./db";
 import { DEMO_TAKES_NO_WORKSPACES, refuseNewWorkspaceInDemoOnly } from "./demo-only";
 import { assertInstallationAdmin, recordInstallationEvent, type InstallationActor } from "./installation-admins";
 import { makeFromDemo } from "./practice-copy";
+import { switchOffPracticeWays } from "./practice-ways";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { trialEndsAt } from "./trials";
 import { forgetWorkspaceKey } from "./workspace-keys";
@@ -115,6 +116,8 @@ export async function startOverPracticeWorkspace(actor: InstallationActor, works
   // The id the person confirmed: a page left open from before never deletes the one made since.
   if (!w || w.id !== workspaceId) throw new Forbidden(NOT_YOURS);
   if (w.importingAt !== null && now.getTime() - Date.parse(w.importingAt) < PRACTICE_STALE_MS) throw new PracticeWorkspaceRefused("Your Practice Workspace is being made already.");
+  // Each way to oneself is switched off first, which ends its connection (a Slack token is revoked at Slack).
+  await switchOffPracticeWays({ personId: actor.personId, workspaceId: w.id, role: "owner" });
   await remove(actor.personId, w.id);
   await recordInstallationEvent(actor.personId, "practice_workspace.removed", w.id);
   const id = await build(actor.personId);

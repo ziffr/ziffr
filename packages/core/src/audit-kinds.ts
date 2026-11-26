@@ -118,6 +118,8 @@ export const AUDIT_KINDS = {
   "workspace.closed_cancelled": "closed the Workspace because its Size was cancelled",
   "workspace.reopened": "opened the Workspace again after its Size was cancelled",
   "workspace.key_changed": "changed the Workspace Key",
+  "workspace.practice_way_on": "switched on, in their Practice Workspace, sending to themself by",
+  "workspace.practice_way_off": "switched off, in their Practice Workspace, sending to themself by",
   "workspace.profile_changed": "changed the Workspace Profile",
   "workspace.year_start_changed": "changed the month the workspace's year starts in",
   "workspace.number_style_changed": "changed how the workspace writes numbers",

@@ -12,7 +12,7 @@ import { callSlack, slackApiBase, slackEnabled, slackOn, SlackError } from "./sl
 import { canCustomize } from "./slack-identity";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { refuseInDemo } from "./demo";
-import { assertMayLeave, heldBack } from "./practice";
+import { assertWayOpen, wayOpen } from "./practice";
 
 /** The bot scopes the Slack app asks for: post, post under the Workspace's own name and logo, open a direct message, read direct messages, find people by address. */
 export const SLACK_SCOPES = ["chat:write", "chat:write.customize", "im:write", "im:history", "users:read", "users:read.email"];
@@ -49,7 +49,7 @@ function mayManage(actor: Actor) {
  * at Slack to send them to. */
 export async function startSlackInstall(actor: Actor): Promise<string> {
   mayManage(actor);
-  await assertMayLeave(actor.workspaceId, "slack");
+  await assertWayOpen(actor.workspaceId, "slack");
   const settings = await settingsInEffect();
   if (!slackEnabled(settings)) throw new Error("Slack is not set up for this Ziffr.");
   const state = randomBytes(24).toString("base64url");
@@ -82,6 +82,7 @@ export async function finishSlackInstall(actor: Actor, input: { code: string; st
   const s = taken?.[0];
   if (!s || s.workspace_id !== actor.workspaceId || s.person_id !== actor.personId) return "refused";
   if (Date.now() - new Date(s.created_at).getTime() > STATE_MINUTES * 60_000) return "refused";
+  await assertWayOpen(actor.workspaceId, "slack");
   // The token will be sealed with the Workspace Key: if that cannot be opened, no token is asked for at all, so none
   // is left working at Slack with nowhere to keep it.
   try {
@@ -157,8 +158,9 @@ export async function slackConnection(actor: Actor): Promise<SlackConnectionView
 
 /** The workspace's connected bot with its token, for the core's Slack code only. */
 export async function slackBot(workspaceId: string): Promise<SlackBot | null> {
-  // The one place a Workspace's bot is handed out: none for a Practice Workspace (spec 0063), so nothing is sent, edited or looked up for it.
-  if (workspaceId === DEMO_WORKSPACE_ID || !(await slackOn()) || (await heldBack(workspaceId, "slack"))) return null;
+  // The one place a Workspace's bot is handed out: none for a Practice Workspace (spec 0063) unless Slack is switched on
+  // there. Where a message would then go is compared by whoever sends it.
+  if (workspaceId === DEMO_WORKSPACE_ID || !(await slackOn()) || !(await wayOpen(workspaceId, "slack"))) return null;
   const { data } = await db().from("slack_installations").select("team_id, app_id, bot_user_id, bot_token, scopes").eq("workspace_id", workspaceId).is("revoked_at", null).maybeSingle();
   if (!data) return null;
   let token: string | null;

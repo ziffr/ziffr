@@ -129,6 +129,13 @@ export async function heldBack(workspaceId: string, way: WayOut, reaches: Reache
   return madeFor !== null && !(await allowed(workspaceId, way, madeFor, reaches));
 }
 
+/** Whether Ziffr may answer a chat that wrote to it: in a Practice Workspace only the account recorded for its person,
+ * never whoever else writes to the bot. */
+export async function mayAnswer(workspaceId: string, way: "slack" | "telegram", destination: string): Promise<boolean> {
+  const madeFor = await practiceFor(workspaceId);
+  return madeFor === null || !(await heldBack(workspaceId, way, { recipientId: madeFor, destination }));
+}
+
 /** Refuses, in plain words, what a Practice Workspace does not do. */
 export async function assertMayLeave(workspaceId: string, way: WayOut, reaches: Reaches = {}): Promise<void> {
   if (await heldBack(workspaceId, way, reaches)) throw new PracticeRefused();

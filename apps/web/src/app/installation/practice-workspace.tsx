@@ -27,7 +27,7 @@ export function PracticeWorkspaceSection({ state }: { state: PracticeWorkspaceSt
     <section id="practice" aria-labelledby="practice-heading" className="scroll-mt-20 space-y-3">
       {dialog}
       <h2 id="practice-heading" className="text-lg font-medium">Practice Workspace</h2>
-      <p className="max-w-prose text-sm text-muted-foreground">A private Workspace of your own to try everything in: a copy of the demo&apos;s company, with made-up numbers and people. Nothing is sent from it, and nobody else gets in. Only you see it.</p>
+      <p className="max-w-prose text-sm text-muted-foreground">A private Workspace of your own to try everything in: a copy of the demo&apos;s company, with made-up numbers and people. Nothing reaches anyone but you or an address you enter yourself, and nobody else becomes a member.</p>
       {refused ? <p className="text-sm">{refused}</p> : (
         <>
           {demoEndsOn && <p className="text-sm">The demo is not being refreshed here: its numbers end on {demoEndsOn}, and so do those of a fresh copy.</p>}

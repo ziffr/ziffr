@@ -39,7 +39,7 @@ vi.mock("./db", () => {
 vi.mock("./sealed-columns", async (actual) => ({ ...(await actual<object>()), openRows: async (_t: string, _w: string, rows: unknown[]) => rows, openNames: async (_w: string, rows: unknown[]) => rows }));
 vi.mock("./settings-in-effect", async (actual) => ({ ...(await actual<object>()), settingsInEffect: async () => SETTINGS }));
 // None of these is a Practice Workspace (practice.test.ts and practice.db.test.ts hold that one).
-vi.mock("./practice", async (actual) => ({ ...(await actual<object>()), heldBack: async () => false, assertMayLeave: async () => {} }));
+vi.mock("./practice", async (actual) => ({ ...(await actual<object>()), heldBack: async () => false, assertMayLeave: async () => {}, isPracticeWorkspace: async () => false }));
 vi.mock("./limits", async (actual) => ({ ...(await actual<object>()), effectiveLimit: async () => 50 }));
 vi.mock("./sending-limit", () => ({ sendingLimit: async () => 100 }));
 vi.mock("./trials", async (actual) => ({ ...(await actual<object>()), trialHoldsBack: async () => null, claimTrialSend: async () => "ok", trialEndsAt: async () => null, trialEnded: async () => false }));

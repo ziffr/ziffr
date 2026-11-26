@@ -430,7 +430,7 @@ One of the numbers that bound every Trial Workspace: people, invitation emails a
 _Avoid_: Plan limit, quota, entitlement
 
 **Practice Workspace**:
-A private Workspace an Installation Admin makes for themself to try Ziffr on made-up numbers (spec 0063). They are its Owner and its only real person; the others are Made-up People. Nothing is sent from it: what would have been stays in the Outbox, and no Invitation, Contact, View Link, Calendar Link, Webhook or chat connection can be made there. Which Workspace is one is set when it is made and never changes. It has no Workspace Limit, no usage digest and is never deleted as unused. Not the demo (shared, and visitors look around it), not a Trial Workspace (on hosted Ziffr, to try Ziffr with real numbers and real colleagues).
+A private Workspace an Installation Admin makes for themself to try Ziffr on made-up numbers (spec 0063). They are its Owner and its only real person; the others are Made-up People. Nothing reaches anyone but that person, or an address they entered themselves: messages to them arrive only by a way they switched on under Send to yourself, every other message stays in the Outbox, they may make View Links, Calendar Links and Webhooks, and nobody can be invited or added as a Contact. Which Workspace is one is set when it is made and never changes. It has no Workspace Limit, no usage digest and is never deleted as unused. Not the demo (shared, and visitors look around it), not a Trial Workspace (on hosted Ziffr, to try Ziffr with real numbers and real colleagues).
 _Avoid_: Sandbox, test workspace, playground, demo copy
 
 **Made-up Person**:

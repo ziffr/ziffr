@@ -11,7 +11,7 @@ import { openRows } from "./sealed-columns";
 import { archivedMetricHolds, failForGood, FORM_LINK, withFormLink } from "./internal/delivery-send";
 import { checkedMailHost } from "./mail-hosts";
 import { effectiveLimit } from "./limits";
-import { assertMayLeave, heldBack, neverRouted, PRACTICE_HELD } from "./practice";
+import { assertMayLeave, heldBack, isPracticeWorkspace, neverRouted, PRACTICE_HELD } from "./practice";
 import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
@@ -190,7 +190,8 @@ export const smtpTransport: MailTransport = async (mail) => smtpTransportWith(aw
  * which Workspace it is sent for, null only for a sign-in email, which is nobody's: a Practice Workspace sends none. The
  * address must be one plain address and the subject is put on one line; returns the provider's Message-ID. */
 export async function sendMail(mail: OutgoingMail, workspaceId: string | null, transport: MailTransport = smtpTransport): Promise<string> {
-  if (workspaceId !== null) await assertMayLeave(workspaceId, "email", { address: mail.to });
+  // A Practice Workspace sends none of these, whatever the address: only its Deliveries to its own person may go.
+  if (workspaceId !== null) await assertMayLeave(workspaceId, "email");
   if (neverRouted(mail.to)) throw new Error("That address cannot be mailed.");
   const settings = await settingsInEffect();
   if (!mailEnabled(settings)) throw new Error("Email is not set up.");
@@ -246,8 +247,6 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   const archived = await archivedMetricHolds(claimed);
   if (archived) return never(archived);
   // Settings may have gone, or the Delivery may be the demo's: nothing leaves then, and it does not try again.
-  // Nothing leaves a Practice Workspace (spec 0063).
-  if (await heldBack(claimed.workspace_id, "email", { recipientId: claimed.recipient_id })) return keepInOutbox(id, PRACTICE_HELD);
   // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015).
   const held = await trialHoldsBack(claimed.workspace_id, claimed.recipient_id);
   if (held) return keepInOutbox(id, held);
@@ -256,6 +255,9 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   if (claimed.workspace_id === DEMO_WORKSPACE_ID || !mailEnabled(settings)) return never("Email is not set up.");
   const to = await addressIn(claimed.workspace_id, claimed.recipient_id);
   if (!to || neverRouted(to)) return never("No usable email address for this person here.");
+  // From a Practice Workspace (spec 0063) only to its own person, at the very address switched on: `to` is where this
+  // message goes, and nothing below changes it.
+  if (await heldBack(claimed.workspace_id, "email", { recipientId: claimed.recipient_id, destination: to })) return keepInOutbox(id, PRACTICE_HELD);
   // Someone who stopped Prompts and reminders by email gets none, also ones queued before they stopped.
   const stoppable = OPT_OUT_KINDS.includes(claimed.kind);
   if (stoppable) {
@@ -324,7 +326,8 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   // Its own reply address, made the first time it is sent while replies come back (24 random bytes, unguessable).
   let replyTo: string | undefined;
   // An Alert, a Checklist Item or the message about a Filled-in Value cannot be answered (GLOSSARY: Alert, Checklist Item, Filled-in Value): its email has no reply address of its own.
-  if (!digest && inboundEnabled(settings) && claimed.kind !== "alert" && claimed.kind !== "heads_up" && claimed.kind !== "checklist" && claimed.kind !== "filled_in" && claimed.kind !== "test") {
+  // None from a Practice Workspace either: its email carries no address but the one it goes to and Ziffr's sender.
+  if (!digest && inboundEnabled(settings) && !(await isPracticeWorkspace(claimed.workspace_id)) && claimed.kind !== "alert" && claimed.kind !== "heads_up" && claimed.kind !== "checklist" && claimed.kind !== "filled_in" && claimed.kind !== "test") {
     const token = claimed.reply_token ?? randomBytes(24).toString("base64url");
     if (!claimed.reply_token) await db().from("deliveries").update({ reply_token: token }).eq("id", id);
     replyTo = replyAddress(token, settings);

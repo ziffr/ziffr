@@ -12,7 +12,7 @@ const WAY_OUT = /\b(sendMail|callSlack|callTelegram|outboundRequest)\s*(<[^()]*>
 /** Each file that holds one, and how a Practice Workspace is kept out of it. */
 const KEPT_BY: Record<string, string> = {
   // Email.
-  "packages/core/src/mail.ts": "sendMail asks heldBack for the Workspace it is given; sendDelivery asks it before sending; the SMTP transport takes no .invalid address",
+  "packages/core/src/mail.ts": "sendMail is refused for a Practice Workspace; sendDelivery asks heldBack with the very address it sends to; the SMTP transport takes no .invalid address",
   "packages/core/src/auth-email.ts": "a sign-in email, nobody's Workspace; a .invalid address is refused by sendMail",
   "packages/core/src/invitations.ts": "no invitation is made (assertMayLeave, and the database); sendMail gets the Workspace",
   "packages/core/src/inbound-email.ts": "the answer to an email goes through sendMail with the Workspace",
@@ -20,21 +20,21 @@ const KEPT_BY: Record<string, string> = {
   "apps/web/src/app/auth-actions.ts": "signing in: a .invalid address is refused before the sign-in service is asked",
   // Slack. A bot is handed out by slackBot alone, and none for a Practice Workspace.
   "packages/core/src/slack-api.ts": "the call itself; every caller below is kept out",
-  "packages/core/src/slack-send.ts": "sendSlackDelivery asks heldBack before it calls",
-  "packages/core/src/slack-people.ts": "needs a bot from slackBot",
-  "packages/core/src/slack-inbound.ts": "needs a bot from slackBot",
-  "packages/core/src/slack-connection.ts": "no install is started, and the database keeps none; slackBot hands out no bot",
-  "packages/core/src/prompt-ways.ts": "edits need slackBot or telegramOnIn, both none for a Practice Workspace",
+  "packages/core/src/slack-send.ts": "sendSlackDelivery asks heldBack with the very account it sends to",
+  "packages/core/src/slack-people.ts": "needs a bot from slackBot, and looks nobody up for a Practice Workspace",
+  "packages/core/src/slack-inbound.ts": "say() asks mayAnswer with the account it answers",
+  "packages/core/src/slack-connection.ts": "an install starts, and slackBot hands out a bot, only where Slack is switched on",
+  "packages/core/src/prompt-ways.ts": "a Practice Workspace edits nothing it sent",
   // Telegram. It is on in a Workspace by telegramOnIn alone, and never in a Practice Workspace.
   "packages/core/src/telegram-api.ts": "the call itself; every caller below is kept out",
-  "packages/core/src/telegram-send.ts": "sendTelegramDelivery asks heldBack before it calls",
-  "packages/core/src/telegram-connection.ts": "telegramOnIn is false and setTelegramEnabled refuses; its other calls are the Installation's",
-  "packages/core/src/telegram-confirm.ts": "no confirmation starts, and the database keeps no link, so no chat of one is known",
-  "packages/core/src/telegram-inbound.ts": "answers the chat that wrote; the database keeps no link to a Practice Workspace",
+  "packages/core/src/telegram-send.ts": "sendTelegramDelivery asks heldBack with the very chat it sends to",
+  "packages/core/src/telegram-connection.ts": "telegramOnIn is true only where Telegram is switched on; its other calls are the Installation's",
+  "packages/core/src/telegram-confirm.ts": "no confirmation starts for a Practice Workspace; tellChat is asked with mayAnswer",
+  "packages/core/src/telegram-inbound.ts": "answers about a Workspace's message ask mayAnswer with the chat; a link code's answer is quiet for another account",
   "packages/core/src/installation-telegram-test.ts": "an Installation Admin's own test of the bot, of no Workspace",
   "packages/core/src/installation-settings.ts": "the Installation's own settings checks, of no Workspace",
   // Requests.
-  "packages/core/src/webhook-send.ts": "webhookRules allows a Practice Workspace nothing, and the database keeps no Webhook of one",
+  "packages/core/src/webhook-send.ts": "sendOne asks heldBack with the Webhook's maker",
   "packages/core/src/outbound-request.ts": "the request itself; its callers are webhook-send and marketplace",
   "packages/core/src/marketplace.ts": "reads a person asks for, which a Practice Workspace may; no report link is offered there",
   "packages/core/src/feedback-github.ts": "feedback is refused from a Practice Workspace when it is written",

@@ -60,6 +60,7 @@ function ViewLinksBody({ type, id, snapshot, leftOut }: { type: "dashboard" | "d
               className="space-y-3 text-sm"
               onSubmit={(e) => { e.preventDefault(); start(async () => { try { const t = unwrap(await createViewLink(type, id, input())); setLabel(""); await load(); copy(t); } catch (err) { toast.error("No link made", { description: shown(err) }); } }); }}
             >
+              <p className="text-xs text-muted-foreground">Anyone with the link can read it, without signing in, until it ends.</p>
               <div className="grid grid-cols-[minmax(0,1fr)_10rem] gap-2">
                 <label className="block"><span className="mb-1 block text-xs font-medium">For</span><Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Advisory board, Q4" /></label>
                 <label className="block"><span className="mb-1 block text-xs font-medium">Works until</span><Input type="date" value={expires} min={today} max={inDays(90)} onChange={(e) => setExpires(e.target.value)} required /></label>

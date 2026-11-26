@@ -112,6 +112,7 @@ const CASES: Record<string, Case> = {
   "canvas-actions:markTaskDone": { nothing: "Sara has no open task in the demo", open: (i) => [i.task] },
   "connector-actions:sendTestMessage": { blocked: () => ["email"] },
   "connector-actions:sendScreenLink": { blocked: () => ["/analyze"] },
+  "connector-actions:setPracticeWay": { blocked: () => ["email", true] },
   "connector-actions:setTelegram": { blocked: () => [true] },
   "connector-actions:telegramLinkStart": { blocked: () => [] },
   "connector-actions:telegramFormLinkStart": { nothing: "Telegram is off in the demo", blocked: (i) => [i.formCode] },

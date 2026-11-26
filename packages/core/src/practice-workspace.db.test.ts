@@ -104,6 +104,10 @@ describe("making a Practice Workspace", () => {
     await expect(startOverPracticeWorkspace(other.actor, made, other.w.id)).rejects.toBeInstanceOf(Forbidden);
     for (const not of [w.id, DEMO_WORKSPACE_ID, randomUUID(), "x"]) await expect(startOverPracticeWorkspace(actor, not, w.id)).rejects.toBeInstanceOf(Forbidden);
     const madeUp = [...inside].filter((p) => p !== me);
+    // No Webhook is copied, and none comes back with a fresh one, nor a switch.
+    expect(await count("webhooks", made)).toBe(0);
+    await db().from("webhooks").insert({ id: randomUUID(), workspace_id: made, name: "Mine", url: "https://example.org/hook", secret: "whsec_x", events: [], created_by: me }).throwOnError();
+    await db().from("practice_ways").insert({ workspace_id: made, way: "telegram" }).throwOnError();
     const fresh = await startOverPracticeWorkspace(actor, made, made);
     expect(fresh).not.toBe(made);
     expect((await db().from("workspaces").select("id").eq("id", made)).data).toEqual([]);
@@ -111,6 +115,7 @@ describe("making a Practice Workspace", () => {
     expect((await db().from("profiles").select("id").in("id", madeUp)).data).toEqual([]);
     expect((await db().from("profiles").select("id").eq("id", me)).data).toHaveLength(1);
     expect(await count("metrics", fresh)).toBe(demo.metrics);
+    expect([await count("webhooks", fresh), await count("practice_ways", fresh)]).toEqual([0, 0]);
     expect(await demoCounts()).toEqual(demo);
   });
 });

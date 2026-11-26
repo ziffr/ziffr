@@ -227,6 +227,9 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `practiceWorkspaceState` (practice-workspace.ts): what the Installation Settings page shows of an Installation Admin's own Practice Workspace
 - `makePracticeWorkspace` (practice-workspace.ts): Installation administration at the screen; a key never makes a Workspace
 - `startOverPracticeWorkspace` (practice-workspace.ts): deletes a Workspace, after a confirmation at the screen; a key never does
+- `practiceWays` (practice-ways.ts): what Send to yourself shows its person on the Connectors page of a Practice Workspace
+- `switchPracticeWay` (practice-ways.ts): switching on or off at the screen what a Practice Workspace may send to its own person; a key never does
+- `switchOffPracticeWays` (practice-ways.ts): Start over switching every way off before it deletes
 - `createInstallationAnnouncement` (installation-announcements.ts): Installation administration
 - `updateInstallationAnnouncement` (installation-announcements.ts): Installation administration
 - `setInstallationAnnouncementActive` (installation-announcements.ts): Installation administration

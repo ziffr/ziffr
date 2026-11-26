@@ -6,15 +6,15 @@ import { initialMailState, sendDelivery, sendWaiting } from "./mail";
 import { sendSlackDelivery, sendWaitingSlack, slackSends } from "./slack-send";
 import { sendTelegramDelivery, sendWaitingTelegram, telegramSends } from "./telegram-send";
 import { settingsInEffect } from "./settings-in-effect";
-import { heldBack } from "./practice";
+import { mayQueue } from "./practice";
 import { trialHoldsBack } from "./trials";
 import { sendWaitingWebhooks } from "./webhook-send";
 
 /** The state a new Delivery starts in: queued when it will really be sent, else it stays in the Outbox. In a Trial
  * Workspace only a Delivery to a person who accepted is ever sent, never one to a Contact (ADR 0015). */
 export async function initialDeliveryState(connector: string, workspaceId: string, recipientId: string): Promise<"queued" | "outbox"> {
-  // Nothing leaves a Practice Workspace (spec 0063), by whichever Connector.
-  if (await heldBack(workspaceId, connector === "slack" || connector === "telegram" ? connector : "email", { recipientId })) return "outbox";
+  // From a Practice Workspace (spec 0063) only to its own person, by a way they switched on.
+  if (!(await mayQueue(workspaceId, connector === "slack" || connector === "telegram" ? connector : "email", recipientId))) return "outbox";
   if (await trialHoldsBack(workspaceId, recipientId)) return "outbox";
   if (connector === "slack") return (await slackSends(workspaceId)) ? "queued" : "outbox";
   if (connector === "telegram") return (await telegramSends(workspaceId)) ? "queued" : "outbox";

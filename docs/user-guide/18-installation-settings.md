@@ -35,7 +35,7 @@ It holds a copy of the demo's company: its Metrics with their history, dashboard
 
 Everything works as in any Workspace, with these differences:
 
-- **Nothing is sent from it.** Every message Ziffr would send stays in the Outbox, where you can read it. Invitations, Contacts, View Links, Calendar Links, Webhooks, Slack and Telegram connections and feedback are refused.
+- **Nothing reaches anyone but you, or an address you enter yourself.** Every message to somebody else stays in the Outbox, where you can read it. Messages to you arrive only by the ways you switch on under [Send to yourself](16-workspace-settings.md#send-to-yourself-in-a-practice-workspace). View Links, Calendar Links and Webhooks work as anywhere. Invitations, Contacts and feedback are refused.
 - **Values still come in:** you can record them, and Feeds, Access Keys and form links work. Anyone you give a form link can send a value there, and sees what the form shows.
 - Only you see it. It does not count towards any limit, is never deleted for being unused, and Retention does not run in it.
 - You can take its Workspace Export; the file holds only made-up people and you.

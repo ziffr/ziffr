@@ -3,7 +3,6 @@
 // stored; the core refuses before the database has to; and an ordinary Workspace is as before.
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { makeCalendarLink } from "./calendar-links";
 import { cloudWorkspace } from "./cloud-api";
 import { db } from "./db";
 import { createInviteLink, inviteByEmail, setJoinDomain } from "./invitations";
@@ -14,9 +13,6 @@ import { startSlackInstall, slackBot } from "./slack-connection";
 import { addContact, DEMO_WORKSPACE_ID } from "./team";
 import { telegramOnIn, setTelegramEnabled } from "./telegram-connection";
 import { sendTestMessage } from "./test-message";
-import { createViewLink } from "./view-links";
-import { webhookRules } from "./webhook-trial";
-import { createWebhook } from "./webhooks";
 import { askForMissingValues } from "./questions";
 import { workspace } from "./test/db-fixtures";
 
@@ -134,23 +130,17 @@ describe("what would reach outside", () => {
     expect(code(await db().from("profiles").insert({ id: `t-${randomUUID()}`, name: "Real Person", role: "Contact", color: "#000", contact_workspace: w.id }))).toBe("ZF4P2");
     expect((await db().from("profiles").select("id").eq("contact_workspace", w.id)).data).toEqual([]);
   });
-  it("is refused by the core before the database has to", async () => {
+  it("is refused by the core before the database has to, while nothing is switched on", async () => {
     const { w, me, metric } = await practice();
     const actor = w.actor(me);
-    const { data: dash } = await db().from("dashboards").insert({ workspace_id: w.id, name: "Board", owner_id: me }).select("id").single();
-    const later = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
     const attempts: [string, () => Promise<unknown>][] = [
       ["an invitation", () => inviteByEmail(actor, { email: "someone@example.org", role: "member" })],
       ["an invite link", () => createInviteLink(actor, "member")],
       ["domain joining", () => setJoinDomain(actor, "me@example.org", true)],
-      ["a View Link", () => createViewLink(actor, "dashboard", Number(dash!.id), { label: "x", expires: later, frozen: false })],
-      ["a Calendar Link", () => makeCalendarLink(actor)],
-      ["a Webhook", () => createWebhook(actor, { name: "x", url: "https://example.org/hook" })],
       ["Slack", () => startSlackInstall(actor)],
       ["Telegram", () => setTelegramEnabled(actor, true)],
     ];
     for (const [what, attempt] of attempts) await expect(attempt(), what).rejects.toThrow(/Practice Workspace/);
-    expect(await webhookRules(w.id)).toMatchObject({ allowed: false });
     expect(await slackBot(w.id)).toBeNull();
     expect(await telegramOnIn(w.id)).toBe(false);
     expect(metric.id).toBeGreaterThan(0);
