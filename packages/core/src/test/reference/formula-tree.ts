@@ -9,13 +9,14 @@
 import { fraction, ZERO, plus, type Exact } from "./exact";
 import { referenceEvaluate } from "./formula";
 
-/** A formula as a structure: a number as written, a Metric by slug, or two operands with an operator. */
-export type RefExpr = { t: "n"; text: string } | { t: "m"; slug: string } | { t: "op"; op: "+" | "-" | "*" | "/"; l: RefExpr; r: RefExpr };
+/** A formula as a structure: a number as written, a Metric or its target by slug, or two operands with an operator. */
+export type RefExpr = { t: "n"; text: string } | { t: "m"; slug: string } | { t: "g"; slug: string } | { t: "op"; op: "+" | "-" | "*" | "/"; l: RefExpr; r: RefExpr };
 
 /** The formula's text: every operation in its own brackets, so it reads back as this structure. */
 export function printExpr(e: RefExpr, top = true): string {
   if (e.t === "n") return e.text;
   if (e.t === "m") return `{${e.slug}}`;
+  if (e.t === "g") return `target({${e.slug}})`;
   const s = `${printExpr(e.l, false)} ${e.op} ${printExpr(e.r, false)}`;
   return top ? s : `(${s})`;
 }

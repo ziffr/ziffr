@@ -71,7 +71,7 @@ export const METRIC_FILE_SCHEMA: Schema = {
     targetMax: bound("upper end"),
     attainmentMethod: { enum: [...ATTAINMENT_METHODS], description: "How its Attainment is computed; left out, the Workspace's way." },
     sources: { type: "array", maxItems: 5, items: { enum: ["web_form", "mail", "slack", "telegram", "api"] }, description: "Where its values may arrive from; left out, every Source." },
-    formula: { type: "string", maxLength: FORMULA_LIMITS.length, pattern: "^[a-z0-9{}()+\\-*/. ]*$", description: "a formula of + - * /, brackets, numbers and {key} of another entry, such as “{revenue} / {orders}”" },
+    formula: { type: "string", maxLength: FORMULA_LIMITS.length, pattern: "^[a-z0-9{}()+\\-*/. ]*$", description: "a formula of + - * /, brackets, numbers, {key} of another entry and target({key}) for its target, such as “{revenue} / {orders}”" },
   },
   required: ["format", "name", "period", "aggregation", "polarity"],
   additionalProperties: false,

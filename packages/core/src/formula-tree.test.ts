@@ -36,6 +36,7 @@ const expr: fc.Arbitrary<RefExpr> = fc.letrec<{ e: RefExpr }>((tie) => ({
   e: fc.oneof(
     { maxDepth: 5, depthSize: "small" },
     fc.constantFrom(...SLUGS).map((slug): RefExpr => ({ t: "m", slug })),
+    fc.constantFrom(...SLUGS).map((slug): RefExpr => ({ t: "g", slug })),
     fc.constantFrom(...NUMBERS).map((text): RefExpr => ({ t: "n", text })),
     fc.tuple(fc.constantFrom("+", "-", "*", "/", "+", "-"), tie("e"), tie("e")).map(([op, l, r]): RefExpr => ({ t: "op", op: op as "+", l, r })),
   ),
@@ -54,12 +55,16 @@ describe("the formula tree against the reference", () => {
   it(`finds the same boxes, exact values, shares and words as the reference (${runs} formulas)`, () => {
     let drawn = 0;
     fc.assert(
-      fc.property(expr, values, fc.integer({ min: 0, max: 2 }), (e, v, u) => {
+      fc.property(expr, values, values, fc.integer({ min: 0, max: 2 }), (e, v, g, u) => {
         const unit = UNITS[u];
         const leaves = Object.fromEntries(SLUGS.map((s) => [s, leaf(s.toUpperCase(), v[s as "a"], unit)]));
-        const exact: Record<string, Exact> = Object.fromEntries(SLUGS.flatMap((s) => (v[s as "a"] === null ? [] : [[s, exactOf(v[s as "a"]!)]])));
+        const targets = Object.fromEntries(SLUGS.map((s) => [s, leaf(`Target of ${s.toUpperCase()}`, g[s as "a"], unit)]));
+        const exact: Record<string, Exact> = Object.fromEntries(SLUGS.flatMap((s) => [
+          ...(v[s as "a"] === null ? [] : [[s, exactOf(v[s as "a"]!)] as const]),
+          ...(g[s as "a"] === null ? [] : [[`target:${s}`, exactOf(g[s as "a"]!)] as const]),
+        ]));
         const want = referenceTree(e, exact);
-        const got = tree(printExpr(e), leaves, { unit });
+        const got = tree(printExpr(e), leaves, { unit, targets });
         if ("refused" in want) {
           expect(got.ok, printExpr(e)).toBe(false);
           return;
@@ -102,7 +107,7 @@ describe("the formula tree against the reference", () => {
         });
         // The text alternative has every box's words, and the same tree gives the same bytes.
         for (const b of model.boxes) expect(model.alt).toContain(b.alt);
-        expect(JSON.stringify(tree(printExpr(e), leaves, { unit }))).toBe(JSON.stringify(model));
+        expect(JSON.stringify(tree(printExpr(e), leaves, { unit, targets }))).toBe(JSON.stringify(model));
       }),
       { numRuns: runs, seed: 115 },
     );
@@ -420,6 +425,24 @@ const PROFIT = metric({ id: 3, slug: "profit", name: "Profit", formula: "{revenu
 const rows = (spec: Record<number, number[]>, start = "2026-01"): Observation[] =>
   Object.entries(spec).flatMap(([id, vs]) => months(start, vs).map((p, i) => ob([REV, COST, PROFIT].find((m) => m.id === Number(id))!, p.period, p.value, Number(id) * 100 + i)));
 const dataOf = (metrics: Metric[], observations: Observation[], over = {}) => canvas(metrics, buildSeries(metrics, observations), { today: "2026-06-15", ...over });
+
+describe("a tree of a formula that reads a target (spec 0062)", () => {
+  // Revenue has a Target Series of 130 for February and "at least 90" otherwise.
+  const rev = { ...REV, target_min: 90, target_max: null };
+  const gap = metric({ id: 3, slug: "profit", name: "Gap", formula: "target({revenue}) - {revenue}", aggregation: "none" });
+  const given = (month: number) => dataOf([rev, gap], rows({ 1: [100, 120].slice(0, month) }), { targets: { 1: [{ period: "2026-02-01", value: 130 }] } });
+
+  it("draws the target as a box of its own, from the Target Series or the range", () => {
+    expect(ok(treeFromData(gap, given(2))).boxes.map((b) => [b.label, b.value])).toEqual([["Gap", 10], ["Target of Revenue", 130], ["Revenue", 120]]);
+    expect(ok(treeFromData(gap, given(1))).boxes.map((b) => [b.label, b.value])).toEqual([["Gap", -10], ["Target of Revenue", 90], ["Revenue", 100]]);
+  });
+  it("draws a target without a number, or of a Metric without a value, as a gap", () => {
+    const band = { ...rev, target_max: 200 };
+    expect(ok(treeFromData(gap, dataOf([band, gap], rows({ 1: [100] })))).boxes.map((b) => b.value)).toEqual([null, null, 100]);
+    expect(ok(tree("target({a})", { a: leaf("A", null) }, { targets: { a: leaf("Target of A", 5) } })).boxes.map((b) => b.value)).toEqual([null, null]);
+    expect(ok(tree("target({a})", { a: leaf("A", 1) })).boxes.map((b) => [b.label, b.value])).toEqual([["Result", null], ["Target of A", null]]);
+  });
+});
 
 describe("the tree from what the widget was given", () => {
   const all = [REV, COST, PROFIT];

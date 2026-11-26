@@ -3,7 +3,7 @@
 import { db } from "./db";
 import { openRow, openRows } from "./sealed-columns";
 import { workspaceCipher } from "./workspace-keys";
-import { formulaInputs } from "./formula";
+import { formulaInputs, targetInputs } from "./formula";
 import { buildSeries } from "./series";
 import { withheldDerived } from "./derived-owner";
 import { normalizeMetric } from "./metric-row";
@@ -120,27 +120,53 @@ export function withInputs(metrics: readonly Metric[], ids: Iterable<number>): n
   return [...out];
 }
 
-/** A workspace's Metrics and their plotted series. With `points`, each series holds only its last periods, for lists;
- * the inputs of Derived Metrics are then still read in full, so a derived series ends as it would otherwise. */
+/** The Target Series of those among `ids` that a formula reads with target() (spec 0062), by Metric id; nothing is read
+ * when none is. A read that fails throws, and a value that does not open stays as no number: either way a formula
+ * never takes the Target Range where a Target Series value stands. */
+export async function formulaTargets(ws: string, metrics: Metric[], ids: number[]): Promise<Record<number, Point[]>> {
+  const read = new Set(metrics.flatMap((m) => (m.formula ? targetInputs(m.formula) : [])));
+  const wanted = metrics.filter((m) => read.has(m.slug) && ids.includes(m.id)).map((m) => m.id);
+  const out: Record<number, Point[]> = {};
+  if (!wanted.length) return out;
+  const rows = await allRows<Record<string, unknown>>((from, to) =>
+    mustRead(db().from("series_values").select("metric_id, kind, period_start, value, value_sealed").eq("workspace_id", ws).eq("kind", "target").in("metric_id", wanted).order("period_start").order("id").range(from, to), TARGETS_UNREAD),
+  );
+  for (const r of (await openRows("series_values", ws, rows)) as { metric_id: number; period_start: string; value: unknown }[]) {
+    (out[r.metric_id] ??= []).push({ period: r.period_start, value: typeof r.value === "number" ? r.value : NaN });
+  }
+  return out;
+}
+
+const TARGETS_UNREAD = "Targets could not be read. Try again in a moment.";
+
+/** A workspace's Metrics and their plotted series, with the Target Series and Condensed Values of the Metrics a formula
+ * reads the target of (what resolverFrom needs besides). With `points`, each series holds only its last periods, for
+ * lists; the inputs of Derived Metrics are then still read in full, so a derived series ends as it would otherwise. */
 export async function getAllSeries(ws: string, opts: { points?: number } = {}) {
   const metrics = await getMetrics(ws);
-  if (!opts.points) return { metrics, series: buildSeries(metrics, await getLatestObservations(ws)) };
+  const targets = await formulaTargets(ws, metrics, metrics.map((m) => m.id));
+  const aimed = Object.keys(targets).map(Number);
+  // A function-level import: condensed-values.ts reads through this module.
+  const condensed = aimed.length ? await (await import("./condensed-values")).condensedFor(ws, aimed) : {};
+  if (!opts.points) return { metrics, series: buildSeries(metrics, await getLatestObservations(ws), targets), targets, condensed };
   const inputs = new Set(withInputs(metrics, metrics.filter((m) => m.formula).map((m) => m.id)));
   const rest = metrics.filter((m) => !m.formula && !inputs.has(m.id)).map((m) => m.id);
   const [recent, full] = await Promise.all([
     rest.length ? getRecentObservations(ws, opts.points, rest) : Promise.resolve([]),
     inputs.size ? getLatestObservations(ws, { metricIds: [...inputs] }) : Promise.resolve([]),
   ]);
-  const series = buildSeries(metrics, [...recent, ...full]);
+  const series = buildSeries(metrics, [...recent, ...full], targets);
   for (const slug of Object.keys(series)) series[slug] = series[slug].slice(-opts.points);
-  return { metrics, series };
+  return { metrics, series, targets, condensed };
 }
 
 /** The plotted series of some Metrics only, read with what the Derived ones among them are computed from; optionally
  * of some periods only (period starts, both included). */
 export async function getSeriesOf(ws: string, metrics: Metric[], ids: number[], window: { from?: string | null; to?: string | null } = {}) {
   const wanted = withInputs(metrics, ids);
-  return buildSeries(metrics, wanted.length ? await getLatestObservations(ws, { metricIds: wanted, ...window }) : []);
+  if (!wanted.length) return buildSeries(metrics, []);
+  const [values, targets] = await Promise.all([getLatestObservations(ws, { metricIds: wanted, ...window }), formulaTargets(ws, metrics, wanted)]);
+  return buildSeries(metrics, values, targets);
 }
 
 /** A workspace's Actions, newest first; who may read them is decided in access.ts. */
@@ -173,8 +199,9 @@ export async function openActionCount(ws: string, viewer: string) {
 
 /** Target Series and Projections per metric. */
 export async function getSeriesValues(ws: string, metricIds: number[]) {
+  // The read must be whole: with targets silently missing, a formula would take the Target Range instead (spec 0062).
   const read = await allRows<Record<string, unknown>>((from, to) =>
-    db().from("series_values").select("metric_id, kind, period_start, value, value_sealed").eq("workspace_id", ws).in("metric_id", metricIds).order("period_start").order("id").range(from, to),
+    mustRead(db().from("series_values").select("metric_id, kind, period_start, value, value_sealed").eq("workspace_id", ws).in("metric_id", metricIds).order("period_start").order("id").range(from, to), TARGETS_UNREAD),
   );
   // Values are sealed with the Workspace Key (spec 0028); a point that does not open is left out.
   const data = (await openRows("series_values", ws, read)) as { metric_id: number; kind: string; period_start: string; value: unknown }[];

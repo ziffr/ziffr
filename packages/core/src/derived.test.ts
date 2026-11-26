@@ -6,17 +6,17 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { compare, resolverFrom } from "./compare";
-import { NOT_COMBINED, seriesBy, valueOver } from "./display-periods";
+import { NOT_COMBINED, seriesBy, targetOver, valueOver, type TargetFacts } from "./display-periods";
 import { checkFormula, evaluate, formulaInputs, inputsNotCombined, inputsProblem, usesPrevious, type FormulaInput } from "./formula";
 import type { Span, YearStart } from "./periods";
 import type { Aggregation, Metric, Observation, Point } from "./types";
 import { buildSeries } from "./series";
-import { metric } from "./test/fixtures";
+import { metric, months } from "./test/fixtures";
 import { dayOf, monthsLater, textOf } from "./test/reference/calendar";
 import { longer, MOST, PERIODS, runs, series, valueText, YEAR_STARTS } from "./test/reference/check";
-import { referenceDerivedPeriods, referenceDerivedSeries } from "./test/reference/derived";
+import { referenceDerivedPeriods, referenceDerivedSeries, referenceTarget, type ReferenceAim } from "./test/reference/derived";
 import { exactOf, exactText, isNearestDouble } from "./test/reference/exact";
-import { referenceEvaluate, referenceInputs, referenceReads } from "./test/reference/formula";
+import { referenceEvaluate, referenceInputs, referenceReads, referenceTargetInputs } from "./test/reference/formula";
 
 const { numRuns, seed } = runs();
 const SLUGS = ["a", "b", "net-revenue", "c2"];
@@ -431,3 +431,149 @@ function forYear(points: Point[], period: Span, yearStart: YearStart): Point[] {
   if (period !== "quarter" && period !== "year") return points;
   return points.map((p) => ({ ...p, period: textOf(monthsLater(dayOf(p.period), yearStart - 1)) }));
 }
+
+/** A formula that reads targets: a generated one with some of its Metrics read as targets instead. */
+const withTargets = (slugs: string[]) =>
+  fc.tuple(formula(slugs), fc.array(fc.boolean(), { minLength: 12, maxLength: 12 }), fc.constantFrom("", " ")).map(([f, which, sp]) => {
+    let n = 0;
+    return f.replace(/\{[a-z0-9-]+\}/g, (ref) => (which[n++ % which.length] ? `target${sp}(${sp}${ref}${sp})` : ref));
+  });
+
+/** One input's targets: a range of none, one bound, two equal or two different ones, and a Target Series on all, some
+ * or none of its periods, now and then one that cannot be read; sometimes a Condensed Value over one of its periods. */
+function targetsFor(periods: string[]): fc.Arbitrary<Required<ReferenceAim>> {
+  const bound = fc.oneof(fc.constant(null), valueText.map(Number));
+  const range = fc.oneof(
+    fc.tuple(bound, bound),
+    valueText.map((v): [number, number] => [Number(v), Number(v)]),
+  );
+  const given = fc.oneof({ weight: 12, arbitrary: valueText.map(Number) }, { weight: 1, arbitrary: fc.constant(NaN) });
+  const share = fc.constantFrom(0, 0.5, 0.95, 1, 1);
+  return fc.tuple(range, share, fc.array(fc.tuple(fc.double({ min: 0, max: 1, noNaN: true }), given), { minLength: periods.length, maxLength: periods.length }), fc.option(fc.nat(), { nil: undefined, freq: 4 })).map(([[min, max], keep, each, condensed]) => ({
+    min, max,
+    series: periods.flatMap((period, i) => (keep === 1 || each[i][0] < keep ? [{ period, value: each[i][1] }] : [])),
+    condensed: condensed === undefined || !periods.length ? [] : [{ period: periods[condensed % periods.length], periodEnd: periods[condensed % periods.length] }],
+  }));
+}
+
+describe("a Derived Metric that reads targets (spec 0062)", () => {
+  const aggregations = fc.constantFrom<Aggregation>("sum", "average", "last");
+  const scene = (period: (typeof PERIODS)[number]) =>
+    fc.integer({ min: 1, max: 3 }).chain((n) =>
+      fc.tuple(withTargets(SLUGS.slice(0, n)), related(period, n), fc.array(aggregations, { minLength: n, maxLength: n })).chain(([f, generated, aggs]) => {
+        const periods = [...new Set(generated.points.flatMap((ps) => ps.map((p) => p.period)))].sort();
+        return fc.tuple(fc.constant(f), fc.constant(generated), fc.constant(aggs), fc.tuple(...generated.points.map(() => targetsFor(periods))));
+      }),
+    );
+
+  it(`per period and over every longer span, agrees with the reference (${numRuns} series, seed ${seed})`, () => {
+    let perPeriod = 0;
+    let spans = 0;
+    for (const period of PERIODS) {
+      fc.assert(
+        fc.property(scene(period), fc.constantFrom(...YEAR_STARTS), fc.boolean(), ([f, generated, aggs, aims], yearStart, cut) => {
+          const s = generated.points.map((points) => forYear(points, period, yearStart));
+          const goals = aims.map((a) => ({ ...a, series: forYear(a.series, period, yearStart), condensed: a.condensed.map((c) => forYear([{ period: c.period, value: 0 }], period, yearStart)[0]).map((p) => ({ period: p.period, periodEnd: p.period })) }));
+          const ins = s.map((_, k) => metric({ id: k + 1, slug: SLUGS[k], name: SLUGS[k], period, aggregation: aggs[k], formula: null, target_min: goals[k].min, target_max: goals[k].max }));
+          const derived = metric({ id: 99, slug: "derived", period, formula: f, aggregation: "none" });
+          const all = [...ins, derived];
+          const targets = Object.fromEntries(goals.map((a, k) => [k + 1, a.series]));
+          const built = buildSeries(all, observationsOf(ins, s), targets);
+          const given = s.map((points, k) => ({ slug: SLUGS[k], points, aggregation: aggs[k], aim: goals[k] }));
+          const want = referenceDerivedPeriods(f, given, period);
+          expect(built.derived.map((p) => p.period), f).toEqual(want.map((w) => textOf(w.day)));
+          built.derived.forEach((p, i) => sameValue(p.value, want[i].value, `${f} at ${p.period}`));
+          perPeriod += built.derived.length;
+
+          const condensed = Object.fromEntries(goals.map((a, k) => [k + 1, a.condensed.map((c) => ({ ...c, into: "month" as const, held: 1, of: 1, sum: "0", last: null, target: null, locked: false, condensedOn: "2026-01-01" }))]));
+          const resolve = resolverFrom(all, built, { targets, yearStart, condensed });
+          const today = generated.today;
+          const alignTo = cut && built.derived.length ? built.derived[Math.floor(built.derived.length / 2)].period : undefined;
+          for (const display of longer(period)) {
+            const code = seriesBy(derived, resolve, display, { yearStart, today, alignTo });
+            const ref = referenceDerivedSeries(f, given, period, display, { yearStart, today, alignTo });
+            const where = `${f} by ${display}, ${period} inputs by ${aggs.join("/")}, year from ${yearStart}, today ${today}`;
+            expect(code.points.map((p) => p.period), where).toEqual(ref.map((r) => r.period));
+            code.points.forEach((p, i) => sameValue(p.value, ref[i].value, `${where}, span ${p.period}`));
+            spans += code.points.length;
+          }
+          // Without the Target Series, no formula that reads a target has a value: never the range in their place.
+          if (referenceTargetInputs(f).length) expect(buildSeries(all, observationsOf(ins, s)).derived).toEqual([]);
+        }),
+        { numRuns: Math.max(30, Math.floor(numRuns / 2)), seed },
+      );
+    }
+    expect(perPeriod).toBeGreaterThan(numRuns * 2);
+    expect(spans).toBeGreaterThan(numRuns / 4);
+  });
+
+  describe("worked by hand", () => {
+    const commit = metric({ id: 1, slug: "commit", name: "Commit", aggregation: "last", target_min: 500, target_max: null });
+    const gap = metric({ id: 2, slug: "gap", formula: "target({commit}) - {commit}", aggregation: "none" });
+    const pts = months("2026-01", [100, 200, 300, 400]);
+    const obs = observationsOf([commit], [pts]);
+    const aim = (targets: Point[], over: Partial<TargetFacts> = {}): TargetFacts => ({ targets, yearStart: 1, ...over });
+    const q1 = (m: Metric, a: TargetFacts | undefined) => targetOver(m, a, "2026-01-01", "2026-03-01");
+
+    it("each period reads its own target, else the range", () => {
+      const built = buildSeries([commit, gap], obs, { 1: [{ period: "2026-02-01", value: 900 }] });
+      expect(built.gap.map((p) => p.value)).toEqual([400, 700, 200, 100]);
+    });
+    it("over a quarter: all of a series combined, none for a part of one, the range for a last value", () => {
+      const all = months("2026-01", [600, 700, 800]);
+      expect(q1(commit, aim(all))).toBe(800);
+      expect(q1({ ...commit, aggregation: "sum" }, aim(all))).toBe(2100);
+      expect(q1({ ...commit, aggregation: "average" }, aim(all))).toBe(700);
+      expect(q1({ ...commit, aggregation: "none" }, aim(all))).toBeUndefined();
+      expect(q1(commit, aim(all.slice(1)))).toBeUndefined();
+      expect(q1(commit, aim([...all.slice(0, 2), { period: "2026-03-01", value: NaN }]))).toBeUndefined();
+      expect(q1(commit, aim([]))).toBe(500);
+      expect(q1({ ...commit, aggregation: "average" }, aim([]))).toBe(500);
+      expect(q1({ ...commit, aggregation: "sum" }, aim([]))).toBeUndefined();
+      expect(q1({ ...commit, aggregation: "none" }, aim([]))).toBeUndefined();
+      expect(q1({ ...commit, target_max: 900 }, aim([]))).toBeUndefined();
+    });
+    it("a span of one period follows the rule for one period, whatever the Aggregation", () => {
+      for (const aggregation of ["sum", "average", "last", "none"] as const) {
+        expect(targetOver({ ...commit, aggregation }, aim([]), "2026-01-01", "2026-01-01")).toBe(500);
+        expect(targetOver({ ...commit, aggregation }, aim([{ period: "2026-01-01", value: 7 }]), "2026-01-01", "2026-01-01")).toBe(7);
+      }
+    });
+    it("has none where the targets are unknown, condensed away, or no period is counted", () => {
+      expect(q1(commit, undefined)).toBeUndefined();
+      const gone = (period: string, periodEnd: string) => q1(commit, aim([], { condensed: [{ period, periodEnd }] }));
+      expect([gone("2026-02-01", "2026-02-28"), gone("2025-12-01", "2025-12-31"), gone("2026-04-01", "2026-04-30")]).toEqual([undefined, 500, 500]);
+      expect(targetOver(commit, aim([]), "2026-01-02", "2026-01-31")).toBeUndefined();
+    });
+    it("shows the gap by quarter and in a Comparison from the same targets", () => {
+      const targets = { 1: [] as Point[] };
+      const built = buildSeries([commit, gap], observationsOf([commit], [months("2026-01", [100, 200, 300, 400, 450])]), targets);
+      const resolve = resolverFrom([commit, gap], built, { targets, yearStart: 1 });
+      const r = seriesBy(gap, resolve, "quarter", { yearStart: 1, today: "2026-07-01" });
+      expect(r.ok && r.points.map((p) => p.value)).toEqual([200, 50]);
+      expect(compare(gap, resolve, { keys: ["prev"], yearStart: 1 })[0]).toMatchObject({ available: true, current: 50, previous: 100 });
+      // Without the targets, no span and no Comparison is worked out.
+      const blind = resolverFrom([commit, gap], built);
+      expect(seriesBy(gap, blind, "quarter", { yearStart: 1, today: "2026-07-01" })).toMatchObject({ ok: true, points: [] });
+      expect(compare(gap, blind, { keys: ["prev"], yearStart: 1 })[0].available).toBe(false);
+    });
+    it("reads the target by the Metric's own period for prev and change beside it", () => {
+      const d = metric({ id: 3, slug: "d", formula: "target({commit}) - change({commit})", aggregation: "none" });
+      const targets = { 1: [] as Point[] };
+      const built = buildSeries([commit, d], obs, targets);
+      expect(built.d.map((p) => p.value)).toEqual([400, 400, 400]);
+      expect(valueOver("d", "2026-02-01", "2026-02-01", resolverFrom([commit, d], built, { targets, yearStart: 1 }), 1)).toBe(400);
+    });
+    it("the reference gives what was worked out by hand", () => {
+      const aimed: ReferenceAim = { min: 500, max: null, series: [] };
+      const days = months("2026-01", [0, 0, 0]).map((p) => dayOf(p.period));
+      const at = (a: ReferenceAim, agg: Aggregation) => {
+        const r = referenceTarget(a, agg, days, days[0], days[2]);
+        return r && exactText(r);
+      };
+      expect([at(aimed, "last"), at(aimed, "sum"), at({ ...aimed, max: 600 }, "last")]).toEqual(["500", null, null]);
+      expect(at({ ...aimed, series: months("2026-01", [1, 2, 4]) }, "sum")).toBe("7");
+      expect(at({ ...aimed, series: months("2026-01", [1, 2]) }, "last")).toBeNull();
+    });
+  });
+});

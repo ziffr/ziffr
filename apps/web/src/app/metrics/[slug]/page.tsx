@@ -9,7 +9,7 @@ import { getAllSeries, getAttainmentMethod, getBreakdowns, getLastValues, getNum
 import { ATTAINMENT_METHOD_LABEL, methodFor } from "@ziffr/core/attainment-method";
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
-import { inputsProblem } from "@ziffr/core/formula";
+import { formulaInputs, inputsProblem, targetProblem } from "@ziffr/core/formula";
 import { TargetsEditor } from "./series-form";
 import { MetricTabs } from "./metric-tabs";
 import { ArchivedNote } from "./archived-note";
@@ -123,7 +123,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const tab: Tab = TABS.some((t) => t.id === sp.tab) ? (sp.tab as Tab) : "overview";
   // Links inside a tab keep the tab; everything else about the page is in its own parameter.
   const at = (extra: Record<string, string> = {}) => `?${new URLSearchParams({ ...(tab === "overview" ? {} : { tab }), ...extra })}`;
-  const [{ metrics, series }, people, viewer, demo, yearStart, numberStyle, attainmentMethod] = await Promise.all([getAllSeries(), getProfiles(), viewerId(), isDemo(), getYearStart(), getNumberStyle(), getAttainmentMethod()]);
+  const [{ metrics, series, targets: aimedTargets, condensed }, people, viewer, demo, yearStart, numberStyle, attainmentMethod] = await Promise.all([getAllSeries(), getProfiles(), viewerId(), isDemo(), getYearStart(), getNumberStyle(), getAttainmentMethod()]);
   // Where visitors may change the demo (spec 0051) a Metric is archived and brought back there too; the core refuses the seed's own.
   const demoChanges = demo && (await visitorsMayChangeDemo());
   const metric = metrics.find((m) => m.slug === slug);
@@ -144,7 +144,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const byValue = sp.basis === "values";
   const [basisChoice, keepBasis] = basisOf(byValue);
   // Metrics of every period, each on its common period with this one (spec 0019); those kept to their own period say why.
-  const { ranked: correlations, leftOut } = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), resolverFrom(metrics, series), { yearStart, basis: basisChoice });
+  const resolve = resolverFrom(metrics, series, { targets: aimedTargets, condensed, yearStart });
+  const { ranked: correlations, leftOut } = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), resolve, { yearStart, basis: basisChoice });
   const notCombined = [...new Set(leftOut.filter((l) => l.why === "not-combined" || l.why === "too-much").map((l) => l.reason))];
   const partner = correlations.find((c) => c.metric.slug === sp.vs) ?? correlations[0];
   // The analyses ready for this Metric are worked out only for its Analysis tab.
@@ -196,6 +197,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const periodTarget = last ? tSeries.find((t) => t.period === last.period) : undefined;
   // Says nothing of the inputs but that their periods differ: it may be read by someone who cannot see them.
   const derivedProblem = inputsProblem(metric, metrics);
+  // Only the inputs this person sees are named, and the formula is written out only when they see all of them (rule 3).
+  const seenMetrics = metrics.filter((m) => visible.has(m.id));
+  const formulaShown = metric.formula && formulaInputs(metric.formula).every((s) => seenMetrics.some((m) => m.slug === s)) ? metric.formula.replace(/\{([a-z0-9-]+)\}/g, (all, s) => seenMetrics.find((m) => m.slug === s)?.name ?? all) : null;
   // The first requests as the Outbox recorded them (owner and Editors); the entry Tags it lacks are recomputed, never read from the address.
   const createdNote = await createdNoteFor(sp.created, canEdit, actor, metric.id);
   const tagsLeftOff = sp.created && canEdit ? await tagsLeftOffEntry(actor, metric.id) : [];
@@ -242,6 +246,10 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           {/* A Derived Metric whose inputs cannot be combined says why, instead of an empty chart (spec 0022). */}
           {derivedProblem ? (
             <div role="status" className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center text-sm text-muted-foreground">{derivedProblem}</div>
+          ) : points.length === 0 && metric.formula ? (
+            <div role="status" className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center text-sm text-muted-foreground">
+              No values yet. {targetProblem(metric, seenMetrics, aimedTargets) ?? "It has one for each period in which every Metric it is calculated from has a value."}
+            </div>
           ) : points.length === 0 ? (
             <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center text-sm text-muted-foreground">
               No values yet. They arrive by {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="?tab=settings" className="underline">See who submits</Link>.
@@ -258,7 +266,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <Link href={at({ full: "1" })} scroll={false} aria-current={sp.full ? "true" : undefined} className={cn("inline-flex min-h-11 items-center rounded-[var(--radius-input)] px-3 no-underline sm:min-h-0 sm:px-2 sm:py-1", sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Full periods</Link>
                 </nav>
               </div>
-              <CompareTable numberStyle={numberStyle} attainmentMethod={attainmentMethod} metric={metric} resolve={resolverFrom(metrics, series)} targets={tSeries} full={Boolean(sp.full)} yearStart={yearStart} />
+              <CompareTable numberStyle={numberStyle} attainmentMethod={attainmentMethod} metric={metric} resolve={resolve} targets={tSeries} full={Boolean(sp.full)} yearStart={yearStart} />
             </section>
 
             <section className="stock rounded-[var(--radius-card)] p-5">
@@ -395,7 +403,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               <Row k="Target">{targetText(metric, numberStyle)}</Row>
               <Row k="Attainment">{ATTAINMENT_METHOD_LABEL[methodFor(metric, attainmentMethod)]}{metric.attainment_method ? "" : ", as the workspace"}</Row>
               {metric.formula ? (
-                <Row k="Formula"><code className="rounded bg-muted px-1 py-0.5 text-xs">{metric.formula.replace(/\{([a-z-]+)\}/g, (_, s) => metrics.find((m) => m.slug === s)?.name ?? s)}</code></Row>
+                <Row k="Formula">{formulaShown ? <code className="rounded bg-muted px-1 py-0.5 text-xs">{formulaShown}</code> : "Calculated from Metrics that are not all shared with you."}</Row>
               ) : (
                 <>
                   <Row k="Values arrive by">{canEdit ? <SourcesEditor metricId={metric.id} sources={metric.sources} /> : metric.sources.map((s) => SOURCE_LABEL[s]).join(", ") || "None"}<p className="mt-1 text-xs text-muted-foreground">The ways an answer is accepted. A request for a value goes only by a way ticked here; which of them is each person’s choice under <Link href="/connectors/who-gets-what" className="underline">Who gets what, where</Link>.</p></Row>
