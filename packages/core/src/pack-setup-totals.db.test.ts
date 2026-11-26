@@ -147,7 +147,8 @@ describe("adding a line to a Set up with a Total", () => {
 
   it("changes no Total the actor may not change, and names none they do not see", async () => {
     const t = await setUp();
-    await setUpFromPack(t.by, t.install, { ...t.input, metrics: ["commit", "team-commit"] });
+    // Without the quota there is nothing for the team dashboard's second Slot, so that dashboard is not made.
+    await setUpFromPack(t.by, t.install, { ...t.input, metrics: ["commit", "team-commit"], dashboard: null });
     const total = await t.metric("Team commit");
     const ada = await t.w.person("admin");
     const theirs = await planPackSetup(t.w.actor(ada, "admin"), t.install, { ...(await t.line([`total:${total.id}`])), metrics: ["commit"], lineDashboards: [] });
