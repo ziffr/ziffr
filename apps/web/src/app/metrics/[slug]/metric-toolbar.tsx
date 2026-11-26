@@ -13,7 +13,7 @@ import { usePanel } from "@/lib/panel-param";
 import { ObjectToolbar, type ObjectToolbarProps, type MenuEntry } from "@/components/object-toolbar";
 import { askNow } from "./ask-now";
 import { AssistantPrompt } from "./assistant-prompt";
-import { ArchiveMetric, useBringBack } from "./archive-metric";
+import { ArchiveMetric, useBringBack, type CountingTotal } from "./archive-metric";
 import { DeleteMetric } from "./delete-metric";
 import { FillPast } from "./fill-past";
 import { RecordValue } from "./record-value";
@@ -36,7 +36,8 @@ export type MetricToolbarProps = Pick<ObjectToolbarProps, "id" | "people" | "sha
   dashboards: { id: number; name: string }[];
   /** Whether they may make a dashboard (not a Guest): then "Add to dashboard" also offers a new one. */
   canCreateDashboard: boolean;
-  archive: { allowed: boolean; archived: boolean };
+  /** `totals` are the Totals that count it from now on and that they may change: archiving asks up to when. */
+  archive: { allowed: boolean; archived: boolean; totals?: CountingTotal[] };
   canDelete: boolean;
 };
 
@@ -85,7 +86,7 @@ export function MetricToolbar(p: MetricToolbarProps) {
       {(p.record || p.canPaste) && <FillPast metric={p.metric} ways={{ paste: p.canPaste, assistant: Boolean(p.record), system: Boolean(p.record) }} open={open === "fill"} onOpenChange={(o) => setOpen(o ? "fill" : null)} onAssistant={show("assistant")} />}
       {p.record && <AssistantPrompt metric={{ ...p.metric, mcpUrl: p.mcp }} open={open === "assistant"} onOpenChange={(o) => setOpen(o ? "assistant" : null)} />}
       {p.alert && <AlertMe metric={p.metric} mine={p.alert.mine} choices={p.alert.choices} webhooks={p.alert.webhooks} controlled />}
-      {p.archive.allowed && !p.archive.archived && <ArchiveMetric metricId={p.metric.id} name={p.metric.name} open={open === "archive"} onOpenChange={(o) => setOpen(o ? "archive" : null)} />}
+      {p.archive.allowed && !p.archive.archived && <ArchiveMetric metricId={p.metric.id} name={p.metric.name} totals={p.archive.totals} open={open === "archive"} onOpenChange={(o) => setOpen(o ? "archive" : null)} />}
       {p.canDelete && <DeleteMetric metricId={p.metric.id} name={p.metric.name} open={open === "delete"} onOpenChange={(o) => setOpen(o ? "delete" : null)} />}
     </>
   );

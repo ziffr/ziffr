@@ -201,7 +201,7 @@ async function previewMetric(actor: Actor, m: Row, setting: Retention, today: st
 
 /** Snapshots that kept this Metric and reach into the affected periods, counted for the Workspace and named only where
  * the actor may open them: its dashboard and every Metric it kept. */
-async function snapshotsHolding(actor: Actor, metricId: number, from: string, ctx: { visible: Set<number>; dashboards: Map<number, string> }): Promise<{ snapshots: number; names: string[] }> {
+export async function snapshotsHolding(actor: Actor, metricId: number, from: string, ctx: { visible: Set<number>; dashboards: Map<number, string> }): Promise<{ snapshots: number; names: string[] }> {
   // A Snapshot lists the Metrics it kept in its frozen part (`metricIds`, ids only); one frozen before sealing in
   // `data.metrics`. Both are asked, and a Snapshot found by either counts once.
   const base = () => db().from("dashboard_snapshots").select("id, dashboard_id, label, ids:frozen->metricIds, legacy:frozen->data->metrics", { count: "exact" })

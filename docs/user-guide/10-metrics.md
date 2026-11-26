@@ -209,7 +209,7 @@ After **Create metric**, the Metric's page opens with the note "Metric created. 
 
 ## A Metric's page
 
-The top of the page shows the Metric's name, a **Derived** badge if it is calculated from other Metrics, and its description. Under it, **How it is calculated** opens the Metric's **Calculation Note** and, for a Derived Metric, its formula written with the names of the Metrics it uses; it is not shown when there is neither. If the formula uses a Metric that is not shared with you, the page says so instead of writing the formula. Below that are three boxes:
+The top of the page shows the Metric's name, a **Derived** badge if it is calculated from other Metrics (**Total** if it [adds up a list of them](#adding-up-metrics-a-total)), and its description. Under it, **How it is calculated** opens the Metric's **Calculation Note** and, for a Derived Metric, its formula written with the names of the Metrics it uses; it is not shown when there is neither. If the formula uses a Metric that is not shared with you, the page says so instead of writing the formula. Below that are three boxes:
 
 - **Latest**: the most recent value with its period and on-target label.
 - **Change vs. previous period**: an arrow and a percentage.
@@ -221,7 +221,7 @@ Then come five tabs: **Overview**, **Analysis**, **Targets**, **History** and **
 
 Next to **Owner** in a Metric's Description, the Metric's owner, Owners and Admins see **Hand over…**. Pick the Member who takes it over, then **Hand over**. The Metric's owner can pick only people who already see the Metric (share it first otherwise); Owners and Admins can hand any Metric to any Member. Guests, Contacts and Access Keys never take a Metric over or hand one over: a program cannot change who owns a Metric.
 
-The new owner is told through their way of being reached, and not during their Quiet Hours. The previous owner stays on as **Editor**, so they still see the Metric and can fill in values until the new owner takes that away. Corrections, unlocking, Retention notices and Escalations now go to the new owner, and so do the open Questions that waited on the old owner as the Metric's owner. When an Owner or Admin hands a Metric over, the previous owner is told too. If the previous owner's Share is later taken away, their Derived Metrics, Alerts and Personal Webhooks on the Metric stop. The Metric stays on its Workflow, which stays with the Workflow's owner: the new owner can choose another Workflow, or ask that owner to hand theirs over. A Member who owns Metrics can't be made a Guest, and a Guest can't be given one. The Audit Log records who handed which Metric from whom to whom.
+Handing over a [Total](#adding-up-metrics-a-total) closes it: its new owner decides anew whether to open it. The new owner is told through their way of being reached, and not during their Quiet Hours. The previous owner stays on as **Editor**, so they still see the Metric and can fill in values until the new owner takes that away. Corrections, unlocking, Retention notices and Escalations now go to the new owner, and so do the open Questions that waited on the old owner as the Metric's owner. When an Owner or Admin hands a Metric over, the previous owner is told too. If the previous owner's Share is later taken away, their Derived Metrics, Alerts and Personal Webhooks on the Metric stop. The Metric stays on its Workflow, which stays with the Workflow's owner: the new owner can choose another Workflow, or ask that owner to hand theirs over. A Member who owns Metrics can't be made a Guest, and a Guest can't be given one. The Audit Log records who handed which Metric from whom to whom.
 
 If a Metric is not shared with you, its page says "… isn't shared with you", names its owner (for a Guest who is not shown the owner: "Its owner can share it with you"), and offers **Ask … for access**. The owner sees your request under **Who can see this** and can let you in as a Viewer.
 
@@ -426,6 +426,46 @@ The same rights apply as for values: you can read only the target of a Metric yo
 
 A formula is read whole or not at all. It may hold `+ - * /`, brackets, numbers such as `12` or `0.5`, other Metrics, and `change( )`, `prev( )` and `target( )` of one Metric. Ziffr refuses a formula with anything else, such as `^`, `%`, `1e3`, `.5` or two values without a sign between them, rather than compute a number from the part it could read. It also refuses inputs counted by different periods, or by another period than the Derived Metric, and inputs set to Aggregation none. If a Derived Metric's inputs are changed later so that they no longer fit, its page and its Widgets say why ("Its inputs are counted by different periods") instead of showing an empty chart.
 
+### Adding up Metrics (a Total)
+
+A **Total** is a sum over a list of Metrics it keeps, such as the Commit of every salesperson. Unlike a formula it does not name its Metrics in writing: you add and end them on its page, and past totals stay as they were.
+
+To make one, choose **New metric**, then **Calculated from other Metrics**, then **Add up Metrics**:
+
+1. Give it a **Name**.
+2. Tick the Metrics under **Which Metrics does it add up?** You can add up 1 to 50 Metrics that you own or edit, that take values and that share a period, unit, number format and **Aggregation**. A Metric with Aggregation **Does not combine** (a rate) cannot be added up. Once you tick one, those that do not go with it are greyed out. The Total takes all four from them.
+3. **Count them from**: the first period they count in. Left at **First period with a value**, that is the first period one of them has a value.
+4. **Target**: either **Its own target**, such as the team's quota, or **The targets of its Metrics, added up**. Added up, a period has a target only when every Metric counted in it has one target number for it (see [Reading a target](#reading-a-target)).
+5. **Create metric**.
+
+A period has a sum only when **every Metric counted in it has a value**. Ziffr never shows a smaller sum in its place and never counts a missing value as 0: someone with nothing sends 0. A sum in which a value still waits for Approval, or was sent back, is marked **Not approved** until each is final. A formula may read a Total, `target( )` of it included. Over a month, quarter or year a Total combines its own periods by its Aggregation, like any Metric.
+
+#### Who sees its numbers
+
+A part of a total is often one person's number, so a Total's numbers are held more tightly than a calculated Metric's:
+
+- A period is shown only to a person who may see **every Metric counted in it**. Anyone else you share the Total with sees its name, description and own target, and for the period "Not shown: you do not see every Metric it adds up." A formula that reads it shows them nothing for that period either.
+- Its owner must own or edit every Metric it adds up. If they no longer do, it shows no values to anyone.
+- Which Metrics it adds up is listed to each person only as far as they may see them.
+
+Its owner can open it: **Also show this total to people who do not see every Metric…** on its page first lists what it adds up, who will newly see its numbers, whether one of them can then work out a single Metric's numbers, and the View Links, Snapshots and formulas that show it. After **Show it to them**, everyone who sees the Total sees its sums, past periods included, though never a name or value of a Metric they do not see. If one of those lists changed in the meantime, Ziffr shows them again. **Stop showing it to them** closes it at once; files already made cannot be taken back. Only the owner opens a Total, in the app: not an Editor, not an Admin, no program or assistant, and not in the demo. Handing it over closes it. The Audit Log records both.
+
+A View Link and a Snapshot do not carry a Total's numbers yet.
+
+#### Changing what it adds up
+
+Under **What it adds up** on the Total's page, its owner and Editors:
+
+- see how the latest periods stand: the sum, or how many of its values are in ("4 of 5 in", for someone who sees every one counted);
+- **add** a Metric, counted from a period they pick (they need to own or edit it, and so must the Total's owner);
+- **end** one with **Up to …**: it counts up to that period and no longer after; **Counts from now on** takes the end away;
+- **remove** one altogether, which changes past totals too;
+- choose its **Target**.
+
+While a Total is open, only its owner changes the list, and confirms that those who see it learn the change, and through it a single Metric's numbers.
+
+A Metric that a Total adds up cannot be deleted, and its period, unit, number format and Aggregation stay until it is removed from the Total. A Total takes no values, has no Breakdown, Sources, Workflow or Retention of its own, and is not in the Workspace Export or a Pack yet.
+
 ### Retention
 
 A **Retention** says how long the Metric keeps its values, and what then happens to older ones. The box shows what is in force ("none: values are kept for ever" until someone sets one). Nothing is ever condensed or deleted unless a person turns it on here.
@@ -601,7 +641,7 @@ Duplicating is also the way to count a number in a different period, since a Met
 
 ## Archiving a Metric
 
-**Archive…** puts aside a Metric you no longer track, without deleting anything. Confirm with **Archive the Metric**. An **Archived Metric**:
+**Archive…** puts aside a Metric you no longer track, without deleting anything. Confirm with **Archive the Metric**. If a [Total](#adding-up-metrics-a-total) you may change adds it up, the same dialog asks up to which period it counts there (proposed: the last one it has a value for). An **Archived Metric**:
 
 - keeps its description, values, history and Versions, and its page stays readable, marked **Archived** with the day it was archived;
 - asks for nothing: its Workflow skips it, so no Prompt, reminder or Escalation goes out for it, and **Ask me now** is gone;
