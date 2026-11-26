@@ -1,7 +1,8 @@
 // The Marketplace connection's rules (spec 0030, #278): off unless turned on, an https address outside the server's
 // network, and the trusted keys by their part (spec 0059; the signatures themselves: packages/pack marketplace.test.ts).
 import { describe, expect, it } from "vitest";
-import { marketplaceConfig, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL, MARKETPLACE_PUBLIC_KEYS, trustedKeys } from "./marketplace";
+import { marketplaceConfig, marketplaceKeyProblem, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL, MARKETPLACE_PUBLIC_KEYS, trustedKeys } from "./marketplace";
+import { testKeys } from "./test/marketplace-keys";
 
 describe("the connection's settings", () => {
   it("is off unless turned on", () => {
@@ -40,6 +41,17 @@ describe("trusted keys", () => {
     expect(trustedKeys({ ZIFFR_MARKETPLACE_PUBLIC_KEY: " aaa , signing:bbb, reserve:ccc ,," })).toEqual({ signing: ["aaa", "bbb"], reserve: ["ccc"] });
     // An unknown part is not a part: the whole entry is a key that no signature holds for.
     expect(trustedKeys({ ZIFFR_MARKETPLACE_PUBLIC_KEY: "root:ddd" })).toEqual({ signing: ["root:ddd"], reserve: [] });
+  });
+});
+
+describe("a key in both parts", () => {
+  const [one, other] = [testKeys().publicKey, testKeys().publicKey];
+  it("is said at start, and keys of their own are not", () => {
+    expect(marketplaceKeyProblem({ ZIFFR_MARKETPLACE_PUBLIC_KEY: `signing:${one},reserve:${one}` })).toContain("both signing and reserve");
+    expect(marketplaceKeyProblem({ ZIFFR_MARKETPLACE_PUBLIC_KEY: `${one},reserve:${one}` })).toContain("both signing and reserve");
+    expect(marketplaceKeyProblem({ ZIFFR_MARKETPLACE_PUBLIC_KEY: `signing:${one},reserve:${other}` })).toBeNull();
+    expect(marketplaceKeyProblem({ ZIFFR_MARKETPLACE_PUBLIC_KEY: "signing:nonsense,reserve:nonsense" })).toBeNull();
+    expect(marketplaceKeyProblem({})).toBeNull();
   });
 });
 

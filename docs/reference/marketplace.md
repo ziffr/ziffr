@@ -37,7 +37,7 @@ A listing may add `"newCreator": true`. Only free licenses are offered: `CC-BY-4
 { "file": "{\"format\":\"ziffr.pack/1\", …}", "statement": "{\"format\":\"ziffr.pack-signature/1\", …}", "signature": "…==", "revocations": [] }
 ```
 
-`file` is the Pack file's exact text. `statement` is the exact text that was signed, and `signature` is its Ed25519 signature in base64. The statement reads:
+`file` is the Pack file's exact text; one that holds half a character (a lone surrogate) is refused before it is hashed. `statement` is the exact text that was signed, and `signature` is its Ed25519 signature in base64. The statement reads:
 
 ```json
 { "format": "ziffr.pack-signature/1", "id": "ziffr/sales-forecast", "version": "1.0.0", "sha256": "…", "key": "…", "signed": "2026-11-26T09:00:00Z", "reviewed": false }

@@ -8,7 +8,7 @@
 // shape before it is used. A Pack's file must come with a Signed Statement about exactly that file by a key this Ziffr
 // trusts and has not seen revoked (spec 0059; @ziffr/pack/marketplace), and is then checked in full like any Pack: the
 // signature says where a file came from, the checks are the protection.
-import { checkRevocation, marketplaceVersionPath, MARKETPLACE_CONTRACT, MARKETPLACE_SCHEMAS, verifyPackStatement, type MarketplaceKeys, type MarketplaceListing, type Revocation, type SignedText, type StatementRefusal } from "@ziffr/pack/marketplace";
+import { checkRevocation, isWholeText, marketplaceKeyId, marketplaceVersionPath, MARKETPLACE_CONTRACT, MARKETPLACE_SCHEMAS, verifyPackStatement, type MarketplaceKeys, type MarketplaceListing, type Revocation, type SignedText, type StatementRefusal } from "@ziffr/pack/marketplace";
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { settingsInEffect } from "./settings-in-effect";
@@ -151,6 +151,15 @@ export function trustedKeys(env: Record<string, string | undefined>): Marketplac
   return { signing: of("signing"), reserve: of("reserve") };
 }
 
+/** What is wrong with the trusted keys as set, or null; said in the server's log at start. A key named as both signing
+ * and reserve cannot be taken out of use, and whoever steals it holds both parts. */
+export function marketplaceKeyProblem(env: Record<string, string | undefined>): string | null {
+  const { signing, reserve } = trustedKeys(env);
+  const reserves = new Set(reserve.map(marketplaceKeyId));
+  const both = signing.map(marketplaceKeyId).filter((id) => id !== null && reserves.has(id));
+  return both.length ? `ZIFFR_MARKETPLACE_PUBLIC_KEY: the key ${both[0]} is listed as both signing and reserve. It cannot be taken out of use; make the reserve key a different one and keep it offline.` : null;
+}
+
 const NOT_KEPT = "Ziffr could not check the Marketplace's keys just now; nothing was shown or installed.";
 
 /** Keeps every revocation of an answer that a reserve key signed, for the whole Installation and for good. Anything else
@@ -172,7 +181,9 @@ async function keptRevocations(): Promise<Pick<Revocation, "key" | "by">[]> {
 
 const NOT_ITS = "The file's signature does not hold: it is not the Marketplace's. Nothing was shown or installed.";
 const ANOTHER = "The Marketplace answered with another Pack than the one asked for, or a file other than the one it signed. Nothing was shown or installed.";
+const NOT_A_FILE = "The Marketplace answered with a file Ziffr does not take.";
 const REFUSED: Record<StatementRefusal, string> = {
+  file: NOT_A_FILE,
   signature: NOT_ITS,
   statement: NOT_ITS,
   reserve: NOT_ITS,
@@ -191,7 +202,8 @@ async function signedFile(packId: string, version: string): Promise<string> {
   // Revocations first: one that comes with this very answer already counts for it.
   await keepRevocations(answer?.revocations, keys);
   const file = typeof answer?.file === "string" ? answer.file : "";
-  if (!file || Buffer.byteLength(file) > PACK_LIMITS.bytes) throw new MarketplaceUnavailable("The Marketplace answered with a file Ziffr does not take.");
+  // Refused before anything is hashed: a text with a lone surrogate would share its SHA-256 with another file.
+  if (!file || !isWholeText(file) || Buffer.byteLength(file) > PACK_LIMITS.bytes) throw new MarketplaceUnavailable(NOT_A_FILE);
   const held = verifyPackStatement({ file, statement: String(answer!.statement ?? ""), signature: String(answer!.signature ?? "") }, { id: packId, version }, keys, await keptRevocations());
   if (!held.ok) throw new MarketplaceUnavailable(REFUSED[held.refusal]);
   // A file that fails the checks is returned as it is: preview and install check it again and refuse it with its

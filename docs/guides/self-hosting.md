@@ -160,7 +160,18 @@ ZIFFR_MARKETPLACE_PUBLIC_KEY=signing:<base64 of the signing key>,reserve:<base64
 
 - The **signing** key signs the statements. A key with no part named is a signing key.
 - The **reserve** key is optional and stays unused until the signing key is lost or misused. Then it signs a revocation, which your Marketplace sends with its answers, and signs the statements from there on. Ziffr keeps the revocation and refuses the old key, whatever later answers say.
-- Keep the two private keys apart. Ziffr never needs a private key.
+- **Keep the reserve key offline**: its private key belongs on no machine the Marketplace runs on, and not beside the signing key. Whoever holds it can take your signing key out of use and sign in its place.
+- Name two different keys. A key listed as both signing and reserve cannot be taken out of use; Ziffr says so in its log at start.
+- Ziffr never needs a private key.
+
+If the signing key is lost or misused:
+
+1. Take the reserve private key from where you keep it, and sign a revocation of the signing key with it.
+2. Give the reserve key to your signer, sign every published version again and send the revocation with your answers.
+3. Make a new reserve key pair, and keep its private key offline.
+4. Change the setting: the former reserve key as `signing:`, the new one as `reserve:`, and the revoked key gone. Restart Ziffr.
+
+Until the setting is changed, no key can take the former reserve key out of use.
 
 A Marketplace that signed the file itself, as Ziffr took it up to this release, has to sign statements now.
 

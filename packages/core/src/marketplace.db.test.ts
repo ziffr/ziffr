@@ -95,6 +95,7 @@ describe("the Marketplace connection", () => {
       ["the signature alone, as before spec 0059", () => ({ status: 200, body: JSON.stringify({ file: V120, signature: keys.version(V120).signature }) }), "signature does not hold"],
       ["another key", () => ({ status: 200, body: JSON.stringify(testKeys().version(V120)) }), "signature does not hold"],
       ["the reserve key, with nothing revoked", () => ({ status: 200, body: JSON.stringify(reserve.version(V120)) }), "signature does not hold"],
+      ["a file with half a character", () => ({ status: 200, body: JSON.stringify(keys.version(V120, {})).replace('"file":"{', '"file":"\\ud800{') }), "does not take"],
       ["a statement about another id", () => ({ status: 200, body: JSON.stringify(keys.version(V120, { id: "ziffr/other" })) }), "other than the one it signed"],
       ["a statement about another version", () => ({ status: 200, body: JSON.stringify(keys.version(V120, { version: "1.3.0" })) }), "other than the one it signed"],
       ["another version, rightly signed", () => ({ status: 200, body: JSON.stringify(keys.version(V130)) }), "another Pack"],

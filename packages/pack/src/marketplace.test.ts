@@ -64,6 +64,7 @@ const BAD: [MarketplaceAnswerKind, string, unknown, string][] = [
   ["packs", "a mark that is not true or false", { packs: [{ ...LISTING, newCreator: "yes" }] }, "newCreator"],
   ["version", "only a file", { file: FILE }, "needs the field “statement”"],
   ["version", "the signature over the file, as before", { file: FILE, signature: SIGNING.sign(FILE) }, "needs the field “statement”"],
+  ["version", "a file with half a character, signed as its replacement", { file: `${FILE}\uD800`, ...signed({ sha256: packSha256(`${FILE}\uFFFD`) }) }, "lone surrogate"],
   ["version", "a file that is no Pack", { file: "{}", ...signed({ sha256: packSha256("{}") }) }, "is not a Pack"],
   ["version", "another hash", { file: FILE, ...signed({ sha256: "0".repeat(64) }) }, "not the SHA-256"],
   ["version", "a statement about another version", { file: FILE, ...signed({ version: "2.0.0" }) }, "are not the file's"],
@@ -109,6 +110,12 @@ describe("the signed statement", () => {
     expect(verify(signed(), KEYS, [], `${FILE} `)).toBe("other-file");
     expect(verify(signed(), KEYS, [], FILE, { ...ASKED, id: "someone/other" })).toBe("other-file");
     expect(verify(signed(), KEYS, [], FILE, { ...ASKED, version: "1.0.1" })).toBe("other-file");
+  });
+  it("refuses a file that is not whole text before hashing it: it would share its hash with another file", () => {
+    expect(packSha256(`${FILE}\uD800`)).toBe(packSha256(`${FILE}\uFFFD`));
+    for (const half of ["\uD800", "\uDFFF"]) expect(verify(signed({ sha256: packSha256(`${FILE}\uFFFD`) }), KEYS, [], `${FILE}${half}`)).toBe("file");
+    // A whole pair is one character, and counts as any other.
+    expect(verify(signed({ sha256: packSha256(`${FILE}\u{1F600}`) }), KEYS, [], `${FILE}\u{1F600}`)).toBe("holds");
   });
   it("fails with no trusted key, and reads a statement only after its signature held", () => {
     expect(verify(signed(), { signing: [], reserve: [] })).toBe("signature");

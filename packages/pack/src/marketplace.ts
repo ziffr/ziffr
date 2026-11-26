@@ -137,6 +137,10 @@ function readKey(base64: string): { id: string; key: KeyObject } | null {
   }
 }
 
+/** Whether a text is whole: no half of a character (a lone surrogate), which UTF-8 cannot hold and hashing would
+ * replace, so that two different texts would share one SHA-256. */
+export const isWholeText = (text: string): boolean => !/\p{Cs}/u.test(text);
+
 /** A public key's id, as statements name it, or null when the text is not a key. */
 export const marketplaceKeyId = (publicKey: string): string | null => readKey(publicKey)?.id ?? null;
 
@@ -172,14 +176,17 @@ export function checkRevocation(entry: SignedText, keys: MarketplaceKeys): Revoc
   return { key: read.value.key, by, signed: read.value.signed };
 }
 
-/** Why a signed file is not taken: no trusted key signed the statement; the key is revoked; a reserve key signed before
- * it took any key out of use; the statement is not one this reader knows; or it is about another file. */
-export type StatementRefusal = "signature" | "revoked" | "reserve" | "statement" | "other-file";
+/** Why a signed file is not taken: the file is not whole text; no trusted key signed the statement; the key is revoked;
+ * a reserve key signed before it took any key out of use; the statement is not one this reader knows; or it is about
+ * another file. */
+export type StatementRefusal = "file" | "signature" | "revoked" | "reserve" | "statement" | "other-file";
 
 /** Whether a version answer's statement holds for its file: signed by a trusted key that may sign (a signing key not
  * revoked, or a reserve key that has revoked one), naming that key, the id and version asked for, and the file's hash. */
 export function verifyPackStatement(answer: { file: string } & SignedText, asked: { id: string; version: string }, keys: MarketplaceKeys, revoked: readonly Pick<Revocation, "key" | "by">[]): { ok: true; statement: PackStatement } | { ok: false; refusal: StatementRefusal } {
   const refused = (refusal: StatementRefusal) => ({ ok: false as const, refusal });
+  // Before anything is hashed.
+  if (!isWholeText(answer.file)) return refused("file");
   const by = signer(answer.statement, answer.signature, [...keys.signing, ...keys.reserve]);
   if (!by) return refused("signature");
   if (revoked.some((r) => r.key === by)) return refused("revoked");
@@ -208,6 +215,8 @@ export type MarketplaceAnswerKind = "packs" | "version" | "updates" | "updatesRe
 /** The problems of a version answer that a schema cannot say: the file is a free Pack Ziffr installs, and the statement
  * is about it; with trusted keys, also that its signature and every revocation hold. */
 function versionProblems(v: VersionAnswer, keys: MarketplaceKeys | undefined, at: (path: string, message: string) => void): void {
+  // Refused before anything is hashed: its SHA-256 would be another text's too.
+  if (!isWholeText(v.file)) return at("file", "holds half a character (a lone surrogate), so it is not the text of a file.");
   if (Buffer.byteLength(v.file) > PACK_LIMITS.bytes) at("file", `is more than ${PACK_LIMITS.bytes.toLocaleString("en")} bytes.`);
   const pack = checkPack(v.file);
   if (!pack.ok) at("file", `is not a Pack Ziffr installs: ${pack.problems[0].path} ${pack.problems[0].message}`.trim());
