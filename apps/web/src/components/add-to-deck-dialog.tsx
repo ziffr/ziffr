@@ -17,7 +17,7 @@ const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-t
 export function AddToDeckDialog({ widgetId, open, onOpenChange }: { widgetId: number; open: boolean; onOpenChange: (open: boolean) => void }) {
   if (!open) return null;
   return (
-    <SlideOverWindow title="Add to deck" description="A copy of this widget goes on the slide you pick. The deck opens there; the widget here stays as it is." onClose={() => onOpenChange(false)}>
+    <SlideOverWindow short title="Add to deck" description="A copy of this widget goes on the slide you pick. The deck opens there; the widget here stays as it is." onClose={() => onOpenChange(false)}>
       <AddToDeckForm widgetId={widgetId} onClose={() => onOpenChange(false)} />
     </SlideOverWindow>
   );
