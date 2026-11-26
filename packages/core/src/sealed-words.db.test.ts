@@ -10,7 +10,8 @@ import { saveNamedVersion } from "./version-history";
 import { workflowsView } from "./page-data";
 import { dashboardWidgets, savedWidgets } from "./page-data";
 import { visibleDashboards } from "./access";
-import { editSnapshotWords, openSnapshot, showSnapshot, snapshotDeckSeed, takeSnapshot } from "./snapshots";
+import { editSnapshotWords, openSnapshot, showSnapshot, takeSnapshot } from "./snapshots";
+import { readKeptNumbers } from "./deck-snapshots";
 import { listVersions, restoreVersion } from "./version-history";
 import { createViewLink, openViewLink } from "./view-links";
 import { getMetrics } from "./workspace-data";
@@ -176,7 +177,7 @@ describe("a Snapshot's words", () => {
     expect(JSON.stringify(after)).not.toContain(marker);
     expect((await openSnapshot(actor, id)).intro).toBe(`Edited ${marker}`);
     await showSnapshot(actor, id);
-    expect((await snapshotDeckSeed(actor, id)).intro).toBe(`Edited ${marker}`);
+    expect((await readKeptNumbers(actor, [{ snapshotId: id, parts: [0], metricIds: [] }]))[0]).toMatchObject({ state: "shown", intro: `Edited ${marker}` });
     // Its Versions hold the words sealed for them, and come back.
     const { versions } = await listVersions(actor, "snapshot", id);
     expect(versions.length).toBeGreaterThan(0);

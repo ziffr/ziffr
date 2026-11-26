@@ -24,6 +24,7 @@ import type { CatalogMetric, MetricDescription, Period, Polarity, SourceId, Subm
 import { SOURCES } from "@/sources";
 import { isDemo } from "@/lib/auth";
 import { NameField } from "../name-field";
+import { CalculationNoteField } from "../calculation-note-field";
 import { CatalogBrowser } from "./catalog-browser";
 import { DesktopOnly } from "@/components/desktop-only";
 import { DerivedForm } from "./derived-form";
@@ -144,7 +145,8 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
           <Section title="What is it?">
             <div className="grid gap-4 sm:grid-cols-2">
               <F label="Name" className="sm:col-span-2"><NameField defaultValue={d.name} placeholder="e.g. Customer satisfaction" /></F>
-              <F label="Description" className="sm:col-span-2"><Textarea name="description" defaultValue={d.description} rows={2} placeholder="What exactly is counted, and what isn’t?" /></F>
+              <F label="Description" className="sm:col-span-2"><Textarea name="description" defaultValue={d.description} rows={2} placeholder="What is it, and why does it matter?" /></F>
+              <CalculationNoteField id="new-calc" defaultValue={d.calculation_note} className="sm:col-span-2" />
               <UnitFormat />
               <UnitInput />
               <UnitExample className="-mt-2 text-xs text-muted-foreground sm:col-span-2" />

@@ -101,7 +101,7 @@ A slide **keeps numbers** when it holds a Snapshot Part, or was made by adding a
 - A slide with such numbers says "Numbers as of" with the day the Snapshot was taken, its dashboard and period.
 - View Links leave these shapes out with the parts.
 
-A Widget moved to a slide that keeps no numbers is live again, and saving it asks once more that whoever saves sees its Metrics.
+A Widget moved to a slide that keeps no numbers is live again, and saving it asks once more that whoever saves sees its Metrics. Someone who does not is refused in words that say why and what to do: undo, remove that Widget or element, or ask someone who sees the Metric. The same check runs when a Widget is first put on any slide, a slide that keeps numbers included, so none can wait there for a later save or hold up the deletion of its Metric.
 
 #### Live numbers or a Snapshot
 
