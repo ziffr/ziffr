@@ -28,8 +28,9 @@ import { assertMayOwnDefault } from "./workspace-limits";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { snapshotAccess } from "./snapshots";
 import { nameHider } from "./hide-names";
-import type { Action, Metric, Period, Point, Widget } from "./types";
-import { periodStart } from "./periods";
+import type { Action, Metric, Period, Point, Token, Widget } from "./types";
+import { periodLabel, periodStart } from "./periods";
+import { askedPeriods } from "./asked-periods";
 import { yearStartFor, yearStartOf } from "./fiscal-year";
 import { numberStyleOf } from "./workspace-settings";
 import { ensureWorkspaceKey } from "./workspace-keys";
@@ -369,8 +370,9 @@ export async function actionThread(actor: Actor, id: number) {
   return { action, metric: named, about: null, chartMetric: seesMetric ? metric : null, seesMetric, observation: value, chart, messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [], externalLinks };
 }
 
-/** A personal form link's page, for anyone holding the code: the Metric, whose form it is, and this period's value.
- * Null when the code is unknown or a stand-in's link no longer works. `demoVisit` says whether the request carries a demo visit's
+/** A personal form link's page, for anyone holding the code: the Metric, whose form it is, this period's value, and
+ * the periods asked of this Token that still wait (asked-periods.ts). Security: of those, only the periods and their
+ * names go out, never a value. Null when the code is unknown or a stand-in's link no longer works. `demoVisit` says whether the request carries a demo visit's
  * cookie: a form of the demo Workspace opens only with one (spec 0051), because a visitor's Metric name and description would
  * otherwise be shown in large type, on the demo's own domain, to anyone holding the link (a phishing page). */
 export async function submissionForm(code: string, demoVisit = false) {
@@ -406,7 +408,8 @@ export async function submissionForm(code: string, demoVisit = false) {
   const { data: answered } = await db().from("prompts").select("answered_source").eq("workspace_id", String(token.workspace_id)).eq("metric_id", metric.id).eq("submitter_id", token.submitter_id as string).eq("period_start", period).not("answered_at", "is", null).not("answered_source", "is", null).neq("answered_source", "web_form").order("answered_at", { ascending: false }).limit(1);
   // The page wears the Workspace's Theme (ticket #542): only its look (name, logo, colours, fonts) goes to the browser.
   const look = publicLook(String(token.workspace_id), await workspaceLook(String(token.workspace_id)));
-  return { metric, person, period, yearStart, numberStyle, current: typeof existing?.value === "number" ? existing.value : null, answeredOn: answered?.[0] ? String(answered[0].answered_source) : null, look, standingInFor };
+  const asked = (await askedPeriods(String(token.workspace_id), metric, token as Token, period, yearStart)).map((start) => ({ start, label: periodLabel(start, metric.period, yearStart) }));
+  return { metric, person, period, yearStart, numberStyle, current: typeof existing?.value === "number" ? existing.value : null, asked, answeredOn: answered?.[0] ? String(answered[0].answered_source) : null, look, standingInFor };
 }
 
 /** A signed-in person creates a workspace and becomes its Owner; it starts with the Theme Ziffr ships with. */
