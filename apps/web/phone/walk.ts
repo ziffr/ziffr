@@ -32,7 +32,7 @@ export const WALK: Record<string, Walk> = {
     sees: "Weekly numbers",
   },
   // A View Link is made by a person, so the demo's seed has none: the page a dead link shows is walked.
-  "/v/open/[key]": { open: "/v/no-such-link", sees: "This link does not work", signedOut: true },
+  "/v/open/[key]": { open: "/v/open/gone", sees: "This link does not work", signedOut: true },
   "/gallery": { open: "/gallery", sees: "Gallery" },
   "/stories": { skip: REDIRECT },
   "/stories/[id]": { skip: REDIRECT },
