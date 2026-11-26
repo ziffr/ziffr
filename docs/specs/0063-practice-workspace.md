@@ -23,7 +23,7 @@ An Installation Admin can make a **Practice Workspace**: a private, ordinary Wor
 7. As them, I may have the messages meant for me really arrive: by email, Slack or Telegram, each only after I switch it on.
 8. As them, I make View Links, a Calendar Link and Webhooks to my own addresses, as anywhere.
 5. As them, I start over and have a clean one.
-6. As anyone else, I never see it.
+6. As anyone else, I never see it, unless you give me a link.
 
 ## Implementation Decisions
 
@@ -41,9 +41,9 @@ Two layers, both failing closed (a check that cannot be made sends nothing): the
 | --- | --- |
 | Email Deliveries (Prompts, reminders, questions, notices, Alerts, Test Messages, Screen Links) | To the Admin's own verified sign-in address, once switched on. Everyone else's stay in the Outbox |
 | Slack, Telegram | To the Admin's own linked account, once that way is switched on. Nobody else is looked up, messaged or answered |
-| Webhooks (Workspace and Personal) | To addresses the Admin typed there. None is ever copied, by the copy of the demo or by Start over |
-| View Links, Calendar Links | As anywhere, with their normal rules and expiry |
-| Invitations, invite links, domain joining, join requests | Never: nobody else becomes a member |
+| Webhooks (Workspace and Personal) | To addresses the Admin typed there, under the usual rules for private addresses. None is ever copied, by the copy of the demo or by Start over, and a Personal Webhook made in another Workspace hears nothing of this one |
+| View Links, Calendar Links | As anywhere, with their normal rules and expiry; their pages say that anyone with the link reads it |
+| Invitations, invite links, domain joining, join requests, Contacts | Never: nobody else becomes a member or a Contact |
 | Other email (a Share Proposal's, the answer to an email, a confirmation to a Contact) | Never, whatever address was typed |
 | A made-up person's address | `.invalid`: never handed to a mail server, and it cannot sign in |
 | Marketplace | The reads a person triggers. No report link |

@@ -11,7 +11,7 @@ import { sendMail, type OutgoingMail } from "./mail";
 import { initialDeliveryState, sendAllWaiting } from "./outbound";
 import { PRACTICE_HELD, PracticeRefused } from "./practice";
 import { startSlackInstall, slackBot } from "./slack-connection";
-import { DEMO_WORKSPACE_ID } from "./team";
+import { addContact, DEMO_WORKSPACE_ID } from "./team";
 import { telegramOnIn, setTelegramEnabled } from "./telegram-connection";
 import { sendTestMessage } from "./test-message";
 import { createViewLink } from "./view-links";
@@ -120,11 +120,19 @@ describe("a Delivery stays in the Outbox", () => {
 });
 
 describe("what would reach outside", () => {
-  const REFUSED = ["calendar_links", "email_sends", "invitation_emails", "invitations", "join_requests", "slack_install_states", "slack_installations", "slack_link_codes", "slack_links", "slack_sends", "telegram_link_codes", "telegram_links", "telegram_sends", "telegram_workspaces", "view_links", "webhook_sends", "webhooks", "workspace_limits"];
+  const REFUSED = ["calendar_links", "contacts", "email_sends", "feedback", "invitation_emails", "invitations", "join_requests", "share_proposals", "slack_install_states", "slack_installations", "slack_link_codes", "slack_links", "slack_sends", "telegram_link_codes", "telegram_links", "telegram_sends", "telegram_workspaces", "view_links", "webhook_sends", "webhooks", "workspace_limits"];
   it("cannot be stored for it", async () => {
     const { w } = await practice();
     expect((await db().rpc("practice_refused_tables")).data).toEqual(REFUSED);
-    for (const table of REFUSED) expect([table, code(await db().from(table).insert({ workspace_id: w.id }))]).toEqual([table, "ZF4P2"]);
+    // A Share Proposal is refused only by email (a view_link): sharing with its own people can be proposed.
+    for (const table of REFUSED) expect([table, code(await db().from(table).insert({ workspace_id: w.id, ...(table === "share_proposals" ? { kind: "view_link" } : {}) }))]).toEqual([table, "ZF4P2"]);
+    expect(code(await db().from("share_proposals").insert({ workspace_id: w.id, kind: "share" }))).not.toBe("ZF4P2");
+  });
+  it("lets no Contact in, not even their person row", async () => {
+    const { w, me } = await practice();
+    await expect(addContact(w.actor(me), { name: "Real Person", email: "real@example.org" })).rejects.toThrow(/Practice Workspace/);
+    expect(code(await db().from("profiles").insert({ id: `t-${randomUUID()}`, name: "Real Person", role: "Contact", color: "#000", contact_workspace: w.id }))).toBe("ZF4P2");
+    expect((await db().from("profiles").select("id").eq("contact_workspace", w.id)).data).toEqual([]);
   });
   it("is refused by the core before the database has to", async () => {
     const { w, me, metric } = await practice();

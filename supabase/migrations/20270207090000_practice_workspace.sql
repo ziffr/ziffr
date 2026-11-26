@@ -39,6 +39,10 @@ begin
   if tg_op = 'INSERT' and new.made_up_in is not null and not is_practice_workspace(new.made_up_in) then
     raise exception using errcode = 'ZF4P2', message = 'practice_refused:profiles';
   end if;
+  -- Nor a Contact's person: a Contact is somebody real.
+  if new.contact_workspace is not null and is_practice_workspace(new.contact_workspace) then
+    raise exception using errcode = 'ZF4P2', message = 'practice_refused:profiles';
+  end if;
   return new;
 end $$;
 create trigger made_up_person_fixed before insert or update on profiles for each row execute function made_up_person_fixed();
@@ -97,8 +101,8 @@ do $$
 declare t text;
 begin
   foreach t in array array[
-    'invitations', 'invitation_emails', 'join_requests', 'view_links', 'calendar_links',
-    'webhooks', 'webhook_sends',
+    'invitations', 'invitation_emails', 'join_requests', 'contacts', 'view_links', 'calendar_links',
+    'webhooks', 'webhook_sends', 'feedback',
     'slack_installations', 'slack_install_states', 'slack_links', 'slack_link_codes', 'slack_sends',
     'telegram_workspaces', 'telegram_links', 'telegram_link_codes', 'telegram_sends',
     'email_sends', 'workspace_limits'
@@ -106,6 +110,10 @@ begin
     execute format('create trigger practice_refuses before insert or update on %I for each row execute function practice_refuses()', t);
   end loop;
 end $$;
+
+-- A Share Proposal by email would send to a typed address: that kind is refused; a proposal to share with its own people is not.
+create trigger practice_refuses before insert or update on share_proposals
+  for each row when (new.kind = 'view_link') execute function practice_refuses();
 
 -- The tables refused to a Practice Workspace, for the test that keeps the list complete.
 create function practice_refused_tables() returns setof text language sql stable security definer set search_path = public as $$

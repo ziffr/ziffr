@@ -279,13 +279,21 @@ export async function updateFromMarketplace(actor: Actor, installId: number, ver
 
 /** Asks the Marketplace which installed Packs have newer versions, for the whole Installation at once, at most once a
  * day unless `force`: what is sent is the list of Packs installed from the Marketplace on any Workspace, each once,
- * with its oldest installed version, and Ziffr's version. Keeps the answer for every Workspace to read. */
-export async function checkMarketplaceVersions(force = false): Promise<void> {
+ * with its oldest installed version, and Ziffr's version. A Practice Workspace's installs are left out unless the
+ * person asking is in it (`askedIn`): nothing goes out on its behalf unasked (spec 0063). Keeps the answer for every
+ * Workspace to read. */
+export async function checkMarketplaceVersions(force = false, askedIn?: string): Promise<void> {
   const c = marketplaceConfig(await settingsInEffect());
   if (!c.on || !c.url) return;
-  const { data } = await db().from("pack_installs").select("pack_id, version").eq("source", "marketplace");
+  const [{ data }, { data: practice, error }] = await Promise.all([
+    db().from("pack_installs").select("pack_id, version, workspace_id").eq("source", "marketplace"),
+    db().from("workspaces").select("id").not("practice_for", "is", null),
+  ]);
+  // Which are Practice Workspaces must be known, or nothing is asked.
+  if (error) return;
+  const left = new Set((practice ?? []).map((w) => String(w.id)));
   const oldest = new Map<string, string>();
-  for (const r of data ?? []) {
+  for (const r of (data ?? []).filter((i) => !left.has(String(i.workspace_id)) || String(i.workspace_id) === askedIn)) {
     const [id, v] = [String(r.pack_id), String(r.version)];
     const had = oldest.get(id);
     if (!had || versionBelow(v, had)) oldest.set(id, v);
@@ -352,7 +360,7 @@ export async function marketplaceWithdrawals(actor: Actor): Promise<{ installId:
 export async function marketplaceUpdates(actor: Actor): Promise<{ installId: number; version: string }[]> {
   if ((actor as { key?: unknown }).key || (actor.role !== "owner" && actor.role !== "admin")) return [];
   // Asked in the background: the page shows what the last question found, and never waits on the Marketplace.
-  void checkMarketplaceVersions().catch(() => undefined);
+  void checkMarketplaceVersions(false, actor.workspaceId).catch(() => undefined);
   // Only Packs installed from the Marketplace: an uploaded file under the same id is not the Marketplace's Pack.
   const { data: installs } = await db().from("pack_installs").select("id, pack_id, version").eq("workspace_id", actor.workspaceId).eq("source", "marketplace");
   if (!installs?.length) return [];

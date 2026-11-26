@@ -14,6 +14,7 @@ import { refuseSeededOne } from "./demo-visitor-metrics";
 import { visitorText } from "./demo-visitor-words";
 import { visitorJoinShowsOnlySeen } from "./demo-visitor-sharing";
 import { sendingLimit } from "./sending-limit";
+import { assertMayLeave } from "./practice";
 import { sendingLimitDefault } from "./sending-limits";
 
 /** The demo workspace (ADR 0005): shared by every visitor, so it keeps no Contacts. */
@@ -102,6 +103,8 @@ export async function addContact(actor: Actor, input: { name: string; email?: st
   assertCan(actor, "manage-members");
   // A Contact's person is made before the Contact, outside the demo's rows: refused before it.
   refuseInDemo(actor);
+  // A Contact is somebody real, with a form link of their own: a Practice Workspace takes none (spec 0063).
+  await assertMayLeave(actor.workspaceId, "invitation");
   const c = cleanContact(input);
   if (!c.ok) throw new Error(c.reason);
   const { count } = await db().from("contacts").select("person_id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId);
