@@ -1,4 +1,4 @@
-// Ziffr's own Packs in the app (spec 0052, ticket 4; GLOSSARY: Pack, Preview, Sample Data): the twelve Packs of the
+// Ziffr's own Packs in the app (spec 0052, ticket 4; GLOSSARY: Pack, Preview, Sample Data): the thirteen Packs of the
 // packs folder come with the release (included-packs.generated.ts, written by scripts/generate-included-packs.mjs), so a
 // Workspace installs them from the Packs page on any Installation, with no Marketplace and no download.
 // Security: the browser names a Pack only by its id, which is looked up in the list below and never used as a path or
@@ -22,7 +22,7 @@ export const INCLUDED: PackOrigin = { source: "included", signed: true };
 /** The order Ziffr ships its Packs in (and the Setup Guide ranks ties by): the five business Packs, the function Packs, the rest. */
 export const INCLUDED_PACK_ORDER = [
   "ziffr/saas-metrics", "ziffr/online-shop", "ziffr/agency", "ziffr/sports-club", "ziffr/board-meeting",
-  "ziffr/sales", "ziffr/finance", "ziffr/people", "ziffr/customer-support", "ziffr/fulfilment",
+  "ziffr/sales", "ziffr/sales-forecast", "ziffr/finance", "ziffr/people", "ziffr/customer-support", "ziffr/fulfilment",
   "ziffr/workspace-usage", "ziffr/ziffr-operations",
 ] as const;
 

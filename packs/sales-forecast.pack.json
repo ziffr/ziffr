@@ -1,0 +1,931 @@
+{
+  "format": "ziffr.pack/1",
+  "id": "ziffr/sales-forecast",
+  "name": "Sales forecast",
+  "version": "1.0.0",
+  "summary": "A weekly sales forecast: commit, best case, closed this quarter, pipeline and quota, with the gap to quota and pipeline coverage worked out, a dashboard and a deck for the weekly meeting and a Workflow that asks on Monday and has the sales lead approve.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.11",
+  "audience": {
+    "functions": [
+      "sales"
+    ]
+  },
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "commit",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Commit",
+          "description": "The forecast call: what the team commits to closing by the end of the quarter, deals already won in it included. Taken as it stood at the end of the week: an answer to Monday's request, by reply or form link, counts for the week just ended. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
+          "category": "Sales",
+          "period": "week",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Sales",
+            "Sales forecast"
+          ]
+        }
+      },
+      {
+        "key": "best-case",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Best case",
+          "description": "What the quarter reaches if the open deals that may still close do: commit plus upside, deals already won included. Taken as it stood at the end of the week: an answer to Monday's request, by reply or form link, counts for the week just ended. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
+          "category": "Sales",
+          "period": "week",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Sales",
+            "Sales forecast"
+          ]
+        }
+      },
+      {
+        "key": "closed-quarter",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Closed this quarter",
+          "description": "The value of the deals won since the quarter began. It starts again from 0 each quarter; a week that spans two quarters belongs to the one it starts in. Taken as it stood at the end of the week: an answer to Monday's request, by reply or form link, counts for the week just ended. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
+          "category": "Sales",
+          "period": "week",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Sales",
+            "Sales forecast"
+          ]
+        }
+      },
+      {
+        "key": "pipeline",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Pipeline value",
+          "description": "The value of all open deals that can still close this quarter, those in the commit included, those already won not. Taken as it stood at the end of the week: an answer to Monday's request, by reply or form link, counts for the week just ended. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
+          "category": "Sales",
+          "period": "week",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Sales",
+            "Sales forecast"
+          ]
+        }
+      },
+      {
+        "key": "quota",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Quota",
+          "description": "The team's quota for the whole quarter, not a weekly share. Send it every week, unchanged until it changes: without it, that week has no gap and no coverage. Taken as it stood at the end of the week: an answer to Monday's request, by reply or form link, counts for the week just ended.",
+          "category": "Sales",
+          "period": "week",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Sales",
+            "Sales forecast"
+          ]
+        }
+      },
+      {
+        "key": "commit-gap",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Commit gap to quota",
+          "description": "Commit minus Quota for the week. Below 0, the commit is that much short of the quota; 0 or more covers it. Empty until both have a value.",
+          "category": "Sales",
+          "period": "week",
+          "aggregation": "none",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "targetMin": 0,
+          "formula": "{commit} - {quota}",
+          "tags": [
+            "Sales",
+            "Sales forecast"
+          ]
+        }
+      },
+      {
+        "key": "commit-share",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Commit as share of quota",
+          "description": "Commit as a share of Quota for the same week. 100 % or more covers the quota. Empty until both have a value, and when the quota is 0.",
+          "category": "Sales",
+          "period": "week",
+          "aggregation": "none",
+          "polarity": "higher",
+          "unit": "%",
+          "unitPosition": "after",
+          "valueFormat": "percent",
+          "decimals": 0,
+          "targetMin": 100,
+          "formula": "{commit} / {quota} * 100",
+          "tags": [
+            "Sales",
+            "Sales forecast"
+          ]
+        }
+      },
+      {
+        "key": "coverage",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Pipeline coverage",
+          "description": "Pipeline value divided by what is still missing, which is Quota minus Closed this quarter. 3 times means the open deals are worth three times what is missing. Empty when a figure is missing or exactly nothing is left to close. Below 0 when more than the quota is closed: then nothing is left to cover.",
+          "category": "Sales",
+          "period": "week",
+          "aggregation": "none",
+          "polarity": "higher",
+          "unit": "times",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 1,
+          "formula": "{pipeline} / ({quota} - {closed-quarter})",
+          "tags": [
+            "Sales",
+            "Sales forecast"
+          ]
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "forecast-weekly",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "Weekly forecast meeting",
+          "description": "This week's call against quota and what changed since last week, then the calls and the pipeline coverage over the last 13 weeks, and the latest commit by salesperson when a breakdown is sent.",
+          "slots": [
+            {
+              "label": "Commit",
+              "suggests": "commit"
+            },
+            {
+              "label": "Quota",
+              "suggests": "quota"
+            },
+            {
+              "label": "Commit gap to quota",
+              "suggests": "commit-gap"
+            },
+            {
+              "label": "Pipeline coverage",
+              "suggests": "coverage"
+            },
+            {
+              "label": "Best case",
+              "suggests": "best-case"
+            },
+            {
+              "label": "Closed this quarter",
+              "suggests": "closed-quarter"
+            },
+            {
+              "label": "Pipeline value",
+              "suggests": "pipeline"
+            },
+            {
+              "label": "Commit as share of quota",
+              "suggests": "commit-share"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 3,
+              "h": 4,
+              "settings": {
+                "compare": [
+                  "prev"
+                ]
+              }
+            },
+            {
+              "view": "number",
+              "slots": [
+                1
+              ],
+              "x": 3,
+              "y": 0,
+              "w": 3,
+              "h": 4,
+              "settings": {
+                "compare": [
+                  "prev"
+                ]
+              }
+            },
+            {
+              "view": "number",
+              "slots": [
+                2
+              ],
+              "x": 6,
+              "y": 0,
+              "w": 3,
+              "h": 4,
+              "title": "Gap to quota",
+              "settings": {
+                "compare": []
+              }
+            },
+            {
+              "view": "number",
+              "slots": [
+                3
+              ],
+              "x": 9,
+              "y": 0,
+              "w": 3,
+              "h": 4,
+              "settings": {
+                "compare": [
+                  "prev"
+                ]
+              }
+            },
+            {
+              "view": "number",
+              "slots": [
+                4
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 4,
+              "h": 4,
+              "settings": {
+                "compare": [
+                  "prev"
+                ]
+              }
+            },
+            {
+              "view": "number",
+              "slots": [
+                5
+              ],
+              "x": 4,
+              "y": 4,
+              "w": 4,
+              "h": 4,
+              "settings": {
+                "compare": [
+                  "prev"
+                ]
+              }
+            },
+            {
+              "view": "number",
+              "slots": [
+                6
+              ],
+              "x": 8,
+              "y": 4,
+              "w": 4,
+              "h": 4,
+              "settings": {
+                "compare": [
+                  "prev"
+                ]
+              }
+            },
+            {
+              "view": "line",
+              "slots": [
+                7
+              ],
+              "x": 0,
+              "y": 8,
+              "w": 12,
+              "h": 6,
+              "title": "Commit as share of quota, week by week",
+              "settings": {
+                "window": 13,
+                "showTarget": true,
+                "compare": [
+                  "prev"
+                ]
+              }
+            },
+            {
+              "view": "line",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 14,
+              "w": 6,
+              "h": 6,
+              "title": "Commit calls over the quarter",
+              "settings": {
+                "window": 13,
+                "compare": [
+                  "prev"
+                ]
+              }
+            },
+            {
+              "view": "line",
+              "slots": [
+                4
+              ],
+              "x": 6,
+              "y": 14,
+              "w": 6,
+              "h": 6,
+              "title": "Best case calls over the quarter",
+              "settings": {
+                "window": 13,
+                "compare": [
+                  "prev"
+                ]
+              }
+            },
+            {
+              "view": "line",
+              "slots": [
+                3
+              ],
+              "x": 0,
+              "y": 20,
+              "w": 6,
+              "h": 7,
+              "title": "Pipeline coverage, week by week",
+              "settings": {
+                "window": 13,
+                "compare": [
+                  "prev"
+                ]
+              }
+            },
+            {
+              "view": "ranked",
+              "slots": [
+                0
+              ],
+              "x": 6,
+              "y": 20,
+              "w": 6,
+              "h": 7,
+              "settings": {
+                "headline": "Commit by salesperson",
+                "source": "From the breakdown sent with Commit."
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "decks": [
+      {
+        "key": "forecast-meeting-deck",
+        "template": {
+          "format": "ziffr.deck-template/1",
+          "name": "Weekly forecast meeting",
+          "description": "Five slides for the weekly meeting: the call against quota, the change since last week, the calls over the quarter, pipeline coverage, and the risks and what the team needs.",
+          "slots": [
+            {
+              "label": "Commit",
+              "suggests": "commit"
+            },
+            {
+              "label": "Quota",
+              "suggests": "quota"
+            },
+            {
+              "label": "Commit gap to quota",
+              "suggests": "commit-gap"
+            },
+            {
+              "label": "Pipeline coverage",
+              "suggests": "coverage"
+            },
+            {
+              "label": "Best case",
+              "suggests": "best-case"
+            },
+            {
+              "label": "Closed this quarter",
+              "suggests": "closed-quarter"
+            },
+            {
+              "label": "Pipeline value",
+              "suggests": "pipeline"
+            },
+            {
+              "label": "Commit as share of quota",
+              "suggests": "commit-share"
+            }
+          ],
+          "slides": [
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 48,
+                  "w": 1152,
+                  "text": [
+                    "This week’s call against quota"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 128,
+                  "w": 1152,
+                  "text": [
+                    "{period}"
+                  ],
+                  "size": "m"
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    0
+                  ],
+                  "x": 64,
+                  "y": 180,
+                  "w": 568,
+                  "h": 200,
+                  "settings": {
+                    "compare": [
+                      "prev"
+                    ]
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    1
+                  ],
+                  "x": 648,
+                  "y": 180,
+                  "w": 568,
+                  "h": 200,
+                  "settings": {
+                    "compare": [
+                      "prev"
+                    ]
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    2
+                  ],
+                  "x": 64,
+                  "y": 396,
+                  "w": 568,
+                  "h": 200,
+                  "title": "Gap to quota",
+                  "settings": {
+                    "compare": []
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    7
+                  ],
+                  "x": 648,
+                  "y": 396,
+                  "w": 568,
+                  "h": 200,
+                  "settings": {
+                    "compare": [
+                      "prev"
+                    ]
+                  }
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 624,
+                  "w": 1152,
+                  "text": [
+                    "The commit is {latest 1}, against a quota of {latest 2}."
+                  ],
+                  "size": "l"
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 48,
+                  "w": 1152,
+                  "text": [
+                    "Change since last week"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 128,
+                  "w": 1152,
+                  "text": [
+                    "{period}, compared with the week before"
+                  ],
+                  "size": "m"
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    0
+                  ],
+                  "x": 64,
+                  "y": 180,
+                  "w": 568,
+                  "h": 200,
+                  "settings": {
+                    "compare": [
+                      "prev"
+                    ]
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    4
+                  ],
+                  "x": 648,
+                  "y": 180,
+                  "w": 568,
+                  "h": 200,
+                  "settings": {
+                    "compare": [
+                      "prev"
+                    ]
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    5
+                  ],
+                  "x": 64,
+                  "y": 396,
+                  "w": 568,
+                  "h": 200,
+                  "settings": {
+                    "compare": [
+                      "prev"
+                    ]
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    6
+                  ],
+                  "x": 648,
+                  "y": 396,
+                  "w": 568,
+                  "h": 200,
+                  "settings": {
+                    "compare": [
+                      "prev"
+                    ]
+                  }
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 618,
+                  "w": 1152,
+                  "text": [
+                    "Commit {change prev 1}, best case {change prev 2}.",
+                    "Closed this quarter {change prev 3}, pipeline {change prev 4}."
+                  ],
+                  "size": "m"
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 48,
+                  "w": 1152,
+                  "text": [
+                    "The calls over the quarter"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    0
+                  ],
+                  "x": 64,
+                  "y": 150,
+                  "w": 568,
+                  "h": 500,
+                  "title": "Commit",
+                  "settings": {
+                    "window": 13,
+                    "compare": [
+                      "prev"
+                    ]
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    4
+                  ],
+                  "x": 648,
+                  "y": 150,
+                  "w": 568,
+                  "h": 500,
+                  "title": "Best case",
+                  "settings": {
+                    "window": 13,
+                    "compare": [
+                      "prev"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 48,
+                  "w": 1152,
+                  "text": [
+                    "Pipeline coverage"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 128,
+                  "w": 1152,
+                  "text": [
+                    "Open pipeline divided by what is still missing to the quota."
+                  ],
+                  "size": "m"
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    3
+                  ],
+                  "x": 64,
+                  "y": 200,
+                  "w": 440,
+                  "h": 218,
+                  "settings": {
+                    "compare": [
+                      "prev"
+                    ]
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    6
+                  ],
+                  "x": 64,
+                  "y": 434,
+                  "w": 440,
+                  "h": 218,
+                  "settings": {
+                    "compare": [
+                      "prev"
+                    ]
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    3
+                  ],
+                  "x": 520,
+                  "y": 200,
+                  "w": 696,
+                  "h": 452,
+                  "title": "Pipeline coverage, week by week",
+                  "settings": {
+                    "window": 13,
+                    "compare": [
+                      "prev"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 48,
+                  "w": 1152,
+                  "text": [
+                    "Risks, and what we need"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 170,
+                  "w": 1152,
+                  "text": [
+                    "Deals at risk, and why:"
+                  ],
+                  "size": "l"
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 340,
+                  "w": 1152,
+                  "text": [
+                    "Deals that could still move into this quarter:"
+                  ],
+                  "size": "l"
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 510,
+                  "w": 1152,
+                  "text": [
+                    "What we need, from whom, and by when:"
+                  ],
+                  "size": "l"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "key": "weekly-forecast",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "Weekly sales forecast",
+          "description": "Asks on Monday for the week just ended, due Tuesday with a reminder, then tells the Metric Owner. The sales lead approves every value, which publishes and locks. Add a Send Snapshot step to send the dashboard once the week is finished.",
+          "dueWorkingDays": 2,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 0
+            },
+            {
+              "type": "escalate",
+              "to": "owner",
+              "daysAfter": 0
+            },
+            {
+              "type": "check",
+              "changePct": 25,
+              "outsideTarget": false
+            },
+            {
+              "type": "approve",
+              "approvers": 1,
+              "values": "every",
+              "nobodyElse": "self-check"
+            },
+            {
+              "type": "publish",
+              "lock": true
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "feeds": [
+    {
+      "template": "google-sheets",
+      "fills": [
+        "commit",
+        "best-case",
+        "closed-quarter",
+        "pipeline",
+        "quota"
+      ]
+    },
+    {
+      "template": "excel",
+      "fills": [
+        "commit",
+        "best-case",
+        "closed-quarter",
+        "pipeline",
+        "quota"
+      ]
+    }
+  ]
+}
