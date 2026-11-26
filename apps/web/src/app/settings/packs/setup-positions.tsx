@@ -60,7 +60,7 @@ export function PositionField({ position, people, chosen, onChange, of }: { posi
       ) : (
         <label className="flex flex-wrap items-center gap-2">
           <span className="w-44 text-xs font-medium">{label}</span>
-          <select className={field} value={chosen[0] ?? ""} onChange={(e) => onChange(e.target.value ? [e.target.value] : [])}>
+          <select className={field} aria-label={label} value={chosen[0] ?? ""} onChange={(e) => onChange(e.target.value ? [e.target.value] : [])}>
             <option value="">Nobody yet</option>
             {offered.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
@@ -86,7 +86,10 @@ export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow }: { plan: Pac
   return (
     <section aria-label="Check before you set up" className="space-y-3 rounded-[var(--radius-input)] bg-muted p-3 [overflow-wrap:anywhere]">
       <h4 className="font-medium">Check before you set up</h4>
-      <p className="text-xs">Makes {many(plan.makes.metrics.length, "Metric")}, {many(plan.makes.dashboards.length, "dashboard")} and {many(plan.makes.workflows.length, "Workflow")}.</p>
+      <details className="text-xs">
+        <summary className="cursor-pointer">Makes {many(plan.makes.metrics.length, "Metric")}, {many(plan.makes.dashboards.length, "dashboard")} and {many(plan.makes.workflows.length, "Workflow")}.</summary>
+        <p className="mt-1">{[...plan.makes.metrics, ...plan.makes.dashboards.map((d) => `the dashboard ${d}`), ...plan.makes.workflows.map((w) => `the Workflow ${w}`)].join("; ")}</p>
+      </details>
 
       <div>
         <h5 className="text-xs font-medium">Who will see what</h5>

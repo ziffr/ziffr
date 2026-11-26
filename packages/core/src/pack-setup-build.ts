@@ -436,8 +436,9 @@ export function tickedShares(b: Blueprint, ids: unknown): ProposedShare[] {
   return b.shares.filter((s) => wanted.has(s.id));
 }
 
-/** Checks what is asked for against the install and the Workspace, and lays out what would be made. */
-export async function buildSetup(actor: Actor, p: InstalledForSetup, input: PackSetupInput): Promise<Blueprint> {
+/** Checks what is asked for against the install and the Workspace, and lays out what would be made. `alreadyMade`
+ * counts the Metrics of it that an earlier step made, which the Workspace Limit has counted already. */
+export async function buildSetup(actor: Actor, p: InstalledForSetup, input: PackSetupInput, alreadyMade = 0): Promise<Blueprint> {
   const entries = wantedEntries(p, input);
   const places = placeMaps(p.places, p.workflows);
   const flows = pickedTemplates([...(input.workflow ? [input.workflow] : []), ...list(input.lineWorkflows, PACK_POSITION_LIMITS.repeats)], p.workflows, places, (k) => places.workflows.get(k)?.per, "Workflow");
@@ -475,7 +476,7 @@ export async function buildSetup(actor: Actor, p: InstalledForSetup, input: Pack
   for (const id of new Set(metrics.flatMap((m) => m.submitters.filter((s) => m.workflow?.approvers.includes(s)))))
     filling.notes.push(`${named(filling, id)} submits values and approves in the same Workflow. Nobody approves their own value: the next Approver or the Metric Owner does, else the Approve step's Self-check or count applies.`);
 
-  const refusal = metrics.length ? await roomFor(actor, metrics.length) : null;
+  const refusal = metrics.length > alreadyMade ? await roomFor(actor, metrics.length - alreadyMade) : null;
   if (refusal) filling.problems.push(refusal);
   if (!metrics.length && !dashboards.length && !workflows.length && !filling.problems.length) filling.problems.push("Pick something to set up.");
   return {

@@ -4,7 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
-import { packSetupOptions, setUpFromPack, type PackSetupInput } from "@ziffr/core/pack-setup";
+import { packSetupOptions, setUpStep, type PackSetupInput, type SetupRun } from "@ziffr/core/pack-setup";
 import { planPackSetup } from "@ziffr/core/pack-setup-plan";
 
 /** What setting up from an installed Pack offers. */
@@ -17,11 +17,11 @@ export async function planSetUp(installId: number, input: PackSetupInput) {
   return attempt(async () => planPackSetup(await currentActor(), Number(installId), input));
 }
 
-/** Sets up what the person picked from an installed Pack; returns what was made. */
-export async function setUpPack(installId: number, input: PackSetupInput) {
+/** Takes one step of setting up what the person picked from an installed Pack: the first without `run`, each further
+ * one with the `run` the last answered. Returns how far it is, or what was made. */
+export async function setUpPack(installId: number, input: PackSetupInput, run: SetupRun | null = null) {
   return attempt(async () => {
-    const made = await setUpFromPack(await currentActor(), Number(installId), input);
-    revalidatePath("/", "layout");
-    return made;
+    // A step that stops has made things too: the pages are read again either way.
+    try { return await setUpStep(await currentActor(), Number(installId), input, run); } finally { revalidatePath("/", "layout"); }
   });
 }

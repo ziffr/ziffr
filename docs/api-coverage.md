@@ -64,6 +64,8 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `planPackSetup` (pack-setup-plan.ts): Packs
 - `buildSetup` (pack-setup-build.ts): Packs
 - `startSetupRecord` (pack-setup-record.ts): Packs
+- `resumeSetupRecord` (pack-setup-record.ts): Packs
+- `setUpStep` (pack-setup.ts): Packs
 - `setSendSnapshot` (workflows.ts): the dashboard a Set up from a Pack gives a Send Snapshot step; a program saves the Workflow
 - `roomFor` (pack-setup-install.ts): Packs
 - `roomNow` (pack-setup-install.ts): Packs
