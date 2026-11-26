@@ -97,7 +97,7 @@ A Pack is withdrawn, and a withdrawal is taken back, only by a signed statement.
 
 Ed25519 signs the statement's exact bytes, and the same keys count as for a file: a signing key that is not revoked, or a reserve key that has revoked one.
 
-Ziffr keeps the statement with the highest sequence it has seen for each Pack it asks about. An answer that leaves a Pack out, or repeats an older statement, changes nothing: only a newer statement does. A statement kept from a key revoked since stays until a statement of a trusted key replaces it, whatever its sequence, so after a revocation a Marketplace signs every withdrawal and restoration again, as it does every version.
+Ziffr keeps the statement with the highest sequence it has seen for each Pack it asks about. An answer that leaves a Pack out, or repeats an older statement, changes nothing: only a newer statement does. A statement signed by a key revoked since is no longer believed, and a statement of a trusted key replaces it whatever its sequence, so after a revocation a Marketplace signs every withdrawal and restoration again, as it does every version.
 
 A withdrawn Pack has no update, and its version requests answer 404.
 

@@ -141,21 +141,32 @@ describe("the Marketplace connection", () => {
     await updateFromMarketplace(w.actor(ann), id, "1.3.0", { assistantTexts: true });
   });
 
-  it("keeps a withdrawal whose key was revoked until a trusted key says otherwise, and takes nothing more from that key", async () => {
+  it("believes no statement of a revoked key, kept or new, and takes the new key's whatever its number", async () => {
     const w = await ws(); const ann = await w.person("owner");
     const id = await installFromMarketplace(w.actor(ann), PACK_ID, "1.2.0", { assistantTexts: true });
     const told = async () => (await marketplaceWithdrawals(w.actor(ann))).map((x) => x.installId);
+    const update = { updates: [{ id: PACK_ID, version: "1.3.0" }] };
     await ask({ withdrawals: [keys.withdraws(PACK_ID, 50)] });
-    // The revocation alone hides nothing; nor does the revoked key taking it back in the same answer.
-    await ask({ revocations: [reserve.revokes(keys.id)], withdrawals: [keys.withdraws(PACK_ID, 60, { state: "restored" })] });
     expect(await told()).toEqual([id]);
-    // The reserve key's word counts now, whatever number the revoked key had reached.
-    await ask({ withdrawals: [reserve.withdraws(PACK_ID, 20, { state: "restored" })] });
+    await expect(readMarketplacePack(w.actor(ann), PACK_ID, "1.2.0")).rejects.toThrow("withdrew this Pack");
+    // Once the revocation is known, with any answer, the kept statement counts no more, in each of the three places.
+    answers["GET /v1/packs/ziffr/saas-metrics/versions/1.3.0"] = () => ({ status: 200, body: JSON.stringify({ ...reserve.version(V130), revocations: [reserve.revokes(keys.id)] }) });
+    await db().from("marketplace_revoked_keys").upsert({ key_id: keys.id, revoked_by: reserve.id, signed_at: "2026-11-26T09:00:00Z" });
     expect(await told()).toEqual([]);
+    await expect(readMarketplacePack(w.actor(ann), PACK_ID, "1.3.0")).resolves.toMatchObject({ ok: true });
+    await ask({ ...update, revocations: [reserve.revokes(keys.id)] });
+    expect(await marketplaceUpdates(w.actor(ann))).toHaveLength(1);
+    // The revoked key says nothing new either.
     await ask({ withdrawals: [keys.withdraws(PACK_ID, 70)] });
     expect(await told()).toEqual([]);
-    await ask({ withdrawals: [reserve.withdraws(PACK_ID, 21)] });
+    // Signed again with the reserve key, under a lower number than the revoked key had reached, it counts.
+    await ask({ ...update, withdrawals: [reserve.withdraws(PACK_ID, 20)] });
     expect(await told()).toEqual([id]);
+    expect(await marketplaceUpdates(w.actor(ann))).toEqual([]);
+    await expect(updateFromMarketplace(w.actor(ann), id, "1.3.0", { assistantTexts: true })).rejects.toThrow("withdrew this Pack");
+    await ask({ withdrawals: [reserve.withdraws(PACK_ID, 21, { state: "restored" })] });
+    expect(await told()).toEqual([]);
+    await updateFromMarketplace(w.actor(ann), id, "1.3.0", { assistantTexts: true });
   });
 
   it("links to the report form on a Preview and for installed Marketplace Packs, only while the connection is on", async () => {

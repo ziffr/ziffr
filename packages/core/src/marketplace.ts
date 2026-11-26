@@ -8,7 +8,8 @@
 // shape before it is used. A Pack's file must come with a Signed Statement about exactly that file by a key this Ziffr
 // trusts and has not seen revoked (spec 0059; @ziffr/pack/marketplace), and is then checked in full like any Pack: the
 // signature says where a file came from, the checks are the protection. A Pack counts as withdrawn, or as restored,
-// only by such a statement too; of two, the one with the higher sequence, so leaving one out changes nothing.
+// only by such a statement too; of two, the one with the higher sequence, so leaving one out changes nothing. A
+// statement of a key revoked since is not believed.
 import { checkRevocation, checkWithdrawal, isWholeText, marketplaceKeyId, marketplaceReportPath, marketplaceVersionPath, MARKETPLACE_CONTRACT, MARKETPLACE_SCHEMAS, verifyPackStatement, type MarketplaceKeys, type MarketplaceListing, type PackWithdrawal, type Revocation, type SignedText, type StatementRefusal } from "@ziffr/pack/marketplace";
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
@@ -317,8 +318,9 @@ const NOT_KEPT_WITHDRAWN = "Ziffr could not read or keep what the Marketplace wi
 
 /** Keeps what the answer's signed statements say about the asked Packs. Only a statement a trusted key signed counts,
  * and of two about one Pack the one with the higher sequence: an answer that leaves a Pack out, repeats an older
- * statement or says anything unsigned changes nothing. A kept statement whose key was revoked since gives way to any
- * that holds, and stays until one does. Each write is one conditional statement, so of two the newer wins. */
+ * statement or says anything unsigned changes nothing. A kept statement whose key was revoked since is no longer
+ * believed and gives way to any that holds, whatever its sequence. Each write is one conditional statement, so of two
+ * the newer wins. */
 async function keepWithdrawals(entries: unknown, asked: string[], keys: MarketplaceKeys): Promise<void> {
   if (!Array.isArray(entries)) return;
   const revoked = await keptRevocations();
@@ -344,12 +346,18 @@ async function keepWithdrawals(entries: unknown, asked: string[], keys: Marketpl
   }
 }
 
-/** Which of these Packs are kept as withdrawn; refuses to go on when that cannot be read. */
-async function withdrawnAmong(ids: string[]): Promise<Set<string>> {
-  const { data, error } = await db().from("marketplace_withdrawals").select("pack_id").eq("state", "withdrawn").in("pack_id", ids);
+/** The kept withdrawals of these Packs that count: signed, and by no key revoked since. Refuses to go on when they, or
+ * the revocations, cannot be read. */
+async function keptWithdrawals(ids: string[]): Promise<{ packId: string; reason: string }[]> {
+  const { data, error } = await db().from("marketplace_withdrawals").select("pack_id, reason, key_id").eq("state", "withdrawn").in("pack_id", ids);
   if (error) throw new MarketplaceUnavailable(NOT_KEPT_WITHDRAWN);
-  return new Set((data ?? []).map((r) => String(r.pack_id)));
+  if (!data?.length) return [];
+  const outOfUse = new Set((await keptRevocations()).map((r) => r.key));
+  return data.filter((r) => !outOfUse.has(String(r.key_id))).map((r) => ({ packId: String(r.pack_id), reason: String(r.reason) }));
 }
+
+/** Which of these Packs are kept as withdrawn. */
+const withdrawnAmong = async (ids: string[]): Promise<Set<string>> => new Set((await keptWithdrawals(ids)).map((w) => w.packId));
 
 /** Refuses a version or update of a Pack this Installation holds a withdrawal for, while it has the Pack installed from
  * the Marketplace and so still asks about it: that is how taking the withdrawal back arrives. */
@@ -367,8 +375,9 @@ export async function marketplaceWithdrawals(actor: Actor): Promise<{ installId:
   // Only Packs installed from the Marketplace: an uploaded file under the same id is not the Marketplace's Pack.
   const { data: installs } = await db().from("pack_installs").select("id, pack_id").eq("workspace_id", actor.workspaceId).eq("source", "marketplace");
   if (!installs?.length) return [];
-  const { data: gone } = await db().from("marketplace_withdrawals").select("pack_id, reason").eq("state", "withdrawn").in("pack_id", installs.map((i) => String(i.pack_id)));
-  const why = new Map((gone ?? []).map((g) => [String(g.pack_id), String(g.reason)]));
+  // A page is shown also when this cannot be read: it then says nothing of withdrawals.
+  const gone = await keptWithdrawals(installs.map((i) => String(i.pack_id))).catch(() => []);
+  const why = new Map(gone.map((g) => [g.packId, g.reason]));
   return installs.flatMap((i) => {
     const reason = why.get(String(i.pack_id));
     return reason ? [{ installId: Number(i.id), reason }] : [];
