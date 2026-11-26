@@ -12,13 +12,13 @@
 //  - the gap of two kinds: gap² = (dᵀd)² ÷ (dᵀSd) with d the difference of their means and S their pooled spread, a fraction (two kinds
 //    with no spread along d have an endless gap; two kinds with the same middle have a gap of 0); of a set of kinds, the smallest gap of
 //    any two;
-//  - the count: a count the person asks for is used as far as every kind holds at least max(3, ⌈n ÷ 6⌉) periods (else the largest smaller
+//  - the count: a count the person asks for is used as far as every kind holds at least 3 periods (above 30 periods ⌈n ÷ 6⌉) (else the largest smaller
 //    count that can be made); with none asked, the count of 2, 3 and 4 with the largest gap, the smaller on a tie;
 //  - what marks a kind: for each Metric, Cliff's count of the kind's periods against the others (how often a period of the kind is higher
 //    less how often lower, over all pairs), which reads "very high", "high", "low" or "very low" at 4/5 and 1/2; at most the two Metrics
 //    with the largest size, ties by id; kinds that would be named alike are told apart by a third Metric, else by their order;
 //  - a kind that keeps to the same time of year (months, quarters of the Fiscal Year, days of the week) and its periods as runs.
-// The shuffles that say whether the kinds are clearer than chance, the work bound and the words are other tickets' (spec 0053).
+// The shuffles that say whether the kinds are clearer than chance and the work bound are `look-alike-clear.ts`; the words are another ticket's (spec 0053).
 import { detrended, readSeries, trendsClearly } from "../basis";
 import { fractionOf, lowestTerms, type Fraction } from "../exact";
 import { JANUARY, periodsBetween, type Span, type YearStart } from "../periods";
@@ -31,7 +31,8 @@ export const LOOK_ALIKE = {
   most: 60,
   metrics: { fewest: 2, most: 6, periodsEach: 6 },
   counts: [2, 3, 4],
-  smallest: { least: 3, share: 6 },
+  /** The fewest periods a kind may hold: `least` (3) up to `short` (30) periods, above that a `share`th (a sixth) of the periods rounded up, `less` taken off it (none). */
+  smallest: { least: 3, share: 6, less: 0, short: 30 },
   /** Cliff's count at or above `high` reads "high", at or above `very` "very high" (and the same below zero), as fractions num ÷ den. */
   cliff: { high: { num: 1, den: 2 }, very: { num: 4, den: 5 } },
   /** A place in the season belongs to a kind with at least `places.least` of its periods and `places.share` of the periods there; a kind is seasonal with `season` of its periods in its places. */
@@ -42,7 +43,7 @@ const [ZERO, ONE] = [BigInt(0), BigInt(1)];
 const whole = (n: number | bigint): Fraction => ({ num: BigInt(n), den: ONE });
 
 /** One Metric's series for a Look-alike: its id (the order the Metrics are taken in) and its values by period. */
-type LookAlikeSeries = { id: string; points: Point[] };
+export type LookAlikeSeries = { id: string; points: Point[] };
 
 /** How a Metric is read: as its values, or as its distance from its own straight-line trend. */
 type Reading = "values" | "trend";
@@ -128,7 +129,7 @@ function ward(s: Scaled): { merges: Merge[]; states: Map<number, number[][]> } {
   const P = s.q.reduce((p, x) => p * x, ONE);
   const [merges, states] = [<Merge[]>[], new Map<number, number[][]>()];
   // The cost of each pair is kept by the earliest periods of the two kinds and worked out again only for a kind that was just made.
-  const known = new Map<string, Cost>();
+  const known: (Cost | undefined)[] = new Array(s.n * s.n).fill(undefined);
   while (live.length > 1) {
     states.set(live.length, live.map((k) => k.members));
     let best: { i: number; j: number; cost: Cost } | null = null;
@@ -136,10 +137,11 @@ function ward(s: Scaled): { merges: Merge[]; states: Map<number, number[][]> } {
     // Stryker disable next-line EqualityOperator: for the last kind there is no kind after it, so one more round of the loop does nothing.
     for (let i = 0; i < live.length; i++) {
       for (let j = i + 1; j < live.length; j++) {
-        const key = `${live[i].first} ${live[j].first}`;
-        let cost = known.get(key);
+        // (The kinds are kept by earliest period, so the earlier one of the pair is the first.)
+        const key = live[i].first * s.n + live[j].first;
+        let cost = known[key];
         // Stryker disable next-line ConditionalExpression: the kept costs only save work; working a cost out again gives the same cost.
-        if (!cost) known.set(key, (cost = costOf(live[i], live[j])));
+        if (!cost) known[key] = cost = costOf(live[i], live[j]);
         if (!best || lessCost(cost, best.cost)) best = { i, j, cost };
       }
     }
@@ -150,7 +152,7 @@ function ward(s: Scaled): { merges: Merge[]; states: Map<number, number[][]> } {
     live[i] = { members: [...x.members, ...y.members].sort((p, q) => p - q), sums: x.sums.map((v, k) => v + y.sums[k]), first: x.first };
     // The kind just made has new costs against every kind left: the old ones, kept by its earliest period, are dropped.
     // Stryker disable next-line EqualityOperator: for the kind just made the two spellings of its key are the same.
-    for (const k of live) known.delete(k.first < x.first ? `${k.first} ${x.first}` : `${x.first} ${k.first}`);
+    for (const k of live) known[k.first < x.first ? k.first * s.n + x.first : x.first * s.n + k.first] = undefined;
   }
   return { merges, states };
 }
@@ -202,6 +204,12 @@ function gapsOf(s: Scaled, kinds: readonly (readonly number[])[]): { gap: Gap; p
 
 // ---- the count of kinds ----
 
+/** The fewest periods a kind may hold in a window of n periods. */
+export function smallestKind(n: number): number {
+  const { least, share, less, short } = LOOK_ALIKE.smallest;
+  return n <= short ? least : Math.max(least, Math.ceil(n / share) - less);
+}
+
 /** The kinds a Look-alike settled on, before they are named: how many were asked for and shown, each period's kind number, the kinds' periods, the gaps and the joins. */
 type Choice = {
   ok: true;
@@ -224,7 +232,7 @@ type Choice = {
   merges: Merge[];
 };
 
-/** The count of kinds and the kinds: the count asked for (2 to 4) as far as every kind holds at least max(3, ⌈n ÷ 6⌉) periods, else the largest smaller count that can be made; with none asked, the count of 2, 3 and 4 whose kinds stand furthest apart (the largest gap), the smaller on a tie. */
+/** The count of kinds and the kinds: the count asked for (2 to 4) as far as every kind holds at least 3 periods (above 30 periods ⌈n ÷ 6⌉), else the largest smaller count that can be made; with none asked, the count of 2, 3 and 4 whose kinds stand furthest apart (the largest gap), the smaller on a tie. */
 export function choiceOf(prepared: Prepared, asked: number | null): Choice | LookAlikeRefusal {
   const solved = solve(prepared, asked);
   return solved.ok ? solved.choice : solved;
@@ -239,7 +247,7 @@ function solve(prepared: Prepared, asked: number | null): { ok: true; choice: Ch
   const s = scaled(prepared.values, n);
   if ("constant" in s) return { ok: false, why: "constant", metric: prepared.ids[s.constant] };
   const { merges, states } = ward(s);
-  const smallest = Math.max(LOOK_ALIKE.smallest.least, Math.ceil(n / LOOK_ALIKE.smallest.share));
+  const smallest = smallestKind(n);
   const feasible = LOOK_ALIKE.counts.filter((c) => states.get(c)?.every((k) => k.length >= smallest));
   const options = asked === null ? feasible : feasible.filter((c) => c <= asked);
   if (options.length === 0) return { ok: false, why: "no-split" };
@@ -385,7 +393,7 @@ type Kind = { number: number; places: number[]; periods: string[]; runs: PeriodR
 export type LookAlike = Omit<Choice, "groups"> & { periods: string[]; ids: string[]; reading: Reading[]; kinds: Kind[] };
 
 /** What a person may ask of a Look-alike: how many kinds (2 to 4; none leaves it to the rule), and the month the Fiscal Year starts in (January where none). */
-type LookAlikeOptions = { kinds?: number | null; yearStart?: YearStart };
+export type LookAlikeOptions = { kinds?: number | null; yearStart?: YearStart };
 
 /** The Look-alike of prepared values: the count and the kinds, each named by what marks it and the time of year it keeps to. */
 export function kindsOf(prepared: Prepared, options: LookAlikeOptions = {}): LookAlike | LookAlikeRefusal {
@@ -402,8 +410,8 @@ export function kindsOf(prepared: Prepared, options: LookAlikeOptions = {}): Loo
   return { ...rest, periods: prepared.periods, ids: prepared.ids, reading: prepared.reading, kinds };
 }
 
-/** The Look-alike of Metrics' series on one Period: refused (in codes, never a number) with fewer than 2 or more than 6 Metrics, fewer than 24 periods in common, more than one Metric to 6 periods, values too wide to work out exactly, or a Metric that does not vary; else `kindsOf` the latest 60 periods they have in common. */
-export function lookAlike(series: readonly LookAlikeSeries[], span: Span, options: LookAlikeOptions = {}): LookAlike | LookAlikeRefusal {
+/** The series of a Look-alike made ready, or why there is none: refused (in codes, never a number) with fewer than 2 or more than 6 Metrics, fewer than 24 periods in common, more than one Metric to 6 periods, or values too wide to work out exactly. */
+export function preparedFor(series: readonly LookAlikeSeries[], span: Span): Prepared | LookAlikeRefusal {
   const { metrics, fewest } = LOOK_ALIKE;
   // A Metric is not compared with itself: two series with one id are one Metric too few.
   if (series.length < metrics.fewest || new Set(series.map((x) => x.id)).size < series.length) return { ok: false, why: "metrics" };
@@ -412,5 +420,11 @@ export function lookAlike(series: readonly LookAlikeSeries[], span: Span, option
   const prepared = readLookAlike(series, span);
   if (prepared.periods.length < fewest) return { ok: false, why: "periods" };
   if (series.length > Math.floor(prepared.periods.length / metrics.periodsEach)) return { ok: false, why: "too-many" };
-  return kindsOf(prepared, options);
+  return prepared;
+}
+
+/** The Look-alike of Metrics' series on one Period: refused (in codes, never a number) as `preparedFor` refuses, or for a Metric that does not vary; else `kindsOf` the latest 60 periods they have in common. */
+export function lookAlike(series: readonly LookAlikeSeries[], span: Span, options: LookAlikeOptions = {}): LookAlike | LookAlikeRefusal {
+  const prepared = preparedFor(series, span);
+  return "ok" in prepared ? prepared : kindsOf(prepared, options);
 }

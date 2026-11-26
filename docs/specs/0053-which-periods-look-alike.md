@@ -33,7 +33,7 @@ One new Method, `lookAlike`, behind the question **"Which months look alike?"**,
 
 1. **The periods.** The person names 2 to 6 Metrics. Ziffr takes the periods in which every one of them has a value, on their Common Period, the latest 60 at most.
 2. **One scale.** Each Metric is read as it is, or as its distance from its own straight-line trend where it clearly trends (the rule of basis choice, spec 0041 rule 2). Each is put on its own scale: a value's distance from the Metric's mean, in the Metric's own spread.
-3. **Kinds by Ward's method.** Start with every period alone, and join, again and again, the two kinds whose joining adds least to the spread inside the kinds. Ties are broken by a written rule. The person picks 2, 3 or 4 kinds, or leaves it to Ziffr, which takes the count whose kinds stand furthest apart and says so. Every kind holds at least a sixth of the periods.
+3. **Kinds by Ward's method.** Start with every period alone, and join, again and again, the two kinds whose joining adds least to the spread inside the kinds. Ties are broken by a written rule. The person picks 2, 3 or 4 kinds, or leaves it to Ziffr, which takes the count whose kinds stand furthest apart and says so. Every kind holds at least 3 periods and, over 30 periods, at least a sixth of them.
 4. **Are the kinds clear?** Ziffr measures how far apart the kinds stand (the **gap**) and does the same on 99 shuffled copies, in which each Metric's values are put in another order of periods, so that the Metrics have nothing to do with each other. Kinds are clear only when the real gap beats at least 96 of the 99 shuffles (all 99 when a Metric changes slowly) and is at least 3. Otherwise the Takeaway says "can't tell from chance" and names no kind.
 5. **Each kind is named by what marks it:** at most two Metrics on which its periods lie clearly above or below the other periods ("months with high Returns and high Support tickets"). Its periods are listed as ranges ("Nov 2024 – Jan 2025, Nov – Dec 2025"). A kind that keeps to the same time of year says so ("mostly November to January").
 6. **One footer, every time:** "This describes which months look alike, not why."
@@ -107,7 +107,7 @@ For each kind and each Metric, Ziffr goes over every pair of a period in the kin
 - "Revenue changes slowly from month to month, so neighbouring months look alike on their own; Ziffr asked for more before calling the kinds clear." (A Metric changes slowly, below.)
 - "Visits and Sessions move so closely that what they share counts twice here." (Two Metrics whose values have r² above 4/5, exact.)
 - "3 of 27 months have no value for one of the Metrics and were left out." (Gaps under the limit.)
-- "Split into 4, one kind would hold only 3 of 30 months, fewer than the 5 a kind needs, so this shows 3." (A count asked for that cannot be made: the largest smaller count that can is shown; no period is moved to make one.)
+- "Split into 4, one kind would hold only 4 of 36 months, fewer than the 6 a kind needs, so this shows 3." (A count asked for that cannot be made: the largest smaller count that can is shown; no period is moved to make one.)
 
 **Footer:** "This describes which months look alike, not why." (in the Period's word). It is the Look-alike's own, next to the four footers of spec 0041.
 
@@ -121,7 +121,7 @@ For each kind and each Metric, Ziffr goes over every pair of a period in the kin
 | A Metric that hardly varies (spec 0041's "Enough that vary") | "Support tickets has hardly changed, so there is nothing to compare." |
 | More than 20 % of the window's periods lack a value, or 3 in a row | As spec 0041's "Gaps". |
 | A Metric of Aggregation none and another period | As spec 0019: "Churn rate has Aggregation none: it can only be compared with monthly Metrics." |
-| No count from 2 to 4 gives kinds that each hold a sixth of the periods | "The months do not split into kinds of at least 5 months each." (a "can't tell" result, no kind named) |
+| No count from 2 to 4 gives kinds that each hold the smallest size (3 periods up to 30, above that a sixth of them) | "The months do not split into kinds of at least 6 months each." (a "can't tell" result, no kind named) |
 | The work bound | "Too much to compare at once: pick fewer Metrics or a shorter span." |
 
 ## Implementation Decisions
@@ -155,7 +155,7 @@ For each kind and each Metric, Ziffr goes over every pair of a period in the kin
 - **Of a set of kinds** the gap is the smallest gap of any two of them. Two kinds with no spread at all along d have an endless gap, larger than every fraction.
 - **Why the gap and not the silhouette.** The silhouette (the usual measure of how well points sit in their group) rates a single bell curve cut in two as a fair split (0.56 for one Metric, measured), falls as Metrics are added, and needs square roots. The gap is about 2.65 for a bell curve cut in two, whatever the Metrics' spreads and however they move together. A tilted cloud of two Metrics that simply move together in a line is not taken for two kinds.
 - **The count.** A count the person picks (2, 3 or 4) is used as it is. Otherwise Ziffr tries 2, 3 and 4 and takes the one with the largest gap (squared gaps compared exactly), ties to the smaller count.
-- **Smallest kind.** A count is only tried when each of its kinds holds at least max(3, ⌈n / 6⌉) periods: 4 at 24 periods, 10 at 60. A far-off month therefore never makes a kind of its own. It stays in the kind nearest to it; the shuffles are not misled by it, so spec 0041's far-off check does not apply here.
+- **Smallest kind.** A count is only tried when each of its kinds holds at least 3 periods up to 30 periods in the window, and above that at least a sixth of them, rounded up: 3 at 24, 6 at 36, 10 at 60. A far-off month therefore never makes a kind of its own. It stays in the kind nearest to it; the shuffles are not misled by it, so spec 0041's far-off check does not apply here. **Why not a sixth everywhere** (as this spec first said): at 24 periods a sixth is 4, so a kind of 3 months (months 10 to 12) could not stand alone and the planted case was found in only 2 % of runs; with a minimum of 3 it is found in about nine runs in ten. The smaller the minimum, the more often Metrics that only move together in a line are taken for kinds (at 60 periods and 2 Metrics 4.3 % with a minimum of 10, 7.7 % with 8, 13 % with 5), so the minimum is a sixth again where the history is long enough for a sixth to be a real stretch of time. The price, said plainly: **a kind shorter than about a sixth of the history cannot be called clear at longer lengths** (at 36 and 60 periods a 3-month kind is not found; see Measured).
 
 ### Are the kinds clear?
 
@@ -351,6 +351,7 @@ Recommendations, accepted with this spec unless the owner objects in review.
 6. **Slow Metrics ask for more (1 in 100),** carry a caution and are never strong. Without the rule, running totals were called clear in 12 to 44 % of runs; with it, 6 to 21 % (the second table above). A stricter bar would need more than 99 shuffles, and more work, for a case the Methods guide already steers away from.
 7. **All or nothing for visibility,** and results kept by a key made of the inputs, so that a widget always shows its live values and never a stored result.
 8. **The cap of 60 periods** for every Period in the first release (five years of months, but only 60 weeks): the shuffles multiply the work by 100. Raised for weeks and days only if ticket 2's measurement leaves room.
+9. **The smallest kind is 3 periods up to 30, a sixth above** (changed in ticket 2, after measuring): at 24 periods a sixth would be 4 and would hide a 3-month kind (2 % found against about 9 in 10); the rule is not lowered at length because false claims on Metrics that move together in a line grow as the minimum falls (see Smallest kind). Recovery of a kind shorter than a sixth of the history is therefore asked only at 24 periods.
 
 ## Open questions
 

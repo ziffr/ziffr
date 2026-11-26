@@ -175,24 +175,24 @@ describe("the count of kinds", () => {
     for (const asked of [1, 5, 2.5, NaN, -3]) expect(kindsOf(p, { kinds: asked })).toEqual({ ok: false, why: "kinds" });
   });
   it("shows a smaller count when the asked one would leave a kind under the minimum, and none when no count fits", () => {
-    // 24 periods ask for kinds of at least 4: a kind of 3 in the split into 4 leaves 3.
-    const [a, b] = [Array.from({ length: 24 }, (_, i) => (i < 4 ? 0 : i < 14 ? 50 : 100) + (i % 3)), Array.from({ length: 24 }, (_, i) => (i % 5))];
+    // 36 periods ask for kinds of at least 6: a kind of 5 in the split into 4 leaves 5.
+    const [a, b] = [Array.from({ length: 36 }, (_, i) => (i < 5 ? 0 : i < 20 ? 50 : 100) + (i % 3)), Array.from({ length: 36 }, (_, i) => (i % 5))];
     const r = ok(kindsOf(prep([a, b]), { kinds: 4 })) as LookAlike;
-    expect(r.smallest).toBe(4);
-    expect(r.kinds.every((k) => k.places.length >= 4)).toBe(true);
+    expect(r.smallest).toBe(6);
+    expect(r.kinds.every((k) => k.places.length >= 6)).toBe(true);
     expect(r.shown).toBeLessThanOrEqual(4);
     // 5 periods cannot make two kinds of 3.
     expect(kindsOf(prep([[1, 2, 3, 40, 50], [1, 2, 4, 40, 55]]))).toEqual({ ok: false, why: "no-split" });
     expect(kindsOf(prep([[1, 2, 3, 40, 50, 60, 1], [1, 2, 4, 40, 55, 5, 6]]), { kinds: 2 })).toMatchObject({ ok: true });
   });
-  it("asks for kinds of at least max(3, n ÷ 6 rounded up) periods", () => {
+  it("asks for kinds of at least 3 periods up to 30 periods and at least n ÷ 6 rounded up above that", () => {
     const smallest = (n: number) => ok(kindsOf(prep([Array.from({ length: n }, (_, i) => i * i % 17), Array.from({ length: n }, (_, i) => (i * 7) % 13)]))) as LookAlike;
     const tried = (n: number) => {
       const r = kindsOf(prep([Array.from({ length: n }, (_, i) => (i % 2) * 40 + (i % 5)), Array.from({ length: n }, (_, i) => ((i + 1) % 2) * 30 + (i % 3))]));
       return "smallest" in r ? r.smallest : 0;
     };
-    expect([6, 18, 19, 24, 25, 30, 31, 60].map(tried)).toEqual([3, 3, 4, 4, 5, 5, 6, 10]);
-    expect(smallest(24).smallest).toBe(4);
+    expect([6, 18, 24, 25, 30, 31, 36, 37, 60].map(tried)).toEqual([3, 3, 3, 3, 3, 6, 6, 7, 10]);
+    expect(smallest(24).smallest).toBe(3);
   });
 });
 
