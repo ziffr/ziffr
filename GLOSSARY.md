@@ -501,6 +501,10 @@ _Avoid_: Role, seat, persona, job title
 A named part of a Pack that Set up makes once for each entry of a list a person types, such as each salesperson, site or company: its own Metrics, and its own Positions, Workflow or dashboard where the Pack says so.
 _Avoid_: Instance, copy, segment, dimension
 
+**Total**:
+A Derived Metric that adds up a list of Metrics it keeps, its parts, such as the Commit of every salesperson. Parts are added and ended on the Total, never by editing a formula; each counts from a first period and, once ended, up to a last one. A period has a value only when every part counting in it has one, and it is shown only to people who may see all of those parts, unless the Total's owner opens it. A Pack may name one, and cannot open it; Ziffr does not make Totals yet (spec 0058). Not a formula, not an Aggregation (which combines one Metric's own periods) and not a Running total.
+_Avoid_: Roll-up, consolidation, group sum
+
 **Pack Guide**:
 What a Pack's creator tells people about it, in five set sections whose titles Ziffr writes: What it's for, Before you start, First steps, Each part, and Questions. Headings, paragraphs, lists and bold words only; read before installing and, with the installed Pack, in Help. Not the user guide, which is Ziffr's own, not the Setup Guide, and not the summary of one or two sentences.
 _Avoid_: Readme, manual, documentation, tutorial

@@ -156,9 +156,9 @@ How a Workspace's answers rank the Packs: an industry that matches adds 4 points
 
 ## Who does what (`ziffr.pack/2`)
 
-A Pack in the format `ziffr.pack/2` may also say who does what, as **Positions** such as "Sales lead" that people fill when it is set up, and which parts are made once for each salesperson, site or company, its **Repeats**. It names no person. It may credit the Packs it builds on and carry a [Pack Guide](#the-pack-guide).
+A Pack in the format `ziffr.pack/2` may also say who does what, as **Positions** such as "Sales lead" that people fill when it is set up, which parts are made once for each salesperson, site or company, its **Repeats**, and which Metrics add those up, its [Totals](#totals). It names no person. It may credit the Packs it builds on and carry a [Pack Guide](#the-pack-guide).
 
-Ziffr checks all of it and installs such a Pack today. **Set up from this Pack does not ask for Positions or Repeats yet:** it sets the Pack up as if it named none, so nobody is assigned and nothing is shared, and the Workflow Templates it stores keep neither the Positions nor the Tell steps. The screens follow in later versions.
+Ziffr checks all of it and installs such a Pack today, unless it holds a Total. **Set up from this Pack does not use Positions or Repeats yet:** it sets the Pack up as if it named none, so nobody is assigned and nothing is shared, and the Workflow Templates it stores keep neither the Positions nor the Tell steps. **A Pack with a Total cannot be installed yet:** Ziffr says so and adds nothing of it. The screens follow in later versions.
 
 Keep a file in `ziffr.pack/1` unless it uses something below: an older Ziffr refuses a `/2` file, saying which formats it reads. A whole example:
 
@@ -212,6 +212,21 @@ Keep a file in `ziffr.pack/1` unless it uses something below: an older Ziffr ref
 - **Outside its Repeat,** a Position of a Repeat means everyone in all its lines. That is fine where several people fit, and refused where one is needed.
 - A formula may use entries of its own Repeat and entries outside every Repeat; nothing else may reach into a Repeat. A dashboard outside a Repeat takes a repeated entry only in a Slot with `"multiple": true`, and only a Workflow of the same Repeat can send a dashboard made once per line.
 - A Derived Metric has no `submitters` or `standIn`: it takes no values.
+
+### Totals
+
+A Metric Catalog entry outside every Repeat may be a **Total**, which adds up the Metrics made from one entry of a Repeat, such as the commit of all salespeople. It says so in its wrapper, in place of a formula:
+
+```json skip="two entries of a Pack, not a whole file"
+{ "key": "commit", "per": "salesperson", "metric": { "format": "ziffr.metric/1", "name": "Commit", "period": "week", "aggregation": "last", "polarity": "higher" } },
+{ "key": "team-commit", "total": { "of": "commit", "targets": "parts" }, "metric": { "format": "ziffr.metric/1", "name": "Team commit", "period": "week", "aggregation": "last", "polarity": "higher" } }
+```
+
+- `of` names an entry with `per` that takes values, whose Aggregation is not `none`. The Total has its period, unit, number format (`valueFormat`) and Aggregation.
+- `targets` is `own`, for a target set on the Total, or `parts`, for the targets of its parts added up; with `parts` the entry has no `targetMin` or `targetMax`.
+- A Total takes no values: no `per`, formula, `sources`, `submitters` or `standIn`, and no Feed fills it. A formula may read it, and `viewers` and `editors` may be proposed.
+- **A Pack cannot open a Total.** Who sees a Total's numbers without seeing every part is its owner's decision in the app, and there is no field for it.
+- A gap table of a Deck Template does not take a Total yet.
 
 ### Credit
 

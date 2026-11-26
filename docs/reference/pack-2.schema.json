@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ziffr.net/schemas/ziffr.pack-2.json",
   "title": "Ziffr Pack (ziffr.pack/2)",
-  "description": "A Pack as ziffr.pack/1, which may also name the Positions people fill when it is set up and the parts made once per line (Repeats), credit the Packs it builds on and carry a Pack Guide.",
+  "description": "A Pack as ziffr.pack/1, which may also name the Positions people fill when it is set up and the parts made once per line (Repeats), add those up in Totals, credit the Packs it builds on and carry a Pack Guide.",
   "type": "object",
   "properties": {
     "format": {
@@ -305,6 +305,29 @@
                   "description": "the key of one of the Pack's Positions"
                 },
                 "description": "Positions Set up proposes to share the Metric with, as Editors."
+              },
+              "total": {
+                "type": "object",
+                "description": "Makes the entry a Total: a Derived Metric that adds up the Metrics made from one entry of a Repeat, in place of a formula. It takes no values. A Pack cannot open a Total to people who do not see every part.",
+                "properties": {
+                  "of": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                    "description": "the key of a Metric Catalog entry of this Pack with “per”, whose Metrics the Total adds up"
+                  },
+                  "targets": {
+                    "enum": [
+                      "own",
+                      "parts"
+                    ],
+                    "description": "The Total's target: its own, or the targets of its parts added up."
+                  }
+                },
+                "required": [
+                  "of",
+                  "targets"
+                ],
+                "additionalProperties": false
               },
               "from": {
                 "type": "string",

@@ -133,8 +133,18 @@ export const itemKeys = (stored: ReturnType<typeof storedItems>) => [...stored.c
 /** The most a Workspace holds from Packs: installs, its own Metric Catalog entries, and templates of any kind. */
 export const PACK_CAPS = { installs: 25, entries: 1000, templates: 1000 } as const;
 
+/** Why this Ziffr cannot take this Pack in yet, or null. A Total (spec 0058) is stored as nothing but its Metric, so Set
+ * up would make an ordinary Metric that people type values into: until #1226 builds Totals, a Pack holding one is refused
+ * whole, at installing and at updating, so that no part of it is ever stored. */
+export function notBuiltYet(pack: Pick<Pack, "contents">): string | null {
+  const total = pack.contents.metrics?.find((m) => m.total);
+  return total ? `This Pack holds a Total, “${total.metric.name}”, which this version of Ziffr cannot make yet. Nothing of the Pack is added.` : null;
+}
+
 /** Why this actor cannot install this Pack in their Workspace, or null. */
 async function blockedFor(actor: Actor, pack: Pack): Promise<string | null> {
+  const early = notBuiltYet(pack);
+  if (early) return early;
   if ((pack.contents.themes?.length ?? 0) > 0 && actor.role !== "owner") return "This Pack holds Themes, and only Owners change Themes: an Owner installs it.";
   const { data } = await db().from("pack_installs").select("version").eq("workspace_id", actor.workspaceId).eq("pack_id", pack.id).maybeSingle();
   // A Workspace holds at most so many Packs and so many rows from them, so a taken-over Admin cannot fill the database.
@@ -191,7 +201,7 @@ export async function previewPack(actor: Actor, text: string, origin: PackOrigin
   const by = <T extends { key: string }>(xs: T[]) => new Map(xs.map((x) => [x.key, x]));
   const [views, templates] = [by(stored.views), by(stored.templates)];
   const items: PackPreviewItem[] = [
-    ...(pack.contents.metrics ?? []).map(({ key, metric: m }): PackPreviewItem => ({ kind: "metric", key, name: m.name, description: m.description ?? "", period: m.period, unit: m.unit ?? "", derived: m.formula !== undefined })),
+    ...(pack.contents.metrics ?? []).map(({ key, metric: m }): PackPreviewItem => ({ kind: "metric", key, name: m.name, description: m.description ?? "", period: m.period, unit: m.unit ?? "", derived: m.formula !== undefined || pack.contents.metrics!.some((x) => x.key === key && x.total) })),
     ...(pack.contents.dashboards ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "dashboard", key, name: t.name, description: t.description, slots: t.slots, body: t.body as DashboardTemplateBody }; }),
     ...(pack.contents.decks ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "deck", key, name: t.name, description: t.description, slots: t.slots, slides: (t.body as DeckTemplateBody).slides.length }; }),
     ...(pack.contents.workflows ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "workflow", key, name: t.name, description: t.description, body: t.body as WorkflowTemplateBody }; }),

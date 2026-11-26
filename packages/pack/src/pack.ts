@@ -1,8 +1,9 @@
 // The Pack format, ziffr.pack/1 (GLOSSARY: Pack): one file of things to add to a Workspace, with no code, and its
 // manifest (name, version, author, license). Each item is a document in a format Ziffr already checks, and is checked
 // by exactly that format's checks; this file only wraps them. docs/reference is generated from the schemas below.
-// Format /2 (spec 0058) adds Positions and Repeats, the places and repeated parts Set up fills; the Packs an item
-// came from (`basedOn`, `from`); and the Pack Guide. /1 is read for ever and means what it always meant.
+// Format /2 (spec 0058) adds Positions and Repeats, the places and repeated parts Set up fills; Totals, which add up
+// a Repeat; the Packs an item came from (`basedOn`, `from`); and the Pack Guide. /1 is read for ever and means what it
+// always meant.
 // The one image it may bring is `logo` (spec 0039), held to the shared logo checks. Security: a Pack is untrusted input. Its size, depth and number of items are limited before anything is walked,
 // unknown and repeated fields are refused, "__proto__" is read as data, web addresses appear only in `listing`, an
 // item may name only items of the same Pack, and texts that address an assistant are reported for a person to see.
@@ -21,6 +22,7 @@ import { textsAimedAtAssistants } from "./assistant-words.js";
 import { AUDIENCE_SCHEMA, checkAudience, type PackAudience } from "./audience.js";
 import { checkGuide, guideAsRead, PACK_GUIDE_SCHEMA, type PackGuide } from "./pack-guide.js";
 import { checkPositions, POSITION_FIELDS, WRAPPER_FIELDS, type PackPosition, type PackRepeat } from "./pack-positions.js";
+import { checkTotals, TOTAL_FIELD, type PackTotal } from "./pack-totals.js";
 
 /** The first format, which Ziffr writes for a Pack using nothing newer, so an older Ziffr reads it. */
 export const PACK_FORMAT = "ziffr.pack/1";
@@ -81,7 +83,7 @@ export type Pack = {
   /** /2: what the creator tells people about it (GLOSSARY: Pack Guide). */
   guide?: PackGuide;
   contents: {
-    metrics?: (PackItem<"metric", MetricFile> & { per?: string; submitters?: string[]; standIn?: string; viewers?: string[]; editors?: string[] })[];
+    metrics?: (PackItem<"metric", MetricFile> & { per?: string; submitters?: string[]; standIn?: string; viewers?: string[]; editors?: string[]; total?: PackTotal })[];
     dashboards?: (PackItem<"template", DashboardTemplateFile> & { per?: string; viewers?: string[]; editors?: string[] })[];
     views?: PackItem<"design", ViewDesign>[];
     analyses?: PackItem<"recipe", AnyAnalysisRecipe>[];
@@ -177,13 +179,13 @@ const FROM: Schema = { ...PACK_ID, description: "the id of the Pack in “basedO
 /** Schema /2 made from schema /1: the same file with Positions, Repeats, credit and the Pack Guide, and what the items'
  * wrappers gain. */
 function packSchema2(base: Schema): Schema {
-  const wrappers: Partial<Record<PackKind, Record<string, Schema>>> = WRAPPER_FIELDS;
+  const wrappers: Partial<Record<PackKind, Record<string, Schema>>> = { ...WRAPPER_FIELDS, metrics: { ...WRAPPER_FIELDS.metrics, total: TOTAL_FIELD } };
   const kinds = (Object.keys(KINDS) as PackKind[]).map((k) => [k, item(k, k === "workflows" ? `${KINDS[k].format} or ${WORKFLOW_TEMPLATE_FORMAT_2}` : KINDS[k].format, { ...wrappers[k], from: FROM })]);
   return {
     ...base,
     $id: "https://ziffr.net/schemas/ziffr.pack-2.json",
     title: "Ziffr Pack (ziffr.pack/2)",
-    description: "A Pack as ziffr.pack/1, which may also name the Positions people fill when it is set up and the parts made once per line (Repeats), credit the Packs it builds on and carry a Pack Guide.",
+    description: "A Pack as ziffr.pack/1, which may also name the Positions people fill when it is set up and the parts made once per line (Repeats), add those up in Totals, credit the Packs it builds on and carry a Pack Guide.",
     properties: {
       ...base.properties,
       format: { const: PACK_FORMAT_2, description: "The format and its version." },
@@ -292,6 +294,7 @@ function meaning(p: Pack, lines: Map<string, number>, ziffr: string | undefined,
   references(p, isSound, at);
   if (p.format !== PACK_FORMAT_2) return;
   checkPositions(p, isSound, at);
+  checkTotals(p, at);
   credit(p, at);
   if (p.guide) checkGuide(p.guide, at);
 }
@@ -327,7 +330,7 @@ function references(p: Pack, sound: (item: object) => boolean, at: (path: string
     const once = new Set<string>();
     f.fills.forEach((k, j) => {
       if (!known.metrics.has(k)) at(`feeds[${i}].fills[${j}]`, `names “${k}”, which is not ${what.metrics} of this Pack.`);
-      else if (metrics.find((m) => m.key === k)?.metric.formula !== undefined) at(`feeds[${i}].fills[${j}]`, `names “${k}”, a Derived Metric: it is computed and takes no values, so a template cannot fill it.`);
+      else if (metrics.some((m) => m.key === k && (m.metric.formula !== undefined || m.total !== undefined))) at(`feeds[${i}].fills[${j}]`, `names “${k}”, a Derived Metric: it is computed and takes no values, so a template cannot fill it.`);
       if (once.has(k)) at(`feeds[${i}].fills[${j}]`, `names “${k}” twice.`);
       once.add(k);
     });

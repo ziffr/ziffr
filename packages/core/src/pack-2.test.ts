@@ -9,7 +9,8 @@ import { checkFormat } from "@ziffr/pack/json-check";
 import { guideRuns, PACK_GUIDE_LIMITS, type PackGuide } from "@ziffr/pack/pack-guide";
 import { run } from "@ziffr/pack/run";
 import { checkPack, checkPackValue, PACK_2_SCHEMA, PACK_FORMAT, PACK_SCHEMA, type Pack } from "./pack";
-import { installManifest, storedItems } from "./packs";
+import { installManifest, installPackFile, notBuiltYet, readPackFile, storedItems } from "./packs";
+import { Forbidden, type Actor } from "./actor";
 import { checkWorkflowTemplateFile, checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_SCHEMA, workflowTemplateFromFile, type WorkflowTemplateFile } from "./workflow-template-file";
 import { fromWorkflowTemplate } from "./team-templates";
 import { ALERT_SHARE_MAX, ALERT_SHARE_MIN } from "./alert-rules";
@@ -65,6 +66,7 @@ const SITES: Pack = {
       { key: "hours", per: "site", metric: { ...METRIC, name: "Hours" } },
       { key: "rate", per: "site", viewers: ["site-manager"], metric: { format: "ziffr.metric/1", name: "Incident rate", period: "month", aggregation: "last", polarity: "lower", formula: "{incidents} / {hours} * {target}" } },
       { key: "target", submitters: ["area-lead", "crew"], viewers: ["site-manager", "crew"], metric: { ...METRIC, name: "Rate target" } },
+      { key: "all-hours", viewers: ["area-lead", "crew"], total: { of: "hours", targets: "parts" }, metric: { format: "ziffr.metric/1", name: "All hours", period: "month", aggregation: "last", polarity: "higher", unit: "€", valueFormat: "currency" } },
     ],
     dashboards: [
       { key: "sites", viewers: ["area-lead", "crew"], template: { ...DASHBOARD, slots: [{ label: "Incidents", multiple: true, suggests: "incidents" }, { label: "Target", suggests: "target" }] } },
@@ -86,6 +88,8 @@ type Change = (p: any) => void;
 const metric = (p: Pack, key: string) => p.contents.metrics!.find((m) => m.key === key)!;
 const step = (type: string, fields: Record<string, unknown>): Change => (p) => Object.assign(p.contents.workflows[0].template.steps.find((s: { type: string }) => s.type === type), fields);
 const item = (key: string, fields: Record<string, unknown>): Change => (p) => Object.assign(metric(p, key), fields);
+const total = (fields: Record<string, unknown>): Change => (p) => Object.assign(metric(p, "all-hours").total!, fields);
+const part = (fields: Record<string, unknown>): Change => (p) => Object.assign(metric(p, "hours").metric, fields);
 const block = (b: unknown): Change => (p) => (p.guide.questions = [b]);
 const words = (text: string): Change => block({ type: "text", text });
 const many = <T,>(n: number, of: (i: number) => T) => Array.from({ length: n }, (_, i) => of(i));
@@ -139,6 +143,33 @@ const HOSTILE: [string, Change, string, string][] = [
   ["a Stand-in who submits", item("incidents", { standIn: "area-lead", submitters: ["area-lead"] }), "contents.metrics[0].standIn", "never the Submitter"],
   ["a Stand-in without a Submitter", item("hours", { standIn: "area-lead" }), "contents.metrics[1].standIn", "needs “submitters”"],
   ["a Submitter of a Derived Metric", item("rate", { submitters: ["office"] }), "contents.metrics[2].submitters", "takes no values"],
+  // Totals: what they add up, and nothing about who may see them.
+  ["a Total that opens itself", total({ open: true }), "contents.metrics[4].total.open", "is not a field here"],
+  ["a Total opened on its wrapper", item("all-hours", { open: true }), "contents.metrics[4].open", "is not a field here"],
+  ["a Total shared with everyone", total({ openTo: "everyone" }), "contents.metrics[4].total.openTo", "is not a field here"],
+  ["a Total that says it is open in its Metric", (p) => (metric(p, "all-hours").metric as Record<string, unknown>).open = true, "contents.metrics[4].metric.open", "is not a field here"],
+  ["a Total of a list", total({ of: ["hours", "incidents"] }), "contents.metrics[4].total.of", "must be a text"],
+  ["a Total without its targets", item("all-hours", { total: { of: "hours" } }), "contents.metrics[4].total", "needs the field “targets”"],
+  ["a Total without what it adds", item("all-hours", { total: { targets: "own" } }), "contents.metrics[4].total", "needs the field “of”"],
+  ["targets from somewhere else", total({ targets: "average" }), "contents.metrics[4].total.targets", "must be one of “own”, “parts”"],
+  ["a Total of an entry not there", total({ of: "nobody" }), "contents.metrics[4].total.of", "not a Metric Catalog entry of this Pack"],
+  ["a Total of __proto__", total({ of: "__proto__" }), "contents.metrics[4].total.of", "the key of a Metric Catalog entry"],
+  ["a Total of itself", total({ of: "all-hours" }), "contents.metrics[4].total.of", "in no Repeat"],
+  ["a Total of an entry outside a Repeat", total({ of: "target" }), "contents.metrics[4].total.of", "in no Repeat"],
+  ["a Total of a Derived Metric", total({ of: "rate" }), "contents.metrics[4].total.of", "a Derived Metric"],
+  ["a Total of a Total", (p) => p.contents.metrics.push({ key: "again", per: "site", total: { of: "hours", targets: "own" }, metric: p.contents.metrics[4].metric }, { key: "twice", total: { of: "again", targets: "own" }, metric: p.contents.metrics[4].metric }), "contents.metrics[6].total.of", "a Derived Metric"],
+  ["a Total of an entry with no Aggregation", (p) => (metric(p, "hours").metric.aggregation = "none"), "contents.metrics[4].total.of", "whose Aggregation is none"],
+  ["a Total of another period", part({ period: "week" }), "contents.metrics[4].total.of", "differs from the Total in period"],
+  ["a Total of another unit", part({ unit: "h" }), "contents.metrics[4].total.of", "differs from the Total in unit"],
+  ["a Total of another number format", part({ valueFormat: "number" }), "contents.metrics[4].total.of", "differs from the Total in number format"],
+  ["a Total of another Aggregation", part({ aggregation: "sum" }), "contents.metrics[4].total.of", "differs from the Total in Aggregation"],
+  ["a Total inside a Repeat", item("all-hours", { per: "site", viewers: ["area-lead"] }), "contents.metrics[4].per", "stands outside every Repeat"],
+  ["a Total with a formula", (p) => (metric(p, "all-hours").metric.formula = "{target}"), "contents.metrics[4].metric.formula", "leave out the formula"],
+  ["a Total with Sources", (p) => (metric(p, "all-hours").metric.sources = ["web_form"]), "contents.metrics[4].metric.sources", "has no Sources"],
+  ["a Total with a Submitter", item("all-hours", { submitters: ["area-lead"] }), "contents.metrics[4].submitters", "takes no values"],
+  ["a Total with a Stand-in", item("all-hours", { standIn: "area-lead" }), "contents.metrics[4].standIn", "takes no values"],
+  ["a range beside the parts' targets", (p) => (metric(p, "all-hours").metric.targetMin = 1), "contents.metrics[4].total.targets", "no Target Range of its own"],
+  ["a Feed filling a Total", (p) => (p.feeds = [{ template: "excel", fills: ["all-hours"] }]), "feeds[0].fills[0]", "takes no values"],
   // Steps.
   ["too few Approvers named", step("approve", { by: ["area-lead"] }), "contents.workflows[0].template.steps[1].by", "name one for each Approver"],
   ["too many Approvers named", step("approve", { approvers: 1 }), "contents.workflows[0].template.steps[1].by", "name one for each Approver"],
@@ -207,6 +238,20 @@ describe("ziffr.pack/2", () => {
     const res = checkPack(JSON.stringify(SITES, null, 2));
     expect(res.ok ? [] : res.problems).toEqual([]);
     if (res.ok) expect(res.assistantTexts).toEqual([]);
+  });
+
+  it("lets a Total have its own target, and a formula read it", () => {
+    const res = checkPack(changed((p) => {
+      Object.assign(metric(p, "all-hours"), { total: { of: "hours", targets: "own" } });
+      metric(p, "all-hours").metric.targetMin = 100;
+      p.contents.metrics.push({ key: "per-target", metric: { format: "ziffr.metric/1", name: "Hours per target", period: "month", aggregation: "last", polarity: "higher", formula: "{all-hours} / {target}" } });
+    }));
+    expect(res.ok ? [] : res.problems).toEqual([]);
+  });
+
+  it("refuses `total` in a /1 file", () => {
+    const res = checkPack(JSON.stringify({ format: "ziffr.pack/1", id: "a/b", name: "N", version: "1.0.0", summary: "S", author: { name: "A" }, license: "MIT", contents: { metrics: [{ key: "t", total: { of: "t", targets: "own" }, metric: METRIC }] } }));
+    expect(!res.ok && res.problems.map((p) => p.path)).toEqual(["contents.metrics[0].total"]);
   });
 
   it("passes a Pack that uses nothing new", () => {
@@ -345,14 +390,36 @@ describe("what the server stores of a /2 Pack", () => {
 
   it("stores the items as for the same Pack without Positions", () => {
     const stored = storedItems(checked());
-    expect(JSON.stringify(stored)).not.toMatch(/area-lead|site-manager|someone\/safety|"per"|submitters/);
-    expect(stored.catalog.map((c) => c.key)).toEqual(["incidents", "hours", "rate", "target"]);
+    expect(JSON.stringify(stored)).not.toMatch(/area-lead|site-manager|someone\/safety|"per"|"total"|submitters/);
+    expect(stored.catalog.map((c) => c.key)).toEqual(["incidents", "hours", "rate", "target", "all-hours"]);
   });
 
   it("keeps a manifest without what nothing reads yet, however long the guide", () => {
     const guide: PackGuide = { questions: many(50, () => ({ type: "text" as const, text: "x".repeat(600) })) };
     const manifest = installManifest({ ...checked(), guide });
     expect(Object.keys(manifest).sort()).toEqual(["author", "format", "id", "license", "name", "summary", "version"]);
+  });
+});
+
+// Until #1226 builds Totals, a Pack holding one is refused whole. Both refusals come before the database is asked, so
+// they need none here; pack-updates.db.test.ts holds that nothing is stored.
+describe("a Pack with a Total", () => {
+  const owner = { personId: "p", workspaceId: "w", role: "owner" } as Actor;
+  const why = "This Pack holds a Total, “All hours”, which this version of Ziffr cannot make yet. Nothing of the Pack is added.";
+
+  it("is shown with why it cannot be installed", async () => {
+    const res = await readPackFile(owner, JSON.stringify(SITES));
+    expect(res.ok && res.preview.blocked).toBe(why);
+    expect(res.ok && res.preview.items.find((i) => i.key === "all-hours")).toMatchObject({ derived: true });
+  });
+
+  it("is not installed, however it is confirmed", async () => {
+    await expect(installPackFile(owner, JSON.stringify(SITES), { unsigned: true, assistantTexts: true })).rejects.toThrow(new Forbidden(why));
+  });
+
+  it("alone is what refuses: the same Pack without one is not", () => {
+    const res = checkPack(changed((p) => p.contents.metrics.pop()));
+    expect(res.ok && notBuiltYet(res.pack)).toBeNull();
   });
 });
 
