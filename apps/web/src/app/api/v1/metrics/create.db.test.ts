@@ -28,7 +28,7 @@ describe("POST /api/v1/metrics", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body).toEqual({
-      slug: "weekly-signups", name: "Weekly signups", description: "", period: "week", format: "number", unit: "signups", unit_position: "after", decimals: 0,
+      slug: "weekly-signups", name: "Weekly signups", description: "", calculation_note: "", period: "week", format: "number", unit: "signups", unit_position: "after", decimals: 0,
       polarity: "higher", aggregation: "sum", target_min: null, target_max: null, attainment_method: null, sources: ["web_form", "mail", "slack", "telegram", "api"], url: "/metrics/weekly-signups", workflow: null, next_due: null, next_asked: null, derived: false, formula: null, archived: false, tags: [], retention: null, retention_pending: null,
     });
     const again = await post({ name: "Weekly signups", period: "week", unit: "signups", submission_rule: "add" }, { "idempotency-key": "setup-1" });

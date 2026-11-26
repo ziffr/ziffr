@@ -1,6 +1,7 @@
 // The Metric file format, ziffr.metric/1 (GLOSSARY: Metric Description, Metric Catalog, Pack): a Metric Description
 // written as a file, without owner, Submitters or values, as a Metric Catalog entry in a Pack. The schema below is the
 // only definition, checked wherever such a file is read, and docs/reference is generated from it.
+// Format /2 (spec 0060) adds the Calculation Note; /1 is read for ever and means what it always meant.
 // Security: a file holds no person, no value and no web address; a Derived Metric's formula is only read, never run.
 import { checkFormat, parseJson, type FormatCheck, type Schema } from "./json-check.js";
 import { plainText } from "./file-text.js";
@@ -8,19 +9,23 @@ import { cleanTagNames, TAG_NAME_MAX, TAGS_PER_ENTRY } from "./tag-names.js";
 import { formulaSyntaxProblem, FORMULA_LIMITS } from "./formula-check.js";
 import { ATTAINMENT_METHODS, type Aggregation, type AttainmentMethod, type Format, type Period, type Polarity, type SourceId, type SubmissionRule, type UnitPosition } from "./kinds.js";
 
-/** The format this Ziffr writes; it reads every version in `METRIC_FILE_FORMATS`. */
+/** The first format, which Ziffr writes for a Metric without a Calculation Note, so an older Ziffr reads it. */
 export const METRIC_FILE_FORMAT = "ziffr.metric/1";
+/** The format with the Calculation Note (spec 0060). */
+export const METRIC_FILE_FORMAT_2 = "ziffr.metric/2";
 /** Every Metric file format Ziffr ever published, oldest first. */
-export const METRIC_FILE_FORMATS = [METRIC_FILE_FORMAT] as const;
+export const METRIC_FILE_FORMATS = [METRIC_FILE_FORMAT, METRIC_FILE_FORMAT_2] as const;
 /** The exact limits a Metric file is held to; name, unit and decimals as the Metric form keeps them. */
-export const METRIC_FILE_LIMITS = { bytes: 16_384, depth: 4, name: 120, description: 1000, unit: 20, category: 60, tags: 12, tag: 30, entryTags: TAGS_PER_ENTRY, magnitude: 1e15 } as const;
+export const METRIC_FILE_LIMITS = { bytes: 16_384, depth: 4, name: 120, description: 1000, calculationNote: 1000, unit: 20, category: 60, tags: 12, tag: 30, entryTags: TAGS_PER_ENTRY, magnitude: 1e15 } as const;
 
 /** A Metric Description as a file (GLOSSARY: Metric Description), in the newest format. Fields left out take the
  * defaults of the Metric form. `formula` makes it a Derived Metric; in a Pack it names other entries by their key. */
 export type MetricFile = {
-  format: typeof METRIC_FILE_FORMAT;
+  format: (typeof METRIC_FILE_FORMATS)[number];
   name: string;
   description?: string;
+  /** Format /2: how it is calculated (GLOSSARY: Calculation Note). */
+  calculationNote?: string;
   category?: string;
   industries?: string[];
   segments?: string[];
@@ -77,10 +82,33 @@ export const METRIC_FILE_SCHEMA: Schema = {
   additionalProperties: false,
 };
 
+/** Schema /2 made from schema /1: the same file, with the Calculation Note held to `note`. */
+export function metricFileSchema2(note: Schema = plainText(METRIC_FILE_LIMITS.calculationNote), base: Schema = METRIC_FILE_SCHEMA): Schema {
+  const { format, name, description, ...rest } = base.properties!;
+  void format;
+  return {
+    ...base,
+    $id: "https://ziffr.net/schemas/ziffr.metric-2.json",
+    title: "Ziffr Metric Description (ziffr.metric/2)",
+    description: "A Metric Description written as a file, as ziffr.metric/1, with the Calculation Note: what counts and what does not, where the figure comes from and which adjustments are made. It holds no code.",
+    properties: {
+      format: { const: METRIC_FILE_FORMAT_2, description: "The format and its version." },
+      name,
+      description,
+      calculationNote: { ...note, description: "How it is calculated: what counts and what does not, where the figure comes from, adjustments. Plain text, without markup or web addresses." },
+      ...rest,
+    },
+  };
+}
+
+/** The JSON Schema of ziffr.metric/2. */
+export const METRIC_FILE_2_SCHEMA: Schema = metricFileSchema2();
+
+/** The schemas a Metric file is checked against, by its format. */
+export type MetricFileSchemas = { v1: Schema; v2: Schema };
+
 const FORMAT = {
   family: "ziffr.metric",
-  reads: METRIC_FILE_FORMATS,
-  schema: METRIC_FILE_SCHEMA,
   meaning(m: MetricFile, at: (path: string, message: string) => void) {
     if (m.targetMin !== undefined && m.targetMax !== undefined && m.targetMin > m.targetMax) at("targetMin", "is above targetMax: the lower end of a Target Range comes first.");
     if (m.sources && new Set(m.sources).size !== m.sources.length) at("sources", "names a Source twice.");
@@ -107,9 +135,16 @@ export function checkMetricFile(textIn: string): FormatCheck<MetricFile> {
   return checkMetricFileValue(parsed.value, parsed.lines);
 }
 
-/** Checks a Metric file already read from JSON (`lines` names where each path starts, when known). `schema` is the
- * Workspace Export's looser variant of the schema; every other check is the same. */
-export function checkMetricFileValue(value: unknown, lines: Map<string, number> = new Map(), schema: Schema = METRIC_FILE_SCHEMA): FormatCheck<MetricFile> {
-  return checkFormat(schema === METRIC_FILE_SCHEMA ? FORMAT : { ...FORMAT, schema }, value, lines);
+/** Checks a Metric file already read from JSON (`lines` names where each path starts, when known). `schemas` are the
+ * Workspace Export's looser variants; every other check is the same. */
+export function checkMetricFileValue(value: unknown, lines: Map<string, number> = new Map(), schemas: MetricFileSchemas = { v1: METRIC_FILE_SCHEMA, v2: METRIC_FILE_2_SCHEMA }): FormatCheck<MetricFile> {
+  const schema = (value as { format?: unknown } | null)?.format === METRIC_FILE_FORMAT_2 ? schemas.v2 : schemas.v1;
+  return checkFormat({ ...FORMAT, reads: METRIC_FILE_FORMATS, schema }, value, lines);
+}
+
+/** Checks a Metric file where only ziffr.metric/1 is read: a Pack's Metric Catalog entry, which does not keep a
+ * Calculation Note yet, refuses a newer file in words instead of dropping a part of it. */
+export function checkMetricFile1Value(value: unknown, lines: Map<string, number> = new Map()): FormatCheck<MetricFile> {
+  return checkFormat({ ...FORMAT, reads: [METRIC_FILE_FORMAT], schema: METRIC_FILE_SCHEMA }, value, lines);
 }
 
