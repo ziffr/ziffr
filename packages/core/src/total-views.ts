@@ -48,12 +48,13 @@ export function allowedBy(rests: Rests | undefined, open: ReadonlySet<number>, s
   };
 }
 
-/** Whether a message that quotes a Metric may be sent to, or read by, someone now. Any Metric that rests on no Total:
- * yes. Else only where the message kept what the periods it quotes rested on (`kept`), and every one of those is open now
- * or counted only Metrics they see: judged by what was counted then, a Metric that has left since included. */
+/** Whether a message that quotes a Metric may be sent to, or read by, someone now. Where it kept nothing of the Metric
+ * and the Metric rests on no Total: yes. Else only where it kept what the periods it quotes rested on (`kept`), and every
+ * one of those is open now or counted only Metrics they see: judged by what was counted then, a Metric that has left
+ * since included, also where the Metric rests on no Total any more. */
 export function mayReadMessage(metrics: readonly Metric[], metric: Metric, kept: unknown, sees: (metricId: number) => boolean): boolean {
-  if (!restsOnTotal(metric)) return true;
   const rests = (kept ?? undefined) as Rests | undefined;
+  if (!rests?.[metric.id] && !restsOnTotal(metric)) return true;
   const allowed = allowedBy(rests, new Set(metrics.filter((m) => m.total?.open).map((m) => m.id)), sees);
   const periods = Object.keys(rests?.[metric.id] ?? {});
   return periods.length > 0 && periods.every((period) => allowed(metric.id, period));

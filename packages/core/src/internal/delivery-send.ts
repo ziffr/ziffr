@@ -3,6 +3,7 @@
 // sender that has read the queued Delivery itself, and claimed it before it adds the link, calls them. The app never
 // imports from core/internal (.github/scripts/app-db-access.mjs).
 import { mayReadMessage } from "../total-views";
+import { restsOnTotal } from "../totals";
 import { db } from "../db";
 import { ARCHIVED_BEFORE_SENT } from "../archived-metrics";
 import { visibleDashboards, visibleMetricIds } from "../access";
@@ -101,7 +102,8 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
     // not sent hours later. A message that does not go gives its place back by itself (a trigger on a failed Delivery).
     const { data: told } = d.heads_up_told_id ? await db().from("heads_up_told").select("id").eq("id", d.heads_up_told_id).eq("workspace_id", ws).eq("person_id", d.recipient_id).is("ended_at", null).maybeSingle() : { data: null };
     if (!told) return "Not sent.";
-    if (!about.every((id) => seen.has(id) && metrics.some((m) => m.id === id && !m.archived_at && !m.inputs_withheld))) return "Not sent.";
+    // Nor about a Metric that rests on a Total by now: a Heads-up looks back over many periods, so none is sent.
+    if (!about.every((id) => seen.has(id) && metrics.some((m) => m.id === id && !m.archived_at && !m.inputs_withheld && !restsOnTotal(m)))) return "Not sent.";
     // The person's own choices made while it waited: switched off, a Metric muted, or this Heads-up marked Not useful.
     const [{ data: set }, { data: mutes }, { data: no }] = await Promise.all([
       db().from("heads_up_settings").select("show, by_message").eq("workspace_id", ws).eq("person_id", d.recipient_id).maybeSingle(),

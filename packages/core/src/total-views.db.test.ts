@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey, actorForKey } from "./access-keys";
 import { getMetric } from "./api";
 import { createDashboard, placeWidget } from "./dashboards";
+import { createDerivedMetric } from "./derived-metrics";
 import { db } from "./db";
 import { share } from "./sharing";
 import { openSnapshot, showSnapshot, takeSnapshot } from "./snapshots";
@@ -128,5 +129,22 @@ describe("a message about a Total that waited", () => {
     expect(await archivedMetricHolds(january)).toBe("Not sent.");
     // The column takes what is kept.
     expect((await db().from("deliveries").insert({ workspace_id: w.id, connector: "email", recipient_id: ben, kind: "alert", subject: "s", body: "b", alert_metric_id: total.id, total_rests: january.total_rests })).error).toBeNull();
+  });
+});
+
+describe("a Heads-up message", () => {
+  it("is never sent about a Metric that rests on a Total by now, nor listed as one that may leave", async () => {
+    const { w, owner, sara, ana, total } = await setup();
+    // A formula that read nothing of a Total when its message was queued, and reads one when it leaves.
+    const share = await createDerivedMetric(owner, { name: "Share", formula: `{${total.slug}} - {${ana.slug}}` }, noEffects);
+    await db().from("heads_up_settings").insert({ workspace_id: w.id, person_id: sara, by_message: true });
+    const about = async (metricId: number) => {
+      const told = await db().from("heads_up_told").insert({ workspace_id: w.id, person_id: sara, key: `sudden-change:${metricId}` }).select("id").single();
+      expect(told.error).toBeNull();
+      return { id: 0, workspace_id: w.id, kind: "heads_up", recipient_id: sara, heads_up_metric_a: metricId, heads_up_key: `sudden-change:${metricId}`, heads_up_told_id: told.data!.id as number };
+    };
+    // Sara sees everything: a plain Metric's message goes, the Total's and the formula's do not.
+    expect(await archivedMetricHolds(await about(ana.id))).toBeNull();
+    for (const id of [total.id, share.id]) expect(await archivedMetricHolds(await about(id))).toBe("Not sent.");
   });
 });

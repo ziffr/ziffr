@@ -64,6 +64,16 @@ describe("a message that waited", () => {
     expect([may(team(), undefined), may(team(), null), may(team(), {}), may(team(), { 9: {} })]).toEqual([false, false, false, false]);
     expect(may(ana, null)).toBe(true);
   });
+  it("is still judged by what it kept where the Metric rests on no Total any more", () => {
+    // A formula that read the Total when the message was written, and reads only Ana now.
+    const before = metric({ id: 10, slug: "change", name: "Change", formula: "{team}", reads_total: true });
+    const rests = restsFor({ metrics: [before], series: { change: [{ period: "2026-01-01", value: 0 }] }, targets: {}, pending: {} }, [team(), before, ana], left);
+    const now = metric({ id: 10, slug: "change", name: "Change", formula: "{ana}" });
+    expect(mayReadMessage([team(), now, ana], now, rests, onlyAna)).toBe(false);
+    expect(mayReadMessage([team(), now, ana], now, rests, () => true)).toBe(true);
+    expect(mayReadMessage([team("own", true), now, ana], now, rests, onlyAna)).toBe(true);
+    expect(mayReadMessage([now], now, { 10: {} }, () => true)).toBe(false);
+  });
 });
 
 describe("what goes out of a canvas", () => {
