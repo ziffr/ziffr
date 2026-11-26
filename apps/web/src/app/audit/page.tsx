@@ -73,6 +73,8 @@ function detailText(e: AuditEvent, nameOf: (id: string) => string | undefined): 
     // Keys only; the words come from the list.
     // The way and what became of it, from fixed words; never an address (the line holds none).
     case "connector.test_sent": return `${{ email: "email", slack: "Slack", telegram: "Telegram" }[String(d.way)] ?? ""}${typeof d.outcome === "string" && ["sent", "queued", "kept"].includes(d.outcome) ? `: ${d.outcome === "kept" ? "kept in the Outbox" : d.outcome === "queued" ? "waiting to be sent" : "sent"}` : ""}`;
+    // The screen's name from Ziffr's fixed list and what became of it; never the path or an address.
+    case "connector.screen_link_sent": return `${String(d.screen ?? "")}${typeof d.outcome === "string" && ["sent", "queued", "kept"].includes(d.outcome) ? `: ${d.outcome === "kept" ? "kept in the Outbox" : d.outcome === "queued" ? "waiting to be sent" : "sent"}` : ""}`;
     case "person.business_function_changed": return `${labelOf(d.from)} → ${labelOf(d.to)}`;
     case "workspace.year_start_changed": return `${monthName(toYearStart(d.from))} → ${monthName(toYearStart(d.to))}`;
     case "workspace.number_style_changed": return `${d.from ?? followed(d)} → ${d.to}`;

@@ -132,7 +132,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
             <AskingFields asking={cfg.asking} disabled={!canEdit} clock={clock} periods={onIt.map((m) => m.period)} dueWorkingDays={cfg.dueWorkingDays}
               onChange={(a) => { const next = { ...cfg, asking: a }; if (!a) delete next.asking; setCfg(next); }} />
 
-            <ol className="relative mt-6 space-y-3 before:absolute before:top-4 before:bottom-4 before:left-[19px] before:w-px before:bg-[var(--color-rule-2)]">
+            <ol id="workflow-steps" className="relative mt-6 scroll-mt-4 space-y-3 before:absolute before:top-4 before:bottom-4 before:left-[19px] before:w-px before:bg-[var(--color-rule-2)]">
               <Node icon={Send} title="Ask" text="When the period ends, ask each submitter through their connector. While someone is away, their stand-in is asked.">
                 {cfg.asking && <p className="mt-1 text-xs text-muted-foreground"><AskingSentence asking={cfg.asking} clock={clock} /></p>}
               </Node>

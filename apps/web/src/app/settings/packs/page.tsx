@@ -12,6 +12,7 @@ import { getProfileMap } from "@/lib/data";
 import { PageHeader } from "@/components/page-header";
 import { listIncludedPacks } from "@ziffr/core/included-packs";
 import { PacksScreen } from "./screen";
+import { DesktopOnly } from "@/components/desktop-only";
 
 export default async function PacksPage() {
   const actor = await currentActor();
@@ -27,6 +28,7 @@ export default async function PacksPage() {
   return (
     <>
       <PageHeader title="Packs" sub="Ready-made Metric Catalog entries, templates, View Designs and Themes, each a file with no code. Installing one adds them to the Workspace; it makes no Metric until you use them." />
+      <DesktopOnly path="/settings/packs" />
       <PacksScreen
         // Only the installer's name goes to the browser, never the rest of a profile.
         installed={installed.map((p) => ({ ...p, installedBy: p.installedBy ? people[p.installedBy]?.name ?? null : null }))}

@@ -12,6 +12,8 @@ node_modules
 
 # testing
 coverage
+# the phone check (apps/web/phone): screenshots of failed pages
+apps/web/test-results/
 # mutation testing (Stryker): its sandbox and reports
 .stryker-tmp/
 packages/core/reports/

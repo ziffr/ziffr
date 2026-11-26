@@ -148,6 +148,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `setMyAppearance` (profile.ts): one's own Appearance
 - `setMyBusinessFunction` (business-function.ts): one's own Business Function, which no program may read or set: it is seen only by the person and the Workspace's Owners and Admins
 - `setPreference` (questions.ts): one's own reminder channel
+- `sendScreenLink` (screen-link.ts): the link to a screen a person emails to themself from their phone; a program cannot message a person (spec 0055)
 - `sendTestMessage` (test-message.ts): a Test Message to oneself, for the app's buttons; a program cannot message a person (spec 0052)
 - `setMyPromptWays` (ways-in-and-out.ts): one's own Delivery Preference for Prompts from the Setup Guide's Ways in and out step, only with ways that work here (spec 0052); a program sets its person's preference through the app
 - `waysInAndOut` (ways-in-and-out.ts): the Setup Guide's Ways in and out step for the viewer, in words; for the app's page only (spec 0052)
