@@ -387,7 +387,7 @@ The Telegram box appears when this Ziffr has a Telegram bot (never in the demo).
 | **Disconnect** | Everyone who is connected | Ziffr no longer reaches you on Telegram in this Workspace. |
 | **Get them on Telegram again** | Whoever stopped them | Shown if you pressed "Stop these on Telegram" under a Prompt or reminder there |
 
-A bot cannot find anyone by email or phone number, so everyone connects their own Telegram, once per Workspace. Contacts without a login connect it on their personal form. To stop everything from Ziffr in Telegram, send the bot `/stop`, or block it.
+A bot cannot find anyone by email or phone number, so everyone connects their own Telegram, once per Workspace. Contacts without a login connect it on their [personal form](10-metrics.md#the-personal-form-link) and confirm it from an email to the address the Workspace keeps for them, so a Contact needs an email address for this. To stop everything from Ziffr in Telegram, send the bot `/stop`, or block it.
 
 Telegram can read what its bots send and receive, so numbers and questions sent this way pass through Telegram's servers. The box says so as well.
 
