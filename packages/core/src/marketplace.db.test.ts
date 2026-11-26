@@ -1,5 +1,6 @@
-// The Marketplace connection against the real database and a stub Marketplace (spec 0030, #278): nothing leaves when it
-// is off; searches, files and the update question carry no Workspace and no person; a broken signature is refused;
+// The Marketplace connection against the real database and a stub Marketplace (specs 0030 and 0059, #278, #1193):
+// nothing leaves when it is off; searches, files and the update question carry no Workspace and no person; a file is
+// taken only with a Signed Statement about it by a trusted key that is not revoked; only the reserve key revokes;
 // answers too big or malformed are refused; and updates are asked for the whole Installation at once.
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "./db";
@@ -16,6 +17,8 @@ afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 async function ws(name?: string) { const w = await workspace(name); cleanups.push(w.cleanup); return w; }
 
 const keys = testKeys();
+const reserve = testKeys();
+const TRUSTED = `signing:${keys.publicKey},reserve:${reserve.publicKey}`;
 const NO_THEMES = { ...PACK, contents: { ...PACK.contents, themes: undefined, decks: undefined } };
 const V120 = JSON.stringify(NO_THEMES);
 const V130 = JSON.stringify({ ...NO_THEMES, version: "1.3.0", summary: "Version 1.3.0." });
@@ -33,8 +36,8 @@ beforeEach(async () => {
       { id: "someone/paid", name: "Paid", summary: "Costs money.", author: "Someone", license: "Ziffr-Pack-1.0", version: "1.0.0" },
       { id: "someone/evil", name: "<script>", summary: "x", author: "x", license: "MIT", version: "1.0.0" },
     ] }) }),
-    "GET /v1/packs/ziffr/saas-metrics/versions/1.2.0": () => ({ status: 200, body: JSON.stringify({ file: V120, signature: keys.sign(V120) }) }),
-    "GET /v1/packs/ziffr/saas-metrics/versions/1.3.0": () => ({ status: 200, body: JSON.stringify({ file: V130, signature: keys.sign(V130) }) }),
+    "GET /v1/packs/ziffr/saas-metrics/versions/1.2.0": () => ({ status: 200, body: JSON.stringify(keys.version(V120)) }),
+    "GET /v1/packs/ziffr/saas-metrics/versions/1.3.0": () => ({ status: 200, body: JSON.stringify(keys.version(V130)) }),
     "POST /v1/updates": () => ({ status: 200, body: JSON.stringify({ updates: [{ id: "ziffr/saas-metrics", version: "1.3.0" }, { id: "someone/not-installed", version: "9.0.0" }] }) }),
   };
   marketplaceTransport.request = async (url, init) => {
@@ -42,10 +45,12 @@ beforeEach(async () => {
     const a = answers[`${init.method} ${url.pathname}`];
     return a ? { tooBig: false, ...a() } : { status: 404, body: "", tooBig: false };
   };
-  Object.assign(process.env, { ZIFFR_MARKETPLACE: "on", ZIFFR_MARKETPLACE_URL: "https://market.example.com", ZIFFR_MARKETPLACE_PUBLIC_KEY: keys.publicKey });
+  Object.assign(process.env, { ZIFFR_MARKETPLACE: "on", ZIFFR_MARKETPLACE_URL: "https://market.example.com", ZIFFR_MARKETPLACE_PUBLIC_KEY: TRUSTED });
   forgetStoredSettings();
   await db().from("marketplace_checks").delete().eq("only_row", true);
   await db().from("marketplace_versions").delete().neq("pack_id", "");
+  // Only this run's test keys: whatever else the database holds stays.
+  await db().from("marketplace_revoked_keys").delete().in("key_id", [keys.id, reserve.id]);
 });
 afterAll(() => {
   marketplaceTransport.request = real;
@@ -81,12 +86,18 @@ describe("the Marketplace connection", () => {
     expect(events).toEqual([{ details: { pack: "ziffr/saas-metrics", version: "1.2.0", source: "marketplace", signed: true } }]);
   });
 
-  it("refuses a file whose signature does not hold, a file of another Pack, and answers too big or malformed", async () => {
+  it("refuses a file whose statement does not hold, a file of another Pack, and answers too big or malformed", async () => {
     const w = await ws(); const ann = await w.person("owner");
     const cases: [string, () => { status: number; body: string; tooBig?: boolean }, string][] = [
-      ["a changed file", () => ({ status: 200, body: JSON.stringify({ file: V120.replace("SaaS", "Evil"), signature: keys.sign(V120) }) }), "signature does not hold"],
-      ["another key", () => ({ status: 200, body: JSON.stringify({ file: V120, signature: testKeys().sign(V120) }) }), "signature does not hold"],
-      ["another Pack", () => ({ status: 200, body: JSON.stringify({ file: V130, signature: keys.sign(V130) }) }), "another Pack"],
+      ["a changed file", () => ({ status: 200, body: JSON.stringify({ ...keys.version(V120), file: V120.replace("SaaS", "Evil") }) }), "other than the one it signed"],
+      ["another hash", () => ({ status: 200, body: JSON.stringify(keys.version(V120, { sha256: "0".repeat(64) })) }), "other than the one it signed"],
+      ["a broken signature", () => ({ status: 200, body: JSON.stringify({ ...keys.version(V120), signature: `${"A".repeat(86)}==` }) }), "signature does not hold"],
+      ["the signature alone, as before spec 0059", () => ({ status: 200, body: JSON.stringify({ file: V120, signature: keys.version(V120).signature }) }), "signature does not hold"],
+      ["another key", () => ({ status: 200, body: JSON.stringify(testKeys().version(V120)) }), "signature does not hold"],
+      ["the reserve key, with nothing revoked", () => ({ status: 200, body: JSON.stringify(reserve.version(V120)) }), "signature does not hold"],
+      ["a statement about another id", () => ({ status: 200, body: JSON.stringify(keys.version(V120, { id: "ziffr/other" })) }), "other than the one it signed"],
+      ["a statement about another version", () => ({ status: 200, body: JSON.stringify(keys.version(V120, { version: "1.3.0" })) }), "other than the one it signed"],
+      ["another version, rightly signed", () => ({ status: 200, body: JSON.stringify(keys.version(V130)) }), "another Pack"],
       ["too big", () => ({ status: 200, body: "", tooBig: true }), "more than Ziffr takes"],
       ["not JSON", () => ({ status: 200, body: "<html>" }), "cannot read"],
       ["an error", () => ({ status: 500, body: "{}" }), "cannot be reached"],
@@ -101,6 +112,33 @@ describe("the Marketplace connection", () => {
     await expect(searchMarketplace(w.actor(member, "member"), "x")).rejects.toThrow();
     await expect(searchMarketplace(w.actor(ann), "x")).resolves.toBeDefined();
     await expect(Promise.reject(new MarketplaceUnavailable())).rejects.toBeInstanceOf(MarketplaceUnavailable);
+  });
+
+  it("keeps a revocation the reserve key signed, and refuses the revoked key from then on", async () => {
+    const w = await ws(); const ann = await w.person("owner");
+    const serve = (answer: object) => { answers["GET /v1/packs/ziffr/saas-metrics/versions/1.2.0"] = () => ({ status: 200, body: JSON.stringify(answer) }); };
+    const read = () => readMarketplacePack(w.actor(ann), "ziffr/saas-metrics", "1.2.0");
+    // The signing key revoking the reserve key or itself, and a stranger revoking it: none counts.
+    serve({ ...keys.version(V120), revocations: [keys.revokes(reserve.id), keys.revokes(keys.id), testKeys().revokes(keys.id), "nonsense"] });
+    await expect(read()).resolves.toMatchObject({ ok: true });
+    expect((await db().from("marketplace_revoked_keys").select("key_id").in("key_id", [keys.id, reserve.id])).data).toEqual([]);
+    // The reserve key's revocation counts for the very answer it comes with.
+    serve({ ...keys.version(V120), revocations: [reserve.revokes(keys.id)] });
+    await expect(read()).rejects.toThrow("took out of use");
+    // Kept: an answer that leaves it out changes nothing, and the reserve key signs now.
+    serve(keys.version(V120));
+    await expect(read()).rejects.toThrow("took out of use");
+    serve(reserve.version(V120));
+    await expect(read()).resolves.toMatchObject({ ok: true });
+    await installFromMarketplace(w.actor(ann), "ziffr/saas-metrics", "1.2.0", { assistantTexts: true });
+  });
+
+  it("keeps a revocation that comes with the updates answer", async () => {
+    const w = await ws(); const ann = await w.person("owner");
+    await installFromMarketplace(w.actor(ann), "ziffr/saas-metrics", "1.2.0", { assistantTexts: true });
+    answers["POST /v1/updates"] = () => ({ status: 200, body: JSON.stringify({ updates: [], revocations: [reserve.revokes(keys.id)] }) });
+    await checkMarketplaceVersions(true);
+    await expect(readMarketplacePack(w.actor(ann), "ziffr/saas-metrics", "1.3.0")).rejects.toThrow("took out of use");
   });
 
   it("asks for updates once for the whole Installation, with no Workspace or person in it, and updates from the Marketplace", async () => {
