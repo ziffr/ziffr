@@ -138,6 +138,10 @@ const CASES: Record<string, Case> = {
   "connector-actions:simulatePromptAnswer": { reads: (i) => [i.promptDelivery, "42"] },
   "convert-actions:makeDeckFromSnapshot": { open: (i) => [i.snapshot] },
   "convert-actions:makeDeck": { open: (i) => [i.dashboard] },
+  // Onto a new deck, as addToDeck below.
+  "convert-actions:addSnapshotToDeck": { open: (i) => [i.snapshot, null] },
+  "deck-actions:readDeckNumbers": { reads: (i) => [[{ snapshotId: i.snapshot, parts: [0], metricIds: [] }]] },
+  "deck-actions:deckShareLeftOut": { reads: (i) => [i.deck] },
   "convert-actions:deckChoices": { reads: () => [] },
   // Clears this browser's own Add to deck… cookie; nothing of the demo.
   "convert-actions:doneAddingToDeck": { reads: () => [] },

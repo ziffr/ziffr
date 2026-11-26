@@ -108,7 +108,7 @@ export function AppShell({ workspace, settings, pinned: pinnedByServer, due, acc
         <SidebarInset>
           <header className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-3 py-1 max-md:py-0.5 md:px-4">
             <SidebarTrigger className="hidden md:flex" />
-            <Link href="/" className="text-base font-semibold tracking-[-0.03em] md:hidden">Ziffr</Link>
+            <Link href="/" className="inline-flex min-h-11 min-w-11 items-center text-base font-semibold tracking-[-0.03em] md:hidden">Ziffr</Link>
             {/* The demo's controls live in the sidebar footer like the signed-in menu; phones have no sidebar, so they keep this row. */}
             {demo && <div className="ml-auto flex items-center md:hidden">{demo}</div>}
             {/* Help opens in the side panel: for this screen from here, at the list of chapters from the sidebar's Help entry. */}

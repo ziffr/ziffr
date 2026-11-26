@@ -9,9 +9,10 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
-import { ArrowRight, Camera, Check, Eye, Link2, Pencil, Presentation, Trash2 } from "lucide-react";
+import { ArrowRight, Camera, Check, Eye, FilePlus2, Link2, Pencil, Presentation, Trash2 } from "lucide-react";
 import { deleteSnapshot, editSnapshotWords, showSnapshot } from "@/app/snapshot-actions";
-import { makeDeckFromSnapshot } from "@/app/convert-actions";
+import { MakeDeckDialog } from "@/components/make-deck-dialog";
+import { AddToDeckDialog } from "@/components/add-to-deck-dialog";
 import { useShowViewLinks } from "@/components/view-links";
 import { DashboardReader } from "@/components/dashboard-reader";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -40,11 +41,12 @@ function wordsOf(w: Widget): WidgetWords {
   return out;
 }
 
-/** The Snapshot page. `takenBy` is the name of whoever took it; `canCreate` may make a deck of it (#178);
+/** The Snapshot page. `takenBy` is the name of whoever took it; `canCreate` may put it on a deck (spec 0061);
  * `viewLinks` for the dashboard's owner, who may make View Links to it once it is shown. */
 export function SnapshotScreen({ snapshot: s, people, takenBy, canCreate = false, viewLinks = false }: { snapshot: OpenSnapshot; people: Profile[]; takenBy: string; canCreate?: boolean; viewLinks?: boolean }) {
   const router = useRouter();
   const [writing, setWriting] = useState(false);
+  const [deck, setDeck] = useState<"make" | "add" | null>(null);
   const showLinks = useShowViewLinks();
   const [pending, start] = useTransition();
   const { confirm, dialog } = useConfirm();
@@ -64,7 +66,7 @@ export function SnapshotScreen({ snapshot: s, people, takenBy, canCreate = false
         <span className="text-muted-foreground">taken {formatDate(s.takenAt)} by {s.automatic ? "Ziffr for " : ""}{takenBy}</span>
         {!s.shownAt && <span className="rounded-[var(--radius-input)] bg-card px-1.5 text-xs">Draft: only the dashboard&rsquo;s owner and Editors see it</span>}
         {s.shownAt && s.wordsChangedAt && <span className="text-xs text-muted-foreground">Words changed after it was shown, last on {formatDate(s.wordsChangedAt)}</span>}
-        <Link href={`/dashboards/${s.dashboardId}`} className="ml-auto flex items-center gap-1">See it live <ArrowRight aria-hidden className="size-3.5" /></Link>
+        <Link href={`/dashboards/${s.dashboardId}`} className="ml-auto flex items-center gap-1 max-md:min-h-11">See it live <ArrowRight aria-hidden className="size-3.5" /></Link>
         {s.hiddenParts > 0 && <p className="w-full text-xs text-muted-foreground">{s.hiddenParts === 1 ? "One part is" : `${s.hiddenParts} parts are`} not shown: {s.hiddenParts === 1 ? "it draws" : "they draw"} Metrics you may not see.</p>}
         {s.corrections.length > 0 && <Corrections snapshot={s} />}
       </div>
@@ -78,7 +80,10 @@ export function SnapshotScreen({ snapshot: s, people, takenBy, canCreate = false
         {s.canWrite && !s.shownAt && (
           <Button disabled={pending} onClick={() => run(() => showSnapshot(s.id), `${s.label} is shown to everyone who may open the dashboard`)}><Eye aria-hidden /> Show to everyone with access</Button>
         )}
-        {canCreate && <Button variant="outline" disabled={pending} onClick={() => run(() => makeDeckFromSnapshot(s.id))}><Presentation aria-hidden /> Make a deck</Button>}
+        {canCreate && <Button variant="outline" onClick={() => setDeck("make")}><Presentation aria-hidden /> Make a deck…</Button>}
+        {canCreate && s.shownAt && <Button variant="outline" onClick={() => setDeck("add")}><FilePlus2 aria-hidden /> Add to a deck…</Button>}
+        {deck === "make" && <MakeDeckDialog source={{ dashboardId: s.dashboardId, snapshot: { id: s.id, label: s.label, shown: Boolean(s.shownAt) } }} onClose={() => setDeck(null)} />}
+        {deck === "add" && <AddToDeckDialog snapshotId={s.id} open onOpenChange={(o) => { if (!o) setDeck(null); }} />}
         {viewLinks && <Button variant="outline" onClick={() => showLinks("dashboard", s.dashboardId, { id: s.id, label: s.label })}><Link2 aria-hidden /> View link</Button>}
         <VersionsSheet type="snapshot" id={s.id} people={people} />
         {s.canDelete && (

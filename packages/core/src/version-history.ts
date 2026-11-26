@@ -18,6 +18,7 @@ import { replaceDashboard } from "./dashboard-restore";
 import { ServerFault } from "./server-fault";
 import type { Format, ThemeSlides, ThemeTokens, WidgetSettings, WorkflowConfig } from "./types";
 import { keptUnit } from "./units";
+import { calculationNoteFrom } from "./calculation-note";
 import { saveWorkflow } from "./workflows";
 import { guestWorkflowIds } from "./period-timeline";
 import { restorableWords, sealedWords, snapshotAccess } from "./snapshots";
@@ -239,6 +240,8 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
       // would be refused (an input the Editor or the owner may not share, a Metric that is Derived since, itself).
       const { data: now } = await db().from("metrics").select("slug, period, owner_id, formula").eq("id", id).eq("workspace_id", ws).single();
       const patch = Object.fromEntries(fields.filter((f) => f in kept).map((f) => [f, kept[f]]));
+      // A Version without a Calculation Note had none, so a restore takes today's away (spec 0060).
+      patch.calculation_note = calculationNoteFrom(kept.calculation_note);
       if (now?.formula) {
         // Its period follows its inputs', and it has no Sources: those stay.
         delete patch.sources;

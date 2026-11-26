@@ -55,7 +55,7 @@ export default async function PeriodRecordPage({ params }: { params: Promise<{ s
       <Link href={`/metrics/${m.slug}?tab=history`} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> {m.name}</Link>
       <section className="stock rounded-[var(--radius-card)] p-5">
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link>
+          <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline max-md:-my-3 max-md:inline-flex max-md:min-h-11 max-md:min-w-11 max-md:items-center">{m.name}</Link>
           <span>{periodLabel(record.period, m.period, yearStart)}</span>
           {record.state && <span className={record.state === "locked" ? "pressed text-xs" : "rounded-[var(--radius-input)] border border-[var(--color-rule-2)] px-1.5 py-0.5 text-xs font-medium text-foreground"}>{STATE[record.state]}</span>}
         </div>
