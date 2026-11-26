@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { checkPack, checkPackValue, type Pack } from "./pack.js";
-import { comesFromWords, FEED_TEMPLATE_LABELS, includedAndNeeded, keptOverview, packOverview, readOverview, targetsRead } from "./comes-from.js";
+import { comesFromGroups, comesFromWords, FEED_TEMPLATE_LABELS, includedAndNeeded, keptOverview, packOverview, readOverview, targetsRead } from "./comes-from.js";
 import { FEED_TEMPLATE_IDS } from "./pack.js";
 
 const metric = (name: string, over: Record<string, unknown> = {}) => ({ format: "ziffr.metric/1" as const, name, period: "week" as const, aggregation: "last" as const, polarity: "higher" as const, ...over });
@@ -60,10 +60,10 @@ describe("the overview of a Pack", () => {
     expect(rows.get("gap")).toEqual({ key: "gap", name: "Gap", by: "calculated", of: ["Commit", "Quota"] });
     expect(rows.get("closed")).toEqual({ key: "closed", name: "Closed this quarter", by: "system", system: "CRM", templates: ["google-sheets", "excel"] });
     expect(rows.get("hours")).toEqual({ key: "hours", name: "Hours", by: "unsaid" });
-    expect(comesFromWords(rows.get("closed")!)).toEqual({ from: "Another system sends it: CRM", delivered: "Comes with an n8n template for Google Sheets and Microsoft Excel; you connect it." });
-    expect(comesFromWords(rows.get("pipeline")!).delivered).toBe("You set this up.");
-    expect(comesFromWords(rows.get("hours")!).from).toBe("The Pack does not say");
-    expect(comesFromWords(rows.get("commit")!)).toEqual({ from: "A person types it", delivered: "" });
+    expect(comesFromWords(rows.get("closed")!)).toEqual({ from: "Another system sends it: CRM", delivered: "Fill it from Google Sheets or Microsoft Excel (templates included); you connect one." });
+    expect(comesFromWords(rows.get("pipeline")!).delivered).toBe("Connect it with n8n, a SQL Feed or another program.");
+    expect(comesFromWords(rows.get("hours")!)).toEqual({ from: "Ask a person, or another system sends it", delivered: "A person answers by web form, email, Slack or Telegram; a system sends it with n8n, a SQL Feed or another program." });
+    expect(comesFromWords(rows.get("commit")!)).toEqual({ from: "Ask a person, or fill it from Microsoft Excel (template included)", delivered: "A person answers by web form, email, Slack or Telegram." });
   });
 
   it("reads a formula that only reads a target as a number set once", () => {
@@ -81,20 +81,51 @@ describe("the overview of a Pack", () => {
         "n8n templates for Google Sheets and Microsoft Excel",
       ],
       needed: [
-        "Someone who types Commit",
+        "Someone to ask for Commit",
+        "Someone to ask, or a system that sends the values, for Hours",
         "A connection to your CRM for Closed this quarter, using a delivered n8n template that you connect",
         "A connection to your CRM for Pipeline value, which you set up yourself",
         "A target, set once, on Quota",
-        "To decide where Hours comes from: the Pack does not say",
         "An Approver for the Workflow Weekly",
         "The dashboard and the people for the Snapshot of the Workflow Weekly",
       ],
     });
   });
 
+  /** The words for one number whose Pack states nothing, with these Sources and delivered templates. */
+  const silent = (sources: string[] | undefined, templates: "google-sheets"[] = []) => {
+    const pack = { feeds: templates.map((template) => ({ template, fills: ["n"] })), contents: { metrics: [{ key: "n", metric: metric("N", sources ? { sources } : {}) }] } };
+    const o = keptOverview(pack);
+    expect(readOverview(JSON.parse(JSON.stringify(o)))).toEqual(o);
+    return { ...comesFromWords(o.numbers[0]!), needed: includedAndNeeded(o).needed };
+  };
+
+  it.each([
+    ["only people may send it", ["web_form", "telegram"], [], "Ask a person", "A person answers by web form or Telegram.", "Someone to ask for N"],
+    ["a person or a program may", ["web_form", "api"], [], "Ask a person, or another system sends it", "A person answers by web form; a system sends it with n8n, a SQL Feed or another program.", "Someone to ask, or a system that sends the values, for N"],
+    ["only a program may", ["api"], [], "Another system sends it", "Connect it with n8n, a SQL Feed or another program.", "A system that sends the values for N"],
+    ["only a program may and a template fills it", ["api"], ["google-sheets"], "Fill it from Google Sheets (template included)", "Or connect another system with n8n, a SQL Feed or another program.", "A system that sends the values for N"],
+    ["a template fills it", undefined, ["google-sheets"], "Ask a person, or fill it from Google Sheets (template included)", "A person answers by web form, email, Slack or Telegram.", "Someone to ask, or a system that sends the values, for N"],
+    ["a template fills a number only people send", ["mail"], ["google-sheets"], "Ask a person, or fill it from Google Sheets (template included)", "A person answers by email.", "Someone to ask, or a system that sends the values, for N"],
+  ] as const)("says what is true of a number the Pack states nothing of: %s", (_what, sources, templates, from, delivered, needed) => {
+    const said = silent(sources && [...sources], [...templates]);
+    expect([said.from, said.delivered, said.needed]).toEqual([from, delivered, [needed]]);
+  });
+
+  it("puts numbers with the same answer in one group, and counts them instead of naming many", () => {
+    const names = ["Opened", "Closed", "Open", "Rated"];
+    const pack = { contents: { metrics: [...names.map((n) => ({ key: n.toLowerCase(), metric: metric(n) })), { key: "own", comesFrom: { by: "person" as const, note: "Ask the lead." }, metric: metric("Own") }] } };
+    const o = keptOverview(pack);
+    expect(comesFromGroups(o.numbers)).toEqual([
+      { keys: ["opened", "closed", "open", "rated"], names, from: "Ask a person, or another system sends them", delivered: "A person answers by web form, email, Slack or Telegram; a system sends them with n8n, a SQL Feed or another program." },
+      { keys: ["own"], names: ["Own"], from: "Ask a person", delivered: "A person answers by web form, email, Slack or Telegram.", note: "Ask the lead." },
+    ]);
+    expect(includedAndNeeded(o).needed).toEqual(["Someone to ask for Own", "Someone to ask, or a system that sends the values, for 4 numbers"]);
+  });
+
   it("is read back only in its shape", () => {
     expect(readOverview(JSON.parse(JSON.stringify(overview)))).toEqual(overview);
-    for (const bad of [undefined, null, "x", {}, { ...overview, extra: 1 }, { ...overview, numbers: [{ key: "a", name: "<img>", by: "person" }] }, { ...overview, numbers: [{ key: "a", name: "A", by: "system", system: "evil.com" }] }, { ...overview, numbers: [{ key: "a", name: "A", by: "system", templates: ["curl"] }] }])
+    for (const bad of [undefined, null, "x", {}, { ...overview, extra: 1 }, { ...overview, numbers: [{ key: "a", name: "<img>", by: "person" }] }, { ...overview, numbers: [{ key: "a", name: "A", by: "system", system: "evil.com" }] }, { ...overview, numbers: [{ key: "a", name: "A", by: "system", templates: ["curl"] }] }, { ...overview, numbers: [{ key: "a", name: "A", by: "unsaid", sources: ["webhook"] }] }])
       expect(readOverview(bad), JSON.stringify(bad)?.slice(0, 80)).toBeNull();
   });
 

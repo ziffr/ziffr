@@ -31,6 +31,10 @@ export type TotalInput = {
   targetMin?: number | null;
   targetMax?: number | null;
   polarity?: string;
+  /** The decimals shown; left out, the most any part shows. */
+  decimals?: number;
+  /** The Metric Catalog entry it is made from, as for any Metric. */
+  fromCatalogId?: number | null;
 };
 
 /** What is said where someone other than the owner would change an open Total, or its owner has not confirmed it. */
@@ -74,7 +78,7 @@ async function pickable(actor: Actor, all: Metric[], ids: number[]): Promise<Met
 
 /** Makes a Total owned by the actor from Metrics they own or edit. Refused with a reason they can be told (`Refused`),
  * and nothing stays behind then. Not open: nobody learns a number they could not add up themselves. */
-export async function createTotal(actor: Actor, input: TotalInput, effects: MetricEffects = metricEffects): Promise<{ id: number; slug: string }> {
+export async function createTotal(actor: Actor, input: TotalInput, effects: MetricEffects = metricEffects): Promise<{ id: number; slug: string; tagsLeftOut: string[] }> {
   assertCan(actor, "create");
   if (actor.key) throw new Forbidden();
   refuseInDemo(actor);
@@ -98,7 +102,7 @@ export async function createTotal(actor: Actor, input: TotalInput, effects: Metr
   const name = String(input.name ?? "").trim().slice(0, 120);
   // Made with Aggregation none, so no default Retention condenses a Metric that holds no values; the parts' follows.
   const made = await createMetric(actor, {
-    name, description: input.description, calculationNote: input.calculationNote, unit: first.unit, unitPosition: first.unit_position, format: first.format, decimals: Math.max(...parts.map((p) => p.decimals)),
+    name, description: input.description, calculationNote: input.calculationNote, unit: first.unit, unitPosition: first.unit_position, format: first.format, decimals: input.decimals ?? Math.max(...parts.map((p) => p.decimals)), fromCatalogId: input.fromCatalogId,
     period: first.period, polarity: (input.polarity ?? first.polarity) as Polarity, aggregation: "none", attainmentMethod: first.attainment_method, sources: [],
     ...(targets === "own" ? { targetMin: input.targetMin, targetMax: input.targetMax } : {}),
   }, effects);
@@ -111,7 +115,7 @@ export async function createTotal(actor: Actor, input: TotalInput, effects: Metr
   }
   await recordVersion("metric", made.id, actor.personId, { message: "Made to add up other Metrics" });
   await audit(actor, { kind: "metric.total_changed", object: { type: "metric", id: made.id, name }, details: { change: "made" } });
-  return { id: made.id, slug: made.slug };
+  return { id: made.id, slug: made.slug, tagsLeftOut: made.tagsLeftOut };
 }
 
 /** The Total, when the actor may change it: its owner and its Editors, at the screen, never in the demo. */

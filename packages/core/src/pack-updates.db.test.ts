@@ -61,17 +61,31 @@ const WITH_TOTAL: Pack = {
 };
 
 describe("updating a Pack", () => {
-  // Until #1226 builds Totals (spec 0058): refused whole, so no Total ever becomes a Metric that takes values.
-  it("refuses a Pack with a Total, installed or as a new version, and stores nothing of it", async () => {
+  // A Total (spec 0058) keeps what it adds up through installing and updating, and loses it when a version drops it.
+  it("keeps what a Total adds up, sees it as unchanged, and takes it away with a version that drops it", async () => {
     const { w, actor, id } = await setUp();
-    const before = await count("catalog_metrics", w.id);
-    const res = await readPackUpdate(actor, id, file(WITH_TOTAL));
-    expect(res.ok && res.plan.blocked).toContain("holds a Total");
-    await expect(updatePackFile(actor, id, file(WITH_TOTAL), yes)).rejects.toThrow("holds a Total");
-    await expect(installPackFile(actor, file({ ...WITH_TOTAL, id: "ziffr/team-commit" }), yes)).rejects.toThrow("holds a Total");
-    expect(await count("catalog_metrics", w.id)).toBe(before);
-    expect(await count("pack_installs", w.id)).toBe(1);
-    expect((await db().from("pack_installs").select("version").eq("id", id).single()).data!.version).toBe("1.2.0");
+    await updatePackFile(actor, id, file(WITH_TOTAL), yes);
+    expect((await row("catalog_metrics", w.id, "team-commit"))!.total).toEqual({ of: "commit", targets: "parts" });
+    expect((await row("catalog_metrics", w.id, "commit"))!.total).toBeNull();
+    // Never offered as a Metric that takes values.
+    expect((await metricCatalog(actor)).map((e) => e.name)).not.toContain("Team commit");
+    const again = await readPackUpdate(actor, id, file({ ...WITH_TOTAL, version: "1.3.1" }));
+    expect(again.ok && again.plan.items.every((i) => i.change === "same" && !i.changedHere)).toBe(true);
+    const plain = structuredClone(WITH_TOTAL);
+    plain.version = "1.4.0";
+    const entry = plain.contents.metrics!.find((m) => m.key === "team-commit")!;
+    delete entry.total;
+    entry.metric.formula = "{commit-all}";
+    entry.metric.aggregation = "sum";
+    plain.contents.metrics!.push({ key: "commit-all", metric: { format: "ziffr.metric/1", name: "All commit", period: "week", aggregation: "sum", polarity: "higher" } });
+    await updatePackFile(actor, id, file(plain), yes);
+    expect(await row("catalog_metrics", w.id, "team-commit")).toMatchObject({ total: null, formula: "{commit-all}" });
+  });
+
+  it("installs a Pack with a Total", async () => {
+    const w = await ws(); const ann = await w.person("owner");
+    await installPackFile(w.actor(ann), file(WITH_TOTAL), yes);
+    expect((await row("catalog_metrics", w.id, "team-commit"))!.total).toEqual({ of: "commit", targets: "parts" });
   });
 
   it("sees every copy as installed as unchanged", async () => {
