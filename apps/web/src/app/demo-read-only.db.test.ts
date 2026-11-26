@@ -360,6 +360,7 @@ const CASES: Record<string, Case> = {
   "version-actions:nameVersion": { nothing: "the demo has no Versions", open: () => [1, "Named"] },
   "version-actions:restoreVersion": { nothing: "the demo has no Versions", open: () => [1] },
   "version-actions:saveNamedVersion": { open: (i) => ["dashboard", i.dashboard, "A visitor's version"] },
+  "view-link-actions:emptyInLink": { reads: (i) => ["dashboard", i.dashboard, null] },
   "view-link-actions:listViewLinks": { reads: (i) => ["dashboard", i.dashboard] },
   "view-link-actions:createViewLink": { blocked: (i) => ["dashboard", i.dashboard, { label: "For the board", expires: day(7), frozen: false }] },
   "view-link-actions:shownSnapshots": { reads: (i) => [i.snapshotDashboard] },

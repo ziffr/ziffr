@@ -25,10 +25,11 @@ import { periodLabel, shiftPeriod, type YearStart } from "./periods";
 import { yearStartFor } from "./fiscal-year";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { attainmentMethodOf, numberStyleOf } from "./workspace-settings";
-import { getMetrics, getSeriesOf, getSeriesValues } from "./workspace-data";
+import { getMetrics, getSeriesOf, getSeriesValues, withInputs } from "./workspace-data";
+import { restsOnTotal } from "./totals";
 import type { AttainmentMethod } from "./attainment-method";
 import type { NumberStyle } from "./number-style";
-import type { Metric } from "./types";
+import type { Metric, Point } from "./types";
 
 /** The one last message of a person's day, once they have had their limit. */
 export const ALERT_LIMIT_NOTE = "More Alerts fired today. Open Ziffr to see them.";
@@ -96,8 +97,12 @@ export async function checkAlerts(metricId: number, opts: { imported?: boolean; 
     for (const m of hit) {
       const mine = alerts.filter((a) => a.metric_id === m.id);
       if (!mine.length) continue;
-      const view = await latestView(ctx, m);
-      if (view) for (const a of mine) await handle(ctx, m, a, view, !!opts.imported);
+      // A Total is worked out for each Alert's own person; any other Metric once.
+      const shared = restsOnTotal(m) ? null : await latestView(ctx, m);
+      for (const a of mine) {
+        const view = shared ?? (restsOnTotal(m) ? await latestView(ctx, m, a.person_id) : null);
+        if (view) await handle(ctx, m, a, view, !!opts.imported);
+      }
     }
   } catch (e) {
     console.error("Alerts could not be checked:", e instanceof Error ? e.message : e);
@@ -131,38 +136,48 @@ export async function alertContext(ws: string): Promise<Ctx> {
 
 /** The Metric's latest period with a value, as an Alert sees it; null without a value. Only the Metric's own periods:
  * a Display Period changes how a chart groups, never what an Alert looks at. */
-export async function latestView(ctx: Ctx, m: Metric): Promise<View | null> {
-  const series = (await getSeriesOf(ctx.ws, ctx.metrics, [m.id]))[m.slug] ?? [];
+export async function latestView(ctx: Ctx, m: Metric, person?: string): Promise<View | null> {
+  const { series, aims } = await seriesAsRead(ctx, m, person);
   const found = latestAndPrevious(series.map((p) => ({ period: p.period, value: plain(p.value) })));
   if (!found) return null;
   const { latest } = found;
   // Only the period right before counts as "the period before" (the Unusual Value check reads it so).
   const before = shiftPeriod(latest.period, m.period, -1);
-  return finishView(ctx, m, latest, found.previous?.period === before ? found.previous.value : null);
+  return finishView(ctx, m, latest, found.previous?.period === before ? found.previous.value : null, aims);
+}
+
+// A Metric's series as a message about it may use it. A number that rests on a Total is worked out for the one person it
+// goes to, and for no one where none is named; `aims` are then the targets added up for them.
+async function seriesAsRead(ctx: Ctx, m: Metric, person: string | undefined) {
+  const sight = restsOnTotal(m) && person !== undefined ? await seen(ctx, person) : null;
+  const aims: Record<number, Point[]> = {};
+  const series = await getSeriesOf(ctx.ws, ctx.metrics, [m.id], {}, sight ? { sees: (id) => sight.has(id), aims } : undefined);
+  return { series: series[m.slug] ?? [], aims };
 }
 
 /** The Metric's value for one given period as an Alert sees it, or null when that period has no value any more. Used to
  * build a Webhook's message when it is sent, so what it says is the value as it counts then (a value sent back since is
  * not told); the period is the one a Tell step fired for, not the latest. */
-export async function viewAt(ctx: Ctx, m: Metric, period: string): Promise<View | null> {
-  const series = (await getSeriesOf(ctx.ws, ctx.metrics, [m.id]))[m.slug] ?? [];
+export async function viewAt(ctx: Ctx, m: Metric, period: string, person?: string): Promise<View | null> {
+  const { series, aims } = await seriesAsRead(ctx, m, person);
   const points = series.map((p) => ({ period: p.period, value: plain(p.value) }));
   const at = points.find((p) => p.period === period);
   if (!at || at.value === null) return null;
   const before = shiftPeriod(period, m.period, -1);
-  return finishView(ctx, m, at, points.find((p) => p.period === before)?.value ?? null);
+  return finishView(ctx, m, at, points.find((p) => p.period === before)?.value ?? null, aims);
 }
 
 /** What a view needs besides the value itself: whether it waits for Approval, and the target for its period. */
-async function finishView(ctx: Ctx, m: Metric, latest: { period: string; value: string | null }, previous: string | null): Promise<View> {
-  const inputs = [m.id, ...(m.formula ? ctx.metrics.filter((x) => formulaInputs(m.formula!).includes(x.slug)).map((x) => x.id) : [])];
+async function finishView(ctx: Ctx, m: Metric, latest: { period: string; value: string | null }, previous: string | null, aims: Record<number, Point[]>): Promise<View> {
+  // What it is worked out from, a Total's parts too.
+  const inputs = withInputs(ctx.metrics, [m.id]);
   const [{ data: states }, { targets }] = await Promise.all([
     db().from("period_states").select("state").in("metric_id", inputs).eq("period_start", latest.period),
     getSeriesValues(ctx.ws, [m.id]),
   ]);
   // Waiting for Approval, or sent back: the value is not approved yet. No state at all (a Metric without a Workflow) counts.
   const pending = (states ?? []).some((s) => !isFinalState(s.state));
-  const t = targetFor(m, latest.period, targets[m.id]);
+  const t = targetFor(m, latest.period, m.total?.targets === "parts" ? aims[m.id] ?? [] : targets[m.id]);
   return { period: latest.period, value: latest.value, previous, pending, target: { min: t.min === null ? null : Number(t.min), max: t.max === null ? null : Number(t.max), value: t.value === null ? null : Number(t.value) } };
 }
 
@@ -190,7 +205,8 @@ async function handle(ctx: Ctx, m: Metric, a: Row, view: View, imported: boolean
     silent = true;
   }
   // A value that waits for Approval is not seen unless the person asked for it: nothing changes until it is approved.
-  if (view.value !== null && !valueCounts(view.pending ? "pending" : "published", a.include_unapproved)) return;
+  // A Total is read only once every Metric counted is final, whatever the Alert asks (spec 0058).
+  if (view.value !== null && !valueCounts(view.pending ? "pending" : "published", a.include_unapproved && !restsOnTotal(m))) return;
   const c = alertConditionOf(a)!;
   const holds = alertHolds(c, { metric: m, workspaceMethod: ctx.method, value: view.value, previous: view.previous, target: view.target, today: view.today, dueDate: view.due });
   const was = { state: a.state, firedPeriod: a.fired_period };

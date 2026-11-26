@@ -1,11 +1,12 @@
 // The parts of Totals as stored (GLOSSARY: Total; spec 0058), and what the Metric loader makes of them. Every loader
 // takes the workspace and reads nothing outside it; who is shown a Total's numbers is decided where they are worked out
 // (totals.ts), from what the reader sees.
+import { allowedBy, restsFor, type Allowed, type KeptData, type Rests } from "./total-views";
 import { Refused } from "./actor";
 import { db } from "./db";
 import { formulaInputs } from "./formula";
-import { allRows, mustRead } from "./workspace-data";
-import { totalNote, totalUnapproved, type TotalPart, type TotalsRead, type TotalsReader } from "./totals";
+import { allRows, getMetrics, mustRead } from "./workspace-data";
+import { restsOnTotal, totalNote, totalUnapproved, type TotalPart, type TotalsRead, type TotalsReader } from "./totals";
 import { NOT_FINAL_STATES } from "./value-state";
 import type { Metric, Point } from "./types";
 
@@ -83,4 +84,29 @@ export async function assertKeepsTotals(ws: string, now: Record<string, unknown>
   const { count, error } = await db().from("total_parts").select("total_id", { count: "exact", head: true }).eq("workspace_id", ws).eq("part_id", now.id as number);
   if (error) throw new Error("The change could not be saved.");
   if (count) throw new Refused("A Total adds this Metric up, so its period, unit, number format and Aggregation stay. Remove it from the Total first.");
+}
+
+/** What the numbers of some data rest on, as the Totals' lists stand now: what a copy of them keeps. Nothing is read
+ * where no Metric of the data rests on a Total. */
+export async function restsNow(ws: string, data: Omit<KeptData, "rests">): Promise<Rests | undefined> {
+  if (!data.metrics.some(restsOnTotal)) return undefined;
+  const all = await getMetrics(ws);
+  return restsFor(data, all, await readParts(ws));
+}
+
+/** Who is given what of a copy that rests on `rests`, as the Totals stand now: a reader who sees the Metrics `sees`
+ * says. Closing a Total takes effect on every copy. */
+export async function allowedNow(ws: string, rests: Rests | undefined, sees: (metricId: number) => boolean): Promise<Allowed> {
+  if (!rests) return () => false;
+  const open = new Set((await getMetrics(ws)).filter((m) => m.total?.open).map((m) => m.id));
+  return allowedBy(rests, open, sees);
+}
+
+/** Whether someone may be told a number of a Metric that rests on a Total, by a message written earlier: every Total it
+ * rests on is open, or they see every Metric it counts from now on. True for any other Metric. */
+export async function maySeeTotalsNow(ws: string, metrics: Metric[], metric: Metric, sees: (metricId: number) => boolean): Promise<boolean> {
+  if (!restsOnTotal(metric)) return true;
+  const read = metric.total ? [metric] : metrics.filter((m) => m.total && formulaInputs(metric.formula ?? "").includes(m.slug));
+  const parts = await readParts(ws);
+  return read.every((t) => t.total!.open || (parts[t.id] ?? []).every((p) => p.last !== null || sees(p.part)));
 }

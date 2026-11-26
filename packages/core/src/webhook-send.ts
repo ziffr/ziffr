@@ -156,7 +156,7 @@ async function personalAlertFired(send: Send, env: Omit<MessageEnvelope, "replyT
   const ctx = await alertContext(ws);
   const m = ctx.metrics.find((x) => x.id === metric.id);
   if (!m || m.archived_at) return null;
-  const view = await viewAt(ctx, m, period);
+  const view = await viewAt(ctx, m, period, personId);
   if (!view || view.value === null) return null;
   // A Derived Metric waits when any input waits, and who may see that input is not who owns the Derived Metric: its
   // waiting value is never sent out.

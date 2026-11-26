@@ -2,6 +2,7 @@
 // (slack-send.ts) and Telegram (telegram-send.ts). Internal to the core: these check no Actor and no claim, so only a
 // sender that has read the queued Delivery itself, and claimed it before it adds the link, calls them. The app never
 // imports from core/internal (.github/scripts/app-db-access.mjs).
+import { maySeeTotalsNow } from "../total-parts";
 import { db } from "../db";
 import { ARCHIVED_BEFORE_SENT } from "../archived-metrics";
 import { visibleDashboards, visibleMetricIds } from "../access";
@@ -82,7 +83,10 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
   if (d.kind === "alert" && d.alert_metric_id) {
     const metrics = await getMetrics(ws);
     const m = metrics.find((x) => x.id === d.alert_metric_id);
-    if (!m || m.archived_at || !d.recipient_id || !(await visibleMetricIds(ws, d.recipient_id, metrics)).has(m.id)) return "Not sent.";
+    if (!m || m.archived_at || !d.recipient_id) return "Not sent.";
+    const sight = await visibleMetricIds(ws, d.recipient_id, metrics);
+    // A Total closed while the message waited tells its numbers to no one who no longer may see them.
+    if (!sight.has(m.id) || !(await maySeeTotalsNow(ws, metrics, m, (id) => sight.has(id)))) return "Not sent.";
     // A Tell message (GLOSSARY: Tell) also stops when the person said "stop telling me" after it was queued.
     return toldStop(d);
   }

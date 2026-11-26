@@ -45,6 +45,7 @@ import { writeFormula, withSlugs } from "./pack-setup";
 import { emptyPlan, holdInvitation, type ImportPlan } from "./workspace-import-people";
 import { reserveIds } from "./sealed-columns";
 import { planRows, written } from "./record-value";
+import { restoreTotal } from "./total-changes";
 import type { WorkspaceExportReaderLimits, WorkspaceExportRecord, HeaderRecord, MetricRecord, ValueRecord } from "@ziffr/pack/workspace-export";
 import type { WorkflowConfig } from "./types";
 
@@ -101,7 +102,7 @@ export function importLimits(env: Record<string, string | undefined> = process.e
 export const importOffered = (env: Record<string, string | undefined> = process.env): boolean => !hostedByCloud(env);
 
 /** What an import did, as counts the progress page shows. Never a name or a number from the file. */
-export type ImportCounts = Partial<Record<"groups" | "themes" | "people" | "metrics" | "dashboards" | "decks" | "workflows" | "shares" | "targets" | "projections" | "values", number>> & {
+export type ImportCounts = Partial<Record<"groups" | "themes" | "people" | "metrics" | "totals" | "dashboards" | "decks" | "workflows" | "shares" | "targets" | "projections" | "values", number>> & {
   /** Values of Derived Metrics, which are computed and take none. */
   derivedValuesSkipped?: number;
   /** Tags a limit kept off their Metric. */
@@ -428,6 +429,13 @@ async function writePass(path: string, limits: WorkspaceExportReaderLimits, pers
       }
       case "metric":
         return metric(r);
+      case "total": {
+        const total = metrics.need(r.metric);
+        await restoreTotal(actor, total.id, r.targets, r.parts.map((p) => ({ id: metrics.need(p.metric).id, first: p.first, last: p.last ?? null })));
+        // Computed from now on: no values, Submitters or Workflow of the file go to it.
+        total.derived = true;
+        return bump("totals");
+      }
       case "dashboard": {
         await writeFormulas();
         const t = dashboardTemplateFromFile(r.dashboard);
@@ -553,7 +561,7 @@ async function writePass(path: string, limits: WorkspaceExportReaderLimits, pers
 
 /** The words of the step a kind of record belongs to, for the progress page. */
 const stepOf = (kind: WorkspaceExportRecord["kind"]): string =>
-  ({ header: "Reading the file", group: "Groups", theme: "Themes", person: "People", metric: "Metrics", dashboard: "Dashboards", deck: "Decks", workflow: "Workflows", share: "Shares", target: "Targets", projection: "Projections", value: "Values", end: "Finishing" })[kind];
+  ({ header: "Reading the file", group: "Groups", theme: "Themes", person: "People", metric: "Metrics", total: "Totals", dashboard: "Dashboards", deck: "Decks", workflow: "Workflows", share: "Shares", target: "Targets", projection: "Projections", value: "Values", end: "Finishing" })[kind];
 
 /** Target Series or Projection points of one Metric, held until a call can take them, in rising order as the file lists them. */
 class SeriesBuffer {

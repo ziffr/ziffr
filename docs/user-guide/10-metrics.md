@@ -450,7 +450,12 @@ A part of a total is often one person's number, so a Total's numbers are held mo
 
 Its owner can open it: **Also show this total to people who do not see every Metric…** on its page first lists what it adds up, who will newly see its numbers, whether one of them can then work out a single Metric's numbers, and the View Links, Snapshots and formulas that show it. After **Show it to them**, everyone who sees the Total sees its sums, past periods included, though never a name or value of a Metric they do not see. If one of those lists changed in the meantime, Ziffr shows them again. **Stop showing it to them** closes it at once; files already made cannot be taken back. Only the owner opens a Total, in the app: not an Editor, not an Admin, no program or assistant, and not in the demo. Handing it over closes it. The Audit Log records both.
 
-A View Link and a Snapshot do not carry a Total's numbers yet.
+The same rule holds everywhere, judged at the time of reading:
+
+- A **Snapshot** keeps with each period which Metrics it counted. Whoever opens it gets a period if they may see every one of those now, or the Total is open now. So closing a Total also hides it in older Snapshots.
+- A **View Link** shows a Total's numbers only while it is open, or where the link itself shows every Metric counted. Frozen links too. Before you make a link, the panel says which numbers would stay empty.
+- An **Alert** about a Total works with the numbers you may see, and waits until every value counted is approved, also if it asks for values not approved yet. A **Heads-up** about one Metric does the same; Heads-ups that compare two Metrics leave Totals out.
+- The **API** and the **MCP Server** give a program the periods its key's creator may see, and say that a Total is open and whether periods are left out. No program makes, changes, opens or closes one.
 
 #### Changing what it adds up
 
@@ -464,7 +469,7 @@ Under **What it adds up** on the Total's page, its owner and Editors:
 
 While a Total is open, only its owner changes the list, and confirms that those who see it learn the change, and through it a single Metric's numbers.
 
-A Metric that a Total adds up cannot be deleted, and its period, unit, number format and Aggregation stay until it is removed from the Total. A Total takes no values, has no Breakdown, Sources, Workflow or Retention of its own, and is not in the Workspace Export or a Pack yet.
+A Metric that a Total adds up cannot be deleted, and its period, unit, number format and Aggregation stay until it is removed from the Total. A Total takes no values and has no Breakdown, Sources, Workflow or Retention of its own. A [Workspace Export](16-workspace-settings.md) carries a Total where it holds every Metric the Total adds up; imported, it is closed. A Pack does not carry Totals yet, and **Download values** leaves them out as it leaves out calculated numbers.
 
 ### Retention
 

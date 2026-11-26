@@ -8,6 +8,8 @@
 // open the dashboard may open its Snapshots once they are shown, and sees in them only the Metrics they may see now,
 // as on the live dashboard; until then they are drafts for the dashboard's owner and Editors who see all they kept.
 // Losing access to the dashboard loses its Snapshots; losing a Metric loses it in every Snapshot too.
+import { allowedNow, restsNow } from "./total-parts";
+import type { KeptData } from "./total-views";
 import { recordedWidgets } from "./tag-widgets";
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { sendingLimit } from "./sending-limit";
@@ -191,7 +193,10 @@ export async function takeSnapshot(actor: Actor, dashboardId: number, period: { 
   await assertSeesMetrics(actor, metricIds);
   const full = await getCanvasData(ws, actor.personId, { seriesOf: metricIds });
   // The values of the Metric periods complete by the period's last day; Targets and Projections as they are now.
-  const data = dataAsOf(shownData(full, new Set(metricIds), dash.theme_id ?? null), p.end);
+  // The taker is given what they may see of each Total; what each period rested on is kept, for whoever reads it later.
+  const cut = dataAsOf(shownData(full, new Set(metricIds), dash.theme_id ?? null, () => true), p.end);
+  const rests = await restsNow(ws, cut);
+  const data: KeptData = rests ? { ...cut, rests } : cut;
   // Each widget keeps what drawing needs, nothing else.
   const kept = widgets.map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget);
   // The words are kept apart (and sealed, spec 0028) and every reader puts them back on the widgets: the frozen part
@@ -352,7 +357,9 @@ export async function forReader(actor: Pick<Actor, "personId" | "workspaceId"> &
   // The people frozen in it are those the person who took it saw: a Guest reads only themselves (peopleFor).
   const people = await peopleFor({ workspaceId: actor.workspaceId, personId: actor.personId, role: actor.role ?? "member" }, data.people);
   const kept = { ...data, people, metrics: data.metrics.map((m) => normalizeMetric(keptUnit(m))), yearStart, numberStyle, attainmentMethod: keptMethod(data.attainmentMethod) };
-  return { widgets: shown, data: shownData(kept, ids, themeId), hidden: widgets.length - shown.length };
+  // A Total's period the copy kept is given only if it is open now, or the reader sees every Metric counted in it then.
+  const totals = await allowedNow(actor.workspaceId, (data as KeptData).rests, (m) => visible.has(m));
+  return { widgets: shown, data: shownData(kept, ids, themeId, totals), hidden: widgets.length - shown.length };
 }
 
 /** What a View Link to a Snapshot shows (#178), read from the Snapshot each time it is opened: what it kept and the

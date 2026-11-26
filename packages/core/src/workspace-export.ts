@@ -9,6 +9,7 @@
 // rows, so no database or sign-in id is in the file; secrets, keys, Connector links and Webhooks have no record kind, and
 // each record is held to the format's closed schema by the writer. What does not fit the format is left out and said,
 // never cut short; the Audit Log records that it started and how it ended, never what it held.
+import { readParts } from "./total-parts";
 import { can, Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { audit, auditOrRefuse } from "./audit-log";
@@ -28,7 +29,7 @@ import { cleanSlideShapes, storedCovers, storedSlides } from "./templates";
 import { deckFile, settingsOf, slideShapeOf, titleOf, type TextFit } from "./pack-export";
 import { themeToFile } from "./theme-file";
 import { writeWorkspaceExport } from "./workspace-export-file";
-import { exportDocumentProblem, exportNumbersProblem, WORKSPACE_EXPORT_FORMAT, WORKSPACE_EXPORT_LIMITS, type MetricRecord, type PersonRecord, type ProjectionRecord, type TargetRecord, type ValueRecord, type WorkspaceExportRecord } from "@ziffr/pack/workspace-export";
+import { exportDocumentProblem, exportNumbersProblem, WORKSPACE_EXPORT_FORMAT, WORKSPACE_EXPORT_LIMITS, WORKSPACE_EXPORT_TOTALS_FORMAT, type HeaderRecord, type MetricRecord, type PersonRecord, type ProjectionRecord, type TargetRecord, type TotalRecord, type ValueRecord, type WorkspaceExportRecord } from "@ziffr/pack/workspace-export";
 import { readParents } from "@ziffr/pack/breakdown-parents";
 import { checkPackFormula, type FormulaEntry } from "@ziffr/pack/formula-check";
 import { TEMPLATE_VIEWS } from "@ziffr/pack/kinds";
@@ -131,7 +132,7 @@ type Plan = {
   workspaceName: string;
   yearStart: number;
   /** The Metrics whose numbers follow, by label in the order the file lists them (code units). */
-  metrics: { label: string; id: number; period: Metric["period"]; polarity: Metric["polarity"]; derived: boolean; name: string }[];
+  metrics: { label: string; id: number; period: Metric["period"]; polarity: Metric["polarity"]; derived: boolean; name: string; noTargets?: boolean }[];
 };
 
 const MAX_TAGS = WORKSPACE_EXPORT_LIMITS.tags;
@@ -256,20 +257,28 @@ async function metricRecords(c: Ctx): Promise<void> {
     const note = fit.plain(m.calculation_note, WORKSPACE_EXPORT_LIMITS.metricCalculationNote);
     const unit = fit.plain(m.unit, 20);
     if (!name || description === null || note === null || unit === null) { skip("Metric", m.name || "(unnamed)", `Left out: ${over[0] ?? "it has no name"}.`); continue; }
-    if (m.total) { skip("Metric", name, "Left out: a Total is not in the export yet."); continue; }
     let formula: string | undefined;
-    if (m.formula) formula = m.formula.replace(/\{([a-z0-9-]+)\}/g, (all, slug: string) => (bySlug.has(slug) ? `{${keyOf.get(bySlug.get(slug)!.id)}}` : all));
+    // A Total's formula only names its parts for the core's own rules: its list goes in a record of its own.
+    if (m.formula && !m.total) formula = m.formula.replace(/\{([a-z0-9-]+)\}/g, (all, slug: string) => (bySlug.has(slug) ? `{${keyOf.get(bySlug.get(slug)!.id)}}` : all));
     const file: MetricFile = {
       // The newer format only for a Metric that has a Calculation Note, so an older Ziffr reads every other (spec 0060).
       format: note ? "ziffr.metric/2" : "ziffr.metric/1", name, ...(description ? { description } : {}), ...(note ? { calculationNote: note } : {}), period: m.period, aggregation: m.aggregation, polarity: m.polarity,
       ...(unit ? { unit } : {}), unitPosition: m.unit_position, valueFormat: m.format, decimals: m.decimals, submissionRule: m.submission_rule,
       ...(m.target_min !== null && m.target_min !== undefined ? { targetMin: Number(m.target_min) } : {}), ...(m.target_max !== null && m.target_max !== undefined ? { targetMax: Number(m.target_max) } : {}),
       ...(m.attainment_method ? { attainmentMethod: m.attainment_method } : {}),
-      ...(formula ? { formula } : { sources: (m.sources ?? []).filter((s) => SOURCES.has(s)) as MetricFile["sources"] }),
+      ...(formula ? { formula } : m.total ? {} : { sources: (m.sources ?? []).filter((s) => SOURCES.has(s)) as MetricFile["sources"] }),
     };
     const problem = exportDocumentProblem("metric", file);
     if (problem) { skip("Metric", name, `Left out: ${problem}`); continue; }
     files.set(m.id, file);
+  }
+  // A Total stays only where every Metric it adds up, past ones too, is in the file: a shorter list would add up wrong.
+  // Which is missing is not said, as the Total's page does not say it.
+  const lists = candidates.some((m) => m.total && files.has(m.id)) ? await readParts(ws) : {};
+  for (const m of candidates) {
+    if (!m.total || !files.has(m.id) || (!m.inputs_withheld && (lists[m.id] ?? []).every((p) => files.has(p.part)))) continue;
+    skip("Metric", m.name, "Left out: it adds up Metrics that are not in the file.");
+    files.delete(m.id);
   }
   // A Derived Metric stays only while the Metrics its formula names do (and its formula holds): drop until nothing changes.
   for (let again = true; again;) {
@@ -287,7 +296,7 @@ async function metricRecords(c: Ctx): Promise<void> {
     if (!file) continue;
     const label = `m${metricLabel.size + 1}`;
     metricLabel.set(m.id, label);
-    metrics.push({ label, id: m.id, period: m.period, polarity: m.polarity, derived: m.formula !== null, name: file.name });
+    metrics.push({ label, id: m.id, period: m.period, polarity: m.polarity, derived: m.formula !== null, name: file.name, ...(m.total?.targets === "parts" ? { noTargets: true } : {}) });
     const seenTag = new Set<string>();
     const names = (tags.get(m.id) ?? []).filter((t) => {
       const key = t.toLowerCase();
@@ -303,6 +312,12 @@ async function metricRecords(c: Ctx): Promise<void> {
     const owner = personLabel.get(m.owner_id);
     const rec: MetricRecord = { kind: "metric", id: label, key: keyOf.get(m.id)!, metric: file, ...(names.length ? { tags: names.slice(0, MAX_TAGS) } : {}), ...(owner ? { owner } : {}), ...(submitters.length ? { submitters } : {}) };
     records.push(rec);
+  }
+  // After every Metric, so a list names only Metrics already read.
+  for (const m of candidates) {
+    if (!m.total || !files.has(m.id)) continue;
+    const parts = (lists[m.id] ?? []).map((p) => ({ metric: metricLabel.get(p.part)!, first: p.first, ...(p.last ? { last: p.last } : {}) }));
+    records.push({ kind: "total", metric: metricLabel.get(m.id)!, targets: m.total.targets, open: m.total.open, parts } satisfies TotalRecord);
   }
   if (contactSubmitters) skip("Submitters", `${contactSubmitters} Contact${contactSubmitters === 1 ? "" : "s"} or people without an email address`, "Not in the file as Submitters: a Contact's details never travel, and a person without an address cannot be invited.");
 
@@ -496,6 +511,8 @@ async function plan(actor: Actor): Promise<Plan> {
   const kinds = new Map<string, number>();
   for (const r of records) kinds.set(r.kind, (kinds.get(r.kind) ?? 0) + 1);
   for (const [kind, max] of Object.entries(WORKSPACE_EXPORT_LIMITS.perKind)) if ((kinds.get(kind) ?? 0) > max) throw new Error(`This Workspace has more ${kind} records than a Workspace Export holds (${max.toLocaleString("en")}).`);
+  // A file that holds a Total is the newer format, which an older Ziffr refuses by name (spec 0058).
+  if (records.some((r) => r.kind === "total")) (records[0] as HeaderRecord).format = WORKSPACE_EXPORT_TOTALS_FORMAT;
   return { records, leftOut, workspaceName: headerName, yearStart, metrics };
 }
 
@@ -520,6 +537,8 @@ async function* numbersOf(actor: Actor, m: Plan["metrics"][number], yearStart: n
   // end of the range for a Metric where lower is better, the lower end otherwise (compare.ts, targetFor).
   const series = await allRows<Record<string, unknown>>((from, to) => db().from("series_values").select("id, kind, period_start, value, value_sealed").eq("workspace_id", ws).eq("metric_id", m.id).order("kind").order("period_start").order("id").range(from, to));
   for (const r of (await openRows("series_values", ws, series.map((s) => ({ ...s, metric_id: m.id })))) as unknown as { kind: string; period_start: string; value: unknown }[]) {
+    // A Total that takes its Metrics' targets has none of its own to carry.
+    if (m.noTargets && r.kind === "target") continue;
     if (typeof r.value !== "number") { tally.leftOut++; continue; }
     const record: TargetRecord | ProjectionRecord = r.kind === "target"
       ? { kind: "target", metric: m.label, period: r.period_start, ...(m.polarity === "lower" ? { max: r.value } : { min: r.value }) }
