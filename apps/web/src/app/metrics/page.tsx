@@ -14,7 +14,7 @@ import { Change, COLOUR_LEGEND, TargetChip } from "@/components/target-chip";
 import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 import { inUse, isArchived } from "@ziffr/core/metric-row";
 import { cn } from "@/lib/utils";
-import { MetricExportBar, METRIC_EXPORT_FORM } from "@/components/metric-export-bar";
+import { MetricExportBar, MetricTick, SelectAllMetrics } from "@/components/metric-export-bar";
 import { EXPORT_METRICS } from "@ziffr/core/metric-values-export";
 import { QuickLookButton } from "@/components/metric-quick-look";
 import { TagChips } from "@/components/tag-chips";
@@ -44,6 +44,8 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
   // A Tag's count is what this view lists: Archived Metrics count under Archived only.
   const offered = sight.tags.map((t) => ({ name: t.name, n: showArchived ? t.archived : t.metrics - t.archived })).filter((t) => t.n > 0 || pickedKeys.has(t.name.toLowerCase()));
   const toggled = (name: string) => (pickedKeys.has(name.toLowerCase()) ? picked.filter((p) => p.toLowerCase() !== name.toLowerCase()) : [...picked, name]);
+  // Which rows are shown, so the ticks are counted again when a filter changes them (spec 0056).
+  const listed = metrics.map((m) => m.slug).join(" ");
   const filter = (archived: boolean) => cn("inline-flex min-h-11 items-center rounded-[var(--radius-input)] px-3 no-underline sm:min-h-0 sm:px-2.5 sm:py-1", archived === showArchived ? "stock font-medium" : "text-muted-foreground hover:bg-muted");
   return (
     <>
@@ -94,14 +96,13 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
         </div>
       ) : (
         <>
-        {!demo && <MetricExportBar max={EXPORT_METRICS} />}
         <p className="mb-2 text-xs text-muted-foreground">{COLOUR_LEGEND}</p>
         <div className="stock overflow-x-auto rounded-[var(--radius-card)]">
           <table className="w-full text-sm max-sm:block">
             <caption className="sr-only">Metrics with their latest value, change, trend, target and owner</caption>
             <thead className="max-sm:sr-only">
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th scope="col" className="w-12 py-2.5 pl-3 max-sm:hidden"><span className="sr-only">Select</span></th>
+                {!demo && <th scope="col" className="w-14 pl-3 font-normal max-sm:hidden"><span className="sr-only">Select</span><SelectAllMetrics list={listed} /></th>}
                 <th scope="col" className="px-4 py-2.5 font-medium">Metric</th>
                 <th scope="col" className="px-4 py-2.5 text-right font-medium">Latest</th>
                 <th scope="col" className="px-4 py-2.5 text-right font-medium">Change</th>
@@ -119,13 +120,9 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
                 const change = last && prev && prev.value ? (last.value - prev.value) / Math.abs(prev.value) : null;
                 return (
                   <tr key={m.id} className="group relative cursor-pointer border-b border-border last:border-0 hover:bg-[var(--color-paper-2)] max-sm:flex max-sm:flex-wrap max-sm:items-center max-sm:gap-x-5 max-sm:px-4 max-sm:py-3">
-                    <td className="relative z-10 w-12 pl-3 max-sm:absolute max-sm:right-1 max-sm:top-1 max-sm:w-auto max-sm:p-0">
-                      {/* Above the row's stretched link; part of the download form above the list (spec 0056). */}
-                      <label className="flex size-11 cursor-pointer items-center justify-center sm:size-8">
-                        {!demo && <input type="checkbox" name="metric" value={m.slug} form={METRIC_EXPORT_FORM} aria-label={`Select ${m.name}`} className="size-4" />}
-                      </label>
-                    </td>
-                    <td className="px-4 py-3 max-sm:w-full max-sm:p-0 max-sm:pr-10">
+                    {/* Above the row's stretched link; part of the download form below the list (spec 0056). */}
+                    {!demo && <td className="relative z-10 w-14 pl-3 max-sm:absolute max-sm:right-1 max-sm:top-1 max-sm:w-auto max-sm:p-0"><MetricTick slug={m.slug} name={m.name} derived={Boolean(m.formula)} /></td>}
+                    <td className={cn("px-4 py-3 max-sm:w-full max-sm:p-0", !demo && "max-sm:pr-12")}>
                       <Link href={`/metrics/${m.slug}`} className="font-medium no-underline after:absolute after:inset-0 group-hover:underline">
                         {m.name}
                       </Link>
@@ -153,6 +150,8 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
             </tbody>
           </table>
         </div>
+        {/* The demo does not offer the download (spec 0056). */}
+        {!demo && <MetricExportBar max={EXPORT_METRICS} list={listed} />}
         </>
       )}
     </>

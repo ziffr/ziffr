@@ -323,6 +323,12 @@ export async function trialValuesCsv(actor: Actor): Promise<string> {
 /** A Workspace's values as CSV (see trialValuesCsv), of every Metric or only of the ones given. For callers that
  * checked who may read them. */
 export async function valuesCsv(workspaceId: string, only: ReadonlySet<number> | null): Promise<string> {
+  return `${(await valueLines(workspaceId, only)).join("\r\n")}\r\n`;
+}
+
+/** The lines of valuesCsv, the header first and then one per value, for a caller that also counts them. A read that
+ * fails throws: a file is never handed out with values missing. For callers that checked who may read them. */
+export async function valueLines(workspaceId: string, only: ReadonlySet<number> | null): Promise<string[]> {
   const [{ data: sealedRows }, style] = await Promise.all([
     db().from("metrics").select("id, slug, name, period, unit, aggregation").eq("workspace_id", workspaceId),
     numberStyleOf(workspaceId),
@@ -333,7 +339,8 @@ export async function valuesCsv(workspaceId: string, only: ReadonlySet<number> |
   const sep = NUMBER_STYLE_MARKS[style].decimal === "," ? ";" : ",";
   const cell = (v: unknown) => {
     const s = String(v ?? "");
-    return `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    // The full-width signs and a line feed start a formula in some spreadsheets too.
+    return `"${(/^[=+\-@\t\r\n\uFF1D\uFF0B\uFF0D\uFF20]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
   };
   // A value is ours, never text someone typed: a minus is a negative number, not a formula.
   const number = (v: unknown) => `"${csvNumber(Number(v), style)}"`;
@@ -343,8 +350,9 @@ export async function valuesCsv(workspaceId: string, only: ReadonlySet<number> |
   const condensed = await condensedFor(workspaceId, metrics.map((m) => m.id as number));
   for (const m of metrics) {
     for (let from = 0; ; from += 1000) {
-      const { data: rows } = await db().from("observations").select("id, period_start, value, value_sealed, source, created_at").eq("workspace_id", workspaceId).eq("metric_id", m.id)
+      const { data: rows, error } = await db().from("observations").select("id, period_start, value, value_sealed, source, created_at").eq("workspace_id", workspaceId).eq("metric_id", m.id)
         .order("period_start").order("id").range(from, from + 999);
+      if (error) throw new Error("The values could not be read. Try again in a moment.");
       // A period a Condensed Value stands for is written once, as it, even while its originals are not deleted yet.
       for (const r of (await openRows("observations", workspaceId, (rows ?? []) as Record<string, unknown>[])).filter((x) => typeof x.value === "number" && !inCondensed(condensed[m.id as number] ?? [], String(x.period_start)))) lines.push([cell(m.slug), cell(m.name), cell(m.period), cell(r.period_start), number(r.value), cell(m.unit), cell(r.source), cell(r.created_at), cell(""), cell("")].join(sep));
       if (!rows || rows.length < 1000) break;
@@ -354,5 +362,5 @@ export async function valuesCsv(workspaceId: string, only: ReadonlySet<number> |
       if (value !== undefined) lines.push([cell(m.slug), cell(m.name), cell(c.into), cell(c.period), number(value), cell(m.unit), cell("condensed"), cell(c.condensedOn), cell(c.periodEnd), cell(c.held)].join(sep));
     }
   }
-  return `${lines.join("\r\n")}\r\n`;
+  return lines;
 }

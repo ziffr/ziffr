@@ -57,6 +57,14 @@ describe("exportMetricValues", () => {
     expect(csv).not.toContain(costs.slug);
   });
 
+  it("includes an Archived Metric's values, and gives nothing to someone without a membership", async () => {
+    const { w, sara, revenue } = await base();
+    await w.patchMetric(revenue.id, { archived_at: new Date().toISOString() });
+    expect((await exportMetricValues(w.actor(sara, "member"), [revenue.slug])).rows).toBe(2);
+    await w.dropMember(sara);
+    await expect(exportMetricValues(w.actor(sara, "member"), [revenue.slug])).rejects.toBeInstanceOf(Forbidden);
+  });
+
   it("refuses an Access Key, the demo and a list that is too long", async () => {
     const { w, sara, revenue } = await base();
     await expect(exportMetricValues({ ...w.actor(sara, "member"), key: { id: "k", scopes: ["read"] } } as never, [revenue.slug])).rejects.toBeInstanceOf(Forbidden);

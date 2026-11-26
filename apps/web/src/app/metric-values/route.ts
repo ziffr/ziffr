@@ -15,8 +15,10 @@ export async function GET(req: Request) {
   if (site !== null && site !== "same-origin" && site !== "none") return new Response("Not allowed.", { status: 403, headers });
   // Untrusted: at most one more than the limit is read, so the core can refuse a longer list in words.
   const slugs = new URL(req.url).searchParams.getAll("metric").slice(0, EXPORT_METRICS + 1);
+  // Outside the try: a redirect to sign in is Next.js's, not a refusal to put into words.
+  const actor = await currentActor();
   try {
-    const { csv } = await exportMetricValues(await currentActor(), slugs);
+    const { csv } = await exportMetricValues(actor, slugs);
     return new Response(csv, { headers: { ...headers, "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="ziffr-values.csv"' } });
   } catch (e) {
     const words = forPeople(e);
