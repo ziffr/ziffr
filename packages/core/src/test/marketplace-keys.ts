@@ -1,7 +1,7 @@
 // Marketplace Keys for tests (specs 0030 and 0059, #278, #1193): a key pair with the public key as Ziffr takes it, and
 // answers signed as a Marketplace signs them. Test keys only: nothing here is a key of any Marketplace.
 import { generateKeyPairSync, sign } from "node:crypto";
-import { marketplaceKeyId, packSha256, REVOCATION_FORMAT, STATEMENT_FORMAT, type SignedText } from "@ziffr/pack/marketplace";
+import { marketplaceKeyId, packSha256, REVOCATION_FORMAT, STATEMENT_FORMAT, WITHDRAWAL_FORMAT, type SignedText } from "@ziffr/pack/marketplace";
 
 /** A key pair as a Marketplace would hold one, the public key as Ziffr takes it (base64 of the raw 32 bytes). */
 export function testKeys() {
@@ -19,6 +19,10 @@ export function testKeys() {
     version(file: string, change: Record<string, unknown> = {}) {
       const pack = JSON.parse(file) as { id: string; version: string };
       return { file, ...signed({ format: STATEMENT_FORMAT, id: pack.id, version: pack.version, sha256: packSha256(file), key: id, signed: "2026-11-26T09:00:00Z", reviewed: false, ...change }) };
+    },
+    /** A statement that a Pack is withdrawn, or with `state` "restored" that it no longer is. */
+    withdraws(pack: string, sequence: number, change: Record<string, unknown> = {}) {
+      return signed({ format: WITHDRAWAL_FORMAT, id: pack, state: "withdrawn", ...(change.state === "restored" ? {} : { reason: "It copied another Pack." }), sequence, key: id, signed: "2026-11-26T09:00:00Z", ...change });
     },
     /** A revocation of another key, signed by this one. */
     revokes: (key: string) => signed({ format: REVOCATION_FORMAT, key, signed: "2026-11-26T09:00:00Z" }),

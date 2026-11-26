@@ -10,7 +10,7 @@ One https address, such as `https://marketplace.ziffr.net`. Everything below is 
 | --- | --- | --- |
 | `GET v1/packs?q=` | definition `packs` | 256 KiB; Ziffr reads the first 50 |
 | `GET v1/packs/{handle}/{slug}/versions/{version}` | definition `version` | the file at most 1 MiB |
-| `POST v1/updates` with definition `updatesRequest` | definition `updates` | 256 KiB; Ziffr reads the first 500 |
+| `POST v1/updates` with definition `updatesRequest` | definition `updates` | 1 MiB; Ziffr reads the first 500 |
 
 With an empty `q`, `v1/packs` answers the newest Packs, newest first.
 
@@ -69,17 +69,37 @@ A reader trusts public keys, each with a part: the **signing** key signs stateme
 { "statement": "{\"format\":\"ziffr.key-revocation/1\",\"key\":\"…\",\"signed\":\"2026-11-26T09:00:00Z\"}", "signature": "…==" }
 ```
 
-A revocation signed by any other key, or naming a reserve key, counts for nothing. Ziffr keeps a revocation that holds and refuses that key's statements from then on. After a revocation the reserve key signs statements, so a Marketplace signs every published version again and sends the revocation with each answer.
+A revocation signed by any other key, or naming a reserve key, counts for nothing. Ziffr keeps a revocation that holds and refuses that key's statements from then on. After a revocation the reserve key signs statements, so a Marketplace signs every published version and every withdrawal again and sends the revocation with each answer.
 
 ## The updates question
 
 Ziffr asks at most once a day, for the whole Installation. It sends its version and the Packs installed from the Marketplace, each once with its oldest installed version, and nothing else.
 
 ```json
-{ "updates": [ { "id": "ziffr/sales", "version": "1.2.0" } ], "withdrawn": [ { "id": "someone/club", "reason": "It copied another Pack." } ] }
+{ "updates": [ { "id": "ziffr/sales", "version": "1.2.0" } ], "withdrawals": [ { "statement": "{\"format\":\"ziffr.pack-withdrawal/1\", …}", "signature": "…==" } ] }
 ```
 
-A withdrawal's `reason` is plain text of at most 200 characters, with no markup and no web address. When `withdrawn` is there it is the whole list for the Packs asked about. A withdrawn Pack has no update, and its version requests answer 404.
+## Withdrawals
+
+A Pack is withdrawn, and a withdrawal is taken back, only by a signed statement. `withdrawals` carries, for each asked Pack that was ever withdrawn, its newest one:
+
+```json
+{ "format": "ziffr.pack-withdrawal/1", "id": "someone/club", "state": "withdrawn", "reason": "It copied another Pack.", "sequence": 1795683600, "key": "…", "signed": "2026-11-26T09:00:00Z" }
+```
+
+| Field | What it is |
+| --- | --- |
+| `id` | The Pack |
+| `state` | `withdrawn`, or `restored` when the withdrawal is taken back |
+| `reason` | With `withdrawn` only: plain text of at most 200 characters, with no markup and no web address |
+| `sequence` | A whole number, higher in every later statement about the same Pack. A service may use the moment of signing in seconds, or one more than its last number when that is higher |
+| `key`, `signed` | As in the statement about a file |
+
+Ed25519 signs the statement's exact bytes, and the same keys count as for a file: a signing key that is not revoked, or a reserve key that has revoked one.
+
+Ziffr keeps the statement with the highest sequence it has seen for each Pack it asks about. An answer that leaves a Pack out, or repeats an older statement, changes nothing: only a newer statement does. A statement signed by a key revoked since is no longer believed, and a statement of a trusted key replaces it whatever its sequence, so after a revocation a Marketplace signs every withdrawal and restoration again, as it does every version.
+
+A withdrawn Pack has no update, and its version requests answer 404.
 
 ## Check your answers
 

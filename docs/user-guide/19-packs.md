@@ -186,7 +186,7 @@ While the Marketplace connection is on, a Pack from the Marketplace shows **Repo
 
 ## A withdrawn Pack
 
-A Marketplace can withdraw a Pack, for example when it copied someone's work or turned out to mislead. Ziffr learns this with its daily question about newer versions, which it asks when an Owner or Admin opens the Packs page. The Pack in **Installed in this Workspace** then says **Withdrawn from the Marketplace**, with the reason and **What you installed stays as it is.** Everyone who sees the installed Packs sees the line. Nothing is removed or changed: your Metrics, templates and Themes stay. No update is offered, and the Pack cannot be installed from the Marketplace again. If you no longer want it, **Uninstall…** it as any other Pack. When the Marketplace takes the withdrawal back, the line goes with the next answer.
+A Marketplace can withdraw a Pack, for example when it copied someone's work or turned out to mislead. Ziffr learns this with its daily question about newer versions, which it asks when an Owner or Admin opens the Packs page. The Pack in **Installed in this Workspace** then says **Withdrawn from the Marketplace**, with the reason and **What you installed stays as it is.** Everyone who sees the installed Packs sees the line. Nothing is removed or changed: your Metrics, templates and Themes stay. No update is offered, and the Pack cannot be installed from the Marketplace again. If you no longer want it, **Uninstall…** it as any other Pack. Ziffr believes a withdrawal only when the Marketplace signed it. The line goes when an answer carries the Marketplace's signed word that it takes the withdrawal back; an answer that merely says nothing about the Pack changes nothing.
 
 ## Updating a Pack
 
