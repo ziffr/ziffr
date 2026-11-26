@@ -610,15 +610,19 @@ The page is drawn in the look of the Workspace's team default Theme: a header ro
 The form shows:
 
 - "Hi …, please report", then the Metric's name and description.
-- **For** the period the value will be recorded for: the period running today. If that period already has a value, the form says so and names the Submission Rule, such as "already has 84,000 € (overwrite with the newer value)".
+- **For** the period running today. A number you type alone is recorded for it. If that period already has a value, the form says so and names the Submission Rule, such as "already has 84,000 € (overwrite with the newer value)".
 - When the request went by several ways and was already answered on Slack, Telegram or email, a note says **Already answered on** that way. A new value here still follows the Submission Rule.
 - The value, labelled with the Metric's name. Type it as you would write it.
 - **Breakdown (optional)**: paste two columns from a spreadsheet, one row per line, such as country and revenue, or choose **Load a CSV file**. Add a third column headed **Parent** (or **Eltern**) with the name of another row, and the row is a part of it (leave the cell empty for a row at the top; without that heading a third cell is read as it always was); a CSV file may use commas for the three columns. Ziffr says how many rows it read, reading each number the way your Workspace writes them. If you leave the value empty, it becomes the sum of the rows. If you fill in both and they differ, the value you typed counts.
-- **Submit**: sends the value. The form then says what happened, for example that the value was recorded, added up, replaced, refused because the period already has one, or sent to the Metric Owner because the period is locked. If the Metric has a Workflow, it also says what the Workflow does next, such as asking for Approval. The form shows only what Ziffr answered to your own submission: reloading the page or opening a link with extra words in its address shows the empty form again.
+- **Submit**: sends the value. The form then says what happened, for example that the value was recorded, added up, replaced, refused because the period already has one, or sent to the Metric Owner because the period is locked. If the Metric has a Workflow, it also says what the Workflow does next, such as asking for Approval, without giving a reason or saying who is asked. The form shows only what Ziffr answered to your own submission: reloading the page or opening a link with extra words in its address shows the empty form again.
 
 When Ziffr cannot read the value, the reason appears under the field, such as "Type a number, such as 88 or 1,250." (the example follows your Workspace's number style). What you typed stays in the field and the cursor returns to it, so you can correct it and submit again. The field is emptied only after a value was recorded.
 
 At the bottom, **Open metric** leads to the Metric's page, for those who may sign in and see it.
+
+### Which periods the form link records
+
+A form link records the current period or one you were asked for. To send a value for an earlier period, name it with the number, such as "October 5". Ziffr takes it when it asked you (this link) for that period, you have not answered, and its value is still due: no value is in for it, from you or anyone else who submits the Metric, and it is not too old (a Due Date at most 90 days ago or, for a Metric without a Workflow, the period that ended last). A **Locked** one among them goes to the Metric Owner as a proposed Correction. For any other period nothing is recorded, and the form says so. Signed in, use **Record a value** on the Metric's page for an earlier period.
 
 Where the Workspace has Telegram on, the form also offers **Connect Telegram**: it gives a link that opens Ziffr's Telegram bot, valid for ten minutes. Tap **Start** there, and requests for numbers then reach you in Telegram as well. Once connected, the form says so. To stop, send `/stop` to the bot in Telegram; only then can the form connect another Telegram account. A form cannot disconnect, so a forwarded form link never moves your messages to someone else's Telegram. Only a Contact sees this on the form: members connect Telegram signed in, on the Connectors page.
 

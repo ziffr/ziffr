@@ -262,8 +262,9 @@ export async function valueOutlook(metricId: number, submitterId: string, entere
  * the Workflow works on; one for that period or later waits like any value, so a Feed closing the month is approved.
  * When nobody but the submitter could approve it, the submitter checks it (GLOSSARY: Self-check) or it counts at
  * once, as the Approve step says. `selfChecked` is set only by correctSelfCheck, the id of the value the submitter
- * just typed while checking: if it is still the latest, it counts as confirmed instead of asking them again. */
-export async function onValue(metricId: number, period: string, submitterId: string, opts: { imported?: boolean; selfChecked?: number } = {}): Promise<string[]> {
+ * just typed while checking: if it is still the latest, it counts as confirmed instead of asking them again.
+ * `withoutDetails` gives the short words a form link's reply shows: no reason and no Approver. */
+export async function onValue(metricId: number, period: string, submitterId: string, opts: { imported?: boolean; selfChecked?: number; withoutDetails?: boolean } = {}): Promise<string[]> {
   const done = await workflowStep(metricId, period, submitterId, opts);
   // An Import is silent, as for Alerts; a value waiting for Approval is announced when it is approved (publishDecided).
   if (!opts.imported) await announceRecorded(metricId, period);
@@ -294,7 +295,7 @@ async function announceRecorded(metricId: number, period: string): Promise<void>
 }
 
 /** The Workflow's own part of a new value: check, Approval or publish. */
-async function workflowStep(metricId: number, period: string, submitterId: string, opts: { imported?: boolean; selfChecked?: number }): Promise<string[]> {
+async function workflowStep(metricId: number, period: string, submitterId: string, opts: { imported?: boolean; selfChecked?: number; withoutDetails?: boolean }): Promise<string[]> {
   const ctx = await metricCtx(metricId, period);
   if (!ctx) return [];
   const value = await latestValue(ctx.ws, metricId, period);
@@ -344,7 +345,8 @@ async function workflowStep(metricId: number, period: string, submitterId: strin
     await setState(metricId, period, { state: "approval", approval_step: 0, approval_action_id: actionId, approval_for: submitterId, note: reasons.join("; ") });
     // Queued after the state is set, so a send can never see the value as published.
     if (reasons.length) await queueWebhookEvent(ctx.ws, "value.unusual", { type: "workflow" }, { metricId, period });
-    return [reasons.length ? `unusual (${reasons.join("; ")}), approval asked from ${approvers[0]}` : `every value is approved, approval asked from ${approvers[0]}`];
+    const why = !reasons.length ? "every value is approved" : opts.withoutDetails ? "unusual" : `unusual (${reasons.join("; ")})`;
+    return [`${why}, approval asked${opts.withoutDetails ? "" : ` from ${approvers[0]}`}`];
   }
   return [await publish(ctx)];
 }
