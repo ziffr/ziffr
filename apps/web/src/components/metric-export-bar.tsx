@@ -70,7 +70,7 @@ function words(picked: number, derived: string[], max: number) {
 export function MetricExportBar({ max, list }: { max: number; list: string }) {
   const { picked, shown, derived } = useTicks(list);
   const { count, note } = words(picked, derived, max);
-  const link = "min-h-11 px-1 text-sm underline";
+  const link = "min-h-11 min-w-11 px-1 text-sm underline";
   return (
     <form id={FORM} method="get" action="/metric-values" className={picked === 0 ? "sr-only" : "stock sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[var(--radius-card)] p-3 text-sm shadow-lg md:bottom-3"}>
       <span role="status" className="min-w-0">
@@ -78,9 +78,10 @@ export function MetricExportBar({ max, list }: { max: number; list: string }) {
         {note && <span className="block text-muted-foreground">{note}</span>}
       </span>
       <span className="ml-auto flex flex-wrap items-center justify-end gap-x-3">
-        {/* On a phone the table head, and its "Select all" box, are not shown. */}
-        {picked < shown && <button type="button" onClick={() => tickAll(true)} className={`${link} sm:hidden`}>Select all</button>}
-        <button type="button" onClick={() => { tickAll(false); boxes()[0]?.focus(); }} className={link}>Clear</button>
+        {/* Nothing out of sight can be reached by keyboard: these two exist only while the bar shows, and the button
+            below is disabled until then. On a phone the table head, and its "Select all" box, are not shown. */}
+        {picked > 0 && picked < shown && <button type="button" onClick={() => tickAll(true)} className={`${link} sm:hidden`}>Select all</button>}
+        {picked > 0 && <button type="button" onClick={() => { tickAll(false); boxes()[0]?.focus(); }} className={link}>Clear</button>}
         {/* Always the form's button, also while disabled: Enter on a checkbox never sends an empty or too long list. */}
         <Button type="submit" disabled={picked === 0 || picked > max}>
           <Download aria-hidden /> Download values

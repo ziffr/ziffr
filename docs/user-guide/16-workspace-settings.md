@@ -644,6 +644,8 @@ Role changes and removals, Invitations, requests to join, Domain Joining, Contac
 
 Each event names the person, what happened, what it was about (as it was named then), the time and a few details, such as the old and new role. It never holds a value or a message. A Metric, dashboard or deck you may not see appears without its name, as "a Metric you do not see".
 
+A [download of chosen Metrics' values](10-metrics.md#download-values) shows as **downloaded the values of chosen Metrics**, with how many Metrics and values the file held, never which Metrics or what numbers.
+
 The demo keeps no Audit Log.
 
 ### Filters
