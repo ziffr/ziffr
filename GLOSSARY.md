@@ -396,7 +396,7 @@ One 16:9 page of a deck. Its order follows its position on the deck canvas, left
 _Avoid_: Page, frame, board
 
 **Slide Element**:
-A part of a slide that draws itself in the deck's Theme and fills its words from today's data: words, a box, a figure, a column chart, a gap table, a metric table, a numbered list, a logo place or cover art. It may read Metrics, and shows nothing of one the viewer may not see. It is for slides only; on a dashboard stand Widgets.
+A part of a slide that draws itself in the deck's Theme and fills its words from today's data: words, a box, a figure, a column chart, a gap table, a metric table, definitions (Metrics with their description and Calculation Note), a numbered list, a logo place or cover art. It may read Metrics, and shows nothing of one the viewer may not see. It is for slides only; on a dashboard stand Widgets.
 _Avoid_: Block, component, shape (for this)
 
 **Snapshot Part**:
@@ -522,7 +522,7 @@ Ziffr's catalogue of Packs, checked before they are listed, and of programs outs
 _Avoid_: Store, app store, gallery, hub
 
 **Signed Statement**:
-What a Marketplace signs about one file of one version of a Pack: its id, its version, a fingerprint of the file (SHA-256), the key used, the time and whether a moderator looked. Ziffr takes a file from a Marketplace only when the statement of a trusted Marketplace Key holds for it. It says where a file came from, not that the Pack is safe.
+What a Marketplace signs about one file of one version of a Pack: its id, its version, a fingerprint of the file (SHA-256), the key used, the time and whether a moderator looked. Ziffr takes a file from a Marketplace only when the statement of a trusted Marketplace Key holds for it. It says where a file came from, not that the Pack is safe. A Marketplace signs a statement too when it withdraws a Pack or takes that back, numbered so that an older one never replaces a newer one.
 _Avoid_: Certificate, stamp, seal
 
 **Marketplace Key**:
@@ -534,7 +534,7 @@ A Marketplace creator in the first days after their first publish, or after a re
 _Avoid_: Unverified, rookie, untrusted
 
 **Withdrawn Pack**:
-A Pack its Marketplace no longer offers: no new installs and no updates. Workspaces that installed it are told why in one line and keep everything they installed.
+A Pack its Marketplace no longer offers: no new installs and no updates. Workspaces that installed it are told why in one line and keep everything they installed. A Marketplace withdraws a Pack, and takes that back, only with a Signed Statement; Ziffr believes the newest it has seen.
 _Avoid_: Banned, removed, recalled, deleted Pack
 
 **Webhook**:

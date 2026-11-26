@@ -27,7 +27,7 @@ saas.pack.json:64: contents.dashboards[0].template.slots[1].suggests names “cu
 
 ## Check a Marketplace's answers
 
-A Marketplace holds what it sends to the [Marketplace contract](../../docs/reference/marketplace.md) with the same checks Ziffr relies on, from `@ziffr/pack/marketplace` (Node only): `checkMarketplaceAnswer`, `verifyPackStatement`, `checkRevocation` and the schemas. On the command line, `check-answer` takes the kind (`packs`, `version`, `updates`, `updates-request`), the answer's file and, to verify signatures, `--key` and `--reserve-key`.
+A Marketplace holds what it sends to the [Marketplace contract](../../docs/reference/marketplace.md) with the same checks Ziffr relies on, from `@ziffr/pack/marketplace` (Node only): `checkMarketplaceAnswer`, `verifyPackStatement`, `checkWithdrawal`, `checkRevocation` and the schemas. On the command line, `check-answer` takes the kind (`packs`, `version`, `updates`, `updates-request`), the answer's file and, to verify signatures, `--key` and `--reserve-key`.
 
 ## In a program
 

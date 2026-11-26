@@ -29,7 +29,7 @@ export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { 
   const [onlySuited, setOnlySuited] = useState(false);
   const categories = useMemo(() => [...new Set(items.map((c) => c.category))], [items]);
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const shown = items.filter((c) => (!onlySuited || suits(c, fit!)) && (!category || c.category === category) && words.every((w) => `${c.name} ${c.description} ${c.unit}`.toLowerCase().includes(w)));
+  const shown = items.filter((c) => (!onlySuited || suits(c, fit!)) && (!category || c.category === category) && words.every((w) => `${c.name} ${c.description} ${c.calculation_note ?? ""} ${c.unit}`.toLowerCase().includes(w)));
   // Opened from the Setup Guide with an answer about the business: the entries written for it come first, and every other
   // entry follows under its own heading, so nothing is hidden (they stay reachable and searchable).
   const first = fromGuide && fit && suited.length > 0 && !onlySuited ? shown.filter((c) => suits(c, fit)) : [];

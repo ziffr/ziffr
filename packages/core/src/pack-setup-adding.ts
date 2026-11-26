@@ -16,6 +16,8 @@ import { listed } from "./pack-places";
 import { recordedSetups, type MadeThing } from "./pack-setup-record";
 import { assertSetsUp, installedForSetup } from "./pack-setup-install";
 import type { PlannedMetric } from "./pack-setup-build";
+import type { EntryRow } from "./pack-setup-install";
+import { isComputed, totalAdditions, type TotalAddition } from "./pack-setup-totals";
 import type { Metric, WidgetSettings } from "./types";
 import type { PackPlaces } from "./pack-places";
 
@@ -32,6 +34,8 @@ export type AddingTo = {
   given: Map<string, Metric>;
   /** Those of `given` the actor may compute a Metric from: they own or edit them. */
   mayCompute: Set<string>;
+  /** The ids of the Metrics shared with the actor as an Editor. */
+  edits: Set<number>;
   made: MadeThing[];
   /** The Workspace's Metrics in use, for the lines there are. */
   active: Map<number, Metric>;
@@ -49,13 +53,15 @@ export async function addingTo(actor: Actor, installId: number, repeat: string, 
   for (const t of record.made) if (t.kind === "metric" && t.line === null && active.has(t.id) && seen.has(t.id)) given.set(t.key, active.get(t.id)!);
   const edits = new Set((await getShares(actor.workspaceId)).filter((s) => s.object_type === "metric" && s.user_id === actor.personId && s.role === "editor").map((s) => s.object_id));
   const mayCompute = new Set([...given].filter(([, m]) => m.owner_id === actor.personId || edits.has(m.id)).map(([k]) => k));
-  return { repeat, taken: record.lines, given, mayCompute, made: record.made, active, seen };
+  return { repeat, taken: record.lines, given, mayCompute, edits, made: record.made, active, seen };
 }
 
 /** A widget the new line's Metrics may be added to: which of them, by the number that stands for each. */
 export type AddedWidget = { id: number; dashboard: { id: number; name: string }; add: number[] };
-/** Something already set up that the new line may be added to, as the person ticks it. */
-export type Offer = { id: string; words: string; on: boolean };
+/** Something already set up that the new line may be added to, as the person ticks it. `from` is the first day of the
+ * first period a Total would count it in, which the person may change; `suggested` is false where the form leaves the
+ * tick to the person. */
+export type Offer = { id: string; words: string; on: boolean; from?: string; suggested?: boolean };
 /** What adding a line changes of what is there, and what is left to do by hand. */
 export type Additions = {
   offers: Offer[];
@@ -66,22 +72,27 @@ export type Additions = {
   widgets: AddedWidget[];
   /** Every widget offered, ticked or not, by its offer: for saying whom it would newly show them. */
   offered: (AddedWidget & { offer: string })[];
+  /** The Totals that count a new Metric, when ticked. */
+  totals: TotalAddition[];
+  /** Why what is asked for cannot be added as asked. */
+  problems: string[];
 };
 
 /** Nothing to add to: a Set up that adds no line. */
-export const NO_ADDITIONS: Additions = { offers: [], byHand: [], join: null, widgets: [], offered: [] };
+export const NO_ADDITIONS: Additions = { offers: [], byHand: [], join: null, widgets: [], offered: [], totals: [], problems: [] };
 
-/** Where the new line's Metrics may be added to what is there: the shared Workflow, only when it is the actor's, and
- * each widget of several Metrics that shows most lines' Metrics of an entry, only on a dashboard they may change. `ticked` are
- * the offers the person ticked; nothing else changes. */
-export async function additionsFor(actor: Actor, to: AddingTo, places: PackPlaces, metrics: PlannedMetric[], ticked: ReadonlySet<string>): Promise<Additions> {
+/** Where the new line's Metrics may be added to what is there: the shared Workflow, only when it is the actor's, each
+ * widget of several Metrics that shows most lines' Metrics of an entry, only on a dashboard they may change, and the
+ * Totals that add up an entry (pack-setup-totals.ts). `ticked` are the offers the person ticked; nothing else changes. */
+export async function additionsFor(actor: Actor, to: AddingTo, places: PackPlaces, asked: { entries: ReadonlyMap<string, EntryRow>; metrics: PlannedMetric[]; ticked: ReadonlySet<string>; from: unknown }): Promise<Additions> {
   const ws = actor.workspaceId;
-  const out: Additions = { offers: [], byHand: [], join: null, widgets: [], offered: [] };
-  const offer = (id: string, words: string) => { out.offers.push({ id, words, on: ticked.has(id) }); return ticked.has(id); };
+  const { metrics, ticked } = asked;
+  const out: Additions = { offers: [], byHand: [], join: null, widgets: [], offered: [], totals: [], problems: [] };
+  const offer = (id: string, words: string, extra: Pick<Offer, "from" | "suggested"> = {}) => { out.offers.push({ id, words, on: ticked.has(id), ...extra }); return ticked.has(id); };
   const shared = (kind: MadeThing["kind"]) => to.made.filter((t) => t.kind === kind && t.line === null);
 
   // The shared Workflow: for new Metrics that take values and follow no Workflow of their own line.
-  const joining = metrics.filter((m) => !m.entry.formula && !m.workflow).map((m) => m.name);
+  const joining = metrics.filter((m) => !isComputed(m.entry) && !m.workflow).map((m) => m.name);
   const flowIds = shared("workflow").map((t) => t.id);
   const { data } = await db().from("workflows").select("id, name, owner_id, config").eq("workspace_id", ws).in("id", flowIds);
   const flows = await openWorkflowRows(ws, data);
@@ -123,6 +134,8 @@ export async function additionsFor(actor: Actor, to: AddingTo, places: PackPlace
       if (offer(`widget:${w.id}`, `Add ${names} to ${w.title ? `“${String(w.title)}”` : "a widget"} on the dashboard ${board.name}.`)) out.widgets.push(widget);
     }
   }
+
+  out.totals = await totalAdditions(actor, to, asked, { offer, byHand: out.byHand, problems: out.problems });
 
   // What the Pack says of the shared items for each of the Repeat's people is not changed: said, to do by hand.
   const positions = new Map(places.positions.filter((p) => p.per === to.repeat).map((p) => [p.key, p.name]));
