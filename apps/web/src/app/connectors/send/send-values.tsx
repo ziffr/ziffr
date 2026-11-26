@@ -61,7 +61,7 @@ export function SendValues({ address, metrics, canFeed, demo }: { address: strin
       </div>
       <div className="relative">
         <pre className="overflow-x-auto rounded-[var(--radius-input)] bg-muted p-3 text-xs leading-relaxed" tabIndex={0}><code>{shown.text}</code></pre>
-        <Button size="sm" variant="outline" className="absolute right-2 top-2" onClick={copy}><Copy aria-hidden /> Copy</Button>
+        <Button size="sm" variant="outline" className="absolute right-2 top-2 max-sm:static max-sm:mt-2" onClick={copy}><Copy aria-hidden /> Copy</Button>
       </div>
       <p className="text-xs text-muted-foreground">
         The address is this Ziffr&rsquo;s own: <code className="fig break-all">{endpointOf(address, route, slug)}</code>. Replace the key placeholder with a key you made{demo ? " (the demo has no keys: nothing sent here is recorded)" : ""}; keep it in a secret store, never in code you share. Leave out <code>period</code> for the current period, or send a period&rsquo;s first day (<code>2026-10-01</code>) for an earlier one. The <code>Idempotency-Key</code> makes a retry safe: the same key with the same body records nothing twice.

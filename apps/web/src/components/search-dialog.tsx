@@ -206,12 +206,12 @@ export function SearchDialog({ className, hideButton, account, toggleSidebar }: 
                     {inGroup.map(({ item, i }) => (
                       <li key={item.key} id={optionId(i)} role="option" aria-selected={i === at}>
                         {item.run ? (
-                          <button type="button" tabIndex={-1} onClick={() => go(item)} onMouseMove={() => setActive(i)} className={cn("flex w-full items-baseline gap-2 rounded-[var(--radius-input)] px-2 py-2 text-left text-sm", i === at && "bg-muted")}>
+                          <button type="button" tabIndex={-1} onClick={() => go(item)} onMouseMove={() => setActive(i)} className={cn("flex w-full items-baseline gap-2 rounded-[var(--radius-input)] px-2 py-2 text-left text-sm max-sm:min-h-11 max-sm:items-center", i === at && "bg-muted")}>
                             <span className="min-w-0 flex-1 truncate">{item.label}</span>
                             {item.hint && <span className="shrink-0 text-xs text-muted-foreground">{item.hint}</span>}
                           </button>
                         ) : (
-                          <Link href={item.href ?? "/"} tabIndex={-1} onClick={() => { remember(start?.key ?? "", item); setOpen(false); }} onMouseMove={() => setActive(i)} className={cn("flex items-baseline gap-2 rounded-[var(--radius-input)] px-2 py-2 text-sm", i === at && "bg-muted")}>
+                          <Link href={item.href ?? "/"} tabIndex={-1} onClick={() => { remember(start?.key ?? "", item); setOpen(false); }} onMouseMove={() => setActive(i)} className={cn("flex items-baseline gap-2 rounded-[var(--radius-input)] px-2 py-2 text-sm max-sm:min-h-11 max-sm:items-center", i === at && "bg-muted")}>
                             <span className="min-w-0 flex-1 truncate">{item.label}</span>
                             {item.archived && <span className="shrink-0 rounded border border-border px-1.5 text-xs text-muted-foreground">Archived</span>}
                             {item.hint && <span className="shrink-0 text-xs text-muted-foreground">{item.hint}</span>}

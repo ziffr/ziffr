@@ -409,6 +409,8 @@ If you stopped Prompts and reminders by email, a note at the top of **Channels**
 
 The **Who gets what** tab: a table of **Delivery Preferences**: one row per person and one column each for **Questions**, **Tasks**, **Prompts and reminders** and **Replies and updates**.
 
+On a phone each person is a card, with the four choices under their name.
+
 - The first row, **Team default**, covers everyone who leaves a column open. Only Owners and Admins change it. Without a team default, Ziffr uses email.
 - Your own row is marked "you". Change it here or under **Your Deliveries**. Everyone else's row is greyed out.
 - Under **Prompts and reminders** a person can pick up to three ways, in order: the first select is the first way, the others are **Also by**. A Prompt goes by every way in the list at once and the first answer counts; reminders go by the first way only. The team default can be a list too. Where there is neither, the column reads "Default: every way you've connected".

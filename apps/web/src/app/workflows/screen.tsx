@@ -114,11 +114,11 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
           <section aria-label="Steps" className="min-w-0">
             <Link href="/workflows" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm underline lg:hidden"><ArrowLeft aria-hidden className="size-4" /> All workflows</Link>
             <div className="flex flex-wrap items-end gap-3">
-              <label className="min-w-0 flex-1">
+              <label className="min-w-0 flex-1 max-sm:basis-full">
                 <span className="mb-1 block text-xs font-medium">Name</span>
                 <Input value={name} disabled={!canEdit} onChange={(e) => setName(e.target.value)} />
               </label>
-              <label className="w-40">
+              <label className="w-40 max-sm:w-full">
                 <span className="mb-1 block text-xs font-medium">Due, working days after the period</span>
                 <Input type="number" min={0} max={30} value={cfg.dueWorkingDays} disabled={!canEdit} onChange={(e) => setCfg({ ...cfg, dueWorkingDays: Number(e.target.value) })} />
               </label>
@@ -139,7 +139,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
               {steps.map((s, i) => (
                 <Node key={i} icon={ICON[s.type]} title={STEP_TITLE[s.type]} text={stepLabel(s, people, tellFacts.groups, dashboards)}
                   controls={canEdit && (
-                    <span className="flex gap-0.5">
+                    <span className="flex gap-0.5 max-sm:self-end">
                       {s.type !== "publish" && i > 0 && <IconBtn label={`Move ${STEP_TITLE[s.type]} (step ${i + 1}) earlier`} onClick={() => move(i, -1)}><ArrowUp className="size-3.5" /></IconBtn>}
                       {s.type !== "publish" && i < steps.length - 1 && steps[i + 1]?.type !== "publish" && <IconBtn label={`Move ${STEP_TITLE[s.type]} (step ${i + 1}) later`} onClick={() => move(i, 1)}><ArrowDown className="size-3.5" /></IconBtn>}
                       {s.type !== "publish" && <IconBtn label={`Remove ${STEP_TITLE[s.type]} (step ${i + 1})`} onClick={() => setCfg({ ...cfg, steps: steps.filter((_, j) => j !== i) })}><Trash2 className="size-3.5" /></IconBtn>}
@@ -185,7 +185,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
                   return (
                     <li key={m.id} className="stock rounded-[var(--radius-card)] p-3 text-sm">
                       <div className="flex items-start justify-between gap-2">
-                        <Link href={`/metrics/${m.slug}`} className="font-medium hover:underline">{m.name}</Link>
+                        <Link href={`/metrics/${m.slug}`} className="font-medium hover:underline max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">{m.name}</Link>
                         {m.mine && <Button variant="ghost" size="sm" className="h-6 px-1.5 text-xs" disabled={pending} aria-label={`Take ${m.name} off this workflow`} onClick={() => run(async () => { unwrap(await setMetricWorkflow(m.id, null)); toast.success(`${m.name} is off this workflow`); router.refresh(); })}>Remove</Button>}
                       </div>
                       <div className="text-xs text-muted-foreground">{periodLabel(period, m.period, yearStart)}, due {formatDate(dueDate(period, m.period, cfg))}</div>
@@ -237,7 +237,7 @@ function Node({ icon: Icon, title, text, controls, children }: { icon: typeof Se
     <li className="relative flex gap-3">
       <span className="z-[1] flex size-10 shrink-0 items-center justify-center rounded-full border border-[var(--color-rule-2)] bg-card"><Icon aria-hidden className="size-4" /></span>
       <div className="stock min-w-0 flex-1 rounded-[var(--radius-card)] p-3 text-sm">
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-2 max-sm:flex-col max-sm:gap-0">
           <div className="min-w-0 flex-1"><span className="font-semibold">{title}</span><p className="text-muted-foreground">{text}</p></div>
           {controls}
         </div>

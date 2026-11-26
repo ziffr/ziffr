@@ -72,7 +72,7 @@ export function PersonPanel({ id }: { id: string }) {
           <ul className="space-y-1">
             {data.groups.map((g) => (
               <li key={g.id}>
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2 max-sm:min-h-11">
                   <input type="checkbox" aria-label={`${person.name} in ${g.name}`} checked={g.members.includes(person.id)} disabled={pending} onChange={(e) => run(() => setMember(g.id, person.id, e.target.checked))} className="size-4 accent-[var(--color-ink)]" />
                   {g.name}
                 </label>
