@@ -6,13 +6,15 @@ import { emailHtml, emailLogoType, LOGO_CID } from "@ziffr/core/branded-email";
 import { themeLook } from "@ziffr/core/theme-look";
 import type { Theme } from "@ziffr/core/types";
 
-const SAMPLE = "Hi Sara,\n\nPlease report Monthly recurring revenue for November 2026.\n\nGive the number here: https://app.example.com/submit/your-personal-form-link\n\nThank you!";
+const SITE = "https://app.example.com";
+const FORM = `${SITE}/submit/your-personal-form-link`;
+const SAMPLE = `Hi Sara,\n\nPlease report Monthly recurring revenue for November 2026.\n\nEnter it in your form: ${FORM}`;
 
 /** Two frames: the email in light colours and in dark colours, from the Theme as it is being edited. */
 export function EmailPreview({ theme, workspaceName }: { theme: Pick<Theme, "tokens" | "slides">; workspaceName: string }) {
   const frames = useMemo(() => {
     const look = themeLook(theme, workspaceName);
-    const content = { text: SAMPLE, stop: { label: "To get no more of these by email", url: "https://app.example.com/api/unsubscribe/example" } };
+    const content = { text: SAMPLE, action: { label: "Open your form", url: FORM }, stop: { label: "To get no more of these by email", link: "Unsubscribe from these emails", url: `${SITE}/api/unsubscribe/example` } };
     // In an email the logo is attached; here the frame has it inline (the same picture, only when an email client could show it).
     const inline = (html: string) => (emailLogoType(look) && look.logo ? html.replace(`cid:${LOGO_CID}`, look.logo) : html);
     const logo = Boolean(emailLogoType(look));
