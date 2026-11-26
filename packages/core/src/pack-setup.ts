@@ -32,18 +32,21 @@ import { buildSetup, placeMaps, SETUP_METRICS_MAX, tickedShares, withSlugs, type
 import { PACK_POSITION_LIMITS } from "@ziffr/pack/pack-positions";
 import { assertSetsUp, installedForSetup, roomFor, roomNow, type PackSetupRoom } from "./pack-setup-install";
 import type { Slot, WorkflowTemplateBody } from "./types";
+import type { KeptOverview, PackNumber } from "@ziffr/pack/comes-from";
 
 export type { PackSetupInput, PackSetupRoom };
 
 /** An entry of the Pack's part of the Metric Catalog, as the set-up page offers it. `inputs` are the keys a Derived
  * Metric's formula names: picking it makes them too, first. */
-export type SetupEntry = { key: string; name: string; period: string; unit: string; derived: boolean; inputs: string[]; tags: string[]; /** The Repeat that makes it once for each line, or null. */ repeat: string | null; /** Whether a Position says who submits it. */ asksPosition: boolean };
+export type SetupEntry = { key: string; name: string; period: string; unit: string; derived: boolean; inputs: string[]; tags: string[]; /** The Repeat that makes it once for each line, or null. */ repeat: string | null; /** Whether a Position says who submits it. */ asksPosition: boolean; /** Where the Pack says its number comes from (comes-from.ts); null for an install that keeps none. */ comesFrom: PackNumber | null };
 /** What setting up from an installed Pack offers: its entries and templates, the members who may approve, and the
  * Metrics this person sees to fill a Slot no entry fills. Names and ids only. */
 export type PackSetupOptions = {
   install: { id: number; name: string; version: string };
   /** The Automation Templates the Pack says fill its entries (spec 0043), by template id and entry key. */
   suggestedFeeds: { template: string; fills: string[] }[];
+  /** What the Pack brings and where its numbers come from, or null for an install that keeps none. */
+  overview: KeptOverview | null;
   entries: SetupEntry[];
   dashboards: { key: string; name: string; slots: Pick<Slot, "label" | "multiple" | "suggests">[]; repeat: string | null }[];
   /** `approvers`: how many are picked beside Positions; 0 where the Pack's Positions name them. */
@@ -90,10 +93,12 @@ export async function packSetupOptions(actor: Actor, installId: number): Promise
   ]);
   const memberIds = new Set((members ?? []).map((m) => m.user_id as string));
   const places = placeMaps(p.places, p.workflows);
+  const numbers = new Map((p.overview?.numbers ?? []).map((n) => [n.key, n]));
   return {
     install: p.install,
     suggestedFeeds: p.feeds,
-    entries: [...p.entries.values()].map((e) => ({ key: e.pack_key, name: e.name, period: e.period, unit: e.unit, derived: Boolean(e.formula), inputs: e.formula ? formulaInputs(e.formula) : [], tags: tagNamesOf(e.tags, TAGS_PER_ENTRY), repeat: places.metrics.get(e.pack_key)?.per ?? null, asksPosition: Boolean(places.metrics.get(e.pack_key)?.submitters) })),
+    overview: p.overview,
+    entries: [...p.entries.values()].map((e) => ({ key: e.pack_key, name: e.name, period: e.period, unit: e.unit, derived: Boolean(e.formula), inputs: e.formula ? formulaInputs(e.formula) : [], tags: tagNamesOf(e.tags, TAGS_PER_ENTRY), repeat: places.metrics.get(e.pack_key)?.per ?? null, asksPosition: Boolean(places.metrics.get(e.pack_key)?.submitters), comesFrom: numbers.get(e.pack_key) ?? null })),
     dashboards: [...p.dashboards.values()].map((t) => ({ key: t.pack_key, name: t.name, slots: (t.slots ?? []).map((s) => ({ label: s.label, multiple: s.multiple, ...(s.suggests ? { suggests: s.suggests } : {}) })), repeat: places.dashboards.get(t.pack_key)?.per ?? null })),
     workflows: [...p.workflows.values()].map((t) => ({ key: t.pack_key, name: t.name, approvers: places.workflows.get(t.pack_key)?.steps.some((s) => s.by) ? 0 : approversWanted(t.body as WorkflowTemplateBody), repeat: places.workflows.get(t.pack_key)?.per ?? null })),
     positions: places.positions.size > 0 || places.repeats.size > 0,

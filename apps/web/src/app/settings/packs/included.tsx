@@ -13,6 +13,7 @@ import type { PackPreview } from "@ziffr/core/packs";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import { PackUpdate } from "./marketplace";
 import { PackPreviewCard } from "./screen";
+import { useInstalledToast } from "@/components/pack-guide-help";
 
 const KIND: Record<IncludedPackListing["brings"][number]["kind"], [string, string]> = {
   metric: ["Metric", "Metrics"], dashboard: ["dashboard", "dashboards"], deck: ["deck", "decks"], workflow: ["Workflow", "Workflows"],
@@ -22,6 +23,7 @@ const KIND: Record<IncludedPackListing["brings"][number]["kind"], [string, strin
 /** The list of Ziffr's own Packs: what each brings, Preview with Sample Data, and Install by a click. */
 export function IncludedPacks({ packs, viewer, numberStyle }: { packs: IncludedPackListing[]; viewer: string; numberStyle: NumberStyle }) {
   const router = useRouter();
+  const installedToast = useInstalledToast();
   const [open, setOpen] = useState<{ id: string; preview: PackPreview } | null>(null);
   const [okAssistant, setOkAssistant] = useState(false);
   const [pending, start] = useTransition();
@@ -33,8 +35,8 @@ export function IncludedPacks({ packs, viewer, numberStyle }: { packs: IncludedP
     setOpen({ id, preview: res.preview });
   });
   const install = () => run(async () => {
-    unwrap(await installIncludedPackFile(open!.id, { assistantTexts: okAssistant }));
-    toast.success(`${open!.preview.manifest.name} installed`, { description: "Its entries are in the Metric Catalog, its templates, designs and Themes where you start from them." });
+    const id = unwrap(await installIncludedPackFile(open!.id, { assistantTexts: okAssistant }));
+    installedToast(id, open!.preview.manifest, "Its entries are in the Metric Catalog, its templates, designs and Themes where you start from them.");
     setOpen(null);
     router.refresh();
   });

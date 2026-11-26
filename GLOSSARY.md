@@ -541,6 +541,10 @@ _Avoid_: Callback, trigger, integration, subscription
 A Webhook that one person adds for themselves in one Workspace, once an Owner or Admin allows it, and that acts as that person: it hears the Tasks and Questions given to or asked by them, the values of Metrics they pick and their own Alerts, each in full and only if they may see it at the moment it is sent, and it can mark their tasks done as them. It ends when they leave the Workspace. Not a Delivery Preference way, which reaches the person, not a program (spec 0037).
 _Avoid_: My webhook, user webhook, private webhook
 
+**Comes From**:
+What a Pack says of each of its numbers (a person types it, another system sends it, or it is set once as a target), with what Ziffr works out from the Pack: that it calculates a number, which Automation Templates are delivered and what the installer still needs. Shown as "Where the numbers come from". Not a Source (the way a value arrives) and not a thing's origin.
+_Avoid_: Provenance, data source, lineage
+
 **Automation Template**:
 An importable file for an automation tool such as n8n that joins Ziffr to another system, in one direction or the other: out, from a Webhook to Microsoft To Do, Google Tasks, Slack, Asana or Todoist; or in, from a system such as Google Sheets, Stripe or HubSpot through a Feed, to fill Metrics. It lives in the repository; Ziffr never runs it or holds the other system's credentials. A person may download one from Ziffr with their Ziffr's address and their Metrics already in it.
 _Avoid_: Recipe (that is an Analysis Recipe), plugin, integration, flow

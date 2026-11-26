@@ -21,6 +21,7 @@ import { checkPackFormula, type FormulaEntry } from "./formula-check.js";
 import { textsAimedAtAssistants } from "./assistant-words.js";
 import { AUDIENCE_SCHEMA, checkAudience, type PackAudience } from "./audience.js";
 import { checkGuide, guideAsRead, PACK_GUIDE_SCHEMA, type PackGuide } from "./pack-guide.js";
+import { checkComesFrom, COMES_FROM_FIELD, type PackComesFrom } from "./comes-from.js";
 import { checkPositions, POSITION_FIELDS, WRAPPER_FIELDS, type PackPosition, type PackRepeat } from "./pack-positions.js";
 import { checkTotals, TOTAL_FIELD, type PackTotal } from "./pack-totals.js";
 
@@ -83,7 +84,7 @@ export type Pack = {
   /** /2: what the creator tells people about it (GLOSSARY: Pack Guide). */
   guide?: PackGuide;
   contents: {
-    metrics?: (PackItem<"metric", MetricFile> & { per?: string; submitters?: string[]; standIn?: string; viewers?: string[]; editors?: string[]; total?: PackTotal })[];
+    metrics?: (PackItem<"metric", MetricFile> & { per?: string; submitters?: string[]; standIn?: string; viewers?: string[]; editors?: string[]; total?: PackTotal; comesFrom?: PackComesFrom })[];
     dashboards?: (PackItem<"template", DashboardTemplateFile> & { per?: string; viewers?: string[]; editors?: string[] })[];
     views?: PackItem<"design", ViewDesign>[];
     analyses?: PackItem<"recipe", AnyAnalysisRecipe>[];
@@ -179,13 +180,13 @@ const FROM: Schema = { ...PACK_ID, description: "the id of the Pack in “basedO
 /** Schema /2 made from schema /1: the same file with Positions, Repeats, credit and the Pack Guide, and what the items'
  * wrappers gain. */
 function packSchema2(base: Schema): Schema {
-  const wrappers: Partial<Record<PackKind, Record<string, Schema>>> = { ...WRAPPER_FIELDS, metrics: { ...WRAPPER_FIELDS.metrics, total: TOTAL_FIELD } };
+  const wrappers: Partial<Record<PackKind, Record<string, Schema>>> = { ...WRAPPER_FIELDS, metrics: { ...WRAPPER_FIELDS.metrics, total: TOTAL_FIELD, comesFrom: COMES_FROM_FIELD } };
   const kinds = (Object.keys(KINDS) as PackKind[]).map((k) => [k, item(k, k === "workflows" ? `${KINDS[k].format} or ${WORKFLOW_TEMPLATE_FORMAT_2}` : KINDS[k].format, { ...wrappers[k], from: FROM })]);
   return {
     ...base,
     $id: "https://ziffr.net/schemas/ziffr.pack-2.json",
     title: "Ziffr Pack (ziffr.pack/2)",
-    description: "A Pack as ziffr.pack/1, which may also name the Positions people fill when it is set up and the parts made once per line (Repeats), add those up in Totals, credit the Packs it builds on and carry a Pack Guide.",
+    description: "A Pack as ziffr.pack/1, which may also name the Positions people fill when it is set up and the parts made once per line (Repeats), add those up in Totals, say where each number comes from, credit the Packs it builds on and carry a Pack Guide.",
     properties: {
       ...base.properties,
       format: { const: PACK_FORMAT_2, description: "The format and its version." },
@@ -295,6 +296,7 @@ function meaning(p: Pack, lines: Map<string, number>, ziffr: string | undefined,
   if (p.format !== PACK_FORMAT_2) return;
   checkPositions(p, isSound, at);
   checkTotals(p, at);
+  checkComesFrom(p, at);
   credit(p, at);
   if (p.guide) checkGuide(p.guide, at);
 }
