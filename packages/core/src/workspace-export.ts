@@ -134,7 +134,12 @@ type Plan = {
   yearStart: number;
   /** The Metrics whose numbers follow, by label in the order the file lists them (code units). */
   metrics: { label: string; id: number; period: Metric["period"]; polarity: Metric["polarity"]; derived: boolean; name: string; noTargets?: boolean }[];
+  /** Which row each label stands for; never part of the file. */
+  labels: ExportLabels;
 };
+
+/** The rows of a Workspace and the label each has in its records: for the one copy made inside Ziffr, never in a file. */
+export type ExportLabels = { person: Map<string, string>; group: Map<number, string>; metric: Map<number, string>; dashboard: Map<number, string>; deck: Map<number, string>; workflow: Map<number, string> };
 
 const MAX_TAGS = WORKSPACE_EXPORT_LIMITS.tags;
 const KEY = /^[a-z][a-z0-9-]{0,39}$/;
@@ -176,7 +181,23 @@ type Ctx = {
   filled: (slots: Slot[]) => string[][] | null;
   slotFiles: (slots: Slot[]) => { label: string; multiple?: true }[];
   shownDashboards: number;
+  /** Whether everything is read, seen by the actor or not: only for the demo, whose people are made up. */
+  everything: boolean;
 };
+
+/** The dashboards the file is made of: those the actor sees, or every one. */
+async function dashboardsOf(c: Ctx) {
+  if (!c.everything) return visibleDashboards(c.ws, c.actor.personId);
+  const { data } = await db().from("dashboards").select("*").eq("workspace_id", c.ws).order("id");
+  return (await openRows("dashboards", c.ws, data)) as Awaited<ReturnType<typeof visibleDashboards>>;
+}
+
+/** The decks the file is made of: those the actor sees, or every one. */
+async function decksOf(c: Ctx): Promise<{ id: number }[]> {
+  if (!c.everything) return visibleDecks(c.ws, c.actor.personId);
+  const { data } = await db().from("decks").select("id").eq("workspace_id", c.ws).order("id");
+  return (data ?? []).map((d) => ({ id: d.id as number }));
+}
 
 /** The header, Groups, Themes and people. */
 async function groupsThemesPeople(c: Ctx): Promise<void> {
@@ -232,7 +253,7 @@ async function groupsThemesPeople(c: Ctx): Promise<void> {
 async function metricRecords(c: Ctx): Promise<void> {
   const { actor, ws, records, skip, fit, over, allMetrics, personLabel, metricLabel, metrics } = c;
   // Metrics: those the Owner sees. Labels follow the order of their ids.
-  const seen = await visibleMetricIds(ws, actor.personId, allMetrics);
+  const seen = c.everything ? new Set(allMetrics.map((m) => m.id)) : await visibleMetricIds(ws, actor.personId, allMetrics);
   const hidden = allMetrics.filter((m) => !seen.has(m.id)).length;
   if (hidden) skip("Metrics", `${hidden} Metric${hidden === 1 ? "" : "s"}`, `${hidden === 1 ? "It is" : "They are"} not in the file because ${hidden === 1 ? "it is" : "they are"} shared only with others: ask ${hidden === 1 ? "its owner" : "their owners"} to share ${hidden === 1 ? "it" : "them"} with you before you export. A Workspace Export holds what you may see.`);
   const tags = (await tagSight(actor)).namesByMetric;
@@ -326,10 +347,10 @@ async function metricRecords(c: Ctx): Promise<void> {
 
 /** Dashboards, as templates whose Slots are filled with Metrics of the file. */
 async function dashboardRecords(c: Ctx): Promise<void> {
-  const { actor, ws, records, skip, fit, plainOrSkip, allMetrics, labelOf, filled, slotFiles } = c;
+  const { ws, records, skip, fit, plainOrSkip, allMetrics, labelOf, filled, slotFiles } = c;
   // Dashboards, decks and Workflows, as templates whose Slots are filled with the Metrics of the file.
 
-  const dashboards = await visibleDashboards(ws, actor.personId);
+  const dashboards = await dashboardsOf(c);
   const { data: widgetRows }: { data: Record<string, unknown>[] | null } = dashboards.length ? await db().from("widgets").select("id, dashboard_id, template, metric_ids, settings, title, x, y, w, h").eq("workspace_id", ws).in("dashboard_id", dashboards.map((d) => d.id)) : { data: [] };
   const { data: kindRows } = dashboards.length ? await db().from("dashboards").select("id, kind").eq("workspace_id", ws).in("id", dashboards.map((d) => d.id)) : { data: [] };
   const kindOf = new Map((kindRows ?? []).map((r) => [r.id as number, r.kind as string]));
@@ -372,8 +393,8 @@ async function dashboardRecords(c: Ctx): Promise<void> {
 
 /** Decks, as templates whose Slots are filled with Metrics of the file. */
 async function deckRecords(c: Ctx): Promise<void> {
-  const { actor, ws, records, skip, fit, plainOrSkip, allMetrics, themeLabel, labelOf, filled, slotFiles, shownDashboards } = c;
-  const decks = await visibleDecks(ws, actor.personId);
+  const { ws, records, skip, fit, plainOrSkip, allMetrics, themeLabel, labelOf, filled, slotFiles, shownDashboards } = c;
+  const decks = await decksOf(c);
   for (const [what, table, shown] of [["Dashboards", "dashboards", shownDashboards], ["Decks", "decks", decks.length]] as const) {
     const { count } = await db().from(table).select("id", { count: "exact", head: true }).eq("workspace_id", ws);
     const unseen = (count ?? 0) - shown;
@@ -390,7 +411,8 @@ async function deckRecords(c: Ctx): Promise<void> {
       if (!raw.length) throw new Error("it has no slides");
       const total = raw.reduce((n, s) => n + s.length, 0);
       const cleaned = raw.map(cleanSlideShapes);
-      const t = toDeckTemplate(cleaned.map((c) => c.shapes), allMetrics, {}, [], storedCovers(d.document));
+      // The Owner's own file carries the words as they are typed; the notices below say where they hold numbers.
+      const t = toDeckTemplate(cleaned.map((c) => c.shapes), allMetrics, {}, [], storedCovers(d.document), { keep: true });
       const doc = deckFile({
         name, slots: slotFiles(t.slots) as DeckTemplateFile["slots"],
         slides: t.body.slides.map((s, i) => ({ ...(s.cover ? { cover: true } : {}), shapes: s.shapes.flatMap((sh: SlideShape, j) => slideShapeOf(sh.widget ? { ...sh, widget: { ...sh.widget, settings: withSource(sh.widget.settings, sourceSettings(cleaned[i]?.shapes[j])) } } : sh, new Map(), fit)) })),
@@ -468,7 +490,7 @@ async function setUpRecordsStay(c: Ctx) {
 }
 
 /** Reads everything but the numbers into records, as the actor, and says what does not fit. */
-async function plan(actor: Actor): Promise<Plan> {
+async function plan(actor: Actor, everything = false): Promise<Plan> {
   const ws = actor.workspaceId;
   const leftOut: LeftOut[] = [];
   const skip = (what: string, name: string, why: string) => void leftOut.push({ what, name, why });
@@ -506,7 +528,7 @@ async function plan(actor: Actor): Promise<Plan> {
       const label = first ? fitsLabel(s.multiple && (s.exampleIds ?? []).length > 1 ? `${first} and more` : first, 60) : null;
       return { label: label ?? `Metric ${i + 1}`, ...(s.multiple ? { multiple: true as const } : {}) };
     }),
-    shownDashboards: 0,
+    shownDashboards: 0, everything,
   };
   await groupsThemesPeople(c);
   await metricRecords(c);
@@ -521,7 +543,21 @@ async function plan(actor: Actor): Promise<Plan> {
   for (const [kind, max] of Object.entries(WORKSPACE_EXPORT_LIMITS.perKind)) if ((kinds.get(kind) ?? 0) > max) throw new Error(`This Workspace has more ${kind} records than a Workspace Export holds (${max.toLocaleString("en")}).`);
   // A file that holds a Total is the newer format, which an older Ziffr refuses by name (spec 0058).
   if (records.some((r) => r.kind === "total")) (records[0] as HeaderRecord).format = WORKSPACE_EXPORT_TOTALS_FORMAT;
-  return { records, leftOut, workspaceName: headerName, yearStart, metrics };
+  const labels: ExportLabels = { person: c.personLabel, group: c.groupLabel, metric: metricLabel, ...c.labelOf };
+  return { records, leftOut, workspaceName: headerName, yearStart, metrics, labels };
+}
+
+/**
+ * The whole demo read as the records of a Workspace Export, with which row each label stands for: what a Practice
+ * Workspace is filled from (spec 0063). SECURITY: only ever the demo, whose people and numbers are made up, so it reads
+ * everything (also what its Owner is not shared), asks for no sign-in and writes nothing (not even the Audit Log, which the demo's guard would refuse); any other
+ * Workspace is refused. Who may copy it is decided by the caller.
+ */
+export async function demoAsRecords(owner: Actor): Promise<{ records: AsyncGenerator<WorkspaceExportRecord>; labels: ExportLabels; totals: Set<string> }> {
+  if (owner.workspaceId !== DEMO_WORKSPACE_ID) throw new Forbidden();
+  const p = await plan(owner, true);
+  const totals = new Set(p.records.flatMap((r) => (r.kind === "total" ? [r.metric] : [])));
+  return { records: recordsOf(owner, p, { values: 0, leftOut: 0 }), labels: p.labels, totals };
 }
 
 /** What the file will hold, apart from the numbers, and what stays out of it: for the page before the download. Owner only. */

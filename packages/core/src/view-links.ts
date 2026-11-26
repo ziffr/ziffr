@@ -22,6 +22,7 @@ import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { forReader, snapshotForLink, type SnapshotWords } from "./snapshots";
 import { dataAsOfEach } from "./snapshot-periods";
 import { withoutKeptNumbers } from "./snapshot-parts";
+import { textBoxMetricIds, textList, textMetricIds } from "./slide-text";
 import { yearStartOf } from "./fiscal-year";
 import { keptUnit } from "./units";
 import { keptMethod } from "./attainment-method";
@@ -34,6 +35,7 @@ import { gateTotals, type Allowed, type KeptData } from "./total-views";
 import { allowedNow, restsNow } from "./total-parts";
 import { restsOnTotal } from "./totals";
 import { withoutUnseenInputs } from "./formula";
+import { assertMayLeave } from "./practice";
 
 /** How long a View Link may live at most, in days: the ceiling; a Workspace may set a shorter life (limits.ts). */
 export const MAX_DAYS = 90;
@@ -163,25 +165,38 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
 }
 
 /** A deck's slides as a View Link may show them: only the records the deck had when the link was made (for a live
- * link: shapes, pages, assets, bindings alike), and no widget that draws a left-out Metric. */
-function deckForLink(document: unknown, shown: Set<number>, records: string[] | null): unknown {
-  const doc = document as { store?: Record<string, { type?: string; props?: { metricIds?: unknown; settings?: unknown } }> } | null;
+ * link: shapes, pages, assets, bindings alike), and no widget or text box that names a left-out Metric. Exported for its
+ * test. */
+export function deckForLink(document: unknown, shown: Set<number>, records: string[] | null): unknown {
+  type Rec = { type?: string; typeName?: string; props?: { metricIds?: unknown; settings?: unknown }; meta?: Record<string, unknown>; fromId?: string; toId?: string };
+  const doc = document as { store?: Record<string, Rec> } | null;
   if (!doc?.store) return document;
+  const gone = new Set<string>();
   const keep = Object.entries(doc.store).filter(([key, r]) => {
     if (records && !records.includes(key)) return false;
-    if (r?.type !== "ziffr-widget") return true;
-    const ids = Array.isArray(r.props?.metricIds) ? (r.props!.metricIds as unknown[]).map(Number) : [];
-    return deckMetricIds({ store: { x: r } }).concat(ids).every((m) => shown.has(m));
+    let ids: number[];
+    if (r?.type === "ziffr-widget") ids = deckMetricIds({ store: { x: r } }).concat(Array.isArray(r.props?.metricIds) ? (r.props!.metricIds as unknown[]).map(Number) : []);
+    // A text box stays out whole, as a widget does: its words are written around the values.
+    else ids = r ? textMetricIds(r) : [];
+    const stays = ids.every((m) => shown.has(m));
+    if (!stays) gone.add(key);
+    return stays;
+  }).filter(([, r]) => r?.typeName !== "binding" || !(gone.has(String(r.fromId)) || gone.has(String(r.toId))));
+  // A box's list may still hold a Metric no word asks for: the link carries no id of one it does not show.
+  const sent = keep.map(([key, r]) => {
+    const list = r ? textList(r) : undefined;
+    return [key, Array.isArray(list) ? { ...r, meta: { ...r.meta, metrics: list.map((id) => (shown.has(id as number) ? id : 0)) } } : r];
   });
-  return { ...doc, store: Object.fromEntries(keep) };
+  return { ...doc, store: Object.fromEntries(sent) };
 }
 
 /** For each Metric of a deck that every widget drawing it draws as of a day (`asOf`), the latest such day. A Metric
- * drawn anywhere without one, or inside a free layout, is left out: it is sent whole, as before. */
+ * drawn anywhere without one, in a text box or inside a free layout, is left out: it is sent whole, as before. */
 export function deckAsOf(document: unknown): Map<number, string> {
   const store = (document as { store?: Record<string, { type?: string; props?: { metricIds?: unknown; settings?: unknown } }> } | null)?.store ?? {};
   const ends = new Map<number, string>();
-  const whole = new Set<number>();
+  // A text box has no day of its own: its words read the latest values.
+  const whole = new Set<number>(textBoxMetricIds(document));
   for (const r of Object.values(store)) {
     if (r?.type !== "ziffr-widget") continue;
     let settings: Record<string, unknown> = {};
@@ -356,6 +371,7 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   if (input?.snapshotId !== undefined && input?.snapshotId !== null) return createSnapshotLink(actor, id, Number(input.snapshotId), input, opts);
   await assertOwner(actor, type, id);
   assertCan(actor, "share");
+  await assertMayLeave(actor.workspaceId, "view_link");
   // A link shows what its maker chose: a widget that follows a Tag needs its list fixed first (spec 0038).
   if (type === "dashboard" && (await tagWidgetCount(actor.workspaceId, id)) > 0) throw new Refused("This dashboard has a widget that shows all Metrics with a Tag. Fix the list first, then make the link.");
   const today = new Date().toISOString().slice(0, 10);
@@ -405,6 +421,7 @@ async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId:
   if (!Number.isInteger(dashboardId) || !Number.isInteger(snapshotId)) throw new Forbidden();
   await assertOwner(actor, "dashboard", dashboardId);
   assertCan(actor, "share");
+  await assertMayLeave(actor.workspaceId, "view_link");
   const asked = endDate(input?.expires, await effectiveLimit("viewLinkDays", actor.workspaceId));
   // In a trial a link ends with the trial at the latest. The date asked for is what is written: the database clamps it
   // and remembers it, so subscribing gives it back (`expires` is the date the link really has, for the Audit Log).

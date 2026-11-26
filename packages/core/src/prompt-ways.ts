@@ -11,6 +11,7 @@ import { callTelegram } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
 import { SOURCE_LABEL } from "./format";
 import type { SourceId } from "./types";
+import { isPracticeWorkspace } from "./practice";
 
 /** What a reply on this Delivery may answer: the Source it was offered on, or `web_form` when only a form link answers.
  * Deliveries made before several ways existed hold none and answer where their Prompt does. */
@@ -46,6 +47,8 @@ export async function closePrompt(ws: string, promptId: number, source: SourceId
 
 /** The message as Slack shows it after the Prompt is answered: its text, no buttons, no attachment. */
 async function editSlack(ws: string, channel: string, ts: string, text: string): Promise<void> {
+  // Never from a Practice Workspace (spec 0063): the account it went to may no longer be the one switched on.
+  if (await isPracticeWorkspace(ws)) return;
   const bot = await slackBot(ws);
   if (!bot) return;
   const plain = slackEscape(text).slice(0, 2900);
@@ -54,7 +57,7 @@ async function editSlack(ws: string, channel: string, ts: string, text: string):
 
 /** The message as Telegram shows it after the Prompt is answered: plain text, and no keyboard (none is sent with it). */
 async function editTelegram(ws: string, chatId: number, messageId: number, text: string): Promise<void> {
-  if (!(await telegramOnIn(ws))) return;
+  if (!(await telegramOnIn(ws)) || (await isPracticeWorkspace(ws))) return;
   await callTelegram("editMessageText", { chat_id: chatId, message_id: messageId, text: text.slice(0, 4000), link_preview_options: { is_disabled: true } });
 }
 

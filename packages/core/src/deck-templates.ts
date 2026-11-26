@@ -9,6 +9,7 @@ import { metricChoices } from "./dashboard-templates";
 import { assertSeesMetrics } from "./sharing";
 import { fillsComplete, fromSlideLayout } from "./team-templates";
 import { widgetMetricIds } from "./widget-metrics";
+import { textMetricIds } from "./slide-text";
 import { assertWidgetDesigns } from "./widget-designs";
 import { getMetrics } from "./workspace-data";
 import type { DeckTemplate, SlideBody, WidgetSettings } from "./types";
@@ -63,15 +64,15 @@ export function importSeedOf(document: unknown): { template: number; fills: numb
   return { template: seed.template as number, fills: seed.fills.slice(0, 50).map((f) => (Array.isArray(f) ? f.map(Number).filter(Number.isSafeInteger).slice(0, 50) : [])) };
 }
 
-/** Checks a template's Slots filled with Metrics the actor sees, and answers the Metrics each widget would draw. */
+/** Checks that every Metric a template's widgets and text boxes would draw, with these fills, is one the actor sees. */
 async function checkedFills(actor: Actor, t: DeckTemplate, fills: number[][]) {
   if (!fillsComplete(t.slots, fills)) throw new Forbidden();
-  const made = t.body.slides.flatMap((s) => fromSlideLayout(s, fills, (x) => x));
-  const ids = made.filter((sh) => sh.type === "ziffr-widget").flatMap((sh) => {
+  const made = t.body.slides.flatMap((s) => fromSlideLayout(s, fills));
+  const ids = made.flatMap(textMetricIds).concat(made.filter((sh) => sh.type === "ziffr-widget").flatMap((sh) => {
     let settings: WidgetSettings = {};
     try { settings = JSON.parse(String(sh.props.settings ?? "{}")); } catch { /* a template's own settings are written by the core */ }
     return widgetMetricIds((sh.props.metricIds as number[]) ?? [], settings);
-  });
+  }));
   await assertSeesMetrics(actor, ids);
 }
 
@@ -91,7 +92,7 @@ export async function createDeckFromTemplate(actor: Actor, input: { template: nu
 }
 
 /** What a new deck lays out from a Deck Template: its slides and the fills, once the template exists in the actor's
- * Workspace and every Metric is one the actor sees. The editor fills the words from today's data. */
+ * Workspace and every Metric is one the actor sees. Its words are filled each time a slide is shown. */
 export async function deckTemplateSeed(actor: Actor, templateId: number, fills: number[][]): Promise<{ slides: SlideBody[]; fills: number[][] } | null> {
   const t = await deckTemplate(actor, Number(templateId));
   if (!t) return null;

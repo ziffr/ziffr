@@ -1,14 +1,14 @@
 {
-  "format": "ziffr.pack/1",
+  "format": "ziffr.pack/2",
   "id": "ziffr/sales-forecast",
   "name": "Sales forecast",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "summary": "A weekly sales forecast: commit, best case, closed this quarter and pipeline, with the quota set as the target of Commit and the gap to it and pipeline coverage worked out, a dashboard and a deck for the weekly meeting and a Workflow that asks on Monday and has the sales lead approve.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.21",
   "audience": {
     "functions": [
       "sales"
@@ -17,10 +17,188 @@
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For a sales team that calls its quarter every week. On Monday the figures for the week just ended come in, the sales lead approves them, and everyone reads the same **commit**, gap to quota and pipeline coverage."
+      },
+      {
+        "type": "text",
+        "text": "For the weekly forecast meeting it brings:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "A **dashboard** with this week's call against quota, the change on last week and the last 13 weeks.",
+          "A **deck** of seven slides that fills in its own figures.",
+          "A **Workflow** that asks, has each value approved, locks the week and sends its Snapshot to the people you pick.",
+          "n8n templates that send figures from HubSpot, Salesforce, Pipedrive, Google Sheets or Microsoft Excel."
+        ]
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "An **Owner** installs the Pack, because it holds three Themes. An Owner or Admin sets it up.",
+          "The team's **quota** for the quarter. You set it once, as the target of **Commit**; nobody sends it every week.",
+          "Who calls **Commit** and **Best case** each week.",
+          "Where **Closed this quarter** and **Pipeline value** come from: your CRM or a sheet through n8n, or a person who types them.",
+          "Decide who approves. Nobody approves their own value while someone else can. The approver needs to be a member of the Workspace, and is picked during Set up.",
+          "Room for **9 Metrics** in your Workspace's size, or 8 without **Quota split**.",
+          "The money figures are in euro. If yours differ, change the **Unit** with **Edit details…** on each Metric's **Description** tab."
+        ]
+      }
+    ],
+    "firstSteps": [
+      {
+        "type": "heading",
+        "text": "Start here"
+      },
+      {
+        "type": "text",
+        "text": "Do these in order. After that the week runs by itself."
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Keep the Metrics ticked, with the dashboard and the Workflow **Weekly sales forecast**. Untick **Quota split** if you do not want the table of the gap by salesperson.",
+          "If you send **Commit** and **Best case** yourself, leave **Make me the Submitter of their values** ticked, else untick it. Closed this quarter and Pipeline value are marked as sent by a CRM, so you are not made their Submitter. To type them too, also tick **Ask me also for** them.",
+          "Pick the **Approver**, usually the sales lead. Setting up sends no request unless you tick **Send the first requests now**. Choose **Set up**.",
+          "Set the quota: open **Commit**, go to the **Targets** tab and give every week of the quarter the quarter's quota. **Paste from a spreadsheet** takes the weeks in one go.",
+          "To connect a CRM or a sheet, choose **Fill from n8n** under your system on the page Set up shows, before you choose **Done**. It gives you the file for n8n. Later, the same button is under **Who submits** on the **Description** tab of a Metric.",
+          "If someone else sends figures, open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick that person for each of their Metrics and press **Ask**.",
+          "Send this week's figures: whoever submits opens each Metric and chooses **Record a value**, or answers the request the Workflow sends. The Approver then approves them.",
+          "Open **Decks**, choose **From a Deck Template**, pick **Weekly forecast meeting** and a Metric for each Slot. Each Slot is named like the Metric it takes.",
+          "Open the Workflow **Weekly sales forecast**. In its **Send Snapshot** step pick the dashboard **Weekly forecast meeting** and the people who get it, then choose **Save workflow**.",
+          "Share that dashboard with those people. Someone who cannot open it is not sent the link."
+        ]
+      },
+      {
+        "type": "heading",
+        "text": "Every week after that"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "On Monday Ziffr asks the people who send figures for the week just ended, and the n8n templates send theirs. The figures are due on Tuesday, with a reminder that day.",
+          "The Approver approves each value. It is then published and the week is locked.",
+          "Before the meeting, open the deck and write what only you know over the questions on its slides, such as why the pipeline moved and what you ask for.",
+          "Once the week is finished, the people you picked get a link to its Snapshot.",
+          "When a new quarter starts, add its weeks and quota on **Commit**'s **Targets** tab."
+        ]
+      }
+    ],
+    "eachPart": [
+      {
+        "type": "heading",
+        "text": "The figures that come in each week"
+      },
+      {
+        "type": "list",
+        "items": [
+          "**Commit**: what the team commits to closing by the end of the quarter, deals already won included. Its target is the quota.",
+          "**Best case**: what the quarter reaches if the open deals that may still close do, deals already won included.",
+          "**Closed this quarter**: the value of the deals won since the quarter began. It starts again from 0 each quarter.",
+          "**Pipeline value**: all open deals that can still close this quarter, those in the commit included, those already won not.",
+          "**Quota split**: optional. The quota by salesperson, only for the deck's slide on where the gap sits."
+        ]
+      },
+      {
+        "type": "heading",
+        "text": "The four Ziffr works out"
+      },
+      {
+        "type": "list",
+        "items": [
+          "**Quota**: read from the target of **Commit** for the week.",
+          "**Commit gap to quota**: Commit minus the quota. Below 0, the commit is that much short.",
+          "**Commit as share of quota**: Commit as a percentage of the quota. 100 % or more covers it.",
+          "**Pipeline coverage**: Pipeline value divided by what is still missing, which is the quota minus Closed this quarter. 3 times means the open deals are worth three times what is missing."
+        ]
+      },
+      {
+        "type": "heading",
+        "text": "Dashboard, deck, Workflow and Themes"
+      },
+      {
+        "type": "list",
+        "items": [
+          "The dashboard **Weekly forecast meeting**: the call against quota, the change on last week, the last 13 weeks and the latest commit by salesperson.",
+          "The deck **Weekly forecast meeting**: a cover, the call, where the gap sits, the change since last week, the weeks of the quarter, pipeline coverage, and the risks and asks.",
+          "The Workflow **Weekly sales forecast**: asks on Monday, reminds on Tuesday, tells the Metric's owner about a missing value on Wednesday, marks a change of more than 25 % as unusual, has every value approved, locks the week and sends its Snapshot.",
+          "**Forecast Navy**, **Forecast Coral** and **Forecast Forest**: three Themes. The deck starts with Navy. Add your logo to the Theme you use under **Themes** in **Settings**."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "Can the figures come from our CRM?"
+      },
+      {
+        "type": "text",
+        "text": "Yes. n8n can send **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, for the team and for salespeople with Metrics of their own. HubSpot and Salesforce can also send **Commit** and **Best case** if you switch them on; Commit is otherwise a person's call. n8n runs on your side, and Ziffr never holds your CRM login."
+      },
+      {
+        "type": "heading",
+        "text": "Can they come from a spreadsheet, or can we type them?"
+      },
+      {
+        "type": "text",
+        "text": "Both. **Fill from n8n** also offers Google Sheets and Microsoft Excel templates, and any figure can be typed by a person who submits it. Figures of earlier weeks can be brought in with **Paste values**."
+      },
+      {
+        "type": "heading",
+        "text": "Which week does a figure belong to?"
+      },
+      {
+        "type": "text",
+        "text": "Each week holds the figures as they stood at its end. A reply to Monday's request counts for the week just ended. In a week that spans two quarters, send the figures of the quarter the week starts in."
+      },
+      {
+        "type": "heading",
+        "text": "How do I see figures by salesperson?"
+      },
+      {
+        "type": "text",
+        "text": "Send the team's figure with a **Breakdown**, one line for each salesperson, such as Ana 205,000, and leave the value empty so the lines are added up. Send all lines together: a newer value replaces them. The slide on where the gap sits needs the same names on **Commit** and **Quota split**."
+      },
+      {
+        "type": "heading",
+        "text": "Why is a calculated figure empty?"
+      },
+      {
+        "type": "text",
+        "text": "One of its figures, or the quota, is missing for that week: set the week's target on **Commit**. Pipeline coverage is also empty when exactly the quota is closed, and below 0 when more is closed."
+      },
+      {
+        "type": "heading",
+        "text": "I am the only one in the Workspace. Who approves?"
+      },
+      {
+        "type": "text",
+        "text": "You check your own values. If checking every one is more than you want, change the Approve step of the Workflow to **Unusual values only**."
+      },
+      {
+        "type": "heading",
+        "text": "Is this the same as the Sales Pack?"
+      },
+      {
+        "type": "text",
+        "text": "No. The Sales Pack counts a month's leads and deals. Sales forecast is a Pack of its own, and you can have both."
+      }
+    ]
+  },
   "contents": {
     "metrics": [
       {
         "key": "commit",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Commit",
@@ -50,6 +228,7 @@
       },
       {
         "key": "best-case",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Best case",
@@ -79,6 +258,7 @@
       },
       {
         "key": "closed-quarter",
+        "comesFrom": { "by": "system", "system": "CRM" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Closed this quarter",
@@ -108,6 +288,7 @@
       },
       {
         "key": "pipeline",
+        "comesFrom": { "by": "system", "system": "CRM" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Pipeline value",
@@ -137,6 +318,7 @@
       },
       {
         "key": "quota-split",
+        "comesFrom": { "by": "person", "note": "Optional, only for the deck's slide on where the gap sits." },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Quota split",
@@ -1781,6 +1963,27 @@
       "fills": [
         "commit",
         "best-case",
+        "closed-quarter",
+        "pipeline"
+      ]
+    },
+    {
+      "template": "hubspot-forecast",
+      "fills": [
+        "closed-quarter",
+        "pipeline"
+      ]
+    },
+    {
+      "template": "salesforce-forecast",
+      "fills": [
+        "closed-quarter",
+        "pipeline"
+      ]
+    },
+    {
+      "template": "pipedrive-forecast",
+      "fills": [
         "closed-quarter",
         "pipeline"
       ]

@@ -326,17 +326,17 @@ A person about to install a Pack needs to know where its numbers will come from 
 ```
 
 - **Never typed:** a Derived Metric or a Total takes no `comesFrom`, since its formula says it. A formula that only reads a target, `target({x})`, shows as set once as the target of x. The delivered n8n templates are the manifest's `feeds`; without one that fills an entry, another system's number is set up by whoever installs. Workflows, what is included and what is still needed are worked out from the Pack.
-- **Optional in the format;** a number without it shows as **The Pack does not say**. It is **required for every number that takes values** in order to be listed in the Marketplace (the publish check) and in Ziffr's own Packs (a test).
+- **Optional in the format;** a number without it is described by the ways Ziffr has, worked out from its Sources and the manifest's `feeds` (owner, 2026-11-26: never that the Pack does not say): **Ask a person**, **Ask a person, or another system sends it**, **Ask a person, or fill it from** a system **(template included)**, or, where only the API is a Source, **Another system sends it**. Numbers with the same answer share a row. It is **required for every number that takes values** in order to be listed in the Marketplace (the publish check) and in Ziffr's own Packs (a test).
 - **Text from a stranger:** `system` and `note` are held to the plain text of a Pack's names, read by the assistant-words check and drawn as text.
 
 ### Where it is shown
 
 - **Before installing,** in the preview, and on the Pack's Marketplace page: a table **Where the numbers come from**, then **Included** and **What you still need**.
 - **After installing,** in Help, with the installed Pack. The install keeps the worked-out overview, never the Pack's contents.
-- **At Set up:** each number says where it comes from, and **nobody is asked** for a number another system sends or one set as a target, whether they were picked beside Positions or hold a Position that submits it (decided by the owner on 2026-11-26). The one exception: with **Ask me also for …** ticked, the person setting up is asked where they would submit it; nobody else is asked either way. Such a number gets no Submitter otherwise and no Stand-in, and the Workflow sends no request for it. The plan, also of Add a line and of each step of a large set, says who is not asked and why. A holder keeps sight of it through the ticked Viewer Share above; a Contact cannot be shared with, and the plan says so. Choosing a Feed is unchanged.
-- **Export as Pack** asks for each number, with “A person types it” to begin with, or what the installed Pack it came from said.
+- **At Set up:** the same table, and **nobody is asked** for a number another system sends or one set as a target, whether they were picked beside Positions or hold a Position that submits it (decided by the owner on 2026-11-26). The one exception: with **Ask me also for …** ticked, the person setting up is asked where they would submit it; nobody else is asked either way. Such a number gets no Submitter otherwise and no Stand-in, and the Workflow sends no request for it. The plan, also of Add a line and of each step of a large set, says who is not asked and why. A holder keeps sight of it through the ticked Viewer Share above; a Contact cannot be shared with, and the plan says so. Choosing a Feed is unchanged.
+- **Export as Pack** asks for each number, with “Ask a person” to begin with, or what the installed Pack it came from said.
 
-`@ziffr/pack` exports the working-out (`packOverview`, `comesFromWords`, `includedAndNeeded`), so every page shows the same.
+`@ziffr/pack` exports the working-out (`packOverview`, `comesFromGroups`, `comesFromWords`, `includedAndNeeded`), so every page shows the same.
 
 ## Testing Decisions
 

@@ -18,7 +18,7 @@ import { checkSchema, type Schema } from "./json-check";
 import { PLAIN, SAVED_WORDS, WORDS, KEY } from "./file-text";
 import { checkMetricFileValue, METRIC_FILE_LIMITS, type MetricFile } from "./metric-file";
 import { checkDashboardTemplateFileValue, type DashboardTemplateFile, type WidgetSettingsFile } from "./dashboard-template-file";
-import { checkDeckTemplateFileValue, DECK_TEMPLATE_FORMAT, DECK_TEMPLATE_FORMAT_2, type DeckTemplateFile } from "./deck-template-file";
+import { checkDeckTemplateFileValue, DECK_TEMPLATE_FORMAT, DECK_TEMPLATE_FORMAT_2, DECK_TEMPLATE_FORMAT_3, type DeckTemplateFile } from "./deck-template-file";
 import { elementSlots, mapElementWords, SLIDE_ELEMENT_LIMITS } from "./slide-element";
 import { slideWords } from "./file-text";
 import { checkWorkflowTemplateFileValue, type WorkflowTemplateFile } from "./workflow-template-file";
@@ -46,7 +46,7 @@ export type ExportResult = { text: string; fileName: string; leftOut: { name: st
 
 /** How text is fitted into a file: a Pack keeps the Pack's plain-text rules; a Workspace Export (workspace-export.ts)
  * the app's own. Both say "does not fit" by an empty answer, and the caller says what was left out. */
-export type TextFit = { plain: (s: unknown, max: number) => string | null; words: (s: unknown, max: number) => string | undefined; /** A paragraph of a slide's text or box, whose words are filled once and saved. */ saved: (s: unknown, max: number) => string | undefined; /** A Slide Element's words, spaces kept; empty when the file may not hold them. */ slide: (s: string) => string };
+export type TextFit = { plain: (s: unknown, max: number) => string | null; words: (s: unknown, max: number) => string | undefined; /** A paragraph of a slide's text or box that names no Slots (formats /1 and /2). */ saved: (s: unknown, max: number) => string | undefined; /** A Slide Element's words, spaces kept; empty when the file may not hold them. */ slide: (s: string) => string };
 
 const plain = (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
@@ -354,16 +354,19 @@ export function settingsOf(s: WidgetSettings | undefined, designKey: ReadonlyMap
   return Object.keys(out).length ? { settings: out } : {};
 }
 
-/** A Deck Template file in the oldest format that holds it: /2 only when it has a Slide Element or a cover. */
+/** A Deck Template file in the oldest format that holds it: /3 when a text or box shape names Slots, else /2 when it
+ * has a Slide Element or a cover. */
 export function deckFile(t: Omit<DeckTemplateFile, "format">): DeckTemplateFile {
-  const newer = t.slides.some((s) => s.cover || s.shapes.some((sh) => sh.shape === "element"));
-  return { format: newer ? DECK_TEMPLATE_FORMAT_2 : DECK_TEMPLATE_FORMAT, ...t };
+  const live = t.slides.some((s) => s.shapes.some((sh) => (sh.shape === "text" || sh.shape === "box") && sh.slots));
+  const designed = t.slides.some((s) => s.cover || s.shapes.some((sh) => sh.shape === "element"));
+  return { format: live ? DECK_TEMPLATE_FORMAT_3 : designed ? DECK_TEMPLATE_FORMAT_2 : DECK_TEMPLATE_FORMAT, ...t };
 }
 
-/** Paragraphs of a shape's words, from the rich text the deck editor keeps. */
-function paragraphsOf(rich: unknown, fit: TextFit = PACK_FIT): string[] {
+/** Paragraphs of a shape's words, from the rich text the deck editor keeps. `live`: the words of a box that names
+ * Slots, which may hold a slide's Placeholders. */
+function paragraphsOf(rich: unknown, fit: TextFit, live: boolean): string[] {
   const doc = rich as { content?: { content?: { text?: string }[] }[] } | undefined;
-  return (doc?.content ?? []).map((p) => (p.content ?? []).map((t) => t.text ?? "").join("")).slice(0, 20).map((t) => fit.saved(t, 300) ?? "").filter((t, i, all) => t || i < all.length - 1);
+  return (doc?.content ?? []).map((p) => (p.content ?? []).map((t) => t.text ?? "").join("")).slice(0, 20).map((t) => (live ? fit.slide(t.slice(0, 300)) : fit.saved(t, 300) ?? "")).filter((t, i, all) => t || i < all.length - 1);
 }
 
 const COLORS = ["black", "grey", "light-violet", "violet", "blue", "light-blue", "yellow", "orange", "green", "light-green", "light-red", "red", "white"];
@@ -385,14 +388,15 @@ export function slideShapeOf(sh: SlideShape, designKey: ReadonlyMap<string, stri
   if (sh.type === "ziffr-widget" && sh.widget && (TEMPLATE_VIEWS as readonly string[]).includes(String(p.template))) {
     return [{ shape: "widget", view: p.template as "line", slots: sh.widget.metricSlots, ...titleOf(sh.widget.title, fit), x, y, w: clamp(p.w, 40, 1280 - x), h: clamp(p.h, 40, 720 - y), ...settingsOf(sh.widget.settings, designKey, fit) }];
   }
+  const slots = sh.textSlots ? { slots: sh.textSlots } : {};
   if (sh.type === "text") {
-    const text = paragraphsOf(p.richText, fit);
+    const text = paragraphsOf(p.richText, fit, Boolean(sh.textSlots));
     if (!text.length) return [];
-    return [{ shape: "text", x, y, w: clamp(p.w, 20, 1280 - x), text, ...(["s", "m", "l", "xl"].includes(String(p.size)) ? { size: p.size as "m" } : {}), ...(typeof p.scale === "number" ? { scale: Math.min(4, Math.max(0.25, p.scale)) } : {}), ...(["start", "middle", "end"].includes(String(p.textAlign)) ? { align: p.textAlign as "start" } : {}), ...color }];
+    return [{ shape: "text", x, y, w: clamp(p.w, 20, 1280 - x), ...slots, text, ...(["s", "m", "l", "xl"].includes(String(p.size)) ? { size: p.size as "m" } : {}), ...(typeof p.scale === "number" ? { scale: Math.min(4, Math.max(0.25, p.scale)) } : {}), ...(["start", "middle", "end"].includes(String(p.textAlign)) ? { align: p.textAlign as "start" } : {}), ...color }];
   }
   if (sh.type === "geo") {
-    const text = paragraphsOf(p.richText, fit);
-    return [{ shape: "box", x, y, w: clamp(p.w, 4, 1280 - x), h: clamp(p.h, 4, 720 - y), geo: (GEOS.includes(String(p.geo)) ? p.geo : "rectangle") as "rectangle", ...(["none", "semi", "solid"].includes(String(p.fill)) ? { fill: p.fill as "none" } : {}), ...color, ...(text.length ? { text } : {}) }];
+    const text = paragraphsOf(p.richText, fit, Boolean(sh.textSlots));
+    return [{ shape: "box", x, y, w: clamp(p.w, 4, 1280 - x), h: clamp(p.h, 4, 720 - y), geo: (GEOS.includes(String(p.geo)) ? p.geo : "rectangle") as "rectangle", ...(["none", "semi", "solid"].includes(String(p.fill)) ? { fill: p.fill as "none" } : {}), ...color, ...(text.length ? { text, ...slots } : {}) }];
   }
   return [];
 }

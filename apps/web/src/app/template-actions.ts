@@ -11,7 +11,7 @@ import type { SlideShape } from "@ziffr/core/types";
 const done = () => revalidatePath("/", "layout");
 
 /** Saves a slide of the viewer's own deck as a team slide layout. */
-export async function saveSlideLayout(input: { deckId: number; shapes: SlideShape[]; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }) {
+export async function saveSlideLayout(input: { deckId: number; shapes: SlideShape[]; name: string; description: string; labels: string[]; choices: Choices; keepTyped?: boolean; replaceId?: number | null }) {
   return attemptAsVisitor("template-actions:saveSlideLayout", async () => {
     const id = await templates.saveSlideLayout(await currentActor(), input);
     done();

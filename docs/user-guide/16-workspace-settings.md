@@ -461,6 +461,16 @@ You see Deliveries about Threads you may read, and Prompts and notices you sent 
 
 The two **Run now** buttons sit in a dashed **Demo controls** box; using them says "The demo can't be changed." Under each Delivery you can play the recipient: **Answer as** the person, then **Send in** the Connector, or **Close ticket as** the person for a ticket. Ziffr then says what would happen, such as that the answer would land in the thread or that the value would be recorded, and saves nothing. Where visitors may change the demo, the answer is recorded instead, as the Connector would do it ("Recorded in the demo"), the two **Run now** buttons make their requests in the Outbox (the demo takes one run of the Workflows a minute), and nothing is sent. **Try sending a value** on the Email and Slack cards leads to the **Sources** tab.
 
+### Send to yourself in a Practice Workspace
+
+In a [Practice Workspace](18-installation-settings.md#practice-workspace), nothing reaches anyone but you or an address you enter yourself. The top of **Connectors** has **Send to yourself**, with a switch for email, Slack and Telegram. Each is off until you switch it on, and off again after Start over.
+
+- **Email** goes to the address you sign in with, the one Ziffr has verified. If you change that address, nothing is sent until you switch email off and on again. These emails have no reply address: answer through the form link.
+- **Slack** and **Telegram:** switch the way on, then connect it below and link your own account with the code or link Ziffr gives you. Messages go to the first account you link; to use another, switch the way off and on. Messages already sent are not edited afterwards.
+- A message that was held while a way was off stays held.
+
+Messages to made-up people, and to anyone else, always stay in the Outbox. **Webhooks** go to the addresses you type there; none comes from the demo or survives Start over. Anyone you give a **View Link**, a **Calendar Link** or a form link can use it as in any Workspace.
+
 ## Sources
 
 **Workspace → Connectors → Sources** shows where values come from. Everyone sees it. It names only the Metrics you can see: a message or form link about a Metric you cannot see shows no name.

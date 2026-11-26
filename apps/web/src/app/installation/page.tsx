@@ -15,6 +15,8 @@ import { ClaimForm } from "./claim";
 import { feedbackPromptWords } from "@ziffr/core/feedback-prompt";
 import { InstallationScreen } from "./screen";
 import { DesktopOnly } from "@/components/desktop-only";
+import { practiceWorkspaceState } from "@ziffr/core/practice-workspace";
+import { optionalActor } from "@/lib/viewer";
 
 export default async function InstallationPage() {
   const actor = await installationActor();
@@ -24,11 +26,12 @@ export default async function InstallationPage() {
     const [view, admins, events, limits, mx, replyTest, usageKey, usageDays, leaveOut, encryption] = await Promise.all([installationSettingsView(actor), installationAdmins(actor), installationEvents(actor, 20), workspaceLimitRows(actor), inboundMx(actor), replyTestStatus(actor), usageKeyInfo(actor), installationUsage(actor), usageExclusionChoices(actor), keyProgress(actor)]);
     const feedback = await feedbackPromptWords(actor);
     const announcements = await installationAnnouncements(actor);
+    const practice = await practiceWorkspaceState(actor, (await optionalActor())?.workspaceId ?? null);
     return (
       <>
         <PageHeader title="Installation settings" sub={`What this Ziffr talks to, set up here instead of in the server's settings file. Only Installation Admins see this page.${version ? ` This is Ziffr ${version}.` : ""}`} />
         <DesktopOnly path="/installation" />
-        <InstallationScreen view={view} admins={admins} events={events} limits={limits} replies={{ mx, test: replyTest }} usage={{ key: usageKey, days: usageDays, leaveOut }} encryption={encryption} feedback={feedback} announcements={announcements} />
+        <InstallationScreen view={view} admins={admins} events={events} limits={limits} replies={{ mx, test: replyTest }} usage={{ key: usageKey, days: usageDays, leaveOut }} encryption={encryption} feedback={feedback} announcements={announcements} practice={practice} />
       </>
     );
   }

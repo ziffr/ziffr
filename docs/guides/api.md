@@ -283,6 +283,9 @@ The database and the core refuse some changes with a code of their own (ZFnnn), 
 | `ZF4D2` | demo_limit:; demo_limit:deck_size; demo_limit:starting; demo_limit:unknown |
 | `ZF4D3` | demo_showcase |
 | `ZF4D4` | demo_words |
+| `ZF4P0` | practice_mark_is_fixed |
+| `ZF4P1` | practice_sends_nothing |
+| `ZF4P2` | practice_refused:; practice_refused:memberships; practice_refused:practice_ways; practice_refused:profiles |
 | `ZF538` | Too many open Share Proposals. |
 | `ZF539` | Too many Share Proposals today. |
 <!-- /generated:refusal-codes -->

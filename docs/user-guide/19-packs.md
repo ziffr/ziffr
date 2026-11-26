@@ -32,6 +32,16 @@ Choose **Preview with Sample Data** to see everything the Pack adds, drawn with 
 
 When a newer Ziffr brings a newer version of a Pack you installed, that Pack shows **Version … comes with this Ziffr…**, which shows what an update changes before it is done, as under Updating a Pack. It is never applied by itself.
 
+## Made-up numbers in a Practice Workspace
+
+In a [Practice Workspace](18-installation-settings.md#practice-workspace), a Pack you set up can be filled at once, so its dashboards and slides have something to show. After **Set up** choose **Fill with made-up numbers**; the same button stays on the installed Pack. It fills the Metrics your Set ups made, a few at a time, and says how far it is.
+
+- **Values** for every period from the start of the previous Fiscal Year up to now, and never less than 13 months back (at least 8 quarters and 3 years for quarterly and yearly Metrics), so year on year, year to date against last year and the period before all work. They follow a mild trend and season in the Metric's unit, and are marked as imports.
+- **Targets:** a Metric where higher or lower is better gets a Target Series for the previous and the whole current Fiscal Year, periods still to come included.
+- Calculated Metrics and Totals work themselves out. A Metric with a target range to stay inside keeps it, no Metric gets a Breakdown, and **nothing that is there is replaced**: a period with a value keeps it, and a Metric with a Target Series keeps its own.
+
+The button is offered only to you, only in your Practice Workspace.
+
 ## Whom a Pack is for
 
 Each of Ziffr's own Packs says whom it is for: the industries, the kinds of customers, the Business Functions, the sizes and the countries it was made for. Ziffr uses this only to suggest first the Packs that fit what your Workspace and the people who manage it have told it, with the reason ("your industry", "your function"). It never hides a Pack: every one stays in the list. A Pack from a file or the Marketplace may say it too. What you answered about your Workspace and your function stays in your Workspace; nothing is sent anywhere to rank Packs.
@@ -106,21 +116,34 @@ For a first try, a Target Range is quicker: under **Edit details…** on Commit,
 3. Choose **New metric**, then [Calculated from other Metrics](10-metrics.md#calculated-from-other-metrics), and add them up into "Commit, sum of salespeople". It has a value in a week once all of them have one.
 4. The team's **Commit** stays the sales lead's call. Add the sum to the dashboard to see both side by side.
 
-**From your CRM.** Instead of asking people, n8n can send **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, and from the first two also **Commit** and **Best case** if you like, for the team and for salespeople with Metrics of their own. Choose **Fill from n8n** on one of these Metrics and a forecast template ([what they send and when](../automations/crm-forecast-feeds.md)). A figure that came from the CRM is approved like any other, but its first value is not checked for being unusual.
+**From your CRM.** Instead of asking people, n8n can send **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, and from the first two also **Commit** and **Best case** if you like, for the team and for salespeople with Metrics of their own. Choose **Fill from n8n** on one of these Metrics and a forecast template ([what they send and when](../automations/crm-forecast-feeds.md)). A figure that came from the CRM is approved like any other, but its first value is not checked for being unusual. The Pack marks **Closed this quarter** and **Pipeline value** as sent by a CRM, so **Set up from this Pack** does not make you their Submitter; to type them yourself, tick **Ask me also for …** there.
 
 **Sending the Snapshot.** The Workflow has a **Send Snapshot** step; **Set up from this Pack** leaves the dashboard and the people open. Open the Workflow, pick **Weekly forecast meeting** and the people in the step (see [The steps](11-workflows.md#the-steps)), and share the dashboard with them, or the link is not sent to them.
 
 ## Where a Pack's numbers come from
 
-The preview of a Pack shows, above what it adds, a table **Where the numbers come from**: for each Metric, **A person types it**, **Another system sends it** (naming the kind of system, and whether the Pack comes with an n8n template for it, which you connect, or you set it up), **Ziffr calculates it** from other Metrics, **Set once as a target**, or **The Pack does not say**. The creator says who or what sends a number and may add a note; the rest Ziffr works out from the Pack.
+The preview of a Pack shows, above what it adds, a table **Where the numbers come from**. Metrics with the same answer share a row. A number reaches Ziffr in one of two ways: Ziffr asks a person, or another system sends it through a [Feed](16-workspace-settings.md#feeds).
 
-Under it, **Included** lists what installing brings, its Workflows with what each does and the templates delivered, and **What you still need** lists what is yours to provide: people who type numbers, connections to other systems, targets to set, Approvers, who gets a Snapshot, and an Owner where the Pack holds a Theme.
+| The row says | What it means |
+| --- | --- |
+| **Ask a person** | Ziffr asks by the ways the line under it names, such as web form, email, Slack or Telegram. |
+| **Ask a person, or another system sends it** | The Pack leaves the choice to you. A system sends it with n8n, a SQL Feed or another program. |
+| **Ask a person, or fill it from** a system **(template included)** | The Pack comes with an n8n template for that system, which you connect. |
+| **Another system sends it** | The Metric takes no value from a person. Where the creator named the kind of system, it follows, such as CRM. |
+| **Ziffr calculates it** from other Metrics | Nothing to do. |
+| **Set once as the target** of another Metric | You set it on that Metric. |
 
-Both are in Help with an installed Pack, also one without a guide (the Pack then shows **What it needs**). **Set up from this Pack** shows **What you still need** and where each number comes from. Nobody is asked for a number another system sends or one set as a target: **Make me the Submitter of their values** covers only the numbers a person types or the Pack does not describe, and whoever holds a Position submits only those too. **Ask me also for …** makes you the Submitter of the other ones where you would submit them; nobody else is asked for them either way. You can add Submitters later on each Metric's page. A Pack installed before Ziffr kept this shows it after an update to a newer version.
+The creator may say who or what sends a number and add a note; where they say nothing, the row names the ways the Metric accepts.
+
+Under it, **Included** lists what installing brings, its Workflows with what each does and the templates delivered, and **What you still need** lists what is yours to provide: people to ask, connections to other systems, targets to set, Approvers, who gets a Snapshot, and an Owner where the Pack holds a Theme.
+
+Both are in Help with an installed Pack, also one without a guide (the Pack then shows **What it needs**). **Set up from this Pack** shows the same table and **What you still need**. Nobody is asked for a number another system sends or one set as a target: **Make me the Submitter of their values** covers only the other numbers, and whoever holds a Position submits only those too. **Ask me also for …** makes you the Submitter of the other ones where you would submit them; nobody else is asked for them either way. You can add Submitters later on each Metric's page. A Pack installed before Ziffr kept this shows it after an update to a newer version.
 
 ## A Pack's guide
 
 A Pack may carry a **Pack Guide**: what its creator tells you about it. The preview shows it above the list of what the Pack adds, for a file, one of Ziffr's own Packs and a Pack from the Marketplace, also in the Setup Guide.
+
+Each of Ziffr's own Packs has one; read **First steps**, which begins with **Start here**. A Pack of one of them installed from an earlier version of Ziffr gets its guide when you update it.
 
 It has up to five sections, always under these titles: **What it's for**, **Before you start**, **First steps**, **Each part** and **Questions**. A guide shows only the sections its creator filled. **What it's for** and **First steps** are open when the guide appears (when it has neither, its first section is); choose a title to open or close a section.
 
@@ -220,7 +243,7 @@ The **Author** starts as your name; change it to your company's if the Pack is t
 
 The second step asks **Where the numbers come from** and writes the Pack's [guide](#a-packs-guide); whoever gets the file reads both before installing and afterwards in Help.
 
-For each number that takes values choose **A person types it** (chosen to begin with, or what the installed Pack it came from said), **Another system sends it**, with the **Kind of system** such as CRM, or **Set once as a target**; add a short note if it helps. [Calculated numbers](#where-a-packs-numbers-come-from) are not asked. A Pack with Metrics is therefore made in the newer format, which older versions of Ziffr do not install.
+For each number that takes values choose **Ask a person** (chosen to begin with, or what the installed Pack it came from said), **Another system sends it**, with the **Kind of system** such as CRM, or **Set once as a target**; add a short note if it helps. [Calculated numbers](#where-a-packs-numbers-come-from) are not asked. A Pack with Metrics is therefore made in the newer format, which older versions of Ziffr do not install.
 
 The guide is optional.
 
