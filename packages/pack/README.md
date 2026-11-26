@@ -24,6 +24,10 @@ saas.pack.json:64: contents.dashboards[0].template.slots[1].suggests names “cu
 - A Pack may say whom it is for in `audience` (industries, segments, Business Functions, employee bands, revenue bands, countries, each from a fixed list that `@ziffr/pack` exports: `INDUSTRIES`, `SEGMENTS`, `BUSINESS_FUNCTIONS`, `EMPLOYEE_BANDS`, `REVENUE_BANDS`, `COUNTRIES`). Unknown keys, repeats, empty parts and an audience without a `ziffr` minimum are refused, and a problem names the part.
 - Texts that read like instructions to an AI assistant are listed, without failing the check: Ziffr shows them to whoever installs the Pack.
 
+## Check a Marketplace's answers
+
+A Marketplace holds what it sends to the [Marketplace contract](../../docs/reference/marketplace.md) with the same checks Ziffr relies on, from `@ziffr/pack/marketplace` (Node only): `checkMarketplaceAnswer`, `verifyPackStatement`, `checkRevocation` and the schemas. On the command line, `check-answer` takes the kind (`packs`, `version`, `updates`, `updates-request`), the answer's file and, to verify signatures, `--key` and `--reserve-key`.
+
 ## In a program
 
 ```js skip="a fragment: text is the Pack's file"
