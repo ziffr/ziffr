@@ -33,7 +33,7 @@ const guides = {
   webhooks: ["webhooks", "webhooks"], packs: ["packs-and-themes", "packs"], themes: ["packs-and-themes", "themes"],
   "view-designs": ["packs-and-themes", "view-designs"], "analysis-recipes": ["packs-and-themes", "analysis-recipes"],
   "answer-languages": ["packs-and-themes", "answer-languages"], "calculation-tests": ["contributing", "calculation-tests"],
-  documentation: ["contributing", "documentation"],
+  documentation: ["contributing", "documentation"], "phone-screens": ["contributing", "phone-screens"],
 };
 Object.entries(guides).forEach(([name, [section, slug]], i) => add(`docs/guides/${name}.md`, section, slug, i));
 list("docs/automations").forEach((f, i) => add(`docs/automations/${f}`, "webhooks", f === "README.md" ? "automation-templates" : `automation-${f.slice(0, -3)}`, 10 + i));

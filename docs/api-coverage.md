@@ -297,6 +297,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `periodRecord` (period-record.ts): the period page
 - `observationDetails` (observation-details.ts): the popup on a chart's point in the app; a program reads the same through the API's period status and values
 - `calendarEntries` (schedule.ts): the schedule page
+- `formLinkExtras` (form-link-extras.ts): what the form link's page adds for its own signed-in person; a program reads the same through its Schedule and the Metric's values
 - `search` (search.ts): the search page
 - `listShareProposals` (share-proposals.ts): the Actions page; a key only proposes, it never reads what waits for the person (ticket #538)
 - `previewShareProposal` (share-proposals.ts): the confirm page shows what the recipient would see, to the person only (ticket #538)

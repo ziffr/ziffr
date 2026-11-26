@@ -147,6 +147,8 @@ Each line links to where you do it:
 
 A value due leaves the list as soon as the value is in. While a colleague is Away on a Due Date, their value is in their Stand-in's schedule, marked "standing in for …", and not in theirs. Only values of Metrics you may see are listed; an Approval, Task or Question you are assigned is listed even on a Metric you do not see. Values a Feed sends are never anyone's to do.
 
+From a line here your form opens for the newest period you were asked for that still waits, and otherwise for the period running today (see [While a request waits](10-metrics.md#while-a-request-waits)). After recording a value on a phone, the form's **Next** button opens your next value that is due for its own period, and **For** names it (see [The personal form link](10-metrics.md#on-a-phone)).
+
 ### List, Week and Month
 
 Above the schedule a switch chooses how it is shown: **List** (the lines above), **Week** or **Month**. Ziffr remembers your choice in this browser. The week and the month show the same duties on their days, nothing more; use the arrows to move to other weeks and months, up to about three months ahead, and **Today** to come back.
