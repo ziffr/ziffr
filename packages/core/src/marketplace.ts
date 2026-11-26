@@ -19,6 +19,7 @@ import { readPackUpdate, updatePack, type UpdatePlan } from "./pack-updates";
 import { ZIFFR_VERSION } from "./ziffr-version";
 import { privateMailHost } from "./mail-hosts";
 import { outboundRequest, outboundTls, type OutboundAnswer } from "./outbound-request";
+import { heldBack } from "./practice";
 
 /** Ziffr's own Marketplace, where the connection goes unless the Installation names another. */
 export const MARKETPLACE_DEFAULT_URL = "https://marketplace.ziffr.net";
@@ -239,7 +240,7 @@ const reportAddress = (base: URL, packId: string, version: string): string | nul
 export async function marketplaceReportLinks(actor: Actor): Promise<{ installId: number; address: string }[]> {
   if ((actor as { key?: unknown }).key || actor.role === "guest") return [];
   const c = marketplaceConfig(await settingsInEffect());
-  if (!c.on || !c.url) return [];
+  if (!c.on || !c.url || (await heldBack(actor.workspaceId, "marketplace_report"))) return [];
   const { data } = await db().from("pack_installs").select("id, pack_id, version").eq("workspace_id", actor.workspaceId).eq("source", "marketplace");
   return (data ?? []).flatMap((i) => {
     const address = reportAddress(c.url!, String(i.pack_id), String(i.version));

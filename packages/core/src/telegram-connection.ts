@@ -9,6 +9,7 @@ import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { callTelegram, telegramEnabled, telegramOn, telegramPolling, telegramToken, telegramWebhookSecret, TelegramError } from "./telegram-api";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { refuseInDemo } from "./demo";
+import { assertMayLeave, heldBack } from "./practice";
 
 /** The updates Ziffr asks Telegram for: messages, button presses, and being blocked or unblocked. */
 export const TELEGRAM_UPDATES = ["message", "callback_query", "my_chat_member"];
@@ -49,7 +50,8 @@ export function forgetTelegramBot() {
 
 /** Whether Telegram is on in a workspace: this Ziffr has a bot, and the workspace turned it on. Never in the demo. */
 export async function telegramOnIn(workspaceId: string): Promise<boolean> {
-  if (!telegramEnabled(await settingsInEffect()) || workspaceId === DEMO_WORKSPACE_ID) return false;
+  // Never in a Practice Workspace (spec 0063), so nothing is sent or edited there.
+  if (!telegramEnabled(await settingsInEffect()) || workspaceId === DEMO_WORKSPACE_ID || (await heldBack(workspaceId, "telegram"))) return false;
   const { data } = await db().from("telegram_workspaces").select("enabled").eq("workspace_id", workspaceId).maybeSingle();
   return data?.enabled === true;
 }
@@ -103,6 +105,7 @@ export async function registerTelegramWebhook(given?: Settings): Promise<"regist
  * can reach this Ziffr; if that fails, it stays off. Turning it off keeps who linked themselves. */
 export async function setTelegramEnabled(actor: Actor, on: boolean): Promise<void> {
   mayManage(actor);
+  await assertMayLeave(actor.workspaceId, "telegram");
   if (!(await telegramOn())) throw new Error("Telegram is not set up for this Ziffr.");
   if (on) {
     if (!(await telegramBot())) throw new Error("Telegram does not accept this Ziffr's bot token.");

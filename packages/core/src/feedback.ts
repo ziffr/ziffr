@@ -16,6 +16,7 @@ import {
 import { hostedByCloud } from "./installation-days";
 import { forgetStoredSettings, settingsInEffect, settingsInEffectStrict } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { assertMayLeave } from "./practice";
 
 /** One message under a feedback: what the person wrote, or what came back from the Ziffr team. */
 export type FeedbackMessage = { fromTeam: boolean; words: string; at: string };
@@ -46,6 +47,7 @@ async function assertMayUse(actor: Actor): Promise<void> {
     db().from("memberships").select("role").eq("workspace_id", actor.workspaceId).eq("user_id", actor.personId).maybeSingle(),
   ]);
   if (!profile?.auth_user_id || !member) throw new Forbidden();
+  await assertMayLeave(actor.workspaceId, "feedback");
 }
 
 /** The actor sends feedback: a kind, their words, and optionally the page route and app version the form adds. Every

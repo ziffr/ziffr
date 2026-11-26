@@ -11,6 +11,7 @@ import { openRows } from "./sealed-columns";
 import { archivedMetricHolds, failForGood, FORM_LINK, withFormLink } from "./internal/delivery-send";
 import { checkedMailHost } from "./mail-hosts";
 import { effectiveLimit } from "./limits";
+import { assertMayLeave, heldBack, neverRouted, PRACTICE_HELD } from "./practice";
 import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
@@ -142,6 +143,8 @@ let transporter: { key: string; t: Transporter } | null = null;
  * and the connection goes to the address that was checked, with TLS checking the name. */
 export function smtpTransportWith(settings: Settings): MailTransport {
   return async (mail) => {
+    // A made-up person's address (spec 0063) is never handed to a mail server, whoever asks.
+    if (neverRouted(mail.to)) throw Object.assign(new Error("That address cannot be mailed."), { code: "ENOROUTE" });
     const url = settings.ZIFFR_SMTP_URL!;
     const options = smtpOptions(url);
     if (!options) throw Object.assign(new Error("The mail server address is not an smtp: or smtps: address."), { code: "EBADADDRESS" });
@@ -183,9 +186,12 @@ export function smtpMessage(mail: OutgoingMail, settings: Settings): SendMailOpt
 /** The SMTP transport of the settings in effect when it sends. */
 export const smtpTransport: MailTransport = async (mail) => smtpTransportWith(await settingsInEffect())(mail);
 
-/** Sends one email that is not a Delivery (an invitation, whose invitee is nobody's member yet). The address must
- * be one plain address and the subject is put on one line; returns the provider's Message-ID. */
-export async function sendMail(mail: OutgoingMail, transport: MailTransport = smtpTransport): Promise<string> {
+/** Sends one email that is not a Delivery (an invitation, whose invitee is nobody's member yet). Every caller says
+ * which Workspace it is sent for, null only for a sign-in email, which is nobody's: a Practice Workspace sends none. The
+ * address must be one plain address and the subject is put on one line; returns the provider's Message-ID. */
+export async function sendMail(mail: OutgoingMail, workspaceId: string | null, transport: MailTransport = smtpTransport): Promise<string> {
+  if (workspaceId !== null) await assertMayLeave(workspaceId, "email", { address: mail.to });
+  if (neverRouted(mail.to)) throw new Error("That address cannot be mailed.");
   const settings = await settingsInEffect();
   if (!mailEnabled(settings)) throw new Error("Email is not set up.");
   if (!isAddress(mail.to)) throw new Error("Not one plain email address.");
@@ -240,6 +246,8 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   const archived = await archivedMetricHolds(claimed);
   if (archived) return never(archived);
   // Settings may have gone, or the Delivery may be the demo's: nothing leaves then, and it does not try again.
+  // Nothing leaves a Practice Workspace (spec 0063).
+  if (await heldBack(claimed.workspace_id, "email", { recipientId: claimed.recipient_id })) return keepInOutbox(id, PRACTICE_HELD);
   // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015).
   const held = await trialHoldsBack(claimed.workspace_id, claimed.recipient_id);
   if (held) return keepInOutbox(id, held);
@@ -247,7 +255,7 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   const settings = await settingsInEffect();
   if (claimed.workspace_id === DEMO_WORKSPACE_ID || !mailEnabled(settings)) return never("Email is not set up.");
   const to = await addressIn(claimed.workspace_id, claimed.recipient_id);
-  if (!to) return never("No usable email address for this person here.");
+  if (!to || neverRouted(to)) return never("No usable email address for this person here.");
   // Someone who stopped Prompts and reminders by email gets none, also ones queued before they stopped.
   const stoppable = OPT_OUT_KINDS.includes(claimed.kind);
   if (stoppable) {

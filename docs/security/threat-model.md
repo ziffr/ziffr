@@ -264,6 +264,16 @@ Only on a demo-only Installation (`ZIFFR_DEMO_ONLY=1`) and only where `ZIFFR_DEM
 
 Each pull request of spec 0051 that opens or protects something for anonymous writers was reviewed for security (the guard, untrusted input, locking, visibility), with fixes in the pull request itself. The record is in the pull requests: the visit's id (#985), the setting and the allow-list (#1007), the limits (#1020), the seeded words and the showcase (#1022, its fixes are the commits headed "Showcase: fail closed, jsonb words, dependencies, key changes"), open dashboards (#1044), open decks and Snapshots (#1052) and open Metrics, Threads and sharing (#1054). The first opening, values (#1046), carries fixes for input checks and per-address shares but no record of a separate review in its pull request; the whole spec, and the opening tickets in particular, still need the independent review of ticket 13 (#984) with the setting on in a running demo before it is turned on anywhere that matters. That review is not part of the pull request that wrote this entry.
 
+### Practice Workspaces (spec 0063)
+
+A Practice Workspace holds made-up numbers and made-up people and is used to try things, so the harm to prevent is something real leaving it: an email from an Installation's real mail server, a chat message, a Webhook, or a way in for somebody else.
+
+- **Two layers, both failing closed.** The core asks `heldBack` (`practice.ts`) where it sends or would let somebody in: the mail module (every email names its Workspace), the Slack and Telegram senders and the places that hand out a bot, the one rule for Webhooks, invitations and links, Ziffr Cloud and feedback. A question that cannot be read sends nothing. The database refuses the same again (migration 20270207090000): a Delivery of it cannot become queued, sending or sent, and invitations, links, Webhooks, chat connections, send counts and Workspace Limits cannot be stored for it. What a Practice Workspace may do anyway is decided in one function on each side (`allowed` and `practice_allows`), which today allow nothing.
+- **The mark cannot be changed.** `workspaces.practice_for` is set when the row is inserted; a trigger refuses to add, change or remove it, so no Workspace becomes one to be deleted by "Start over", and none stops being one to start sending.
+- **Made-up people** can have no sign-in account and only an address under `.invalid` (a check constraint), belong to their Practice Workspace alone, and are refused as members elsewhere. The mail transport takes no `.invalid` address for any Workspace, the sign-in form sends none to the auth service, and a sign-in never attaches an account to a made-up person.
+- **New ways out fail a test.** `practice-ways-out.test.ts` lists every file that sends mail, calls a chat or makes a request, with how a Practice Workspace is kept out of it.
+- **Not covered:** a program with an Access Key of the Workspace, and the person themself, can take its made-up data anywhere they like.
+
 ## Gates in CI
 
 - **Secrets.** `gitleaks` scans the whole history on every pull request.

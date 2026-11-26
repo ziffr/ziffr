@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { claimSignInLink, networkAddress } from "@ziffr/core/sign-in-limits";
+import { neverRouted } from "@ziffr/core/practice";
 import { forBrowser } from "@/lib/auth-settings";
 import { authClient, DEMO_COOKIE, demoOnly, sessionUser, personFor, signedIn } from "@/lib/auth";
 import { acceptInvitation, requestToJoin } from "@ziffr/core/invitations";
@@ -27,7 +28,8 @@ export async function sendSignInLink(email: string, next?: string, check?: strin
   // accounts there too (GOTRUE_DISABLE_SIGNUP, docker/init.mjs).
   if (demoOnly()) return { error: DEMO_ONLY };
   const address = String(email ?? "").trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) return { error: "Enter a valid email address." };
+  // An address that can never be routed (a made-up person's, spec 0063) is refused before the auth service is asked.
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) || neverRouted(address)) return { error: "Enter a valid email address." };
   // The check against bots, where it is set up (spec 0021): verified with Cloudflare before anything is counted or sent.
   const place = networkAddress(await headers());
   if (!(await turnstilePassed(check, place))) return { error: BOT_CHECK };

@@ -10,6 +10,7 @@ import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
 import { forgetStaleTelegramTests } from "./installation-telegram-test";
 import { callTelegram, TelegramError } from "./telegram-api";
+import { heldBack, PRACTICE_HELD } from "./practice";
 import { telegramOnIn } from "./telegram-connection";
 import { forgetTelegramUser, telegramChatOf } from "./telegram-people";
 import { tellIfAnswered } from "./prompt-ways";
@@ -61,6 +62,8 @@ export async function sendTelegramDelivery(id: number): Promise<SendResult> {
   // Nothing goes out for an Archived Metric, also when it was archived after this was queued.
   const archived = await archivedMetricHolds(d);
   if (archived) return never(archived);
+  // Nothing leaves a Practice Workspace (spec 0063).
+  if (await heldBack(d.workspace_id, "telegram", { recipientId: d.recipient_id })) return keepInOutbox(id, PRACTICE_HELD);
   // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015).
   const held = await trialHoldsBack(d.workspace_id, d.recipient_id);
   if (held) return keepInOutbox(id, held);

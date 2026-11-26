@@ -31,6 +31,7 @@ import { effectiveLimit } from "./limits";
 import { trialEnded, trialLastDay, trialLimitMessage } from "./trials";
 import type { CanvasData, Widget } from "./types";
 import { withoutUnseenInputs } from "./formula";
+import { assertMayLeave } from "./practice";
 
 /** How long a View Link may live at most, in days: the ceiling; a Workspace may set a shorter life (limits.ts). */
 export const MAX_DAYS = 90;
@@ -328,6 +329,7 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   if (input?.snapshotId !== undefined && input?.snapshotId !== null) return createSnapshotLink(actor, id, Number(input.snapshotId), input, opts);
   await assertOwner(actor, type, id);
   assertCan(actor, "share");
+  await assertMayLeave(actor.workspaceId, "view_link");
   // A link shows what its maker chose: a widget that follows a Tag needs its list fixed first (spec 0038).
   if (type === "dashboard" && (await tagWidgetCount(actor.workspaceId, id)) > 0) throw new Refused("This dashboard has a widget that shows all Metrics with a Tag. Fix the list first, then make the link.");
   const today = new Date().toISOString().slice(0, 10);
@@ -375,6 +377,7 @@ async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId:
   if (!Number.isInteger(dashboardId) || !Number.isInteger(snapshotId)) throw new Forbidden();
   await assertOwner(actor, "dashboard", dashboardId);
   assertCan(actor, "share");
+  await assertMayLeave(actor.workspaceId, "view_link");
   const asked = endDate(input?.expires, await effectiveLimit("viewLinkDays", actor.workspaceId));
   // In a trial a link ends with the trial at the latest. The date asked for is what is written: the database clamps it
   // and remembers it, so subscribing gives it back (`expires` is the date the link really has, for the Audit Log).
