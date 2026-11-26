@@ -354,10 +354,10 @@ export function settingsOf(s: WidgetSettings | undefined, designKey: ReadonlyMap
   return Object.keys(out).length ? { settings: out } : {};
 }
 
-/** A Deck Template file in the oldest format that holds it: /3 when a text or box shape names Slots, else /2 when it
- * has a Slide Element or a cover. */
+/** A Deck Template file in the oldest format that holds it: /3 when a text or box shape names Slots or a gap table
+ * reads a Total, else /2 when it has a Slide Element or a cover. */
 export function deckFile(t: Omit<DeckTemplateFile, "format">): DeckTemplateFile {
-  const live = t.slides.some((s) => s.shapes.some((sh) => (sh.shape === "text" || sh.shape === "box") && sh.slots));
+  const live = t.slides.some((s) => s.shapes.some((sh) => ((sh.shape === "text" || sh.shape === "box") && sh.slots) || (sh.shape === "element" && sh.element.kind === "gap-table" && sh.element.total !== undefined)));
   const designed = t.slides.some((s) => s.cover || s.shapes.some((sh) => sh.shape === "element"));
   return { format: live ? DECK_TEMPLATE_FORMAT_3 : designed ? DECK_TEMPLATE_FORMAT_2 : DECK_TEMPLATE_FORMAT, ...t };
 }

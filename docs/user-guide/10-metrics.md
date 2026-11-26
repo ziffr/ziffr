@@ -469,7 +469,7 @@ Under **What it adds up** on the Total's page, its owner and Editors:
 
 While a Total is open, only its owner changes the list, and confirms that those who see it learn the change, and through it a single Metric's numbers.
 
-A Metric that a Total adds up cannot be deleted, and its period, unit, number format and Aggregation stay until it is removed from the Total. A Total takes no values and has no Breakdown, Sources, Workflow or Retention of its own. A [Workspace Export](16-workspace-settings.md) carries a Total where it holds every Metric the Total adds up; imported, it is closed. A Pack does not carry Totals yet, and **Download values** leaves them out as it leaves out calculated numbers.
+A Metric that a Total adds up cannot be deleted, and its period, unit, number format and Aggregation stay until it is removed from the Total. A Total takes no values and has no Breakdown, Sources, Workflow or Retention of its own. A [Workspace Export](16-workspace-settings.md) carries a Total where it holds every Metric the Total adds up; imported, it is closed. A Pack can bring a Total, which [Set up](19-packs.md#set-up-with-positions) makes over every line; **Export as Pack** leaves Totals out, and **Download values** leaves them out as it leaves out calculated numbers.
 
 ### Retention
 

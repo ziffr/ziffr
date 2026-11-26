@@ -46,7 +46,7 @@ const FIELDS: Record<SlideElement["kind"], Field[]> = {
     text("partLabel", "Legend of the filled part"), text("restLabel", "Legend of the rest"), text("referenceLabel", "Label of the line"),
     { type: "number", key: "periods", label: "Periods", min: 1, max: SLIDE_ELEMENT_LIMITS.periods, hint: "Empty shows the quarter so far." },
   ],
-  "gap-table": [line("headline", "Headline above"), text("rowLabel", "Heading of the rows", "Such as Salesperson."), line("gapLabel", "Heading of the difference"), text("lead", "Closing line: lead-in"), line("note", "Closing line")],
+  "gap-table": [flag("total", "One Total: a row for each Metric it adds up, against its target"), line("headline", "Headline above"), text("rowLabel", "Heading of the rows", "Such as Salesperson."), line("gapLabel", "Heading of the difference"), text("lead", "Closing line: lead-in"), line("note", "Closing line")],
   "metric-table": [{ type: "number", key: "periods", label: "Periods in the trend", min: 2, max: SLIDE_ELEMENT_LIMITS.periods }],
   definitions: [],
   list: [text("title", "Heading")],
@@ -59,7 +59,7 @@ const NAMES: Record<SlideElement["kind"], string> = { words: "Words", box: "Box"
 /** What each Slot of an element is, in words. */
 function slotName(e: SlideElement, i: number): string {
   if (e.kind === "columns") return i === 0 ? "Columns" : e.part && i === 1 ? "Filled part" : "Reference line";
-  if (e.kind === "gap-table") return i === 0 ? "Metric" : "Compared with";
+  if (e.kind === "gap-table") return e.total ? "Total" : i === 0 ? "Metric" : "Compared with";
   return `Metric ${i + 1}`;
 }
 
@@ -101,8 +101,10 @@ const readRows = (value: string) => value.split("\n").slice(0, SLIDE_ELEMENT_LIM
 
 /** An element's Metrics, a choice for each: a Slot nobody filled reads "Pick a Metric", and one more is added by
  * choosing it. Only Metrics the person sees are offered, and none is ever chosen for them. */
-export function ElementMetrics({ element, ids, metrics, onChange }: { element: SlideElement; ids: number[]; metrics: { id: number; name: string }[]; onChange: (ids: number[]) => void }) {
+export function ElementMetrics({ element, ids, metrics: all, onChange }: { element: SlideElement; ids: number[]; metrics: { id: number; name: string; total?: unknown }[]; onChange: (ids: number[]) => void }) {
   const { min, max } = elementSlots(element);
+  // A gap table of a Total reads nothing else.
+  const metrics = element.kind === "gap-table" && element.total ? all.filter((m) => m.total) : all;
   if (max === 0) return null;
   const pick = (slot: number, value: string) => onChange(pickMetric(element, ids, slot, Number(value)));
   const unused = metrics.filter((m) => !ids.includes(m.id));
@@ -150,7 +152,8 @@ export function ElementPanel({ editor, data }: { editor: Editor; data: CanvasDat
   const set = (key: string, value: unknown) => {
     const next = { ...element, [key]: value } as Record<string, unknown>;
     if (value === undefined) delete next[key];
-    save(next as SlideElement);
+    // A table turned to a Total keeps its Metric only where that is one.
+    save(next as SlideElement, key === "total" && value && !data.metrics.find((m) => m.id === ids[0])?.total ? [] : ids);
   };
   return (
     <section aria-label={`${NAMES[element.kind]} settings`} className="stock space-y-3 rounded-[var(--radius-card)] p-3">
@@ -169,7 +172,8 @@ export function ElementPanel({ editor, data }: { editor: Editor; data: CanvasDat
           <span className="mt-1 block text-xs text-muted-foreground">One row per line; text after | stands at the right.</span>
         </label>
       )}
-      {FIELDS[element.kind].map((f) => <Control key={f.key} field={f} element={element as unknown as Record<string, unknown>} set={set} />)}
+      {/* Offered where there is a Total to pick, or the table is of one already. */}
+      {FIELDS[element.kind].filter((f) => f.key !== "total" || data.metrics.some((m) => m.total) || (element.kind === "gap-table" && element.total)).map((f) => <Control key={f.key} field={f} element={element as unknown as Record<string, unknown>} set={set} />)}
       <ElementMetrics element={element} ids={ids} metrics={data.metrics} onChange={(next) => save(element, next)} />
     </section>
   );

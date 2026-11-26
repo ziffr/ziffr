@@ -4,6 +4,8 @@
 // element's list: its Placeholders become empty words, and nothing says its name, a value or a Breakdown row of it.
 import { writeNumber } from "@ziffr/figures";
 import { targetFor } from "./compare";
+import { targetReader } from "./formula";
+import { countedParts } from "./totals";
 import { formatValue } from "./format";
 import { periodEnd, periodLabel, periodStart, periodsBetween, shiftPeriod } from "./periods";
 import { fillWidgetText } from "./placeholders";
@@ -231,16 +233,69 @@ export function columnsModel(e: ColumnsElement, ctx: SlideContext): ColumnsModel
 
 /** One row of a gap table; `gap` is null when the second Metric has no row of this name. */
 export type GapRow = { label: string; goal: string; actual: string; gap: number | null; gapText: string };
-/** What a gap table shows; `empty` says why it has no rows. */
-export type GapModel = { denied: true } | { denied: false; head: { row: string; goal: string; actual: string; gap: string }; rows: GapRow[]; empty: string | null };
+/** What a gap table shows; `empty` says why it has no rows, `more` how many rows are left out, and `note` that a
+ * Total adds up Metrics the viewer is not shown. */
+export type GapModel = { denied: true } | { denied: false; head: { row: string; goal: string; actual: string; gap: string }; rows: GapRow[]; empty: string | null; more: number; note: string | null };
 
 /** The most rows a gap table holds; more are named as left out. */
 export const GAP_ROWS = 30;
 
-/** Two Metrics' latest Breakdowns side by side, the largest surplus first. The first Metric is the actual one. */
+/** What a gap table of a Total says where it adds up Metrics the viewer is not shown. */
+export const OTHERS_NOT_SHOWN = "Other Metrics of this Total are not shown to you.";
+
+const bySurplus = (rows: GapRow[]) => rows.sort((a, b) => (b.gap ?? -Infinity) - (a.gap ?? -Infinity) || a.label.localeCompare(b.label));
+
+/** Metrics' names as the rows of one list: where all begin alike up to a comma, as the Metrics of a Pack's lines do
+ * (“Commit, Anna”), that beginning heads the column and each row keeps its own part. */
+function rowNames(names: string[]): { head: string | null; labels: string[] } {
+  const start = names[0]?.slice(0, names[0].lastIndexOf(", ") + 2) ?? "";
+  return start.length > 2 && names.every((n) => n.startsWith(start) && n.length > start.length)
+    ? { head: start.slice(0, -2), labels: names.map((n) => n.slice(start.length)) }
+    : { head: null, labels: names };
+}
+
+/** One row for each Metric a Total adds up that the viewer sees, for the latest period one of them has a value in: its
+ * target for that period, as target() gives it, its value and the gap. Nothing is added up from the rows. */
+function totalGapModel(e: GapTableElement, ctx: SlideContext, total: Metric): GapModel {
+  const { data } = ctx;
+  const list = data.totalLists?.[total.id];
+  const parts = (list?.parts ?? []).flatMap((p) => { const metric = data.metrics.find((m) => m.id === p.part); return metric ? [{ ...p, metric }] : []; });
+  const valued = (period: string) => { const counted = new Set(countedParts(parts, period)); return parts.some((p) => counted.has(p.part) && valueAt(p.metric, data, period) !== null); };
+  const period = [...new Set(parts.flatMap((p) => pointsOf(p.metric, data).map((x) => x.period)))].sort().filter(valued).at(-1);
+  const counted = new Set(period ? countedParts(parts, period) : []);
+  const figures = parts.filter((p) => counted.has(p.part)).map((p) => ({ metric: p.metric, value: valueAt(p.metric, data, period!), target: targetReader(p.metric, data.targets[p.metric.id] ?? [])(period!) ?? null }));
+  // Written like the Total's own figures where the viewer has them.
+  const scale = scaleOf(Math.max(0, Math.abs(latest(total, data)?.value ?? 0), ...figures.flatMap((f) => [Math.abs(f.value ?? 0), Math.abs(f.target ?? 0)])));
+  const names = rowNames(figures.map((f) => f.metric.name));
+  const actual = names.head ?? total.name;
+  // The scale is that of the rows, also where the Total's own values are not shown.
+  const gapLabel = e.gapLabel?.replace(/\{scale\}/gi, scaleUnit(total, scale));
+  const head = {
+    row: e.rowLabel ? fillSlideWords(e.rowLabel, ctx).text : "Name",
+    goal: "Target",
+    actual,
+    gap: gapLabel ? fillSlideWords(gapLabel, ctx).text : `${actual} minus target${scaleUnit(total, scale) ? `, ${scaleUnit(total, scale)}` : ""}`,
+  };
+  const rows = bySurplus(figures.map((f, i): GapRow => {
+    const gap = f.value === null || f.target === null ? null : f.value - f.target;
+    return { label: names.labels[i], goal: writeSlideValue(f.metric, f.target, scale, data), actual: writeSlideValue(f.metric, f.value, scale, data), gap, gapText: gap === null ? "–" : writeSlideValue(f.metric, gap, scale, data, { bare: true, change: true }) };
+  }));
+  const withheld = period ? list?.others.includes(period) : list?.hidden;
+  // Where the viewer is shown none of its Metrics, the note says all there is to say.
+  const empty = rows.length || (!parts.length && list?.hidden) ? null : "No value to show yet.";
+  return { denied: false, head, rows: rows.slice(0, GAP_ROWS), more: Math.max(0, rows.length - GAP_ROWS), empty, note: withheld ? OTHERS_NOT_SHOWN : null };
+}
+
+/** Two Metrics' latest Breakdowns side by side, the largest surplus first. The first Metric is the actual one. A gap
+ * table of a Total shows a row for each Metric it adds up instead. */
 export function gapModel(e: GapTableElement, ctx: SlideContext): GapModel {
   const { data } = ctx;
   const [actual, goal] = ctx.metrics;
+  if (e.total) {
+    if (!actual) return { denied: true };
+    if (actual.total) return totalGapModel(e, ctx, actual);
+    return { denied: false, head: { row: "", goal: "", actual: "", gap: "" }, rows: [], more: 0, note: null, empty: `${actual.name} is not a Total. Pick a Total for this table.` };
+  }
   if (!actual || !goal) return { denied: true };
   const byPeriod = data.breakdowns[actual.id] ?? {};
   const period = Object.keys(byPeriod).filter((p) => (byPeriod[p]?.length ?? 0) > 0).sort().at(-1);
@@ -252,7 +307,7 @@ export function gapModel(e: GapTableElement, ctx: SlideContext): GapModel {
     actual: actual.name,
     gap: fillSlideWords(e.gapLabel ?? `${actual.name} minus ${inSentence(goal.name)}${scaleUnit(actual, scale) ? ", {scale}" : ""}`, ctx).text,
   };
-  const none = (empty: string): GapModel => ({ denied: false, head, rows: [], empty });
+  const none = (empty: string): GapModel => ({ denied: false, head, rows: [], empty, more: 0, note: null });
   if (!period) return none(`No Breakdown of ${actual.name} yet. Send it with a line for each ${inSentence(head.row)}.`);
   // The rows at the top of each Breakdown; parts under a row stay with it.
   const goals = new Map((data.breakdowns[goal.id]?.[period] ?? []).map((r) => [r.label, r.value]));
@@ -262,8 +317,7 @@ export function gapModel(e: GapTableElement, ctx: SlideContext): GapModel {
     const gap = g === undefined ? null : r.value - g;
     return { label: r.label, goal: writeSlideValue(goal, g, scale, data), actual: writeSlideValue(actual, r.value, scale, data), gap, gapText: gap === null ? "–" : writeSlideValue(actual, gap, scale, data, { bare: true, change: true }) };
   });
-  rows.sort((a, b) => (b.gap ?? -Infinity) - (a.gap ?? -Infinity) || a.label.localeCompare(b.label));
-  return { denied: false, head, rows, empty: null };
+  return { denied: false, head, rows: bySurplus(rows), empty: null, more: 0, note: null };
 }
 
 /** One row of a metric table. */
