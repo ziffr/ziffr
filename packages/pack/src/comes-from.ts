@@ -141,9 +141,11 @@ export function targetsRead(pack: Pick<Pack, "contents">): string[] {
   return [...new Set(keys)].flatMap((k) => names.get(k) ?? []);
 }
 
+const list = (names: string[]) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
+
 /** Where one number comes from, in words: the line of the table, and for another system's number what is delivered. */
 export function comesFromWords(n: PackNumber): { from: string; delivered: string } {
-  const of = (n.of ?? []).join(", ");
+  const of = list(n.of ?? []);
   if (n.by === "person") return { from: "A person types it", delivered: "" };
   if (n.by === "calculated") return { from: of ? `Ziffr calculates it from ${of}` : "Ziffr calculates it", delivered: "" };
   if (n.by === "target") return { from: of ? `Set once as the target of ${of}` : "Set once as a target", delivered: "" };
@@ -155,7 +157,6 @@ export function comesFromWords(n: PackNumber): { from: string; delivered: string
   };
 }
 
-const list = (names: string[]) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
 const DOES: Record<PackWorkflowSummary["does"][number], string> = {
   asks: "asks for the values", reminds: "reminds", escalates: "raises late values", checks: "marks unusual values", approves: "has values approved",
   checklist: "keeps a checklist", tells: "tells people", snapshot: "sends a dashboard's Snapshot", publishes: "publishes", locks: "locks the period",
@@ -174,7 +175,7 @@ export function includedAndNeeded(o: PackOverview, targets: string[] = []): { in
   say("Theme", "Themes", o.themes);
   const used = new Set(o.numbers.flatMap((n) => n.templates ?? []));
   const delivered = Object.entries(FEED_TEMPLATE_LABELS).flatMap(([id, label]) => (used.has(id) ? [label] : []));
-  say("n8n template for", "n8n templates for", delivered);
+  if (delivered.length) included.push(`${delivered.length === 1 ? "An n8n template" : "n8n templates"} for ${list(delivered)}`);
 
   const needed: string[] = [];
   const by = (kind: PackNumber["by"]) => o.numbers.filter((n) => n.by === kind);

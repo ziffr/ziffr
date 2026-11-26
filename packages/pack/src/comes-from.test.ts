@@ -78,7 +78,7 @@ describe("the overview of a Pack", () => {
       included: [
         "Metrics: Commit, Closed this quarter, Pipeline value, Quota, Hours and Gap",
         "Workflow Weekly: asks for the values, reminds, has values approved, sends a dashboard's Snapshot, publishes and locks the period",
-        "n8n templates for: Google Sheets and Microsoft Excel",
+        "n8n templates for Google Sheets and Microsoft Excel",
       ],
       needed: [
         "Someone who types Commit",
