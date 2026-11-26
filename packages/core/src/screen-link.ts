@@ -5,8 +5,10 @@
 // keeps for them (mail.ts, addressIn). The only input is a path, which must be one of the fixed list of screens
 // (desktop-screens.ts), so the email never leads anywhere else; its words are fixed and name no dashboard, deck or
 // Metric, so no check of what the person may see is needed to send it, and the screen checks that when it is opened.
-// Never through an Access Key, in the demo or for a Guest. It shares the limit of Test Messages by email.
+// Never through an Access Key, in the demo or for a Guest. It shares the limit of Test Messages by email. The Audit
+// Log keeps the screen's name and the outcome, never the path or an address.
 import { Forbidden, type Actor } from "./actor";
+import { audit } from "./audit-log";
 import { db } from "./db";
 import { deliverScreenLink } from "./deliveries";
 import { refuseInDemo } from "./demo";
@@ -37,5 +39,6 @@ export async function sendScreenLink(actor: Actor, path: unknown): Promise<Scree
   const keep = !mailEnabled(await settingsInEffect()) ? NO_WAY_HERE.mail : (await addressIn(actor.workspaceId, actor.personId)) ? null : NO_WAY_HERE.address;
   const id = await deliverScreenLink(actor.workspaceId, { recipientId: actor.personId, subject: SCREEN_LINK_SUBJECT, text: screenLinkText(String(ws?.name ?? ""), screen.name), link: path as string, keep: keep ?? undefined });
   const { state, note } = await selfSendOutcome(actor.workspaceId, actor.personId, id, keep);
+  await audit(actor, { kind: "connector.screen_link_sent", details: { screen: screen.name, outcome: state } });
   return { state, words: state === "sent" ? "Sent. Look in your email." : state === "queued" ? "On its way to your email." : `Not emailed. ${note}` };
 }

@@ -13,7 +13,7 @@ import { SCREEN_LINK_SUBJECT } from "./screen-link-words";
 import { sendTestMessage } from "./test-message";
 import { NO_WAY_HERE, TEST_PER_WAY_PER_WINDOW } from "./test-message-words";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { workspace } from "./test/db-fixtures";
+import { auditRowsOf, workspace } from "./test/db-fixtures";
 
 const MAILPIT = process.env.MAILPIT_URL ?? "http://127.0.0.1:55424";
 const SETTINGS = { ZIFFR_SMTP_URL: process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test" };
@@ -60,6 +60,10 @@ describe("a Screen Link", () => {
     expect(m.Cc).toHaveLength(0); expect(m.Bcc).toHaveLength(0);
     expect(await inbox(boMail)).toHaveLength(0);
     expect(await deliveriesOf(w.id)).toMatchObject([{ kind: "notice", connector: "email", recipient_id: ann, sender_id: null, mail_state: "sent", not_before: null }]);
+    const rows = await auditRowsOf(w.id, "connector.screen_link_sent");
+    expect(rows).toMatchObject([{ details: { screen: "a deck", outcome: "sent" } }]);
+    expect(JSON.stringify(rows)).not.toContain(mail);
+    expect(JSON.stringify(rows)).not.toContain("999999");
   });
 
   it("sends nothing for any other address, a program, a Guest, someone outside the Workspace or the demo", async () => {

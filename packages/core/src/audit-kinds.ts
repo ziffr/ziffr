@@ -124,6 +124,7 @@ export const AUDIT_KINDS = {
   "workspace.settable_limit_changed": "changed a limit of the workspace",
   "person.settable_limit_changed": "changed a limit of their own",
   "connector.test_sent": "sent themselves a Test Message by",
+  "connector.screen_link_sent": "asked for a Screen Link by email to",
   "slack.connected": "connected a Slack workspace",
   "slack.disconnected": "disconnected Slack",
   "telegram.turned_on": "turned Telegram on",
