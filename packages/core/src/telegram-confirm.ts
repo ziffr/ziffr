@@ -12,6 +12,8 @@
 // link; the hash also says how many tries were spent. TELEGRAM_CONFIRM_TRIES wrong numbers end the request. One thing
 // waits per person: a newer code or a newer request ends the last. The emails per person are limited in the database.
 import { createHash, createHmac, hkdfSync, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { telegramAccountName } from "./connection-notice-words";
+import { tellDisconnected } from "./connection-notices";
 import { db } from "./db";
 import { deliverEmailNotice, deliverNotice } from "./deliveries";
 import { addressIn, headerSafe, mailOn } from "./mail";
@@ -45,18 +47,6 @@ async function numberMark(secret: string, digits: string): Promise<string | null
   if (!root) return null;
   const key = Buffer.from(hkdfSync("sha256", root, "", "ziffr telegram confirm number", 32));
   return createHmac("sha256", key).update(`${secret}\n${digits}`).digest("hex").slice(0, 32);
-}
-
-/** A Telegram account's name as it may stand in an email and on a page. Whoever holds the account chose it, so only
- * letters, digits, spaces, apostrophes and hyphens of the display name are kept (no address or link survives), cut
- * short; the @username has a fixed shape. */
-function accountLabel(from: unknown): string {
-  const f = (from && typeof from === "object" ? from : {}) as { first_name?: unknown; last_name?: unknown; username?: unknown };
-  const shown = [f.first_name, f.last_name].filter((v): v is string => typeof v === "string").join(" ")
-    .replace(/[^\p{L}\p{M}\p{N} '’-]+/gu, " ").replace(/\s+/g, " ").trim();
-  const name = Array.from(shown).slice(0, 40).join("").trim();
-  const user = typeof f.username === "string" && /^[A-Za-z0-9_]{3,32}$/.test(f.username) ? `@${f.username}` : "";
-  return name && user ? `“${name}” (${user})` : user || (name ? `“${name}”` : "an account without a name");
 }
 
 /** Tells a chat something about its connection; a lost notice is not worth failing for. */
@@ -119,7 +109,7 @@ export async function askContactToConfirm(workspaceId: string, personId: string,
   const check = String(randomInt(10_000)).padStart(4, "0");
   const digits = await numberMark(secret, check);
   if (!digits) return { linked: false, why: "gone" };
-  const account = accountLabel(chat.from);
+  const account = telegramAccountName(chat.from);
   const token = [chat.userId, chat.chatId, Buffer.from(account, "utf8").toString("base64url"), addressMark(secret, to.address), digits, secret].join(".");
   const { error: kept } = await db().from("telegram_link_codes").upsert({ code_hash: hashAfter(token, 0), workspace_id: workspaceId, person_id: personId, created_at: new Date().toISOString() }, { onConflict: "workspace_id,person_id" });
   if (kept) return { linked: false, why: "gone" };
@@ -240,6 +230,10 @@ async function connect(to: { workspaceId: string; personId: string; userId: numb
   const row = { workspace_id: to.workspaceId, person_id: to.personId, telegram_user_id: to.userId, chat_id: to.chatId, linked_at: new Date().toISOString() };
   const { error } = await db().from("telegram_links").insert(row);
   if (error?.code !== "23505") return !error;
+  const { data: held } = await db().from("telegram_links").select("person_id").eq("workspace_id", to.workspaceId).eq("telegram_user_id", to.userId).neq("person_id", to.personId).maybeSingle();
   const moved = await db().from("telegram_links").update(row).eq("workspace_id", to.workspaceId).eq("telegram_user_id", to.userId).neq("person_id", to.personId).select("person_id");
-  return !moved.error && Boolean(moved.data?.length);
+  if (moved.error || !moved.data?.length) return false;
+  // Whoever held the account is told by email that it is not theirs any more.
+  if (held) await tellDisconnected({ workspaceId: to.workspaceId, personId: held.person_id as string, service: "telegram" });
+  return true;
 }

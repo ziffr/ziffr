@@ -2,9 +2,12 @@
 // only to a member or Contact of its workspace, to a Slack user of the connected Slack workspace who is neither
 // deleted nor a bot. A member is found by their proven address, or by a code they send the bot themselves; a Contact
 // by the address the workspace keeps for them. A stored Slack handle is never used: display names in Slack are
-// neither unique nor stable, and nobody proved one.
+// neither unique nor stable, and nobody proved one. A member is emailed when a Slack account becomes theirs, either
+// way, and whoever a code takes one from is emailed too (connection-notices.ts).
 import { randomBytes } from "node:crypto";
 import type { Actor } from "./actor";
+import { slackAccountName } from "./connection-notice-words";
+import { tellConnected, tellDisconnected } from "./connection-notices";
 import { db } from "./db";
 import { addressIn } from "./mail";
 import { callSlack, SlackError } from "./slack-api";
@@ -52,21 +55,43 @@ export async function slackUserFor(bot: SlackBot, personId: string): Promise<Sla
     return { userId: null, why: "Nobody on the connected Slack has their address." };
   }
   if (typeof user.profile?.email === "string" && user.profile.email.toLowerCase() !== address.toLowerCase()) return { userId: null, why: "Nobody on the connected Slack has their address." };
-  const row = { workspace_id: ws, person_id: personId, team_id: bot.teamId, slack_user_id: user.id, matched_by: "email", email: address.toLowerCase(), linked_at: new Date().toISOString() };
-  let { error } = await db().from("slack_links").upsert(row, { onConflict: "workspace_id,person_id" });
+  const linkedAt = new Date();
+  const row = { workspace_id: ws, person_id: personId, team_id: bot.teamId, slack_user_id: user.id, matched_by: "email", email: address.toLowerCase(), linked_at: linkedAt.toISOString() };
+  let { error, changed } = await keepMatch(row);
   if (error?.code === "23505" && member) {
     // A member's own proven address outweighs a Contact's, which a member typed: a Contact found first by a member's
     // address must not keep that member's Slack account. A member or a code link holding it stays.
     const { data: holder } = await db().from("slack_links").select("person_id, matched_by").eq("workspace_id", ws).eq("slack_user_id", user.id).maybeSingle();
     if (holder && holder.matched_by === "email" && !(await isMember(ws, holder.person_id))) {
       await db().from("slack_links").delete().eq("workspace_id", ws).eq("person_id", holder.person_id);
-      ({ error } = await db().from("slack_links").upsert(row, { onConflict: "workspace_id,person_id" }));
+      ({ error, changed } = await keepMatch(row));
     }
   }
   // One Slack user is one person here: if someone else is already that Slack user, nobody is guessed.
   if (error?.code === "23505") return { userId: null, why: "Someone else here is that Slack user." };
   if (error) throw new Error("The Slack match could not be kept.");
+  // Queued: whoever asked who someone is on Slack (a page, a send) does not wait on the mail server.
+  if (changed && member) await tellConnected({ workspaceId: ws, personId, service: "slack", account: await accountOf(ws, user.id, user), by: "email", linkedAt, queue: true });
   return { userId: user.id, by: "email" };
+}
+
+/** Writes a match found by address and says whether the person's Slack account changed with it. One statement decides
+ * that, so matches made at the same moment report it once. */
+async function keepMatch(row: { workspace_id: string; person_id: string; slack_user_id: string } & Record<string, unknown>): Promise<{ error: { code?: string } | null; changed: boolean }> {
+  const added = await db().from("slack_links").insert(row);
+  if (added.error?.code !== "23505") return { error: added.error, changed: !added.error };
+  const theirs = () => db().from("slack_links").update(row).eq("workspace_id", row.workspace_id).eq("person_id", row.person_id);
+  const moved = await theirs().neq("slack_user_id", row.slack_user_id).select("person_id");
+  if (moved.error || moved.data?.length) return { error: moved.error, changed: !moved.error };
+  const same = await theirs().eq("slack_user_id", row.slack_user_id).select("person_id");
+  // No row of the person's own: the conflict is someone else being that Slack user.
+  return { error: same.error ?? (same.data?.length ? null : added.error), changed: false };
+}
+
+/** A Slack account as a notice names it, with the connected Slack workspace's name. */
+async function accountOf(workspaceId: string, slackUserId: string, user: unknown): Promise<string> {
+  const { data } = await db().from("slack_installations").select("team_name").eq("workspace_id", workspaceId).maybeSingle();
+  return slackAccountName(user, slackUserId, data?.team_name);
 }
 
 async function isMember(ws: string, personId: string): Promise<boolean> {
@@ -100,7 +125,9 @@ export async function startSlackLink(actor: Actor): Promise<{ code: string; minu
 
 /** Links the Slack user who sent a code to the person who made it, when the code is waiting and was made in the
  * workspace connected to that Slack workspace. The Slack user is known from Slack's signed event, so this proves
- * both ends. Returns the workspace's name, or null for an unknown or old code. */
+ * both ends. The member is emailed when that is a Slack account they were not connected to, and whoever was that Slack
+ * user here before is emailed that they are not any more. Returns the workspace's name, or null for an unknown or old
+ * code. */
 export async function linkSlackByCode(bot: SlackBot, slackUserId: string, text: string): Promise<string | null> {
   const code = /\bZIF-[A-Z2-7]{16}\b/.exec(String(text).toUpperCase())?.[0];
   if (!code || !isSlackId(slackUserId)) return null;
@@ -110,9 +137,17 @@ export async function linkSlackByCode(bot: SlackBot, slackUserId: string, text: 
   if (!c || Date.now() - new Date(c.created_at).getTime() > CODE_MINUTES * 60_000) return null;
   if (!(await isMember(bot.workspaceId, c.person_id))) return null;
   // That Slack user was someone else here (found by address): now they are the person who proved it.
-  await db().from("slack_links").delete().eq("workspace_id", bot.workspaceId).eq("slack_user_id", slackUserId).neq("person_id", c.person_id);
-  const { error } = await db().from("slack_links").upsert({ workspace_id: bot.workspaceId, person_id: c.person_id, team_id: bot.teamId, slack_user_id: slackUserId, matched_by: "code", email: null, linked_at: new Date().toISOString() }, { onConflict: "workspace_id,person_id" });
+  const { data: dropped } = await db().from("slack_links").delete().eq("workspace_id", bot.workspaceId).eq("slack_user_id", slackUserId).neq("person_id", c.person_id).select("person_id");
+  for (const d of dropped ?? []) await tellDisconnected({ workspaceId: bot.workspaceId, personId: d.person_id as string, service: "slack" });
+  const { data: before } = await db().from("slack_links").select("slack_user_id").eq("workspace_id", bot.workspaceId).eq("person_id", c.person_id).maybeSingle();
+  const linkedAt = new Date();
+  const { error } = await db().from("slack_links").upsert({ workspace_id: bot.workspaceId, person_id: c.person_id, team_id: bot.teamId, slack_user_id: slackUserId, matched_by: "code", email: null, linked_at: linkedAt.toISOString() }, { onConflict: "workspace_id,person_id" });
   if (error) return null;
+  if (before?.slack_user_id !== slackUserId) {
+    // Only for the name in the email: a connection stands whether or not Slack gives it.
+    const user = await callSlack("users.info", { user: slackUserId }, bot.token).then((r) => r.user, () => null);
+    await tellConnected({ workspaceId: bot.workspaceId, personId: c.person_id, service: "slack", account: await accountOf(bot.workspaceId, slackUserId, user), by: "code", linkedAt });
+  }
   const { data: w } = await db().from("workspaces").select("name").eq("id", bot.workspaceId).maybeSingle();
   return w?.name ?? "Ziffr";
 }
