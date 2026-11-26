@@ -53,7 +53,7 @@ function ListingLink({ href, children, unsigned = false }: { href?: string; chil
   );
 }
 
-export function PacksScreen({ installed, manages, exportable = null, authorName = "", offers = [], included = [], marketplace = false, updates = [], reports = [], demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; authorName?: string; offers?: OfferedItem[]; included?: IncludedPackListing[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; reports?: { installId: number; address: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
+export function PacksScreen({ installed, manages, exportable = null, authorName = "", offers = [], included = [], marketplace = false, updates = [], reports = [], withdrawn = [], demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; authorName?: string; offers?: OfferedItem[]; included?: IncludedPackListing[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; reports?: { installId: number; address: string }[]; withdrawn?: { installId: number; reason: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
   return (
     <div className="space-y-8">
       {manages && <Offers offers={offers} />}
@@ -72,6 +72,9 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
                     </div>
                     <div className="mt-2"><Publisher author={p.author} logo={p.logo} id={p.packId} signed={p.signed} fromMarketplace={p.source === "marketplace"} included={p.source === "included"} reviewed={p.reviewed} /></div>
                     <p className="mt-1 text-muted-foreground">{p.summary}</p>
+                    {withdrawn.filter((w) => w.installId === p.id).map((w) => (
+                      <p key={w.installId} className="mt-2 flex items-start gap-2 rounded-[var(--radius-input)] border border-destructive/40 p-2.5"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> <span className="min-w-0 break-words"><span className="font-medium">Withdrawn from the Marketplace:</span> {w.reason} What you installed stays as it is.</span></p>
+                    ))}
                     <p className="mt-1 text-xs text-muted-foreground">
                       {p.source === "upload" && !p.signed ? `${UNSIGNED} ` : p.source === "included" ? "One of Ziffr\u2019s own Packs. " : "From the Marketplace. "}
                       Installed {new Date(p.installedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{p.installedBy ? ` by ${p.installedBy}` : ""}.

@@ -122,6 +122,10 @@ Opening the page asks the Marketplace for the newest Packs from your server; a s
 
 While the Marketplace connection is on, a Pack from the Marketplace shows **Report this Pack**, on its Preview and under it in **Installed in this Workspace**. It opens the Marketplace's report form in a new tab, with the Pack and version filled in. The Marketplace is not told which page you came from, and your Ziffr server sends nothing: what you write there goes to the Marketplace from your browser. Use it for content that is illegal, that uses someone else's work or name, that is harmful or misleading, or spam. Reporting changes nothing in your Workspace; to remove a Pack, uninstall it.
 
+## A withdrawn Pack
+
+A Marketplace can withdraw a Pack, for example when it copied someone's work or turned out to mislead. Ziffr learns this with its daily question about newer versions, which it asks when an Owner or Admin opens the Packs page. The Pack in **Installed in this Workspace** then says **Withdrawn from the Marketplace**, with the reason and **What you installed stays as it is.** Everyone who sees the installed Packs sees the line. Nothing is removed or changed: your Metrics, templates and Themes stay. No update is offered, and the Pack cannot be installed from the Marketplace again. If you no longer want it, **Uninstall…** it as any other Pack. When the Marketplace takes the withdrawal back, the line goes with the next answer.
+
 ## Updating a Pack
 
 Owners and Admins see **Update from a file…** on each installed Pack (an Owner, when it holds Themes). Choose the newer file: its version must be higher than the one installed. Ziffr checks the whole file and lists every item with what the new version does to it (added, changed, removed or the same) and what happens here:

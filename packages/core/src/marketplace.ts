@@ -117,6 +117,7 @@ async function ask(path: string, init: { method?: "GET" | "POST"; body?: unknown
 // The contract's own schemas, so Ziffr holds an answer to exactly what a service is checked against.
 const LISTING = MARKETPLACE_SCHEMAS.packs.properties!.packs.items!;
 const NAMED_VERSION = MARKETPLACE_SCHEMAS.updates.properties!.updates.items!;
+const WITHDRAWAL = MARKETPLACE_SCHEMAS.updates.properties!.withdrawn.items!;
 
 export type { MarketplaceListing };
 
@@ -296,13 +297,53 @@ export async function checkMarketplaceVersions(force = false): Promise<void> {
   const claim = db().from("marketplace_checks").update({ checked_at: now.toISOString() }).eq("only_row", true);
   const { data: claimed } = await (force ? claim : claim.lt("checked_at", new Date(now.getTime() - CHECK_EVERY_MS).toISOString())).select("only_row");
   if (!claimed?.length) return;
-  const answer = await ask("v1/updates", { method: "POST", body: { ziffr: ZIFFR_VERSION, installed: [...oldest].map(([id, version]) => ({ id, version })) } }) as { updates?: unknown; revocations?: unknown } | null;
+  const answer = await ask("v1/updates", { method: "POST", body: { ziffr: ZIFFR_VERSION, installed: [...oldest].map(([id, version]) => ({ id, version })) } }) as { updates?: unknown; withdrawn?: unknown; revocations?: unknown } | null;
   await keepRevocations(answer?.revocations, trustedKeys(await settingsInEffect()));
+  await keepWithdrawals(answer?.withdrawn, [...oldest.keys()]);
   const updates = (Array.isArray(answer?.updates) ? answer.updates : []).slice(0, MARKETPLACE_CONTRACT.updates)
     .filter((u): u is { id: string; version: string } => !checkSchema(NAMED_VERSION, u).length)
     .map((u) => ({ id: u.id, version: u.version }))
     .filter((u) => oldest.has(u.id));
   if (updates.length) await db().from("marketplace_versions").upsert(updates.map((u) => ({ pack_id: u.id, version: u.version, seen_at: new Date().toISOString() })));
+}
+
+/** Keeps which of the asked Packs the answer says are withdrawn. A `withdrawn` list is the whole list for what was
+ * asked, so an asked Pack it no longer names is not withdrawn any more; an answer without the list (a Marketplace that
+ * does not send it) changes nothing. Only asked Packs and reasons the contract allows are kept. */
+async function keepWithdrawals(entries: unknown, asked: string[]): Promise<void> {
+  if (!Array.isArray(entries)) return;
+  const wanted = new Set(asked);
+  const named = new Set<string>();
+  const kept = new Map<string, string>();
+  for (const e of entries.slice(0, MARKETPLACE_CONTRACT.updates) as { id?: unknown; reason?: unknown }[]) {
+    const id = String(e?.id);
+    if (!wanted.has(id)) continue;
+    // Named at all, it stays as it was; only a withdrawal that passes the check replaces what is kept.
+    named.add(id);
+    if (!checkSchema(WITHDRAWAL, e).length) kept.set(id, e.reason as string);
+  }
+  const restored = asked.filter((id) => !named.has(id));
+  if (restored.length) await db().from("marketplace_withdrawals").delete().in("pack_id", restored);
+  if (!kept.size) return;
+  const now = new Date().toISOString();
+  await db().from("marketplace_withdrawals").upsert([...kept].map(([pack_id, reason]) => ({ pack_id, reason, seen_at: now })));
+  // No update is offered for a withdrawn Pack, whatever an earlier answer said.
+  await db().from("marketplace_versions").delete().in("pack_id", [...kept.keys()]);
+}
+
+/** The Workspace's installs of Packs the Marketplace withdrew, with its reason, for whoever sees the installed Packs
+ * (not Guests or keys). What the last answer said, whether or not the connection is on now; nothing is asked here. */
+export async function marketplaceWithdrawals(actor: Actor): Promise<{ installId: number; reason: string }[]> {
+  if ((actor as { key?: unknown }).key || actor.role === "guest") return [];
+  // Only Packs installed from the Marketplace: an uploaded file under the same id is not the Marketplace's Pack.
+  const { data: installs } = await db().from("pack_installs").select("id, pack_id").eq("workspace_id", actor.workspaceId).eq("source", "marketplace");
+  if (!installs?.length) return [];
+  const { data: gone } = await db().from("marketplace_withdrawals").select("pack_id, reason").in("pack_id", installs.map((i) => String(i.pack_id)));
+  const why = new Map((gone ?? []).map((g) => [String(g.pack_id), String(g.reason)]));
+  return installs.flatMap((i) => {
+    const reason = why.get(String(i.pack_id));
+    return reason ? [{ installId: Number(i.id), reason }] : [];
+  });
 }
 
 /** The newer Marketplace versions of this Workspace's installed Packs, by install, for Owners and Admins: what the Packs

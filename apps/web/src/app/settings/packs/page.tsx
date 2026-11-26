@@ -3,7 +3,7 @@
 import { currentActor } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { listInstalledPacks } from "@ziffr/core/packs";
-import { marketplaceOn, marketplaceReportLinks, marketplaceUpdates } from "@ziffr/core/marketplace";
+import { marketplaceOn, marketplaceReportLinks, marketplaceUpdates, marketplaceWithdrawals } from "@ziffr/core/marketplace";
 import { exportOptions } from "@ziffr/core/pack-export";
 import { can } from "@ziffr/core/actor";
 import { offeredItems } from "@ziffr/core/pack-updates";
@@ -27,6 +27,8 @@ export default async function PacksPage() {
   const updates = market ? await marketplaceUpdates(actor) : [];
   // "Report this Pack" on installed Marketplace Packs, for everyone who sees them, while the connection is on.
   const reports = await marketplaceReportLinks(actor);
+  // Packs the Marketplace withdrew, as its last answer said: one line for everyone who sees the installed Packs.
+  const withdrawn = await marketplaceWithdrawals(actor);
   return (
     <>
       <PageHeader title="Packs" sub="Ready-made Metric Catalog entries, templates, View Designs and Themes, each a file with no code. Installing one adds them to the Workspace; it makes no Metric until you use them." />
@@ -43,6 +45,7 @@ export default async function PacksPage() {
         marketplace={market}
         updates={updates}
         reports={reports}
+        withdrawn={withdrawn}
         demo={demo}
         guest={actor.role === "guest"}
         viewer={actor.personId}
