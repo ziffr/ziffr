@@ -391,6 +391,10 @@ _Avoid_: Page, frame, board
 A part of a slide that draws itself in the deck's Theme and fills its words from today's data: words, a box, a figure, a column chart, a gap table, a metric table, a numbered list, a logo place or cover art. It may read Metrics, and shows nothing of one the viewer may not see. It is for slides only; on a dashboard stand Widgets.
 _Avoid_: Block, component, shape (for this)
 
+**Snapshot Part**:
+One part of a dashboard's shown Snapshot on a deck's slide: one Widget as the Snapshot kept it, or the **opening part** with the dashboard's name, the period and the Snapshot's introduction. The deck stores only which Snapshot and which part; each person sees it only if the Snapshot itself would show it to them, so a deck's Share opens nothing through it, and View Links leave it out. A slide that holds one, or was made from a Snapshot, **keeps numbers**: every Widget and Slide Element on it that draws numbers draws that Snapshot's.
+_Avoid_: Embed, frozen widget, imported slide
+
 **Theme**:
 A named look for everything that shows numbers: colours for text, surfaces, data, good, bad and the target band, the fonts for headlines, text and figures, how cards are drawn, and what every slide shows (logo, footer, slide number, background image, type sizes). The team has one default theme; a dashboard or deck may use another, and a deck may set its own footer. A slide may hide the logo, footer and number. Ziffr's own screens are drawn by the person's Appearance, not by a Theme. Owners and Admins change Themes. The team default Theme also dresses what Ziffr sends and shows outside the app: emails, the form link, View Link pages and the side bar of Slack messages show its logo (or the Workspace's name), accent, footer and fonts, with every colour checked for contrast. A Theme can be written as a file and read back from one; a Theme in a Pack may use the Pack's logo. Every Theme has a **dark variant**, the colours it wears when the viewer's Appearance is dark: a Standard Theme carries a designed one, any other Theme gets one worked out from its own colours and checked for contrast (WCAG AA), falling back to Ziffr Dark's colours if that fails; a Theme that is dark already has none. Its setting **In a dark Appearance** is "Follows the viewer's Appearance" (the default) or "Always as designed", for brand decks and anything that must look the same for everyone. Fonts, corners and cards are the same in both.
 _Avoid_: Master, skin, style, brand kit, palette
@@ -541,7 +545,7 @@ A Workspace setting, off by default, that lets people with a verified address at
 _Avoid_: Auto-join, SSO
 
 **Contact**:
-A person known to a Workspace who has no login, such as a field worker or an outside bookkeeper who submits values by Slack, email or the form. A contact can be invited later and then becomes a Member or Guest.
+A person known to a Workspace who has no login, such as a field worker or an outside bookkeeper who submits values by Slack, email or the form. A Contact who connects Telegram on their personal form confirms it from an email to the address the Workspace keeps for them; until then nothing goes to or comes from that account. A contact can be invited later and then becomes a Member or Guest.
 _Avoid_: External user, anonymous submitter
 
 **Access Key**:

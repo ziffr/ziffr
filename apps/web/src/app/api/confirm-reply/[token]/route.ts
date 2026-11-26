@@ -3,11 +3,10 @@
 // scanner prefetching the link records nothing; the Confirm button POSTs. A link that is unknown, expired or used answers the
 // same 404 page. The page holds only the reply's own words (cut short, escaped) and the words of what it would do.
 import { confirmHeldReply, heldReplyView } from "@ziffr/core/held-replies";
-import { unsubscribePage as page } from "@/lib/unsubscribe-page";
+import { escapeHtml as escape, unsubscribePage as page } from "@/lib/unsubscribe-page";
 
 type Ctx = { params: Promise<{ token: string }> };
 
-const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const unknown = () => page("Link not known", "<p>This link does not work. It may have expired or been used already.</p>", 404);
 
 /** The page that shows the reply and asks before it is recorded. */
