@@ -26,25 +26,25 @@ describe("the starting Packs", () => {
     expect(res.assistantTexts).toEqual([]);
   });
 
-  it("Sales forecast works out the gap, the share of quota and the coverage, with no value where an input is missing or a division is by 0", () => {
+  it("Sales forecast reads the quota from Commit's target, with no value where an input or the quota is missing or a division is by 0", () => {
     const res = checkPack(startingPack("sales-forecast.pack.json"));
     if (!res.ok) throw new Error("does not pass");
     const formula = (key: string) => res.pack.contents.metrics!.find((e) => e.key === key)!.metric.formula!;
-    const week = { commit: 400000, quota: 500000, "closed-quarter": 200000, pipeline: 900000 };
-    const of = (key: string, values: Record<string, number> = week) => evaluate(formula(key), values);
-    expect([of("commit-gap"), of("commit-share"), of("coverage")]).toEqual([-100000, 80, 3]);
-    // A week without a quota, or without anything at all, has no derived value, never one counted from 0.
-    for (const key of ["commit-gap", "commit-share", "coverage"]) {
-      expect(of(key, { commit: 400000, "closed-quarter": 200000, pipeline: 900000 }), key).toBeNull();
-      expect(of(key, {}), key).toBeNull();
+    const week = { commit: 400000, "closed-quarter": 200000, pipeline: 900000 };
+    const of = (key: string, values: Record<string, number> = week, quota: number | undefined = 500000) => evaluate(formula(key), values, {}, quota === undefined ? {} : { commit: quota });
+    expect([of("quota"), of("commit-gap"), of("commit-share"), of("coverage")]).toEqual([500000, -100000, 80, 3]);
+    // A week without a quota, or without a Commit to read it by, has no derived value, never one counted from 0.
+    for (const key of ["quota", "commit-gap", "commit-share", "coverage"]) {
+      expect(evaluate(formula(key), week), key).toBeNull();
+      expect(of(key, { "closed-quarter": 200000, pipeline: 900000 }), key).toBeNull();
     }
-    expect(of("commit-share", { ...week, quota: 0 })).toBeNull();
+    expect(of("commit-share", week, 0)).toBeNull();
     // Exactly the quota closed: nothing is missing, so there is no coverage. More than it: below 0, as the description says.
     expect(of("coverage", { ...week, "closed-quarter": 500000 })).toBeNull();
     expect(of("coverage", { ...week, "closed-quarter": 800000 })).toBe(-3);
-    // Every figure a person sends is a weekly last value, so a quarter shows the latest call, not a sum of calls.
+    // Every figure a person sends is a weekly last value, so a quarter shows the latest call, not a sum of calls. The quota is not one of them.
     const sent = res.pack.contents.metrics!.filter((e) => !e.metric.formula);
-    expect(sent.map((e) => [e.key, e.metric.period, e.metric.aggregation])).toEqual(["commit", "best-case", "closed-quarter", "pipeline", "quota"].map((k) => [k, "week", "last"]));
+    expect(sent.map((e) => [e.key, e.metric.period, e.metric.aggregation])).toEqual(["commit", "best-case", "closed-quarter", "pipeline", "quota-by-salesperson"].map((k) => [k, "week", "last"]));
   });
 
   it("SaaS metrics 2.0 brings a logo, Tags on every entry, both decks and both close Workflows", () => {
