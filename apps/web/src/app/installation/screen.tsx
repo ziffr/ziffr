@@ -31,6 +31,8 @@ const INSTALLATION_ANNOUNCEMENTS: AnnouncementsKind = {
   create: createInstallationAnnouncement, update: updateInstallationAnnouncement, setActive: setInstallationAnnouncementActive, remove: deleteInstallationAnnouncement,
 };
 import type { KeyProgress } from "@ziffr/core/workspace-key-progress";
+import { PracticeWorkspaceSection } from "./practice-workspace";
+import type { PracticeWorkspaceState } from "@ziffr/core/practice-workspace";
 
 /** The words the page uses for each kind of event of the Installation's audit. */
 const EVENT_WORDS: Record<string, string> = {
@@ -44,6 +46,8 @@ const EVENT_WORDS: Record<string, string> = {
   "setting.test_replies": "tested replies by email with",
   "workspace.key_destroyed": "destroyed the key of a Workspace it is deleting:",
   "workspace.key_changed": "changed the key of a Workspace:",
+  "practice_workspace.made": "made a Practice Workspace:",
+  "practice_workspace.removed": "deleted their Practice Workspace:",
   "usage_key.made": "made a Usage Key",
   "usage_key.revoked": "revoked the Usage Key",
   "workspace_limit.set": "set the Workspace Limit of",
@@ -117,13 +121,14 @@ function SectionNav({ items }: { items: { id: string; label: string }[] }) {
 /** What the Replies section shows beside its form: the replies domain's MX records now, and the latest test. */
 type RepliesView = { mx: MxView | null; test: ReplyTestStatus };
 
-export function InstallationScreen({ announcements, view, admins, events, limits, replies, usage, encryption, feedback }: { announcements: InstallationAnnouncementRow[]; feedback: { at: string; words: string }[]; encryption: KeyProgress; view: InstallationSettingsView; admins: InstallationAdminRow[]; events: InstallationEvent[]; limits: WorkspaceLimitRow[]; replies: RepliesView; usage: { key: UsageKeyInfo | null; days: UsageDay[]; leaveOut: { workspaceId: string; name: string }[] } }) {
-  const items = [{ id: "admins", label: "Installation Admins" }, ...view.sections.map((s) => ({ id: s.id, label: s.title })), { id: "announcements", label: "Announcements" }, { id: "encryption", label: "Encryption" }, { id: "changes", label: "Changes" }];
+export function InstallationScreen({ practice, announcements, view, admins, events, limits, replies, usage, encryption, feedback }: { practice: PracticeWorkspaceState; announcements: InstallationAnnouncementRow[]; feedback: { at: string; words: string }[]; encryption: KeyProgress; view: InstallationSettingsView; admins: InstallationAdminRow[]; events: InstallationEvent[]; limits: WorkspaceLimitRow[]; replies: RepliesView; usage: { key: UsageKeyInfo | null; days: UsageDay[]; leaveOut: { workspaceId: string; name: string }[] } }) {
+  const items = [{ id: "admins", label: "Installation Admins" }, { id: "practice", label: "Practice Workspace" }, ...view.sections.map((s) => ({ id: s.id, label: s.title })), { id: "announcements", label: "Announcements" }, { id: "encryption", label: "Encryption" }, { id: "changes", label: "Changes" }];
   return (
     <div className="space-y-8 md:grid md:grid-cols-[12rem_minmax(0,1fr)] md:gap-8 md:space-y-0">
       <SectionNav items={items} />
       <div className="phone-fields min-w-0 space-y-12">
         <AdminsSection admins={admins} />
+        <PracticeWorkspaceSection state={practice} />
         {view.sections.map((s) => <Section key={s.id} feedback={s.id === "feedback" ? feedback : undefined} section={s} canSeal={view.canSeal} slack={s.id === "slack" ? view.slack : undefined} siteUrl={view.siteUrl} limits={s.id === "limits" ? limits : undefined} replies={s.id === "replies" ? replies : undefined} usage={s.id === "usage" ? { key: usage.key, days: usage.days, workspaces: usage.leaveOut } : undefined} />)}
         <AnnouncementsSection rows={announcements} kind={INSTALLATION_ANNOUNCEMENTS} />
         <EncryptionSection progress={encryption} />
@@ -136,7 +141,7 @@ export function InstallationScreen({ announcements, view, admins, events, limits
                 <li key={i} className="flex flex-wrap gap-x-2 py-2">
                   <span className="font-medium">{e.actorName}</span>
                   <span>{EVENT_WORDS[e.kind] ?? e.kind}</span>
-                  {e.subject && <span className={e.kind.startsWith("setting.") || e.kind === "workspace.key_destroyed" || e.kind === "workspace.key_changed" ? "min-w-0 break-all font-mono text-xs leading-5" : ""}>{e.subject}</span>}
+                  {e.subject && <span className={e.kind.startsWith("setting.") || e.kind.startsWith("practice_workspace.") || e.kind === "workspace.key_destroyed" || e.kind === "workspace.key_changed" ? "min-w-0 break-all font-mono text-xs leading-5" : ""}>{e.subject}</span>}
                   <RelativeTime at={e.at} className="ml-auto text-muted-foreground" />
                 </li>
               ))}

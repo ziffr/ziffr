@@ -57,13 +57,14 @@ A test lists every file that calls a way out and fails when a new one appears, u
 
 What would have been sent stays in the Outbox with its words, as Deliveries that were never queued.
 
-Values come in as anywhere: Feeds, Access Keys, connected assistants and form links work.
+Values come in as anywhere: Feeds, Access Keys, connected assistants and form links work. Anyone you give a form link can send a value there, and sees what the form shows: the Metric and the person asked.
 
 ### Its content
 
 - **A copy of the demo, made as a Workspace Export of the demo written into the new Workspace by the import** (spec 0040). Both are maintained and tested with every new feature, so the copy keeps working when the demo's seed changes. The demo is only read.
 - The Admin takes the place of the demo's Owner (owns, submits and sees what she does). The other demo people become **made-up people**: members with their names, roles, Groups, Shares, Metrics and Submitter roles, an address ending in `.invalid` and no way to sign in. They can be put into Pack Positions, hold Shares, be asked, and be named as Approvers.
-- What the export file does not carry is added afterwards where the app shows it often: shares with Everyone, who approves and who is told in Workflows, and Snapshots. Images in Themes and decks, dashboard introductions, Threads and Findings stay behind.
+- The copy reads the whole demo, also what its Owner is not shared. Dashboards, decks and Workflows become the Admin's, so that everything can be tried; Metrics keep their demo owners (made-up people).
+- What the export file does not carry is added afterwards where the app shows it often: Shares as the demo has them (Everyone's and Editors' too), Stand-ins, who approves and who is told in Workflows, dashboard introductions, the default Theme, Snapshots, and the day's messages in the Outbox. Images in Themes and decks, Threads, Findings and pins stay behind.
 - **Annual progress works:** after the copy, and only in the copy (the demo's seed is not changed), Ziffr fills with made-up values what is missing from the start of the previous fiscal year (today the daily Metric lacks its first months), and gives a Target Series for the previous and the whole current fiscal year to every Metric where a target makes sense and that has only a Target Range or none. A value or a target that exists is never overwritten.
 - **Dates** are the demo's own: the demo is seeded afresh daily, so its history reaches up to today. Where an Installation has switched the demo off, nothing refreshes it, and the copy ends where the demo's last seed ended; the page says that date.
 - Values arrive as imports, like in any import.

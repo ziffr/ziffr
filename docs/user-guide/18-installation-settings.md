@@ -27,6 +27,25 @@ Once you are an Installation Admin, your own menu at the bottom of the sidebar h
 
 Under **Installation Admins**, add someone by the email address they signed in with. They must have signed in to this Ziffr once before. **Remove** takes someone off the list, yourself included, but the last one stays: add another one first. People named on the server stay until the server's settings change.
 
+## Practice Workspace
+
+A **Practice Workspace** is a private Workspace of your own to try everything in, without touching real numbers or reaching real people. Open **Installation settings**, find **Practice Workspace** and choose **Make a Practice Workspace**. It takes up to a minute and opens by itself.
+
+It holds a copy of the demo's company: its Metrics with their history, dashboards, decks, Workflows, Themes and Groups. You take the place of the company's Owner. The other people are **made-up people**: they have names, roles and Shares, you can give them things to send and approve, fill a Pack's Positions with them and share with them, but none of them can sign in, and their addresses end in `.invalid`, which no mail server can reach.
+
+Everything works as in any Workspace, with these differences:
+
+- **Nothing is sent from it.** Every message Ziffr would send stays in the Outbox, where you can read it. Invitations, Contacts, View Links, Calendar Links, Webhooks, Slack and Telegram connections and feedback are refused.
+- **Values still come in:** you can record them, and Feeds, Access Keys and form links work. Anyone you give a form link can send a value there, and sees what the form shows.
+- Only you see it. It does not count towards any limit, is never deleted for being unused, and Retention does not run in it.
+- You can take its Workspace Export; the file holds only made-up people and you.
+
+What the copy does not carry: images in Themes and decks, Questions, Tasks and Findings, and pinned dashboards. The dashboards, decks and Workflows are yours; the Metrics belong to whom they belong to in the demo. The numbers reach up to today as the demo's do. Where the demo is switched off here, nothing refreshes it, and the page says on which day its numbers end.
+
+**Start over** deletes your Practice Workspace with everything you made or changed in it, destroys its Workspace Key and makes a fresh copy. It asks you to confirm, and it can delete nothing else.
+
+Only an Installation Admin can make one, and each has one. It is not offered on a demo-only Installation, nor while you are in a Trial Workspace. It is not the demo, which everyone shares, and not a Trial Workspace, which is for trying Ziffr with your own numbers.
+
 ## Mail
 
 Ziffr sends requests for values, reminders, replies and invitations by email once it has a mail server.
