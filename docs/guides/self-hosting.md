@@ -461,6 +461,14 @@ Releases are tagged `vX.Y.Z`, and each has its notes on the [Releases page](http
 2. Apply the new migrations: `supabase db push`. They only add, so the old app keeps working until it is replaced.
 3. Set any new settings the notes name, then build and start the new version.
 
+**Text boxes with typed numbers.** Text boxes on slides can show live values (**Insert value**). Words that were typed, or filled in when a slide was made from a template before that, stay as they are. To find the decks, Deck Templates and slide layouts whose text boxes hold numbers or Metric names, so their owners can replace them, run [`scripts/find-typed-figures.sql`](../../scripts/find-typed-figures.sql) against the database. It only reads, and prints names and counts, never the words:
+
+```sh skip="needs your database"
+psql "$DATABASE_URL" -f scripts/find-typed-figures.sql
+# With Docker, from the folder of compose.yml:
+docker compose exec -T db psql -U postgres -h localhost -d postgres < find-typed-figures.sql
+```
+
 ## Backups
 
 With Docker, back up the `ziffr_db` and `ziffr_keys` volumes ([docker/README.md](../../docker/README.md#backups)). With your own Supabase project:

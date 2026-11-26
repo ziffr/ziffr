@@ -63,6 +63,12 @@ A slide may be a **cover**: it shows no logo, footer or number of the Theme and 
 
 PDF draws the slides as shown, always in the designed colours. PowerPoint gets each element as native text boxes and shapes at the places the slide has them; fonts are named, not embedded, so a computer without them substitutes its own, and a chart arrives as shapes, not as an editable chart.
 
+### Live values in every text box
+
+Added by ticket #1172 (the owner's approval, 2026-11-26). A text box (words, a box or note with words, an arrow's label) keeps its Placeholders and the Metrics they count, and is filled each time it is drawn, per viewer, with the rules of an element's words: nothing of a Metric the viewer may not see. **Insert value** picks the Metric and what to show. Only the Metrics a box's words ask for count as the box's, and for those the rules of a widget's Metrics hold: saving checks the ones newly named, a Share opens them, a View Link leaves the box out whole when it names a Metric the link does not show, and on a slide that keeps numbers the box reads the Snapshot's. One box names 9 Metrics at most.
+
+Words are no longer filled once when a slide is made from a template or layout. A template keeps Slot numbers on such boxes (`ziffr.deck-template/3`, written only when a shape names Slots; `/3` also takes what later parts of a slide need while it is unreleased), and leaves out numbers and Breakdown rows typed into text boxes unless the person keeps them. Decks and templates saved before keep their words; `scripts/find-typed-figures.sql` lists those that hold numbers or Metric names, and changes nothing.
+
 ## Testing Decisions
 
 Unit tests for the format checks (old files still pass, hostile elements are refused, older formats refuse in words), for the figures an element writes (scale, gap words, quarter weeks) and for Theme colours. A database test that a deck made from the new template draws only Metrics its viewer sees. The Pack's deck is compared at 1280 by 720, in the three brands, against the approved design.

@@ -21,7 +21,7 @@ The exact formats are JSON Schemas in `docs/reference/`, generated from the defi
 | The Pack and its manifest | `ziffr.pack/1` | [`pack.schema.json`](../reference/pack.schema.json) |
 | A Metric Catalog entry | `ziffr.metric/1` | [`metric.schema.json`](../reference/metric.schema.json) |
 | A Dashboard Template | `ziffr.dashboard-template/1` | [`dashboard-template.schema.json`](../reference/dashboard-template.schema.json) |
-| A Deck Template | `ziffr.deck-template/1` or `ziffr.deck-template/2` | [`deck-template.schema.json`](../reference/deck-template.schema.json) and [`deck-template-2.schema.json`](../reference/deck-template-2.schema.json), see [Slides that look designed](#slides-that-look-designed) |
+| A Deck Template | `ziffr.deck-template/1`, `/2` or `/3` | [`deck-template.schema.json`](../reference/deck-template.schema.json), [`deck-template-2.schema.json`](../reference/deck-template-2.schema.json) and [`deck-template-3.schema.json`](../reference/deck-template-3.schema.json), see [Slides that look designed](#slides-that-look-designed) and [Live values in text and boxes](#live-values-in-text-and-boxes) |
 | A Workflow Template | `ziffr.workflow-template/1` | [`workflow-template.schema.json`](../reference/workflow-template.schema.json) |
 | A View Design | `ziffr.view/1` | [`view-design.schema.json`](../reference/view-design.schema.json), see [Writing a View Design](view-designs.md) |
 | An Analysis Recipe | `ziffr.analysis/1` or `ziffr.analysis/2` | [`analysis-recipe.schema.json`](../reference/analysis-recipe.schema.json) and [`analysis-recipe-2.schema.json`](../reference/analysis-recipe-2.schema.json), see [Analysis Recipes](analysis-recipes.md) |
@@ -112,6 +112,18 @@ A Deck Template in the format `ziffr.deck-template/2` may put **Slide Elements**
 Colours are always roles of the Theme (`ink`, `muted`, `rule`, `surface`, `canvas`, `band`, `accent`, `soft`, `cover`, `cover-text`, `cover-accent`, `good`, `bad`, `data`), never values. Words hold plain text and these Placeholders: `{metric}`, `{latest}`, `{period}`, `{target}`, `{change yoy}`, `{change}`, `{difference 1 2}`, `{left 1 2}`, `{gap 1 2}`, `{quarter}`, `{quarter week}`, `{quarter weeks}`, `{weeks left}`, `{scale}` and `{slide}`; a number names the element's Slot, counted from 1. A slide may say `"cover": true`: no logo, footer or number of the Theme, and not counted in page numbers. The [user guide](../user-guide/14-decks-and-themes.md#slide-elements) says what each element shows.
 
 A file without elements and covers stays `ziffr.deck-template/1`. An older Ziffr refuses a `/2` file naming the formats it reads, so give a Pack that uses it a `ziffr` minimum that has it.
+
+### Live values in text and boxes
+
+The words of a `text` or `box` shape keep their Placeholders and are filled each time a slide is shown, for the person looking. Without more, they count the slide's own Metrics: `{metric}` is the first Metric of the slide's first widget, `{metric 2}` the next new one.
+
+In the format `ziffr.deck-template/3` a `text` or `box` shape may name the Slots its words count, at most 9, and may then use every Placeholder of a Slide Element:
+
+```json
+{ "shape": "text", "x": 64, "y": 600, "w": 900, "slots": [2, 0], "text": ["{metric}: {latest}, {difference 1 2} to {metric 2}"] }
+```
+
+Ziffr writes `/3` only when a shape names Slots; other files stay `/1` or `/2`. An older Ziffr refuses a `/3` file naming the formats it reads, so give a Pack that uses it a `ziffr` minimum that has it. Write no figures into a template's words: they would read the same for everyone who uses it.
 
 ## Filling the Metrics from other systems
 
