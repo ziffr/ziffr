@@ -150,7 +150,7 @@ Select a slide and choose **Save slide as layout…**; a panel opens beside the 
 
 ### Saving a deck as a Deck Template
 
-A **Deck Template** keeps a whole deck: every slide with its Widgets, words and boxes, with the Metrics left open as Slots. Choose **Save as Deck Template…** at the top; a panel opens beside the deck. A Metric shown on several slides becomes one Slot, which you can name, such as "Revenue". Its name in the words becomes {metric}. Notes tied to one period or row can follow a rule instead, or are left out, as for a layout. Images and links stay behind. You can do this for a deck of your own once it is saved, when you see every Metric on it. Everyone in the team can then start a deck from it on the Decks page; only you can change or replace it.
+A **Deck Template** keeps a whole deck: every slide with its Widgets, words and boxes, with the Metrics left open as Slots. Choose **Save as Deck Template…** at the top; a panel opens beside the deck. A Metric shown on several slides becomes one Slot, which you can name, such as "Revenue". Its name in the words becomes {metric}; in the words of a [Slide Element](#slide-elements) this happens for the Metrics listed on that element, and any other name stays as you typed it. Notes tied to one period or row can follow a rule instead, or are left out, as for a layout. Images and links stay behind. You can do this for a deck of your own once it is saved, when you see every Metric on it. Everyone in the team can then start a deck from it on the Decks page; only you can change or replace it.
 
 ## Presenting
 
