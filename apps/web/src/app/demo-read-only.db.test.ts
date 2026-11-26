@@ -322,6 +322,7 @@ const CASES: Record<string, Case> = {
   "team-actions:setMember": { open: (i) => [i.group, "anna", true] },
   "team-actions:addContact": { blocked: () => [{ name: "Ann Other", email: "ann@contact.test" }] },
   "team-actions:removeContact": { nothing: "the demo has no Contacts", blocked: () => ["nobody"] },
+  "team-actions:inviteGateNow": { reads: () => [] },
   "team-actions:inviteMember": { blocked: () => [{ email: "someone@invite.test", role: "member" }] },
   "team-actions:setWorkspaceClock": { blocked: () => [{ timeZone: "Europe/Berlin", runHour: 7, weekStart: 0 }] },
   "team-actions:resendInvitation": { blocked: () => [1] },
