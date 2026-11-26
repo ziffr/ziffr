@@ -60,7 +60,7 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
                       <span className="fig text-muted-foreground">{p.version}</span>
                       <span className="text-xs text-muted-foreground">{p.license}</span>
                     </div>
-                    <div className="mt-2"><Publisher author={p.author} logo={p.logo} id={p.packId} signed={p.signed} fromMarketplace={p.source === "marketplace"} included={p.source === "included"} /></div>
+                    <div className="mt-2"><Publisher author={p.author} logo={p.logo} id={p.packId} signed={p.signed} fromMarketplace={p.source === "marketplace"} included={p.source === "included"} reviewed={p.reviewed} /></div>
                     <p className="mt-1 text-muted-foreground">{p.summary}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {p.source === "upload" && !p.signed ? `${UNSIGNED} ` : p.source === "included" ? "One of Ziffr\u2019s own Packs. " : "From the Marketplace. "}
@@ -78,7 +78,7 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
             )}
       </section>
       {manages && included.length > 0 && <IncludedPacks packs={included} viewer={viewer} numberStyle={numberStyle} />}
-      {marketplace && <MarketplaceSearch viewer={viewer} numberStyle={numberStyle} />}
+      {marketplace && <MarketplaceSearch installed={installed.map((p) => ({ packId: p.packId, version: p.version }))} viewer={viewer} numberStyle={numberStyle} />}
       {manages && <InstallFromFile viewer={viewer} numberStyle={numberStyle} />}
       {exportable && <ExportPack options={exportable} defaultAuthor={authorName} />}
       {demo && <p className="text-sm text-muted-foreground">The demo installs no Packs: the Workspace is shared by everyone looking at it.</p>}
@@ -168,7 +168,7 @@ export function PackPreviewCard({ preview, viewer, numberStyle, pending, okUnsig
       <div>
         <p className="flex items-center gap-2 text-base font-medium"><Package aria-hidden className="size-4" /> {preview.manifest.name} <span className="fig text-sm font-normal text-muted-foreground">{preview.manifest.version}</span></p>
         <p className="text-muted-foreground">{preview.manifest.summary}</p>
-        <div className="mt-2"><Publisher author={preview.manifest.author.name} logo={preview.logo} id={preview.manifest.id} signed={!preview.unsigned} fromMarketplace={preview.source === "marketplace"} included={preview.source === "included"} /></div>
+        <div className="mt-2"><Publisher author={preview.manifest.author.name} logo={preview.logo} id={preview.manifest.id} signed={!preview.unsigned} fromMarketplace={preview.source === "marketplace"} included={preview.source === "included"} reviewed={preview.reviewed} /></div>
         <p className="mt-1 text-xs text-muted-foreground">Under {preview.manifest.license}. <ListingLink href={preview.manifest.listing?.homepage} unsigned={preview.unsigned}>Its page</ListingLink></p>
       </div>
       {preview.unsigned

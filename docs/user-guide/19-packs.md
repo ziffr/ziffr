@@ -8,7 +8,7 @@ A **Pack** is a file of ready-made things for a Workspace: Metric Catalog entrie
 
 **Installed in this Workspace** lists each Pack with its version, author and license, whether it was an uploaded file, when and by whom it was installed, and what it added: its Metric Catalog entries, templates, designs and Themes. A Pack's own page and help page open as plain links, when it has them; for a Pack that came as a file, not from the Marketplace, the link names its site and says the Marketplace did not check it. Owners, Admins and Members see the list; Guests see no Packs.
 
-Each Pack shows "by" its author, with its logo when it has one, in a bordered box next to the name, and says who vouches for both. A Pack installed from the Marketplace says **Published through the Marketplace as @handle**; that is all its signature proves, so it does not say the name or logo were reviewed. A Pack installed from a file says **Uploaded file. The Marketplace did not check it. Its name and logo are what the file says about itself.**, shows the id as the file writes it, and, when the id begins with `ziffr/`, adds **This file says it is from Ziffr. It is not signed by the Marketplace.** There is no badge: read the lines. The logo is shown only here, in the install preview and on the update page, never anywhere else in Ziffr.
+Each Pack shows "by" its author, with its logo when it has one, in a bordered box next to the name, and says who vouches for both. A Pack installed from the Marketplace says **Published through the Marketplace as @handle. Checked by program. No person reviewed it.** The last sentence is left out only when the Marketplace signed that a person looked at that version. The signature shows where the file came from, and the checks run on every Pack are the protection. A Pack installed from a file says **Uploaded file. The Marketplace did not check it. Its name and logo are what the file says about itself.**, shows the id as the file writes it, and, when the id begins with `ziffr/`, adds **This file says it is from Ziffr. It is not signed by the Marketplace.** There is no badge: read the lines. The logo is shown only here, in the install preview and on the update page, never anywhere else in Ziffr.
 
 ## Ziffr's own Packs
 
@@ -112,7 +112,11 @@ What it makes are ordinary Metrics, a dashboard and a Workflow, as if you made t
 
 ## From the Marketplace
 
-When an Installation Admin turned on the Marketplace connection, Owners and Admins see **From the Marketplace**: search free Packs by a word, and choose **See what it adds** to see one drawn with Sample Data. A Pack from the Marketplace says so ("its signature holds") and needs no warning about where it came from; texts aimed at assistants are still listed and need a tick. Installing works as from a file. Once a day Ziffr asks which installed Packs have newer versions; an installed Pack with one shows **Version … on the Marketplace…**, which shows what an update changes before it is done.
+When an Installation Admin turned on the Marketplace connection, Owners and Admins see **From the Marketplace**. It shows the newest free Packs as soon as the page opens, in two parts: **From Ziffr**, the Packs published under `ziffr/`, and **Community**, everyone else's. A search by a word narrows both. A Pack says **New creator** while its creator has published only recently (or a report against them was upheld), and **Installed, version …** when your Workspace has it already, also when it came with Ziffr or from a file.
+
+Choose **See what it adds** to see a Pack drawn with Sample Data. Ziffr first checks that the Marketplace signed exactly that file; a file that fails is not shown. The Preview says who published it, **Checked by program**, and **No person reviewed it** unless one did. It needs no warning about where it came from; texts aimed at assistants are still listed and need a tick. Installing works as from a file.
+
+Opening the page asks the Marketplace for the newest Packs from your server; a search sends the words you typed, and opening a Pack names it and its version. Nothing about your Workspace or you is sent. Once a day Ziffr asks which installed Packs have newer versions; an installed Pack with one shows **Version … on the Marketplace…**, which shows what an update changes before it is done.
 
 ## Updating a Pack
 

@@ -14,7 +14,7 @@ import { Forbidden, type Actor } from "./actor";
 import { settingsInEffect } from "./settings-in-effect";
 import { checkSchema } from "./json-check";
 import { checkPack, PACK_LIMITS, versionBelow } from "./pack";
-import { assertManages, installPack, previewPack, type PackRead } from "./packs";
+import { assertManages, installPack, previewPack, type PackOrigin, type PackRead } from "./packs";
 import { readPackUpdate, updatePack, type UpdatePlan } from "./pack-updates";
 import { ZIFFR_VERSION } from "./ziffr-version";
 import { privateMailHost } from "./mail-hosts";
@@ -124,13 +124,14 @@ export type { MarketplaceListing };
 const listing = (x: unknown): MarketplaceListing | null => {
   if (checkSchema(LISTING, x).length) return null;
   const o = x as MarketplaceListing;
-  return { id: o.id, name: o.name, summary: o.summary, author: o.author, license: o.license, version: o.version };
+  return { id: o.id, name: o.name, summary: o.summary, author: o.author, license: o.license, version: o.version, ...(o.newCreator === true ? { newCreator: true } : {}) };
 };
 
 /** Free Packs only: a paid one needs a purchase this Ziffr cannot make yet. */
 const free = (l: MarketplaceListing) => l.license !== "Ziffr-Pack-1.0";
 
-/** Searches the Marketplace for free Packs (Owners and Admins): the search words are all that is sent. */
+/** Searches the Marketplace for free Packs (Owners and Admins), the newest ones when no word is given, in the order it
+ * answers: the search words are all that is sent. */
 export async function searchMarketplace(actor: Actor, query: string): Promise<MarketplaceListing[]> {
   assertManages(actor);
   const q = String(query ?? "").replace(/\s+/g, " ").trim().slice(0, MARKETPLACE_CONTRACT.query);
@@ -192,8 +193,9 @@ const REFUSED: Record<StatementRefusal, string> = {
 };
 
 /** A version's file from the Marketplace, its Signed Statement checked and the file checked to be the Pack and version
- * asked for. A file whose statement does not hold is refused (specs 0030 and 0059), whatever else it holds. */
-async function signedFile(packId: string, version: string): Promise<string> {
+ * asked for. A file whose statement does not hold is refused (specs 0030 and 0059), whatever else it holds. `origin`
+ * says what the statement proves, and whether a moderator looked. */
+async function signedFile(packId: string, version: string): Promise<{ file: string; origin: PackOrigin }> {
   const path = marketplaceVersionPath(String(packId), String(version));
   if (!path) throw new Forbidden();
   const { env } = await connection();
@@ -211,38 +213,43 @@ async function signedFile(packId: string, version: string): Promise<string> {
   const res = checkPack(file);
   if (res.ok && (res.pack.id !== packId || res.pack.version !== version)) throw new MarketplaceUnavailable(ANOTHER);
   if (res.ok && res.pack.license === "Ziffr-Pack-1.0") throw new MarketplaceUnavailable("Paid Packs cannot be installed yet.");
-  return file;
+  return { file, origin: { source: "marketplace", signed: true, reviewed: held.statement.reviewed } };
 }
-
-const SIGNED = { source: "marketplace", signed: true } as const;
 
 /** A Marketplace Pack's Preview, as for a file, shown as from the Marketplace (Owners and Admins). Nothing is written. */
 export async function readMarketplacePack(actor: Actor, packId: string, version: string): Promise<PackRead> {
   assertManages(actor);
-  return previewPack(actor, await signedFile(packId, version), SIGNED);
+  const { file, origin } = await signedFile(packId, version);
+  return previewPack(actor, file, origin);
 }
 
 /** Installs a Pack from the Marketplace (Owners and Admins; Owners for one with Themes): its signature checked, then
  * every check of an upload; texts aimed at assistants only after they were read. Audited as from the Marketplace. */
 export async function installFromMarketplace(actor: Actor, packId: string, version: string, confirmed: { assistantTexts: boolean }): Promise<number> {
   assertManages(actor);
-  return installPack(actor, await signedFile(packId, version), SIGNED, { unsigned: false, assistantTexts: confirmed?.assistantTexts === true });
+  const { file, origin } = await signedFile(packId, version);
+  return installPack(actor, file, origin, { unsigned: false, assistantTexts: confirmed?.assistantTexts === true });
+}
+
+/** The Marketplace id of one of this Workspace's installs, or Forbidden. */
+async function installedId(actor: Actor, installId: number): Promise<string> {
+  const { data } = await db().from("pack_installs").select("pack_id").eq("id", Number(installId)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!data) throw new Forbidden();
+  return String(data.pack_id);
 }
 
 /** What updating an installed Pack to a Marketplace version would do (Owners and Admins); nothing is written. */
 export async function readMarketplaceUpdate(actor: Actor, installId: number, version: string) {
   assertManages(actor);
-  const { data } = await db().from("pack_installs").select("pack_id").eq("id", Number(installId)).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (!data) throw new Forbidden();
-  return readPackUpdate(actor, Number(installId), await signedFile(String(data.pack_id), version));
+  const { file } = await signedFile(await installedId(actor, installId), version);
+  return readPackUpdate(actor, Number(installId), file);
 }
 
 /** Updates an installed Pack to a Marketplace version, its signature checked (Owners and Admins). */
 export async function updateFromMarketplace(actor: Actor, installId: number, version: string, confirmed: { assistantTexts: boolean }): Promise<UpdatePlan> {
   assertManages(actor);
-  const { data } = await db().from("pack_installs").select("pack_id").eq("id", Number(installId)).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (!data) throw new Forbidden();
-  return updatePack(actor, Number(installId), await signedFile(String(data.pack_id), version), SIGNED, { unsigned: false, assistantTexts: confirmed?.assistantTexts === true });
+  const { file, origin } = await signedFile(await installedId(actor, installId), version);
+  return updatePack(actor, Number(installId), file, origin, { unsigned: false, assistantTexts: confirmed?.assistantTexts === true });
 }
 
 /** Asks the Marketplace which installed Packs have newer versions, for the whole Installation at once, at most once a

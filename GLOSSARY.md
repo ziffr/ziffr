@@ -509,6 +509,10 @@ _Avoid_: Certificate, stamp, seal
 A public key whose Signed Statements Ziffr trusts, with its part: the signing key signs them; the reserve key stays unused until it takes the signing key out of use with a revocation, which Ziffr keeps.
 _Avoid_: Publisher key, master key, certificate
 
+**New creator**:
+A Marketplace creator in the first days after their first publish, or after a report against them was upheld. Their Packs say so wherever they are listed; it changes their limits, never what a Pack may hold.
+_Avoid_: Unverified, rookie, untrusted
+
 **Webhook**:
 An address that a Workspace's Owner or Admin sets so that Ziffr sends it signed messages about what happens there, such as a task given, a task done or a value recorded, for a program to pass on to another system. It belongs to the Workspace, like a Feed, and sees only what every Member sees; other things reach it with their words left out. It can mark a task done, reply to a thread or answer a question, as the Webhook, but only for tasks that were sent to it, and it can say which task in the other system an Action is (an _external id_, kept per Webhook, with an optional link shown on the Action as "Also in"). Not a Connector, which reaches a person. The app heads these **Workspace Webhooks** where it also lists Personal Webhooks; "Webhook" alone means this kind.
 _Avoid_: Callback, trigger, integration, subscription

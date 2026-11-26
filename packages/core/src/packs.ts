@@ -45,6 +45,8 @@ export type PackPreview = {
   unsigned: boolean;
   /** Where the file came from, so the page says who vouches for it. */
   source: PackOrigin["source"];
+  /** The Marketplace's Signed Statement says a moderator looked at this version. */
+  reviewed: boolean;
   /** Texts that address an AI assistant, by where they are, for a person to read before installing. */
   assistantTexts: { path: string; text: string }[];
   /** Why this person cannot install it here, or null: a Pack with Themes needs an Owner, an installed Pack is not
@@ -156,15 +158,21 @@ async function blockedFor(actor: Actor, pack: Pack): Promise<string | null> {
   return null;
 }
 
+/** The manifest an install keeps: the file's own, the logo checked again, and whether a moderator looked, which only
+ * the app adds from a Signed Statement (a file with a field of that name is refused by the checks). */
+export const keptManifest = (pack: Pack, origin: PackOrigin) =>
+  ({ ...manifestOf(pack), ...(pack.logo === undefined ? {} : { logo: packLogoOf(pack) }), ...(origin.reviewed === true ? { reviewed: true } : {}) });
+
 /** A Pack's manifest: everything but its contents. */
 export const manifestOf = (p: Pack): Omit<Pack, "contents"> => {
   const { contents: _c, ...m } = p; // eslint-disable-line @typescript-eslint/no-unused-vars
   return m;
 };
 
-/** Where a Pack's file came from: an upload (never signed here), the Marketplace with its signature checked, or Ziffr's
- * own Packs that come with this release (`signed`: they are part of Ziffr's code, checked in CI like it). */
-export type PackOrigin = { source: "upload" | "marketplace" | "included"; signed: boolean };
+/** Where a Pack's file came from: an upload (never signed here), the Marketplace with its signature checked (`reviewed`
+ * when its statement says a moderator looked), or Ziffr's own Packs that come with this release (`signed`: they are
+ * part of Ziffr's code, checked in CI like it). */
+export type PackOrigin = { source: "upload" | "marketplace" | "included"; signed: boolean; reviewed?: boolean };
 const UPLOAD: PackOrigin = { source: "upload", signed: false };
 
 /** Reads an uploaded Pack file for its Preview (Owners and Admins): checked in full here, whatever the browser did.
@@ -190,7 +198,7 @@ export async function previewPack(actor: Actor, text: string, origin: PackOrigin
     ...[...(pack.contents.views ?? []), ...(pack.contents.analyses ?? [])].map(({ key }): PackPreviewItem => { const v = views.get(key)!; return { kind: "view", key, name: v.name, description: v.body.description ?? "", body: v.body }; }),
     ...stored.themes.map((t): PackPreviewItem => ({ kind: "theme", key: t.key, name: t.name, tokens: t.tokens, logo: Boolean(t.slides.logo) })),
   ];
-  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, logo: safeLogo(pack), unsigned: !origin.signed, source: origin.source, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
+  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, logo: safeLogo(pack), unsigned: !origin.signed, source: origin.source, reviewed: origin.reviewed === true, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
 }
 
 /** Installs an uploaded Pack file (Owners and Admins; Owners for one with Themes; never in the demo), after the person
@@ -215,7 +223,7 @@ export async function installPack(actor: Actor, text: string, origin: PackOrigin
   const { data, error } = await db().rpc("install_pack", {
     p_workspace: actor.workspaceId,
     p_by: actor.personId,
-    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: origin.source, signed: origin.signed, manifest: { ...manifestOf(pack), ...(pack.logo === undefined ? {} : { logo: packLogoOf(pack) }) }, item_keys: itemKeys(stored) },
+    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: origin.source, signed: origin.signed, manifest: keptManifest(pack, origin), item_keys: itemKeys(stored) },
     p_catalog: stored.catalog,
     p_templates: stored.templates,
     p_designs: stored.views,
@@ -236,7 +244,7 @@ export async function installPack(actor: Actor, text: string, origin: PackOrigin
 /** One installed Pack as the Packs page lists it, with what it added that is still marked as from it. */
 export type InstalledPack = {
   id: number; packId: string; name: string; version: string; license: string; author: string; summary: string;
-  source: PackOrigin["source"]; signed: boolean; installedAt: string; installedBy: string | null;
+  source: PackOrigin["source"]; signed: boolean; /** Installed from the Marketplace as a version a moderator looked at. */ reviewed: boolean; installedAt: string; installedBy: string | null;
   listing: { homepage?: string; support?: string };
   /** The address of its logo on this site (signed-in people of the Workspace only), or null. */
   logo: string | null;
@@ -266,10 +274,10 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
   add(des.data, () => "view");
   add(thm.data, () => "theme");
   return data.map((r) => {
-    const m = r.manifest as Omit<Pack, "contents">;
+    const m = r.manifest as Omit<Pack, "contents"> & { reviewed?: unknown };
     return {
       id: Number(r.id), packId: String(r.pack_id), name: m.name, version: String(r.version), license: String(r.license), author: m.author?.name ?? "", summary: m.summary ?? "",
-      source: r.source as PackOrigin["source"], signed: Boolean(r.signed), installedAt: String(r.installed_at), installedBy: (r.installed_by as string | null) ?? null,
+      source: r.source as PackOrigin["source"], signed: Boolean(r.signed), reviewed: r.source === "marketplace" && m.reviewed === true, installedAt: String(r.installed_at), installedBy: (r.installed_by as string | null) ?? null,
       listing: m.listing ?? {}, logo: packLogoAddress(ws, Number(r.id), (r.manifest as { logo?: unknown } | null)?.logo), added: added.get(Number(r.id)) ?? [],
     };
   });
