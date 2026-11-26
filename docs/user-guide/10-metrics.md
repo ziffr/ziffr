@@ -485,7 +485,7 @@ People are chosen as Submitters when the Metric is created or duplicated, and th
 **Add a person** lists the members, Guests and Contacts of the Workspace who do not submit this Metric yet. Pick one and choose **Add…**. A box says what will happen before anything does:
 
 - A member or Guest will see the Metric, with its values and history, and can send in its values. You do not have to share it with them as well. A Contact does not sign in: their personal form link shows the Metric's name and description and the current value, and takes theirs.
-- They get a personal form link for this Metric, if it takes values by **Web form**.
+- Ziffr makes them a personal form link for this Metric (usable when it takes values by **Web form**).
 - **Ask them for the current value now** is ticked: a **Prompt** goes out at once, by a way that reaches them. Untick it to send nothing now. They are then asked when the Metric's Workflow next asks or reminds; a Metric without a Workflow asks nobody by itself. A Contact receives their form link only with a request. An archived Metric asks nobody.
 
 Choose **Add as Submitter**. The message that follows says what was sent, or that the request waits in the **Outbox** and why.

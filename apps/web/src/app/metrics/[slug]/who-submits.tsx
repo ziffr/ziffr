@@ -53,7 +53,7 @@ export async function WhoSubmits({ actor, metric, tokens, people, promptWays, ca
               <Person p={people[t.submitter_id]} />
               {canEdit && t.stands_in_for && <span className="text-xs text-muted-foreground">Stand-in for {people[t.stands_in_for]?.name.split(" ")[0] ?? "someone"}</span>}
             </span>
-            <span className="flex flex-wrap items-center justify-end gap-x-2">
+            <span className="ml-auto flex flex-wrap items-center justify-end gap-x-2">
               {t.feed ? (
                 <span className="flex items-center gap-2 text-xs text-muted-foreground">Feed{canEdit && <RemoveFeed metricId={metric.id} feedId={t.submitter_id} name={people[t.submitter_id]?.name ?? "this Feed"} />}</span>
               ) : !t.code ? null : webForm ? (

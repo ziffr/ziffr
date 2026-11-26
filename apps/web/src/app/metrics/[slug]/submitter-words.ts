@@ -17,7 +17,7 @@ export function addingWords({ name, contact, webForm, ways }: Adding): string[] 
     ? `${name} does not sign in.${webForm ? " Their form link shows this Metric’s name and description and the current value, and takes theirs." : ""}`
     : `${name} will see this Metric, with its values and history, and can send in its values.`;
   const gets = webForm
-    ? "They get a personal form link for this Metric."
+    ? "Ziffr makes them a personal form link for this Metric."
     : `This Metric takes no values by Web form: they send them by ${ways.join(" or ") || "no way yet"}.`;
   return [sees, gets];
 }
@@ -26,7 +26,7 @@ export function addingWords({ name, contact, webForm, ways }: Adding): string[] 
 export function askNowWords({ askNow, workflow, contact }: { askNow: boolean; workflow: boolean; contact: boolean }): string {
   if (askNow) return "It goes by a way that reaches them. If none does, it waits in the Outbox.";
   const later = workflow ? "They are asked when its Workflow next asks or reminds." : "This Metric has no Workflow, so Ziffr will not ask them by itself.";
-  return `Nothing is sent now${contact ? ", so they do not get their form link yet" : ""}. ${later}`;
+  return `Nothing is sent now${contact ? ", so their form link does not reach them yet" : ""}. ${later}`;
 }
 
 /** What the words about removing someone depend on. */

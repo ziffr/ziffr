@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PHONE_BUTTON_SM, PHONE_FIELD } from "@/app/setup/phone";
-import { SCROLLING_DIALOG, SCROLLING_DIALOG_BODY, SCROLLING_DIALOG_TITLE } from "./scrolling-dialog";
+import { SCROLLING_DIALOG, SCROLLING_DIALOG_BODY } from "./scrolling-dialog";
 import { addingWords, askNowWords } from "./submitter-words";
 
 /** Someone who may be added, as the core lists them. */
@@ -28,13 +28,15 @@ export function AddSubmitter({ metric, choices }: { metric: About; choices: Choi
   const person = choices.find((c) => c.id === picked);
   if (!choices.length) return null;
   return (
-    <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:flex-wrap sm:items-center">
+    <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
       <label className="text-xs text-muted-foreground" htmlFor={`submitter-${metric.id}`}>Add a person</label>
-      <select id={`submitter-${metric.id}`} value={person ? picked : ""} onChange={(e) => setPicked(e.target.value)} className={`${PHONE_FIELD} sm:min-w-0 sm:max-w-full`}>
-        <option value="">Who?</option>
-        {choices.map((c) => <option key={c.id} value={c.id}>{c.name}{KIND[c.kind]}</option>)}
-      </select>
-      <Button size="sm" variant="outline" className={PHONE_BUTTON_SM} disabled={!person} onClick={() => setOpen(true)}>Add…</Button>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <select id={`submitter-${metric.id}`} value={person ? picked : ""} onChange={(e) => setPicked(e.target.value)} className={`${PHONE_FIELD} sm:min-w-0 sm:max-w-xs sm:flex-1`}>
+          <option value="">Who?</option>
+          {choices.map((c) => <option key={c.id} value={c.id}>{c.name}{KIND[c.kind]}</option>)}
+        </select>
+        <Button size="sm" variant="outline" className={PHONE_BUTTON_SM} disabled={!person} onClick={() => setOpen(true)}>Add…</Button>
+      </div>
       {open && person && <ConfirmAdd metric={metric} person={person} onClose={(added) => { setOpen(false); if (added) setPicked(""); }} />}
     </div>
   );
@@ -60,8 +62,8 @@ function ConfirmAdd({ metric, person, onClose }: { metric: About; person: Choice
   });
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(false); }}>
-      <DialogContent className={`${SCROLLING_DIALOG} sm:max-w-md`}>
-        <DialogTitle className={SCROLLING_DIALOG_TITLE}>Add {person.name} to Who submits?</DialogTitle>
+      <DialogContent showCloseButton={false} className={`${SCROLLING_DIALOG} sm:max-w-md`}>
+        <DialogTitle className="leading-snug [overflow-wrap:anywhere]">Add {person.name} to Who submits?</DialogTitle>
         <div className={SCROLLING_DIALOG_BODY}>
           {addingWords({ name: person.name, contact, webForm: metric.webForm, ways: metric.ways }).map((line) => <p key={line}>{line}</p>)}
           {metric.archived ? (

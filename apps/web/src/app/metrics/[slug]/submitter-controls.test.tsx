@@ -41,10 +41,10 @@ describe("adding a Submitter", () => {
     await mount(<AddSubmitter metric={metric} choices={choices} />);
     await pick("mia");
     expect(document.body.textContent).toContain("Mia Contact does not sign in.");
-    expect(document.body.textContent).toContain("They get a personal form link for this Metric.");
+    expect(document.body.textContent).toContain("Ziffr makes them a personal form link for this Metric.");
     expect(actions.addSubmitter).not.toHaveBeenCalled();
     await press(document.querySelector<HTMLInputElement>('input[type="checkbox"]')!);
-    expect(document.body.textContent).toContain("they do not get their form link yet");
+    expect(document.body.textContent).toContain("their form link does not reach them yet");
     await press(button("Add as Submitter"));
     expect(actions.addSubmitter).toHaveBeenCalledWith(7, "mia", false);
   });
