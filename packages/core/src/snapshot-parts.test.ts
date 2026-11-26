@@ -2,7 +2,7 @@
 // and what that leaves of a deck for its Share and for a View Link. Pure.
 import { describe, expect, it } from "vitest";
 import { holdsSnapshotPart, keptRequests, keptShapes, liveDocument, SNAPSHOT_PART_LIMITS, SNAPSHOT_PART_SHAPE, snapshotPartProblem, withoutKeptNumbers } from "./snapshot-parts";
-import { allDeckMetricIds, deckMetricIds } from "./visibility";
+import { allDeckMetricIds, deckMetricIds, deckMetricIdsAdded } from "./visibility";
 
 const shape = (id: string, type: string, parentId: string, props: Record<string, unknown> = {}, meta: Record<string, unknown> = {}) => ({ id, typeName: "shape", type, parentId, meta, props });
 const frame = (id: string, meta: Record<string, unknown> = {}) => shape(id, "frame", "page:page", { w: 1280, h: 720 }, meta);
@@ -45,6 +45,16 @@ describe("slides that keep numbers", () => {
     expect(deckMetricIds(two)).toEqual([]);
     const marked = deck(frame("s", { snapshot: 8 }), part("a", "s", 7, 0), part("b", "s", 8, 0), widget("w", "s", [1]));
     expect(keptShapes(marked).find((s) => s.id === "w")?.snapshotId).toBe(8);
+  });
+
+  it("ask the saver to see every Metric newly named, and one newly drawn live", () => {
+    expect(deckMetricIdsAdded(null, mixed).sort()).toEqual([1, 2, 3]);
+    expect(deckMetricIdsAdded(mixed, mixed)).toEqual([]);
+    // The kept widget moved to a live slide: named before, drawn live only now.
+    const moved = deck(frame("live"), widget("liveWidget", "live", [1]), widget("beside", "live", [2]));
+    expect(deckMetricIdsAdded(mixed, moved)).toEqual([2]);
+    const unreadable = deck(frame("s", { snapshot: 7 }), widget("w", "s", "x" as unknown as number[]));
+    expect(deckMetricIdsAdded(unreadable, unreadable)).toEqual([Number.NaN]);
   });
 
   it("stay kept with a mark that is no id, which draws nothing", () => {

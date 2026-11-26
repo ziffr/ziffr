@@ -9,16 +9,17 @@ import { setAttainmentMethod } from "./workspace-settings";
 import { submitObservation } from "./api-submissions";
 import { createDashboard, placeWidget, removeWidget } from "./dashboards";
 import { db } from "./db";
-import { newDeckFromSnapshot, deckShareGaps, readKeptNumbers, snapshotAddition, snapshotSlides, type KeptSnapshot } from "./deck-snapshots";
-import { deleteDeck, saveDeck } from "./decks";
+import { deckShareGaps, KEPT_READS_PER_MINUTE, newDeckFromSnapshot, readKeptNumbers, snapshotAddition, snapshotSlides, type KeptSnapshot } from "./deck-snapshots";
+import { saveDeck } from "./decks";
 import { setYearStart } from "./fiscal-year";
-import { saveSeriesRows } from "./metrics";
+import { deleteMetric, saveSeriesRows } from "./metrics";
 import { dashboardWidgets, deckView } from "./page-data";
 import { share, shareWithGroup } from "./sharing";
 import { keptRequests, SNAPSHOT_PART_SHAPE } from "./snapshot-parts";
 import { deleteSnapshot, editSnapshotWords, openSnapshot, showSnapshot, takeSnapshot } from "./snapshots";
 import { createGroup, setGroupMember } from "./team";
 import { workspace } from "./test/db-fixtures";
+import { listVersions, restoreVersion, saveNamedVersion } from "./version-history";
 import { createViewLink, openViewLink } from "./view-links";
 import { getMetrics } from "./workspace-data";
 
@@ -202,15 +203,53 @@ describe("a deck with kept numbers", () => {
     expect((await read(dana, snap, [revPart])).state).toBe("unavailable");
   });
 
-  it("asks that whoever moves a widget to a live slide sees its Metric", async () => {
+  it("takes no widget for a Metric the saver does not see, on a slide that keeps numbers either, so none holds up a delete", async () => {
     const { w, ann, snap, revPart } = await setup();
-    const secret = await w.metric(await w.person("member"), { name: "Payroll" });
+    const sam = await w.person("member");
+    const secret = await w.metric(sam, { name: "Payroll" });
     const deck = await newDeckFromSnapshot(ann, snap);
     const kept = [frame("shape:kept"), part("shape:p", "shape:kept", snap, revPart)];
-    await saveDeck(ann, deck, deckOf(...kept, widget("shape:w", "shape:kept", secret.id)));
-    await expect(saveDeck(ann, deck, deckOf(...kept, frame("shape:live"), widget("shape:w", "shape:live", secret.id)))).rejects.toEqual(forbidden);
-    await deleteDeck(ann, deck);
+    await expect(saveDeck(ann, deck, deckOf(...kept, widget("shape:w", "shape:kept", secret.id)))).rejects.toEqual(forbidden);
+    // Nothing of it was stored: its owner deletes it.
+    await expect(deleteMetric(w.actor(sam, "member"), secret.id, "Payroll")).resolves.toEqual({ values: 0 });
   });
+
+  it("asks that whoever moves a widget to a live slide sees its Metric, and whoever restores a Version too", async () => {
+    const { w, ann, snap, revPart } = await setup();
+    const mine = await w.metric(ann.personId, { name: "Pipeline" });
+    const deck = await newDeckFromSnapshot(ann, snap);
+    const dana = await w.person("member");
+    const editor = w.actor(dana, "member");
+    const kept = [frame("shape:kept"), part("shape:p", "shape:kept", snap, revPart)];
+    await saveDeck(ann, deck, deckOf(...kept, widget("shape:w", "shape:kept", mine.id)));
+    await saveNamedVersion(ann, "deck", deck, "With the pipeline");
+    await share(ann, "deck", deck, dana, "editor");
+    // It stands there already, so the Editor's save keeps it; moving it to a live slide is refused.
+    await saveDeck(editor, deck, deckOf(...kept, widget("shape:w", "shape:kept", mine.id)));
+    await expect(saveDeck(editor, deck, deckOf(...kept, frame("shape:live"), widget("shape:w", "shape:live", mine.id)))).rejects.toEqual(forbidden);
+    await saveDeck(editor, deck, deckOf(...kept));
+    const version = (await listVersions(editor, "deck", deck)).versions.find((v) => v.name === "With the pipeline")!;
+    await expect(restoreVersion(editor, version.id)).rejects.toThrow(/not shared with you/);
+    await expect(restoreVersion(ann, version.id)).resolves.not.toThrow();
+  });
+
+  it("restores no Version with a Snapshot Part Ziffr cannot read", async () => {
+    const { w, ann, snap } = await setup();
+    const deck = await newDeckFromSnapshot(ann, snap);
+    const named = shape("shape:p", SNAPSHOT_PART_SHAPE, "shape:s", { w: 1, h: 1, snapshotId: snap, part: 0, title: "Revenue" });
+    const { data } = await db().from("versions").insert({ object_type: "deck", object_id: deck, version: 99, snapshot: { name: "Old", document: deckOf(frame("shape:s"), named) }, author_id: ann.personId, workspace_id: w.id }).select("id").single();
+    await expect(restoreVersion(ann, data!.id as number)).rejects.toThrow(/cannot read/);
+  });
+
+  it("is read only so often by one person", async () => {
+    const { ann, dana } = await setup();
+    const asks = [{ snapshotId: 2_000_000_000, parts: [], metricIds: [] }];
+    for (let i = 0; i < KEPT_READS_PER_MINUTE; i++) await readKeptNumbers(dana, asks);
+    await expect(readKeptNumbers(dana, asks)).rejects.toThrow(/too often/);
+    // Another person's reads are their own, and a deck that asks nothing is not counted.
+    await expect(readKeptNumbers(ann, asks)).resolves.toHaveLength(1);
+    await expect(readKeptNumbers(dana, [])).resolves.toEqual([]);
+  }, 120_000);
 
   it("is saved only with well-formed parts, and no free layout or dashboard holds one", async () => {
     const { owner, ann, rev, dash, snap } = await setup();

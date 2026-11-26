@@ -7,7 +7,8 @@ import { can, Forbidden, Refused, type Actor } from "./actor";
 import { checkedFormula } from "./derived-metrics";
 import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { cleanSlides, cleanTokens } from "./theme-tokens";
-import { deckMetricIds } from "./visibility";
+import { deckMetricIds, deckMetricIdsAdded } from "./visibility";
+import { snapshotPartProblem } from "./snapshot-parts";
 import { widgetMetricIds } from "./widget-metrics";
 import { isDashboardView, isView } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
@@ -161,9 +162,11 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
   // A deck restore may only bring back Metrics the restorer sees, as saving a deck does.
   if (v.object_type === "deck") {
     const { data: cur } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", ws).single();
-    const had = new Set(deckMetricIds(cur?.document).filter(Number.isFinite));
+    // Its Snapshot Parts are checked as a save's are (spec 0061): a Version keeps what was stored.
+    const problem = snapshotPartProblem(s.document);
+    if (problem) throw new Refused(problem);
     const seen = await visible();
-    if (deckMetricIds(s.document).some((m) => !had.has(m) && !seen.has(m))) throw new Error(HIDDEN);
+    if (deckMetricIdsAdded(cur?.document, s.document).some((m) => !seen.has(m))) throw new Error(HIDDEN);
   }
   // A Theme picked back then may be gone since; the dashboard or deck then follows the default.
   if ((v.object_type === "dashboard" || v.object_type === "deck") && s.theme_id) {

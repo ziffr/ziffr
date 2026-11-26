@@ -44,10 +44,30 @@ function checked(input: unknown): KeptRequest[] {
 
 const widgetIds = (w: Widget) => widgetMetricIds(w.metric_ids ?? [], w.settings);
 
+/** How often one person may read kept numbers in a minute, in one process: far more than editing, presenting and
+ * exporting ask, and a bound on a program that asks without end, as each read opens up to twenty Snapshots. */
+export const KEPT_READS_PER_MINUTE = 240;
+
+const MINUTE = 60_000;
+const reads = new Map<string, number[]>();
+
+/** Counts one read of kept numbers for this person, refusing one past the minute's share. */
+function takeRead(actor: Actor, now = Date.now()) {
+  const who = `${actor.workspaceId} ${actor.personId}`;
+  const recent = (reads.get(who) ?? []).filter((t) => now - t < MINUTE);
+  if (recent.length >= KEPT_READS_PER_MINUTE) throw new Refused("Snapshot numbers were asked for too often. Wait a minute and try again.");
+  // Forgotten as a whole rather than grown without end.
+  if (reads.size > 5000) reads.clear();
+  reads.set(who, [...recent, now]);
+}
+
 /** The numbers a deck's slides keep, for one viewer (`requests` as `keptRequests` makes them from the deck). Each
  * Snapshot answers by itself, with nothing but what was asked for. */
 export async function readKeptNumbers(actor: Actor, requests: unknown): Promise<KeptSnapshot[]> {
-  const read = await Promise.all(checked(requests).map(async (q): Promise<KeptSnapshot> => {
+  const asked = checked(requests);
+  // A deck without kept numbers asks nothing and is not counted.
+  if (asked.length) takeRead(actor);
+  const read = await Promise.all(asked.map(async (q): Promise<KeptSnapshot> => {
     const s = await shownForReader(actor, q.snapshotId);
     if (s === null || s === "deleted") return { snapshotId: q.snapshotId, state: s === null ? "unavailable" : "deleted" };
     const parts = q.parts.flatMap((part): KeptPart[] => {

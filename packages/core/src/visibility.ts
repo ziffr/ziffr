@@ -88,6 +88,18 @@ export function allDeckMetricIds(document: unknown): number[] {
   return widgetMetricIds([], { canvas: { document } } as unknown as WidgetSettings);
 }
 
+/** The Metrics a changed deck names that whoever stores it must see: those it newly draws live, and those newly named
+ * by any widget at all. So none can be put on a slide that keeps numbers by someone who does not see it, to be drawn
+ * live under another's save later, or to stand in the way of its owner deleting it. */
+export function deckMetricIdsAdded(before: unknown, after: unknown): number[] {
+  const added = [deckMetricIds, allDeckMetricIds].flatMap((ids) => {
+    // A malformed marker (NaN) never counts as "already there": only real ids are.
+    const had = new Set(ids(before).filter(Number.isFinite));
+    return ids(after).filter((m) => !had.has(m));
+  });
+  return [...new Set(added)];
+}
+
 /** What decides which metrics someone sees, loaded by the caller for one workspace. */
 export type MetricFacts = {
   metrics: readonly (Metric & InWorkspace)[];
