@@ -39,8 +39,9 @@ export const SEALED_COLUMNS = {
   widgets: ["title"],
   // Who sent an imported value, and who entered it for them (spec 0046), as names (spec 0040, ticket 9), sealed for the value's row; its number is in SEALED_NUMBERS.
   observations: ["submitted_by_name", "entered_by_name"],
-  // Step 2 (ticket #248): a Metric's name is sealed beside its description, bound to its row.
-  metrics: ["description", "name"],
+  // Step 2 (ticket #248): a Metric's name is sealed beside its description, bound to its row; its Calculation Note too
+  // (spec 0060), which is null where there is none.
+  metrics: ["description", "name", "calculation_note"],
   // A Condensed Value's numbers (the sum or last value, and the Target), as JSON (spec 0033); its id (a uuid) is made first.
   condensed_values: ["payload"],
   // A period's note (Approval reasons, a send-back comment, why it was unlocked), bound to its Metric and period: the table has

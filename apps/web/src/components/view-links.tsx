@@ -15,18 +15,19 @@ type Link = Awaited<ReturnType<typeof listViewLinks>>[number];
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 /** Opens View Links in the side panel (a Slide-over); the panel loads the links when it opens. Owner only. A
- * dashboard's link shows live numbers or one of its shown Snapshots (spec 0013); `snapshot` picks that one first. */
+ * dashboard's link shows live numbers or one of its shown Snapshots (spec 0013); `snapshot` picks that one first.
+ * `leftOut`: how many parts of a deck a link does not show (spec 0061). */
 export function useShowViewLinks() {
   const panel = useSlideOver();
-  return (type: "dashboard" | "deck", id: number, snapshot?: { id: number; label: string }) => panel.open({
+  return (type: "dashboard" | "deck", id: number, snapshot?: { id: number; label: string }, leftOut = 0) => panel.open({
     short: true,
     title: "View links",
     description: `For someone outside the team, such as a board member or an investor. They see this ${type} and nothing else, cannot change or ask anything, and no login is needed.`,
-    content: <ViewLinksBody type={type} id={id} snapshot={snapshot} />,
+    content: <ViewLinksBody type={type} id={id} snapshot={snapshot} leftOut={leftOut} />,
   });
 }
 
-function ViewLinksBody({ type, id, snapshot }: { type: "dashboard" | "deck"; id: number; snapshot?: { id: number; label: string } }) {
+function ViewLinksBody({ type, id, snapshot, leftOut }: { type: "dashboard" | "deck"; id: number; snapshot?: { id: number; label: string }; leftOut: number }) {
   const [links, setLinks] = useState<Link[] | null>(null);
   const [label, setLabel] = useState("");
   const [expires, setExpires] = useState(inDays(30));
@@ -70,6 +71,11 @@ function ViewLinksBody({ type, id, snapshot }: { type: "dashboard" | "deck"; id:
                   <input type="checkbox" checked={frozen} onChange={(e) => setFrozen(e.target.checked)} className="mt-0.5 size-4 accent-[var(--color-ink)]" />
                   <span>Freeze today&rsquo;s numbers<span className="block text-xs text-muted-foreground">Otherwise it shows live numbers until it ends.</span></span>
                 </label>
+              )}
+              {leftOut > 0 && (
+                <p role="status" className="rounded-[var(--radius-input)] border border-input bg-muted/40 p-2.5 text-xs">
+                  {leftOut === 1 ? "One part of this deck is" : `${leftOut} parts of this deck are`} left out of View Links: someone with a link sees no Snapshot&rsquo;s numbers. Send them a PDF or PowerPoint file instead.
+                </p>
               )}
               <label className="flex items-start gap-2">
                 <input type="checkbox" checked={showNames} onChange={(e) => setShowNames(e.target.checked)} className="mt-0.5 size-4 accent-[var(--color-ink)]" />

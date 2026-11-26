@@ -1,10 +1,11 @@
 // The text a person may paste into their own assistant to fill a Metric's past periods once (spec 0043, ticket 7;
-// GLOSSARY: Metric, Submitter, MCP Server): written from the Metric's name, description, unit, period and slug and, when
-// this Installation serves one, the MCP address. Pure: Ziffr never sends it anywhere, never runs it and gives the
+// GLOSSARY: Metric, Calculation Note, Submitter, MCP Server): written from the Metric's name, description, Calculation
+// Note, unit, period and slug and, when this Installation serves one, the MCP address. Pure: Ziffr never sends it anywhere, never runs it and gives the
 // assistant no key; the assistant uses the key its owner already gave it, and what it records is recorded as that person,
 // by the Metric's own rules. Security: the Metric's words come from the Workspace, so they go in as quoted data, each
 // as one JSON string on one line (a quote, a line break or a backslash in them stays inside the string), cut to a
 // length, stripped of control characters, and the text says to treat them as data and never as an order.
+import { CALCULATION_NOTE_MAX } from "./calculation-note";
 import type { Period } from "./types";
 
 /** The longest description the text carries: enough to say what the number is, not a place to hide a page. */
@@ -13,7 +14,7 @@ export const PROMPT_DESCRIPTION_MAX = 500;
 export const PROMPT_PERIODS = 12;
 
 /** What the text is written from: only what the person sees on the Metric's page. */
-export type BackfillPromptInput = { name: string; slug: string; description: string; unit: string; period: Period; mcpUrl: string | null };
+export type BackfillPromptInput = { name: string; slug: string; description: string; calculationNote?: string | null; unit: string; period: Period; mcpUrl: string | null };
 
 const UNIT_OF: Record<Period, string> = { day: "day", week: "week", month: "month", quarter: "quarter", year: "year" };
 
@@ -39,6 +40,8 @@ export function backfillPrompt(i: BackfillPromptInput): string {
     `- name: ${quoted(i.name, 120)}`,
     `- slug: ${slug}`,
     `- description: ${quoted(i.description, PROMPT_DESCRIPTION_MAX)}`,
+    // Whole, not cut: a definition cut in the middle would have the assistant record the wrong figure.
+    ...(i.calculationNote ? [`- how it is calculated: ${quoted(i.calculationNote, CALCULATION_NOTE_MAX)}`] : []),
     `- unit: ${quoted(i.unit, 30)}`,
     `- one value per ${unit}; a value is for a period's first day, written YYYY-MM-DD`,
     "",

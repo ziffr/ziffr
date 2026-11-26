@@ -38,7 +38,7 @@ export async function setViewer(id: string) {
 export async function createMetric(form: FormData) {
   const num = (k: string) => (form.get(k) === null || form.get(k) === "" ? null : Number(form.get(k)));
   const made = await asVisitor("actions:createMetric", async () => coreCreateMetric(await currentActor(), {
-    name: String(form.get("name") ?? ""), description: String(form.get("description") ?? ""), unit: String(form.get("unit") ?? ""), unitPosition: String(form.get("unit_position") ?? ""),
+    name: String(form.get("name") ?? ""), description: String(form.get("description") ?? ""), calculationNote: String(form.get("calculation_note") ?? ""), unit: String(form.get("unit") ?? ""), unitPosition: String(form.get("unit_position") ?? ""),
     format: String(form.get("format") ?? ""), decimals: Number(form.get("decimals") ?? 0), period: String(form.get("period") ?? ""),
     submissionRule: String(form.get("submission_rule") ?? ""), polarity: String(form.get("polarity") ?? ""), aggregation: String(form.get("aggregation") ?? ""),
     targetMin: num("target_min"), targetMax: num("target_max"), attainmentMethod: String(form.get("attainment_method") ?? ""), fromCatalogId: num("from_catalog_id"),
@@ -67,7 +67,7 @@ export async function createDerivedMetric(_previous: ActionError | null, form: F
   const text = (k: string) => String(form.get(k) ?? "").trim() || undefined;
   const num = (k: string) => (text(k) === undefined || !Number.isFinite(Number(text(k))) ? undefined : Number(text(k)));
   const made = await attemptAsVisitor("actions:createDerivedMetric", async () => coreCreateDerivedMetric(await currentActor(), {
-    name: String(form.get("name") ?? ""), formula: String(form.get("formula") ?? ""), description: text("description"), unit: text("unit"), decimals: num("decimals"),
+    name: String(form.get("name") ?? ""), formula: String(form.get("formula") ?? ""), description: text("description"), calculationNote: text("calculation_note"), unit: text("unit"), decimals: num("decimals"),
     period: text("period"), polarity: text("polarity"), targetMin: num("target_min"), targetMax: num("target_max"),
   }));
   if (isActionError(made)) return made;
