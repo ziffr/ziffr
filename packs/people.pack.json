@@ -2,7 +2,7 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/people",
   "name": "People and HR",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "summary": "Headcount, hires, leavers, open roles, time to hire, absence and engagement, with attrition worked out, a monthly dashboard and a Workflow that asks HR for the month's figures.",
   "author": {
     "name": "Ziffr"
@@ -22,9 +22,10 @@
       {
         "key": "headcount",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Headcount",
           "description": "People employed at month end, counted as people, not full-time equivalents.",
+          "calculationNote": "Employees with a contract on the last day of the month, each counted as one whatever their hours. Freelancers and agency staff are not counted.",
           "category": "People",
           "period": "month",
           "aggregation": "last",
@@ -49,9 +50,10 @@
       {
         "key": "hires",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Hires",
           "description": "People who started in the month.",
+          "calculationNote": "Employees whose first working day lies in the month. A signed contract that starts later is counted when it starts.",
           "category": "People",
           "period": "month",
           "aggregation": "sum",
@@ -74,9 +76,10 @@
       {
         "key": "leavers",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Leavers",
           "description": "People who left in the month, whatever the reason.",
+          "calculationNote": "Employees whose last day of employment lies in the month, whether they resigned, were let go, retired or reached the end of a contract.",
           "category": "People",
           "period": "month",
           "aggregation": "sum",
@@ -100,9 +103,10 @@
       {
         "key": "open-roles",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Open roles",
           "description": "Positions being recruited for at month end.",
+          "calculationNote": "Approved positions without an accepted offer on the last day of the month. Two people sought for the same job count as two.",
           "category": "People",
           "period": "month",
           "aggregation": "last",
@@ -125,9 +129,10 @@
       {
         "key": "time-to-hire",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Time to hire",
           "description": "The average days from opening a role to the accepted offer, for the roles filled in the month.",
+          "calculationNote": "Calendar days from the day a role was opened to the day its offer was accepted, averaged over the roles filled in the month.",
           "category": "People",
           "period": "month",
           "aggregation": "average",
@@ -152,9 +157,10 @@
       {
         "key": "absence-rate",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Absence rate",
           "description": "Days of sickness absence as a share of the working days in the month.",
+          "calculationNote": "Working days lost to sickness divided by the working days employees were due to work in the month, in percent. Holidays and parental leave are not sickness.",
           "category": "People",
           "period": "month",
           "aggregation": "average",
@@ -181,9 +187,10 @@
       {
         "key": "engagement",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Engagement score",
           "description": "The average answer to the engagement question in the latest survey, 0 to 100.",
+          "calculationNote": "The average of all answers to the engagement question in the latest survey of the quarter, on a scale of 0 to 100. People who did not answer are left out.",
           "category": "People",
           "period": "quarter",
           "aggregation": "last",
@@ -207,9 +214,10 @@
       {
         "key": "attrition-rate",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Attrition rate",
           "description": "People who left in the month as a share of the headcount at month end.",
+          "calculationNote": "Leavers of the month divided by the headcount at its end, in percent. It is a monthly rate, not scaled to a year.",
           "category": "People",
           "period": "month",
           "aggregation": "none",

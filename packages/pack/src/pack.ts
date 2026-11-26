@@ -9,7 +9,7 @@
 // item may name only items of the same Pack, and texts that address an assistant are reported for a person to see.
 import { checkFormat, parseJson, under, type FormatCheck, type Problem, type Schema } from "./json-check.js";
 import { itemKey, plainText } from "./file-text.js";
-import { checkMetricFile1Value, METRIC_FILE_LIMITS, type MetricFile } from "./metric-file.js";
+import { checkMetricFileValue, METRIC_FILE_LIMITS, type MetricFile } from "./metric-file.js";
 import { checkDashboardTemplateFileValue, dashboardTemplateReferences, DASHBOARD_TEMPLATE_LIMITS, type DashboardTemplateFile } from "./dashboard-template-file.js";
 import { checkThemeFileValue, THEME_FILE_LIMITS, type ThemeFile } from "./theme-file.js";
 import { cleanLogo, logoProblem, PACK_LOGO_MAX_BYTES } from "./logo.js";
@@ -43,7 +43,7 @@ export const PACK_LICENSES = ["CC-BY-4.0", "MIT", "Ziffr-Pack-1.0"] as const;
 
 /** The kinds of things a Pack holds, each with the field its document is in and how that document is checked. */
 const KINDS = {
-  metrics: { field: "metric", what: "Metric Catalog entries", format: "ziffr.metric/1", bytes: METRIC_FILE_LIMITS.bytes, check: checkMetricFile1Value },
+  metrics: { field: "metric", what: "Metric Catalog entries", format: "ziffr.metric/1 or ziffr.metric/2", bytes: METRIC_FILE_LIMITS.bytes, check: checkMetricFileValue },
   dashboards: { field: "template", what: "Dashboard Templates", format: "ziffr.dashboard-template/1", bytes: DASHBOARD_TEMPLATE_LIMITS.bytes, check: checkDashboardTemplateFileValue },
   views: { field: "design", what: "View Designs", format: "ziffr.view/1", bytes: VIEW_LIMITS.bytes, check: (v: unknown, l: Map<string, number>): FormatCheck<ViewDesign> => { const r = checkViewDesignValue(v, l); return r.ok ? { ok: true, value: r.design } : r; } },
   analyses: { field: "recipe", what: "Analysis Recipes", format: "ziffr.analysis/1 or ziffr.analysis/2", bytes: RECIPE_LIMITS.bytes, check: (v: unknown, l: Map<string, number>): FormatCheck<AnyAnalysisRecipe> => { const r = checkAnalysisRecipeValue(v, l); return r.ok ? { ok: true, value: r.recipe } : r; } },

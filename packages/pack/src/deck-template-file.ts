@@ -6,7 +6,7 @@
 // every word is plain text. Widgets are held to exactly what a Dashboard Template's widgets are.
 import { checkFormat, parseJson, type FormatCheck, type Schema } from "./json-check.js";
 import { VIEW_DESIGN_SCHEMA } from "./view-design.js";
-import { itemKey, plainText, words } from "./file-text.js";
+import { itemKey, plainText, savedWords } from "./file-text.js";
 import { elementSlots, SLIDE_ELEMENT_LIMITS, slideElementSchema, type SlideElement } from "./slide-element.js";
 import { checkTemplateWidget, refusedOutsidePack, TEMPLATE_SLOTS, WIDGET_DEFS, WIDGET_FIELDS, type DashboardTemplateFile, type TemplateWidgetFile } from "./dashboard-template-file.js";
 
@@ -48,7 +48,7 @@ export type DeckTemplateFile = {
 const L = DECK_TEMPLATE_LIMITS;
 const place = (max: number, description: string): Schema => ({ type: "integer", minimum: 0, maximum: max, description });
 const size = (max: number, min: number): Schema => ({ type: "integer", minimum: min, maximum: max });
-const paragraphs: Schema = { type: "array", minItems: 1, maxItems: L.paragraphs, items: words(L.words), description: "The words, a paragraph per entry." };
+const paragraphs: Schema = { type: "array", minItems: 1, maxItems: L.paragraphs, items: savedWords(L.words), description: "The words, a paragraph per entry." };
 const shape = (name: string, description: string, props: Record<string, Schema>, required: string[]): Schema => ({
   type: "object", description, properties: { shape: { const: name }, ...props }, required: ["shape", ...required], additionalProperties: false,
 });

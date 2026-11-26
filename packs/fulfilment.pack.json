@@ -2,7 +2,7 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/fulfilment",
   "name": "Operations and fulfilment",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "summary": "Orders shipped, on-time delivery, backlog, stock, stock-outs, output, defects and downtime, with a weekly dashboard and a Workflow that asks for last week's figures on Monday.",
   "author": {
     "name": "Ziffr"
@@ -29,9 +29,10 @@
       {
         "key": "orders-shipped",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Orders shipped",
           "description": "Orders handed to the carrier in the week.",
+          "calculationNote": "Orders handed to the carrier from Monday to Sunday, each counted once, however many parcels it needed. Cancelled orders and replacement parcels are left out.",
           "category": "Operations",
           "period": "week",
           "aggregation": "sum",
@@ -55,9 +56,10 @@
       {
         "key": "on-time",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "On-time delivery",
           "description": "The share of orders delivered by the promised date, in the week.",
+          "calculationNote": "Orders delivered on or before the promised date, divided by all orders due for delivery in the week, in percent. An order delivered in parts is on time only when its last part is.",
           "category": "Operations",
           "period": "week",
           "aggregation": "average",
@@ -84,9 +86,10 @@
       {
         "key": "backlog",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Order backlog",
           "description": "Orders received and not yet shipped, at the end of the week.",
+          "calculationNote": "Orders received and not cancelled that have not been handed to the carrier by Sunday evening, whether or not they are late.",
           "category": "Operations",
           "period": "week",
           "aggregation": "last",
@@ -109,9 +112,10 @@
       {
         "key": "stock-value",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Stock value",
           "description": "The value of stock on hand at the end of the week, at cost.",
+          "calculationNote": "The units on hand on Sunday evening at what they cost to buy or make, not at their sales price. Goods ordered and not yet received are left out.",
           "category": "Operations",
           "period": "week",
           "aggregation": "last",
@@ -136,9 +140,10 @@
       {
         "key": "stock-outs",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Stock-outs",
           "description": "Products that were out of stock at some point in the week.",
+          "calculationNote": "Products that had none available at any time from Monday to Sunday, each counted once a week. Discontinued products are left out.",
           "category": "Operations",
           "period": "week",
           "aggregation": "sum",
@@ -161,9 +166,10 @@
       {
         "key": "output",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Units produced",
           "description": "Units made or packed in the week.",
+          "calculationNote": "Units finished or packed from Monday to Sunday that passed the check. Rework of an earlier unit is not counted again.",
           "category": "Operations",
           "period": "week",
           "aggregation": "sum",
@@ -186,9 +192,10 @@
       {
         "key": "defect-rate",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Defect rate",
           "description": "Units found defective, as a share of the units produced in the week.",
+          "calculationNote": "Units found defective divided by all units produced in the week, in percent, whether they were repaired or scrapped.",
           "category": "Operations",
           "period": "week",
           "aggregation": "average",
@@ -215,9 +222,10 @@
       {
         "key": "downtime",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Downtime",
           "description": "Hours that lines or machines stood still when they should have run, in the week.",
+          "calculationNote": "Hours of planned running time in which a line or machine stood still, added up over all of them. Planned maintenance and shifts nobody was scheduled for are left out.",
           "category": "Operations",
           "period": "week",
           "aggregation": "sum",
