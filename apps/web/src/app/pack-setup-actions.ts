@@ -5,10 +5,16 @@ import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { packSetupOptions, setUpFromPack, type PackSetupInput } from "@ziffr/core/pack-setup";
+import { planPackSetup } from "@ziffr/core/pack-setup-plan";
 
 /** What setting up from an installed Pack offers. */
 export async function packSetup(installId: number) {
   return attempt(async () => packSetupOptions(await currentActor(), Number(installId)));
+}
+
+/** What setting up what the person has picked so far would do; nothing is written. */
+export async function planSetUp(installId: number, input: PackSetupInput) {
+  return attempt(async () => planPackSetup(await currentActor(), Number(installId), input));
 }
 
 /** Sets up what the person picked from an installed Pack; returns what was made. */

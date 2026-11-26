@@ -9,9 +9,12 @@ import { checkFormat } from "@ziffr/pack/json-check";
 import { guideRuns, PACK_GUIDE_LIMITS, type PackGuide } from "@ziffr/pack/pack-guide";
 import { run } from "@ziffr/pack/run";
 import { checkPack, checkPackValue, PACK_2_SCHEMA, PACK_FORMAT, PACK_SCHEMA, type Pack } from "./pack";
-import { installManifest, installPackFile, notBuiltYet, readPackFile, storedItems } from "./packs";
+import { installManifest, installPackFile, itemHash, notBuiltYet, readPackFile, storedItems } from "./packs";
 import { listInstalledGuides, readInstalledGuide, safeGuide } from "./installed-pack-guides";
+import { withSlugs } from "./pack-setup-build";
+import { formulaInputs } from "./formula";
 import { PLAIN, textPasses } from "./file-text";
+import { describePlaces, readPlaces, type PackPlaces } from "./pack-places";
 import { Forbidden, type Actor } from "./actor";
 import { checkWorkflowTemplateFile, checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_SCHEMA, workflowTemplateFromFile, type WorkflowTemplateFile } from "./workflow-template-file";
 import { fromWorkflowTemplate } from "./team-templates";
@@ -20,6 +23,7 @@ import { TELL_PEOPLE_PER_STEP, TELL_STEPS_PER_WORKFLOW } from "./alert-limits";
 import { WORKFLOW_TEMPLATE_LIMITS } from "@ziffr/pack/workflow-template-file";
 import { DASHBOARD, METRIC } from "./pack-files.test";
 import { repoFile } from "./test/repo-file";
+import { salesTeamText } from "./test/sales-team-pack";
 import { version } from "../package.json";
 
 const SITE: WorkflowTemplateFile = {
@@ -399,7 +403,7 @@ describe("what the server stores of a /2 Pack", () => {
   it("keeps a manifest with the guide, whole however long, and without what nothing reads yet", () => {
     const guide: PackGuide = { questions: many(50, () => ({ type: "text" as const, text: "x".repeat(600) })) };
     const manifest = installManifest({ ...checked(), guide });
-    expect(Object.keys(manifest).sort()).toEqual(["author", "format", "guide", "id", "license", "name", "overview", "summary", "version"]);
+    expect(Object.keys(manifest).sort()).toEqual(["author", "format", "guide", "id", "license", "name", "overview", "places", "summary", "version"]);
     expect(manifest.guide).toEqual(guide);
     expect(safeGuide(manifest)).toEqual(guide);
   });
@@ -422,6 +426,80 @@ describe("what the server stores of a /2 Pack", () => {
       { guide: { whatItsFor: [{ type: "text", text: "<img src=x onerror=alert(1)>" }] } }, { guide: { whatItsFor: [{ type: "text", text: "Open evil.**com** now." }] } },
       { guide: { questions: many(60, () => ({ type: "text", text: "x".repeat(600) })) } }, { guide: JSON.parse('{"__proto__":[{"type":"text","text":"x"}]}') }];
     for (const manifest of bad) expect(safeGuide(manifest), JSON.stringify(manifest)?.slice(0, 80)).toBeNull();
+  });
+});
+
+describe("a formula of a Pack's entries at Set up", () => {
+  it("names the inputs of target() too, so they are made first and written by their slugs", () => {
+    const formula = "target({commit}) - {commit} + target( {quota} )";
+    expect(formulaInputs(formula)).toEqual(["commit", "quota"]);
+    expect(withSlugs(formula, (k) => `${k}-anna`)).toBe("target({commit-anna}) - {commit-anna} + target( {quota-anna} )");
+  });
+});
+
+describe("what an install keeps of Positions and Repeats", () => {
+  const checked = () => {
+    const res = checkPack(JSON.stringify(SITES));
+    if (!res.ok) throw new Error(res.problems[0].message);
+    return res.pack;
+  };
+  const kept = () => JSON.parse(JSON.stringify(installManifest(checked()).places)) as PackPlaces;
+
+  it("takes the places off the wrappers and the steps, by the stored step's place", () => {
+    const places = kept();
+    expect(places.positions.map((p) => p.key)).toEqual(["area-lead", "office", "site-manager", "crew"]);
+    expect(places.metrics.find((m) => m.key === "incidents")).toEqual({ key: "incidents", per: "site", submitters: ["site-manager", "crew"], standIn: "area-lead", viewers: ["area-lead", "crew"], editors: ["office"] });
+    const [weekly] = places.workflows;
+    // The Escalate step names “stand-in”, never a Position; the Tell step is not in a stored template.
+    expect(weekly.steps).toEqual([
+      { at: 1, by: ["area-lead", "site-manager"] },
+      { at: 2, to: ["site-manager", "office"] },
+      { at: 3, assignee: "site-manager", standIn: "area-lead" },
+      { at: 4, to: ["office"], dashboard: "sites" },
+    ]);
+    expect(weekly.tells).toEqual([{ condition: { kind: "share_of_target", share: "90" }, to: ["area-lead"] }]);
+    const body = storedItems(checked()).templates.find((t) => t.key === "weekly")!.body as { steps: unknown[] };
+    expect(weekly.mark).toBe(itemHash(body.steps));
+    expect(readPlaces(places)).toEqual(places);
+  });
+
+  it("takes the sales team's Pack the database tests set up", () => {
+    const res = checkPack(salesTeamText());
+    expect(res.ok ? [] : res.problems).toEqual([]);
+  });
+
+  it("keeps nothing for a Pack without them", () => {
+    const res = checkPack(readFileSync(repoFile("packs/sales-forecast.pack.json"), "utf8"));
+    expect(res.ok && "places" in installManifest(res.pack)).toBe(false);
+  });
+
+  it("reads nothing back that does not have the shape it wrote", () => {
+    const bad: unknown[] = [null, "places", {}, { ...kept(), positions: [{ key: 1 }] }, { ...kept(), metrics: [{ key: "m", submitters: "ann" }] }, { ...kept(), workflows: [{ key: "w", mark: "x", steps: [{ at: "1" }], tells: [] }] }, { ...kept(), workflows: [{ key: "w", mark: "x", steps: [], tells: [{ condition: { kind: "below", share: "1" } }] }] }];
+    for (const raw of bad) expect(readPlaces(raw)).toBeNull();
+  });
+
+  it("says in the preview what each Position does, what a line makes and every proposed Share", async () => {
+    const res = await readPackFile({ personId: "p", workspaceId: "w", role: "owner" } as Actor, JSON.stringify(SITES));
+    const people = res.ok ? res.preview.people! : null;
+    expect(people!.repeats[0]).toEqual({ name: "Site", max: 30, makes: ["Metrics: Incidents, Hours and Incident rate", "Dashboard: Monthly overview", "Workflow: Weekly site report"], positions: ["Site manager", "Crew"] });
+    const does = new Map(people!.positions.map((p) => [p.name, p.does]));
+    expect(does.get("Area lead")).toEqual([
+      "Submits Rate target.",
+      "Stands in for the Submitters of Incidents.",
+      "Approves first of 2 in the Workflow Weekly site report.",
+      "Stands in for the Assignee of “Walk the site.” in the Workflow Weekly site report.",
+      "Is told when a Metric of the Workflow Weekly site report reaches 90 % of its target.",
+    ]);
+    expect(does.get("Site manager")).toContain("Ticks off “Walk the site.” in the Workflow Weekly site report.");
+    expect(does.get("Office")!.some((l) => l.startsWith("Gets the Snapshot of the dashboard "))).toBe(true);
+    expect(people!.shares).toContainEqual({ position: "Office", role: "Editor", metrics: ["Incidents"], dashboards: [] });
+    expect(people!.shares.map((s) => `${s.position} ${s.role}`)).toEqual(["Area lead Viewer", "Office Editor", "Site manager Viewer", "Crew Viewer", "Crew Editor"]);
+  });
+
+  it("says nothing of an item that is gone, or of a Workflow Template kept from another version", () => {
+    const people = describePlaces(kept(), { name: (kind, key) => (kind === "metric" && key === "incidents" ? null : key), steps: () => null });
+    expect(JSON.stringify(people)).not.toMatch(/incidents[^-]|Workflow weekly/);
+    expect(people.positions.find((p) => p.name === "Area lead")!.does).toEqual(["Submits target."]);
   });
 });
 

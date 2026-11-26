@@ -24,6 +24,7 @@ import { IncludedPacks, IncludedUpdate } from "./included";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { ExportOptions } from "@ziffr/core/pack-export";
 import { Publisher } from "./pack-logo";
+import { PackPeopleList } from "./pack-people";
 import { ExportPack } from "./export";
 import { SetUpFromPack } from "./setup";
 import type { Problem } from "@ziffr/core/json-check";
@@ -85,6 +86,12 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
                     <p className="mt-1 flex gap-3 text-xs"><ListingLink href={p.listing.homepage} unsigned={!p.signed}>Its page</ListingLink><ListingLink href={p.listing.support} unsigned={!p.signed}>Help</ListingLink></p>
                     <AddedList added={p.added} />
                     {p.help && <div className="mt-2"><PackGuideButton installId={p.id} name={p.name} guide={p.help === "guide"} /></div>}
+                    {p.people && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-xs font-medium">Who does what</summary>
+                        <div className="mt-2"><PackPeopleList people={p.people} /></div>
+                      </details>
+                    )}
                     {manages && <PackActions installId={p.id} name={p.name} />}
                     {manages && included.filter((i) => i.installed?.installId === p.id && i.update).map((i) => <div key={i.update} className="mt-2"><IncludedUpdate installId={p.id} name={p.name} version={i.update!} /></div>)}
                     {updates.filter((u) => u.installId === p.id).map((u) => <div key={u.version} className="mt-2"><MarketplaceUpdate installId={p.id} name={p.name} version={u.version} /></div>)}
@@ -206,6 +213,7 @@ export function PackPreviewCard({ preview, viewer, numberStyle, pending, okUnsig
       )}
       {preview.manifest.guide && <PackGuideView guide={preview.manifest.guide} author={preview.manifest.author.name} />}
       <PackNumbersView overview={preview.overview} />
+      {preview.people && <PackPeopleList people={preview.people} />}
       <PackItems items={preview.items} viewer={viewer} numberStyle={numberStyle} />
       {preview.blocked ? <p role="alert" className="font-medium">{preview.blocked}</p> : (
         <div className="space-y-2">

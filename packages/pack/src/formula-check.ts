@@ -1,12 +1,12 @@
 // A Derived Metric's formula in a Pack (GLOSSARY: Derived Metric, Metric Catalog): + - * /, brackets, numbers such as
-// 12 or 0.5, and {key} for another entry of the same Pack. Only read here, never worked out: whether it can be read
+// 12 or 0.5, {key} for another entry of the same Pack and target({key}) for its target (spec 0062). Only read here, never worked out: whether it can be read
 // whole, within Ziffr's bounds, and whether the entries it names can be combined. Ziffr checks it again, against the
 // Workspace's Metrics, when a Metric is made from the entry.
 
 /** The longest formula, the most operations and the most digits in a number Ziffr reads. */
 export const FORMULA_LIMITS = { length: 500, operations: 50, digits: 20 } as const;
 
-const TOKEN = /\s+|\{[a-z0-9-]+\}|\d+(?:\.\d+)?|[()+\-*/]/y;
+const TOKEN = /\s+|target\s*\(\s*\{[a-z0-9-]+\}\s*\)|\{[a-z0-9-]+\}|\d+(?:\.\d+)?|[()+\-*/]/y;
 
 /** The keys a formula names, each once, in the order it names them. */
 export function formulaKeys(formula: string): string[] {
@@ -14,7 +14,7 @@ export function formulaKeys(formula: string): string[] {
 }
 
 /** Why a formula cannot be read whole, or null. Its grammar: a sum of products of factors, a factor being a number, a
- * {key}, a minus sign before a factor, or a bracketed formula. */
+ * {key}, target({key}), a minus sign before a factor, or a bracketed formula. */
 export function formulaSyntaxProblem(formula: string): string | null {
   if (formula.length > FORMULA_LIMITS.length) return `The formula is longer than ${FORMULA_LIMITS.length} characters.`;
   const tokens: string[] = [];
@@ -35,7 +35,7 @@ export function formulaSyntaxProblem(formula: string): string | null {
     if (wantValue) {
       if (t === "(") depth++;
       else if (t === "-") continue;
-      else if (/^[\d{]/.test(t)) wantValue = false;
+      else if (/^[\d{t]/.test(t)) wantValue = false;
       else return `"${t}" stands where a value is missing.`;
     } else if (t === ")") {
       if (--depth < 0) return "A bracket is closed that was not opened.";

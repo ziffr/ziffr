@@ -15,7 +15,8 @@ import { FillFromN8n } from "@/components/fill-from-n8n";
 import { PackNeeds } from "@/components/pack-numbers";
 import { comesFromWords } from "@ziffr/pack/comes-from";
 import { packSetup, setUpPack } from "@/app/pack-setup-actions";
-import type { PackSetupOptions, PackSetupResult, PackSetupRoom } from "@ziffr/core/pack-setup";
+import { PlanCheck, PositionField, usePlan } from "./setup-positions";
+import type { PackSetupInput, PackSetupOptions, PackSetupResult, PackSetupRoom } from "@ziffr/core/pack-setup";
 
 const field = "h-8 rounded-[var(--radius-input)] border border-input bg-transparent px-2 text-sm";
 
@@ -78,6 +79,9 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
   const [approvers, setApprovers] = useState<string[]>(start0.approvers);
   const [made, setMade] = useState<PackSetupResult | null>(null);
   const [pending, start] = useTransition();
+  const [fills0, setPeople] = useState<Record<string, string[]>>({});
+  const [ticks, setTicks] = useState<Record<string, boolean>>({});
+  const [askNow, setAskNow] = useState(false);
   const byKey = useMemo(() => new Map(options.entries.map((e) => [e.key, e])), [options.entries]);
 
   // A Derived Metric's inputs are made with it: shown ticked, and kept while it is.
@@ -87,30 +91,44 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
     return all;
   }, [picked, byKey]);
   // The numbers being made that the Pack says nobody types.
-  const elsewhere = options.entries.filter((e) => making.has(e.key) && !e.derived && (e.comesFrom?.by === "system" || e.comesFrom?.by === "target"));
+  // Those a Position covers are asked of whoever the person puts into it.
+  const elsewhere = options.entries.filter((e) => making.has(e.key) && !e.derived && !e.asksPosition && (e.comesFrom?.by === "system" || e.comesFrom?.by === "target"));
   const template = options.dashboards.find((d) => d.key === dashboard) ?? null;
   const flow = options.workflows.find((w) => w.key === workflow) ?? null;
   const open = template ? template.slots.map((s, i) => ({ s, i })).filter(({ s }) => !(s.suggests && making.has(s.suggests))) : [];
+  // Whether the person is still asked for anything themselves: for every Metric no Position covers.
+  const uncovered = [...making].some((k) => !byKey.get(k)?.asksPosition && !byKey.get(k)?.derived);
+  const asked: PackSetupInput = {
+    metrics: [...making],
+    submitters: askMe && uncovered ? [viewer] : [],
+    askElsewhere: askMe && askElsewhere,
+    feed: feed || null,
+    dashboard: template ? { key: template.key, fills: template.slots.map((_s, i) => (fills[i] ? [fills[i]] : null)) } : null,
+    workflow: flow ? { key: flow.key, approvers } : null,
+  };
+  // Who fills a Position: as picked, and by itself the only person there is.
+  const chosen = (plan: Parameters<Parameters<typeof usePlan>[1]>[0], key: string): string[] => {
+    const alone = plan?.people.length === 1 && plan.people[0]!.id === viewer && !plan.positions.find((p) => p.key === key)?.refused.some((r) => r.id === viewer);
+    return fills0[key] ?? (alone ? [viewer] : []);
+  };
+  const planned = usePlan(options.install.id, (plan) => (options.positions && !made
+    ? { ...asked, askNow, people: (plan?.positions ?? []).filter((p) => !p.repeat).map((p) => ({ position: p.key, people: chosen(plan, p.key) })) }
+    : null), ticks);
+  const count = options.positions ? planned.plan?.makes.metrics.length ?? 0 : making.size;
   const ready = (making.size > 0 || !!template || !!flow)
     && open.every(({ i }) => fills[i])
-    && (!flow || (approvers.length === flow.approvers && approvers.every(Boolean) && new Set(approvers).size === approvers.length));
+    && (!flow || (approvers.length === flow.approvers && approvers.every(Boolean) && new Set(approvers).size === approvers.length))
+    && (!options.positions || (planned.current && !planned.plan?.problems.length));
 
   const toggle = (key: string, on: boolean) => setPicked((p) => { const n = new Set(p); if (on) n.add(key); else n.delete(key); return n; });
   const submit = () => start(async () => {
     try {
-      const result = unwrap(await setUpPack(options.install.id, {
-        metrics: [...making],
-        submitters: askMe ? [viewer] : [],
-        askElsewhere: askMe && askElsewhere,
-        feed: feed || null,
-        dashboard: template ? { key: template.key, fills: template.slots.map((_s, i) => (fills[i] ? [fills[i]] : null)) } : null,
-        workflow: flow ? { key: flow.key, approvers } : null,
-      }));
+      const result = unwrap(await setUpPack(options.install.id, options.positions ? planned.input! : asked));
       setMade(result);
       toast.success(`Set up from ${options.install.name}`);
       router.refresh();
     } catch (e) {
-      toast.error("Nothing was set up", { description: shown(e) });
+      toast.error("Set up did not finish", { description: shown(e) });
     }
   });
 
@@ -120,9 +138,10 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
         <p className="font-medium">Set up from {options.install.name}</p>
         <ul className="mt-1 list-disc space-y-0.5 pl-5">
           {made.metrics.map((m) => <li key={m.id}><Link href={`/metrics/${m.slug}`} className="underline">{m.name}</Link></li>)}
-          {made.dashboardId !== null && <li><Link href={`/dashboards/${made.dashboardId}`} className="underline">The dashboard</Link></li>}
-          {made.workflowId !== null && <li><Link href={`/workflows?id=${made.workflowId}`} className="underline">The Workflow</Link></li>}
+          {made.dashboards.map((d) => <li key={d.id}>The dashboard <Link href={`/dashboards/${d.id}`} className="underline">{d.name}</Link></li>)}
+          {made.workflows.map((w) => <li key={w.id}>The Workflow <Link href={`/workflows?id=${w.id}`} className="underline">{w.name}</Link></li>)}
         </ul>
+        {options.positions && <p className="mt-2 text-xs">{made.shares} Share{made.shares === 1 ? "" : "s"} made, {made.messages} request{made.messages === 1 ? "" : "s"} for values sent now. Change who does what on each Metric, Workflow and dashboard.</p>}
         {made.tagsLeftOut.length > 0 && (
           <p role="status" className="mt-2 text-xs">Some Tags stayed off their Metrics because of the Tag limits (10 per Metric, 200 in the Workspace): {made.tagsLeftOut.map((l) => `${l.metric}: ${l.tags.join(", ")}`).join("; ")}. Merge or delete Tags that are not needed, then add these by hand.</p>
         )}
@@ -138,7 +157,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
         <p className="text-xs text-muted-foreground">Makes ordinary Metrics, a dashboard and a Workflow, as if you made them by hand. Each Metric counts towards the Workspace&rsquo;s limit.</p>
       </div>
       {options.refusal && <p role="alert" className="font-medium">{options.refusal}</p>}
-      {options.room && !options.refusal && <Fit room={options.room} n={making.size} />}
+      {options.room && !options.refusal && <Fit room={options.room} n={count} />}
       {options.room && options.refusal && <p className="text-xs"><Link href="/settings/workspace#size" className="underline">Size and usage</Link></p>}
 
       {options.overview && <div className="@container text-xs"><PackNeeds overview={options.overview} included={false} /></div>}
@@ -146,6 +165,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
       <fieldset className="space-y-1">
         <legend className="mb-1 text-xs font-medium">Metrics to make</legend>
         {options.entries.map((e) => {
+          if (e.repeat) return <p key={e.key} className="text-xs text-muted-foreground">{e.name}: made once for each {options.repeats.find((r) => r.key === e.repeat)?.name ?? e.repeat}. Listing them comes in a later version.</p>;
           const needed = !picked.has(e.key) && making.has(e.key);
           return (
             <label key={e.key} className="flex items-start gap-2">
@@ -154,8 +174,8 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
             </label>
           );
         })}
-        {making.size > 0 && (
-          <label className="mt-2 flex items-start gap-2"><input type="checkbox" checked={askMe} onChange={(e) => setAskMe(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> Ask me for their values (a first request goes out now)</label>
+        {uncovered && (
+          <label className="mt-2 flex items-start gap-2"><input type="checkbox" checked={askMe} onChange={(e) => setAskMe(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> Ask me for {options.positions ? "the values no Position covers" : "their values"} (a first request goes out now)</label>
         )}
         {askMe && elsewhere.length > 0 && (
           <label className="ml-6 flex items-start gap-2"><input type="checkbox" checked={askElsewhere} onChange={(e) => setAskElsewhere(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /><span>Ask me also for {elsewhere.map((e) => e.name).join(", ")}<span className="block text-xs text-muted-foreground">The Pack says another system sends {elsewhere.length === 1 ? "it" : "them"} or that {elsewhere.length === 1 ? "it is" : "they are"} set as a target, so nobody is asked unless you tick this.</span></span></label>
@@ -178,7 +198,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
             <span className="text-xs font-medium">Dashboard</span>
             <select value={dashboard} onChange={(e) => { setDashboard(e.target.value); setFills({}); }} className={field} aria-label="Dashboard">
               <option value="">None</option>
-              {options.dashboards.map((d) => <option key={d.key} value={d.key}>{d.name}</option>)}
+              {options.dashboards.filter((d) => !d.repeat).map((d) => <option key={d.key} value={d.key}>{d.name}</option>)}
             </select>
           </label>
           {open.length > 0 && <p className="text-xs text-muted-foreground">These Slots suggest no Metric you make here: fill them with one you have.</p>}
@@ -200,7 +220,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
             <span className="text-xs font-medium">Workflow</span>
             <select value={workflow} onChange={(e) => { setWorkflow(e.target.value); setApprovers(approversStart(options, viewer, options.workflows.find((w) => w.key === e.target.value)?.approvers ?? 0)); }} className={field} aria-label="Workflow">
               <option value="">None</option>
-              {options.workflows.map((w) => <option key={w.key} value={w.key}>{w.name}</option>)}
+              {options.workflows.filter((w) => !w.repeat).map((w) => <option key={w.key} value={w.key}>{w.name}</option>)}
             </select>
           </label>
           {flow && flow.approvers > 0 && <p className="text-xs text-muted-foreground">Its Approve step asks for {flow.approvers === 1 ? "an Approver" : `${flow.approvers} Approvers, in order`}, members of this Workspace.</p>}
@@ -217,9 +237,26 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
         </div>
       )}
 
+      {options.positions && (
+        <>
+          {planned.plan && planned.plan.positions.some((p) => !p.repeat) && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-medium">Who does what</h4>
+              {planned.plan.positions.filter((p) => !p.repeat).map((p) => (
+                <PositionField key={p.key} position={p} people={planned.plan!.people} chosen={chosen(planned.plan, p.key)} onChange={(ids) => setPeople((x) => ({ ...x, [p.key]: ids }))} />
+              ))}
+              <p className="text-xs text-muted-foreground">An empty Position leaves the place open. Someone missing from the list is invited on the Members page first.</p>
+            </div>
+          )}
+          <p role="status" className="text-xs text-muted-foreground">{planned.error ? "" : planned.current ? "" : "Working out who will see what\u2026"}</p>
+          {planned.error && <p role="alert" className="text-xs font-medium">{planned.error}</p>}
+          {planned.plan && <PlanCheck plan={planned.plan} ticks={ticks} onTick={(c) => setTicks((x) => ({ ...x, ...c }))} askNow={askNow} onAskNow={setAskNow} />}
+        </>
+      )}
+
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button disabled={!ready || pending || (!!options.refusal && making.size > 0) || (!!options.room && making.size > options.room.allowed)} onClick={submit}>Set up{making.size ? ` ${making.size} Metric${making.size === 1 ? "" : "s"}` : ""}</Button>
+        <Button disabled={!ready || pending || (!!options.refusal && count > 0) || (!!options.room && count > options.room.allowed)} onClick={submit}>Set up{count ? ` ${count} Metric${count === 1 ? "" : "s"}` : ""}</Button>
       </div>
     </div>
   );

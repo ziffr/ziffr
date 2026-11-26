@@ -35,7 +35,7 @@ import { periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import { NOT_FINAL_STATES } from "./value-state";
 import { workspaceToday } from "./retention-setting";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { allRows, buildSeries, getLatestObservations, getMetrics } from "./workspace-data";
+import { allRows, buildSeries, getLatestObservations, getMetrics, formulaTargets } from "./workspace-data";
 import { numberStyleOf } from "./workspace-settings";
 import type { NumberStyle } from "./number-style";
 import type { Metric, Point } from "./types";
@@ -139,8 +139,9 @@ async function finalValues(ws: string, day: string) {
   ]);
   const unapproved = new Set(waiting.map((w) => `${w.metric_id}:${w.period_start}`));
   const observations = all.filter((o) => !unapproved.has(`${o.metric_id}:${o.period_start}`));
-  const series = buildSeries(metrics, observations);
-  const resolve = resolverFrom(metrics, series);
+  const targets = await formulaTargets(ws, metrics, metrics.map((m) => m.id));
+  const series = buildSeries(metrics, observations, targets);
+  const resolve = resolverFrom(metrics, series, { targets, yearStart });
   const byId = new Map(metrics.map((m) => [m.id, m]));
   const levels = (id: number, span: Span): Point[] | null => {
     const s = seriesBy(byId.get(id)!, resolve, span, { yearStart, today: day });

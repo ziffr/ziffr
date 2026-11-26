@@ -14,10 +14,12 @@ export function approversStart(options: PackSetupOptions, viewer: string, count:
 
 /** Every Metric, the dashboard and the Workflow when the Pack has exactly one of each, and the viewer as Approver when they are the only member. */
 export function setupStart(options: PackSetupOptions, viewer: string): SetupStart {
-  const flow = options.workflows.length === 1 ? options.workflows[0]! : null;
+  // What is made once for each line of a Repeat waits for its lines.
+  const [dashboards, workflows] = [options.dashboards.filter((d) => !d.repeat), options.workflows.filter((w) => !w.repeat)];
+  const flow = workflows.length === 1 ? workflows[0]! : null;
   return {
-    picked: new Set(options.entries.map((e) => e.key)),
-    dashboard: options.dashboards.length === 1 ? options.dashboards[0]!.key : "",
+    picked: new Set(options.entries.filter((e) => !e.repeat).map((e) => e.key)),
+    dashboard: dashboards.length === 1 ? dashboards[0]!.key : "",
     workflow: flow?.key ?? "",
     approvers: flow ? approversStart(options, viewer, flow.approvers) : [],
   };
