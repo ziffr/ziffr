@@ -32,7 +32,8 @@ const DEMO_COOKIE = DEMO_VISIT_COOKIE;
 const overHttps = (req: NextRequest) => (req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? req.nextUrl.protocol.replace(":", "")) === "https";
 
 // The user guide holds only its own text, so it can be read before signing in.
-const OPEN = [/^\/login(\/|$)/, /^\/auth\//, /^\/v\//, /^\/submit\//, /^\/guide(\/|$)/];
+// The slide editor's license key is read there too: the browser gets it anyway, and View Links need it.
+const OPEN = [/^\/api\/slide-license$/, /^\/login(\/|$)/, /^\/auth\//, /^\/v\//, /^\/submit\//, /^\/guide(\/|$)/];
 
 // What assistants call without a session (spec 0023): exactly these paths, nothing under them.
 const OAUTH_OPEN = new Set(["/oauth/register", "/oauth/token", "/oauth/revoke", "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp", "/.well-known/oauth-authorization-server"]);

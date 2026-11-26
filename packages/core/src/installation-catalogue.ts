@@ -4,12 +4,13 @@
 import { FEEDBACK_INSTALLATION_CAP, FEEDBACK_INSTALLATION_CAP_HELP } from "./feedback-rules";
 import { SENDING_LIMITS } from "./sending-limits";
 import { TRIAL_LIMITS } from "./trial-limits";
+import { SLIDE_EDITOR_KEY_MAX } from "./slide-editor-license";
 
 /** A section of the Installation Settings page. */
-export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "limits" | "sending" | "keep" | "marketplace" | "bots" | "trial_limits" | "trials" | "demo" | "usage" | "feedback";
+export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "slides" | "limits" | "sending" | "keep" | "marketplace" | "bots" | "trial_limits" | "trials" | "demo" | "usage" | "feedback";
 
 /** One setting: its environment variable, its words on the page, and whether its value is a secret. */
-export type SettingDefinition = { name: string; section: SettingsSectionId; label: string; help: string; secret: boolean; placeholder?: string; choices?: { value: string; label: string }[] };
+export type SettingDefinition = { name: string; section: SettingsSectionId; label: string; help: string; secret: boolean; placeholder?: string; choices?: { value: string; label: string }[]; /** The longest value taken, where the usual 1000 characters are too few. */ maxLength?: number };
 
 /** One section: what it is for, and whether the page can set it up yet (the others are listed as coming). */
 export type SettingsSection = { id: SettingsSectionId; title: string; purpose: string; ready: boolean };
@@ -20,6 +21,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "replies", title: "Replies by email", purpose: "People answer a request for a value, a question or a task by replying to its email. Your inbound mail provider takes the replies and forwards each one to Ziffr, signed.", ready: true },
   { id: "telegram", title: "Telegram", purpose: "A bot that asks for values and takes the answers in Telegram. Each Workspace turns it on for itself.", ready: true },
   { id: "slack", title: "Slack", purpose: "Ziffr's Slack app, which Workspaces connect to their Slack with one click.", ready: true },
+  { id: "slides", title: "Slide editor", purpose: "Decks and free layouts are drawn with tldraw. On an https address tldraw shows them only with a license key from tldraw (https://tldraw.dev/pricing: a 100-day free trial, commercial and hobby licenses); without one a notice stands in their place. The license must list the domain people reach Ziffr at. The key goes to the browser of whoever sees a deck or a free layout, View Links included.", ready: true },
   { id: "limits", title: "Workspace Limits", purpose: "The most Metrics a Workspace may hold, Archived Metrics not counted. Without a default or a limit of its own, a Workspace has no limit.", ready: true },
   { id: "sending", title: "Sending limits", purpose: "How much one Workspace, person or key may send and store in a day: emails, chat messages, Alerts, values, calls, Webhooks, sign-in links. They keep one Workspace or one program from using up the mail provider, the chat apps or the server. Each has a range, and none can be switched off. Lowering one never deletes or stops what exists: only what is new waits. The same for every Workspace, whatever its Metrics limit.", ready: true },
   { id: "keep", title: "How long logs are kept", purpose: "How long the Audit Log, the log of calls by key, the log of Webhook sends and the View Counts are kept, and how many old values one night of Retention takes. What is older than this goes by itself; what is younger is never removed.", ready: true },
@@ -79,6 +81,8 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "Whether the login page has Try the demo." },
   { name: "ZIFFR_DEMO_CHANGES", section: "demo", label: "Visitors may change the demo", secret: false, choices: [{ value: "1", label: "Visitors may change the demo" }, { value: "0", label: "The demo is read-only" }],
     help: "Only in a demo-only Ziffr (ZIFFR_DEMO_ONLY on the server). What visitors change is seen by every visitor and gone when the demo starts fresh, every 15 minutes. Off, or in any other Ziffr, the demo is read-only." },
+  { name: "ZIFFR_TLDRAW_LICENSE_KEY", section: "slides", label: "tldraw license key", secret: false, placeholder: "tldraw-…", maxLength: SLIDE_EDITOR_KEY_MAX,
+    help: "The key tldraw gave you, copied whole, in one line. Ziffr cannot check it: after saving, open a deck on this address and look for more than five seconds." },
   { name: "ZIFFR_DEFAULT_METRICS_LIMIT", section: "limits", label: "Default limit", secret: false, placeholder: "No limit",
     help: "The most Metrics a Workspace may hold unless it has a limit of its own. Empty: no limit. Over it, a Workspace keeps everything and keeps collecting values; only new Metrics wait, after 14 days with room for 10 % more." },
   { name: "ZIFFR_DEFAULT_LIMIT_LABEL", section: "limits", label: "Name of the default", secret: false, placeholder: "Standard",

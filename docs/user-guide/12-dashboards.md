@@ -386,6 +386,8 @@ A **Free layout** is a Widget you arrange freely, like a slide: other Widgets, t
 
 The layout editor fills the screen. On the left is a Pool ("Drag widgets onto the artboard; use the toolbar for text, arrows and shapes."). Drag Metrics, saved Widgets and Widget Templates onto the artboard, and use the drawing toolbar for text, arrows and shapes. Links and pages from other sites cannot be placed on it; paste or drop an image file itself instead. Press **Save layout** to keep it, or **Cancel**.
 
+If the notice **Slides and free layouts cannot be shown here** stands in place of a Free layout, this Ziffr has no license key that the slide editor accepts. The person who runs it can [add one](18-installation-settings.md#slide-editor).
+
 A Free layout cannot be saved as a Widget Template, and is left out when a dashboard is saved as a Dashboard Template.
 
 ## Grid and Read
