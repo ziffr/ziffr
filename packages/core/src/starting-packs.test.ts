@@ -55,8 +55,25 @@ describe("the starting Packs", () => {
   it("Sales forecast takes what is closed and in the pipeline from a CRM, whose templates leave the calls to people", () => {
     const res = checkPack(startingPack("sales-forecast.pack.json"));
     if (!res.ok) throw new Error("does not pass");
-    expect(res.pack.contents.metrics!.flatMap((e) => (e.comesFrom ? [[e.key, e.comesFrom.by, e.comesFrom.system ?? ""]] : []))).toEqual([["commit", "person", ""], ["best-case", "person", ""], ["closed-quarter", "system", "CRM"], ["pipeline", "system", "CRM"], ["quota-split", "person", ""]]);
+    expect(res.pack.contents.metrics!.flatMap((e) => (e.comesFrom ? [[e.key, e.comesFrom.by, e.comesFrom.system ?? ""]] : []))).toEqual([["commit", "person", ""], ["best-case", "person", ""], ["closed-quarter", "system", "CRM"], ["pipeline", "system", "CRM"]]);
     for (const template of ["hubspot-forecast", "salesforce-forecast", "pipedrive-forecast"]) expect(res.pack.feeds!.find((f) => f.template === template)?.fills, template).toEqual(["closed-quarter", "pipeline"]);
+  });
+
+  it("Sales forecast makes four figures for each salesperson and adds each up to the team's, the quota from the salespeople's targets", () => {
+    const res = checkPack(startingPack("sales-forecast.pack.json"));
+    if (!res.ok) throw new Error("does not pass");
+    const { contents, positions, repeats } = res.pack;
+    expect(repeats).toEqual([{ key: "rep", name: "Salesperson", max: 30 }]);
+    expect(positions!.map((p) => [p.key, p.per ?? null])).toEqual([["sales-lead", null], ["seller", "rep"]]);
+    const each = ["commit", "best-case", "closed-quarter", "pipeline"];
+    expect(contents.metrics!.filter((e) => e.per).map((e) => [e.key, e.per, e.submitters])).toEqual(each.map((k) => [k, "rep", ["seller"]]));
+    expect(contents.metrics!.flatMap((e) => (e.total ? [[e.key, e.total.of, e.total.targets]] : []))).toEqual([["team-commit", "commit", "parts"], ["team-best-case", "best-case", "own"], ["team-closed", "closed-quarter", "own"], ["team-pipeline", "pipeline", "own"]]);
+    // The sales lead is proposed every figure, without which the team's sums are not shown to them.
+    for (const e of contents.metrics!) expect(e.viewers, e.key).toEqual(["sales-lead"]);
+    // The slide on where the gap sits is a row for each salesperson of the team's commit.
+    const deck = contents.decks![0].template;
+    const gaps = deck.slides.flatMap((s) => s.shapes.flatMap((sh) => (sh.shape === "element" && sh.element.kind === "gap-table" ? [[sh.element.total, sh.slots!.map((n) => deck.slots[n].suggests)]] : [])));
+    expect([deck.format, gaps]).toEqual(["ziffr.deck-template/3", [[true, ["team-commit"]]]]);
   });
 
   it("every Metric Catalog entry of every Pack says how it is calculated, in one to three sentences", () => {
@@ -76,31 +93,33 @@ describe("the starting Packs", () => {
     const res = checkPack(startingPack("sales-forecast.pack.json"));
     if (!res.ok) throw new Error("does not pass");
     const formula = (key: string) => res.pack.contents.metrics!.find((e) => e.key === key)!.metric.formula!;
-    const week = { commit: 400000, "closed-quarter": 200000, pipeline: 900000 };
-    const of = (key: string, values: Record<string, number> = week, quota: number | undefined = 500000) => evaluate(formula(key), values, {}, quota === undefined ? {} : { commit: quota });
+    const week = { "team-commit": 400000, "team-closed": 200000, "team-pipeline": 900000 };
+    const of = (key: string, values: Record<string, number> = week, quota: number | undefined = 500000) => evaluate(formula(key), values, {}, quota === undefined ? {} : { "team-commit": quota });
     expect([of("quota"), of("commit-gap"), of("commit-share"), of("coverage")]).toEqual([500000, -100000, 80, 3]);
     // A week without a quota, or without a Commit to read it by, has no derived value, never one counted from 0.
     for (const key of ["quota", "commit-gap", "commit-share", "coverage"]) {
       expect(evaluate(formula(key), week), key).toBeNull();
-      expect(of(key, { "closed-quarter": 200000, pipeline: 900000 }), key).toBeNull();
+      expect(of(key, { "team-closed": 200000, "team-pipeline": 900000 }), key).toBeNull();
     }
     expect(of("commit-share", week, 0)).toBeNull();
     // Exactly the quota closed: nothing is missing, so there is no coverage. More than it: below 0, as the description says.
-    expect(of("coverage", { ...week, "closed-quarter": 500000 })).toBeNull();
-    expect(of("coverage", { ...week, "closed-quarter": 800000 })).toBe(-3);
-    // Every figure a person sends is a weekly last value, so a quarter shows the latest call, not a sum of calls. The quota is not one of them.
+    expect(of("coverage", { ...week, "team-closed": 500000 })).toBeNull();
+    expect(of("coverage", { ...week, "team-closed": 800000 })).toBe(-3);
+    // Every figure a person sends, and every sum of them, is a weekly last value, so a quarter shows the latest call, not
+    // a sum of calls. The quota is not one of them.
     const sent = res.pack.contents.metrics!.filter((e) => !e.metric.formula);
-    expect(sent.map((e) => [e.key, e.metric.period, e.metric.aggregation])).toEqual(["commit", "best-case", "closed-quarter", "pipeline", "quota-split"].map((k) => [k, "week", "last"]));
+    expect(sent.map((e) => [e.key, e.metric.period, e.metric.aggregation])).toEqual(["commit", "best-case", "closed-quarter", "pipeline", "team-commit", "team-best-case", "team-closed", "team-pipeline"].map((k) => [k, "week", "last"]));
   });
 
-  it("Sales forecast's slides show the quota and what follows from it, with nothing but a target on Commit and the week's figures", () => {
+  it("Sales forecast's slides show the quota and what follows from it, with nothing but the team's target and the week's figures", () => {
     const res = checkPack(startingPack("sales-forecast.pack.json"));
     if (!res.ok) throw new Error("does not pass");
     const metrics = res.pack.contents.metrics!.map(({ key, metric: m }, i) => metric({ id: i + 1, slug: key, name: m.name, period: m.period, aggregation: m.aggregation, unit: m.unit, decimals: m.decimals, formula: m.formula ?? null, target_min: null }));
     const of = (key: string) => metrics.find((m) => m.slug === key)!;
     const week = "2026-11-09";
-    const observations = Object.entries({ commit: 400000, "best-case": 450000, "closed-quarter": 200000, pipeline: 900000 }).map(([key, value]) => ({ metric_id: of(key).id, period_start: week, value }) as Observation);
-    const targets = { [of("commit").id]: [{ period: week, value: 500000 }] };
+    // The team's figures as their Totals would give them.
+    const observations = Object.entries({ "team-commit": 400000, "team-best-case": 450000, "team-closed": 200000, "team-pipeline": 900000 }).map(([key, value]) => ({ metric_id: of(key).id, period_start: week, value }) as Observation);
+    const targets = { [of("team-commit").id]: [{ period: week, value: 500000 }] };
     const series = buildSeries(metrics, observations, targets);
     expect(["quota", "commit-gap", "commit-share", "coverage"].map((k) => series[k].map((p) => p.value))).toEqual([[500000], [-100000], [80], [3]]);
     // The four figures of the call slide, each from the Metrics of its Slots.
@@ -112,9 +131,9 @@ describe("the starting Packs", () => {
       return model.denied ? [] : [[model.label, model.value, model.note]];
     });
     expect(figures).toEqual([
-      ["Commit", "400 k€", ""],
+      ["Team commit", "400 k€", ""],
       ["Quota", "500 k€", "100 k€ short"],
-      ["Best case", "450 k€", "50 k€ short"],
+      ["Team best case", "450 k€", "50 k€ short"],
       ["Pipeline coverage", "3.0×", "of the 300 k€ still to close"],
     ]);
   });

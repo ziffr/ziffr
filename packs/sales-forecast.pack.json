@@ -2,8 +2,8 @@
   "format": "ziffr.pack/2",
   "id": "ziffr/sales-forecast",
   "name": "Sales forecast",
-  "version": "1.2.0",
-  "summary": "A weekly sales forecast: commit, best case, closed this quarter and pipeline, with the quota set as the target of Commit and the gap to it and pipeline coverage worked out, a dashboard and a deck for the weekly meeting and a Workflow that asks on Monday and has the sales lead approve.",
+  "version": "2.0.0",
+  "summary": "A weekly sales forecast for a team: each salesperson's commit, best case, closed this quarter and pipeline, the team's figures added up, the gap to quota and pipeline coverage worked out, a dashboard and a deck for the weekly meeting and a Workflow that asks on Monday and has the sales lead approve.",
   "author": {
     "name": "Ziffr"
   },
@@ -21,7 +21,7 @@
     "whatItsFor": [
       {
         "type": "text",
-        "text": "For a sales team that calls its quarter every week. On Monday the figures for the week just ended come in, the sales lead approves them, and everyone reads the same **commit**, gap to quota and pipeline coverage."
+        "text": "For a sales team that calls its quarter every week. On Monday each salesperson's figures for the week just ended come in, the sales lead approves them, and the team reads its **commit**, gap to quota and pipeline coverage."
       },
       {
         "type": "text",
@@ -30,9 +30,10 @@
       {
         "type": "list",
         "items": [
-          "A **dashboard** with this week's call against quota, the change on last week and the last 13 weeks.",
-          "A **deck** of seven slides that fills in its own figures.",
-          "A **Workflow** that asks, has each value approved, locks the week and sends its Snapshot to the people you pick.",
+          "Figures for each salesperson, and the team's figures added up from them.",
+          "A **dashboard** with this week's call against quota, each salesperson's commit against theirs and the last 13 weeks.",
+          "A **deck** of seven slides that fills in its own figures, with the gap by salesperson.",
+          "A **Workflow** that asks, has each value approved, locks the week and sends its Snapshot.",
           "n8n templates that send figures from HubSpot, Salesforce, Pipedrive, Google Sheets or Microsoft Excel."
         ]
       }
@@ -42,11 +43,11 @@
         "type": "list",
         "items": [
           "An **Owner** installs the Pack, because it holds three Themes. An Owner or Admin sets it up.",
-          "The team's **quota** for the quarter. You set it once, as the target of **Commit**; nobody sends it every week.",
-          "Who calls **Commit** and **Best case** each week.",
-          "Where **Closed this quarter** and **Pipeline value** come from: your CRM or a sheet through n8n, or a person who types them.",
-          "Decide who approves. Nobody approves their own value while someone else can. The approver needs to be a member of the Workspace, and is picked during Set up.",
-          "Room for **9 Metrics** in your Workspace's size, or 8 without **Quota split**.",
+          "Your salespeople, up to 30. Invite them on the **Members** page, or add them as Contacts, so that you can pick them.",
+          "A **sales lead**, a member of the Workspace, who approves the figures. Nobody approves their own value while someone else can.",
+          "Each salesperson's **quota** for the quarter. You set it once, as the target of their **Commit**. The team's quota is those added up.",
+          "Where **Closed this quarter** and **Pipeline value** come from: your CRM or a sheet through n8n, or people who type them.",
+          "Room in your Workspace's size: **4 Metrics** for each salesperson and **8** for the team. Ten salespeople make 48.",
           "The money figures are in euro. If yours differ, change the **Unit** with **Edit details…** on each Metric's **Description** tab."
         ]
       }
@@ -65,16 +66,14 @@
         "numbered": true,
         "items": [
           "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
-          "Keep the Metrics ticked, with the dashboard and the Workflow **Weekly sales forecast**. Untick **Quota split** if you do not want the table of the gap by salesperson.",
-          "If you send **Commit** and **Best case** yourself, leave **Make me the Submitter of their values** ticked, else untick it. Closed this quarter and Pipeline value are marked as sent by a CRM, so you are not made their Submitter. To type them too, also tick **Ask me also for** them.",
-          "Pick the **Approver**, usually the sales lead. Setting up sends no request unless you tick **Send the first requests now**. Choose **Set up**.",
-          "Set the quota: open **Commit**, go to the **Targets** tab and give every week of the quarter the quarter's quota. **Paste from a spreadsheet** takes the weeks in one go.",
-          "To connect a CRM or a sheet, choose **Fill from n8n** under your system on the page Set up shows, before you choose **Done**. It gives you the file for n8n. Later, the same button is under **Who submits** on the **Description** tab of a Metric.",
-          "If someone else sends figures, open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick that person for each of their Metrics and press **Ask**.",
-          "Send this week's figures: whoever submits opens each Metric and chooses **Record a value**, or answers the request the Workflow sends. The Approver then approves them.",
-          "Open **Decks**, choose **From a Deck Template**, pick **Weekly forecast meeting** and a Metric for each Slot. Each Slot is named like the Metric it takes.",
-          "Open the Workflow **Weekly sales forecast**. In its **Send Snapshot** step pick the dashboard **Weekly forecast meeting** and the people who get it, then choose **Save workflow**.",
-          "Share that dashboard with those people. Someone who cannot open it is not sent the link."
+          "Under **List each Salesperson**, add a line for each one: type their name and answer **Who is the Salesperson?** Under **Who does what**, answer **Who is the Sales lead?**",
+          "Keep the Metrics ticked, with the dashboard **Weekly forecast meeting** and the Workflow **Weekly sales forecast**.",
+          "Under **Shares the Pack proposes**, choose **Tick all for** the sales lead: a team figure is shown only to someone who sees every salesperson's figure it adds up.",
+          "Choose **Set up**. No request goes out unless you tick **Send the first requests now**; otherwise people are asked at the Workflow's next run.",
+          "Set the quotas: open each salesperson's **Commit**, go to the **Targets** tab and give every week of the quarter their quarter's quota. **Paste from a spreadsheet** takes the weeks in one go. For a team quota of its own, see **Questions**.",
+          "To connect a CRM or a sheet, choose **Fill from n8n** on the page Set up shows. In n8n, leave the settings for the team's figures empty and give each salesperson a line in the node **Owners**.",
+          "Send this week's figures: whoever submits answers the request, or opens the Metric and chooses **Record a value**. The sales lead then approves them.",
+          "Open **Decks**, choose **From a Deck Template**, pick **Weekly forecast meeting** and a Metric for each Slot. Each Slot is named like the Metric it takes."
         ]
       },
       {
@@ -86,39 +85,50 @@
         "numbered": true,
         "items": [
           "On Monday Ziffr asks the people who send figures for the week just ended, and the n8n templates send theirs. The figures are due on Tuesday, with a reminder that day.",
-          "The Approver approves each value. It is then published and the week is locked.",
+          "The sales lead approves each value. It is then published and the week is locked.",
           "Before the meeting, open the deck and write what only you know over the questions on its slides, such as why the pipeline moved and what you ask for.",
-          "Once the week is finished, the people you picked get a link to its Snapshot.",
-          "When a new quarter starts, add its weeks and quota on **Commit**'s **Targets** tab."
+          "Once the week is finished, the sales lead gets a link to its Snapshot. Add others in the Workflow's **Send Snapshot** step and share the dashboard with them.",
+          "When a new quarter starts, add its weeks and quotas on each **Commit**'s **Targets** tab."
+        ]
+      },
+      {
+        "type": "heading",
+        "text": "When the team changes"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Someone joins: under this Pack choose **Add a Salesperson**, tick the team figures that count the new one, then set their quota.",
+          "Someone leaves: archive their Metrics. Ziffr asks up to which week each team figure counts them, and earlier weeks stay."
         ]
       }
     ],
     "eachPart": [
       {
         "type": "heading",
-        "text": "The figures that come in each week"
+        "text": "The figures of each salesperson"
       },
       {
         "type": "list",
         "items": [
-          "**Commit**: what the team commits to closing by the end of the quarter, deals already won included. Its target is the quota.",
+          "**Commit**: what they commit to closing by the end of the quarter, deals already won included. Its target is their quota.",
           "**Best case**: what the quarter reaches if the open deals that may still close do, deals already won included.",
           "**Closed this quarter**: the value of the deals won since the quarter began. It starts again from 0 each quarter.",
-          "**Pipeline value**: all open deals that can still close this quarter, those in the commit included, those already won not.",
-          "**Quota split**: optional. The quota by salesperson, only for the deck's slide on where the gap sits."
+          "**Pipeline value**: all open deals that can still close this quarter, those in the commit included, those already won not."
         ]
       },
       {
         "type": "heading",
-        "text": "The four Ziffr works out"
+        "text": "The team's figures"
       },
       {
         "type": "list",
         "items": [
-          "**Quota**: read from the target of **Commit** for the week.",
-          "**Commit gap to quota**: Commit minus the quota. Below 0, the commit is that much short.",
-          "**Commit as share of quota**: Commit as a percentage of the quota. 100 % or more covers it.",
-          "**Pipeline coverage**: Pipeline value divided by what is still missing, which is the quota minus Closed this quarter. 3 times means the open deals are worth three times what is missing."
+          "**Team commit**, **Team best case**, **Team closed this quarter** and **Team pipeline value**: Totals that add up the figures of all salespeople. Nobody sends them.",
+          "**Quota**: the salespeople's quotas added up.",
+          "**Commit gap to quota**: Team commit minus the quota. Below 0, the commit is that much short.",
+          "**Commit as share of quota**: Team commit as a percentage of the quota. 100 % or more covers it.",
+          "**Pipeline coverage**: Team pipeline value divided by what is still missing, which is the quota minus Team closed this quarter."
         ]
       },
       {
@@ -128,8 +138,8 @@
       {
         "type": "list",
         "items": [
-          "The dashboard **Weekly forecast meeting**: the call against quota, the change on last week, the last 13 weeks and the latest commit by salesperson.",
-          "The deck **Weekly forecast meeting**: a cover, the call, where the gap sits, the change since last week, the weeks of the quarter, pipeline coverage, and the risks and asks.",
+          "The dashboard **Weekly forecast meeting**: the call against quota, the change on last week, the last 13 weeks and each salesperson's commit against their quota.",
+          "The deck **Weekly forecast meeting**: a cover, the call, where the gap sits by salesperson, the change since last week, the weeks of the quarter, pipeline coverage, and the risks and asks.",
           "The Workflow **Weekly sales forecast**: asks on Monday, reminds on Tuesday, tells the Metric's owner about a missing value on Wednesday, marks a change of more than 25 % as unusual, has every value approved, locks the week and sends its Snapshot.",
           "**Forecast Navy**, **Forecast Coral** and **Forecast Forest**: three Themes. The deck starts with Navy. Add your logo to the Theme you use under **Themes** in **Settings**."
         ]
@@ -138,11 +148,77 @@
     "questions": [
       {
         "type": "heading",
+        "text": "Who sees what?"
+      },
+      {
+        "type": "text",
+        "text": "Each salesperson sees their own figures. The sales lead sees everyone's once the proposed Shares are ticked. A team figure is shown only to someone who sees every salesperson's figure it adds up; the Metric's owner can show a team figure to others on its page."
+      },
+      {
+        "type": "heading",
+        "text": "Why is a team figure empty?"
+      },
+      {
+        "type": "text",
+        "text": "It has a value for a week once every salesperson's figure is in: someone with nothing sends 0. The quota, and what follows from it, also needs a target on every salesperson's **Commit** for that week."
+      },
+      {
+        "type": "heading",
+        "text": "How do we give the team a quota of its own?"
+      },
+      {
+        "type": "text",
+        "text": "To begin with, the team's quota is the salespeople's quotas added up. For another one, such as a quota with a margin on top, the owner or an Editor of **Team commit** does this:"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Open **Metrics**, then **Team commit**. On the **Overview** tab, find **What it adds up**.",
+          "Under **Target**, choose **Its own target**. Ziffr says **Target changed**.",
+          "Open the **Targets** tab. Choose **Add row** for each week, or **Paste from a spreadsheet** with two columns: the week and the quota.",
+          "Give every week of the quarter the team's quota for the quarter, also past weeks you still want to read. Then press the **Save** button below the rows."
+        ]
+      },
+      {
+        "type": "text",
+        "text": "**Quota**, **Commit gap to quota**, **Commit as share of quota** and **Pipeline coverage** then use the team's own quota, on the dashboard and on the slides. A week without one has none of these, past weeks too."
+      },
+      {
+        "type": "text",
+        "text": "The slide with the gap by salesperson stays as it was: each row compares a salesperson with their own quota. So the rows need not add up to the team's gap."
+      },
+      {
+        "type": "text",
+        "text": "For one quota that holds in every week, choose **Edit details…** on the **Description** tab and fill in **Target from**. It keeps no history: changing it changes past weeks too."
+      },
+      {
+        "type": "text",
+        "text": "While **Team commit** is shown to people who do not see every salesperson's figure, only its owner changes the target, and ticks the box that asks them to confirm."
+      },
+      {
+        "type": "heading",
+        "text": "How do we go back to the quotas added up?"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Open **Team commit**, and on the **Overview** tab under **Target** choose **Its Metrics’ targets added up**.",
+          "Check that each salesperson's **Commit** has a target for the weeks you read: a week has a team quota only when every one of them has one."
+        ]
+      },
+      {
+        "type": "text",
+        "text": "This removes a **Target from** or **Target up to** set on **Team commit**. The weekly quotas you entered for it are kept but not used, and count again if you choose **Its own target** later."
+      },
+      {
+        "type": "heading",
         "text": "Can the figures come from our CRM?"
       },
       {
         "type": "text",
-        "text": "Yes. n8n can send **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, for the team and for salespeople with Metrics of their own. HubSpot and Salesforce can also send **Commit** and **Best case** if you switch them on; Commit is otherwise a person's call. n8n runs on your side, and Ziffr never holds your CRM login."
+        "text": "Yes. n8n can send **Closed this quarter** and **Pipeline value** for each salesperson every Monday from HubSpot, Salesforce or Pipedrive. HubSpot and Salesforce can also send **Commit** and **Best case** if you switch them on; Commit is otherwise a person's call. n8n runs on your side, and Ziffr never holds your CRM login."
       },
       {
         "type": "heading",
@@ -150,7 +226,7 @@
       },
       {
         "type": "text",
-        "text": "Both. **Fill from n8n** also offers Google Sheets and Microsoft Excel templates, and any figure can be typed by a person who submits it. Figures of earlier weeks can be brought in with **Paste values**."
+        "text": "Both. **Fill from n8n** also offers Google Sheets and Microsoft Excel templates, and any figure of a salesperson can be typed by whoever submits it. Figures of earlier weeks can be brought in with **Paste values**."
       },
       {
         "type": "heading",
@@ -162,27 +238,11 @@
       },
       {
         "type": "heading",
-        "text": "How do I see figures by salesperson?"
+        "text": "We set the Pack up before version 2"
       },
       {
         "type": "text",
-        "text": "Send the team's figure with a **Breakdown**, one line for each salesperson, such as Ana 205,000, and leave the value empty so the lines are added up. Send all lines together: a newer value replaces them. The slide on where the gap sits needs the same names on **Commit** and **Quota split**."
-      },
-      {
-        "type": "heading",
-        "text": "Why is a calculated figure empty?"
-      },
-      {
-        "type": "text",
-        "text": "One of its figures, or the quota, is missing for that week: set the week's target on **Commit**. Pipeline coverage is also empty when exactly the quota is closed, and below 0 when more is closed."
-      },
-      {
-        "type": "heading",
-        "text": "I am the only one in the Workspace. Who approves?"
-      },
-      {
-        "type": "text",
-        "text": "You check your own values. If checking every one is more than you want, change the Approve step of the Workflow to **Unusual values only**."
+        "text": "What was set up stays as it is and keeps working. To change to figures for each salesperson, update the Pack and set it up again."
       },
       {
         "type": "heading",
@@ -198,12 +258,14 @@
     "metrics": [
       {
         "key": "commit",
-        "comesFrom": { "by": "person" },
+        "comesFrom": {
+          "by": "person"
+        },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Commit",
-          "description": "The forecast call: what the team commits to closing by the end of the quarter, deals already won in it included. Its target is the team's quota: set it on the Targets tab for each week of the quarter. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
-          "calculationNote": "The value of the deals won this quarter plus the open deals the team commits to closing by its end, as it stands at the end of the week. The further deals that count only in the best case, and deals expected after the quarter, are left out.",
+          "description": "One salesperson's forecast call: what they commit to closing by the end of the quarter, deals already won in it included. Its target is their quota: set it on the Targets tab for each week of the quarter. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered.",
+          "calculationNote": "The value of the deals this salesperson has won this quarter plus the open deals they commit to closing by its end, as it stands at the end of the week. Deals that count only in the best case, and deals expected after the quarter, are left out.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -224,16 +286,26 @@
             "Sales",
             "Sales forecast"
           ]
-        }
+        },
+        "per": "rep",
+        "submitters": [
+          "seller"
+        ],
+        "viewers": [
+          "sales-lead"
+        ],
+        "standIn": "sales-lead"
       },
       {
         "key": "best-case",
-        "comesFrom": { "by": "person" },
+        "comesFrom": {
+          "by": "person"
+        },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Best case",
-          "description": "What the quarter reaches if the open deals that may still close do: commit plus upside, deals already won included. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
-          "calculationNote": "The commit plus the upside: the further open deals that may still close by the end of the quarter, as they stand at the end of the week. Deals already lost and deals expected after the quarter are left out.",
+          "description": "What one salesperson's quarter reaches if the open deals that may still close do: commit plus upside, deals already won included. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered.",
+          "calculationNote": "The salesperson's commit plus the upside: the further open deals that may still close by the end of the quarter, as they stand at the end of the week. Deals already lost and deals expected after the quarter are left out.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -254,16 +326,27 @@
             "Sales",
             "Sales forecast"
           ]
-        }
+        },
+        "per": "rep",
+        "submitters": [
+          "seller"
+        ],
+        "viewers": [
+          "sales-lead"
+        ],
+        "standIn": "sales-lead"
       },
       {
         "key": "closed-quarter",
-        "comesFrom": { "by": "system", "system": "CRM" },
+        "comesFrom": {
+          "by": "system",
+          "system": "CRM"
+        },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Closed this quarter",
-          "description": "The value of the deals won since the quarter began. It starts again from 0 each quarter; a week that spans two quarters belongs to the one it starts in. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
-          "calculationNote": "The value of every deal won from the first day of the quarter to the end of the week, added up. Open deals are not in it, and it starts again from 0 with the next quarter.",
+          "description": "The value of the deals one salesperson has won since the quarter began. It starts again from 0 each quarter; a week that spans two quarters belongs to the one it starts in. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered.",
+          "calculationNote": "The value of every deal the salesperson has won from the first day of the quarter to the end of the week, added up. Open deals are not in it, and it starts again from 0 with the next quarter.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -284,16 +367,26 @@
             "Sales",
             "Sales forecast"
           ]
-        }
+        },
+        "per": "rep",
+        "submitters": [
+          "seller"
+        ],
+        "viewers": [
+          "sales-lead"
+        ]
       },
       {
         "key": "pipeline",
-        "comesFrom": { "by": "system", "system": "CRM" },
+        "comesFrom": {
+          "by": "system",
+          "system": "CRM"
+        },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Pipeline value",
-          "description": "The value of all open deals that can still close this quarter, those in the commit included, those already won not. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
-          "calculationNote": "The full value of every deal still open at the end of the week that can close this quarter, not weighted by its chance. Committed deals that are still open are in it; deals already won and deals expected after the quarter are not.",
+          "description": "The value of one salesperson's open deals that can still close this quarter, those in the commit included, those already won not. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered.",
+          "calculationNote": "The full value of every deal of the salesperson still open at the end of the week that can close this quarter, not weighted by its chance. Committed deals that are still open are in it; deals already won and deals expected after the quarter are not.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -314,16 +407,22 @@
             "Sales",
             "Sales forecast"
           ]
-        }
+        },
+        "per": "rep",
+        "submitters": [
+          "seller"
+        ],
+        "viewers": [
+          "sales-lead"
+        ]
       },
       {
-        "key": "quota-split",
-        "comesFrom": { "by": "person", "note": "Optional, only for the deck's slide on where the gap sits." },
+        "key": "team-commit",
         "metric": {
           "format": "ziffr.metric/2",
-          "name": "Quota split",
-          "description": "The quota split by salesperson, only for the deck's gap by salesperson slide: each one's quota for the quarter, sent as a breakdown with the same names as Commit's, in every week you want that table. The team's quota everywhere else is the target of Commit. Leave it out at Set up if you do not want the table. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered.",
-          "calculationNote": "The quota of each salesperson for the whole quarter, not a weekly share, sent as one line for each person under the same names as in the breakdown of Commit. Only the slide with the gap by salesperson reads it: every other figure takes the quota of the team from the target of Commit, so the two are kept in step by hand.",
+          "name": "Team commit",
+          "description": "The commit of every salesperson, added up. A week has a sum once each Commit is in; a salesperson with nothing sends 0. Its target, the team's quota, is their targets added up.",
+          "calculationNote": "Commit of every salesperson for the week, added up. There is no sum while one of them is missing, and no target while one of them has none.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -332,27 +431,110 @@
           "unitPosition": "after",
           "valueFormat": "currency",
           "decimals": 0,
-          "submissionRule": "overwrite",
-          "sources": [
-            "web_form",
-            "mail",
-            "slack",
-            "telegram",
-            "api"
-          ],
           "tags": [
             "Sales",
             "Sales forecast"
           ]
-        }
+        },
+        "total": {
+          "of": "commit",
+          "targets": "parts"
+        },
+        "viewers": [
+          "sales-lead"
+        ]
+      },
+      {
+        "key": "team-best-case",
+        "metric": {
+          "format": "ziffr.metric/2",
+          "name": "Team best case",
+          "description": "The best case of every salesperson, added up. A week has a sum once each is in.",
+          "calculationNote": "Best case of every salesperson for the week, added up. There is no sum while one of them is missing.",
+          "category": "Sales",
+          "period": "week",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "tags": [
+            "Sales",
+            "Sales forecast"
+          ]
+        },
+        "total": {
+          "of": "best-case",
+          "targets": "own"
+        },
+        "viewers": [
+          "sales-lead"
+        ]
+      },
+      {
+        "key": "team-closed",
+        "metric": {
+          "format": "ziffr.metric/2",
+          "name": "Team closed this quarter",
+          "description": "What every salesperson has won since the quarter began, added up. A week has a sum once each is in.",
+          "calculationNote": "Closed this quarter of every salesperson for the week, added up. There is no sum while one of them is missing.",
+          "category": "Sales",
+          "period": "week",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "tags": [
+            "Sales",
+            "Sales forecast"
+          ]
+        },
+        "total": {
+          "of": "closed-quarter",
+          "targets": "own"
+        },
+        "viewers": [
+          "sales-lead"
+        ]
+      },
+      {
+        "key": "team-pipeline",
+        "metric": {
+          "format": "ziffr.metric/2",
+          "name": "Team pipeline value",
+          "description": "The open deals of every salesperson that can still close this quarter, added up. A week has a sum once each is in.",
+          "calculationNote": "Pipeline value of every salesperson for the week, added up. There is no sum while one of them is missing.",
+          "category": "Sales",
+          "period": "week",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "tags": [
+            "Sales",
+            "Sales forecast"
+          ]
+        },
+        "total": {
+          "of": "pipeline",
+          "targets": "own"
+        },
+        "viewers": [
+          "sales-lead"
+        ]
       },
       {
         "key": "quota",
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Quota",
-          "description": "The team's quota for the quarter, read from the target of Commit, so nobody sends it. Set it on Commit's Targets tab: the quarter's quota for each of its weeks, so every week keeps its own. A Target Range with only “from” works too, but changing it also changes past weeks. Empty in a week without a Commit.",
-          "calculationNote": "The target of Commit for the week, which holds the quota of the team for the whole quarter: its Target Series value for that week, or else a Target Range with one number. Nobody sends it, and there is no value in a week without a Commit or without such a target.",
+          "description": "The team's quota for the quarter, read from the target of Team commit, so nobody sends it. That target is the salespeople's quotas added up: set each on the Targets tab of their Commit. Empty in a week without a Team commit.",
+          "calculationNote": "The target of Team commit for the week: the targets of every salesperson's Commit added up. There is no value in a week without a Team commit or while a salesperson has no target.",
           "category": "Sales",
           "period": "week",
           "aggregation": "none",
@@ -361,20 +543,23 @@
           "unitPosition": "after",
           "valueFormat": "currency",
           "decimals": 0,
-          "formula": "target({commit})",
+          "formula": "target({team-commit})",
           "tags": [
             "Sales",
             "Sales forecast"
           ]
-        }
+        },
+        "viewers": [
+          "sales-lead"
+        ]
       },
       {
         "key": "commit-gap",
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Commit gap to quota",
-          "description": "Commit minus the quota, which is the target of Commit, for the week. Below 0, the commit is that much short; 0 or more covers it. Empty until the week has a Commit and a quota.",
-          "calculationNote": "Commit less its target, which holds the quota, both of the same week. A figure below 0 is what the commit lacks to reach the quota, and there is no value in a week without a Commit or a quota.",
+          "description": "Team commit minus the quota for the week. Below 0, the commit is that much short; 0 or more covers it. Empty until the week has a Team commit and a quota.",
+          "calculationNote": "Team commit less its target, which holds the quota, both of the same week. A figure below 0 is what the commit lacks to reach the quota, and there is no value in a week without a Team commit or a quota.",
           "category": "Sales",
           "period": "week",
           "aggregation": "none",
@@ -384,20 +569,23 @@
           "valueFormat": "currency",
           "decimals": 0,
           "targetMin": 0,
-          "formula": "{commit} - target({commit})",
+          "formula": "{team-commit} - target({team-commit})",
           "tags": [
             "Sales",
             "Sales forecast"
           ]
-        }
+        },
+        "viewers": [
+          "sales-lead"
+        ]
       },
       {
         "key": "commit-share",
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Commit as share of quota",
-          "description": "Commit as a share of its target, the quota, for the same week. 100 % or more covers it. Empty until the week has a Commit and a quota, and when the quota is 0.",
-          "calculationNote": "Commit divided by its target, which holds the quota, in percent, both of the same week. There is no value in a week without a Commit or a quota, or when the quota is 0.",
+          "description": "Team commit as a share of the quota for the same week. 100 % or more covers it. Empty until the week has a Team commit and a quota, and when the quota is 0.",
+          "calculationNote": "Team commit divided by its target, which holds the quota, in percent, both of the same week. There is no value in a week without a Team commit or a quota, or when the quota is 0.",
           "category": "Sales",
           "period": "week",
           "aggregation": "none",
@@ -407,20 +595,23 @@
           "valueFormat": "percent",
           "decimals": 0,
           "targetMin": 100,
-          "formula": "{commit} / target({commit}) * 100",
+          "formula": "{team-commit} / target({team-commit}) * 100",
           "tags": [
             "Sales",
             "Sales forecast"
           ]
-        }
+        },
+        "viewers": [
+          "sales-lead"
+        ]
       },
       {
         "key": "coverage",
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Pipeline coverage",
-          "description": "Pipeline value divided by what is still missing, which is the quota (the target of Commit) minus Closed this quarter. 3 times means the open deals are worth three times what is missing. Empty when a figure, the quota or the week’s Commit is missing or exactly nothing is left to close. Below 0 when more than the quota is closed: then nothing is left to cover.",
-          "calculationNote": "Pipeline value divided by the target of Commit less Closed this quarter, all of the same week: how many times the open deals cover what is still to be closed. There is no value when a figure or the quota is missing or exactly nothing is left to close, and a value below 0 means that more than the quota is already closed.",
+          "description": "Team pipeline value divided by what is still missing, which is the quota minus Team closed this quarter. 3 times means the open deals are worth three times what is missing. Empty when a figure or the quota is missing or exactly nothing is left to close. Below 0 when more than the quota is closed: then nothing is left to cover.",
+          "calculationNote": "Team pipeline value divided by the target of Team commit less Team closed this quarter, all of the same week: how many times the open deals cover what is still to be closed. There is no value when a figure or the quota is missing or exactly nothing is left to close, and a value below 0 means that more than the quota is already closed.",
           "category": "Sales",
           "period": "week",
           "aggregation": "none",
@@ -429,12 +620,15 @@
           "unitPosition": "after",
           "valueFormat": "number",
           "decimals": 1,
-          "formula": "{pipeline} / (target({commit}) - {closed-quarter})",
+          "formula": "{team-pipeline} / (target({team-commit}) - {team-closed})",
           "tags": [
             "Sales",
             "Sales forecast"
           ]
-        }
+        },
+        "viewers": [
+          "sales-lead"
+        ]
       }
     ],
     "dashboards": [
@@ -443,11 +637,11 @@
         "template": {
           "format": "ziffr.dashboard-template/1",
           "name": "Weekly forecast meeting",
-          "description": "This week's call against quota and what changed since last week, then the calls and the pipeline coverage over the last 13 weeks, and the latest commit by salesperson when a breakdown is sent.",
+          "description": "This week's call against quota and what changed since last week, then the calls and the pipeline coverage over the last 13 weeks, and each salesperson's commit against their quota.",
           "slots": [
             {
-              "label": "Commit",
-              "suggests": "commit"
+              "label": "Team commit",
+              "suggests": "team-commit"
             },
             {
               "label": "Quota",
@@ -462,20 +656,25 @@
               "suggests": "coverage"
             },
             {
-              "label": "Best case",
-              "suggests": "best-case"
+              "label": "Team best case",
+              "suggests": "team-best-case"
             },
             {
-              "label": "Closed this quarter",
-              "suggests": "closed-quarter"
+              "label": "Team closed this quarter",
+              "suggests": "team-closed"
             },
             {
-              "label": "Pipeline value",
-              "suggests": "pipeline"
+              "label": "Team pipeline value",
+              "suggests": "team-pipeline"
             },
             {
               "label": "Commit as share of quota",
               "suggests": "commit-share"
+            },
+            {
+              "label": "Commit by salesperson",
+              "multiple": true,
+              "suggests": "commit"
             }
           ],
           "widgets": [
@@ -653,34 +852,34 @@
               }
             },
             {
-              "view": "ranked",
+              "view": "progress",
               "slots": [
-                0
+                8
               ],
+              "title": "Commit by salesperson against quota",
               "x": 6,
               "y": 20,
               "w": 6,
-              "h": 7,
-              "settings": {
-                "headline": "Commit by salesperson",
-                "source": "From the breakdown sent with Commit."
-              }
+              "h": 7
             }
           ]
-        }
+        },
+        "viewers": [
+          "sales-lead"
+        ]
       }
     ],
     "decks": [
       {
         "key": "forecast-meeting-deck",
         "template": {
-          "format": "ziffr.deck-template/2",
+          "format": "ziffr.deck-template/3",
           "name": "Weekly forecast meeting",
           "description": "A cover and six slides for the weekly meeting: the call against quota, the gap by salesperson, the change since last week, the weeks of the quarter, pipeline coverage, and the risks and asks.",
           "slots": [
             {
-              "label": "Commit",
-              "suggests": "commit"
+              "label": "Team commit",
+              "suggests": "team-commit"
             },
             {
               "label": "Quota",
@@ -695,24 +894,20 @@
               "suggests": "coverage"
             },
             {
-              "label": "Best case",
-              "suggests": "best-case"
+              "label": "Team best case",
+              "suggests": "team-best-case"
             },
             {
-              "label": "Closed this quarter",
-              "suggests": "closed-quarter"
+              "label": "Team closed this quarter",
+              "suggests": "team-closed"
             },
             {
-              "label": "Pipeline value",
-              "suggests": "pipeline"
+              "label": "Team pipeline value",
+              "suggests": "team-pipeline"
             },
             {
               "label": "Commit as share of quota",
               "suggests": "commit-share"
-            },
-            {
-              "label": "Quota split",
-              "suggests": "quota-split"
             }
           ],
           "theme": "forecast-navy",
@@ -1118,8 +1313,7 @@
                   "w": 1152,
                   "h": 540,
                   "slots": [
-                    0,
-                    8
+                    0
                   ],
                   "element": {
                     "kind": "gap-table",
@@ -1127,7 +1321,8 @@
                     "rowLabel": "Salesperson",
                     "lead": "Ask for the meeting:",
                     "note": "What do you need, from whom, and by when?",
-                    "gapLabel": "Commit minus quota, {scale}"
+                    "gapLabel": "Commit minus quota, {scale}",
+                    "total": true
                   }
                 }
               ]
@@ -1911,9 +2106,9 @@
       {
         "key": "weekly-forecast",
         "template": {
-          "format": "ziffr.workflow-template/1",
+          "format": "ziffr.workflow-template/2",
           "name": "Weekly sales forecast",
-          "description": "Asks on Monday for the week just ended, due Tuesday with a reminder, then tells the Metric Owner. The sales lead approves every value, which publishes and locks. Once the week is finished it sends a dashboard's Snapshot to the people you pick.",
+          "description": "Asks each salesperson on Monday for the week just ended, due Tuesday with a reminder, then tells the Metric Owner. The sales lead approves every value, which publishes and locks. Once the week is finished it sends the dashboard's Snapshot to the sales lead.",
           "dueWorkingDays": 2,
           "steps": [
             {
@@ -1934,10 +2129,17 @@
               "type": "approve",
               "approvers": 1,
               "values": "every",
-              "nobodyElse": "self-check"
+              "nobodyElse": "self-check",
+              "by": [
+                "sales-lead"
+              ]
             },
             {
-              "type": "send_snapshot"
+              "type": "send_snapshot",
+              "dashboard": "forecast-weekly",
+              "to": [
+                "sales-lead"
+              ]
             },
             {
               "type": "publish",
@@ -1987,6 +2189,26 @@
         "closed-quarter",
         "pipeline"
       ]
+    }
+  ],
+  "positions": [
+    {
+      "key": "sales-lead",
+      "name": "Sales lead",
+      "people": "one"
+    },
+    {
+      "key": "seller",
+      "name": "Salesperson",
+      "people": "one",
+      "per": "rep"
+    }
+  ],
+  "repeats": [
+    {
+      "key": "rep",
+      "name": "Salesperson",
+      "max": 30
     }
   ]
 }
