@@ -553,7 +553,7 @@
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 281,
+                  "y": 209,
                   "w": 56,
                   "h": 4,
                   "element": {
@@ -564,7 +564,7 @@
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 307,
+                  "y": 234,
                   "w": 652,
                   "h": 134,
                   "element": {
@@ -582,9 +582,9 @@
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 463,
+                  "y": 390,
                   "w": 652,
-                  "h": 25,
+                  "h": 24,
                   "slots": [
                     0
                   ],
@@ -595,7 +595,8 @@
                     ],
                     "size": 20,
                     "tone": "cover-text",
-                    "opacity": 0.82
+                    "opacity": 0.82,
+                    "empty": "Forecast meeting"
                   }
                 },
                 {
@@ -607,7 +608,7 @@
                   "element": {
                     "kind": "words",
                     "text": [
-                      "Confidential"
+                      ""
                     ],
                     "size": 12,
                     "tone": "cover-text",
@@ -626,24 +627,19 @@
                     "title": "Agenda",
                     "items": [
                       {
-                        "text": "The call against quota",
-                        "note": "10 min"
+                        "text": "The call against quota"
                       },
                       {
-                        "text": "Where the gap sits",
-                        "note": "10 min"
+                        "text": "Where the gap sits"
                       },
                       {
-                        "text": "Change since last week",
-                        "note": "5 min"
+                        "text": "Change since last week"
                       },
                       {
-                        "text": "Calls and coverage",
-                        "note": "10 min"
+                        "text": "Calls and coverage"
                       },
                       {
-                        "text": "Risks and asks",
-                        "note": "15 min"
+                        "text": "Risks and asks"
                       }
                     ]
                   }
@@ -672,7 +668,8 @@
                     "size": 12,
                     "tracking": 0.1,
                     "caps": true,
-                    "valign": "middle"
+                    "valign": "middle",
+                    "empty": ""
                   }
                 },
                 {
@@ -689,7 +686,7 @@
                   "shape": "element",
                   "x": 64,
                   "y": 85,
-                  "w": 1100,
+                  "w": 980,
                   "h": 40,
                   "slots": [
                     7
@@ -701,31 +698,36 @@
                     ],
                     "font": "heading",
                     "size": 33,
-                    "line": 1.2
+                    "line": 1.2,
+                    "empty": "What is the call this week?"
                   }
                 },
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 681,
+                  "y": 680,
                   "w": 900,
-                  "h": 13,
+                  "h": 14,
+                  "slots": [
+                    0
+                  ],
                   "element": {
                     "kind": "words",
                     "text": [
-                      "Source: Ziffr, weekly calls locked each Monday"
+                      "Source: Ziffr, calls of week {quarter week}"
                     ],
                     "size": 11,
                     "tone": "muted",
-                    "foot": true
+                    "foot": true,
+                    "empty": "Source: Ziffr"
                   }
                 },
                 {
                   "shape": "element",
                   "x": 1136,
-                  "y": 681,
+                  "y": 680,
                   "w": 80,
-                  "h": 13,
+                  "h": 14,
                   "element": {
                     "kind": "words",
                     "text": [
@@ -796,13 +798,13 @@
                   ],
                   "element": {
                     "kind": "figure",
-                    "note": "of the {difference 2 3} still to close"
+                    "note": "of the {left 2 3} still to close"
                   }
                 },
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 283,
+                  "y": 284,
                   "w": 1152,
                   "h": 316,
                   "slots": [
@@ -860,25 +862,9 @@
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 85,
-                  "w": 1100,
-                  "h": 40,
-                  "element": {
-                    "kind": "words",
-                    "text": [
-                      "Commit against quota, by salesperson"
-                    ],
-                    "font": "heading",
-                    "size": 33,
-                    "line": 1.2
-                  }
-                },
-                {
-                  "shape": "element",
-                  "x": 64,
-                  "y": 681,
+                  "y": 680,
                   "w": 900,
-                  "h": 13,
+                  "h": 14,
                   "slots": [
                     0
                   ],
@@ -889,15 +875,16 @@
                     ],
                     "size": 11,
                     "tone": "muted",
-                    "foot": true
+                    "foot": true,
+                    "empty": "Source: Ziffr"
                   }
                 },
                 {
                   "shape": "element",
                   "x": 1136,
-                  "y": 681,
+                  "y": 680,
                   "w": 80,
-                  "h": 13,
+                  "h": 14,
                   "element": {
                     "kind": "words",
                     "text": [
@@ -911,43 +898,19 @@
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 151,
+                  "y": 85,
                   "w": 1152,
-                  "h": 365,
+                  "h": 540,
                   "slots": [
                     0,
                     1
                   ],
                   "element": {
                     "kind": "gap-table",
-                    "rowLabel": "Salesperson"
-                  }
-                },
-                {
-                  "shape": "element",
-                  "x": 64,
-                  "y": 540,
-                  "w": 6,
-                  "h": 34,
-                  "element": {
-                    "kind": "box",
-                    "fill": "accent"
-                  }
-                },
-                {
-                  "shape": "element",
-                  "x": 86,
-                  "y": 544,
-                  "w": 1130,
-                  "h": 26,
-                  "element": {
-                    "kind": "words",
-                    "text": [
-                      " Say what you need, from whom and by when."
-                    ],
+                    "headline": "Commit against quota, by salesperson",
+                    "rowLabel": "Salesperson",
                     "lead": "Ask for the meeting:",
-                    "size": 17,
-                    "line": 1.5
+                    "note": "What do you need, from whom, and by when?"
                   }
                 }
               ]
@@ -991,7 +954,7 @@
                   "shape": "element",
                   "x": 64,
                   "y": 85,
-                  "w": 1100,
+                  "w": 980,
                   "h": 40,
                   "slots": [
                     0,
@@ -1004,15 +967,16 @@
                     ],
                     "font": "heading",
                     "size": 33,
-                    "line": 1.2
+                    "line": 1.2,
+                    "empty": "What changed since last week?"
                   }
                 },
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 681,
+                  "y": 680,
                   "w": 900,
-                  "h": 13,
+                  "h": 14,
                   "slots": [
                     0
                   ],
@@ -1023,15 +987,16 @@
                     ],
                     "size": 11,
                     "tone": "muted",
-                    "foot": true
+                    "foot": true,
+                    "empty": "Source: Ziffr"
                   }
                 },
                 {
                   "shape": "element",
                   "x": 1136,
-                  "y": 681,
+                  "y": 680,
                   "w": 80,
-                  "h": 13,
+                  "h": 14,
                   "element": {
                     "kind": "words",
                     "text": [
@@ -1045,9 +1010,9 @@
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 151,
+                  "y": 150,
                   "w": 1152,
-                  "h": 385,
+                  "h": 391,
                   "slots": [
                     0,
                     4,
@@ -1101,7 +1066,7 @@
                   "shape": "element",
                   "x": 64,
                   "y": 85,
-                  "w": 1100,
+                  "w": 980,
                   "h": 40,
                   "slots": [
                     4,
@@ -1114,31 +1079,36 @@
                     ],
                     "font": "heading",
                     "size": 33,
-                    "line": 1.2
+                    "line": 1.2,
+                    "empty": "How have the calls moved this quarter?"
                   }
                 },
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 681,
+                  "y": 680,
                   "w": 900,
-                  "h": 13,
+                  "h": 14,
+                  "slots": [
+                    0
+                  ],
                   "element": {
                     "kind": "words",
                     "text": [
-                      "Source: Ziffr, weekly calls locked each Monday"
+                      "Source: Ziffr, calls of week {quarter week}"
                     ],
                     "size": 11,
                     "tone": "muted",
-                    "foot": true
+                    "foot": true,
+                    "empty": "Source: Ziffr"
                   }
                 },
                 {
                   "shape": "element",
                   "x": 1136,
-                  "y": 681,
+                  "y": 680,
                   "w": 80,
-                  "h": 13,
+                  "h": 14,
                   "element": {
                     "kind": "words",
                     "text": [
@@ -1152,9 +1122,9 @@
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 151,
+                  "y": 160,
                   "w": 1152,
-                  "h": 490,
+                  "h": 480,
                   "slots": [
                     4,
                     0,
@@ -1211,7 +1181,7 @@
                   "shape": "element",
                   "x": 64,
                   "y": 85,
-                  "w": 1100,
+                  "w": 980,
                   "h": 40,
                   "slots": [
                     3
@@ -1223,31 +1193,36 @@
                     ],
                     "font": "heading",
                     "size": 33,
-                    "line": 1.2
+                    "line": 1.2,
+                    "empty": "Is there enough pipeline?"
                   }
                 },
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 681,
+                  "y": 680,
                   "w": 900,
-                  "h": 13,
+                  "h": 14,
+                  "slots": [
+                    0
+                  ],
                   "element": {
                     "kind": "words",
                     "text": [
-                      "Source: Ziffr, open pipeline divided by what is missing to the quota"
+                      "Source: Ziffr, calls of week {quarter week}"
                     ],
                     "size": 11,
                     "tone": "muted",
-                    "foot": true
+                    "foot": true,
+                    "empty": "Source: Ziffr"
                   }
                 },
                 {
                   "shape": "element",
                   "x": 1136,
-                  "y": 681,
+                  "y": 680,
                   "w": 80,
-                  "h": 13,
+                  "h": 14,
                   "element": {
                     "kind": "words",
                     "text": [
@@ -1261,9 +1236,9 @@
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 151,
+                  "y": 160,
                   "w": 760,
-                  "h": 490,
+                  "h": 480,
                   "slots": [
                     3
                   ],
@@ -1275,7 +1250,7 @@
                 {
                   "shape": "element",
                   "x": 872,
-                  "y": 151,
+                  "y": 160,
                   "w": 344,
                   "h": 116,
                   "element": {
@@ -1286,7 +1261,7 @@
                 {
                   "shape": "element",
                   "x": 892,
-                  "y": 169,
+                  "y": 178,
                   "w": 304,
                   "h": 16,
                   "element": {
@@ -1304,7 +1279,7 @@
                 {
                   "shape": "element",
                   "x": 892,
-                  "y": 191,
+                  "y": 200,
                   "w": 304,
                   "h": 64,
                   "slots": [
@@ -1315,17 +1290,18 @@
                   "element": {
                     "kind": "words",
                     "text": [
-                      "Open pipeline of {latest 1}, with {difference 2 3} still to close."
+                      "Open pipeline of {latest 1}, with {left 2 3} still to close."
                     ],
                     "size": 16,
                     "line": 1.5,
-                    "tone": "ink"
+                    "tone": "ink",
+                    "empty": "What happened to the pipeline this week?"
                   }
                 },
                 {
                   "shape": "element",
                   "x": 872,
-                  "y": 281,
+                  "y": 290,
                   "w": 344,
                   "h": 116,
                   "element": {
@@ -1336,7 +1312,7 @@
                 {
                   "shape": "element",
                   "x": 892,
-                  "y": 299,
+                  "y": 308,
                   "w": 304,
                   "h": 16,
                   "element": {
@@ -1354,13 +1330,13 @@
                 {
                   "shape": "element",
                   "x": 892,
-                  "y": 321,
+                  "y": 330,
                   "w": 304,
                   "h": 64,
                   "element": {
                     "kind": "words",
                     "text": [
-                      "Say what moved the pipeline this week."
+                      "What moved the pipeline this week?"
                     ],
                     "size": 16,
                     "line": 1.5,
@@ -1370,7 +1346,7 @@
                 {
                   "shape": "element",
                   "x": 872,
-                  "y": 411,
+                  "y": 420,
                   "w": 344,
                   "h": 140,
                   "element": {
@@ -1381,7 +1357,7 @@
                 {
                   "shape": "element",
                   "x": 892,
-                  "y": 429,
+                  "y": 438,
                   "w": 304,
                   "h": 16,
                   "element": {
@@ -1399,13 +1375,13 @@
                 {
                   "shape": "element",
                   "x": 892,
-                  "y": 451,
+                  "y": 460,
                   "w": 304,
                   "h": 88,
                   "element": {
                     "kind": "words",
                     "text": [
-                      "Say what you need, from whom and by when."
+                      "What do you need, from whom, and by when?"
                     ],
                     "size": 16,
                     "line": 1.5,
@@ -1453,7 +1429,7 @@
                   "shape": "element",
                   "x": 64,
                   "y": 85,
-                  "w": 1100,
+                  "w": 980,
                   "h": 40,
                   "element": {
                     "kind": "words",
@@ -1468,13 +1444,13 @@
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 681,
+                  "y": 680,
                   "w": 900,
-                  "h": 13,
+                  "h": 14,
                   "element": {
                     "kind": "words",
                     "text": [
-                      "Source: Ziffr, weekly calls locked each Monday"
+                      ""
                     ],
                     "size": 11,
                     "tone": "muted",
@@ -1484,9 +1460,9 @@
                 {
                   "shape": "element",
                   "x": 1136,
-                  "y": 681,
+                  "y": 680,
                   "w": 80,
-                  "h": 13,
+                  "h": 14,
                   "element": {
                     "kind": "words",
                     "text": [
@@ -1500,99 +1476,53 @@
                 {
                   "shape": "element",
                   "x": 64,
-                  "y": 151,
-                  "w": 373,
-                  "h": 440,
+                  "y": 150,
+                  "w": 552,
+                  "h": 300,
                   "element": {
-                    "kind": "box",
-                    "fill": "canvas"
+                    "kind": "list",
+                    "title": "Deals at risk",
+                    "items": [
+                      {
+                        "text": "Which deal may slip, and why?"
+                      },
+                      {
+                        "text": "What is it worth?"
+                      },
+                      {
+                        "text": "What would keep it in the quarter?"
+                      }
+                    ]
                   }
                 },
                 {
                   "shape": "element",
-                  "x": 84,
-                  "y": 169,
-                  "w": 333,
-                  "h": 16,
+                  "x": 664,
+                  "y": 150,
+                  "w": 552,
+                  "h": 300,
                   "element": {
-                    "kind": "words",
-                    "text": [
-                      "Deals at risk"
-                    ],
-                    "size": 12,
-                    "tracking": 0.1,
-                    "caps": true,
-                    "weight": 700,
-                    "tone": "accent"
+                    "kind": "list",
+                    "title": "Could still move in",
+                    "items": [
+                      {
+                        "text": "Which deal could close after all?"
+                      },
+                      {
+                        "text": "What is it worth?"
+                      },
+                      {
+                        "text": "What does it need?"
+                      }
+                    ]
                   }
                 },
                 {
                   "shape": "element",
-                  "x": 84,
-                  "y": 191,
-                  "w": 333,
-                  "h": 388,
-                  "element": {
-                    "kind": "words",
-                    "text": [
-                      "Name each deal, what it is worth and why it may slip."
-                    ],
-                    "size": 16,
-                    "line": 1.5,
-                    "tone": "ink"
-                  }
-                },
-                {
-                  "shape": "element",
-                  "x": 453,
-                  "y": 151,
-                  "w": 374,
-                  "h": 440,
-                  "element": {
-                    "kind": "box",
-                    "fill": "canvas"
-                  }
-                },
-                {
-                  "shape": "element",
-                  "x": 473,
-                  "y": 169,
-                  "w": 334,
-                  "h": 16,
-                  "element": {
-                    "kind": "words",
-                    "text": [
-                      "Could still move in"
-                    ],
-                    "size": 12,
-                    "tracking": 0.1,
-                    "caps": true,
-                    "weight": 700,
-                    "tone": "accent"
-                  }
-                },
-                {
-                  "shape": "element",
-                  "x": 473,
-                  "y": 191,
-                  "w": 334,
-                  "h": 388,
-                  "element": {
-                    "kind": "words",
-                    "text": [
-                      "Name the deals that may close this quarter after all, and what they need."
-                    ],
-                    "size": 16,
-                    "line": 1.5,
-                    "tone": "ink"
-                  }
-                },
-                {
-                  "shape": "element",
-                  "x": 843,
-                  "y": 151,
-                  "w": 373,
-                  "h": 440,
+                  "x": 64,
+                  "y": 466,
+                  "w": 1152,
+                  "h": 186,
                   "element": {
                     "kind": "box",
                     "fill": "cover"
@@ -1600,9 +1530,9 @@
                 },
                 {
                   "shape": "element",
-                  "x": 863,
-                  "y": 169,
-                  "w": 333,
+                  "x": 92,
+                  "y": 486,
+                  "w": 1096,
                   "h": 16,
                   "element": {
                     "kind": "words",
@@ -1618,16 +1548,16 @@
                 },
                 {
                   "shape": "element",
-                  "x": 863,
-                  "y": 191,
-                  "w": 333,
-                  "h": 388,
+                  "x": 92,
+                  "y": 514,
+                  "w": 1096,
+                  "h": 124,
                   "element": {
                     "kind": "words",
                     "text": [
-                      "What, from whom and by when."
+                      "What do you need, from whom, and by when?"
                     ],
-                    "size": 16,
+                    "size": 20,
                     "line": 1.5,
                     "tone": "cover-text"
                   }
