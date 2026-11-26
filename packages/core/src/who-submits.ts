@@ -4,7 +4,7 @@
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { peopleFor } from "./access";
-import { addSubmitters, claimFirstPrompt, editableMetric, metricEffects, type MetricEffects } from "./metrics";
+import { addSubmitters, claimFirstPrompt, editableMetric, metricEffects, peopleSeeing, type MetricEffects } from "./metrics";
 import { firstAsksMessage } from "./asked-message";
 import { CONNECTORS } from "./connectors/index";
 import type { PromptOutcome } from "./deliveries";
@@ -16,7 +16,8 @@ export type SubmitterChoice = { id: string; name: string; kind: "member" | "gues
 const NO_DAILY_COUNT = 1_000_000;
 
 /** The people the actor may add to a Metric's Submitters, by name: those who do not submit it yet. Only the Metric's
- * owner and its Editors get any, and only for a Metric that takes values. */
+ * owner and its Editors get any, and only for a Metric that takes values: the owner everyone, an Editor those who see
+ * the Metric already, as addSubmitters holds it. */
 export async function submitterChoices(actor: Actor, metricId: number): Promise<SubmitterChoice[]> {
   let metric;
   try {
@@ -35,7 +36,9 @@ export async function submitterChoices(actor: Actor, metricId: number): Promise<
   ]);
   const guest = new Set((guests ?? []).map((g) => g.user_id as string));
   const taken = new Set((tokens ?? []).map((t) => t.submitter_id as string));
-  return people.filter((p) => !taken.has(p.id)).map((p) => ({ id: p.id, name: p.name, kind: p.contact ? "contact" : guest.has(p.id) ? "guest" : "member" }));
+  const free = people.filter((p) => !taken.has(p.id));
+  const may = metric.owner_id === actor.personId ? null : await peopleSeeing(ws, metricId, free.map((p) => p.id));
+  return free.filter((p) => !may || may.has(p.id)).map((p) => ({ id: p.id, name: p.name, kind: p.contact ? "contact" : guest.has(p.id) ? "guest" : "member" }));
 }
 
 /** Adds one person as a Submitter from the Metric's page and answers, in one sentence, what was sent to them. With

@@ -93,10 +93,13 @@ describe("the words before a yes", () => {
   });
 
   it("say what removing ends: the link, a Stand-in, sight of the Metric and the last Submitter", () => {
-    const base = { name: "Ben", contact: false, owner: false, standIn: null, standsFor: [], otherPeople: 1, feed: false };
+    const base = { name: "Ben", contact: false, owner: false, editor: false, standIn: null, standsFor: [], otherPeople: 1, feed: false };
     expect(removingWords(base)).toContain("they no longer see this Metric");
     expect(removingWords(base)).not.toContain("Nobody else submits it");
     expect(removingWords({ ...base, owner: true })).not.toContain("no longer see");
+    expect(removingWords(base)).not.toContain("only the owner");
+    expect(removingWords({ ...base, editor: true })).toContain("only the owner can add them again");
+    expect(removingWords({ ...base, editor: true, owner: true })).not.toContain("only the owner");
     expect(removingWords({ ...base, contact: true })).not.toContain("no longer see");
     expect(removingWords({ ...base, standIn: "Ana" })).toContain("Ana no longer stands in for them");
     expect(removingWords({ ...base, standsFor: ["Ana", "Max"] })).toContain("stays the Stand-in for Ana and Max");

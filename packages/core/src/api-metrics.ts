@@ -512,7 +512,7 @@ export async function listSubmittersWithKey(actor: Actor | KeyActor, slug: strin
 }
 
 /** Adds and removes Submitters of a Metric for a key with metrics:edit, as its creator: only when they own the Metric
- * or are its Editor, as on its page. People and Contacts get a Token and a first Prompt; a Feed is added as on the
+ * or are its Editor, as on its page (an Editor adds only people who see it already). People and Contacts get a Token and a first Prompt; a Feed is added as on the
  * Metric's page, turning the API Source on. At most SUBMITTERS_PER_CHANGE each way, all checked first. */
 export async function setSubmittersWithKey(actor: Actor | KeyActor, slug: string, change: { add?: string[]; remove?: string[] }, effects: MetricEffects = metricEffects): Promise<{ submitters: ApiSubmitter[]; added: number; removed: number }> {
   const { creator, metric } = await changeableByKey(actor, slug);

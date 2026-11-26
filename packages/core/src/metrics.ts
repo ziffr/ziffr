@@ -17,8 +17,8 @@ import { audit } from "./audit-log";
 import { formulaInputs } from "./formula";
 import { widgetMetricIds } from "./widget-metrics";
 import { allDeckMetricIds } from "./visibility";
-import { allRows } from "./workspace-data";
-import { getShares } from "./access";
+import { allRows, getMetrics } from "./workspace-data";
+import { getShares, visibilityOfMany } from "./access";
 import { feedIdsAmong } from "./feed-people";
 import { periodStart } from "./periods";
 import { yearStartFor } from "./fiscal-year";
@@ -402,6 +402,15 @@ async function auditSubmitters(actor: Actor, metric: { id: number; name: string 
   }
 }
 
+/** Said to an Editor who names someone as a Submitter who does not see the Metric. */
+export const ONLY_OWNER_ADDS_UNSEEN = "Only the owner can add someone who does not see this Metric yet.";
+
+/** Of these people, those who see the Metric already, by the core's one rule of who sees what. */
+export async function peopleSeeing(ws: string, metricId: number, ids: readonly string[]): Promise<Set<string>> {
+  const sees = await visibilityOfMany(ws, await getMetrics(ws));
+  return new Set(ids.filter((id) => sees(id).metrics.has(metricId)));
+}
+
 /** Person ids as a browser or a program sends them: strings, each once, at most SUBMITTERS_PER_CHANGE. */
 function submitterIds(ids: unknown): string[] {
   if (!Array.isArray(ids) || ids.length > SUBMITTERS_PER_CHANGE || !ids.every((x) => typeof x === "string" && x.length > 0 && x.length <= 64)) {
@@ -411,8 +420,10 @@ function submitterIds(ids: unknown): string[] {
 }
 
 /** Makes people Submitters of a Metric, for its owner and its Editors (GLOSSARY: Submitter): Members, Guests or
- * Contacts of the workspace, each with a Token and a first Prompt, as when a Metric is created with them. Someone who
- * already submits is left alone. Feeds are added with addFeedToMetric. Returns who was added. */
+ * Contacts of the workspace, each with a Token and a first Prompt, as when a Metric is created with them. Submitting
+ * shows a Metric, so only its owner adds someone who does not see it yet: an Editor adds people who see it already, and
+ * one who does not among them refuses the whole change. Someone who already submits is left alone. Feeds are added with
+ * addFeedToMetric. Returns who was added. */
 export async function addSubmitters(actor: Actor, metricId: number, personIds: unknown, effects: MetricEffects = metricEffects): Promise<string[]> {
   const m = await editableMetric(actor, metricId, "who submits");
   if (m.formula) throw new Error("A Derived Metric is computed; it takes no values.");
@@ -422,6 +433,8 @@ export async function addSubmitters(actor: Actor, metricId: number, personIds: u
   const already = new Set((has ?? []).map((t) => t.submitter_id as string));
   const added = ids.filter((id) => !already.has(id));
   if (!added.length) return [];
+  // Who gets to see a Metric is its owner's to say.
+  if (m.owner_id !== actor.personId && (await peopleSeeing(actor.workspaceId, m.id as number, added)).size < added.length) throw new Forbidden(ONLY_OWNER_ADDS_UNSEEN);
   // A Token code opens the submission form without signing in: random, never derived from names.
   const { error } = await db().from("tokens").insert(added.map((s) => ({ code: `tk-${randomBytes(18).toString("base64url")}`, metric_id: m.id, submitter_id: s })));
   if (error) throw new Error("The Submitters could not be added.");

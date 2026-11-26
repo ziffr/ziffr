@@ -35,6 +35,8 @@ export type Removing = {
   contact: boolean;
   /** Whether they own the Metric, and so go on seeing it. */
   owner: boolean;
+  /** Whether the person removing them is an Editor, who adds only people who see the Metric. */
+  editor: boolean;
   /** Who stands in for them on this Metric, if anyone. */
   standIn: string | null;
   /** Whom they stand in for on this Metric. */
@@ -45,12 +47,13 @@ export type Removing = {
 };
 
 /** What removing the person does, in one paragraph. */
-export function removingWords({ name, contact, owner, standIn, standsFor, otherPeople, feed }: Removing): string {
+export function removingWords({ name, contact, owner, editor, standIn, standsFor, otherPeople, feed }: Removing): string {
   return [
     "Their own form link for this Metric stops working, and requests not yet sent to it are not sent. The values they sent stay.",
     standIn ? `${standIn} no longer stands in for them here.` : "",
     standsFor.length ? `${name} stays the Stand-in for ${standsFor.join(" and ")} and can still be asked in their place.` : "",
     contact || owner ? "" : "Unless it is shared with them or reaches them another way, they no longer see this Metric.",
+    editor && !owner ? "If they no longer see it, only the owner can add them again." : "",
     otherPeople ? "" : feed ? "No person is asked for this Metric after this. A Feed still sends its values." : "Nobody else submits it, so nobody is asked for its values after this.",
   ].filter(Boolean).join(" ");
 }

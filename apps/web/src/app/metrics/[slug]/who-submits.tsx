@@ -19,13 +19,14 @@ import { removingWords } from "./submitter-words";
 type Row = { id: number; code: string | null; submitter_id: string; stand_in_id?: string | null; stands_in_for?: string | null; feed: boolean };
 
 /** What removing a Submitter would do, from the Metric's Tokens as they are now. */
-function removingSays(t: Row, tokens: Row[], people: Record<string, Profile>, ownerId: string): string {
+function removingSays(t: Row, tokens: Row[], people: Record<string, Profile>, ownerId: string, editor: boolean): string {
   const own = tokens.filter((x) => !x.stands_in_for);
   const named = (id: string) => people[id]?.name ?? "someone";
   return removingWords({
     name: named(t.submitter_id),
     contact: Boolean(people[t.submitter_id]?.contact),
     owner: t.submitter_id === ownerId,
+    editor,
     standIn: t.stand_in_id ? named(t.stand_in_id) : null,
     standsFor: own.filter((x) => x.stand_in_id === t.submitter_id).map((x) => named(x.submitter_id)),
     otherPeople: own.filter((x) => !x.feed && x.submitter_id !== t.submitter_id).length,
@@ -40,6 +41,8 @@ export async function WhoSubmits({ actor, metric, tokens, people, promptWays, ca
   workflow: boolean; feeds: { id: string; name: string }[];
 }) {
   const changes = canEdit && !demo;
+  // An Editor, not the owner: the core offers and takes only people who see the Metric already.
+  const editor = metric.owner_id !== actor.personId;
   const choices = changes ? await submitterChoices(actor, metric.id) : [];
   const webForm = metric.sources.includes("web_form");
   return (
@@ -59,7 +62,7 @@ export async function WhoSubmits({ actor, metric, tokens, people, promptWays, ca
               ) : !t.code ? null : webForm ? (
                 <Link href={`/submit/${t.code}`} className="inline-flex items-center text-xs underline max-md:min-h-11 pointer-coarse:min-h-11">Open form link</Link>
               ) : <code className="fig text-xs text-muted-foreground [overflow-wrap:anywhere]">{t.code}</code>}
-              {changes && !t.feed && !t.stands_in_for && <RemoveSubmitter metricId={metric.id} personId={t.submitter_id} name={people[t.submitter_id]?.name ?? "this person"} says={removingSays(t, tokens, people, metric.owner_id)} />}
+              {changes && !t.feed && !t.stands_in_for && <RemoveSubmitter metricId={metric.id} personId={t.submitter_id} name={people[t.submitter_id]?.name ?? "this person"} says={removingSays(t, tokens, people, metric.owner_id, editor)} />}
             </span>
             {!t.feed && promptWays[t.submitter_id] && <NextPrompt view={promptWays[t.submitter_id]} />}
           </li>
@@ -67,6 +70,7 @@ export async function WhoSubmits({ actor, metric, tokens, people, promptWays, ca
         {!tokens.length && <li className="text-muted-foreground">Nobody yet.</li>}
       </ul>
       {changes && <AddSubmitter metric={{ id: metric.id, webForm, ways: metric.sources.map((s) => SOURCE_LABEL[s]), workflow, archived: Boolean(metric.archived_at) }} choices={choices} />}
+      {changes && editor && <p className="mt-2 text-xs text-muted-foreground">You can add people who see this Metric already. Its owner can add anyone.</p>}
       {canEdit && <FeedControls metric={{ id: metric.id, name: metric.name }} choices={feeds} taken={tokens.map((t) => t.submitter_id)} role={actor.role} demo={demo} templates={feedTemplates()} />}
     </section>
   );

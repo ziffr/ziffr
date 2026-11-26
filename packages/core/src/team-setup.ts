@@ -10,7 +10,8 @@ import { Forbidden } from "./actor";
 import { db } from "./db";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { peopleIn } from "./submissions";
-import { getGroups, getShares } from "./access";
+import { getGroups, getShares, visibilityOfMany } from "./access";
+import { getMetrics } from "./workspace-data";
 import { openRows } from "./sealed-columns";
 import { businessFunctions } from "./business-function";
 import { openInvitations } from "./invitations";
@@ -27,7 +28,11 @@ export type TeamPerson = { id: string; name: string; kind: "member" | "contact";
 
 /** One Metric and who is asked for it. `suggested` are people whose function matches the audience of the Pack the Metric
  * came from: a suggestion only, nothing is assigned until someone presses it. */
-export type TeamAsk = { metricId: number; name: string; submitters: { id: string; name: string }[]; suggested: { id: string; name: string; function: string }[] };
+export type TeamAsk = {
+  metricId: number; name: string; submitters: { id: string; name: string }[]; suggested: { id: string; name: string; function: string }[];
+  /** Set where the actor is the Metric's Editor, not its owner: the only people they may ask for it, those who see it. */
+  limited?: string[];
+};
 
 /** What the Team step shows an Owner or Admin. */
 export type TeamSetup = {
@@ -103,13 +108,17 @@ export async function teamSetup(actor: Actor): Promise<TeamSetup> {
     const list = (audienceOfInstall.get(c.pack_install_id as number) ?? []).filter(isBusinessFunction);
     if (list.length) functionsOfName.set(String(c.name), [...(functionsOfName.get(String(c.name)) ?? []), ...list]);
   }
+  // An Editor adds only people who see the Metric already (addSubmitters), so only they are offered.
+  const sees = editable.some((m) => m.owner_id !== actor.personId) ? await visibilityOfMany(ws, await getMetrics(ws)) : null;
   const asks: TeamAsk[] = editable.map((m) => {
+    const may = m.owner_id === actor.personId ? null : team.filter((p) => sees!(p.id).metrics.has(m.id as number)).map((p) => p.id);
     const submitting = new Set((tokens ?? []).filter((t) => t.metric_id === m.id).map((t) => t.submitter_id as string));
-    const suggested = suggestPeople(functionsOfName.get(String(m.name)), team.filter((p) => p.kind === "member" && !submitting.has(p.id)).map((p) => ({ ...p, function: p.key })));
+    const suggested = suggestPeople(functionsOfName.get(String(m.name)), team.filter((p) => p.kind === "member" && !submitting.has(p.id) && (!may || may.includes(p.id))).map((p) => ({ ...p, function: p.key })));
     return {
       metricId: m.id as number, name: String(m.name),
       submitters: [...submitting].map((id) => ({ id, name: nameOf.get(id) ?? "Someone" })),
       suggested: suggested.map((p) => ({ id: p.id, name: p.name, function: BUSINESS_FUNCTION_LABELS[p.function!] })),
+      ...(may ? { limited: may } : {}),
     };
   });
 

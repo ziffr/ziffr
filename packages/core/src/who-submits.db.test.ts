@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { REMOVED_BEFORE_SENT } from "./asked-message";
-import { addSubmitters, removeSubmitters, type MetricEffects } from "./metrics";
+import { addSubmitters, ONLY_OWNER_ADDS_UNSEEN, removeSubmitters, type MetricEffects } from "./metrics";
 import { addSubmitterWithAnswer, submitterChoices } from "./who-submits";
 import { auditRowsOf, insertRow, rowsOf, workspace } from "./test/db-fixtures";
 
@@ -35,6 +35,29 @@ describe("whom the owner and Editors may add", () => {
     expect(await submitterChoices(w.actor(sara), derived.id)).toEqual([]);
     const other = await ws(); const olga = await other.person("owner");
     expect(await submitterChoices(other.actor(olga), m.id)).toEqual([]);
+  });
+});
+
+describe("an Editor", () => {
+  it("is offered and adds only people who see the Metric already, whatever their Workspace Role", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const eve = await w.person("admin");
+    const ben = await w.person("member"); const ana = await w.person("member"); const mia = await w.contact({ email: "mia@example.test" });
+    const m = await w.metric(sara);
+    await insertRow("shares", { workspace_id: w.id, object_type: "metric", object_id: m.id, user_id: eve, role: "editor" });
+    await w.share(m.id, ben);
+    const editor = w.actor(eve, "admin");
+    const { effects, promptSubmitter } = noSending();
+    expect((await submitterChoices(editor, m.id)).map((c) => c.id).sort()).toEqual([ben, eve, sara].sort());
+    // One person who does not see it refuses the whole change.
+    for (const ids of [[ana], [mia], [ben, ana]]) await expect(addSubmitters(editor, m.id, ids, effects)).rejects.toThrow(ONLY_OWNER_ADDS_UNSEEN);
+    await expect(addSubmitterWithAnswer(editor, m.id, ana, true, effects)).rejects.toBeInstanceOf(Forbidden);
+    expect(await rowsOf("tokens", { metric_id: m.id })).toEqual([]);
+    expect(await auditRowsOf(w.id, "metric.submitter")).toEqual([]);
+    expect(promptSubmitter).not.toHaveBeenCalled();
+    expect(await addSubmitters(editor, m.id, [ben], effects)).toEqual([ben]);
+    // The owner adds anyone; from then on that person sees it, and the Editor may name them.
+    expect(await addSubmitters(w.actor(sara), m.id, [ana, mia], effects)).toEqual([ana, mia]);
+    expect(await addSubmitters(editor, m.id, [ana], effects)).toEqual([]);
   });
 });
 

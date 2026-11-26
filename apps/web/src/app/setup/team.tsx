@@ -121,11 +121,12 @@ export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: 
         ) : (
           <ul className="space-y-3">
             {data.asks.map((a) => {
-              const free = candidates.filter((p) => !a.submitters.some((s) => s.id === p.id) && !a.suggested.some((s) => s.id === p.id));
+              const free = candidates.filter((p) => (!a.limited || a.limited.includes(p.id)) && !a.submitters.some((s) => s.id === p.id) && !a.suggested.some((s) => s.id === p.id));
               return (
                 <li key={a.metricId} className="stock rounded-[var(--radius-card)] p-4 text-sm sm:p-3">
                   <p className="font-medium">{a.name}</p>
                   <p className="text-muted-foreground">{a.submitters.length ? `Asked: ${a.submitters.map((s) => s.name).join(", ")}` : "Nobody is asked yet."}</p>
+                  {a.limited && <p className="text-muted-foreground">You can ask people who see this Metric already. Its owner can ask anyone.</p>}
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                     {a.suggested.map((s) => <Button key={s.id} size="sm" variant="outline" className={`${PHONE_BUTTON_SM} h-auto min-h-11 whitespace-normal py-2 sm:h-auto sm:min-h-8 sm:py-1`} disabled={pending} onClick={() => ask(a.metricId, s.id)} aria-label={`Ask ${s.name} for ${a.name}`}>Suggested: {s.name} ({s.function})</Button>)}
                     {free.length > 0 && (

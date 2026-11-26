@@ -527,7 +527,16 @@ A Feed is listed with the word "Feed". The owner and Editors see **Remove** next
 
 People are chosen as Submitters when the Metric is created or duplicated, and the Metric's owner and its Editors can change them here at any time. Neither is offered in the demo, and a Derived Metric or a Total takes no Submitters.
 
-**Add a person** lists the members, Guests and Contacts of the Workspace who do not submit this Metric yet. Pick one and choose **Add…**. A box says what will happen before anything does:
+Who you can add depends on who you are, because a Submitter sees the Metric:
+
+| You are | You can add |
+| --- | --- |
+| The **Metric Owner** | Any member, Guest or Contact of the Workspace |
+| An **Editor** | Only people who see the Metric already, for instance through a **Share** or a dashboard shared with them. For anyone else, ask the owner to add them: "Only the owner can add someone who does not see this Metric yet." |
+
+The same holds in the Setup Guide and through the API and assistants. An Editor who removes someone who then no longer sees the Metric cannot add them again; the box says so before you confirm.
+
+**Add a person** lists the people you can add who do not submit this Metric yet. Pick one and choose **Add…**. A box says what will happen before anything does:
 
 - A member or Guest will see the Metric, with its values and history, and can send in its values. You do not have to share it with them as well. A Contact does not sign in: their personal form link shows the Metric's name and description and the current value, and takes theirs.
 - Ziffr makes them a personal form link for this Metric (usable when it takes values by **Web form**).
@@ -625,7 +634,7 @@ The Feed's [README](../../packages/feed-sql/README.md) has every setting of the 
 | Role | What they can do |
 | --- | --- |
 | **Viewer** | See the Metric, its history and comparisons, use it on their own dashboards and analyses, and assign questions and tasks about it. |
-| **Editor** | Everything a Viewer can, and change its description, its Sources, its Target Series and Projections, and which Feeds submit to it. A Guest is never an Editor of a Metric. |
+| **Editor** | Everything a Viewer can, and change its description, its Sources, its Target Series and Projections, and [who submits it](#who-submits): which Feeds, and people who see the Metric already. A Guest is never an Editor of a Metric. |
 
 Deleting the Metric, sharing it, choosing its Workflow and Stand-ins, locking periods, accepting **Corrections** and restoring Versions stay with the Metric Owner. Sharing a dashboard also lets everyone on that Share see the Metrics on it (see [The Dashboard screens](12-dashboards.md)).
 
