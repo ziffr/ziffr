@@ -64,17 +64,11 @@ describe("the extras of a form link", () => {
     for (const p of [thisMonth(), ago(RECORDABLE_PERIODS), shiftPeriod(thisMonth(), "month", 1), "2026-11-15", "x", ["2026-10-01"]]) expect((await formLinkExtras(actor, code, p))!.named).toBeNull();
   });
 
-  it("names and offers no period where a Stand-in could be saving for either of two people", async () => {
+  it("relies on one Token per person and Metric: a Stand-in for one person cannot get a second for another", async () => {
     const { w, metric } = await monthly(); const ann = await w.person("member"); const ben = await w.person("member"); const cleo = await w.person("member");
     const m = await metric("Signups");
-    await w.share(m.id, cleo);
-    for (const who of [ann, ben]) await w.token(m.id, who, { created_at: LONG_AGO, stand_in_id: cleo });
-    const forAnn = await w.token(m.id, cleo, { created_at: LONG_AGO, stands_in_for: ann });
-    const actor = w.actor(cleo, "member");
-    // One Stand-in Token: it is the one Record a value takes.
-    expect((await formLinkExtras(actor, forAnn, ago(1)))!.named).toMatchObject({ start: ago(1) });
-    await w.token(m.id, cleo, { created_at: LONG_AGO, stands_in_for: ben });
-    expect(await formLinkExtras(actor, forAnn, ago(1))).toMatchObject({ named: null, next: null });
+    await w.token(m.id, cleo, { stands_in_for: ann });
+    await expect(w.token(m.id, cleo, { stands_in_for: ben })).rejects.toThrow("23505");
   });
 
   it("offers a Guest only their own web form values, and gives nothing for a Metric closed to the web form", async () => {
