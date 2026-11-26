@@ -91,7 +91,7 @@ curl "https://your-ziffr.example/api/v1/feed?limit=100" \
 - `current` is the running period as Ziffr counts it, on its server's clock (normally UTC). Use it rather than your own.
 - `filled` holds at most the latest 1,000 periods. A period with a value that waits for approval counts as filled.
 - `limit` is 1 to 100 (50 if left out). When `next` is not null, ask again with `&cursor=` and that value.
-- A Metric that is missing here does not have the Feed under **Who submits**, has its API Source off, or is calculated.
+- A Metric that is missing here does not have the Feed under **Who submits**, has its API Source off, or takes no values (it is calculated, or a Total).
 
 A sender that never overwrites history sends a past period only when it is not in `filled`.
 

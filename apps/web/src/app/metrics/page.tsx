@@ -13,6 +13,7 @@ import { formatValue, health, SOURCE_LABEL, targetText } from "@ziffr/core/forma
 import { Change, COLOUR_LEGEND, TargetChip } from "@/components/target-chip";
 import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 import { inUse, isArchived } from "@ziffr/core/metric-row";
+import { noValuesWords } from "@ziffr/core/total-rules";
 import { cn } from "@/lib/utils";
 import { MetricExportBar, MetricTick, SelectAllMetrics } from "@/components/metric-export-bar";
 import { EXPORT_METRICS } from "@ziffr/core/metric-values-export";
@@ -128,7 +129,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
                       </Link>
                       <QuickLookButton slug={m.slug} name={m.name} />
                       <div className="mt-0.5 text-xs text-muted-foreground max-sm:text-sm">
-                        {PERIOD_LABEL[m.period]}, {m.formula ? "derived from other metrics" : `via ${m.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}`}
+                        {PERIOD_LABEL[m.period]}, {m.total ? "adds up other metrics" : m.formula ? "derived from other metrics" : `via ${m.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}`}
                       </div>
                       <div className="fig mt-0.5 text-sm text-[var(--color-ink-2)] sm:hidden">Target {targetText(m, numberStyle)}</div>
                       <TagChips names={sight.namesByMetric.get(m.id) ?? []} className="mt-1" />
@@ -137,7 +138,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
                       <div className="fig whitespace-nowrap max-sm:text-base max-sm:font-medium">{last ? formatValue(m, last.value, numberStyle) : "–"}</div>
                       <div className="flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-xs text-muted-foreground max-sm:justify-start max-sm:text-sm">
                         <TargetChip numberStyle={numberStyle} metric={m} value={last?.value} />
-                        <span className="whitespace-nowrap">{last ? periodLabel(last.period, m.period, yearStart, true) : "No values yet"}</span>
+                        <span className={last ? "whitespace-nowrap" : undefined}>{last ? periodLabel(last.period, m.period, yearStart, true) : noValuesWords(m)}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right text-xs text-[var(--color-ink-2)] max-sm:mt-2 max-sm:p-0"><Change numberStyle={numberStyle} pct={change} /></td>
