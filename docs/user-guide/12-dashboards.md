@@ -28,9 +28,13 @@ If there is no dashboard yet, the list says "No dashboards yet" and suggests nam
 
 Ziffr opens on your Home dashboard. You choose it yourself: open the dashboard, open its **⋯** menu and choose **Home dashboard**. The entry then shows a tick until you choose another. If you never chose one, Ziffr opens on the first dashboard you made, or else the first one shared with you. If your Home is no longer shared with you, the same rule picks another. A new Workspace, a trial included, opens on the Setup Guide first.
 
+While you have no dashboard (or only a trial's untouched example that you did not choose as Home) and see no other Metric, Home asks [Where would you like to start?](07-getting-started.md#where-would-you-like-to-start) instead.
+
+A trial's example dashboard, **Your coffee**, has a line above it that says what it is. Its owner can **Remove** it there; see [The example in a trial](16-workspace-settings.md#the-example-in-a-trial).
+
 ### A new Workspace
 
-A new Workspace opens on the Setup Guide, not on an empty dashboard list; see [Getting started](07-getting-started.md#the-setup-line-and-opening-by-itself). Until you make or are shown a dashboard, the list says "No dashboards yet".
+A new Workspace opens on the Setup Guide, not on an empty dashboard list; see [Getting started](07-getting-started.md#the-setup-line-and-opening-by-itself). Until you make or are shown a dashboard, the list says "No dashboards yet", and Home offers [where to start](07-getting-started.md#where-would-you-like-to-start).
 
 ## Opening a dashboard
 

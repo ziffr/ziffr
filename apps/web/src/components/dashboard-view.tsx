@@ -15,6 +15,7 @@ import { DemoHomeRedirect } from "@/components/demo-visit-prefs";
 import { followDemoSuccessor } from "@/lib/demo-follow";
 import { visibleTags } from "@ziffr/core/tag-sight";
 import { isTagWidget } from "@ziffr/core/tag-widgets";
+import { exampleNote, startChoices } from "@ziffr/core/trial-example";
 
 /** One dashboard of the viewer's, or their Home (spec 0010), with everything its screen needs; `view` is "read" for
  * its Read view (spec 0013), else the grid. */
@@ -22,11 +23,14 @@ export async function DashboardView({ id, view }: { id?: number; view?: string }
   const viewer = await viewerId();
   const actor = await currentActor();
   const [dashboards, shares, saved] = await Promise.all([switchableDashboards(actor), getRawShares(), savedWidgets(actor)]);
-  const home = await homeDashboard(actor, dashboards);
+  // Home alone may offer where to start instead of a dashboard (#1292).
+  const start = id ? null : await startChoices(actor, dashboards);
+  const home = start ? null : await homeDashboard(actor, dashboards);
   const current = id ? dashboards.find((d) => d.id === id) ?? null : home;
   // Opened by a signed-in person who sees it (Home counts as the dashboard it shows): one View Count, no person.
   if (current) void countView(actor, { kind: "dashboard", id: current.id });
   const [ws, snapshots] = current ? await Promise.all([dashboardWidgets(actor, current.id), listSnapshots(actor, current.id)]) : [[], []];
+  const example = current ? await exampleNote(actor, current.id) : null;
   // Only the series this dashboard draws go to the browser; a widget placed or a Metric picked later fetches its own.
   const loaded = await getCanvasData(viewer, [...new Set(ws.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))]);
   // Those who place widgets pick a Tag by name; a Tag is shown only through Metrics the person sees (spec 0038).
@@ -51,6 +55,6 @@ export async function DashboardView({ id, view }: { id?: number; view?: string }
   return <>
     {/* Home is the visit's own where visitors may change the demo (demo-visit-prefs.tsx): go to it when it is not the one drawn. */}
     {demo && !id && <DemoHomeRedirect shownId={current?.id ?? null} />}
-    <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} homeId={home?.id ?? null} pinned={current ? (await pinnedDashboards(actor)).some((d) => d.id === current.id) : false} demo={demo} canCreate={can(actor, "create")} canInvite={can(actor, "manage-members")} dashboardTemplates={dashboardTemplates} reading={view === "read"} snapshots={snapshots} sendLink={sendLink} />
+    <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} homeId={home?.id ?? null} pinned={current ? (await pinnedDashboards(actor)).some((d) => d.id === current.id) : false} demo={demo} canCreate={can(actor, "create")} canInvite={can(actor, "manage-members")} dashboardTemplates={dashboardTemplates} reading={view === "read"} snapshots={snapshots} sendLink={sendLink} start={start} example={example} />
   </>;
 }

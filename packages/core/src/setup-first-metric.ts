@@ -21,6 +21,7 @@ import { openNames, openOne, openRows } from "./sealed-columns";
 import { recordOwnValue } from "./record-own-value";
 import { canSee } from "./sharing";
 import { setSetupFirstMetric, startSetupGuide } from "./setup-guide";
+import { isRunningTrialOwner, makeTrialExample, testMetricId } from "./trial-seed";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { trialEndsAt } from "./trials";
 import { whatWorksHere } from "./what-works-here";
@@ -47,6 +48,8 @@ export type FirstMetricShown = {
   ownerName: string | null;
   /** Whether Ask me now is possible for the viewer: they own it and submit it. */
   canAsk: boolean;
+  /** It is the trial's example (the Test Metric), so the step says what it is. */
+  example: boolean;
 };
 
 /** A Prompt that was asked for, by which way and what became of it. */
@@ -61,6 +64,8 @@ export type FirstMetricStep = {
   /** The Metrics the viewer owns and may try instead. */
   choices: { id: number; name: string }[];
   trial: boolean;
+  /** There is no Metric to try and the viewer may have the trial's example made. */
+  canTryExample: boolean;
   /** The ways the viewer will be asked by, in their order (empty: the first way that reaches them). */
   ways: { connector: ConnectorId; label: string }[];
   asked: FirstMetricAsked[];
@@ -92,11 +97,29 @@ async function guideRow(actor: Actor): Promise<{ firstMetricId: number | null; s
   return data ? { firstMetricId: (data.first_metric_id as number | null) ?? null, startedAt: data.started_at as string } : null;
 }
 
+// Reaching the step in a trial that has no Metric makes the example, so there is one to try (#1292). Not once a Metric
+// was deleted there: someone who removed the example is not given it again unasked. Anything unreadable makes nothing.
+async function exampleOnReach(actor: Actor): Promise<number | null> {
+  const ws = actor.workspaceId;
+  if (!(await isRunningTrialOwner(actor)) || (await guideRow(actor))?.firstMetricId) return null;
+  const head = { count: "exact" as const, head: true };
+  const [metrics, deleted] = await Promise.all([
+    db().from("metrics").select("id", head).eq("workspace_id", ws),
+    db().from("audit_events").select("id", head).eq("workspace_id", ws).eq("kind", "metric.deleted"),
+  ]);
+  if (metrics.count !== 0 || deleted.count !== 0) return null;
+  try {
+    return (await makeTrialExample(actor)).metricId;
+  } catch (e) {
+    console.error("The trial's example could not be made:", (e as Error).message);
+    return null;
+  }
+}
+
 /** In a trial the Test Metric is the First Metric until the person picks another: written once, when the guide has none. */
 async function adoptTestMetric(actor: Actor): Promise<void> {
   if (!(await trialEndsAt(actor.workspaceId))) return;
-  const { data: ws } = await db().from("workspaces").select("trial_test_metric_id").eq("id", actor.workspaceId).single();
-  const id = ws?.trial_test_metric_id as number | null | undefined;
+  const id = (await testMetricId(actor.workspaceId)) ?? (await exampleOnReach(actor));
   if (!id) return;
   await startSetupGuide(actor);
   await db().from("setup_guides").update({ first_metric_id: id, updated_at: new Date().toISOString() }).eq("workspace_id", actor.workspaceId).is("first_metric_id", null);
@@ -114,7 +137,7 @@ async function shownMetric(actor: Actor, id: number | null): Promise<FirstMetric
     ownerName = ((await openNames(actor.workspaceId, o ? [o] : []))[0]?.name as string | undefined) ?? null;
   }
   const submitting = Boolean(m.formula) ? false : Boolean((await db().from("tokens").select("id").eq("metric_id", id).eq("submitter_id", actor.personId).is("stands_in_for", null).maybeSingle()).data);
-  return { id, name: m.name as string, unit: (m.unit as string | null) ?? "", slug: m.slug as string, mine, submitting, ownerName, canAsk: await canAskNow(actor, id) };
+  return { id, name: m.name as string, unit: (m.unit as string | null) ?? "", slug: m.slug as string, mine, submitting, ownerName, canAsk: await canAskNow(actor, id), example: id === (await testMetricId(actor.workspaceId)) };
 }
 
 // The viewer's newest Prompts for the Metric, one per way, and what became of each. Their own rows only.
@@ -185,6 +208,7 @@ export async function firstMetricStep(actor: Actor): Promise<FirstMetricStep> {
   const wentBy = asked.length ? asked.map((a) => a.connector) : ways.map((w) => w.connector);
   return {
     metric, choices, trial: Boolean(trial), ways, asked, formCode,
+    canTryExample: !metric && (await isRunningTrialOwner(actor)),
     quietBefore: heldUntil ? quietBefore(heldUntil) : null,
     cooldown: againAt && againAt.getTime() > now.getTime() ? cooldownWords(againAt.toISOString(), now, zone) : null,
     out: loop.promptOut, in: loop.valueIn,

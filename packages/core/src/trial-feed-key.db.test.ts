@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { createWorkspace } from "./page-data";
+import { makeTrialExample } from "./trial-seed";
 import { actorForSecret } from "./access-keys";
 import { addFeedToMetric, createFeed, createFeedKey, submitFeedObservations } from "./feeds";
 import { makeGuideFeedKey, trialFeedKey } from "./trial-feed-key";
@@ -31,6 +32,8 @@ async function newTrial(): Promise<Actor> {
   await db().from("profiles").insert({ id: owner, name: "Trial owner", role: "", color: "#000", email: `o-${owner.slice(2, 10)}@example.test` });
   const workspaceId = await createWorkspace(owner, "My trial");
   made.workspaces.push(workspaceId);
+  // The key sends the example's Metric, which the Owner chooses to try (#1292).
+  await makeTrialExample({ personId: owner, workspaceId, role: "owner" });
   return { personId: owner, workspaceId, role: "owner" };
 }
 

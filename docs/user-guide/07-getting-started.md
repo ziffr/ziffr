@@ -88,7 +88,7 @@ This step is for Owners and Admins, and asks how you want to begin. A Member nev
 | **Install** | Adds the Pack to the Workspace, as on [Packs](19-packs.md): Owners and Admins only (a Pack that holds a Theme needs an Owner). A Pack with texts aimed at assistants opens its Preview first, where you confirm you read them. |
 | **Set up from this Pack** | Appears once it is installed. It lists the Pack's Metrics with the first three that take values ticked, you as their Submitter, the Pack's first Workflow with you as its Approver when it asks for one, and its first dashboard when those Metrics fill all its places. Untick or add what you like, then press **Make them**. No request for values is sent unless you tick **Send the first requests now**, which says how many messages you would get; otherwise the Workflow asks at its next run, and without one nothing asks by itself. The first Metric made becomes your first Metric for the next steps. Pressing it again makes nothing twice. A Pack that asks who does what is set up on the Packs page instead (see [Set up with Positions](19-packs.md#set-up-with-positions)). |
 
-A Workspace that has Metrics already says "You have 4 Metrics. Start from a Pack anyway?" and still offers everything. In a trial the step explains that Cups of coffee is a sample Metric (a number Ziffr keeps and asks you for over time) made so you can try things, which you can delete any time, and it is done by itself; **Explore on my own** then means staying with the sample Metric and building your own step by step, and Packs can still be installed within the trial's limits. The **Start from a Pack** card names your function from About you when you gave one ("Ready-made Metrics for Finance, plus a sample dashboard and a Workflow that asks for them"). On a phone the two buttons fill the width of their cards.
+A Workspace that has Metrics already says "You have 4 Metrics. Start from a Pack anyway?" and still offers everything. In a trial the step is done by itself and says so: start from a Pack, within the trial's limits, or build your own, or try the example in the First Metric step. The **Start from a Pack** card names your function from About you when you gave one ("Ready-made Metrics for Finance, plus a sample dashboard and a Workflow that asks for them"). On a phone the two buttons fill the width of their cards.
 
 ### Ways in and out
 
@@ -110,7 +110,9 @@ This step asks two questions on one screen. **How should numbers come in?** list
 
 ### First Metric: try the whole loop
 
-**First Metric** shows that Ziffr and you can reach each other, in both directions, with one real Metric: the first one you made in the guide, one you pick with **Another Metric** (only Metrics you own that take values are listed), or, in a trial, the Test Metric Cups of coffee.
+**First Metric** shows that Ziffr and you can reach each other, in both directions, with one real Metric: the first one you made in the guide, one you pick with **Another Metric** (only Metrics you own that take values are listed), or, in a trial, the example.
+
+When a trial's Owner reaches this step and the trial has no Metric yet, Ziffr makes the example, and the step says what it is: the Test Metric **Cups of coffee**, asked once a day, with a [dashboard of its own](16-workspace-settings.md#the-example-in-a-trial). To use your own Metric instead, choose the link to make a Metric. Once a Metric has been deleted in the trial, Ziffr makes nothing by itself here; **Try the example** makes it again.
 
 1. **Out: Ziffr asks you.** **Ask me now** sends that Metric's real request to where you chose to be asked, by every way you picked (the first way that reaches you when you picked none). The step says what to look for: for email, a message whose subject starts with "What's the number for ..."; for Slack, a direct message from the Ziffr app; for Telegram, a message from Ziffr's bot. Ask me now asks at most once every ten minutes per Metric, and the button says when you can press it again. When you are in your Quiet Hours the step says so before you ask ("the request will wait until 07:00"); a request held by them still counts as asked, so nobody is stuck at night.
 2. **In: you answer.** Reply where it arrived, open your form link (shown once you have asked), or type the number into the step and press **Send the value**. The step looks every five seconds for ten minutes, and then offers **Check again**.
@@ -143,9 +145,22 @@ While you have steps left, a thin line above every page says how far you are: "S
 
 To bring the guide back, choose **Setup Guide** in **Help** (the list of chapters) or in your own menu at the bottom of the sidebar (in **More** on a phone); it opens beside the page, and the line comes back with it. **Workspace → General** shows "Setup: 4 of 5 steps done" with **Open the Setup Guide**, for Owners and Admins. A trial has no guide of its own: its Owner lands in the same Setup Guide when the trial starts, the trial bar's **Setup Guide** link opens it, and the line sits under the trial bar. In the demo there is none of it: no line, no Setup Guide, and its address goes back to the dashboard.
 
+### Where would you like to start?
+
+While there is nothing to look at yet, Ziffr's home asks **Where would you like to start?** instead of showing an empty dashboard. This is so when you have no dashboard (or only the untouched example of a trial, which you did not choose as your Home) and see no other Metric. You are offered only what your role allows:
+
+| Choice | What it does | Who sees it |
+| --- | --- | --- |
+| **Create your first figure** | Opens **New metric**. | Everyone who may create Metrics |
+| **Install a Pack** | Opens [Packs](19-packs.md). | Owners and Admins |
+| **Try the example** | Ziffr asks you once a day how many cups of coffee you drank, so you see how it works. It makes [the example](16-workspace-settings.md#the-example-in-a-trial) and makes its dashboard your Home. | The Owner of a trial |
+| **Continue setup (2 of 5)** | Opens the Setup Guide, with how many steps are done. | Whoever has steps left and did not hide the line |
+
+As soon as you have a dashboard of your own, a Metric or a value in the example, or you chose a Home, Ziffr opens as usual. A Guest with nothing shared sees "Nothing has been shared with you yet". The demo never shows this screen.
+
 ### In a trial, in the demo and on a Ziffr you run
 
-- **On hosted Ziffr, a trial** opens the same guide, with its own limits and its Test Metric. See [Starting a Workspace](16-workspace-settings.md#on-a-ziffr-that-offers-trials).
+- **On hosted Ziffr, a trial** opens the same guide, with its own limits. Leaving it before you have a Metric leads to [Where would you like to start?](#where-would-you-like-to-start). See [Starting a Workspace](16-workspace-settings.md#on-a-ziffr-that-offers-trials).
 - **In the demo** there is no guide, no line and no redirect; **Set up your Workspace** goes back to the dashboard, and the guided tour is the demo's own.
 - **On a Ziffr you run yourself** the guide is the same and depends on nothing hosted: Ziffr's own Packs come with it, and the ways read this Ziffr's own settings, so a Test Message goes through its own mail server, Slack app and Telegram bot. A way it lacks is said in words, with who adds it (see [Installation settings](18-installation-settings.md) and the [self-hosting guide](../guides/self-hosting.md)), and the web form and paste still let you finish the First Metric.
 
