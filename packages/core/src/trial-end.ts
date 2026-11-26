@@ -329,10 +329,11 @@ export async function valuesCsv(workspaceId: string, only: ReadonlySet<number> |
 /** The lines of valuesCsv, the header first and then one per value, for a caller that also counts them. A read that
  * fails throws: a file is never handed out with values missing. For callers that checked who may read them. */
 export async function valueLines(workspaceId: string, only: ReadonlySet<number> | null): Promise<string[]> {
-  const [{ data: sealedRows }, style] = await Promise.all([
+  const [{ data: sealedRows, error: unread }, style] = await Promise.all([
     db().from("metrics").select("id, slug, name, period, unit, aggregation").eq("workspace_id", workspaceId),
     numberStyleOf(workspaceId),
   ]);
+  if (unread) throw new Error("The values could not be read. Try again in a moment.");
   // Names are sealed, so the order by name is made here, on the opened rows.
   const all = (await openRows("metrics", workspaceId, sealedRows)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
   const metrics = all.filter((m) => !only || only.has(m.id as number));
