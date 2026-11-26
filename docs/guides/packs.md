@@ -234,7 +234,7 @@ A Metric Catalog entry outside every Repeat may be a **Total**, which adds up th
 
 ### The Pack Guide
 
-`guide` is where you explain your Pack, read before installing (in the preview) and, later, in Help. It has five sections, each optional, in this order and under Ziffr's own titles: `whatItsFor` (What it's for), `beforeYouStart` (Before you start), `firstSteps` (First steps), `eachPart` (Each part) and `questions` (Questions).
+`guide` is where you explain your Pack, read before installing (in the preview) and afterwards in Help, with the installed Pack. It has five sections, each optional, in this order and under Ziffr's own titles: `whatItsFor` (What it's for), `beforeYouStart` (Before you start), `firstSteps` (First steps), `eachPart` (Each part) and `questions` (Questions).
 
 A section is a list of blocks:
 

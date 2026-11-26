@@ -17,10 +17,12 @@ import type { UpdatePlan } from "@ziffr/core/pack-updates";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import { LogoChange } from "./pack-logo";
 import { PackPreviewCard } from "./screen";
+import { useInstalledToast } from "@/components/pack-guide-help";
 
 /** Searching the Marketplace and installing a Pack from it. */
 export function MarketplaceSearch({ viewer, numberStyle }: { viewer: string; numberStyle: NumberStyle }) {
   const router = useRouter();
+  const installedToast = useInstalledToast();
   const [q, setQ] = useState("");
   const [found, setFound] = useState<MarketplaceListing[] | null>(null);
   const [preview, setPreview] = useState<{ listing: MarketplaceListing; preview: PackPreview } | null>(null);
@@ -35,8 +37,8 @@ export function MarketplaceSearch({ viewer, numberStyle }: { viewer: string; num
     setPreview({ listing: l, preview: res.preview });
   });
   const install = () => run(async () => {
-    unwrap(await installFromTheMarketplace(preview!.listing.id, preview!.listing.version, { assistantTexts: okAssistant }));
-    toast.success(`${preview!.listing.name} installed`);
+    const id = unwrap(await installFromTheMarketplace(preview!.listing.id, preview!.listing.version, { assistantTexts: okAssistant }));
+    installedToast(id, preview!.preview.manifest);
     setPreview(null);
     router.refresh();
   });

@@ -8,7 +8,7 @@ The easiest way is **Workspace → Packs → Export as Pack…**: pick what goes
 
 ## Explain it
 
-A Pack may carry a **Pack Guide**: what it is for, what to have ready, the first steps, each part and common questions, as headings, paragraphs, lists and bold words, written in the file's `guide` (format `ziffr.pack/2`). No links, images, HTML or code. Ziffr checks it, shows it in the preview before installing, and will show it in Help; [the format](packs.md#the-pack-guide) says how to write one.
+A Pack may carry a **Pack Guide**: what it is for, what to have ready, the first steps, each part and common questions, as headings, paragraphs, lists and bold words, written in the file's `guide` (format `ziffr.pack/2`). No links, images, HTML or code. Ziffr checks it and shows it in the preview before installing and in Help afterwards; [the format](packs.md#the-pack-guide) says how to write one.
 
 ## Your logo
 

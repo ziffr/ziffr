@@ -17,6 +17,7 @@ import { deckTemplateFromFile } from "./deck-template-file";
 import { workflowTemplateFromFile } from "./workflow-template-file";
 import { themeFromFile } from "./theme-file";
 import { packLogoAddress } from "./brand-logo";
+import { safeGuide } from "./installed-pack-guides";
 import { cleanLogo, logoRatio, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import { checkViewDesignValue, type ViewDesign } from "./view-design";
 import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
@@ -172,11 +173,10 @@ export const manifestOf = (p: Pack): Omit<Pack, "contents"> => {
   return m;
 };
 
-/** The manifest an install keeps, with the logo checked again. What ziffr.pack/2 adds (Positions, Repeats, credit and
- * the Pack Guide) is left out: nothing reads it from an install yet, and with a guide the manifest would not fit the
- * 16,384 bytes the database keeps of it, so the whole Pack would be refused (spec 0058). */
-export const installManifest = (p: Pack): Omit<Pack, "contents" | "positions" | "repeats" | "basedOn" | "guide"> => {
-  const { positions: _p, repeats: _r, basedOn: _b, guide: _g, ...m } = manifestOf(p); // eslint-disable-line @typescript-eslint/no-unused-vars
+/** The manifest an install keeps, with the logo checked again and the Pack Guide, which Help shows. What else
+ * ziffr.pack/2 adds (Positions, Repeats and credit) is left out: nothing reads it from an install yet (spec 0058). */
+export const installManifest = (p: Pack): Omit<Pack, "contents" | "positions" | "repeats" | "basedOn"> => {
+  const { positions: _p, repeats: _r, basedOn: _b, ...m } = manifestOf(p); // eslint-disable-line @typescript-eslint/no-unused-vars
   return { ...m, ...(p.logo === undefined ? {} : { logo: packLogoOf(p)! }) };
 };
 
@@ -258,6 +258,8 @@ export type InstalledPack = {
   listing: { homepage?: string; support?: string };
   /** The address of its logo on this site (signed-in people of the Workspace only), or null. */
   logo: string | null;
+  /** It brought a Pack Guide, read in Help (installed-pack-guides.ts). */
+  hasGuide: boolean;
   added: { kind: "metric" | "dashboard" | "deck" | "workflow" | "view" | "theme"; name: string }[];
 };
 
@@ -288,7 +290,7 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
     return {
       id: Number(r.id), packId: String(r.pack_id), name: m.name, version: String(r.version), license: String(r.license), author: m.author?.name ?? "", summary: m.summary ?? "",
       source: r.source as PackOrigin["source"], signed: Boolean(r.signed), installedAt: String(r.installed_at), installedBy: (r.installed_by as string | null) ?? null,
-      listing: m.listing ?? {}, logo: packLogoAddress(ws, Number(r.id), (r.manifest as { logo?: unknown } | null)?.logo), added: added.get(Number(r.id)) ?? [],
+      listing: m.listing ?? {}, logo: packLogoAddress(ws, Number(r.id), (r.manifest as { logo?: unknown } | null)?.logo), hasGuide: safeGuide(r.manifest) !== null, added: added.get(Number(r.id)) ?? [],
     };
   });
 }

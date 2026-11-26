@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { PackGuideView } from "@/components/pack-guide";
+import { PackGuideButton, useInstalledToast } from "@/components/pack-guide-help";
 import { DashboardTemplatePreview, Preview } from "@/components/preview";
 import { installPack, readPack } from "@/app/pack-actions";
 import { sampleDesignWidget } from "@ziffr/core/design-files";
@@ -69,6 +70,7 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
                     </p>
                     <p className="mt-1 flex gap-3 text-xs"><ListingLink href={p.listing.homepage} unsigned={!p.signed}>Its page</ListingLink><ListingLink href={p.listing.support} unsigned={!p.signed}>Help</ListingLink></p>
                     <AddedList added={p.added} />
+                    {p.hasGuide && <div className="mt-2"><PackGuideButton installId={p.id} name={p.name} /></div>}
                     {manages && <PackActions installId={p.id} name={p.name} />}
                     {manages && included.filter((i) => i.installed?.installId === p.id && i.update).map((i) => <div key={i.update} className="mt-2"><IncludedUpdate installId={p.id} name={p.name} version={i.update!} /></div>)}
                     {updates.filter((u) => u.installId === p.id).map((u) => <div key={u.version} className="mt-2"><MarketplaceUpdate installId={p.id} name={p.name} version={u.version} /></div>)}
@@ -104,6 +106,7 @@ function AddedList({ added }: { added: InstalledPack["added"] }) {
 
 function InstallFromFile({ viewer, numberStyle }: { viewer: string; numberStyle: NumberStyle }) {
   const router = useRouter();
+  const installedToast = useInstalledToast();
   const input = useRef<HTMLInputElement>(null);
   const [text, setText] = useState<string | null>(null);
   const [preview, setPreview] = useState<PackPreview | null>(null);
@@ -130,8 +133,8 @@ function InstallFromFile({ viewer, numberStyle }: { viewer: string; numberStyle:
   };
   const install = () => start(async () => {
     try {
-      unwrap(await installPack(text!, { unsigned: okUnsigned, assistantTexts: okAssistant }));
-      toast.success(`${preview!.manifest.name} installed`, { description: "Its entries are in the Metric Catalog, its templates, designs and Themes where you start from them." });
+      const id = unwrap(await installPack(text!, { unsigned: okUnsigned, assistantTexts: okAssistant }));
+      installedToast(id, preview!.manifest, "Its entries are in the Metric Catalog, its templates, designs and Themes where you start from them.");
       reset();
       router.refresh();
     } catch (e) {

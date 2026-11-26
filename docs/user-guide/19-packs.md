@@ -97,6 +97,8 @@ It has up to five sections, always under these titles: **What it's for**, **Befo
 
 The words are the creator's, not Ziffr's. They are headings, paragraphs, lists and bold words only: a guide holds no link, picture or code, and Ziffr refuses a file whose guide has one, before it shows anything. Words in a guide that read like instructions to an AI assistant are listed with the others. A Pack without a guide shows none.
 
+**After installing,** the guide is in Help. The installed Pack shows **Read its guide**, and the message that says a Pack was installed offers the same. In Help, **Guides from your Packs** lists every installed Pack that has one: at the top on the Packs screen and in the list of chapters, further down on other screens. Everyone who sees the installed Packs reads their guides: Owners, Admins and Members, not Guests. A guide changes nobody's rights and is never part of a Snapshot, a View Link or a message. Updating a Pack replaces its guide with the new version's, or removes it when that one has none; uninstalling removes it. A Pack installed before Ziffr kept guides has none until it is updated to a newer version. A Workspace Export does not hold the installed Packs, so it holds no guide.
+
 
 Installing adds only entries and templates. **Set up from this Pack**, under an installed Pack, turns them into things you use. It is for Owners and Admins.
 
