@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, refresh() {} }) }));
 vi.mock("sonner", () => ({ toast: { success() {}, error() {} } }));
-vi.mock("@/app/team-actions", () => ({ createGroup: async () => ({}), createInviteLink: async () => "", inviteMember: async () => ({}), setDomainJoining: async () => ({}), setMember: async () => ({}) }));
+vi.mock("@/app/team-actions", () => ({ createGroup: async () => ({}), createInviteLink: async () => "", inviteGateNow: async () => ({}), inviteMember: async () => ({}), setDomainJoining: async () => ({}), setMember: async () => ({}) }));
+vi.mock("@/app/series-actions", () => ({ askMeNow: async () => ({}), recordValue: async () => ({}) }));
 vi.mock("./team-actions", () => ({ askForMetric: async () => ({}) }));
 vi.mock("./actions", () => ({ skipStep: async () => ({}) }));
 import { WORKSPACE_ROLE_WORDS } from "@ziffr/core/role-words";
@@ -15,7 +16,7 @@ import { TeamStep } from "./team";
 
 const base: TeamSetup = {
   isOwner: true, mailOn: true, people: [{ id: "o", name: "Olga", kind: "member", role: "owner", function: null }],
-  invitations: [], trial: { onTrial: false, ended: false, invitationsOpen: true }, domain: { on: null }, groups: [], asks: [],
+  invitations: [], trial: { onTrial: false }, gate: { state: "open" }, domain: { on: null }, groups: [], asks: [],
 };
 const html = (d: Partial<TeamSetup> = {}, offer: string | null = "acme.test") => renderToStaticMarkup(<TeamStep data={{ ...base, ...d }} domainOffer={offer} />).replaceAll("&#x27;", "'").replaceAll("&quot;", '"').replaceAll("&amp;", "&");
 const emailInput = (h: string) => h.match(/<input[^>]*type="email"[^>]*>/)![0];
@@ -43,24 +44,30 @@ describe("Domain Joining", () => {
   });
   it("is not shown to an Admin or in a trial", () => {
     expect(html({ isOwner: false })).not.toContain("Colleagues at your company");
-    expect(html({ trial: { onTrial: true, ended: false, invitationsOpen: true } })).not.toContain("Colleagues at your company");
+    expect(html({ trial: { onTrial: true } })).not.toContain("Colleagues at your company");
   });
 });
 
 describe("the trial", () => {
-  it("says in words that invitations open after the first value, and disables the form", () => {
-    const h = html({ trial: { onTrial: true, ended: false, invitationsOpen: false } });
-    expect(h).toContain("Invitations open once your first value has arrived.");
+  const trial = { onTrial: true };
+  it("says right above the greyed fields why they are closed, and ties them to those words", () => {
+    const h = html({ trial, gate: { state: "waiting", you: true, metric: null } });
+    expect(h).toContain("Invitations are not open yet");
+    expect(h.indexOf("Invitations are not open yet")).toBeGreaterThan(h.indexOf('id="team-invite"'));
+    expect(h.indexOf("Invitations are not open yet")).toBeLessThan(h.indexOf('type="email"'));
     expect(emailInput(h)).toContain(' disabled=""');
+    expect(emailInput(h)).toContain('aria-describedby="team-invite-why"');
     expect(buttons(h)).not.toContain("Make a link for Members");
   });
   it("is open after the first value, with no link to make", () => {
-    const h = html({ trial: { onTrial: true, ended: false, invitationsOpen: true } });
-    expect(h).not.toContain("Invitations open once");
+    const h = html({ trial });
+    expect(h).not.toContain("Invitations are");
+    expect(emailInput(h)).not.toContain(' disabled=""');
     expect(buttons(h)).not.toContain("Make a link for Members");
   });
-  it("says it has ended", () => {
-    expect(html({ trial: { onTrial: true, ended: true, invitationsOpen: false } })).toContain("This trial has ended");
+  it("closes the form when it has ended or every place is taken", () => {
+    for (const gate of [{ state: "ended" }, { state: "full", limit: 5 }] as const) expect(emailInput(html({ trial, gate }))).toContain(' disabled=""');
+    expect(html({ trial, gate: { state: "ended" } })).toContain("This trial has ended");
   });
   it("outside a trial offers the link and the form is live", () => {
     const h = html();
