@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { exportAsPack, themeLogoPreview } from "@/app/pack-actions";
-import { checkPackGuide, describePack } from "@/app/pack-guide-actions";
+import { checkPackDescription, describePack } from "@/app/pack-guide-actions";
 import { DescribeStep, useDescription } from "./describe";
 import { PACK_LICENSES } from "@ziffr/core/pack";
 import type { ExportChoice, ExportOptions } from "@ziffr/core/pack-export";
@@ -58,13 +58,12 @@ export function ExportPack({ options, defaultAuthor = "" }: { options: ExportOpt
   });
   const make = () => start(async () => {
     try {
-      if (description.guide) {
-        const problems = unwrap(await checkPackGuide(description.guide));
-        description.refused(problems);
-        // The first field with a problem takes the focus, so it is seen on a small screen too.
-        if (problems.length) { document.querySelector<HTMLElement>(`[data-guide-field="${problems[0].section ?? "whatItsFor"}"]`)?.focus(); return; }
-      }
-      const res = unwrap(await exportAsPack({ ...m, ...(upload ? { logo: { data: upload } } : logoTheme !== null ? { logo: { themeId: logoTheme } } : {}) }, picked, withTags, description.guide));
+      const { guide, numbers } = unwrap(await checkPackDescription(description.guide, description.comesFrom));
+      description.refused(guide, numbers);
+      // The first field with a problem takes the focus, so it is seen on a small screen too.
+      const first = numbers.length ? `[data-number-field="${CSS.escape(numbers[0].ref)}"]` : guide.length ? `[data-guide-field="${guide[0].section ?? "whatItsFor"}"]` : null;
+      if (first) { document.querySelector<HTMLElement>(first)?.focus(); return; }
+      const res = unwrap(await exportAsPack({ ...m, ...(upload ? { logo: { data: upload } } : logoTheme !== null ? { logo: { themeId: logoTheme } } : {}) }, picked, withTags, { guide: description.guide, comesFrom: description.comesFrom }));
       const url = URL.createObjectURL(new Blob([res.text], { type: "application/json" }));
       const a = Object.assign(document.createElement("a"), { href: url, download: res.fileName });
       a.click();
@@ -86,7 +85,7 @@ export function ExportPack({ options, defaultAuthor = "" }: { options: ExportOpt
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-2xl">
           <DialogTitle>{describing ? "Describe your Pack" : "Export as Pack"}</DialogTitle>
-          <DialogDescription>{describing ? "Optional: tell whoever gets the Pack what it is for and how to start. They read it before installing and in Help." : "Pick what goes in and name the Pack. Words you wrote in templates go in as written; words with web addresses or markup, images and drawings stay out, and so does every logo but the one you choose below, and Ziffr says so."}</DialogDescription>
+          <DialogDescription>{describing ? "Say where each number comes from and, if you like, what the Pack is for and how to start. Whoever gets it reads this before installing and in Help." : "Pick what goes in and name the Pack. Words you wrote in templates go in as written; words with web addresses or markup, images and drawings stay out, and so does every logo but the one you choose below, and Ziffr says so."}</DialogDescription>
           <div key={describing ? "describe" : "pick"} className="-mx-1 min-h-0 flex-1 space-y-4 overflow-y-auto px-1 text-sm">
             {describing ? <DescribeStep state={description.state} setState={description.setState} /> : <>
             <div className="grid gap-3 sm:grid-cols-2">

@@ -27,16 +27,20 @@ import { peopleIn } from "./submissions";
 import { graceNow, LimitReached, limitOf, limitRefusal, limitRule, metricCount, metricsAllowed, nextGraceOn } from "./workspace-limits";
 import { trialLimitsInEffect } from "./trial-limits-in-effect";
 import type { Slot, WorkflowTemplateBody } from "./types";
+import { safeOverview } from "./installed-pack-guides";
+import type { KeptOverview, PackNumber } from "@ziffr/pack/comes-from";
 
 /** An entry of the Pack's part of the Metric Catalog, as the set-up page offers it. `inputs` are the keys a Derived
  * Metric's formula names: picking it makes them too, first. */
-export type SetupEntry = { key: string; name: string; period: string; unit: string; derived: boolean; inputs: string[]; tags: string[] };
+export type SetupEntry = { key: string; name: string; period: string; unit: string; derived: boolean; inputs: string[]; tags: string[]; /** Where the Pack says its number comes from (comes-from.ts); null for an install that keeps none. */ comesFrom: PackNumber | null };
 /** What setting up from an installed Pack offers: its entries and templates, the members who may approve, and the
  * Metrics this person sees to fill a Slot no entry fills. Names and ids only. */
 export type PackSetupOptions = {
   install: { id: number; name: string; version: string };
   /** The Automation Templates the Pack says fill its entries (spec 0043), by template id and entry key. */
   suggestedFeeds: { template: string; fills: string[] }[];
+  /** What the Pack brings and where its numbers come from, or null for an install that keeps none. */
+  overview: KeptOverview | null;
   entries: SetupEntry[];
   dashboards: { key: string; name: string; slots: Pick<Slot, "label" | "multiple" | "suggests">[] }[];
   workflows: { key: string; name: string; approvers: number }[];
@@ -62,6 +66,9 @@ export type PackSetupRoom = { count: number; limit: number; label: string | null
 export type PackSetupInput = {
   metrics: string[];
   submitters?: string[];
+  /** Ask the Submitters also for the numbers the Pack says another system sends or are set as a target; without it
+   * nobody is asked for those. */
+  askElsewhere?: boolean;
   /** One of the Workspace's Feeds, made the Submitter of every Metric that takes values, with its API Source on. */
   feed?: string | null;
   dashboard?: { key: string; name?: string; fills?: (number[] | null)[] } | null;
@@ -113,6 +120,7 @@ async function installed(actor: Actor, installId: number) {
   return {
     install: { id: Number(install.id), name: String((install.manifest as { name?: unknown })?.name ?? ""), version: String(install.version) },
     feeds: feedsOf((install.manifest as { feeds?: unknown })?.feeds),
+    overview: safeOverview(install.manifest),
     entries: byKey((entries ?? []) as EntryRow[]),
     dashboards: byKey(tpl.filter((t) => t.kind === "dashboard")),
     workflows: byKey(tpl.filter((t) => t.kind === "workflow")),
@@ -127,6 +135,12 @@ function feedsOf(raw: unknown): { template: string; fills: string[] }[] {
     return x && typeof x.template === "string" && Array.isArray(x.fills) ? [{ template: x.template, fills: x.fills.filter((k): k is string => typeof k === "string") }] : [];
   });
 }
+
+/** The numbers of an overview by the Pack's key. */
+const numbersByKey = (o: KeptOverview | null) => new Map((o?.numbers ?? []).map((n) => [n.key, n]));
+
+/** Whether the Pack says nobody is to be asked for a number: another system sends it, or it is set once as a target. */
+export const comesElsewhere = (n: PackNumber | null | undefined) => n?.by === "system" || n?.by === "target";
 
 const approversWanted = (body: WorkflowTemplateBody) => body.steps.reduce((n, s) => (s.type === "approve" ? n + s.approvers : n), 0);
 
@@ -187,7 +201,8 @@ export async function packSetupOptions(actor: Actor, installId: number): Promise
   return {
     install: p.install,
     suggestedFeeds: p.feeds,
-    entries: [...p.entries.values()].map((e) => ({ key: e.pack_key, name: e.name, period: e.period, unit: e.unit, derived: Boolean(e.formula), inputs: e.formula ? formulaInputs(e.formula) : [], tags: tagNamesOf(e.tags, TAGS_PER_ENTRY) })),
+    overview: p.overview,
+    entries: [...p.entries.values()].map((e) => ({ key: e.pack_key, name: e.name, period: e.period, unit: e.unit, derived: Boolean(e.formula), inputs: e.formula ? formulaInputs(e.formula) : [], tags: tagNamesOf(e.tags, TAGS_PER_ENTRY), comesFrom: numbersByKey(p.overview).get(e.pack_key) ?? null })),
     dashboards: [...p.dashboards.values()].map((t) => ({ key: t.pack_key, name: t.name, slots: (t.slots ?? []).map((s) => ({ label: s.label, multiple: s.multiple, ...(s.suggests ? { suggests: s.suggests } : {}) })) })),
     workflows: [...p.workflows.values()].map((t) => ({ key: t.pack_key, name: t.name, approvers: approversWanted(t.body as WorkflowTemplateBody) })),
     // Members only, by name: Approvers must be members; Submitters may be Contacts too, but the set-up asks the
@@ -302,7 +317,11 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
       if (e.formula) await writeFormula(actor, { ...m, name: e.name }, withSlugs(e.formula, (k) => made.get(k)!.slug));
       made.set(e.pack_key, { id: m.id, slug: m.slug, name: e.name, key: e.pack_key, takesValues: !e.formula });
     }
-    if (submitters.length) for (const e of plain) await addSubmitters(actor, made.get(e.pack_key)!.id, submitters);
+    // A number the Pack says comes from elsewhere is asked of nobody, so its Workflow sends no request for it, unless
+    // the person chose to be asked. The Pack's word only ever asks fewer people, never more.
+    const from = numbersByKey(p.overview);
+    const toAsk = input?.askElsewhere === true ? plain : plain.filter((e) => !comesElsewhere(from.get(e.pack_key)));
+    if (submitters.length) for (const e of toAsk) await addSubmitters(actor, made.get(e.pack_key)!.id, submitters);
     if (feed) for (const e of plain) await addFeedToMetric(actor, made.get(e.pack_key)!.id, feed);
     dashboardId = dashboard
       ? await createDashboardFromTemplate(actor, { template: dashboard.template.id, name: dashboard.name, fills: dashboard.fills.map((f) => (typeof f === "string" ? [made.get(f)!.id] : f)) })

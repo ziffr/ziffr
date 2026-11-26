@@ -7,6 +7,7 @@ import { attempt } from "@/lib/action-result";
 import { listInstalledGuides, readInstalledGuide } from "@ziffr/core/installed-pack-guides";
 import { draftPackGuide } from "@ziffr/core/pack-export-guide";
 import { guideFromText, type PackGuideText } from "@ziffr/core/pack-guide-text";
+import { comesFromProblems, type ComesFromChoice } from "@ziffr/core/pack-export-numbers";
 import type { ExportChoice } from "@ziffr/core/pack-export";
 
 /** The viewer's Workspace's installed Packs that have a guide: ids, names and versions only. */
@@ -24,7 +25,8 @@ export async function describePack(packId: string, choice: ExportChoice) {
   return attempt(async () => draftPackGuide(await currentActor(), String(packId ?? ""), choice));
 }
 
-/** What the guide's fields hold that a Pack may not, each at its section and line; nothing is read or written. */
-export async function checkPackGuide(text: PackGuideText) {
-  return attempt(async () => { await currentActor(); return guideFromText(text).problems; });
+/** What the step's fields hold that a Pack may not: the guide's by section and line, the numbers' by what was picked;
+ * nothing is read or written. */
+export async function checkPackDescription(text: PackGuideText | undefined, comesFrom: ComesFromChoice) {
+  return attempt(async () => { await currentActor(); return { guide: guideFromText(text).problems, numbers: comesFromProblems(comesFrom) }; });
 }

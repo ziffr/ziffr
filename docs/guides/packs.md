@@ -156,7 +156,7 @@ How a Workspace's answers rank the Packs: an industry that matches adds 4 points
 
 ## Who does what (`ziffr.pack/2`)
 
-A Pack in the format `ziffr.pack/2` may also say who does what, as **Positions** such as "Sales lead" that people fill when it is set up, which parts are made once for each salesperson, site or company, its **Repeats**, and which Metrics add those up, its [Totals](#totals). It names no person. It may credit the Packs it builds on and carry a [Pack Guide](#the-pack-guide).
+A Pack in the format `ziffr.pack/2` may also say who does what, as **Positions** such as "Sales lead" that people fill when it is set up, which parts are made once for each salesperson, site or company, its **Repeats**, which Metrics add those up, its [Totals](#totals), and [where each number comes from](#where-each-number-comes-from). It names no person. It may credit the Packs it builds on and carry a [Pack Guide](#the-pack-guide).
 
 Ziffr checks all of it and installs such a Pack today, unless it holds a Total. **Set up from this Pack does not use Positions or Repeats yet:** it sets the Pack up as if it named none, so nobody is assigned and nothing is shared, and the Workflow Templates it stores keep neither the Positions nor the Tell steps. **A Pack with a Total cannot be installed yet:** Ziffr says so and adds nothing of it. The screens follow in later versions.
 
@@ -227,6 +227,23 @@ A Metric Catalog entry outside every Repeat may be a **Total**, which adds up th
 - A Total takes no values: no `per`, formula, `sources`, `submitters` or `standIn`, and no Feed fills it. A formula may read it, and `viewers` and `editors` may be proposed.
 - **A Pack cannot open a Total.** Who sees a Total's numbers without seeing every part is its owner's decision in the app, and there is no field for it.
 - A gap table of a Deck Template does not take a Total yet.
+
+### Where each number comes from
+
+Say for every number somebody or something has to send where it comes from, with `comesFrom` on the entry's wrapper:
+
+```json skip="two entries of a Pack, not a whole file"
+{ "key": "commit", "comesFrom": { "by": "person" }, "metric": { "format": "ziffr.metric/1", "name": "Commit", "period": "week", "aggregation": "last", "polarity": "higher" } },
+{ "key": "closed", "comesFrom": { "by": "system", "system": "CRM", "note": "The deals won this quarter." }, "metric": { "format": "ziffr.metric/1", "name": "Closed", "period": "week", "aggregation": "last", "polarity": "higher" } }
+```
+
+| Field | Takes |
+| --- | --- |
+| `by` | `person`, someone types it; `system`, another system sends it; `target`, it is set once as a target |
+| `system` | with `system` only, and needed then: the kind of system, such as “CRM”, at most 60 characters |
+| `note` | optional, at most 300 characters |
+
+Do not write it on a Derived Metric or a [Total](#totals): Ziffr calculates those and shows from which entries. Name the n8n templates that fill an entry in [`feeds`](#filling-the-metrics-from-other-systems); say only what they really do. Ziffr shows a table **Where the numbers come from** and what is **Included** and **still needed** before installing and in Help, and Set up asks nobody for a number another system sends unless the person chooses to. A number without `comesFrom` shows as **The Pack does not say**; the Marketplace lists a Pack only when every number that takes values has it.
 
 ### Credit
 

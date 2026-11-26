@@ -12,7 +12,7 @@ vi.mock("@/app/setup/actions", () => ({ hideSetup: vi.fn(), reopenSetup: vi.fn()
 vi.mock("next/navigation", () => ({ usePathname: () => path }));
 // The installed Packs' guides (spec 0058): none unless a test gives some.
 let packs: { installId: number; name: string; version: string }[] = [];
-const readPackGuide = vi.fn(async (id: number) => ({ installId: id, name: "Sales forecast", version: "1.1.0", author: "Ziffr", guide: { whatItsFor: [{ type: "text", text: "The weekly **forecast** call. <b>As words</b>" }] } }));
+const readPackGuide = vi.fn(async (id: number) => ({ installId: id, name: "Sales forecast", version: "1.1.0", author: "Ziffr", overview: null, guide: { whatItsFor: [{ type: "text", text: "The weekly **forecast** call. <b>As words</b>" }] } }));
 vi.mock("@/app/pack-guide-actions", () => ({ readPackGuides: async () => packs, readPackGuide: (id: number) => readPackGuide(id) }));
 const index: HelpIndex = {
   chapters: [

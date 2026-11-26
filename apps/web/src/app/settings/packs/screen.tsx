@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { PackGuideView } from "@/components/pack-guide";
+import { PackNumbersView } from "@/components/pack-numbers";
 import { PackGuideButton, useInstalledToast } from "@/components/pack-guide-help";
 import { DashboardTemplatePreview, Preview } from "@/components/preview";
 import { installPack, readPack } from "@/app/pack-actions";
@@ -70,7 +71,7 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
                     </p>
                     <p className="mt-1 flex gap-3 text-xs"><ListingLink href={p.listing.homepage} unsigned={!p.signed}>Its page</ListingLink><ListingLink href={p.listing.support} unsigned={!p.signed}>Help</ListingLink></p>
                     <AddedList added={p.added} />
-                    {p.hasGuide && <div className="mt-2"><PackGuideButton installId={p.id} name={p.name} /></div>}
+                    {p.help && <div className="mt-2"><PackGuideButton installId={p.id} name={p.name} guide={p.help === "guide"} /></div>}
                     {manages && <PackActions installId={p.id} name={p.name} />}
                     {manages && included.filter((i) => i.installed?.installId === p.id && i.update).map((i) => <div key={i.update} className="mt-2"><IncludedUpdate installId={p.id} name={p.name} version={i.update!} /></div>)}
                     {updates.filter((u) => u.installId === p.id).map((u) => <div key={u.version} className="mt-2"><MarketplaceUpdate installId={p.id} name={p.name} version={u.version} /></div>)}
@@ -189,6 +190,7 @@ export function PackPreviewCard({ preview, viewer, numberStyle, pending, okUnsig
         </div>
       )}
       {preview.manifest.guide && <PackGuideView guide={preview.manifest.guide} author={preview.manifest.author.name} />}
+      <PackNumbersView overview={preview.overview} />
       <PackItems items={preview.items} viewer={viewer} numberStyle={numberStyle} />
       {preview.blocked ? <p role="alert" className="font-medium">{preview.blocked}</p> : (
         <div className="space-y-2">

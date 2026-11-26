@@ -17,7 +17,8 @@ import { deckTemplateFromFile } from "./deck-template-file";
 import { workflowTemplateFromFile } from "./workflow-template-file";
 import { themeFromFile } from "./theme-file";
 import { packLogoAddress } from "./brand-logo";
-import { safeGuide } from "./installed-pack-guides";
+import { helpOf, type PackHelp } from "./installed-pack-guides";
+import { keptOverview, type KeptOverview } from "@ziffr/pack/comes-from";
 import { cleanLogo, logoRatio, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import { checkViewDesignValue, type ViewDesign } from "./view-design";
 import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
@@ -39,6 +40,8 @@ export type PackPreviewItem =
 export type PackPreview = {
   manifest: Omit<Pack, "contents">;
   items: PackPreviewItem[];
+  /** What the Pack brings and where its numbers come from (comes-from.ts), worked out from the checked file. */
+  overview: KeptOverview;
   /** The Pack's logo, checked again and written out as Ziffr keeps it (a data address), or null. It is drawn only in an
    * `img` in a bordered box (spec 0039); the file is not installed yet, so it has no address of its own. */
   logo: string | null;
@@ -173,11 +176,18 @@ export const manifestOf = (p: Pack): Omit<Pack, "contents"> => {
   return m;
 };
 
-/** The manifest an install keeps, with the logo checked again and the Pack Guide, which Help shows. What else
- * ziffr.pack/2 adds (Positions, Repeats and credit) is left out: nothing reads it from an install yet (spec 0058). */
-export const installManifest = (p: Pack): Omit<Pack, "contents" | "positions" | "repeats" | "basedOn"> => {
+// The database keeps at most 262,144 bytes of a manifest, counted as it writes JSON, which is longer than here.
+const MANIFEST_ROOM = 240_000;
+
+/** The manifest an install keeps, with the logo checked again, the Pack Guide, and the overview of what the Pack brings
+ * and where its numbers come from, which Help and Set up show; the overview is left out only if it would not fit beside
+ * the others. What else ziffr.pack/2 adds (Positions, Repeats and credit) is left out: nothing reads it from an
+ * install yet (spec 0058). */
+export const installManifest = (p: Pack): Omit<Pack, "contents" | "positions" | "repeats" | "basedOn"> & { overview?: KeptOverview } => {
   const { positions: _p, repeats: _r, basedOn: _b, ...m } = manifestOf(p); // eslint-disable-line @typescript-eslint/no-unused-vars
-  return { ...m, ...(p.logo === undefined ? {} : { logo: packLogoOf(p)! }) };
+  const kept = { ...m, ...(p.logo === undefined ? {} : { logo: packLogoOf(p)! }) };
+  const whole = { ...kept, overview: keptOverview(p) };
+  return new TextEncoder().encode(JSON.stringify(whole)).length <= MANIFEST_ROOM ? whole : kept;
 };
 
 /** Where a Pack's file came from: an upload (never signed here), the Marketplace with its signature checked, or Ziffr's
@@ -208,7 +218,7 @@ export async function previewPack(actor: Actor, text: string, origin: PackOrigin
     ...[...(pack.contents.views ?? []), ...(pack.contents.analyses ?? [])].map(({ key }): PackPreviewItem => { const v = views.get(key)!; return { kind: "view", key, name: v.name, description: v.body.description ?? "", body: v.body }; }),
     ...stored.themes.map((t): PackPreviewItem => ({ kind: "theme", key: t.key, name: t.name, tokens: t.tokens, logo: Boolean(t.slides.logo) })),
   ];
-  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, logo: safeLogo(pack), unsigned: !origin.signed, source: origin.source, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
+  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, overview: keptOverview(pack), logo: safeLogo(pack), unsigned: !origin.signed, source: origin.source, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
 }
 
 /** Installs an uploaded Pack file (Owners and Admins; Owners for one with Themes; never in the demo), after the person
@@ -258,8 +268,8 @@ export type InstalledPack = {
   listing: { homepage?: string; support?: string };
   /** The address of its logo on this site (signed-in people of the Workspace only), or null. */
   logo: string | null;
-  /** It brought a Pack Guide, read in Help (installed-pack-guides.ts). */
-  hasGuide: boolean;
+  /** What Help has of it (installed-pack-guides.ts): its guide, only where its numbers come from, or nothing. */
+  help: PackHelp;
   added: { kind: "metric" | "dashboard" | "deck" | "workflow" | "view" | "theme"; name: string }[];
 };
 
@@ -290,7 +300,7 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
     return {
       id: Number(r.id), packId: String(r.pack_id), name: m.name, version: String(r.version), license: String(r.license), author: m.author?.name ?? "", summary: m.summary ?? "",
       source: r.source as PackOrigin["source"], signed: Boolean(r.signed), installedAt: String(r.installed_at), installedBy: (r.installed_by as string | null) ?? null,
-      listing: m.listing ?? {}, logo: packLogoAddress(ws, Number(r.id), (r.manifest as { logo?: unknown } | null)?.logo), hasGuide: safeGuide(r.manifest) !== null, added: added.get(Number(r.id)) ?? [],
+      listing: m.listing ?? {}, logo: packLogoAddress(ws, Number(r.id), (r.manifest as { logo?: unknown } | null)?.logo), help: helpOf(r.manifest), added: added.get(Number(r.id)) ?? [],
     };
   });
 }

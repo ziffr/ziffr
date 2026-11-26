@@ -7,6 +7,7 @@ import { ArrowLeft, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PackGuideView } from "@/components/pack-guide";
+import { PackNumbersView } from "@/components/pack-numbers";
 import { useSlideOver } from "@/components/slide-over-host";
 import { readPackGuide, readPackGuides } from "@/app/pack-guide-actions";
 import { isActionError, UNEXPECTED } from "@/lib/action-error";
@@ -43,7 +44,7 @@ export function PackGuideList({ entries, onOpen }: { entries: InstalledGuideEntr
   );
 }
 
-/** One installed Pack's guide, with Back when it was opened from a list. */
+/** One installed Pack's guide and where its numbers come from, with Back when it was opened from a list. */
 export function PackGuidePage({ installId, onBack }: { installId: number; onBack?: () => void }) {
   const [state, setState] = useState<{ guide: InstalledGuide | null } | { error: string } | null>(null);
   useEffect(() => {
@@ -60,11 +61,12 @@ export function PackGuidePage({ installId, onBack }: { installId: number; onBack
       {onBack && <Button variant="ghost" size="sm" className="-ml-2 w-fit" onClick={onBack} autoFocus><ArrowLeft aria-hidden /> Back</Button>}
       {!state && <p role="status" className="text-muted-foreground">Loading the guide…</p>}
       {state && "error" in state && <p role="alert" className="text-muted-foreground">{state.error}</p>}
-      {state && "guide" in state && !state.guide && <p className="text-muted-foreground">This Pack has no guide, or you do not see it.</p>}
+      {state && "guide" in state && !state.guide && <p className="text-muted-foreground">There is nothing to read about this Pack, or you do not see it.</p>}
       {state && "guide" in state && state.guide && (
         <>
           <h3 className="text-base font-semibold [overflow-wrap:anywhere]">{state.guide.name} <span className="fig text-sm font-normal text-muted-foreground">{state.guide.version}</span></h3>
-          <PackGuideView guide={state.guide.guide} author={state.guide.author} />
+          {state.guide.guide && <PackGuideView guide={state.guide.guide} author={state.guide.author} />}
+          {state.guide.overview && <PackNumbersView overview={state.guide.overview} />}
         </>
       )}
     </div>
@@ -74,7 +76,7 @@ export function PackGuidePage({ installId, onBack }: { installId: number; onBack
 /** Opens Help in the side panel at one installed Pack's guide. */
 function useOpenPackGuide(): (installId: number) => void {
   const panel = useSlideOver();
-  return (installId) => panel.open({ title: "Help", description: "The guide of an installed Pack.", widthToggle: true, content: <PackGuidePage key={installId} installId={installId} /> });
+  return (installId) => panel.open({ title: "Help", description: "What an installed Pack says of itself.", widthToggle: true, content: <PackGuidePage key={installId} installId={installId} /> });
 }
 
 /** Says that a Pack is installed and, when it brought a guide, offers to read it right away. */
@@ -86,12 +88,12 @@ export function useInstalledToast(): (installId: number, manifest: { name: strin
   });
 }
 
-/** "Read its guide" on an installed Pack: opens Help in the side panel at that guide. */
-export function PackGuideButton({ installId, name }: { installId: number; name: string }) {
+/** "Read its guide" on an installed Pack ("What it needs" for one without a guide): opens Help in the side panel at it. */
+export function PackGuideButton({ installId, name, guide = true }: { installId: number; name: string; guide?: boolean }) {
   const open = useOpenPackGuide();
   return (
     <Button size="sm" variant="outline" aria-haspopup="dialog" onClick={() => open(installId)}>
-      <BookOpen aria-hidden /> Read its guide<span className="sr-only">: {name}</span>
+      <BookOpen aria-hidden /> {guide ? "Read its guide" : "What it needs"}<span className="sr-only">: {name}</span>
     </Button>
   );
 }

@@ -392,14 +392,14 @@ describe("what the server stores of a /2 Pack", () => {
 
   it("stores the items as for the same Pack without Positions", () => {
     const stored = storedItems(checked());
-    expect(JSON.stringify(stored)).not.toMatch(/area-lead|site-manager|someone\/safety|"per"|"total"|submitters/);
+    expect(JSON.stringify(stored)).not.toMatch(/area-lead|site-manager|someone\/safety|"per"|"total"|submitters|comesFrom/);
     expect(stored.catalog.map((c) => c.key)).toEqual(["incidents", "hours", "rate", "target", "all-hours"]);
   });
 
   it("keeps a manifest with the guide, whole however long, and without what nothing reads yet", () => {
     const guide: PackGuide = { questions: many(50, () => ({ type: "text" as const, text: "x".repeat(600) })) };
     const manifest = installManifest({ ...checked(), guide });
-    expect(Object.keys(manifest).sort()).toEqual(["author", "format", "guide", "id", "license", "name", "summary", "version"]);
+    expect(Object.keys(manifest).sort()).toEqual(["author", "format", "guide", "id", "license", "name", "overview", "summary", "version"]);
     expect(manifest.guide).toEqual(guide);
     expect(safeGuide(manifest)).toEqual(guide);
   });

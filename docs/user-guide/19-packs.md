@@ -89,6 +89,14 @@ Three Themes come with the Pack, **Forecast Navy** (the deck starts with it), **
 
 **Sending the Snapshot.** The Workflow has a **Send Snapshot** step; **Set up from this Pack** leaves the dashboard and the people open. Open the Workflow, pick **Weekly forecast meeting** and the people in the step (see [The steps](11-workflows.md#the-steps)), and share the dashboard with them, or the link is not sent to them.
 
+## Where a Pack's numbers come from
+
+The preview of a Pack shows, above what it adds, a table **Where the numbers come from**: for each Metric, **A person types it**, **Another system sends it** (naming the kind of system, and whether the Pack comes with an n8n template for it, which you connect, or you set it up), **Ziffr calculates it** from other Metrics, **Set once as a target**, or **The Pack does not say**. The creator says who or what sends a number and may add a note; the rest Ziffr works out from the Pack.
+
+Under it, **Included** lists what installing brings, its Workflows with what each does and the templates delivered, and **What you still need** lists what is yours to provide: people who type numbers, connections to other systems, targets to set, Approvers, who gets a Snapshot, and an Owner where the Pack holds a Theme.
+
+Both are in Help with an installed Pack, also one without a guide (the Pack then shows **What it needs**). **Set up from this Pack** shows **What you still need** and where each number comes from. With **Ask me for their values** ticked, you are asked only for the numbers a person types or the Pack does not describe; **Ask me also for …** adds the ones another system sends or that are set as a target, which are otherwise asked of nobody. A Pack installed before Ziffr kept this shows it after an update to a newer version.
+
 ## A Pack's guide
 
 A Pack may carry a **Pack Guide**: what its creator tells you about it. The preview shows it above the list of what the Pack adds, for a file, one of Ziffr's own Packs and a Pack from the Marketplace, also in the Setup Guide.
@@ -149,7 +157,11 @@ The **Author** starts as your name; change it to your company's if the Pack is t
 
 ### Describe your Pack
 
-The second step writes the Pack's [guide](#a-packs-guide), which whoever gets the file reads before installing and afterwards in Help. It is optional.
+The second step asks **Where the numbers come from** and writes the Pack's [guide](#a-packs-guide); whoever gets the file reads both before installing and afterwards in Help.
+
+For each number that takes values choose **A person types it** (chosen to begin with, or what the installed Pack it came from said), **Another system sends it**, with the **Kind of system** such as CRM, or **Set once as a target**; add a short note if it helps. [Calculated numbers](#where-a-packs-numbers-come-from) are not asked. A Pack with Metrics is therefore made in the newer format, which older versions of Ziffr do not install.
+
+The guide is optional.
 
 There is a field for each section: **What it's for**, **Before you start**, **First steps**, **Each part** and **Questions**. **Each part** starts with the names of what goes into the file, and only those: write beside them what each does, or replace them. A field you leave empty leaves its section out. When you go back and change what goes into the file, the list follows, unless you changed the field.
 
@@ -161,7 +173,7 @@ There is a field for each section: **What it's for**, **Before you start**, **Fi
 | `# ` before a line | A heading, at most 80 characters |
 | `**` before and after words | Those words **bold** |
 
-**Put this guide into the Pack** decides whether the guide goes into the file. It ticks itself as soon as you write in a field, and you can tick it to take the list as it is. Without it, or with every field empty, the Pack has no guide and older versions of Ziffr can install it; a Pack with a guide needs a Ziffr that knows one.
+**Put this guide into the Pack** decides whether the guide goes into the file. It ticks itself as soon as you write in a field, and you can tick it to take the list as it is. Without it, or with every field empty, the Pack has no guide. A Pack with a guide, or with Metrics, needs a Ziffr that knows the newer format.
 
 A guide holds no link, web or email address, image, HTML or code, a paragraph or list entry has at most 600 characters, a list 20 entries, a section 60 headings, paragraphs and lists, and the whole guide 32,768 bytes. **Download Pack** names what does not fit under its field, with the line, and makes no file until it is changed.
 

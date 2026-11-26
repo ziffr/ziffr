@@ -46,7 +46,7 @@ describe("the guide an install keeps", () => {
     expect(size(first)).toBeLessThanOrEqual(PACK_GUIDE_LIMITS.bytes);
     const w = await ws(); const ann = await w.person("owner"); const actor = w.actor(ann);
     const id = await installPackFile(actor, withGuide(first, "1.2.0", LOGO), yes);
-    expect(await readInstalledGuide(actor, id)).toEqual({ installId: id, name: PACK.name, version: "1.2.0", author: PACK.author.name, guide: first });
+    expect(await readInstalledGuide(actor, id)).toEqual({ installId: id, name: PACK.name, version: "1.2.0", author: PACK.author.name, guide: first, overview: expect.objectContaining({ dashboards: ["Monthly overview"] }) });
     const second = largestGuide("Second");
     await updatePackFile(actor, id, withGuide(second, "1.3.0", LOGO), yes);
     expect((await readInstalledGuide(actor, id))!.guide).toEqual(second);
@@ -57,13 +57,13 @@ describe("the guide an install keeps", () => {
     const w = await ws(); const ann = await w.person("owner"); const actor = w.actor(ann);
     const id = await installPackFile(actor, withGuide(short("Old.")), yes);
     expect(await listInstalledGuides(actor)).toEqual([{ installId: id, name: PACK.name, version: "1.2.0" }]);
-    expect((await listInstalledPacks(actor))[0].hasGuide).toBe(true);
+    expect((await listInstalledPacks(actor))[0].help).toBe("guide");
     await updatePackFile(actor, id, withGuide(short("New."), "1.3.0"), yes);
     expect((await readInstalledGuide(actor, id))!.guide).toEqual(short("New."));
     await updatePackFile(actor, id, withGuide(undefined, "1.4.0"), yes);
     expect(await readInstalledGuide(actor, id)).toBeNull();
     expect(await listInstalledGuides(actor)).toEqual([]);
-    expect((await listInstalledPacks(actor))[0].hasGuide).toBe(false);
+    expect((await listInstalledPacks(actor))[0].help).toBeNull();
     await updatePackFile(actor, id, withGuide(short("Back."), "1.5.0"), yes);
     await uninstallPack(actor, id);
     expect(await readInstalledGuide(actor, id)).toBeNull();
