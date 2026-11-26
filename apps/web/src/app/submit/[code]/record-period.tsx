@@ -36,7 +36,7 @@ export function RecordPeriod({ choice, choices, selectable, rule, form, onPick, 
             </select>
           </label>
           {/* The narrowest phones cut the end of the closed list, where the mark stands: it is said again below. */}
-          {choice.notes.includes("asked for") && <p className="mt-1 sm:hidden">Asked for</p>}
+          {choice.notes.includes("asked for") && <p className="mt-1 min-[380px]:hidden">Asked for</p>}
           {holds && <p className="mt-1">This period {holds}</p>}
         </>
       ) : (
