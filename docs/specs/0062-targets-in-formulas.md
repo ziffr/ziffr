@@ -1,6 +1,6 @@
 # 0062 A formula can read a Metric's target: `target({commit}) - {commit}`
 
-**Status:** in progress. **Tracking issue:** #1221 (label `tracking`); tickets #1222 (the formula) and #1223 (the forecast Pack). **Approved** by the owner on 2026-11-26. The decisions marked "for the owner to check" at the end were taken while writing it. Builds on the formulas of Derived Metrics (spec 0022 holds their rules).
+**Status:** in progress. **Tracking issue:** #1221 (label `tracking`); tickets #1222 (the formula) and #1223 (the forecast Pack). **Approved** by the owner on 2026-11-26. The decisions at the end were taken while writing it and accepted by the owner the same day. Builds on the formulas of Derived Metrics (spec 0022 holds their rules).
 
 ## Problem Statement
 
@@ -12,7 +12,7 @@ A formula may say `target({commit})`: the target of the Metric Commit for the pe
 
 ## User Stories
 
-1. As a sales lead, I set the quota once as Commit's target, and the gap, the share of quota, the pipeline coverage and the slides follow it.
+1. As a sales lead, I set the quota once for the quarter as Commit's target, and the gap, the share of quota, the pipeline coverage and the slides follow it.
 2. As them, when a period's target differs (a new quarter, a Target Series), the numbers of each period use that period's target.
 3. As anyone reading a number, I never see one worked out from a guessed target.
 4. As a Metric Owner, a formula reading my target needs the same rights as one reading my values.
@@ -67,7 +67,7 @@ Derived values are not stored. They are worked out when they are shown.
 
 | | What happens |
 | --- | --- |
-| A target changed | Every period that reads it shows the new result at once, past periods included. A Target Range has no history: to keep a past quarter's quota, give those periods Target Series values. |
+| A target changed | Every period that reads it shows the new result at once, past periods included. A Target Range has no history, so a target that changes over time, such as a quota, is best kept as a Target Series, one value per period: the guide says so. |
 | A Lock | Locks values, not targets: a locked period's derived value follows the target. |
 | A Snapshot | Keeps the values it showed, derived ones included, with the targets as they were when it was taken. Where today's result differs, it says so as for any changed value. |
 | A View Link | A live one follows; a frozen one keeps what it showed. |
@@ -89,7 +89,7 @@ Derived values are not stored. They are worked out when they are shown.
 
 - **Quota** becomes a calculated Metric, `target({commit})`: nobody sends it, and every dashboard widget and slide that shows Quota follows Commit's target.
 - **Gap** `{commit} - target({commit})`, **share** `{commit} / target({commit}) * 100`, **coverage** `{pipeline} / (target({commit}) - {closed-quarter})`.
-- **Set once:** Commit's Target Range "at least <the quarter's quota>". For a new quarter, give the past weeks Target Series values first, or set the new quota as Target Series values for the new weeks.
+- **Set the quota as Commit's Target Series,** one value for each week of the quarter, entered or pasted in one go. This is what the Pack and the guide recommend: each week then keeps the quota that was true for it. A Target Range "at least <quota>" is quicker for a first try, but it has no history: changing it rewrites the gap, share and coverage of every past week that has no series value.
 - **The gap by salesperson** needs a quota per person, which one target cannot hold. An optional Metric **Quota by salesperson**, sent with a Breakdown, fills that slide and nothing else, until each salesperson has Metrics of their own (spec 0058, team totals).
 - **Existing set-ups** with a Quota Metric keep working: their formulas and decks are their own copies. The guide says how to switch: set Commit's target and change the three formulas.
 
@@ -115,10 +115,11 @@ Derived values are not stored. They are worked out when they are shown.
 - `prev(target({x}))`.
 - Team totals over a Repeat (spec 0058).
 
-## For the owner to check
+## Decided by the owner (2026-11-26)
 
 1. A two-sided range gives no value, also for "higher is better", where Attainment would take the lower bound.
 2. `target({x})` needs x's value for the period too: coverage is empty in a week without a Commit.
 3. Over a longer span, a Target Series that covers only some periods gives no value, although the chart then falls back to the range.
 4. A Lock does not freeze targets, and a changed Target Range rewrites past periods' results.
 5. The Pack keeps an optional "Quota by salesperson" for the gap slide until Repeats are built.
+6. A quota is kept as a Target Series per period; the guide and the Pack recommend it and say why.
