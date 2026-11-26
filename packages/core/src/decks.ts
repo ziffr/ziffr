@@ -3,13 +3,14 @@
 // its Metrics to everyone it is shared with, so only Metrics the saver sees can be added to it.
 import { withoutNestedTagSources } from "./tag-source";
 import { db } from "./db";
-import { assertCan, Forbidden, type Actor } from "./actor";
+import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { visibleDecks } from "./access";
 import { assertSeesMetrics } from "./sharing";
 import { deckMetricIds } from "./visibility";
 import { assertWidgetDesigns } from "./widget-designs";
 import { ensureBaseline, recordVersion } from "./versions";
 import { assertNoOutsideContent } from "./deck-content";
+import { snapshotPartProblem } from "./snapshot-parts";
 import { refuseSeeded } from "./demo-seeded-rows";
 import { visitorDeckDocument } from "./demo-visitor-deck";
 import { visitorSharedStaysSeen } from "./demo-visitor-sharing";
@@ -59,6 +60,9 @@ export async function saveDeck(actor: Actor, id: number, document: unknown) {
   assertNoOutsideContent(document, "deck");
   // A widget on a slide may carry a View Design: it is checked like a file brought in (spec 0024).
   assertWidgetDesigns(document);
+  // A Snapshot Part stores its Snapshot and part number and nothing else, and a deck holds so many (spec 0061).
+  const partProblem = snapshotPartProblem(document);
+  if (partProblem) throw new Refused(partProblem);
   const { data: before } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", actor.workspaceId).single();
   // In a demo visit the document is rebuilt from words and shapes the demo accepts, within its size, before the write below.
   document = await visitorDeckDocument(actor, document, before?.document);
