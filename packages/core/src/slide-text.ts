@@ -142,10 +142,10 @@ export const TEXT_VALUES = [
   { key: "metric", label: "Name", hint: "the Metric's name" },
   { key: "period", label: "Period", hint: "the latest period" },
   { key: "target", label: "Target", hint: "the target for the latest period" },
-  { key: "change", label: "Change", hint: "since the period before, in the Metric's unit" },
-  { key: "change prev", label: "Change in %", hint: "on the period before, such as “up 4.0 %”" },
-  { key: "change yoy", label: "Change on a year before", hint: "in %" },
-  { key: "difference", label: "Difference", hint: "to another Metric, for the same period" },
+  { key: "change", label: "Change", hint: "the change since the period before, in the Metric's unit" },
+  { key: "change prev", label: "Change in %", hint: "the change on the period before, such as “up 4.0 %”" },
+  { key: "change yoy", label: "Change on a year before", hint: "the change on a year before, in %" },
+  { key: "difference", label: "Difference", hint: "this Metric minus another one, for the same period" },
 ] as const;
 /** One thing "Insert value" offers. */
 export type TextValueKey = (typeof TEXT_VALUES)[number]["key"];
