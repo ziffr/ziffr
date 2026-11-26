@@ -222,7 +222,10 @@
               "stripe",
               "hubspot",
               "bigquery",
-              "snowflake"
+              "snowflake",
+              "hubspot-forecast",
+              "salesforce-forecast",
+              "pipedrive-forecast"
             ],
             "description": "the id of one of the templates Ziffr ships, such as “google-sheets”"
           },

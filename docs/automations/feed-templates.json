@@ -49,6 +49,30 @@
       "guide": "snowflake-feed.md",
       "reads": "The rows of a query you write in Snowflake, read only: each row has a metric (the Metric's slug), a value and the period's first day. Runs once a month, for the month that has just ended.",
       "needs": "A Snowflake user with a role that may run queries on a warehouse and read the tables the query names, and nothing more."
+    },
+    {
+      "id": "hubspot-forecast",
+      "label": "HubSpot forecast",
+      "file": "hubspot-forecast-feed.json",
+      "guide": "hubspot-forecast-feed.md",
+      "reads": "Deal amounts, read only: closed this quarter and pipeline value, and if you like commit and best case, for the week that has just ended, for the team and per salesperson.",
+      "needs": "A HubSpot service key or private app token that can read deals and nothing else."
+    },
+    {
+      "id": "salesforce-forecast",
+      "label": "Salesforce forecast",
+      "file": "salesforce-forecast-feed.json",
+      "guide": "salesforce-forecast-feed.md",
+      "reads": "Opportunity totals, read only: closed this quarter and pipeline value, and if you like commit and best case, for the week that has just ended, for the team and per salesperson.",
+      "needs": "A Salesforce user that may read all opportunities and change nothing, and a connected app for n8n."
+    },
+    {
+      "id": "pipedrive-forecast",
+      "label": "Pipedrive forecast",
+      "file": "pipedrive-forecast-feed.json",
+      "guide": "pipedrive-forecast-feed.md",
+      "reads": "Deal values, read only: closed this quarter and pipeline value for the week that has just ended, for the team and per salesperson. Pipedrive has no forecast category, so no commit or best case.",
+      "needs": "The API token of a Pipedrive user who sees all deals. Pipedrive cannot limit a token to reading; the workflow only reads."
     }
   ]
 }
