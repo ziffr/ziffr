@@ -1,4 +1,4 @@
-// Ziffr's own Packs installed from the app against the real database (spec 0052, ticket 4): each of the twelve installs
+// Ziffr's own Packs installed from the app against the real database (spec 0052, ticket 4): each of the thirteen installs
 // with source included and no Marketplace, Members and Guests cannot, a Pack is not installed twice, and a newer bundled
 // version is offered and taken only by a call.
 import { afterEach, describe, expect, it } from "vitest";
@@ -26,7 +26,7 @@ describe("Ziffr's own Packs in a Workspace", () => {
     expect((audit[0].details as { pack: string }).pack).toBe(id);
   });
 
-  it("installs all twelve into one Workspace, as an Admin where no Pack holds a Theme", async () => {
+  it("installs all thirteen into one Workspace, as an Admin where no Pack holds a Theme", async () => {
     const w = await ws();
     const ann = await w.person("owner");
     for (const id of IDS) await installIncludedPack(w.actor(ann), id);
@@ -52,7 +52,7 @@ describe("Ziffr's own Packs in a Workspace", () => {
     expect((await db().from("pack_installs").select("id", { count: "exact", head: true }).eq("workspace_id", w.id)).count).toBe(0);
   });
 
-  it("lists the twelve with what each brings, who has them, and installs nothing by listing", async () => {
+  it("lists the thirteen with what each brings, who has them, and installs nothing by listing", async () => {
     const w = await ws();
     const ann = await w.person("owner");
     const before = await listIncludedPacks(w.actor(ann));
