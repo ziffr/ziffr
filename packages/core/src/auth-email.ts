@@ -89,14 +89,15 @@ const WORDS: Record<Exclude<AuthEmailKind, "email_change">, { subject: string; l
 
 const ENDING = "The link works once, for an hour. If you did not ask for it, ignore this email: nobody signs in without the link.";
 
-/** One email: the plain text (always sent, the link as it is) and the same words as HTML in Ziffr's own look. A sign-in
- * email goes out before the person has a Workspace, so it carries the Installation's look (Ziffr's default Theme, its
- * name as the wordmark) and never anything of a Workspace. The link is a button; the address is only a small line
- * under it. */
+/** One email: the plain text (always sent, the whole link on a line of its own) and the same words as HTML in Ziffr's
+ * own look. A sign-in email goes out before the person has a Workspace, so it carries the Installation's look (Ziffr's
+ * default Theme, its name as the wordmark) and never anything of a Workspace. In the HTML the link is a button. */
 export function authMail(to: string, subject: string, lead: string, button: string, url: string) {
   const look = themeLook(undefined, "Ziffr");
-  const html = emailHtml(look, { text: lead.replace(/:$/, "."), action: { label: button, url, fallback: "Or copy this address into your browser:" }, after: ENDING, preheader: ENDING, sentBy: "Sent by Ziffr because this address was used to sign in." });
-  return { to, subject, text: `${lead}\n\n${url}\n\n${ENDING}`, html };
+  const text = `${lead}\n\n<${url}>\n\n${ENDING}`;
+  const action = { label: button, url };
+  const html = emailHtml(look, { text, action, preheader: ENDING, sentBy: "Sent by Ziffr because this address was used to sign in." });
+  return { to, subject, text, html, action };
 }
 
 /** Sends the email of one hook call, already checked for its signature: the sign-in link for its kind, to the

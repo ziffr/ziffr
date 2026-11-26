@@ -10,6 +10,7 @@ import { db } from "./db";
 import { insertSealed, openNames, openOne, openRows } from "./sealed-columns";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "./connectors/index";
 import { FORM_LINK, inboundEnabled, initialMailState } from "./mail";
+import { appendedLink, unlinked } from "./mail-links";
 import { initialDeliveryState, sendQueuedNow } from "./outbound";
 import { holdFor } from "./quiet-hours";
 import { planPrompt } from "./prompt-reach";
@@ -269,12 +270,15 @@ export async function deliverScreenLink(ws: string, input: { recipientId: string
   return deliverPlain(ws, "notice", { ...input, senderId: null, via: "email" });
 }
 
-/** A plain message's words with its link as the Connector writes it; with no link, the words alone. */
-function plainBody(via: ConnectorId, text: string, link: string | null): string {
+/** The words of a plain message and its link, which comes last: a path in Ziffr, or FORM_LINK for a Contact, whose own
+ * personal form link is put in only as it is sent and so is never stored. With no link, the words alone. */
+export function plainBody(via: ConnectorId, text: string, link: string | null): string {
+  // A message holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
   const words = via === "slack" ? slackEscape(text) : text;
-  if (link === null) return words;
-  // A Contact's link is their own personal form link, put in only as it is sent (FORM_LINK), never stored.
-  if (link === FORM_LINK) return `${words}\n${FORM_LINK}`;
+  // An email's button is read from the last line (mail-links.ts, appendedLink): where Ziffr adds no link, words that
+  // would pass for one there are broken.
+  if (link === null) return appendedLink(words, [linkTo("")]) ? unlinked(words) : words;
+  if (link === FORM_LINK) return `${words}\nOpen your form: ${FORM_LINK}`;
   if (via === "slack") return `${words}\n<${linkTo(link)}|Open in Ziffr>`;
   return `${words}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(link)}`;
 }
@@ -293,7 +297,6 @@ async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | 
   const d = await insertDelivery(ws, {
     last_error: input.keep ?? null,
     connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind,
-    // A message holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
     subject: input.subject, body: plainBody(via, input.text, input.link), mail_state, form_token_id: input.formTokenId ?? null, filled_in_observation_id: input.filledInObservationId ?? null, alert_metric_id: input.alertMetricId ?? null, alert_id: input.alertId ?? null, tell_workflow_id: input.tellWorkflowId ?? null, snapshot_dashboard_id: input.snapshotDashboardId ?? null,
     heads_up_metric_a: input.headsUpMetrics?.[0] ?? null, heads_up_metric_b: input.headsUpMetrics?.[1] ?? null, heads_up_key: input.headsUpKey ?? null, heads_up_told_id: input.headsUpToldId ?? null,
   }, input.quiet ? "reminder" : kind);
