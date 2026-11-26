@@ -15,6 +15,7 @@ import { previewPaste, recordPaste } from "@/app/paste-actions";
 import { readFile } from "./read-file";
 import { TemplateDownload } from "./template-download";
 import { cn } from "@/lib/utils";
+import { PHONE_BUTTON, PHONE_FIELD } from "@/app/setup/phone";
 
 /** A Metric the person submits for, to pick for a two-column paste. */
 export type PasteChoice = { id: number; name: string };
@@ -178,18 +179,18 @@ export function PasteScreen({ metrics, metricId: opened }: { metrics: PasteChoic
             onChange={(e) => setText(e.target.value)}
             onPaste={(e) => { const pasted = e.clipboardData.getData("text/plain"); if (!pasted) return; e.preventDefault(); setText(pasted); setLeaveOut(new Set()); read({ text: pasted, leaveOut: new Set() }); }}
           />
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <label className="flex min-w-0 flex-col gap-1 text-sm sm:flex-row sm:items-center sm:gap-2">
               <span>Two columns are for</span>
-              <select className="rounded-[var(--radius-input)] border border-input bg-card px-2 py-1 text-sm" value={metricId ?? ""} onChange={(e) => { const id = e.target.value ? Number(e.target.value) : null; setMetricId(id); read({ metricId: id }); }}>
+              <select className={cn(PHONE_FIELD, "min-w-0 sm:max-w-xs")} value={metricId ?? ""} onChange={(e) => { const id = e.target.value ? Number(e.target.value) : null; setMetricId(id); read({ metricId: id }); }}>
                 <option value="">no Metric (name it in the cells)</option>
                 {metrics.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
             </label>
-            <Button variant="outline" disabled={pending || !text.trim()} onClick={() => read()}>Read the paste</Button>
+            <Button variant="outline" className={PHONE_BUTTON} disabled={pending || !text.trim()} onClick={() => read()}>Read the paste</Button>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <label className="cursor-pointer underline">
+            <label className="inline-flex min-h-11 cursor-pointer items-center underline sm:min-h-0">
               Or choose a file
               <input type="file" className="sr-only" accept=".csv,.tsv,.txt,.xlsx,.xlsm,.xls,.ods,text/csv" disabled={pending} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void takeFile(f); }} />
             </label>
@@ -202,7 +203,7 @@ export function PasteScreen({ metrics, metricId: opened }: { metrics: PasteChoic
               {file.sheets.length > 1 && (
                 <label className="ml-2">
                   , sheet{" "}
-                  <select className="rounded-[var(--radius-input)] border border-input bg-card px-2 py-1 text-sm" value={file.sheet ?? ""} disabled={pending} onChange={(e) => void takeFile(file.file, e.target.value)}>
+                  <select className={cn(PHONE_FIELD, "min-w-0")} value={file.sheet ?? ""} disabled={pending} onChange={(e) => void takeFile(file.file, e.target.value)}>
                     {file.sheets.map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </label>
@@ -224,7 +225,7 @@ export function PasteScreen({ metrics, metricId: opened }: { metrics: PasteChoic
               <span className="font-medium">{LAYOUT_WORDS[shown.layout]}</span>
               {shown.layout === "one_metric" ? `: ${shown.periods} periods.` : `: ${shown.metrics} Metric${shown.metrics === 1 ? "" : "s"} × ${shown.periods} period${shown.periods === 1 ? "" : "s"}.`}
               {!result && shown.alternatives.map((alt) => (
-                <Button key={alt} variant="link" size="sm" disabled={pending} onClick={() => { setLayout(alt); read({ layout: alt }); }}>Read it as: {LAYOUT_WORDS[alt]}</Button>
+                <Button key={alt} variant="link" size="sm" className="h-auto max-w-full justify-start text-left whitespace-normal max-sm:px-0" disabled={pending} onClick={() => { setLayout(alt); read({ layout: alt }); }}>Read it as: {LAYOUT_WORDS[alt]}</Button>
               ))}
             </p>
             <p className="text-lg font-medium" aria-hidden>{result ? "Done: " : ""}{summary(shown, !!result)}</p>
