@@ -432,7 +432,7 @@ A Widget whose Tag you cannot see is left out as well. Free layouts are left out
 
 Only a dashboard's owner shares it. **Share** opens a panel on the right, over the page, listing the people in the Workspace (not Contacts, who have no login) and, under **Groups, including whoever joins later**, every **Group** with its members. For each, choose:
 
-**Invite someone…** at the bottom of the Share panel is for someone who is not in the Workspace yet, such as when you are the only one in it. Owners and Admins enter an email address and choose **Member** or **Guest** (a Guest sees only what is shared with them), and Ziffr invites them the same way as the **Members and Groups** page: it emails the link when mail is set up and shows it to send yourself. A person is shared with once they have joined and appear in the list. Everyone else sees "Ask an Owner or Admin to invite them" (for a dashboard or deck).
+**Invite someone…** at the bottom of the Share panel is for someone who is not in the Workspace yet, such as when you are the only one in it. Owners and Admins enter an email address and choose **Member** or **Guest** (a Guest sees only what is shared with them), and Ziffr invites them the same way as the **Members and Groups** page: it emails the link when mail is set up and shows it to send yourself. A person is shared with once they have joined and appear in the list. Everyone else sees "Ask an Owner or Admin to invite them" (for a dashboard or deck). In a trial that cannot invite yet, or has no free place, the fields are greyed out and a box above them says why and what opens them ([the Team step](07-getting-started.md#team)).
 
 - **No access**.
 - **Viewer**: can look, inspect history and ask questions, but not change the dashboard.
