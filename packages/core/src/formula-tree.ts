@@ -269,6 +269,7 @@ export function treeFromData(metric: Metric | undefined, data: Pick<CanvasData, 
   const no = (refusal: string): TreeModel => ({ ok: false, refusal });
   if (!metric) return no("There is no Metric to draw a tree of.");
   if (!metric.formula) return no(`Not drawn: ${plain(metric.name)} is not calculated from other Metrics, so it has no formula to draw.`);
+  if (metric.total) return no(`Not drawn: ${plain(metric.name)} is a Total, which adds up a list of Metrics and has no formula to draw.`);
   const bySlug = new Map(data.metrics.map((m) => [m.slug, m]));
   const slugs = formulaInputs(metric.formula);
   // Not named: the words are the same whichever input is missing, and for one that is withheld by its owner.

@@ -5,6 +5,8 @@ import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, peopleFor, systemTextFor, threadReader, visibleMetricIds } from "./access";
 import { inCondensed, partOfCondensed, valueOfParts, type CondensedPoint } from "./condensed-parts";
 import { condensedFor } from "./condensed-values";
+import { restsOnTotal } from "./totals";
+import { totalParts, unapprovedTotals } from "./total-parts";
 import { db } from "./db";
 import { formulaInputs } from "./formula";
 import { metricIdsWithTags, metricTagNames, visibleTags } from "./tag-sight";
@@ -111,7 +113,8 @@ export type ApiMetricDetail = ApiMetric & {
 
 /** A Derived Metric's formula for someone who sees all the Metrics it is made of, else null. */
 async function formulaSeen(actor: Actor | KeyActor, metric: Metric): Promise<string | null> {
-  if (!metric.formula) return null;
+  // A Total's formula only names its parts for the core's own rules: it is no formula anyone wrote.
+  if (!metric.formula || metric.total) return null;
   const metrics = await getMetrics(actor.workspaceId);
   const seen = await visibleMetricIds(actor.workspaceId, actor.personId, metrics);
   const bySlug = new Map(metrics.map((m) => [m.slug, m.id] as const));
@@ -165,6 +168,9 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   const lower = [range.from, range.after].filter(isDay).sort().at(-1) ?? null;
   const window = { from: lower, to: isDay(range.to) ? range.to : null };
   const observations = await getLatestObservations(ws, { metricIds: withInputs(metrics, [metric.id]), ...window });
+  // A Total, and a formula that reads one, is worked out for what the key's creator sees (spec 0058).
+  const seen = restsOnTotal(metric) ? await visibleMetricIds(ws, actor.personId, metrics) : null;
+  const totals = seen ? await totalParts(ws, metrics, { sees: (id) => seen.has(id) }) : undefined;
   const inRange = (p: { period: string }) => (!range.from || p.period >= range.from) && (!range.to || p.period <= range.to) && (!range.after || p.period > range.after);
   // The Condensed Values of a Metric the key's creator sees stand among its values as the span they were made for.
   const spans = metric.formula ? [] : ((await condensedFor(ws, [metric.id]))[metric.id] ?? []);
@@ -173,7 +179,7 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
     return value === undefined ? [] : [{ period: c.period, value, condensed: c }];
   }).filter(inRange);
   // A period a Condensed Value stands for is listed once, as it, even while its originals are not deleted yet.
-  const points: { period: string; value: number; condensed?: CondensedPoint }[] = [...(buildSeries(metrics, observations, await formulaTargets(ws, metrics, withInputs(metrics, [metric.id])))[metric.slug] ?? []).filter((p) => inRange(p) && !inCondensed(spans, p.period)), ...condensed].sort((a, b) => a.period.localeCompare(b.period));
+  const points: { period: string; value: number; condensed?: CondensedPoint }[] = [...(buildSeries(metrics, observations, await formulaTargets(ws, metrics, withInputs(metrics, [metric.id])), totals)[metric.slug] ?? []).filter((p) => inRange(p) && !inCondensed(spans, p.period)), ...condensed].sort((a, b) => a.period.localeCompare(b.period));
   const limit = clampLimit(range.limit);
   const page = points.slice(0, limit);
   if (!page.length) return { items: [], next: null };
@@ -183,6 +189,7 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
     db().from("period_states").select("period_start, state").eq("workspace_id", ws).eq("metric_id", metric.id).in("state", ["approval", "locked"]).in("period_start", page.map((p) => p.period)),
   ]);
   const stateOf = new Map((states ?? []).map((r) => [r.period_start as string, r.state === "locked" ? "locked" : "awaiting_approval"] as const));
+  for (const period of (await unapprovedTotals(ws, [{ metric, points: page }]))[metric.id] ?? []) stateOf.set(period, "awaiting_approval");
   const guest = actor.role === "guest"; // a Guest is told nothing of who entered a value, as of who submitted it
   // A Guest's key names the Guest on their own values (a Filled-in Value counts as theirs, and who entered it stays
   // hidden: entered_by is never read for a Guest) and no one else; everyone else's submitter is null for a Guest.

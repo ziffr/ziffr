@@ -45,7 +45,7 @@ export type DerivedMetricMade = { id: number; slug: string; name: string; period
  * the ones they edit through a Share (directly or by Group). A Derived Metric is the actor's to share and shows its
  * inputs' values, so a Metric someone only sees (a view Share, a widget on a shared dashboard, a Stand-in's Token) is
  * not one: they could republish it wider than its owner allowed, and keep receiving it after the access ended. */
-async function shareableBy(ws: string, person: string, all: Metric[]): Promise<Set<number>> {
+export async function shareableBy(ws: string, person: string, all: Metric[]): Promise<Set<number>> {
   const edited = new Set((await getShares(ws)).filter((s) => s.object_type === "metric" && s.user_id === person && s.role === "editor").map((s) => s.object_id));
   return new Set(all.filter((m) => m.owner_id === person || edited.has(m.id)).map((m) => m.id));
 }
@@ -138,6 +138,7 @@ export async function formulaChoices(actor: Actor): Promise<FormulaChoice[]> {
 export async function setMetricFormula(actor: Actor, metricId: number, formula: string, origin: { accessKeyId?: number } = {}): Promise<void> {
   assertCan(actor, "create");
   const m = await editableMetric(actor, metricId, "its formula");
+  if (m.total_targets) throw new Refused("A Total has no formula: add and end the Metrics it adds up on its page.");
   if (!m.formula) throw new Refused("Only a Derived Metric has a formula.");
   // In the demo only a calculated Metric that nothing uses changes its formula: otherwise what others see through it would change (spec 0051,
   // ticket 11). Asked first, so a refused change says the demo's own reason.
