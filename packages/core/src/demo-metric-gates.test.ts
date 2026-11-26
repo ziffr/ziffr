@@ -67,7 +67,7 @@ describe("every writer of what the demo opens in this ticket", () => {
   it("checks a restored dashboard or widget before it writes, and names no writer of a deck's Metrics until the decks are open", () => {
     const s = src("version-history.ts");
     expect(s.match(/visitorSharedStaysSeen\(/g)?.length).toBe(3);
-    expect(s.indexOf('visitorSharedStaysSeen(actor, "dashboard", id')).toBeLessThan(s.indexOf('await db().from("widgets").delete()'));
+    expect(s.indexOf('visitorSharedStaysSeen(actor, "dashboard", id')).toBeLessThan(s.indexOf("await replaceDashboard("));
     // A deck's Metrics change by saving it or restoring a Version of it (templates and slide layouts make new, unshared decks).
     expect(s.indexOf('visitorSharedStaysSeen(actor, "deck", id')).toBeLessThan(s.indexOf('await db().from("decks").update({ name: s.name'));
   });
