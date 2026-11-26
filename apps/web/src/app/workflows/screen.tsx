@@ -98,7 +98,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
   return (
     <div className="grid gap-8 lg:grid-cols-[14rem_minmax(0,1fr)]">
       {dialog}
-      <nav aria-label="Workflows" className={cn("space-y-1", picked && "max-lg:hidden")}>
+      <nav aria-label="Workflows" className={cn("space-y-1", picked && "max-md:hidden")}>
         {workflows.map((w) => (
           <Link key={w.id} href={`/workflows?id=${w.id}`} aria-current={w.id === current?.id ? "page" : undefined} className={cn("block rounded-[var(--radius-input)] px-2.5 py-2 text-sm hover:bg-muted", w.id === current?.id && "stock font-medium")}>
             {w.name}
@@ -110,9 +110,9 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
       </nav>
 
       {current && (
-        <div className={cn("grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]", !picked && "max-lg:hidden")}>
+        <div className={cn("grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]", !picked && "max-md:hidden")}>
           <section aria-label="Steps" className="min-w-0">
-            <Link href="/workflows" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm underline lg:hidden"><ArrowLeft aria-hidden className="size-4" /> All workflows</Link>
+            <Link href="/workflows" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm underline md:hidden"><ArrowLeft aria-hidden className="size-4" /> All workflows</Link>
             <div className="flex flex-wrap items-end gap-3">
               <label className="min-w-0 flex-1 max-sm:basis-full">
                 <span className="mb-1 block text-xs font-medium">Name</span>

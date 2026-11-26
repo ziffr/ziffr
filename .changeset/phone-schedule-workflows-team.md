@@ -2,4 +2,4 @@
 "@ziffr/web": patch
 ---
 
-On a phone, the Schedule, Workflows, Connectors, Team, Changes and Audit Log are easier to use: buttons and links are big enough to tap, fields no longer make the page zoom in, a Workflow opens on a screen of its own, each Audit Log event is a small card, and the intro lines are shorter and in plain words.
+On a phone, the Schedule, Workflows, Team, Connectors, Actions, Search, the user guide, Changes and the Audit Log are easier to use: buttons and links are big enough to tap, a Workflow opens on a screen of its own, Who gets what and each Audit Log event are cards, the user guide's chapter list folds away under the chapter you are reading, and several intro lines are shorter and in plain words.
