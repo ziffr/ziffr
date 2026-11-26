@@ -298,7 +298,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
 }
 
 /** The Workspace's Metrics and series (getAllSeries) as one person reads them: each Total worked out for what they see,
- * with its added-up targets where it takes them, and why it shows them no number. */
+ * with its added-up targets where it takes them, and why it shows them no number. A Total's list names only the Metrics
+ * they see. */
 export async function allSeriesFor(actor: Actor, opts: { points?: number } = {}) {
   const ws = actor.workspaceId;
   const metrics = await getMetrics(ws);
@@ -307,7 +308,10 @@ export async function allSeriesFor(actor: Actor, opts: { points?: number } = {})
   const sees = (id: number) => seen.has(id);
   const aims: Record<number, Point[]> = {};
   const out = await getAllSeries(ws, { ...opts, reader: { sees, aims } });
-  return { ...out, metrics: await withTotalNotes(ws, out.metrics, sees), targets: { ...out.targets, ...aims } };
+  // A Total's formula only names its Metrics for the core's rules: those the person does not see leave it here.
+  const slugs = new Set(out.metrics.filter((m) => sees(m.id)).map((m) => m.slug));
+  const named = out.metrics.map((m) => (m.total ? withoutUnseenInputs([m], slugs)[0] : m));
+  return { ...out, metrics: await withTotalNotes(ws, named, sees), targets: { ...out.targets, ...aims } };
 }
 
 /** What sharing these metrics would show each person or Group that they cannot see on their own: they don't

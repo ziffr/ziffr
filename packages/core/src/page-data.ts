@@ -1,6 +1,7 @@
 // What the web app's pages read (spec 0001: one core). Every loader takes the Actor first, reads one Workspace only,
 // and returns only what that person may see; pages render it and query nothing themselves.
 import { mayReadMessage } from "./total-views";
+import { withoutUnseenInputs } from "./formula";
 import { refuseNewWorkspaceInDemoOnly } from "./demo-only";
 import { withoutChecklistWords } from "./checklist";
 import { withoutSnapshotAudience } from "./send-snapshot";
@@ -178,7 +179,8 @@ export async function activityView(actor: Actor) {
   const shown = (versions ?? []).filter(keep);
   const widgetIds = new Set(shown.filter((v) => v.object_type === "widget").map((v) => v.object_id));
   return {
-    metrics: metrics.filter((m) => visible.has(m.id)),
+    // A formula, a Total's list included, goes on only as far as the person sees what it names.
+    metrics: seenOnly(metrics, visible),
     dashboards,
     versions: shown,
     // Replaced values are sealed with the Workspace Key; one that does not open is left out, never shown as ciphertext.
@@ -187,6 +189,13 @@ export async function activityView(actor: Actor) {
     // Only the titles of widgets the person may see are opened (spec 0028).
     widgets: await openRows("widgets", ws, (widgets ?? []).filter((w) => widgetIds.has(w.id))),
   };
+}
+
+/** The Metrics a person sees, as a page may be handed them: a formula names only Metrics among them, so a Total's list
+ * never names one they do not see. */
+function seenOnly(all: Metric[], visible: ReadonlySet<number>): Metric[] {
+  const seen = all.filter((m) => visible.has(m.id));
+  return withoutUnseenInputs(seen, new Set(seen.map((m) => m.slug)));
 }
 
 /** Workflows as the actor may be shown them: Webhook ids in a Tell step only for those who manage Webhooks, and
@@ -209,7 +218,7 @@ export async function workflowsView(actor: Actor) {
     db().from("period_states").select("*").eq("workspace_id", ws).in("metric_id", ids).then(async (r) => ({ data: (await openRows("period_states", ws, r.data)).map((state) => { const { row_key, ...rest } = state as Record<string, unknown> & { row_key?: unknown }; return void row_key, rest as typeof state; }) })),
     db().from("tokens").select("metric_id, submitter_id, stand_in_id").eq("workspace_id", ws).in("metric_id", ids).is("stands_in_for", null),
   ]);
-  const metrics = all.filter((m) => ids.includes(m.id));
+  const metrics = seenOnly(all, new Set(ids));
   // A Feed submits as a profile of its own that is no member or Contact: its name comes from the feeds table, as on
   // the Metric's page, so the page never falls back to showing its id. Only the names of these Metrics' Feeds.
   const submitterIds = [...new Set((tokens ?? []).map((t) => t.submitter_id as string))];
@@ -375,7 +384,7 @@ export async function actionThread(actor: Actor, id: number) {
   // Security: someone on the Action who does not see its Metric gets only these few fields of it, never its
   // description, settings or Workflow; the whole Metric, for the chart, only goes to a viewer who sees it.
   const named: ActionMetric = { id: metric.id, name: metric.name, slug: metric.slug, period: metric.period, owner_id: metric.owner_id, decimals: metric.decimals, unit: metric.unit, unit_position: metric.unit_position };
-  return { action, metric: named, about: null, chartMetric: seesMetric ? metric : null, seesMetric, observation: value, chart, messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [], externalLinks };
+  return { action, metric: named, about: null, chartMetric: seesMetric ? seenOnly(metrics, visible).find((m) => m.id === metric.id)! : null, seesMetric, observation: value, chart, messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [], externalLinks };
 }
 
 /** A personal form link's page, for anyone holding the code: the Metric, whose form it is, this period's value, and

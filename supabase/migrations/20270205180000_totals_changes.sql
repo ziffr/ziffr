@@ -1,8 +1,8 @@
 -- Totals can now be made and changed (spec 0058, "Team totals", ticket #1225; GLOSSARY: Total). The database holds what
 -- must be true however a row is written, and changes a Total's list and its opening in one step each, under a lock.
 --
--- Error codes: ZF455 only a Total has parts; ZF456 not a part for this Total; ZF457 a Total takes no values;
--- ZF458 a Total's kind is fixed; ZF459 a Total adds this Metric up; ZF460 too many parts; ZF461 only the owner.
+-- Error codes: ZF470 only a Total has parts; ZF471 not a part for this Total; ZF472 a Total takes no values;
+-- ZF473 a Total's kind is fixed; ZF474 a Total adds this Metric up; ZF475 too many parts; ZF476 only the owner.
 
 -- A Total is calculated: it holds the mark no formula can name, so that everything that asks whether a Metric has a
 -- formula treats it as calculated, and it has no Source and no Workflow.
@@ -15,7 +15,7 @@ create or replace function total_takes_no_values() returns trigger
 language plpgsql set search_path = public as $$
 begin
   if exists (select 1 from metrics where id = new.metric_id and total_targets is not null) then
-    raise exception using errcode = 'ZF457', message = 'A Total is calculated and takes no values';
+    raise exception using errcode = 'ZF472', message = 'A Total is calculated and takes no values';
   end if;
   return new;
 end;
@@ -36,17 +36,17 @@ begin
   end if;
   if old.total_targets is not null then
     if new.total_targets is null or (new.period, new.unit, new.format, new.aggregation) is distinct from (old.period, old.unit, old.format, old.aggregation) then
-      raise exception using errcode = 'ZF458', message = 'A Total keeps its period, unit, format and Aggregation';
+      raise exception using errcode = 'ZF473', message = 'A Total keeps its period, unit, format and Aggregation';
     end if;
   elsif new.total_targets is not null then
     if exists (select 1 from observations where metric_id = new.id) or exists (select 1 from tokens where metric_id = new.id) then
-      raise exception using errcode = 'ZF457', message = 'A Total is calculated and takes no values';
+      raise exception using errcode = 'ZF472', message = 'A Total is calculated and takes no values';
     end if;
   end if;
   if ((new.period, new.unit, new.format, new.aggregation) is distinct from (old.period, old.unit, old.format, old.aggregation)
       or (old.formula is null and new.formula is not null))
      and exists (select 1 from total_parts where part_id = new.id) then
-    raise exception using errcode = 'ZF459', message = 'A Total adds this Metric up';
+    raise exception using errcode = 'ZF474', message = 'A Total adds this Metric up';
   end if;
   return new;
 end;
@@ -62,15 +62,15 @@ declare t record; p record;
 begin
   select period, unit, format, aggregation, total_targets into t from metrics where id = new.total_id and workspace_id = new.workspace_id for update;
   if not found or t.total_targets is null then
-    raise exception using errcode = 'ZF455', message = 'Only a Total has parts';
+    raise exception using errcode = 'ZF470', message = 'Only a Total has parts';
   end if;
   select period, unit, format, aggregation, total_targets, formula into p from metrics where id = new.part_id and workspace_id = new.workspace_id for share;
   if not found or p.total_targets is not null or p.formula is not null or p.aggregation = 'none'
      or (p.period, p.unit, p.format, p.aggregation) is distinct from (t.period, t.unit, t.format, t.aggregation) then
-    raise exception using errcode = 'ZF456', message = 'A part is a Metric of the same Workspace that takes values, counted like its Total';
+    raise exception using errcode = 'ZF471', message = 'A part is a Metric of the same Workspace that takes values, counted like its Total';
   end if;
   if tg_op = 'INSERT' and (select count(*) from total_parts where total_id = new.total_id) >= 50 then
-    raise exception using errcode = 'ZF460', message = 'A Total adds up at most 50 Metrics';
+    raise exception using errcode = 'ZF475', message = 'A Total adds up at most 50 Metrics';
   end if;
   return new;
 end;
@@ -83,18 +83,18 @@ language plpgsql security definer set search_path = public as $$
 declare t record;
 begin
   select owner_id, total_opened_at into t from metrics where id = total and workspace_id = ws and total_targets is not null for update;
-  if not found then raise exception using errcode = 'ZF455', message = 'Only a Total has parts'; end if;
+  if not found then raise exception using errcode = 'ZF470', message = 'Only a Total has parts'; end if;
   if t.total_opened_at is not null and (t.owner_id is distinct from actor or confirmed_open is not true) then
-    raise exception using errcode = 'ZF461', message = 'Only the owner changes what an open Total adds up';
+    raise exception using errcode = 'ZF476', message = 'Only the owner changes what an open Total adds up';
   end if;
   if change = 'add' then
     insert into total_parts (total_id, part_id, workspace_id, first_period) values (total, part, ws, from_period);
   elsif change = 'window' then
     update total_parts set first_period = coalesce(from_period, first_period), last_period = to_period where total_id = total and part_id = part;
-    if not found then raise exception using errcode = 'ZF456', message = 'Not a part of this Total'; end if;
+    if not found then raise exception using errcode = 'ZF471', message = 'Not a part of this Total'; end if;
   elsif change = 'remove' then
     delete from total_parts where total_id = total and part_id = part;
-    if not found then raise exception using errcode = 'ZF456', message = 'Not a part of this Total'; end if;
+    if not found then raise exception using errcode = 'ZF471', message = 'Not a part of this Total'; end if;
   else
     raise exception 'unknown change';
   end if;
@@ -109,7 +109,7 @@ declare t record; now_listed text[];
 begin
   select owner_id into t from metrics where id = total and workspace_id = ws and total_targets is not null for update;
   if not found or t.owner_id is distinct from actor then
-    raise exception using errcode = 'ZF461', message = 'Only the owner opens a Total';
+    raise exception using errcode = 'ZF476', message = 'Only the owner opens a Total';
   end if;
   select coalesce(array_agg(part_id::text || ' ' || first_period::text || ' ' || coalesce(last_period::text, '') order by part_id), '{}')
     into now_listed from total_parts where total_id = total;

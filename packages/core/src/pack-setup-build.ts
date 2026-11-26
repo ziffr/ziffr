@@ -39,6 +39,9 @@ export type PackSetupInput = {
   metrics: string[];
   /** Who submits the Metrics whose entry names no Position for that. */
   submitters?: string[];
+  /** Ask `submitters` also for the numbers the Pack says another system sends or are set as a target; without it
+   * nobody is asked for those. */
+  askElsewhere?: boolean;
   /** One of the Workspace's Feeds, made the Submitter of every Metric that takes values, with its API Source on. */
   feed?: string | null;
   dashboard?: PackDashboardPick | null;
@@ -330,9 +333,17 @@ function plannedWorkflows(f: Filling, flows: Picked<PackWorkflowPick>[]): { work
 /** The Metrics made, found again by entry and line. */
 type Made = (key: string, line: BuiltLine | null) => PlannedMetric | undefined;
 
+/** Who, beside Positions, is asked for each entry's values. A number the Pack says comes from elsewhere (another system
+ * sends it, or it is set as a target) is asked of nobody unless the person chose to be asked. The Pack's word only ever
+ * asks fewer people, never more. */
+function askedBeside(p: InstalledForSetup, input: PackSetupInput, beside: string[]): (key: string) => string[] {
+  const elsewhere = new Set((p.overview?.numbers ?? []).filter((n) => n.by === "system" || n.by === "target").map((n) => n.key));
+  return (key) => (input.askElsewhere !== true && elsewhere.has(key) ? [] : beside);
+}
+
 /** The Metrics to make: those outside every Repeat, then line by line; in each part what takes values before what is
- * computed from it. `beside` submits those whose entry names no Position for that. */
-function plannedMetrics(f: Filling, entries: EntryRow[], workflows: PlannedWorkflow[], beside: string[], to: AddingTo | null): { metrics: PlannedMetric[]; made: Made } {
+ * computed from it. `beside` says who submits an entry that names no Position for that. */
+function plannedMetrics(f: Filling, entries: EntryRow[], workflows: PlannedWorkflow[], beside: (key: string) => string[], to: AddingTo | null): { metrics: PlannedMetric[]; made: Made } {
   const metrics: PlannedMetric[] = [];
   const byPlace = new Map<string, PlannedMetric>();
   const perOf = (key: string) => f.places.metrics.get(key)?.per;
@@ -352,7 +363,7 @@ function plannedMetrics(f: Filling, entries: EntryRow[], workflows: PlannedWorkf
       const name = suffixed(entry.name, line);
       if ([...name].length > 120) f.problems.push(`“${name}” is longer than a Metric's name may be, 120 characters: shorten the line's name.`);
       const plain = !entry.formula;
-      const submitters = !plain ? [] : place?.submitters ? holders(f, place.submitters, line) : beside;
+      const submitters = !plain ? [] : place?.submitters ? holders(f, place.submitters, line) : beside(entry.pack_key);
       let standIn = plain ? holders(f, place?.standIn, line)[0] ?? null : null;
       if (standIn && submitters.includes(standIn)) {
         f.notes.push(`${named(f, standIn)} submits ${name} already, so nobody stands in for them there.`);
@@ -484,7 +495,7 @@ export async function buildSetup(actor: Actor, p: InstalledForSetup, input: Pack
 
   const { workflows, sends } = plannedWorkflows(filling, flows);
   const beside = strings(input.submitters, MAX_SUBMITTERS);
-  const { metrics, made } = plannedMetrics(filling, entries, workflows, beside, to);
+  const { metrics, made } = plannedMetrics(filling, entries, workflows, askedBeside(p, input, beside), to);
   const { dashboards, offered } = plannedDashboards(filling, boards, made);
   connectSends(filling, sends, dashboards);
   // Adding a line: one computed from a Metric that is not there to compute from is a problem said already, so its

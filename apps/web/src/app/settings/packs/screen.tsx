@@ -2,12 +2,15 @@
 // The Packs page (spec 0030, GLOSSARY: Pack, Preview, Sample Data): installed Packs with what each added, and for
 // Owners and Admins installing one from a file. Everything in a Pack is shown as text or drawn by Ziffr's own
 // renderer with Sample Data; its only links are its listing's, shown as plain links that tell the site nothing.
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Flag, Package, TriangleAlert, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
+import { PackGuideView } from "@/components/pack-guide";
+import { PackNumbersView } from "@/components/pack-numbers";
+import { PackGuideButton, useInstalledToast } from "@/components/pack-guide-help";
 import { DashboardTemplatePreview, Preview } from "@/components/preview";
 import { installPack, readPack } from "@/app/pack-actions";
 import { sampleDesignWidget } from "@ziffr/core/design-files";
@@ -82,6 +85,7 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
                     </p>
                     <p className="mt-1 flex gap-3 text-xs"><ListingLink href={p.listing.homepage} unsigned={!p.signed}>Its page</ListingLink><ListingLink href={p.listing.support} unsigned={!p.signed}>Help</ListingLink></p>
                     <AddedList added={p.added} />
+                    {p.help && <div className="mt-2"><PackGuideButton installId={p.id} name={p.name} guide={p.help === "guide"} /></div>}
                     {p.people && (
                       <details className="mt-2">
                         <summary className="cursor-pointer text-xs font-medium">Who does what</summary>
@@ -129,6 +133,7 @@ function AddedList({ added }: { added: InstalledPack["added"] }) {
 
 function InstallFromFile({ viewer, numberStyle }: { viewer: string; numberStyle: NumberStyle }) {
   const router = useRouter();
+  const installedToast = useInstalledToast();
   const input = useRef<HTMLInputElement>(null);
   const [text, setText] = useState<string | null>(null);
   const [preview, setPreview] = useState<PackPreview | null>(null);
@@ -155,8 +160,8 @@ function InstallFromFile({ viewer, numberStyle }: { viewer: string; numberStyle:
   };
   const install = () => start(async () => {
     try {
-      unwrap(await installPack(text!, { unsigned: okUnsigned, assistantTexts: okAssistant }));
-      toast.success(`${preview!.manifest.name} installed`, { description: "Its entries are in the Metric Catalog, its templates, designs and Themes where you start from them." });
+      const id = unwrap(await installPack(text!, { unsigned: okUnsigned, assistantTexts: okAssistant }));
+      installedToast(id, preview!.manifest, "Its entries are in the Metric Catalog, its templates, designs and Themes where you start from them.");
       reset();
       router.refresh();
     } catch (e) {
@@ -189,8 +194,11 @@ export function PackPreviewCard({ preview, viewer, numberStyle, pending, okUnsig
   okUnsigned: boolean; setOkUnsigned: (v: boolean) => void; okAssistant: boolean; setOkAssistant: (v: boolean) => void; onCancel: () => void; onInstall: () => void;
 }) {
   const ready = !preview.blocked && (okUnsigned || !preview.unsigned) && (okAssistant || !preview.assistantTexts.length);
+  // The card appears below a list that can be long: bring its top, with the name and the guide, into view.
+  const top = useRef<HTMLDivElement>(null);
+  useEffect(() => { top.current?.scrollIntoView?.({ block: "start" }); }, [preview.manifest.id]);
   return (
-    <div className="stock space-y-4 rounded-[var(--radius-card)] p-4 text-sm">
+    <div ref={top} className="stock scroll-mt-16 space-y-4 rounded-[var(--radius-card)] p-4 text-sm">
       <div>
         <p className="flex items-center gap-2 text-base font-medium"><Package aria-hidden className="size-4" /> {preview.manifest.name} <span className="fig text-sm font-normal text-muted-foreground">{preview.manifest.version}</span></p>
         <p className="text-muted-foreground">{preview.manifest.summary}</p>
@@ -208,6 +216,8 @@ export function PackPreviewCard({ preview, viewer, numberStyle, pending, okUnsig
           <ul className="mt-1 space-y-1 text-xs">{preview.assistantTexts.map((t) => <li key={t.path}><code>{t.path}</code>: &ldquo;{t.text}&rdquo;</li>)}</ul>
         </div>
       )}
+      {preview.manifest.guide && <PackGuideView guide={preview.manifest.guide} author={preview.manifest.author.name} />}
+      <PackNumbersView overview={preview.overview} />
       {preview.people && <PackPeopleList people={preview.people} />}
       <PackItems items={preview.items} viewer={viewer} numberStyle={numberStyle} />
       {preview.blocked ? <p role="alert" className="font-medium">{preview.blocked}</p> : (

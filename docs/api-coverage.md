@@ -359,6 +359,9 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `metricDraftFrom` (metrics.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `exportOptions` (pack-export.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `exportPack` (pack-export.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `seenMetrics` (pack-export.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `gatherPack` (pack-export.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `draftPackGuide` (pack-export-guide.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `activityView` (page-data.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `workflowsView` (page-data.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `metricExtras` (page-data.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads

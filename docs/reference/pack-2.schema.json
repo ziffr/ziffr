@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ziffr.net/schemas/ziffr.pack-2.json",
   "title": "Ziffr Pack (ziffr.pack/2)",
-  "description": "A Pack as ziffr.pack/1, which may also name the Positions people fill when it is set up and the parts made once per line (Repeats), add those up in Totals, credit the Packs it builds on and carry a Pack Guide.",
+  "description": "A Pack as ziffr.pack/1, which may also name the Positions people fill when it is set up and the parts made once per line (Repeats), add those up in Totals, say where each number comes from, credit the Packs it builds on and carry a Pack Guide.",
   "type": "object",
   "properties": {
     "format": {
@@ -326,6 +326,37 @@
                 "required": [
                   "of",
                   "targets"
+                ],
+                "additionalProperties": false
+              },
+              "comesFrom": {
+                "type": "object",
+                "description": "Where the entry's number comes from, shown before installing, in Help and at Set up: “by” a “person” who types it, another “system” that sends it, or a “target” it is set once as. With “system” only, and needed then, the kind of system, such as “CRM”. A “note” of at most 300 characters may say more, such as where in that system the number is found. Not on a Derived Metric or a Total, which Ziffr calculates.",
+                "properties": {
+                  "by": {
+                    "enum": [
+                      "person",
+                      "system",
+                      "target"
+                    ]
+                  },
+                  "system": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+                    "description": "plain text, without markup or web addresses",
+                    "minLength": 1
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+                    "description": "plain text, without markup or web addresses",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "by"
                 ],
                 "additionalProperties": false
               },
