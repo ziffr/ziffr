@@ -7,6 +7,7 @@ import { getMetrics, allRows, mustRead } from "./workspace-data";
 import { visibilityOfMany, visibleMetricIds } from "./access";
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
+import { DEMO_WORKSPACE_ID } from "./team";
 import type { Metric } from "./types";
 
 /** What a deleted Metric's name is followed by wherever a Snapshot still shows it. */
@@ -26,6 +27,9 @@ export async function readersNow(ws: string, metrics: Metric[], ids: readonly nu
 /** Writes down who keeps a Metric in past Snapshots, before it is deleted; throws when it could not, so no Metric goes
  * without it. For the deletion only, which has checked who asks. */
 export async function keepForSnapshots(ws: string, metric: { id: number; totalOpen: boolean }, readers: readonly string[]): Promise<void> {
+  // Nobody deletes a Metric in the demo: the only one that goes there is a half-made one taken back at once, which no
+  // Snapshot shows, and the demo's tables take no such row.
+  if (ws === DEMO_WORKSPACE_ID) return;
   const must = (r: { error: unknown }) => { if (r.error) throw new Error("The Metric could not be deleted. Try again in a moment."); };
   // Written afresh: a deletion that stopped half way must not leave readers behind who lost the Metric since.
   must(await db().from("deleted_metrics").delete().eq("workspace_id", ws).eq("metric_id", metric.id));

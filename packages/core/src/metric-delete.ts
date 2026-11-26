@@ -364,6 +364,8 @@ export async function deleteChosenMetrics(actor: Actor, ids: unknown, choices: u
 /** Archives the picked Metrics that the actor may archive and that are not archived yet, instead of deleting them: they
  * ask for nothing more and keep everything. Returns how many were archived. */
 export async function archiveChosenMetrics(actor: Actor, ids: unknown): Promise<number> {
+  // The demo says its one sentence, as every blocked write there does.
+  refuseInDemo(actor);
   const plan = await planMetricDelete(actor, ids);
   const open = plan.metrics.filter((m) => m.archivable).map((m) => m.id);
   if (!open.length) throw new Refused("There is nothing here you can archive.");
