@@ -30,6 +30,10 @@ describe("what a text box reads", () => {
     expect(filledRichText(box("{latest}", [1], "frame"), data)).toBeUndefined();
   });
 
+  it("leaves no empty run behind, which the editor could not draw", () => {
+    expect(filledRichText(box("{latest}", [1]), canvas([], {}))).toEqual({ type: "doc", content: [{ type: "paragraph", content: [] }] });
+  });
+
   it("shows a viewer nothing of a Metric they may not see: no name, value, period or row, and no other in its place", () => {
     const seen = canvas([orders], { orders: months("2026-09", [6, 7]) });
     const out = said("A {metric} B {latest} C {period} D {top row} E {target} F {change yoy} G {difference 1 2} H {metric 2} I {metrics}", [1, 2], seen);

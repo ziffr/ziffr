@@ -115,7 +115,14 @@ export function filledRichText(shape: TextShapeLike, data: CanvasData, slide?: n
   const named = namedSlots(richRuns(rich), list.length);
   // Only what the words ask for is handed to the filling, so no other Metric shows through, not even in a scale.
   const metrics = list.map((id, i) => (named.has(i) ? data.metrics.find((m) => m.id === id) ?? null : null));
-  return mapRichText(rich, (t) => fillSlideWords(t, { data, metrics, slide }).text);
+  return withoutEmptyRuns(mapRichText(rich, (t) => fillSlideWords(t, { data, metrics, slide }).text));
+}
+
+/** A rich text without runs of no words, which the editor cannot draw: a run whose values are all hidden is one. */
+function withoutEmptyRuns(rich: unknown, depth = 0): unknown {
+  const node = rich as RichNode | null;
+  if (!node || !Array.isArray(node.content) || depth > MAX_DEPTH) return rich;
+  return { ...node, content: node.content.filter((c) => (c as RichNode | null)?.text !== "").map((c) => withoutEmptyRuns(c, depth + 1)) };
 }
 
 /** A rich text with words added at its end: after a space in its last paragraph, else in a paragraph of their own. */
