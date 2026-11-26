@@ -13,7 +13,7 @@ import { PanelNav } from "../panel-nav";
 const CHANNEL: Record<string, string> = { email: "Email", slack: "Slack", telegram: "Telegram" };
 // The settings that say whether messages can leave at all.
 const CONNECTIONS = ["mail", "telegram", "slack"];
-const LINK = "underline underline-offset-2 max-md:-my-3 max-md:inline-flex max-md:min-h-11 max-md:items-center";
+const LINK = "underline underline-offset-2 max-md:-my-3 max-md:inline-flex max-md:min-h-11 max-md:min-w-11 max-md:items-center";
 
 export default async function HealthPage() {
   const actor = await panelPageActor("/installation/health");

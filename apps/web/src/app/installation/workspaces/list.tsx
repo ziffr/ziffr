@@ -13,8 +13,8 @@ import { PanelBadge } from "../panel-list";
 import { LimitForm, LimitSetBy, limitWords } from "../workspace-limits";
 
 const KIND: Record<WorkspaceKind, string> = { workspace: "Workspace", size: "Size", trial: "Trial", trial_ended: "Trial ended", closed: "Closed" };
-// The date alone, the same on the server and in the browser.
-const day = (iso: string) => iso.slice(0, 10);
+// The date alone, the same on the server and in the browser, never broken across two lines.
+const day = (iso: string) => <span className="whitespace-nowrap">{iso.slice(0, 10)}</span>;
 const count = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 
 /** One card per Workspace, by name. */
@@ -30,7 +30,7 @@ export function WorkspaceList({ workspaces, pinned, maxDays }: { workspaces: Ins
 function Dates({ workspace: w }: { workspace: InstallationWorkspace }) {
   if (w.kind === "trial" && w.trialEndsAt) return <p>{w.daysLeft === 1 ? "1 day left" : `${w.daysLeft} days left`}: the trial ends on {day(w.trialEndsAt)}.</p>;
   if ((w.kind === "trial_ended" || w.kind === "closed") && w.trialEndsAt) {
-    return <p>{w.kind === "closed" ? "Closed because its Size was cancelled, on " : "The trial ended on "}{day(w.trialEndsAt)}.{w.deletedAt ? ` It is deleted on ${day(w.deletedAt)}.` : ""}</p>;
+    return <p>{w.kind === "closed" ? "Closed because its Size was cancelled, on " : "The trial ended on "}{day(w.trialEndsAt)}.{w.deletedAt && <> It is deleted on {day(w.deletedAt)}.</>}</p>;
   }
   return null;
 }

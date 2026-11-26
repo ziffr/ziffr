@@ -50,6 +50,7 @@ import { ServiceWorker } from "@/components/service-worker";
 import { APP_COLOURS } from "@/lib/app-colours";
 import { appearanceFor, appearanceForPerson } from "@/lib/appearance";
 import { PracticeBar } from "@/components/practice-bar";
+import { SlideOverProvider } from "@/components/slide-over-host";
 import { atAdminAddress, signedInActor } from "@/lib/installation";
 import { installationHref } from "@ziffr/core/admin-address";
 import { SITE_URL } from "@/lib/sign-in";
@@ -218,7 +219,10 @@ function Plain({ appearance, actions, lines, children }: { appearance: string; a
           <div className="flex flex-wrap items-center gap-x-4 gap-y-3">{actions}</div>
         </header>
         {lines}
-        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+        {/* Pages that open a panel at the side, such as the Installation's Announcements, need its provider here too. */}
+        <SlideOverProvider>
+          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+        </SlideOverProvider>
         <LegalFooter />
         <Toaster />
         <ServiceWorker />
