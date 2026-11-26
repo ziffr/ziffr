@@ -1,0 +1,417 @@
+{
+  "name": "Salesforce forecast to Ziffr (values)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Salesforce forecast to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and your Salesforce address, your time zone and which Metric each figure is for.\n2. Add the credentials: Salesforce OAuth2 on the read nodes, and a Header Auth credential named \"Ziffr Feed Key\" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs every Monday at 12, for the week that has just ended (UTC).\n\nOpportunity totals, read only: closed this quarter and pipeline value, and if you like commit and best case, for the week that has just ended, for the team and per salesperson.\n\nSalespeople with Metrics of their own go in the node \"Owners\". Pipeline, commit and best case are what the CRM says at the moment of the run and are sent only on a Monday or Tuesday.",
+        "width": 460,
+        "height": 420
+      },
+      "id": "8771fd05-37fb-52cc-a5ac-0894bef9cd86",
+      "name": "Read me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 12
+            }
+          ]
+        }
+      },
+      "id": "b58b6374-7be4-5e18-a88f-73464ef8328f",
+      "name": "Mondays at 12",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "78dbf460-2549-5026-b1d2-6a44c3fd827d",
+              "name": "ziffrUrl",
+              "value": "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS",
+              "type": "string"
+            },
+            {
+              "id": "4a93040b-0d53-56df-9104-53fdd4e6216f",
+              "name": "instanceUrl",
+              "value": "https://REPLACE-WITH-YOUR-DOMAIN.my.salesforce.com",
+              "type": "string"
+            },
+            {
+              "id": "efac9e18-f5b9-568c-9b35-014fb3b4f38f",
+              "name": "timeZone",
+              "value": "REPLACE-WITH-YOUR-TIME-ZONE-SUCH-AS-Europe/Berlin",
+              "type": "string"
+            },
+            {
+              "id": "d95cd10e-22ba-50ff-8ff4-3728c4a32e68",
+              "name": "closedMetric",
+              "value": "REPLACE-WITH-THE-CLOSED-THIS-QUARTER-METRIC-SLUG-OR-EMPTY",
+              "type": "string"
+            },
+            {
+              "id": "6cfa67c3-0390-5d39-8231-3dd1cd5fc2d5",
+              "name": "pipelineMetric",
+              "value": "REPLACE-WITH-THE-PIPELINE-VALUE-METRIC-SLUG-OR-EMPTY",
+              "type": "string"
+            },
+            {
+              "id": "6f763eb3-2556-596f-997b-209be7d222de",
+              "name": "commitMetric",
+              "value": "REPLACE-WITH-THE-COMMIT-METRIC-SLUG-OR-LEAVE-TO-SKIP",
+              "type": "string"
+            },
+            {
+              "id": "9028e9ad-8e03-5f90-97b2-9954fa5ee4bb",
+              "name": "bestCaseMetric",
+              "value": "REPLACE-WITH-THE-BEST-CASE-METRIC-SLUG-OR-LEAVE-TO-SKIP",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {
+          "includeBinary": true
+        }
+      },
+      "id": "9a36cdfe-1598-5888-ba4d-11e0d4dea16a",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Settings').first().json.ziffrUrl.replace(/\\/+$/, '') }}/api/v1/feed",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3a0cf28b-b0ce-5450-a045-632a428ce917",
+      "name": "What is filled",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Ziffr Feed Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// OWNERS: the one table to edit if salespeople have Metrics of their own (from a Pack that makes one per salesperson,\n// or duplicates of the team's Metrics). Leave the list empty to send the team's figures only.\n// One line per salesperson:\n//   owner     the Salesforce User id of the opportunity owner, 15 or 18 characters starting with 005\n//   others    the slug of that person's Metric (the last part of the Metric's address in Ziffr). Leave one out, or\n//             empty, to send nothing for it.\n// Owner ids stay in n8n: Ziffr is sent only a slug, a week and a number.\nconst OWNERS = [\n  // { owner: '005000000000001AAA', closed: 'closed-this-quarter-ana', pipeline: 'pipeline-value-ana', commit: 'commit-ana', bestCase: 'best-case-ana' },\n];\nreturn [{ json: { owners: OWNERS } }];\n"
+      },
+      "id": "710add40-1a3c-53e4-a7d1-7f6725a4f10e",
+      "name": "Owners",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Which week, and which quarter (the CRM forecast templates share this node). The figures are for the week that ended\n// last (Monday to Sunday, as Ziffr counts weeks) in the time zone of the Settings node. The quarter is the one that\n// week starts in, counted from the month your Workspace's year starts in, which Ziffr says (\"What is filled\").\n//  - Pipeline, commit and best case are what the CRM says at the moment of the run, so they are sent only when the run is\n//    on Monday or Tuesday: a later run never files today's pipeline under last week. Closed this quarter is read by the\n//    close date, so it can be sent on any day.\n//  - A week Ziffr still counts as running (it counts days on its own server, normally in UTC) is not sent: it would not\n//    count as past, and a second run could then replace it.\nconst DAY = 86400000;\nconst s = $('Settings').first().json;\nconst zone = String(s.timeZone ?? '').trim();\nlet clock;\ntry {\n  if (zone === '') throw new Error('empty');\n  clock = new Intl.DateTimeFormat('en-US', { timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });\n} catch {\n  throw new Error('Settings: timeZone is not a time zone. Write it like Europe/Berlin, America/New_York or UTC.');\n}\n// The time of day a clock in that zone shows at an instant, written as if it were UTC.\nconst wall = (at) => {\n  const p = Object.fromEntries(clock.formatToParts(new Date(at)).map((x) => [x.type, Number(x.value)]));\n  return Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second);\n};\n// The instant a day begins in that zone (asked twice, since the clocks may change in between).\nconst startOfDay = (day) => {\n  const guess = day - (wall(day) - day);\n  return day - (wall(guess) - guess);\n};\nconst iso = (day) => new Date(day).toISOString().slice(0, 10);\n\nconst today = Math.floor(wall(Date.now()) / DAY) * DAY;\nconst sinceMonday = (new Date(today).getUTCDay() + 6) % 7;\nconst weekFirst = today - (sinceMonday + 7) * DAY;\nconst period = iso(weekFirst);\n\nconst overview = $('What is filled').first().json;\nconst yearStart = overview.year_start_month;\nif (!Number.isInteger(yearStart) || yearStart < 1 || yearStart > 12) throw new Error('Ziffr did not say which month your year starts in; check the Ziffr address and the Feed Key. No figure was sent.');\nconst first = new Date(weekFirst);\nconst into = (first.getUTCMonth() - (yearStart - 1) + 12) % 12;\nconst quarterFirst = Date.UTC(first.getUTCFullYear(), first.getUTCMonth() - (into % 3), 1);\nconst next = new Date(quarterFirst);\nconst quarterEnd = Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 3, 1);\n// Deals won count up to the end of the week, but never past the quarter the week belongs to.\nconst wonLast = Math.min(weekFirst + 6 * DAY, quarterEnd - DAY);\n\n// Every Metric named here must be weekly, and the week must be over for Ziffr too.\nconst named = new Set(['closedMetric', 'pipelineMetric', 'commitMetric', 'bestCaseMetric'].map((k) => String(s[k] ?? '').trim()));\nfor (const line of [].concat($('Owners').first().json.owners ?? [])) for (const v of Object.values(line ?? {})) named.add(String(v).trim());\nconst listed = overview.metrics && Array.isArray(overview.metrics.items) ? overview.metrics.items : [];\nfor (const m of listed.filter((x) => named.has(x.slug))) {\n  if (m.period !== 'week') throw new Error('The Metric ' + m.slug + ' is not weekly. These figures are weekly: use weekly Metrics. No figure was sent.');\n  if (typeof m.current === 'string' && m.current <= period) throw new Error('Ziffr still counts the week of ' + period + ' as running (it counts days in its server\\'s time, normally UTC). Run this later on Monday, after 00:00 UTC. No figure was sent.');\n}\n// The Salesforce login is sent to this address, so only a Salesforce one is taken.\nif (!/^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.salesforce\\.com\\/?$/.test(String(s.instanceUrl ?? '').trim())) throw new Error('Settings: instanceUrl is your Salesforce address, such as https://yourcompany.my.salesforce.com.');\n\nreturn [{ json: {\n  period,\n  quarterFirst: iso(quarterFirst),\n  quarterLast: iso(quarterEnd - DAY),\n  wonLast: iso(wonLast),\n  // The same bounds as instants, for a CRM that keeps dates with a time of day.\n  fromMs: startOfDay(quarterFirst),\n  wonBeforeMs: startOfDay(wonLast + DAY),\n  beforeMs: startOfDay(quarterEnd),\n  changedSince: new Date(startOfDay(quarterFirst) - DAY).toISOString().slice(0, 19) + 'Z',\n  snapshot: sinceMonday <= 1,\n} }];\n"
+      },
+      "id": "8bd19a2d-d4bd-542d-9830-4391eb7a30e3",
+      "name": "Week",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Settings').first().json.instanceUrl.trim().replace(/\\/+$/, '') }}/services/data/v62.0/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "salesforceOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ \"SELECT OwnerId, SUM(Amount) amountSum, COUNT(Id) dealCount, COUNT(Amount) pricedCount FROM Opportunity WHERE IsWon = true\" + \" AND CloseDate >= \" + $('Week').first().json.quarterFirst + \" AND CloseDate <= \" + $('Week').first().json.wonLast + \" GROUP BY OwnerId\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0a07aa80-2cb4-569f-9a97-ec4a8febf2a8",
+      "name": "Read won totals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        300
+      ],
+      "credentials": {
+        "salesforceOAuth2Api": {
+          "name": "Salesforce account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Settings').first().json.instanceUrl.trim().replace(/\\/+$/, '') }}/services/data/v62.0/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "salesforceOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ \"SELECT OwnerId, ForecastCategory, SUM(Amount) amountSum, COUNT(Id) dealCount, COUNT(Amount) pricedCount FROM Opportunity WHERE IsClosed = false\" + \" AND CloseDate >= \" + $('Week').first().json.quarterFirst + \" AND CloseDate <= \" + $('Week').first().json.quarterLast + \" GROUP BY OwnerId, ForecastCategory\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4c98a7fe-1eb6-506b-9508-0a417a90d97b",
+      "name": "Read open totals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ],
+      "credentials": {
+        "salesforceOAuth2Api": {
+          "name": "Salesforce account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Salesforce -> Ziffr: the week's sales forecast figures. The first part of this node reads what Salesforce answered and makes\n// one plain line { owner, kind, amount, category } per deal that counts: kind is 'won' (this quarter, up to the week's end)\n// or 'open' (can still close this quarter), category '' , 'commit' or 'upside'. Only amounts and owner ids are looked\n// at, and only { metric, period, value } goes on to the next node: no deal, name, email or owner id leaves n8n.\n// What is sent:\n//  - closed: the amounts won;  pipeline: the amounts open (those in the commit too, those won not);\n//  - commit: closed plus the open amounts in the forecast category Commit;  bestCase: closed plus the open amounts in\n//    Commit, Best case and Most likely;\n//  - the team's figures add up every owner; a line in Owners adds up that owner's deals only;\n//  - 0 is sent when the CRM showed deals and the figure's own deals add up to nothing. When it showed no deal at all\n//    (for the team, or for an owner of the table), nothing is sent: that is more often a missing right or a wrong id\n//    than a real nothing, and a missing value can be typed in, while a wrong 0 would stay.\nconst week = $('Week').first().json;\nconst lines = [];\nconst notes = [];\n// Salesforce: sums it works out itself (SUM ... GROUP BY), so no opportunity is read, only totals per owner and forecast\n// category. In an org with several currencies Salesforce gives these totals in the org's default currency.\n// An owner id may be pasted with 15 or 18 characters; the first 15 say who it is.\nconst ownerKey = (id) => String(id).slice(0, 15);\nconst KNOWN = ['Omitted', 'Pipeline', 'BestCase', 'MostLikely', 'Forecast', 'Closed'];\nconst totalsOf = (node) => {\n  const answer = $(node).first().json;\n  if (!Array.isArray(answer.records)) throw new Error('Salesforce did not answer with totals (' + node + '). No figure was sent.');\n  // A grouped query hands out at most 2,000 rows and no further page.\n  if (answer.done !== true || answer.records.length >= 2000) throw new Error('Salesforce has more groups than one query hands out (' + node + '). No figure was sent.');\n  return answer.records;\n};\nlet unpriced = 0;\nconst take = (node, kind) => {\n  for (const r of totalsOf(node)) {\n    const amount = r.amountSum === null || r.amountSum === undefined ? 0 : Number(r.amountSum);\n    if (!Number.isFinite(amount)) throw new Error('Salesforce gave a total that is not a number. No figure was sent.');\n    unpriced += Math.max(0, Number(r.dealCount || 0) - Number(r.pricedCount || 0));\n    const c = r.ForecastCategory;\n    if (kind === 'open' && c !== null && c !== undefined && !KNOWN.includes(c)) throw new Error('Salesforce named a forecast category this template does not know: ' + String(c).slice(0, 40) + '. No figure was sent.');\n    const category = kind !== 'open' ? '' : c === 'Forecast' ? 'commit' : c === 'BestCase' || c === 'MostLikely' ? 'upside' : '';\n    lines.push({ owner: String(r.OwnerId ?? ''), kind, amount, category });\n  }\n};\ntake('Read won totals', 'won');\ntake('Read open totals', 'open');\nif (unpriced) notes.push({ why: unpriced + ' opportunity(ies) have no amount and count as 0' });\n\n// ---- the same for every CRM from here on ----\nconst SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;\nconst OWNER = /^[A-Za-z0-9]{1,40}$/;\nconst FIGURES = ['closed', 'pipeline', 'commit', 'bestCase'];\nconst s = $('Settings').first().json;\nconst slugIn = (value, where, optional) => {\n  const v = String(value ?? '').trim();\n  // The commit and best case settings are optional: left as they came, they send nothing.\n  if (v === '' || (optional && v.startsWith('REPLACE-WITH-'))) return '';\n  if (!SLUG.test(v)) throw new Error(where + ' is not a Metric slug (lower case letters, digits and hyphens), or leave it empty to skip that figure.');\n  return v;\n};\nconst used = new Set();\nconst once = (slug) => {\n  if (!slug) return slug;\n  if (used.has(slug)) throw new Error('The Metric ' + slug + ' is named twice (Settings or Owners); each figure needs its own. No figure was sent.');\n  used.add(slug);\n  return slug;\n};\nconst team = {};\nfor (const f of FIGURES) team[f] = once(slugIn(s[f + 'Metric'], 'Settings: ' + f + 'Metric', f === 'commit' || f === 'bestCase'));\n\nconst table = $('Owners').first().json.owners;\nif (!Array.isArray(table)) throw new Error('Owners: OWNERS is not a list.');\nconst seenOwners = new Set();\nconst people = table.map((line, i) => {\n  const where = 'Owners, line ' + (i + 1);\n  const owner = String(line?.owner ?? '').trim();\n  if (!OWNER.test(owner)) throw new Error(where + ': owner is not an owner id (letters and digits only, as the CRM shows it).');\n  const extra = Object.keys(line).filter((k) => k !== 'owner' && !FIGURES.includes(k));\n  if (extra.length) throw new Error(where + ': “' + extra[0].slice(0, 40) + '” is not known; a line takes owner, ' + FIGURES.join(', ') + '.');\n  if (seenOwners.has(ownerKey(owner))) throw new Error(where + ': the same owner appears twice.');\n  seenOwners.add(ownerKey(owner));\n  const slugs = {};\n  for (const f of FIGURES) slugs[f] = once(slugIn(line[f], where + ': ' + f, false));\n  return { owner, slugs };\n});\nif (used.size === 0) throw new Error('Name at least one Metric to fill, in the Settings node or in Owners.');\n\nconst sum = (list) => list.reduce((total, l) => total + l.amount, 0);\nconst figuresOf = (list) => {\n  const won = sum(list.filter((l) => l.kind === 'won'));\n  const open = list.filter((l) => l.kind === 'open');\n  return {\n    closed: won,\n    pipeline: sum(open),\n    commit: won + sum(open.filter((l) => l.category === 'commit')),\n    bestCase: won + sum(open.filter((l) => l.category !== '')),\n  };\n};\nconst rows = [];\nlet late = false;\nconst add = (slugs, list, nobody) => {\n  if (!Object.values(slugs).some(Boolean)) return;\n  if (list.length === 0) { notes.push({ why: nobody }); return; }\n  const values = figuresOf(list);\n  for (const f of FIGURES) {\n    if (!slugs[f]) continue;\n    if (f !== 'closed' && !week.snapshot) { late = true; continue; }\n    rows.push({ metric: slugs[f], period: week.period, value: Math.round(values[f] * 100) / 100 });\n  }\n};\nadd(team, lines, 'Salesforce showed no deal at all for this quarter: nothing is sent for the team (not 0). Check that the login may see the deals.');\nfor (const p of people) add(p.slugs, lines.filter((l) => ownerKey(l.owner) === ownerKey(p.owner)), 'Salesforce showed no deal of owner ' + p.owner + ' for this quarter: nothing is sent for them (not 0). Check the id.');\nif (late) notes.push({ why: 'Pipeline, commit and best case are what the CRM says today, so they are sent only on a Monday or Tuesday. Only closed this quarter was sent for the week of ' + week.period + '.' });\n// Ids only, to help fill the table: whose deals are in this read and have no line.\nconst unlisted = [...new Set(lines.map((l) => l.owner).filter((o) => o !== '' && !seenOwners.has(ownerKey(o))))].filter((o) => OWNER.test(o));\nif (unlisted.length) notes.push({ why: 'Owner ids with deals and no line in Owners (they count towards the team only): ' + unlisted.slice(0, 50).join(', ') + (unlisted.length > 50 ? ' and more' : '') });\nreturn [{ json: { rows, skipped: notes, none: 'Nothing was sent for the week of ' + week.period + '. ' + notes.map((n) => n.why).join(' ') } }];\n"
+      },
+      "id": "a79d456a-38ac-5669-b799-198551048577",
+      "name": "Figures",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Shape values (spec 0043): the one node every Feed template shares. The source node before it hands over plain rows\n// { metric, value, period?, row? } and nothing else; this node is what makes them safe to send, whatever the source is:\n//  - each row is checked as Ziffr would check it (a Metric slug, a plain number, a period written as a day), a row that fails is\n//    skipped and said so, the same Metric and period twice is skipped, and at most 500 are sent;\n//  - Ziffr is asked which periods already hold a value (the node \"What is filled\", GET /api/v1/feed, as @ziffr/feed-kit does) and a\n//    past period that has one is not sent again, so a rerun, a manual run or a later run never overwrites, adds to or doubles what\n//    is there, whatever the Metric's Submission Rule; the current period is always sent, since its value may still change;\n//  - the key is made from the figures alone, so a retried run records nothing twice.\n// Only { metric, period, value } leaves: no other field of a row is read.\nconst SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;\nconst DAY = /^\\d{4}-\\d{2}-\\d{2}$/;\nconst NUMBER = /^-?\\d+(\\.\\d+)?$/;\nconst MAX_ITEMS = 500;\nconst given = $input.first().json;\nconst rows = Array.isArray(given.rows) ? given.rows : [];\nconst skipped = Array.isArray(given.skipped) ? [...given.skipped] : [];\nconst items = [];\nconst seen = new Set();\nrows.forEach((r, n) => {\n  const row = r.row ?? n + 1;\n  const metric = String(r.metric ?? '').trim();\n  const raw = typeof r.value === 'number' ? String(r.value) : String(r.value ?? '').trim();\n  const period = String(r.period ?? '').trim();\n  if (metric === '' && raw === '' && period === '') return;\n  if (!SLUG.test(metric)) { skipped.push({ row, why: 'the metric is not a Metric slug' }); return; }\n  if (!NUMBER.test(raw)) { skipped.push({ row, metric, why: 'the value is not a plain number' }); return; }\n  if (period !== '' && !DAY.test(period)) { skipped.push({ row, metric, why: 'the period is not a day written YYYY-MM-DD' }); return; }\n  const at = metric + '/' + period;\n  if (seen.has(at)) { skipped.push({ row, metric, why: 'the same Metric and period appear twice' }); return; }\n  seen.add(at);\n  if (items.length >= MAX_ITEMS) { skipped.push({ row, metric, why: 'more than ' + MAX_ITEMS + ' rows' }); return; }\n  items.push(period === '' ? { metric, value: Number(raw) } : { metric, period, value: Number(raw) });\n});\nif (items.length === 0) throw new Error(String(given.none || 'No figure to send: nothing holds a Metric slug and a number.'));\n\nconst overview = $('What is filled').first().json;\nconst listed = overview && overview.metrics && Array.isArray(overview.metrics.items) ? overview.metrics.items : [];\nif (overview && overview.metrics && overview.metrics.next) throw new Error('This Feed submits to more than 100 Metrics; this template reads that many at most (use a second Feed for the rest). No figure was sent.');\nconst metricOf = new Map(listed.map((m) => [m.slug, m]));\nconst send = items.filter((i) => {\n  const m = metricOf.get(i.metric);\n  return !(m && i.period && i.period !== m.current && Array.isArray(m.filled) && m.filled.includes(i.period));\n});\nconst settled = items.length - send.length;\nif (send.length === 0) return [];\n\nlet h = 5381;\nconst body = JSON.stringify(send);\nfor (let i = 0; i < body.length; i++) h = ((h * 33) ^ body.charCodeAt(i)) >>> 0;\nconst key = 'salesforce-forecast-' + h.toString(36) + '-' + send.length;\nreturn [{ json: { items: send, skipped, settled, key } }];\n"
+      },
+      "id": "2ac353c2-8bc1-558b-9407-965e36188675",
+      "name": "Shape values",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Settings').first().json.ziffrUrl.replace(/\\/+$/, '') }}/api/v1/feed/observations",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.key }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ items: $json.items }) }}",
+        "options": {}
+      },
+      "id": "0da41184-72fd-5926-bcea-0d116ad1ec9c",
+      "name": "Send to Ziffr",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Ziffr Feed Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ziffr's answer to a batch of values (spec 0043): one result per item, in the order sent. A refused item fails the run,\n// so that n8n shows it as failed and its owner looks; the rest were recorded all the same (each item stands on its own).\nconst results = Array.isArray($input.first().json.results) ? $input.first().json.results : [];\nconst shaped = $('Shape values').first().json;\nconst refused = results.filter((r) => r.status === 'refused');\nif (refused.length) {\n  const why = refused.slice(0, 10).map((r) => String(r.metric) + ' ' + String(r.period ?? '') + ' (' + String(r.code ?? 'refused') + '): ' + String(r.detail)).join('; ');\n  throw new Error('Ziffr refused ' + refused.length + ' of ' + results.length + ' values: ' + why + (refused.length > 10 ? '; and more' : ''));\n}\nconst count = (s) => results.filter((r) => r.status === s).length;\nreturn [{ json: { recorded: count('recorded'), waitingForApproval: count('awaiting_approval'), proposedAsCorrection: count('locked'), alreadyThere: shaped.settled, skippedRows: shaped.skipped } }];\n"
+      },
+      "id": "7ba52f19-2942-51f8-9546-f30245d2be6f",
+      "name": "Check the answers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Mondays at 12": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "What is filled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "What is filled": {
+      "main": [
+        [
+          {
+            "node": "Owners",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Owners": {
+      "main": [
+        [
+          {
+            "node": "Week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Week": {
+      "main": [
+        [
+          {
+            "node": "Read won totals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read won totals": {
+      "main": [
+        [
+          {
+            "node": "Read open totals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read open totals": {
+      "main": [
+        [
+          {
+            "node": "Figures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Figures": {
+      "main": [
+        [
+          {
+            "node": "Shape values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape values": {
+      "main": [
+        [
+          {
+            "node": "Send to Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Ziffr": {
+      "main": [
+        [
+          {
+            "node": "Check the answers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}

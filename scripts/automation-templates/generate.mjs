@@ -308,7 +308,7 @@ const withSettings = (name) => fill(code(name), { SETTINGS: code("feed-settings"
 function feedFlow(s, reads) {
   const when = s.schedule ?? DAILY;
   const w = new WF(`${s.key}-feed`, `${s.label} to Ziffr (values)`);
-  w.note(`${s.label} to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and ${s.fillIn ?? "where the figures are"}.\n2. Add the credentials: ${s.label} on the read node${s.readNames?.length > 1 ? "s" : ""}, and a Header Auth credential named "Ziffr Feed Key" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs ${when.when} (UTC).\n\n${s.reads}${s.extraNote ? `\n\n${s.extraNote}` : ""}`, s.extraNote ? 420 : 340);
+  w.note(`${s.label} to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and ${s.fillIn ?? "where the figures are"}.\n2. Add the credentials: ${s.credLabel ?? s.label} on the read node${s.readNames?.length > 1 ? "s" : ""}, and a Header Auth credential named "Ziffr Feed Key" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs ${when.when} (UTC).\n\n${s.reads}${s.extraNote ? `\n\n${s.extraNote}` : ""}`, s.extraNote ? 420 : 340);
   w.add(when.name, "n8n-nodes-base.scheduleTrigger", { rule: when.rule }, 0, 300, 1.2);
   w.timezone = "UTC"; // "at 9" and "the month that has just ended" are both read in UTC, whatever zone the n8n server is set to
   w.settings(s.settings, 220, 300);
@@ -448,7 +448,114 @@ const bigqueryFeed = () => warehouseFeed(BIGQUERY, "n8n-nodes-base.googleBigQuer
 const snowflakeFeed = () => warehouseFeed(SNOWFLAKE, "n8n-nodes-base.snowflake", 1, {
   operation: "executeQuery", query: "=" + SF_QUERY,
 }, { snowflake: { name: "Snowflake account" } });
-const FEED_TEMPLATES = [SHEETS, EXCEL, STRIPE, HUBSPOT, BIGQUERY, SNOWFLAKE];
+// ---- CRM sales forecasts (spec 0043): the weekly figures of the Sales forecast Pack ----
+// Each reads deals or totals for the quarter, read only, and hands "Shape values" one row per Metric for the week that has
+// just ended. The three share the table of salespeople (crm-owners.js), the week and quarter (crm-week.js) and the sums
+// (crm-figures.js); only the reads and a few lines about each CRM differ.
+// Monday at 12 UTC is Monday, or early Tuesday, in every time zone, so the week is over everywhere and still fresh.
+const WEEKLY = { name: "Mondays at 12", rule: { interval: [{ field: "weeks", triggerAtDay: [1], triggerAtHour: 12 }] }, when: "every Monday at 12, for the week that has just ended" };
+const WEEK = "$('Week').first().json";
+const CRM_NOTE = "Salespeople with Metrics of their own go in the node \"Owners\". Pipeline, commit and best case are what the CRM says at the moment of the run and are sent only on a Monday or Tuesday.";
+const SLUG_SETTING = {
+  closedMetric: "REPLACE-WITH-THE-CLOSED-THIS-QUARTER-METRIC-SLUG-OR-EMPTY",
+  pipelineMetric: "REPLACE-WITH-THE-PIPELINE-VALUE-METRIC-SLUG-OR-EMPTY",
+  commitMetric: "REPLACE-WITH-THE-COMMIT-METRIC-SLUG-OR-LEAVE-TO-SKIP",
+  bestCaseMetric: "REPLACE-WITH-THE-BEST-CASE-METRIC-SLUG-OR-LEAVE-TO-SKIP",
+};
+const crmSettings = (figures, own = []) => [
+  ["ziffrUrl", "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS"], ...own,
+  ["timeZone", "REPLACE-WITH-YOUR-TIME-ZONE-SUCH-AS-Europe/Berlin"],
+  ...figures.map((f) => [`${f}Metric`, SLUG_SETTING[`${f}Metric`]]),
+];
+const WITH_CATEGORIES = ["closed", "pipeline", "commit", "bestCase"];
+const CATEGORY_RULES = "//  - commit: closed plus the open amounts in the forecast category Commit;  bestCase: closed plus the open amounts in\n//    Commit, Best case and Most likely;\n";
+/** The Feed workflow of one CRM: the table, the week, the CRM's reads (`reads` adds them and returns their names), the sums. */
+function crmFeed(s, reads) {
+  const categories = s.figures.includes("commit");
+  const figures = fill(code("crm-figures"), {
+    SOURCE: code(`crm-${s.system}`).trimEnd(), LABEL: s.crm, FIGURES: s.figures.map((f) => `'${f}'`).join(", "),
+    RULES: categories ? CATEGORY_RULES : `//  - ${s.crm} has no forecast category, so there is no commit or best case here;\n`,
+  });
+  const owners = fill(code("crm-owners"), { OWNER: s.ownerHelp, EXAMPLE: s.ownerExample, MORE: categories ? ", commit: 'commit-ana', bestCase: 'best-case-ana'" : "" });
+  return feedFlow({ ...s, key: s.id, system: s.id, figures, schedule: WEEKLY, settings: crmSettings(s.figures, s.own), extraNote: CRM_NOTE }, (w, x, y) => {
+    w.code("Owners", owners, x, y);
+    w.code("Week", fill(code("crm-week"), { CHECK: s.check ?? "" }), x + 220, y);
+    return ["Owners", "Week", ...reads(w, x + 440, y)];
+  });
+}
+
+const HUBSPOT_FORECAST = {
+  id: "hubspot-forecast", system: "hubspot", crm: "HubSpot", label: "HubSpot forecast", file: "hubspot-forecast-feed.json", guide: "hubspot-forecast-feed.md",
+  reads: "Deal amounts, read only: closed this quarter and pipeline value, and if you like commit and best case, for the week that has just ended, for the team and per salesperson.",
+  needs: "A HubSpot service key or private app token that can read deals and nothing else.",
+  fillIn: "your time zone and which Metric each figure is for", credLabel: "HubSpot App Token", readNames: ["Read won deals", "Read open deals"],
+  figures: WITH_CATEGORIES, ownerHelp: "HubSpot's owner id of the deal owner (the property hubspot_owner_id), a number", ownerExample: "1234567",
+};
+const HUBSPOT_CREDENTIAL = ["predefined", "hubspotAppToken", "HubSpot App Token"];
+/** Every page of one deal search: 200 deals a page, under 5 searches a second, and no further than the 10,000 it gives. */
+function hubspotSearch(w, name, filters, x, y) {
+  const n = w.http(name, "POST", "https://api.hubapi.com/crm/objects/2026-09/deals/search", HUBSPOT_CREDENTIAL, x, y, {
+    body: `={{ JSON.stringify({ filterGroups: [{ filters: [${filters}] }], properties: ['amount', 'amount_in_home_currency', 'deal_currency_code', 'hubspot_owner_id', 'hs_manual_forecast_category'], limit: 200 }) }}`,
+  });
+  n.parameters.options = { pagination: { pagination: { paginationMode: "updateAParameterInEachRequest", parameters: { parameters: [{ type: "body", name: "after", value: "={{ $pageCount ? $response.body.paging.next.after : 0 }}" }] }, paginationCompleteWhen: "other", completeExpression: "={{ !$response.body.paging || !$response.body.paging.next }}", limitPagesFetched: true, maxRequests: 50, requestInterval: 300 } } };
+  return n;
+}
+const hubspotForecast = () => crmFeed(HUBSPOT_FORECAST, (w, x, y) => {
+  const is = (prop, value) => `{ propertyName: '${prop}', operator: 'EQ', value: '${value}' }`;
+  const between = (to) => `{ propertyName: 'closedate', operator: 'GTE', value: String(${WEEK}.fromMs) }, { propertyName: 'closedate', operator: 'LT', value: String(${WEEK}.${to}) }`;
+  hubspotSearch(w, "Read won deals", `${is("hs_is_closed_won", "true")}, ${between("wonBeforeMs")}`, x, y);
+  hubspotSearch(w, "Read open deals", `${is("hs_is_closed", "false")}, ${between("beforeMs")}`, x + 220, y).executeOnce = true; // asked once, not once a page of the read before
+  // Which forecast categories this portal has; needed for commit and best case only, so a failure here stops nothing else.
+  const options = w.http("Read forecast categories", "GET", "https://api.hubapi.com/crm/properties/2026-09/deals/hs_manual_forecast_category", HUBSPOT_CREDENTIAL, x + 440, y);
+  options.executeOnce = true;
+  options.onError = "continueRegularOutput";
+  return ["Read won deals", "Read open deals", "Read forecast categories"];
+});
+
+// The Salesforce login is sent to the address of the Settings, so only a Salesforce one is taken.
+const SALESFORCE_CHECK = `// The Salesforce login is sent to this address, so only a Salesforce one is taken.
+if (!/^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.salesforce\\.com\\/?$/.test(String(s.instanceUrl ?? '').trim())) throw new Error('Settings: instanceUrl is your Salesforce address, such as https://yourcompany.my.salesforce.com.');
+`;
+const SALESFORCE_FORECAST = {
+  id: "salesforce-forecast", system: "salesforce", crm: "Salesforce", label: "Salesforce forecast", file: "salesforce-forecast-feed.json", guide: "salesforce-forecast-feed.md",
+  reads: "Opportunity totals, read only: closed this quarter and pipeline value, and if you like commit and best case, for the week that has just ended, for the team and per salesperson.",
+  needs: "A Salesforce user that may read all opportunities and change nothing, and a connected app for n8n.",
+  fillIn: "your Salesforce address, your time zone and which Metric each figure is for", credLabel: "Salesforce OAuth2", readNames: ["Read won totals", "Read open totals"],
+  figures: WITH_CATEGORIES, ownerHelp: "the Salesforce User id of the opportunity owner, 15 or 18 characters starting with 005", ownerExample: "005000000000001AAA",
+  own: [["instanceUrl", "https://REPLACE-WITH-YOUR-DOMAIN.my.salesforce.com"]], check: SALESFORCE_CHECK,
+};
+/** One grouped query. Only dates the node "Week" worked out go into it: nothing typed into the Settings or read from the CRM. */
+const salesforceQuery = (w, name, soql, x, y) => w.http(name, "GET", "={{ $('Settings').first().json.instanceUrl.trim().replace(/\\/+$/, '') }}/services/data/v62.0/query", ["predefined", "salesforceOAuth2Api", "Salesforce account"], x, y, { query: [["q", `={{ ${soql} }}`]] });
+const salesforceForecast = () => crmFeed(SALESFORCE_FORECAST, (w, x, y) => {
+  const sums = "SUM(Amount) amountSum, COUNT(Id) dealCount, COUNT(Amount) pricedCount FROM Opportunity";
+  const between = (to) => `" AND CloseDate >= " + ${WEEK}.quarterFirst + " AND CloseDate <= " + ${WEEK}.${to}`;
+  salesforceQuery(w, "Read won totals", `"SELECT OwnerId, ${sums} WHERE IsWon = true" + ${between("wonLast")} + " GROUP BY OwnerId"`, x, y);
+  salesforceQuery(w, "Read open totals", `"SELECT OwnerId, ForecastCategory, ${sums} WHERE IsClosed = false" + ${between("quarterLast")} + " GROUP BY OwnerId, ForecastCategory"`, x + 220, y);
+  return ["Read won totals", "Read open totals"];
+});
+
+const PIPEDRIVE_FORECAST = {
+  id: "pipedrive-forecast", system: "pipedrive", crm: "Pipedrive", label: "Pipedrive forecast", file: "pipedrive-forecast-feed.json", guide: "pipedrive-forecast-feed.md",
+  reads: "Deal values, read only: closed this quarter and pipeline value for the week that has just ended, for the team and per salesperson. Pipedrive has no forecast category, so no commit or best case.",
+  needs: "The API token of a Pipedrive user who sees all deals. Pipedrive cannot limit a token to reading; the workflow only reads.",
+  fillIn: "the currency of your deals, your time zone and which Metric each figure is for", credLabel: "a Header Auth credential named \"Pipedrive API Token\" (name x-api-token, value your token)", readNames: ["Read won deals", "Read open deals"],
+  figures: ["closed", "pipeline"], ownerHelp: "Pipedrive's user id of the deal owner (owner_id), a number", ownerExample: "1234567",
+  own: [["currency", "REPLACE-WITH-THE-CURRENCY-CODE-SUCH-AS-EUR"]],
+};
+/** Every page of one list of deals (up to 100 pages of 500). */
+function pipedriveList(w, name, query, x, y) {
+  const n = w.http(name, "GET", "https://api.pipedrive.com/api/v2/deals", ["generic", "httpHeaderAuth", "Pipedrive API Token"], x, y, { query: [...query, ["limit", "500"]] });
+  n.parameters.options = { pagination: { pagination: { paginationMode: "updateAParameterInEachRequest", parameters: { parameters: [{ type: "qs", name: "cursor", value: "={{ $pageCount ? $response.body.additional_data.next_cursor : undefined }}" }] }, paginationCompleteWhen: "other", completeExpression: "={{ !$response.body.additional_data || !$response.body.additional_data.next_cursor }}", limitPagesFetched: true, maxRequests: 100, requestInterval: 300 } } };
+  return n;
+}
+const pipedriveForecast = () => crmFeed(PIPEDRIVE_FORECAST, (w, x, y) => {
+  // A deal won since the quarter began was changed since then, so older ones need not be read.
+  pipedriveList(w, "Read won deals", [["status", "won"], ["updated_since", `={{ ${WEEK}.changedSince }}`]], x, y);
+  pipedriveList(w, "Read open deals", [["status", "open"]], x + 220, y).executeOnce = true; // asked once, not once a page of the read before
+  return ["Read won deals", "Read open deals"];
+});
+
+const FEED_TEMPLATES = [SHEETS, EXCEL, STRIPE, HUBSPOT, BIGQUERY, SNOWFLAKE, HUBSPOT_FORECAST, SALESFORCE_FORECAST, PIPEDRIVE_FORECAST];
 
 export function generate() {
   const [todo, google, asana] = SYSTEMS_LIST;
@@ -460,7 +567,7 @@ export function generate() {
     "planner-from-ziffr.json": plannerFrom(), "planner-to-ziffr.json": plannerTo(),
     "slack-from-ziffr.json": slackFrom(), "slack-to-ziffr.json": slackTo(),
   };
-  const feeds = { "google-sheets-feed.json": sheetsFeed(), "excel-feed.json": excelFeed(), "stripe-feed.json": stripeFeed(), "hubspot-feed.json": hubspotFeed(), "bigquery-feed.json": bigqueryFeed(), "snowflake-feed.json": snowflakeFeed() };
+  const feeds = { "google-sheets-feed.json": sheetsFeed(), "excel-feed.json": excelFeed(), "stripe-feed.json": stripeFeed(), "hubspot-feed.json": hubspotFeed(), "bigquery-feed.json": bigqueryFeed(), "snowflake-feed.json": snowflakeFeed(), "hubspot-forecast-feed.json": hubspotForecast(), "salesforce-forecast-feed.json": salesforceForecast(), "pipedrive-forecast-feed.json": pipedriveForecast() };
   const index = { templates: FEED_TEMPLATES.map(({ id, label, file, guide, reads, needs, rows }) => ({ id, label, file, guide, reads, needs, ...(rows ? { rows } : {}) })) };
   return {
     ...Object.fromEntries(Object.entries({ ...all, ...feeds }).map(([f, w]) => [f, JSON.stringify(w.file(), null, 2) + "\n"])),

@@ -412,6 +412,16 @@ describe("hubspot-feed.json: from two totals to two figures", () => {
 // without meeting them: what goes wrong the same way for any source (a month sent twice, a bad row, a wrong key) is checked once.
 describe("every Feed template meets the same contract", () => {
   const ids = (JSON.parse(readFileSync(new URL("feed-templates.json", dir), "utf8")) as FeedIndex).templates;
+  /** A CRM forecast template: its reads, beside what its nodes before the sums hand over (crm-feed-templates.test.ts). */
+  const crm = (reads: Record<string, { json: Param }[]>) => ({
+    nodes: {
+      Settings: [{ json: { closedMetric: "m-a", pipelineMetric: "m-b", currency: "eur" } }],
+      Owners: [{ json: { owners: [] } }],
+      Week: [{ json: { period: "2025-10-01", quarterFirst: "2025-10-01", quarterLast: "2025-12-31", fromMs: Date.UTC(2025, 9, 1), wonBeforeMs: Date.UTC(2025, 9, 6), snapshot: true } }],
+      ...reads,
+    },
+    past: "2025-10-01",
+  });
   /** For each template, what its source hands over for two Metrics, `m-a` (a past period) and `m-b`. */
   const SOURCES: Record<string, { items?: { json: Param }[]; nodes?: Record<string, { json: Param }[]>; past: string }> = {
     excel: { items: [{ json: { metric: "m-a", value: 1, period: 45931 } }, { json: { Metric: "m-b", Value: 2 } }], past: "2025-10-01" },
@@ -427,6 +437,9 @@ describe("every Feed template meets the same contract", () => {
     bigquery: { items: [{ json: { metric: "m-a", value: "1", period: { value: "2025-10-01" } } }, { json: { METRIC: "m-b", VALUE: 2 } }], past: "2025-10-01" },
     snowflake: { items: [{ json: { METRIC: "m-a", VALUE: "1", PERIOD: "2025-10-01T00:00:00.000Z" } }, { json: { METRIC: "m-b", VALUE: 2 } }], past: "2025-10-01" },
     hubspot: { nodes: { Settings: [{ json: { dealsWonMetric: "m-a", newContactsMetric: "m-b" } }], "Count deals won": [{ json: { total: 7 } }], "Count new contacts": [{ json: { total: 9 } }] }, past: "2025-10-01" },
+    "hubspot-forecast": crm({ "Read won deals": [{ json: { results: [{ id: "1", properties: { amount_in_home_currency: "7" } }] } }], "Read open deals": [{ json: { results: [{ id: "2", properties: { amount_in_home_currency: "9" } }] } }], "Read forecast categories": [{ json: {} }] }),
+    "salesforce-forecast": crm({ "Read won totals": [{ json: { done: true, records: [{ OwnerId: "005A", amountSum: 7 }] } }], "Read open totals": [{ json: { done: true, records: [{ OwnerId: "005A", ForecastCategory: "Pipeline", amountSum: 9 }] } }] }),
+    "pipedrive-forecast": crm({ "Read won deals": [{ json: { success: true, data: [{ id: 1, status: "won", value: 7, currency: "EUR", won_time: "2025-10-02T10:00:00Z" }] } }], "Read open deals": [{ json: { success: true, data: [{ id: 2, status: "open", value: 9, currency: "EUR", expected_close_date: "2025-11-30" }] } }] }),
   };
   it("has a fixture for each template listed, and none for one that is not", () => {
     expect(Object.keys(SOURCES).sort()).toEqual(ids.map((t) => t.id).sort());
