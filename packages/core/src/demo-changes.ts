@@ -146,6 +146,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "pack-actions:updatePack",
     "pack-setup-actions:packSetup",
     "pack-setup-actions:planSetUp",
+    "pack-setup-actions:lineStart",
     "pack-setup-actions:setUpPack",
     "setup/actions:setUpFromPackInGuide",
     "share-proposal-actions:confirmProposal",

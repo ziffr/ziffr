@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { installPackFile, listInstalledPacks } from "./packs";
-import { packSetupOptions, setUpFromPack } from "./pack-setup";
+import { packSetupOptions, setUpFromPack, setUpStep } from "./pack-setup";
 import { listInstalledGuides, readInstalledGuide } from "./installed-pack-guides";
 import { exportPack, type ExportManifest } from "./pack-export";
 import { draftPackGuide } from "./pack-export-guide";
@@ -58,6 +58,29 @@ describe("where a Pack's numbers come from", () => {
     const second = await installPackFile(v.actor(bea), JSON.stringify(PACK), yes);
     await setUpFromPack(v.actor(bea), second, { metrics: ["commit", "closed", "quota"], submitters: [bea], askElsewhere: true });
     expect(await asked(v.id)).toEqual(["closed", "commit", "quota"]);
+  });
+
+  it("holds the same when Set up works in steps and when a line is added", async () => {
+    const sites: Pack = {
+      ...PACK, id: "ziffr/site-numbers", repeats: [{ key: "site", name: "Site" }],
+      contents: {
+        metrics: [
+          { key: "visits", per: "site", comesFrom: { by: "person" }, metric: metric("Visits") },
+          { key: "sales", per: "site", comesFrom: { by: "system", system: "shop system" }, metric: metric("Sales") },
+        ],
+      },
+    };
+    const w = await ws(); const ann = await w.person("owner"); const actor = w.actor(ann);
+    const id = await installPackFile(actor, JSON.stringify(sites), yes);
+    const input = { metrics: ["visits", "sales"], submitters: [ann], lines: [{ repeat: "site", name: "Munich" }] };
+    const first = await setUpStep(actor, id, input, null, 1);
+    if (first.done) throw new Error("one Metric a step makes two steps");
+    expect((await setUpStep(actor, id, input, first.run, 1)).done).toBe(true);
+    expect(await asked(w.id)).toEqual(["visits"]);
+    await setUpFromPack(actor, id, { ...input, lines: [{ repeat: "site", name: "Berlin" }], adding: { ticked: [] } });
+    expect(await asked(w.id)).toEqual(["visits", "visits"]);
+    await setUpFromPack(actor, id, { ...input, lines: [{ repeat: "site", name: "Hamburg" }], adding: { ticked: [] }, askElsewhere: true });
+    expect(await asked(w.id)).toEqual(["sales", "visits", "visits", "visits"]);
   });
 
   it("goes into an export as answered, a person where nothing is said, and is refused in words", async () => {

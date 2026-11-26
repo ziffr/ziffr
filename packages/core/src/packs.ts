@@ -300,6 +300,8 @@ export type InstalledPack = {
   added: { kind: "metric" | "dashboard" | "deck" | "workflow" | "view" | "theme"; name: string }[];
   /** Its Positions, Repeats and proposed Shares in words (spec 0058), of the items it still has, or null. */
   people: PackPeople | null;
+  /** The Repeats a line can be added to, as something of them was set up here: for Owners and Admins only. */
+  addable: { repeat: string; name: string }[];
 };
 
 /** The Workspace's installed Packs and what each added, for everyone in it but Guests (spec 0030: Members see them).
@@ -344,6 +346,12 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
       },
     });
   };
+  // Which Repeats have lines recorded: only those who set up are told.
+  const listedRepeats = new Set<string>();
+  if (withPlaces.length && (actor.role === "owner" || actor.role === "admin")) {
+    const { data: lines } = await db().from("pack_setup_lines").select("repeat_key, pack_setups!inner(install_id)").eq("workspace_id", ws).in("pack_setups.install_id", withPlaces);
+    for (const l of (lines ?? []) as unknown as { repeat_key: string; pack_setups: { install_id: number } }[]) listedRepeats.add(`${l.pack_setups.install_id} ${l.repeat_key}`);
+  }
   return data.map((r) => {
     const m = r.manifest as Omit<Pack, "contents"> & { places?: unknown; reviewed?: unknown };
     return {
@@ -351,6 +359,7 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
       source: r.source as PackOrigin["source"], signed: Boolean(r.signed), reviewed: r.source === "marketplace" && m.reviewed === true, installedAt: String(r.installed_at), installedBy: (r.installed_by as string | null) ?? null,
       listing: m.listing ?? {}, logo: packLogoAddress(ws, Number(r.id), (r.manifest as { logo?: unknown } | null)?.logo), help: helpOf(r.manifest), added: added.get(Number(r.id)) ?? [],
       people: peopleOfInstall(Number(r.id), m.places),
+      addable: (readPlaces(m.places)?.repeats ?? []).filter((x) => listedRepeats.has(`${Number(r.id)} ${x.key}`)).map((x) => ({ repeat: x.key, name: x.name })),
     };
   });
 }

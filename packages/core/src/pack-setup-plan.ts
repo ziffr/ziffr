@@ -5,7 +5,8 @@
 // visibility rules the app uses, over the rows as they would be. Only Metrics made here and Metrics the actor sees are
 // named: no other Metric can be seen through anything a Set up makes.
 import type { Actor } from "./actor";
-import { visibilityOfMany, type PlannedRows } from "./access";
+import { getShares, visibilityOfMany, type PlannedRows } from "./access";
+import type { Offer } from "./pack-setup-adding";
 import { fromDashboardTemplate } from "./team-templates";
 import { widgetMetricIds } from "./widget-metrics";
 import { listed } from "./pack-places";
@@ -32,6 +33,10 @@ export type PackSetupPlan = {
   /** Requests for values: those that go out at once, those that wait for the Workflow's next run, and those nobody
    * sends by themselves because the Metric follows no Workflow. */
   messages: { now: PlannedMessages[]; nextRun: PlannedMessages[]; unasked: PlannedMessages[]; /** How many requests go to others than the person setting up, if they are asked now. */ others: number };
+  /** Adding a line: what is set up already that it may be added to, each ticked or not, and what is left to do by
+   * hand. */
+  offers: Offer[];
+  byHand: string[];
   notes: string[];
   problems: string[];
   room: PackSetupRoom | null;
@@ -49,15 +54,19 @@ function plannedRows(actor: Actor, b: Blueprint, shares: ProposedShare[]): Plann
     tokens: b.metrics.flatMap((m) => [...m.submitters, ...(b.feed && !m.entry.formula ? [b.feed] : [])].map((s) => ({ metric_id: m.plan, submitter_id: s }))),
     shares: shares.map((s) => ({ object_type: s.object, object_id: s.plan, user_id: s.person, role: s.role })),
     dashboards: b.dashboards.map((d) => ({ id: d.plan, owner_id: actor.personId })),
-    widgets: b.dashboards.flatMap((d) => widgetsOf(d).map((w) => ({ dashboard_id: d.plan, metric_ids: w.metric_ids, settings: w.settings }))),
+    widgets: [
+      ...b.dashboards.flatMap((d) => widgetsOf(d).map((w) => ({ dashboard_id: d.plan, metric_ids: w.metric_ids, settings: w.settings }))),
+      // A widget there already that takes the new Metrics shows them to whoever its dashboard is shared with.
+      ...b.additions.widgets.map((w) => ({ dashboard_id: w.dashboard.id, metric_ids: w.add, settings: {} })),
+    ],
   };
 }
 
 /** Everyone a Set up puts somewhere, the person setting up first. */
-function involved(actor: Actor, b: Blueprint): string[] {
+function involved(actor: Actor, b: Blueprint, alsoSee: string[]): string[] {
   const steps = b.workflows.flatMap((w) => [...w.approvers, ...(w.send?.people ?? []), ...w.config.steps.flatMap((s: WorkflowStep) =>
     s.type === "tell" ? s.people : s.type === "checklist" ? (s.kind === "info" ? s.people : [s.assignee, s.standIn ?? null]) : [])]);
-  const all = [actor.personId, ...b.metrics.flatMap((m) => [...m.submitters, m.standIn]), ...b.lines.flatMap((l) => [...l.fills.values()].flat()), ...b.shares.map((s) => s.person), ...steps];
+  const all = [actor.personId, ...b.metrics.flatMap((m) => [...m.submitters, m.standIn]), ...b.lines.flatMap((l) => [...l.fills.values()].flat()), ...b.shares.map((s) => s.person), ...steps, ...alsoSee];
   return [...new Set(all.filter((id): id is string => typeof id === "string" && b.people.has(id)))];
 }
 
@@ -72,7 +81,7 @@ function messagesOf(actor: Actor, b: Blueprint, askNow: boolean): PackSetupPlan[
   const now: string[] = [], nextRun: string[] = [], unasked: string[] = [];
   for (const m of b.metrics) for (const s of m.submitters) {
     if (!b.people.has(s)) continue;
-    (s === actor.personId || askNow ? now : m.workflow ? nextRun : unasked).push(s);
+    (s === actor.personId || askNow ? now : m.workflow || b.additions.join !== null ? nextRun : unasked).push(s);
   }
   const others = b.metrics.flatMap((m) => m.submitters).filter((s) => s !== actor.personId && b.people.has(s)).length;
   return { now: countBy(b, now), nextRun: countBy(b, nextRun), unasked: countBy(b, unasked), others };
@@ -111,6 +120,10 @@ export async function planPackSetup(actor: Actor, installId: number, input: Pack
   const names = new Map<number, string>([...b.metrics.map((m): [number, string] => [m.plan, m.name]), ...b.existing.map((m): [number, string] => [m.id, m.name])]);
   const onBoards = new Map(b.dashboards.map((d) => [d.plan, metricsOn(d)]));
   const scope = [...new Set([...b.metrics.map((m) => m.plan), ...[...onBoards.values()].flat().filter((id) => id > 0)])];
+  // Whoever a dashboard that takes the new Metrics is shared with sees them: they are named with the rest.
+  const shown = new Set(b.additions.widgets.map((w) => w.dashboard.id));
+  const through = shown.size ? (await getShares(ws)).filter((s) => s.object_type === "dashboard" && shown.has(s.object_id)) : [];
+  const joins = (person: string, metric: number) => b.additions.widgets.filter((w) => w.add.includes(metric) && (person === actor.personId || through.some((s) => s.object_id === w.dashboard.id && s.user_id === person))).map((w) => `on the dashboard ${w.dashboard.name}`);
   const why = (person: string, metric: number): string[] => {
     const planned = b.metrics.find((m) => m.plan === metric);
     const owner = planned ? actor.personId : b.existing.find((m) => m.id === metric)?.owner_id;
@@ -119,10 +132,11 @@ export async function planPackSetup(actor: Actor, installId: number, input: Pack
       ...(planned?.submitters.includes(person) ? ["submits it"] : []),
       ...(ticked.some((s) => s.object === "metric" && s.plan === metric && s.person === person) ? ["shared with them"] : []),
       ...b.dashboards.filter((d) => onBoards.get(d.plan)!.includes(metric) && ticked.some((s) => s.object === "dashboard" && s.plan === d.plan && s.person === person)).map((d) => `on the dashboard ${d.name}`),
+      ...new Set(joins(person, metric)),
     ];
     return reasons.length ? reasons : ["sees it already"];
   };
-  const everyone = involved(actor, b);
+  const everyone = involved(actor, b, through.map((s) => s.user_id));
   const sees = everyone.map((id) => {
     const visible = after(id).metrics;
     return { id, name: b.people.get(id)!.name, metrics: scope.filter((m) => visible.has(m)).map((m) => ({ name: names.get(m) ?? "A Metric", why: why(id, m) })) };
@@ -142,6 +156,8 @@ export async function planPackSetup(actor: Actor, installId: number, input: Pack
     sees,
     shares,
     messages: messagesOf(actor, b, input?.askNow === true),
+    offers: b.additions.offers,
+    byHand: b.additions.byHand,
     notes: [...b.notes, ...sightNotes(actor, b, (id) => after(id).metrics, ticked)],
     problems: b.problems,
     room: await roomNow(actor, SETUP_METRICS_MAX),

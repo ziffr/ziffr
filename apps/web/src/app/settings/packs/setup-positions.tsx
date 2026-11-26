@@ -60,7 +60,7 @@ export function PositionField({ position, people, chosen, onChange, of }: { posi
       ) : (
         <label className="flex flex-wrap items-center gap-2">
           <span className="w-44 text-xs font-medium">{label}</span>
-          <select className={field} value={chosen[0] ?? ""} onChange={(e) => onChange(e.target.value ? [e.target.value] : [])}>
+          <select className={field} aria-label={label} value={chosen[0] ?? ""} onChange={(e) => onChange(e.target.value ? [e.target.value] : [])}>
             <option value="">Nobody yet</option>
             {offered.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
@@ -80,13 +80,27 @@ export function PositionField({ position, people, chosen, onChange, of }: { posi
 const many = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 const asks = (list: PackSetupPlan["messages"]["now"]) => list.map((m) => `${m.name} (${m.count})`).join(", ");
 
-/** What to check before setting up: what is made, who will see what, the proposed Shares, the messages and the rest. */
-export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow }: { plan: PackSetupPlan; ticks: Record<string, boolean>; onTick: (changes: Record<string, boolean>) => void; askNow: boolean; onAskNow: (v: boolean) => void }) {
+/** What adding a line does not change of what is there, for the person to do by hand. */
+export function ByHand({ items }: { items: string[] }) {
+  return (
+    <div className="mt-2 text-xs">
+      <p className="font-medium">Left to do by hand</p>
+      <ul className="list-disc space-y-0.5 pl-5">{items.map((x) => <li key={x}>{x}</li>)}</ul>
+    </div>
+  );
+}
+
+/** What to check before setting up: what is made, who will see what, the proposed Shares, what a new line is added to,
+ * the messages and the rest. */
+export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow, offerTicks, onOffer }: { plan: PackSetupPlan; ticks: Record<string, boolean>; onTick: (changes: Record<string, boolean>) => void; askNow: boolean; onAskNow: (v: boolean) => void; offerTicks: Record<string, boolean>; onOffer: (id: string, on: boolean) => void }) {
   const byPerson = [...new Set(plan.shares.map((s) => s.person))];
   return (
     <section aria-label="Check before you set up" className="space-y-3 rounded-[var(--radius-input)] bg-muted p-3 [overflow-wrap:anywhere]">
       <h4 className="font-medium">Check before you set up</h4>
-      <p className="text-xs">Makes {many(plan.makes.metrics.length, "Metric")}, {many(plan.makes.dashboards.length, "dashboard")} and {many(plan.makes.workflows.length, "Workflow")}.</p>
+      <details className="text-xs">
+        <summary className="cursor-pointer">Makes {many(plan.makes.metrics.length, "Metric")}, {many(plan.makes.dashboards.length, "dashboard")} and {many(plan.makes.workflows.length, "Workflow")}.</summary>
+        <p className="mt-1">{[...plan.makes.metrics, ...plan.makes.dashboards.map((d) => `the dashboard ${d}`), ...plan.makes.workflows.map((w) => `the Workflow ${w}`)].join("; ")}</p>
+      </details>
 
       <div>
         <h5 className="text-xs font-medium">Who will see what</h5>
@@ -134,6 +148,16 @@ export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow }: { plan: Pac
           })}
         </div>
       )}
+
+      {plan.offers.length > 0 && (
+        <fieldset className="space-y-1 text-xs">
+          <legend className="font-medium">Add to what is set up</legend>
+          {plan.offers.map((o) => (
+            <label key={o.id} className="flex items-start gap-2"><input type="checkbox" className={check} checked={offerTicks[o.id] ?? true} onChange={(e) => onOffer(o.id, e.target.checked)} /> <span>{o.words}</span></label>
+          ))}
+        </fieldset>
+      )}
+      {plan.byHand.length > 0 && <ByHand items={plan.byHand} />}
 
       <div className="text-xs">
         <h5 className="font-medium">Messages</h5>
