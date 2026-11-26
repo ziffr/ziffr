@@ -1,6 +1,12 @@
 # 0061 A quarterly review from several areas: Snapshot Parts on a deck, and Needs attention
 
-**Status:** draft. **Ticket:** tracking issue #1203, tickets #1204, #1205, #1207, #1208, #1209, #1210 (the owner approved writing this spec on 2026-11-26; the decisions at the end are still to be checked).
+**Status:** Part 1 accepted and being built; Part 2 draft. **Ticket:** tracking issue #1203, tickets #1204, #1205, #1207, #1208, #1209, #1210.
+
+## The owner's instruction, 2026-11-26
+
+On the fault in problem 2: "that must be fixed, and we need the option to create a deck either on live numbers or on a Snapshot." So wherever a deck is started from a dashboard or a Snapshot, the person chooses between **Live numbers** and a Snapshot's kept numbers. A slide that keeps numbers says so on screen, when presenting and in PDF and PowerPoint ("Numbers as of ..."), and its values, targets, comparisons, Breakdowns and derived figures never change. Adding a Snapshot's slides to a deck that exists is part of it. Decks already made from a Snapshot keep working as they are, and the app says that their numbers are live.
+
+The owner also decided that day, the stricter way: **a deck's Share opens nothing through a Snapshot Part.** Each reader also needs access to the dashboard the part came from.
 
 ## Problem Statement
 
@@ -17,7 +23,7 @@ Much of this works today. An area lead owns the dashboard and shares it with a G
 
 Two things, built in this order.
 
-1. **Snapshot Parts.** **Add to a deck…** on a shown Snapshot adds its parts to a deck that exists. A part draws the numbers the Snapshot kept, and each person sees it only if the Snapshot itself would show it to them.
+1. **Snapshot Parts.** **Add to a deck…** on a shown Snapshot adds its parts to a deck that exists, and **Make a deck** offers the same numbers for a new one. A part draws the numbers the Snapshot kept, and each person sees it only if the Snapshot itself would show it to them.
 2. **Needs attention.** A Scoreboard can show only the Metrics that are off target or changed most, however many it follows.
 
 A quarter then goes like this. Once, each area lead shares their dashboard with a Group such as "Quarterly review". Each quarter, the lead takes the Snapshot, writes its words and shows it. The assembler adds each shown Snapshot to the review deck, shares the deck with the same Group, and presents or exports it.
@@ -50,7 +56,8 @@ No migration is needed.
 | Values, Breakdowns, layout of the Widget | The Snapshot's kept data. A later correction, late value or Retention does not change it. |
 | Targets, Projections, Attainment method | The Snapshot, as when it is opened. |
 | "To date", comparisons | Counted from the day after the period, as when it is opened. |
-| Number Style, start of the Fiscal Year | The Workspace now, as when it is opened. |
+| Start of the Fiscal Year | As the Snapshot kept it, so a quarter on a part never changes its months. The Snapshot's own screen follows the Workspace's year start now ([spec 0017](0017-quarterly-and-yearly-metrics.md)). |
+| Number Style | The Workspace now: how a number is written, never which number. |
 | Titles, headlines, sentences, introduction | The Snapshot's words **now**. The area may reword after showing; every change is a Version. |
 | Colours and fonts | The deck's Theme. |
 
@@ -84,6 +91,30 @@ Two things follow from the Snapshot's own rules and are said in the user guide:
 - A Metric that someone saw only through the dashboard, and that is later taken off it, disappears for them from the part too.
 - A dashboard's Share does not open a Metric shown through a Tag ([spec 0038](0038-tags.md)), neither live nor in a Snapshot. In a Snapshot, a Widget that followed a Tag is shown only to people who may see all the Metrics it kept. The dashboard's Share gives them only those that a fixed Widget on the live dashboard also shows. An area that uses Tags shares those Metrics with the review's Group.
 
+#### Slides that keep numbers
+
+A slide **keeps numbers** when it holds a Snapshot Part, or was made by adding a Snapshot (its frame stores the Snapshot's id and nothing else, so deleting the part does not turn the slide live). Everything on such a slide that draws numbers, Widgets and [Slide Elements](0057-designed-slides.md) alike, draws that Snapshot's kept numbers, by the rules below for a part. Nothing on it draws a live number:
+
+- A viewer who may not open the Snapshot, or may not see one of the shape's Metrics, or looks at a Metric the Snapshot did not keep, reads "These numbers are not shown to you: this slide keeps a Snapshot's numbers." in its place.
+- A Widget or element there adds no Metric to the deck either, so the deck's Share opens nothing through it.
+- A slide with parts of two Snapshots and no mark of its own draws no other numbers: the shape asks to be moved to a slide of one.
+- A slide with such numbers says "Numbers as of" with the day the Snapshot was taken, its dashboard and period.
+- View Links leave these shapes out with the parts.
+
+A Widget moved to a slide that keeps no numbers is live again, and saving it asks once more that whoever saves sees its Metrics.
+
+#### Live numbers or a Snapshot
+
+**Make a deck**, on a dashboard and on a Snapshot, asks which numbers the deck shows:
+
+| Started from | Default | Also offered |
+| --- | --- | --- |
+| A dashboard | **Live numbers**: one editable slide for each Widget, as before. | One of the dashboard's shown Snapshots. |
+| A shown Snapshot | **This Snapshot's numbers**: the opening part and one part for each Widget. | **Live numbers**: the dashboard as it is now. |
+| A draft Snapshot | **Live numbers**. | Nothing: the draft is shown first. |
+
+A deck made from a Snapshot before this (its Widgets marked with the period's last day) stays as it is. Its editor says that its numbers are live, and each such slide says "Live numbers, periods up to" that day, also when presenting and exported.
+
 #### Adding a Snapshot to a deck
 
 **Add to a deck…** stands on the Snapshot's screen beside **Make a deck**. It offers the decks the person may edit, and **New deck**.
@@ -100,7 +131,7 @@ The deck gets, after its last slide, one slide with the opening part and then on
 
 The area stays in charge: only the dashboard's owner and Editors take, write and show; only its owner deletes. Deleting the Snapshot, or taking the dashboard's Share away, takes the parts' numbers out of every deck at once for those concerned. Files exported earlier keep them.
 
-**Make a deck** stays as it is, with editable Widgets that draw the values recorded now. Ticket 3 corrects the user guide's sentence about it.
+**Make a deck** with live numbers keeps its editable Widgets; with a Snapshot's numbers it makes the same slides as **Add to a deck…** in a new deck. The user guide's old sentence is corrected.
 
 #### The deck's owner sees who is left out
 
@@ -112,7 +143,7 @@ The deck's Share panel adds, for each person and Group the deck is shared with, 
 | --- | --- |
 | Presenting | The same checks for whoever presents. |
 | PowerPoint and PDF | The file holds what the exporting person sees; other parts export their sentence. A slide whose only numbers are parts carries the line under the part instead of "Data as of" today. |
-| View Links to a deck, live and frozen | **Left out** in this spec. The core removes parts from what a link sends, and the View Link window says how many are left out. Without this step the shape would pass, since a link filters Widgets only. |
+| View Links to a deck, live and frozen | **Left out** in this spec, with every shape that draws numbers on a slide that keeps them. The core removes them from what a link sends, and the View Link window says how many are left out. Without this step the shape would pass, since a link filters Widgets only. |
 | Dashboards, Free layouts | Refused. |
 | Slide layouts, Deck Templates, Packs, Workspace Export | Left out, and said so. |
 | Versions | Restoring brings the references back; the checks apply when they are read. |
@@ -164,7 +195,7 @@ The setting is checked on the server wherever Widget settings arrive: the app, t
 | --- | --- | --- |
 | #1204 | Snapshot Parts: core, visibility, where they are refused or left out | |
 | #1205 | Drawing them: editor, presenting, exports, glossary, guide | #1204 |
-| #1207 | Add to a deck…, and the guide's sentence about **Make a deck** | #1205 |
+| #1207 | Add to a deck…, **Make a deck** with the choice of numbers, and the guide | #1205 |
 | #1208 | The Share panel says who is left out | #1204, #1207 |
 | #1209 | Needs attention: rule, Tags, Snapshots and decks, View Links | |
 | #1210 | Needs attention: setting, drawing, guide | #1209 |
@@ -182,18 +213,26 @@ The visibility table of Part 1 is tested row by row against the database. So are
 5. Needs attention counting a missing or late value.
 6. Showing the assembler which areas have not shown their Snapshot yet.
 
-## Decisions for the owner to check
+## Decisions
 
-Each is written above as decided; the alternative follows.
+### Decided by the owner, 2026-11-26
 
-1. **A deck's Share opens nothing through a part.** Each area shares its dashboard with the audience. Alternative: treat parts like live Widgets, so that sharing the deck shows them. That is less work for the assembler, and lets anyone who may open a Snapshot pass it on without the area's say.
-2. **Anyone who may open a shown Snapshot may add it** to a deck of theirs, a dashboard Viewer included. They can export it, as they can capture the screen today. Alternative: only the dashboard's owner and Editors, who then need to be Editors of the review deck.
-3. **Only shown Snapshots** can be added, so nobody sees an empty slide where a draft is.
-4. **View Links leave parts out.** An outside audience gets a PDF or PowerPoint file. The question for later: may a deck's owner send another area's Snapshot outside, when for the Snapshot itself only the dashboard's owner makes a View Link?
-5. **Numbers stay, words follow.** Alternative: keep the words as they were when added, which would need the deck to keep text that not everyone may read.
-6. **Make a deck stays live.** Alternative: it makes Snapshot Parts too, which would keep its numbers but take away editing the Widgets and, until 4 changes, its View Links.
-7. **Tags stay closed to the dashboard's Share**, also in Snapshots, and a Widget is left out whole for a reader who lacks one Metric. With Tags, each area must share its Metrics with the audience. Alternative: narrow the table to the Metrics the reader may see.
-8. **A change counts in both directions** from 10 %, and a missing value does not count. A share of a small number makes a large change; a Metric in percent is judged the same way.
-9. **The Scoreboard's Target column starts using the Target Series** in both settings. Number Widgets keep judging their chip against the Target Range, so for a Metric with a Target Series the two may differ; changing the chips everywhere would be a ticket of its own.
-10. **Needs attention is also offered for a fixed list**, since that is the way to have it opened by the dashboard's Share.
-11. **The name** is already on the Timeline for something else. Alternative: "Off target or changed".
+1. **A deck's Share opens nothing through a part.** Each reader also needs access to the dashboard it came from, so each area shares its dashboard with the audience.
+2. **Both kinds of deck**: live numbers or a Snapshot's, chosen where the deck is started. (The draft had **Make a deck** stay live.)
+
+### Built as recommended, the most restrictive choice; open to the owner
+
+3. **Anyone who may open a shown Snapshot may add it** to a deck of theirs, a dashboard Viewer included. They can export it, as they can capture the screen today. Alternative: only the dashboard's owner and Editors, who then need to be Editors of the review deck.
+4. **Only shown Snapshots** can be added or picked, so nobody sees an empty slide where a draft is.
+5. **View Links leave parts out.** An outside audience gets a PDF or PowerPoint file. The question for later: may a deck's owner send another area's Snapshot outside, when for the Snapshot itself only the dashboard's owner makes a View Link?
+6. **Numbers stay, words follow.** Alternative: keep the words as they were when added, which would need the deck to keep text that not everyone may read.
+7. **A slide that keeps numbers keeps all of them**, Widgets and Slide Elements put on it included. Alternative: they stay live beside the part, which mixes two sets of numbers on one slide.
+8. **The start of the Fiscal Year is the Snapshot's** on a slide, and the Workspace's now on the Snapshot's own screen ([spec 0017](0017-quarterly-and-yearly-metrics.md)). Alternative: change one of the two so that both agree.
+
+### Part 2, for the owner to check
+
+9. **Tags stay closed to the dashboard's Share**, also in Snapshots, and a Widget is left out whole for a reader who lacks one Metric. With Tags, each area must share its Metrics with the audience. Alternative: narrow the table to the Metrics the reader may see.
+10. **A change counts in both directions** from 10 %, and a missing value does not count. A share of a small number makes a large change; a Metric in percent is judged the same way.
+11. **The Scoreboard's Target column starts using the Target Series** in both settings. Number Widgets keep judging their chip against the Target Range, so for a Metric with a Target Series the two may differ; changing the chips everywhere would be a ticket of its own.
+12. **Needs attention is also offered for a fixed list**, since that is the way to have it opened by the dashboard's Share.
+13. **The name** is already on the Timeline for something else. Alternative: "Off target or changed".
