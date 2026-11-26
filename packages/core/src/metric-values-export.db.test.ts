@@ -1,7 +1,7 @@
 // Download the values of chosen Metrics (spec 0056): who may, which Metrics are in the file, and what is written down.
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
-import { db } from "./db";
+import { auditLog } from "./audit-log";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 import { EXPORT_METRICS, exportMetricValues } from "./metric-values-export";
@@ -75,9 +75,12 @@ describe("exportMetricValues", () => {
   it("writes each download in the Audit Log, in counts and without a name or a value", async () => {
     const { w, sara, revenue, costs } = await base();
     await exportMetricValues(w.actor(sara, "member"), [revenue.slug, costs.slug]);
-    const { data } = await db().from("audit_events").select("kind, details, object_name").eq("workspace_id", w.id).eq("kind", "export.metric_values");
-    expect(data).toHaveLength(1);
-    expect(data![0].details).toEqual({ metrics: 2, rows: 3 });
-    expect(JSON.stringify(data)).not.toContain("1200");
+    // Read as the Audit Log page reads it: the stored details are sealed with the Workspace Key.
+    const owner = await w.person("owner");
+    const { events } = await auditLog(w.actor(owner), { kind: "export.metric_values" });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ actorId: sara, objectName: null, details: { metrics: 2, rows: 3 } });
+    expect(JSON.stringify(events)).not.toContain("Revenue");
+    expect(JSON.stringify(events[0].details)).not.toContain("1200");
   });
 });
