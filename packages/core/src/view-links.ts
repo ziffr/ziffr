@@ -30,6 +30,7 @@ import { numberStyleOf } from "./workspace-settings";
 import { effectiveLimit } from "./limits";
 import { trialEnded, trialLastDay, trialLimitMessage } from "./trials";
 import type { CanvasData, Widget } from "./types";
+import { withoutUnseenInputs } from "./formula";
 
 /** How long a View Link may live at most, in days: the ceiling; a Workspace may set a shorter life (limits.ts). */
 export const MAX_DAYS = 90;
@@ -81,7 +82,8 @@ export function shownData(full: CanvasData, ids: Set<number>, themeId: number | 
   const slugs = new Set(metrics.map((m) => m.slug));
   return {
     viewer: "",
-    metrics,
+    // Nor does its formula name a Metric that is not shown.
+    metrics: withoutUnseenInputs(metrics, slugs),
     series: Object.fromEntries(Object.entries(full.series).filter(([slug]) => slugs.has(slug))),
     people: peopleShown(full.people, metrics),
     openActions: {},
@@ -196,7 +198,10 @@ function mapStrings(value: unknown, change: (text: string) => string): unknown {
  * words) the names, first names, emails and handles of the Workspace's people, and of those a frozen copy kept,
  * read "Someone" (hide-names.ts, as for a Guest). Rule 3: what is not sent cannot leak, so the people are dropped
  * rather than hidden by the page (contact details are loaded only to find them in words, never sent). With names on, the list is what shownData keeps: names and colours, no contact details. */
-export async function viewForLink(view: ViewPayload, workspaceId: string, showNames: boolean): Promise<ViewPayload> {
+export async function viewForLink(kept: ViewPayload, workspaceId: string, showNames: boolean): Promise<ViewPayload> {
+  // Served through the same cut as made, as for people below: a frozen copy's formulas name only Metrics it shows.
+  const metricsShown = withoutUnseenInputs(kept.data.metrics, new Set(kept.data.metrics.map((m) => m.slug)));
+  const view = { ...kept, data: { ...kept.data, metrics: metricsShown } };
   // A Theme is drawn by its looks: never the id of whoever made it, also in a frozen copy made before that was left out.
   const themes = view.data.themes.map((t) => ({ ...t, owner_id: "" }));
   // Served through the same cut as made: frozen copies and Snapshots kept the whole list before (ticket #902).

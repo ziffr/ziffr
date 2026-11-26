@@ -16,7 +16,7 @@ const SHORT: Record<CompareKey, string> = { ...COMPARE_LABEL, prev: "vs prev." }
 export function exportedChange(m: Metric, data: CanvasData, settings: Pick<WidgetSettings, "compare" | "fullPeriods">): string {
   const key = (settings.compare ?? DEFAULT_KEYS)[0];
   if (!key) return "";
-  const c = compare(m, resolverFrom(data.metrics, data.series), { keys: [key], full: settings.fullPeriods, yearStart: data.yearStart })[0];
+  const c = compare(m, resolverFrom(data.metrics, data.series, data), { keys: [key], full: settings.fullPeriods, yearStart: data.yearStart })[0];
   // compare() gives one Comparison per key asked for, and only an available one with an earlier value other than 0
   // has a number as its change: that one test covers a gap, no earlier value and an earlier 0.
   if (typeof c.pct !== "number") return "";

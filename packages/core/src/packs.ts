@@ -45,6 +45,10 @@ export type PackPreview = {
   unsigned: boolean;
   /** Where the file came from, so the page says who vouches for it. */
   source: PackOrigin["source"];
+  /** The Marketplace's Signed Statement says a moderator looked at this version. */
+  reviewed: boolean;
+  /** The address of the Marketplace's report form for this Pack and version; only a Marketplace Pack's Preview has one. */
+  report?: string | null;
   /** Texts that address an AI assistant, by where they are, for a person to read before installing. */
   assistantTexts: { path: string; text: string }[];
   /** Why this person cannot install it here, or null: a Pack with Themes needs an Owner, an installed Pack is not
@@ -135,8 +139,18 @@ export const itemKeys = (stored: ReturnType<typeof storedItems>) => [...stored.c
 /** The most a Workspace holds from Packs: installs, its own Metric Catalog entries, and templates of any kind. */
 export const PACK_CAPS = { installs: 25, entries: 1000, templates: 1000 } as const;
 
+/** Why this Ziffr cannot take this Pack in yet, or null. A Total (spec 0058) is stored as nothing but its Metric, so Set
+ * up would make an ordinary Metric that people type values into: until #1226 builds Totals, a Pack holding one is refused
+ * whole, at installing and at updating, so that no part of it is ever stored. */
+export function notBuiltYet(pack: Pick<Pack, "contents">): string | null {
+  const total = pack.contents.metrics?.find((m) => m.total);
+  return total ? `This Pack holds a Total, “${total.metric.name}”, which this version of Ziffr cannot make yet. Nothing of the Pack is added.` : null;
+}
+
 /** Why this actor cannot install this Pack in their Workspace, or null. */
 async function blockedFor(actor: Actor, pack: Pack): Promise<string | null> {
+  const early = notBuiltYet(pack);
+  if (early) return early;
   if ((pack.contents.themes?.length ?? 0) > 0 && actor.role !== "owner") return "This Pack holds Themes, and only Owners change Themes: an Owner installs it.";
   const { data } = await db().from("pack_installs").select("version").eq("workspace_id", actor.workspaceId).eq("pack_id", pack.id).maybeSingle();
   // A Workspace holds at most so many Packs and so many rows from them, so a taken-over Admin cannot fill the database.
@@ -164,9 +178,23 @@ export const manifestOf = (p: Pack): Omit<Pack, "contents"> => {
   return m;
 };
 
-/** Where a Pack's file came from: an upload (never signed here), the Marketplace with its signature checked, or Ziffr's
- * own Packs that come with this release (`signed`: they are part of Ziffr's code, checked in CI like it). */
-export type PackOrigin = { source: "upload" | "marketplace" | "included"; signed: boolean };
+/** The manifest an install keeps, with the logo checked again. What ziffr.pack/2 adds (Positions, Repeats, credit and
+ * the Pack Guide) is left out: nothing reads it from an install yet, and with a guide the manifest would not fit the
+ * 16,384 bytes the database keeps of it, so the whole Pack would be refused (spec 0058). */
+export const installManifest = (p: Pack): Omit<Pack, "contents" | "positions" | "repeats" | "basedOn" | "guide"> => {
+  const { positions: _p, repeats: _r, basedOn: _b, guide: _g, ...m } = manifestOf(p); // eslint-disable-line @typescript-eslint/no-unused-vars
+  return { ...m, ...(p.logo === undefined ? {} : { logo: packLogoOf(p)! }) };
+};
+
+/** Where a Pack's file came from: an upload (never signed here), the Marketplace with its signature checked (`reviewed`
+ * when its statement says a moderator looked), or Ziffr's own Packs that come with this release (`signed`: they are
+ * part of Ziffr's code, checked in CI like it). */
+export type PackOrigin = { source: "upload" | "marketplace" | "included"; signed: boolean; reviewed?: boolean };
+
+/** installManifest, with whether a moderator looked, which only the app adds, from a Signed Statement (a file with a
+ * field of that name is refused by the checks). */
+export const keptManifest = (p: Pack, origin: PackOrigin) => ({ ...installManifest(p), ...(origin.reviewed === true ? { reviewed: true } : {}) });
+
 const UPLOAD: PackOrigin = { source: "upload", signed: false };
 
 /** Reads an uploaded Pack file for its Preview (Owners and Admins): checked in full here, whatever the browser did.
@@ -185,14 +213,14 @@ export async function previewPack(actor: Actor, text: string, origin: PackOrigin
   const by = <T extends { key: string }>(xs: T[]) => new Map(xs.map((x) => [x.key, x]));
   const [views, templates] = [by(stored.views), by(stored.templates)];
   const items: PackPreviewItem[] = [
-    ...(pack.contents.metrics ?? []).map(({ key, metric: m }): PackPreviewItem => ({ kind: "metric", key, name: m.name, description: m.description ?? "", calculationNote: m.calculationNote ?? "", period: m.period, unit: m.unit ?? "", derived: m.formula !== undefined })),
+    ...(pack.contents.metrics ?? []).map(({ key, metric: m }): PackPreviewItem => ({ kind: "metric", key, name: m.name, description: m.description ?? "", calculationNote: m.calculationNote ?? "", period: m.period, unit: m.unit ?? "", derived: m.formula !== undefined || pack.contents.metrics!.some((x) => x.key === key && x.total) })),
     ...(pack.contents.dashboards ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "dashboard", key, name: t.name, description: t.description, slots: t.slots, body: t.body as DashboardTemplateBody }; }),
     ...(pack.contents.decks ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "deck", key, name: t.name, description: t.description, slots: t.slots, slides: (t.body as DeckTemplateBody).slides.length }; }),
     ...(pack.contents.workflows ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "workflow", key, name: t.name, description: t.description, body: t.body as WorkflowTemplateBody }; }),
     ...[...(pack.contents.views ?? []), ...(pack.contents.analyses ?? [])].map(({ key }): PackPreviewItem => { const v = views.get(key)!; return { kind: "view", key, name: v.name, description: v.body.description ?? "", body: v.body }; }),
     ...stored.themes.map((t): PackPreviewItem => ({ kind: "theme", key: t.key, name: t.name, tokens: t.tokens, logo: Boolean(t.slides.logo) })),
   ];
-  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, logo: safeLogo(pack), unsigned: !origin.signed, source: origin.source, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
+  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, logo: safeLogo(pack), unsigned: !origin.signed, source: origin.source, reviewed: origin.reviewed === true, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
 }
 
 /** Installs an uploaded Pack file (Owners and Admins; Owners for one with Themes; never in the demo), after the person
@@ -217,7 +245,7 @@ export async function installPack(actor: Actor, text: string, origin: PackOrigin
   const { data, error } = await db().rpc("install_pack", {
     p_workspace: actor.workspaceId,
     p_by: actor.personId,
-    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: origin.source, signed: origin.signed, manifest: { ...manifestOf(pack), ...(pack.logo === undefined ? {} : { logo: packLogoOf(pack) }) }, item_keys: itemKeys(stored) },
+    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: origin.source, signed: origin.signed, manifest: keptManifest(pack, origin), item_keys: itemKeys(stored) },
     p_catalog: stored.catalog,
     p_templates: stored.templates,
     p_designs: stored.views,
@@ -238,7 +266,7 @@ export async function installPack(actor: Actor, text: string, origin: PackOrigin
 /** One installed Pack as the Packs page lists it, with what it added that is still marked as from it. */
 export type InstalledPack = {
   id: number; packId: string; name: string; version: string; license: string; author: string; summary: string;
-  source: PackOrigin["source"]; signed: boolean; installedAt: string; installedBy: string | null;
+  source: PackOrigin["source"]; signed: boolean; /** Installed from the Marketplace as a version a moderator looked at. */ reviewed: boolean; installedAt: string; installedBy: string | null;
   listing: { homepage?: string; support?: string };
   /** The address of its logo on this site (signed-in people of the Workspace only), or null. */
   logo: string | null;
@@ -268,10 +296,10 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
   add(des.data, () => "view");
   add(thm.data, () => "theme");
   return data.map((r) => {
-    const m = r.manifest as Omit<Pack, "contents">;
+    const m = r.manifest as Omit<Pack, "contents"> & { reviewed?: unknown };
     return {
       id: Number(r.id), packId: String(r.pack_id), name: m.name, version: String(r.version), license: String(r.license), author: m.author?.name ?? "", summary: m.summary ?? "",
-      source: r.source as PackOrigin["source"], signed: Boolean(r.signed), installedAt: String(r.installed_at), installedBy: (r.installed_by as string | null) ?? null,
+      source: r.source as PackOrigin["source"], signed: Boolean(r.signed), reviewed: r.source === "marketplace" && m.reviewed === true, installedAt: String(r.installed_at), installedBy: (r.installed_by as string | null) ?? null,
       listing: m.listing ?? {}, logo: packLogoAddress(ws, Number(r.id), (r.manifest as { logo?: unknown } | null)?.logo), added: added.get(Number(r.id)) ?? [],
     };
   });

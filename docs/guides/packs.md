@@ -18,11 +18,11 @@ The exact formats are JSON Schemas in `docs/reference/`, generated from the defi
 
 | What | Format | Schema |
 | --- | --- | --- |
-| The Pack and its manifest | `ziffr.pack/1` | [`pack.schema.json`](../reference/pack.schema.json) |
+| The Pack and its manifest | `ziffr.pack/1` or `ziffr.pack/2` | [`pack.schema.json`](../reference/pack.schema.json) and [`pack-2.schema.json`](../reference/pack-2.schema.json), see [Who does what](#who-does-what-ziffrpack2) |
 | A Metric Catalog entry | `ziffr.metric/1` or `ziffr.metric/2` | [`metric.schema.json`](../reference/metric.schema.json) and [`metric-2.schema.json`](../reference/metric-2.schema.json), see [How a Metric is calculated](#how-a-metric-is-calculated) |
 | A Dashboard Template | `ziffr.dashboard-template/1` | [`dashboard-template.schema.json`](../reference/dashboard-template.schema.json) |
 | A Deck Template | `ziffr.deck-template/1` or `ziffr.deck-template/2` | [`deck-template.schema.json`](../reference/deck-template.schema.json) and [`deck-template-2.schema.json`](../reference/deck-template-2.schema.json), see [Slides that look designed](#slides-that-look-designed) |
-| A Workflow Template | `ziffr.workflow-template/1` | [`workflow-template.schema.json`](../reference/workflow-template.schema.json) |
+| A Workflow Template | `ziffr.workflow-template/1` or `ziffr.workflow-template/2` | [`workflow-template.schema.json`](../reference/workflow-template.schema.json) and [`workflow-template-2.schema.json`](../reference/workflow-template-2.schema.json), see [Who does what](#who-does-what-ziffrpack2) |
 | A View Design | `ziffr.view/1` | [`view-design.schema.json`](../reference/view-design.schema.json), see [Writing a View Design](view-designs.md) |
 | An Analysis Recipe | `ziffr.analysis/1` or `ziffr.analysis/2` | [`analysis-recipe.schema.json`](../reference/analysis-recipe.schema.json) and [`analysis-recipe-2.schema.json`](../reference/analysis-recipe-2.schema.json), see [Analysis Recipes](analysis-recipes.md) |
 | A Theme | `ziffr.theme/1` or `ziffr.theme/2` | [`theme.schema.json`](../reference/theme.schema.json) and [`theme-2.schema.json`](../reference/theme-2.schema.json) |
@@ -82,7 +82,7 @@ An item may name another item of the same Pack, and nothing outside it:
 - a Dashboard Template's Slot may suggest one of the Pack's Metric Catalog entries: `"suggests": "mrr"`;
 - a widget drawn by a View Design names one of the Pack's View Designs: `"view": "design"`, `"settings": { "design": "trend" }`. Outside a Pack, the design is written out in full instead;
 - a Deck Template names one of the Pack's Themes, which a deck made from it starts with: `"theme": "board"`. Its Slots and widgets name entries and designs as a Dashboard Template's do;
-- a Derived Metric's formula names the Pack's other entries in braces: `"{mrr} / {customers}"`. Its inputs follow the same rules as in a Workspace: no Derived Metric among them, all of the Derived Metric's own period, none set to Aggregation none.
+- a Derived Metric's formula names the Pack's other entries in braces: `"{mrr} / {customers}"`, and may read another entry's target with `"target({mrr}) - {mrr}"` ([what it gives](../user-guide/10-metrics.md#reading-a-target); a Pack carries no Target Series, so whoever sets it up gives that Metric its target). An older Ziffr refuses a Pack with `target()` naming the character it cannot read. Its inputs follow the same rules as in a Workspace: no Derived Metric among them, all of the Derived Metric's own period, none set to Aggregation none.
 
 ## How a Metric is calculated
 
@@ -164,6 +164,98 @@ A key that is not on its list, a key listed twice, an empty part, an empty `audi
 
 How a Workspace's answers rank the Packs: an industry that matches adds 4 points, a function 3, a segment 2, and an employee band, a revenue band or a country 1 each. A part you did not list, or that the Workspace did not answer, adds nothing, and a Pack is never ranked lower for being specific. The order is the same every time for the same answers.
 
+## Who does what (`ziffr.pack/2`)
+
+A Pack in the format `ziffr.pack/2` may also say who does what, as **Positions** such as "Sales lead" that people fill when it is set up, which parts are made once for each salesperson, site or company, its **Repeats**, and which Metrics add those up, its [Totals](#totals). It names no person. It may credit the Packs it builds on and carry a [Pack Guide](#the-pack-guide).
+
+Ziffr checks all of it and installs such a Pack today, unless it holds a Total. **Set up from this Pack does not use Positions or Repeats yet:** it sets the Pack up as if it named none, so nobody is assigned and nothing is shared, and the Workflow Templates it stores keep neither the Positions nor the Tell steps. **A Pack with a Total cannot be installed yet:** Ziffr says so and adds nothing of it. The screens follow in later versions.
+
+Keep a file in `ziffr.pack/1` unless it uses something below: an older Ziffr refuses a `/2` file, saying which formats it reads. A whole example:
+
+```json
+{
+  "format": "ziffr.pack/2",
+  "id": "ziffr/site-safety",
+  "name": "Site safety",
+  "version": "1.0.0",
+  "summary": "Incidents per site, reported every week.",
+  "author": { "name": "Ziffr" },
+  "license": "CC-BY-4.0",
+  "positions": [
+    { "key": "area-lead", "name": "Area lead", "people": "one" },
+    { "key": "site-manager", "name": "Site manager", "people": "one", "per": "site" }
+  ],
+  "repeats": [{ "key": "site", "name": "Site", "max": 30 }],
+  "guide": {
+    "whatItsFor": [{ "type": "text", "text": "Each site reports its **incidents** every week." }],
+    "firstSteps": [{ "type": "list", "numbered": true, "items": ["Open Packs.", "Choose **Set up from this Pack**."] }]
+  },
+  "contents": {
+    "metrics": [
+      { "key": "incidents", "per": "site", "submitters": ["site-manager"], "standIn": "area-lead", "viewers": ["area-lead"], "metric": { "format": "ziffr.metric/1", "name": "Incidents", "period": "week", "aggregation": "sum", "polarity": "lower" } }
+    ],
+    "workflows": [
+      { "key": "weekly", "per": "site", "template": { "format": "ziffr.workflow-template/2", "name": "Weekly site report", "dueWorkingDays": 2, "steps": [{ "type": "approve", "approvers": 1, "by": ["area-lead"] }, { "type": "publish", "lock": false }] } }
+    ]
+  }
+}
+```
+
+### Positions and Repeats
+
+`positions` (at most 20) each have a `key`, a `name` of at most 60 characters, and `people`: `"one"` or `"several"` (at most 20). `repeats` (at most 5) each have a `key`, a `name` and, if you like, `max`, the most lines it takes (at most 50). Keep every key across versions. `"per": "site"` on a Position gives each line its own holder; on a Metric Catalog entry, a dashboard or a Workflow it makes that item once per line.
+
+| Where | Field | Takes |
+| --- | --- | --- |
+| A Metric Catalog entry's wrapper | `submitters` | Positions for one or several |
+| | `standIn` | one Position for one person, not among the `submitters`, which it needs |
+| | `viewers`, `editors` | Positions for one or several, proposed as Shares |
+| A dashboard's wrapper | `viewers`, `editors` | the same |
+| An Approve step | `by` | one Position for one person per Approver, in order: as many as `approvers` |
+| A Checklist Item for information | `to` | Positions for one or several |
+| A Checklist Item to tick off | `assignee`, `standIn` | one Position for one person each; a `standIn` needs an `assignee` and is another one |
+| A Tell step | `to` | Positions for one or several |
+| A Send Snapshot step | `to`, `dashboard` | Positions, and the key of a Dashboard Template of the Pack |
+
+- A **Tell step** can only travel in `ziffr.workflow-template/2`, and only one that waits for a share: `"condition": { "kind": "share_of_target", "share": "90" }` or `changed_more`, a share from 1 to 1000. A level is a number of your business and a Webhook is yours: neither has a field. At most 3 Tell steps.
+- A Workflow Template that names Positions belongs in a Pack: on its own there is nothing the keys could mean.
+- **Outside its Repeat,** a Position of a Repeat means everyone in all its lines. That is fine where several people fit, and refused where one is needed.
+- A formula may use entries of its own Repeat and entries outside every Repeat; nothing else may reach into a Repeat. A dashboard outside a Repeat takes a repeated entry only in a Slot with `"multiple": true`, and only a Workflow of the same Repeat can send a dashboard made once per line.
+- A Derived Metric has no `submitters` or `standIn`: it takes no values.
+
+### Totals
+
+A Metric Catalog entry outside every Repeat may be a **Total**, which adds up the Metrics made from one entry of a Repeat, such as the commit of all salespeople. It says so in its wrapper, in place of a formula:
+
+```json skip="two entries of a Pack, not a whole file"
+{ "key": "commit", "per": "salesperson", "metric": { "format": "ziffr.metric/1", "name": "Commit", "period": "week", "aggregation": "last", "polarity": "higher" } },
+{ "key": "team-commit", "total": { "of": "commit", "targets": "parts" }, "metric": { "format": "ziffr.metric/1", "name": "Team commit", "period": "week", "aggregation": "last", "polarity": "higher" } }
+```
+
+- `of` names an entry with `per` that takes values, whose Aggregation is not `none`. The Total has its period, unit, number format (`valueFormat`) and Aggregation.
+- `targets` is `own`, for a target set on the Total, or `parts`, for the targets of its parts added up; with `parts` the entry has no `targetMin` or `targetMax`.
+- A Total takes no values: no `per`, formula, `sources`, `submitters` or `standIn`, and no Feed fills it. A formula may read it, and `viewers` and `editors` may be proposed.
+- **A Pack cannot open a Total.** Who sees a Total's numbers without seeing every part is its owner's decision in the app, and there is no field for it.
+- A gap table of a Deck Template does not take a Total yet.
+
+### Credit
+
+`basedOn` lists at most 10 Packs whose items yours carries, each with its `id`, `name`, `author` and `license` as that Pack wrote them, and an item's wrapper says which it is `from`: `"from": "someone/safety"`. It is shown as credit and proved by nothing.
+
+### The Pack Guide
+
+`guide` is where you explain your Pack, read before installing and, later, in Help. It has five sections, each optional, in this order and under Ziffr's own titles: `whatItsFor` (What it's for), `beforeYouStart` (Before you start), `firstSteps` (First steps), `eachPart` (Each part) and `questions` (Questions). Ziffr does not show the guide on its pages yet.
+
+A section is a list of blocks:
+
+| Block | Shape |
+| --- | --- |
+| A heading | `{ "type": "heading", "text": "Incidents" }` |
+| A paragraph | `{ "type": "text", "text": "Anything that hurt someone or nearly did." }` |
+| A list | `{ "type": "list", "items": ["One.", "Two."], "numbered": true }` |
+
+Put `**` before and after words to show them **bold**; there is no other formatting. A guide holds no link, web or email address, image, HTML or code: every text is plain, as any name in a Pack is, also as it reads without the bold marks. The whole guide is at most 32,768 bytes, with at most 60 blocks in a section, 20 entries in a list, 80 characters in a heading and 600 in a paragraph or entry. Words in it that read like instructions to an AI assistant are listed for whoever installs.
+
 ## The logo
 
 A Pack may bring **one logo**, optionally, as a data address in the manifest's `logo` (beside `listing`, never in `contents`): `"logo": "data:image/png;base64,…"`. Its `author` is the publisher it is shown with. A Theme of the Pack may say `"slides": { "logo": "pack" }` to use it; that is the only value the field takes, a Theme file on its own may not say it, and neither may a Theme of a Pack without a logo. A Pack with a logo needs a Ziffr that knows the field, so set `ziffr` to the version that does. A Pack's licence covers its contents, not anyone's trademark: the logo stays the publisher's. Installing checks the logo again on the server and keeps only the form Ziffr wrote out itself (an SVG is serialized again from what was read); a Theme that says `"pack"` is installed with it, and installing never makes a Theme the team default.
@@ -175,12 +267,15 @@ Ziffr checks a Pack in full on its server before it shows or installs anything:
 - a file over 1 MiB, more than 200 items, or more than 50 of one kind;
 - an `audience` with a key outside Ziffr's lists, a key twice, an empty part, a part Ziffr does not know or no `ziffr` minimum beside it;
 - a field Ziffr does not know, or one given twice. A field called `__proto__` is read as an unknown field, never as anything else;
-- a web address, HTML, a script, a template in braces or a line break in any text of `contents`. Words of widgets may hold the Placeholders Ziffr knows, such as `{metric}` or `{change yoy}`;
+- a web address, HTML, a script, a template in braces or a line break in any text of `contents`. Words of widgets may hold the Placeholders Ziffr knows, such as `{metric}` or `{change yoy}`. The text check reads Unicode the way a person does: an address with an accent mark, an invisible character or letters of another width in it is an address too, while ordinary accented words pass;
 - images and fonts, except the Pack's one `logo`: a Theme uses only fonts Ziffr ships, and its background image is set in Ziffr after installing;
 - a `logo` that is not a PNG, JPEG or plain SVG as a base64 data address, weighs over 128,000 bytes, measures over 512 pixels on a side, or whose bytes are not the type it says; an SVG with a script, a handler, foreign content, a link, a style, an entity or a `<!DOCTYPE>`. These are the checks a Theme's logo has, the very same code. `npx @ziffr/pack check` reports them with the line of `logo`;
 - a Dashboard Template with a Free Layout, a Slot it does not have, or widgets that overlap;
 - a slide of a Deck Template with anything but widgets, text, simple boxes and Slide Elements, or a shape past the slide's edge;
-- a Workflow Template that names a person: an Approve step says only how many Approvers to pick;
+- a Workflow Template that names a person: an Approve step says only how many Approvers to pick, and in `/2` which Positions of the Pack they are;
+- in `ziffr.pack/2`: a Position, Repeat or credited Pack that is not listed or is listed twice, a Position for several people where one is needed, a Tell step with a level, and everything else the rules under [Who does what](#who-does-what-ziffrpack2) refuse;
+- a Pack Guide with a link, an address, markup or code in it, or over its limits;
+- a field of `ziffr.pack/2` in a `ziffr.pack/1` file;
 - an item that its own format's checks refuse, with the problem named by its place in the Pack, such as `contents.views[0].design.parts[2].show`, and its line;
 - a reference to an item that is not in the Pack.
 

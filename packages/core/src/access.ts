@@ -15,6 +15,7 @@ import type { Action, CanvasData, Dashboard, Group, Metric, Profile, Share, Shar
 import { yearStartOf } from "./fiscal-year";
 import { condensedFor } from "./condensed-values";
 import { attainmentMethodOf, numberStyleOf } from "./workspace-settings";
+import { withoutUnseenInputs } from "./formula";
 
 /** The Groups of a workspace with their members, Everyone filled in. */
 export async function getGroups(ws: string): Promise<(Group & { workspace_id: string })[]> {
@@ -243,7 +244,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
   for (const a of actions) if (a.metric_id !== null && ids.has(a.metric_id) && canRead(a)) openActions[a.metric_id] = (openActions[a.metric_id] ?? 0) + 1;
   return {
     viewer,
-    metrics: visible,
+    // A formula goes to the browser only to someone who sees every Metric it names.
+    metrics: withoutUnseenInputs(visible, new Set(visible.map((m) => m.slug))),
     series,
     people: named,
     openActions,

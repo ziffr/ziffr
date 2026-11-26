@@ -44,7 +44,7 @@ function value(key: string, m: Metric, data: CanvasData): string | undefined {
     case "latest": return last ? compactValue(m, last.value, data.numberStyle) : undefined;
     case "change yoy":
     case "change prev": {
-      const c = compare(m, resolverFrom(data.metrics, data.series), { yearStart: data.yearStart, keys: [key === "change yoy" ? "yoy" : "prev"] })[0];
+      const c = compare(m, resolverFrom(data.metrics, data.series, data), { yearStart: data.yearStart, keys: [key === "change yoy" ? "yoy" : "prev"] })[0];
       if (!c?.available || c.pct === null || c.pct === undefined) return undefined;
       return `${c.pct > 0 ? "up" : c.pct < 0 ? "down" : "flat at"} ${formatChange(c.pct, data.numberStyle, { signed: false })}`;
     }

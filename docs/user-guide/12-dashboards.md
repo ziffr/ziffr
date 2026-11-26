@@ -81,7 +81,7 @@ The **⋯** menu holds:
 
 | Option | Who sees it | What it does |
 | --- | --- | --- |
-| **Make a deck** | Everyone who may create | Starts a Deck named after this dashboard and opens it. See [Decks and Themes](14-decks-and-themes.md). |
+| **Make a deck…** | Everyone who may create | Asks whether the new Deck shows **live numbers** (the default) or the numbers of one of the dashboard's shown Snapshots, then starts it and opens it. See [Decks and Themes](14-decks-and-themes.md#live-numbers-or-a-snapshots). |
 | **Save as template** | The owner and Editors, once there are Widgets | Saves the dashboard as a team Dashboard Template (see [Saving as a template](#saving-a-dashboard-as-a-dashboard-template)). |
 | **Who can see this** | Everyone | Lists everyone with access and why (see [Sharing](#sharing)). |
 | **View links…** | The owner | Links for people outside the team (see [View Links](#view-links)). |
@@ -262,6 +262,7 @@ When the Metric has a target, the strip starts with its **Attainment**, such as 
 A Widget shows a Metric in its own period: a monthly Metric as months. **Show by** shows it by a longer **Display Period** instead: week, month, quarter, half-year or year, as far as it is longer than the Metric's own. A monthly Metric can be shown by quarter, half-year or year; a daily one also by week or month. A tick marks the current choice; **(its own)** goes back to the Metric's period.
 
 - **How values combine.** Each quarter's (or year's) value is the Metric's values in it, combined by its **Aggregation**: added up, averaged or the last one. A Derived Metric is computed from its inputs' quarters: revenue minus cost per quarter, not the sum of its monthly results. If one of its inputs is set to Aggregation none, it has no quarters either: the Widget shows it by its own period and says why. The Comparisons strip combines the same way, so a quarter has the same value in the chart, the table and the strip.
+- **Formulas that read a target.** A Derived Metric with `target( )` takes each period's, quarter's or year's target by [the rules for reading a target](10-metrics.md#reading-a-target), so a span may stay empty where its Metric's target is not one number. A Widget of such a Metric with no value at all says which Metric needs a target. A View Link or a Snapshot that does not carry the Metric whose target is read shows the Derived Metric by its own period only.
 - **Gaps.** A quarter is shown once at least half of its months have values. A past quarter that lacks some of them is marked with how many it holds ("Q2 2026, only 2 of 3 months"). It is hatched in bars, an open dashed point in a line, and the History table gives the count. Its sum would otherwise read as a drop. A week belongs to the month it starts in.
 - **To date.** The quarter you are in is not over yet. It is marked **to date**, with how many of its periods it holds ("Q4 26, 2 of 3 months"): hatched in bars, dotted in a line, "to date" in the History table. Its value counts only the months so far.
 - **Condensed.** Once a Retention has condensed old periods, a chart or table shows each condensed span as one point, named for what it was made from ("October 2023, condensed from 31 days", or "condensed from 20 of 31 days" when some had no value), with the note under the widget: "Before November 2023 shown by month, condensed from daily values." Shown by that period or a longer one, the numbers are the same as before; shown by a shorter one, the condensed points stay as they are and no days are invented.
@@ -519,11 +520,18 @@ The owner and Editors have these buttons:
 | **Versions** | Every change to its words (see [Versions](#versions)). Everyone who can open it sees this. |
 | **Delete** | The owner only. Asks first; the Snapshot's values and words go for good, the dashboard and its values stay. |
 
-Everyone who may create also has **Make a deck**: it starts a Deck named after the dashboard and the period, with the Snapshot's introduction on the title slide and one slide for each part, drawn from the values the Snapshot kept.
+Everyone who may create also has:
+
+| Button | What it does |
+| --- | --- |
+| **Make a deck…** | Asks which numbers the new Deck shows: **the numbers of this Snapshot**, which never change (the default once it is shown), or **live numbers** from the dashboard as it is now. A Snapshot still in draft offers only live numbers. |
+| **Add to a deck…** | On a shown Snapshot: puts its slides, with its numbers, at the end of a deck you may edit, or of a new one. |
+
+Whoever looks at such a deck sees the Snapshot's numbers only if they may open this Snapshot; sharing the deck does not show them. See [Decks and Themes](14-decks-and-themes.md#live-numbers-or-a-snapshots).
 
 ### Example: the annual review
 
-A dashboard "Annual review" shows Revenue by month. In January 2027 its owner opens **Snapshots ▸ Take a Snapshot…**, chooses **Year** and **2026**, and presses **Take Snapshot**. The Snapshot "2026" keeps Revenue's twelve months of 2026 and those before, not January 2027. The owner writes the introduction ("Revenue grew by a quarter; the second half carried it") and shows it. In the Snapshots menu it comes first, above "H2 2026", "Q4 2026" and "December 2026". **Make a deck** on it starts the deck "Annual review, 2026" for the board.
+A dashboard "Annual review" shows Revenue by month. In January 2027 its owner opens **Snapshots ▸ Take a Snapshot…**, chooses **Year** and **2026**, and presses **Take Snapshot**. The Snapshot "2026" keeps Revenue's twelve months of 2026 and those before, not January 2027. The owner writes the introduction ("Revenue grew by a quarter; the second half carried it") and shows it. In the Snapshots menu it comes first, above "H2 2026", "Q4 2026" and "December 2026". **Make a deck…** on it, with the numbers of 2026, starts the deck "Annual review, 2026" for the board.
 
 To have it taken by itself next year, choose **Take one by itself…** ▸ **Every year**. The Snapshot "2027" is then taken as soon as every Metric on the dashboard is Locked for all twelve months of 2027, or the set number of days after 31 December.
 

@@ -27,7 +27,7 @@ The year a workspace reports in, starting in the month it sets (January unless s
 _Avoid_: Financial year, business year
 
 **Derived Metric**:
-A metric computed by a formula from other metrics. It never receives observations directly. Its inputs are counted by its own period and combine by an Aggregation other than none; a formula Ziffr cannot read whole is refused. It is made from a Pack, in the new-Metric flow ("Calculated from other Metrics") or by a program, only from Metrics its maker owns or edits, since it shows their values to whoever it is shared with; while its owner may not share one of them, it shows no values. A formula may reach one period back: `prev({x})` is the input's value in the period before, `change({x})` this period's value minus that one. Such a Derived Metric is shown by its own period only.
+A metric computed by a formula from other metrics. It never receives observations directly. Its inputs are counted by its own period and combine by an Aggregation other than none; a formula Ziffr cannot read whole is refused. It is made from a Pack, in the new-Metric flow ("Calculated from other Metrics") or by a program, only from Metrics its maker owns or edits, since it shows their values to whoever it is shared with; while its owner may not share one of them, it shows no values. A formula may reach one period back: `prev({x})` is the input's value in the period before, `change({x})` this period's value minus that one. Such a Derived Metric is shown by its own period only. It may also read an input's target: `target({x})` is x's Target Series value for the period, else the number of its Target Range where that holds one number (one bound, or two equal ones), else nothing, and only where x has a value in the period too. A changed target changes the results at once, past periods included; a Snapshot keeps what it showed.
 _Avoid_: Calculated field, formula metric
 
 **Aggregation**:
@@ -497,9 +497,41 @@ _Avoid_: Plugin, add-on, integration, app, bundle
 The optional part of a Pack's manifest that says whom the Pack is for: industries, segments, Business Functions, employee bands, revenue bands and countries, each from Ziffr's fixed lists. Ziffr ranks Packs by it and never hides one for it.
 _Avoid_: Target group, persona, category
 
+**Position**:
+A named place in a Pack that people fill when it is set up, such as "Sales lead" or "Salesperson": who submits, approves, stands in, ticks off a Checklist Task, is told, gets a Snapshot or is shared with. It grants nothing by itself: filling it writes the people into those ordinary places. Not a Workspace Role, not a Viewer or Editor, not a Group, not a Business Function, and not a Slot, which takes a Metric.
+_Avoid_: Role, seat, persona, job title
+
+**Repeat**:
+A named part of a Pack that Set up makes once for each entry of a list a person types, such as each salesperson, site or company: its own Metrics, and its own Positions, Workflow or dashboard where the Pack says so.
+_Avoid_: Instance, copy, segment, dimension
+
+**Total**:
+A Derived Metric that adds up a list of Metrics it keeps, its parts, such as the Commit of every salesperson. Parts are added and ended on the Total, never by editing a formula; each counts from a first period and, once ended, up to a last one. A period has a value only when every part counting in it has one, and it is shown only to people who may see all of those parts, unless the Total's owner opens it. A Pack may name one, and cannot open it; Ziffr does not make Totals yet (spec 0058). Not a formula, not an Aggregation (which combines one Metric's own periods) and not a Running total.
+_Avoid_: Roll-up, consolidation, group sum
+
+**Pack Guide**:
+What a Pack's creator tells people about it, in five set sections whose titles Ziffr writes: What it's for, Before you start, First steps, Each part, and Questions. Headings, paragraphs, lists and bold words only; read before installing and, with the installed Pack, in Help. Not the user guide, which is Ziffr's own, not the Setup Guide, and not the summary of one or two sentences.
+_Avoid_: Readme, manual, documentation, tutorial
+
 **Marketplace**:
 Ziffr's catalogue of Packs, checked before they are listed, and of programs outside Ziffr that work with it, such as Feeds. Packs are installed from it into a Workspace; programs outside Ziffr are only listed, and their creators bill for them themselves.
 _Avoid_: Store, app store, gallery, hub
+
+**Signed Statement**:
+What a Marketplace signs about one file of one version of a Pack: its id, its version, a fingerprint of the file (SHA-256), the key used, the time and whether a moderator looked. Ziffr takes a file from a Marketplace only when the statement of a trusted Marketplace Key holds for it. It says where a file came from, not that the Pack is safe.
+_Avoid_: Certificate, stamp, seal
+
+**Marketplace Key**:
+A public key whose Signed Statements Ziffr trusts, with its part: the signing key signs them; the reserve key stays unused until it takes the signing key out of use with a revocation, which Ziffr keeps.
+_Avoid_: Publisher key, master key, certificate
+
+**New creator**:
+A Marketplace creator in the first days after their first publish, or after a report against them was upheld. Their Packs say so wherever they are listed; it changes their limits, never what a Pack may hold.
+_Avoid_: Unverified, rookie, untrusted
+
+**Withdrawn Pack**:
+A Pack its Marketplace no longer offers: no new installs and no updates. Workspaces that installed it are told why in one line and keep everything they installed.
+_Avoid_: Banned, removed, recalled, deleted Pack
 
 **Webhook**:
 An address that a Workspace's Owner or Admin sets so that Ziffr sends it signed messages about what happens there, such as a task given, a task done or a value recorded, for a program to pass on to another system. It belongs to the Workspace, like a Feed, and sees only what every Member sees; other things reach it with their words left out. It can mark a task done, reply to a thread or answer a question, as the Webhook, but only for tasks that were sent to it, and it can say which task in the other system an Action is (an _external id_, kept per Webhook, with an optional link shown on the Action as "Also in"). Not a Connector, which reaches a person. The app heads these **Workspace Webhooks** where it also lists Personal Webhooks; "Webhook" alone means this kind.

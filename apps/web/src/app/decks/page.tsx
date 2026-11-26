@@ -25,7 +25,7 @@ export default async function DecksPage() {
   const [people, decks] = [await getProfileMap(), access.map((d) => ({ ...d, document: rows.find((r) => r.id === d.id)?.document }))];
   return (
     <>
-      <PageHeader title="Decks" sub="Lay out widgets, text and arrows on 16:9 slides, then export a PowerPoint or a PDF with today’s values.">
+      <PageHeader title="Decks" sub="Lay out widgets, text and arrows on 16:9 slides, then export a PowerPoint or a PDF.">
         {can(actor, "create") && <Link href="/themes" className="text-sm underline max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">Themes</Link>}
         {can(actor, "create") && (
           <AnsweredForm action={createDeck} className="flex gap-2 max-sm:flex-wrap">

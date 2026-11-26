@@ -24,6 +24,19 @@ const CHARS = "[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–�
 /** The pattern of plain text, as a JSON Schema `pattern` (read with the `u` flag). */
 export const PLAIN = `^${NO_ADDRESS}${CHARS}*$`;
 
+// The text check reads Unicode the way a person does: a web address is also looked for in the text as it reads, with
+// compatibility forms (NFKC) as the plain characters they stand for, and without combining marks and characters that
+// show nothing. An accented letter stays a letter. Long runs of marks are cut first: all of them go anyway, and putting
+// a very long run in Unicode's order takes more time than a text is worth.
+const asRead = (text: string) => text.replace(/(\p{M}{8})\p{M}+/gu, "$1").normalize("NFKC").replace(/[\p{M}\p{Default_Ignorable_Code_Point}]/gu, "");
+const NO_ADDRESS_READ = new RegExp(`^${NO_ADDRESS}`, "u");
+
+/** Whether a text passes a JSON Schema `pattern`; a pattern of plain text, words or slide words, which refuses web
+ * addresses, must also find none in the text as a person reads it. */
+export function textPasses(pattern: string, text: string): boolean {
+  return new RegExp(pattern, "u").test(text) && (!pattern.startsWith(`^${NO_ADDRESS}`) || NO_ADDRESS_READ.test(asRead(text)));
+}
+
 // The Placeholders every text knows. How a Metric is calculated is added only to words that are filled each time they are
 // drawn: filled once into saved words, it would stay for people who may not see the Metric (spec 0060).
 const SHARED_PLACEHOLDERS = "metrics|metric|period|latest|change yoy|change prev|top row|target";
