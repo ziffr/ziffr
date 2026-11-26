@@ -12,6 +12,7 @@ import { chargeVisitorBytes, visitorSize } from "./demo-visitor-limits";
 import { DEMO_TEXT_WORDS } from "./demo-words";
 import { db } from "./db";
 import { checkedDesignSetting } from "./widget-designs";
+import { SNAPSHOT_PART_SHAPE } from "./snapshot-parts";
 import type { Actor } from "./actor";
 import type { WidgetSettings } from "./types";
 
@@ -24,8 +25,8 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
 const notKept = () => new DemoTextRefused(NOT_KEPT);
 
-/** The kinds of shape a slide holds: frames (the slides), text, a note, shapes, lines, drawing and the widget. */
-const SHAPES = ["frame", "text", "geo", "note", "arrow", "line", "draw", "highlight", "group", "ziffr-widget"];
+/** The kinds of shape a slide holds: frames (the slides), text, a note, shapes, lines, drawing, the widget and the Snapshot Part (numbers only). */
+const SHAPES = ["frame", "text", "geo", "note", "arrow", "line", "draw", "highlight", "group", "ziffr-widget", SNAPSHOT_PART_SHAPE];
 /** What comes from outside the demo: refused with its own words. */
 const OUTSIDE_SHAPES = ["image", "video", "embed", "bookmark"];
 const RECORDS = ["document", "page", "shape", "binding"];
@@ -210,7 +211,7 @@ export async function visitorDeckDocument(actor: Pick<Actor, "workspaceId">, doc
       if (typeof r.type !== "string") throw notKept();
       if (OUTSIDE_SHAPES.includes(r.type)) throw new DemoTextRefused(PICTURES);
       if (!SHAPES.includes(r.type)) throw notKept();
-      if (r.type === "ziffr-widget" && ++widgets > MAX_WIDGETS) throw new DemoTextRefused(DECK_TOO_LARGE);
+      if ((r.type === "ziffr-widget" || r.type === SNAPSHOT_PART_SHAPE) && ++widgets > MAX_WIDGETS) throw new DemoTextRefused(DECK_TOO_LARGE);
       const parent = String(r.parentId);
       perParent.set(parent, (perParent.get(parent) ?? 0) + 1);
       if ((perParent.get(parent) ?? 0) > MAX_SHAPES_PER_SLIDE) throw new DemoTextRefused(DECK_TOO_LARGE);
