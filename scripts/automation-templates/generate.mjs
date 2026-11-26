@@ -312,7 +312,8 @@ function feedFlow(s, reads) {
   w.add(when.name, "n8n-nodes-base.scheduleTrigger", { rule: when.rule }, 0, 300, 1.2);
   w.timezone = "UTC"; // "at 9" and "the month that has just ended" are both read in UTC, whatever zone the n8n server is set to
   w.settings(s.settings, 220, 300);
-  w.http("What is filled", "GET", FEED_BASE, FEED_CRED, 440, 300, { query: [["limit", "200"]] });
+  // 100 is the most GET /feed hands out in one page; asking for more is refused, so no template may (a test says so).
+  w.http("What is filled", "GET", FEED_BASE, FEED_CRED, 440, 300, { query: [["limit", "100"]] });
   const names = reads(w, 660, 300);
   const x = 660 + 220 * names.length;
   w.code("Figures", s.figures, x, 300);
