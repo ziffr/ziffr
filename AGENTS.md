@@ -28,7 +28,7 @@ Ziffr keeps the record of your numbers: anyone, one person, a team or a business
 
 ## Screens on a phone
 
-A new or changed screen follows `docs/guides/phone-screens.md`: give a new page its Route Tier (`apps/web/src/lib/route-tiers.ts`), take the shared blocks and breakpoints named there, and look at it in a real browser at 390 and 320 wide, light and dark. No sideways page scroll, tap targets of 44 px, fields of 16 px, plain words.
+A new or changed screen follows `docs/guides/phone-screens.md`. Give a new page its Route Tier (`apps/web/src/lib/route-tiers.ts`) and take the shared blocks and breakpoints named there. Look at it in a real browser at 390 and 320 wide, light and dark. No sideways page scroll, tap targets of 44 px, fields of 16 px, plain words.
 
 ## Where things are
 
