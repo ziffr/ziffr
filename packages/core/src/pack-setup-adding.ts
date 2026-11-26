@@ -52,6 +52,8 @@ export async function addingTo(actor: Actor, installId: number, repeat: string, 
   return { repeat, taken: record.lines, given, mayCompute, made: record.made, active, seen };
 }
 
+/** A widget the new line's Metrics may be added to: which of them, by the number that stands for each. */
+export type AddedWidget = { id: number; dashboard: { id: number; name: string }; add: number[] };
 /** Something already set up that the new line may be added to, as the person ticks it. */
 export type Offer = { id: string; words: string; on: boolean };
 /** What adding a line changes of what is there, and what is left to do by hand. */
@@ -60,19 +62,21 @@ export type Additions = {
   byHand: string[];
   /** The shared Workflow the new Metrics join, when ticked, or null. */
   join: number | null;
-  /** The widgets that take the new Metrics, when ticked: which of them, by the number that stands for each. */
-  widgets: { id: number; dashboard: { id: number; name: string }; add: number[] }[];
+  /** The ticked widgets, which take the new Metrics. */
+  widgets: AddedWidget[];
+  /** Every widget offered, ticked or not, by its offer: for saying whom it would newly show them. */
+  offered: (AddedWidget & { offer: string })[];
 };
 
 /** Nothing to add to: a Set up that adds no line. */
-export const NO_ADDITIONS: Additions = { offers: [], byHand: [], join: null, widgets: [] };
+export const NO_ADDITIONS: Additions = { offers: [], byHand: [], join: null, widgets: [], offered: [] };
 
 /** Where the new line's Metrics may be added to what is there: the shared Workflow, only when it is the actor's, and
  * each widget of several Metrics that shows most lines' Metrics of an entry, only on a dashboard they may change. `ticked` are
  * the offers the person ticked; nothing else changes. */
 export async function additionsFor(actor: Actor, to: AddingTo, places: PackPlaces, metrics: PlannedMetric[], ticked: ReadonlySet<string>): Promise<Additions> {
   const ws = actor.workspaceId;
-  const out: Additions = { offers: [], byHand: [], join: null, widgets: [] };
+  const out: Additions = { offers: [], byHand: [], join: null, widgets: [], offered: [] };
   const offer = (id: string, words: string) => { out.offers.push({ id, words, on: ticked.has(id) }); return ticked.has(id); };
   const shared = (kind: MadeThing["kind"]) => to.made.filter((t) => t.kind === kind && t.line === null);
 
@@ -84,7 +88,7 @@ export async function additionsFor(actor: Actor, to: AddingTo, places: PackPlace
   const flow = [...flows].sort((a, b) => Number(b.id) - Number(a.id))[0];
   if (flow && joining.length) {
     if (flow.owner_id === actor.personId) {
-      if (offer(`workflow:${flow.id}`, `Add ${listed(joining)} to the Workflow ${flow.name}: it asks for them, and its Approvers read the values they approve.`)) out.join = Number(flow.id);
+      if (offer(`workflow:${flow.id}`, `Add ${listed(joining)} to the Workflow ${flow.name}: it asks whoever submits them, and its Approvers read the values they approve.`)) out.join = Number(flow.id);
     } else out.byHand.push(`The Workflow ${flow.name} is not yours to change, so ${listed(joining)} ${joining.length === 1 ? "does" : "do"} not follow it. Its owner can choose it on each Metric's page.`);
   }
 
@@ -113,7 +117,11 @@ export async function additionsFor(actor: Actor, to: AddingTo, places: PackPlace
     const board = mine.get(Number(w.dashboard_id))!;
     const names = listed(add.map((m) => m.name));
     if (board.role === "viewer") out.byHand.push(`You may not change the dashboard ${board.name}: its owner can add ${names} there.`);
-    else if (offer(`widget:${w.id}`, `Add ${names} to ${w.title ? `“${String(w.title)}”` : "a widget"} on the dashboard ${board.name}. Whoever it is shared with sees them.`)) out.widgets.push({ id: Number(w.id), dashboard: { id: board.id, name: board.name }, add: add.map((m) => m.plan) });
+    else {
+      const widget = { id: Number(w.id), dashboard: { id: board.id, name: board.name }, add: add.map((m) => m.plan) };
+      out.offered.push({ ...widget, offer: `widget:${w.id}` });
+      if (offer(`widget:${w.id}`, `Add ${names} to ${w.title ? `“${String(w.title)}”` : "a widget"} on the dashboard ${board.name}.`)) out.widgets.push(widget);
+    }
   }
 
   // What the Pack says of the shared items for each of the Repeat's people is not changed: said, to do by hand.

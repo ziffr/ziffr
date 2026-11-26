@@ -39,8 +39,8 @@ export type PackSetupInput = {
   metrics: string[];
   /** Who submits the Metrics whose entry names no Position for that. */
   submitters?: string[];
-  /** Ask `submitters` also for the numbers the Pack says another system sends or are set as a target; without it
-   * nobody is asked for those. */
+  /** The person setting up chooses to be asked also for the numbers the Pack says another system sends or are set as
+   * a target, where they would submit them. Without it nobody is asked for those, and nobody else is either way. */
   askElsewhere?: boolean;
   /** One of the Workspace's Feeds, made the Submitter of every Metric that takes values, with its API Source on. */
   feed?: string | null;
@@ -81,12 +81,22 @@ export type SetupPerson = { id: string; name: string; kind: PersonKind };
 export type BuiltLine = { repeat: string; name: string; fills: Map<string, string[]> };
 /** A Workflow to make. `send` is the dashboard its Send Snapshot step sends (a dashboard's `plan`) and to whom. */
 export type PlannedWorkflow = { key: string; line: BuiltLine | null; name: string; templateName: string; config: WorkflowConfig; approvers: string[]; send: { dashboard: number; people: string[] } | null };
+/** What a Pack says of a number nobody types: another system sends it, or it is set as a target. */
+export type Elsewhere = "system" | "target";
 /** A Metric to make. `plan` is a number below 0 that stands for it until it has an id. */
-export type PlannedMetric = { plan: number; entry: EntryRow; line: BuiltLine | null; name: string; submitters: string[]; standIn: string | null; workflow: PlannedWorkflow | null; /** The slug of a Metric that is there already (`plan` is then its id). */ slug?: string };
+export type PlannedMetric = {
+  plan: number; entry: EntryRow; line: BuiltLine | null; name: string; submitters: string[]; standIn: string | null; workflow: PlannedWorkflow | null;
+  /** Set when the Pack says nobody types this number; `left` are then the people who would submit it and are not
+   * asked. */
+  elsewhere: Elsewhere | null; left: string[];
+  /** The slug of a Metric that is there already (`plan` is then its id). */
+  slug?: string;
+};
 /** A dashboard to make; each Slot's Metrics are ids, or below 0 for Metrics made here. */
 export type PlannedDashboard = { plan: number; key: string; line: BuiltLine | null; name: string; template: TemplateRow; fills: number[][] };
-/** A Share the Pack proposes among what is made. `id` is what a person ticks. */
-export type ProposedShare = { id: string; object: "metric" | "dashboard"; plan: number; item: string; person: string; role: ShareRole };
+/** A Share the Pack proposes among what is made. `id` is what a person ticks. `keeps`: its person holds a Position
+ * that submits the Metric and is not asked for it, so without the Share they would not see it. */
+export type ProposedShare = { id: string; object: "metric" | "dashboard"; plan: number; item: string; person: string; role: ShareRole; keeps: boolean };
 /** A Position that something picked names, with the places it takes there. */
 export type PositionUse = { key: string; name: string; repeat: string | null; several: boolean; places: Set<Place> };
 
@@ -333,17 +343,24 @@ function plannedWorkflows(f: Filling, flows: Picked<PackWorkflowPick>[]): { work
 /** The Metrics made, found again by entry and line. */
 type Made = (key: string, line: BuiltLine | null) => PlannedMetric | undefined;
 
-/** Who, beside Positions, is asked for each entry's values. A number the Pack says comes from elsewhere (another system
- * sends it, or it is set as a target) is asked of nobody unless the person chose to be asked. The Pack's word only ever
- * asks fewer people, never more. */
-function askedBeside(p: InstalledForSetup, input: PackSetupInput, beside: string[]): (key: string) => string[] {
-  const elsewhere = new Set((p.overview?.numbers ?? []).filter((n) => n.by === "system" || n.by === "target").map((n) => n.key));
-  return (key) => (input.askElsewhere !== true && elsewhere.has(key) ? [] : beside);
+/** Who is asked for the values of an entry, of those who would submit it. */
+type Asked = (key: string, would: string[]) => Pick<PlannedMetric, "submitters" | "elsewhere" | "left">;
+
+/** A number the Pack says comes from elsewhere (another system sends it, or it is set as a target) is asked of nobody,
+ * whether they were picked beside Positions or hold one: only of the person setting up, when they chose to be asked.
+ * The Pack's word only ever asks fewer people, never more. */
+function asking(actor: Actor, p: InstalledForSetup, input: PackSetupInput): Asked {
+  const elsewhere = new Map((p.overview?.numbers ?? []).flatMap((n): [string, Elsewhere][] => (n.by === "system" || n.by === "target" ? [[n.key, n.by]] : [])));
+  return (key, would) => {
+    const by = elsewhere.get(key) ?? null;
+    const submitters = by === null ? would : would.filter((id) => input.askElsewhere === true && id === actor.personId);
+    return { submitters, elsewhere: by, left: would.filter((id) => !submitters.includes(id)) };
+  };
 }
 
 /** The Metrics to make: those outside every Repeat, then line by line; in each part what takes values before what is
- * computed from it. `beside` says who submits an entry that names no Position for that. */
-function plannedMetrics(f: Filling, entries: EntryRow[], workflows: PlannedWorkflow[], beside: (key: string) => string[], to: AddingTo | null): { metrics: PlannedMetric[]; made: Made } {
+ * computed from it. `beside` submit an entry that names no Position for that; `ask` says who is asked. */
+function plannedMetrics(f: Filling, entries: EntryRow[], workflows: PlannedWorkflow[], beside: string[], ask: Asked, to: AddingTo | null): { metrics: PlannedMetric[]; made: Made } {
   const metrics: PlannedMetric[] = [];
   const byPlace = new Map<string, PlannedMetric>();
   const perOf = (key: string) => f.places.metrics.get(key)?.per;
@@ -352,7 +369,7 @@ function plannedMetrics(f: Filling, entries: EntryRow[], workflows: PlannedWorkf
   // Adding a line makes nothing outside it: the Metrics made before stand for their entries.
   for (const entry of to ? entries.filter((e) => perOf(e.pack_key) === undefined) : []) {
     const m = to!.given.get(entry.pack_key);
-    if (m) byPlace.set(at(entry.pack_key, null), { plan: m.id, slug: m.slug, entry, line: null, name: m.name, submitters: [], standIn: null, workflow: null });
+    if (m) byPlace.set(at(entry.pack_key, null), { plan: m.id, slug: m.slug, entry, line: null, name: m.name, submitters: [], standIn: null, workflow: null, elsewhere: null, left: [] });
     const needing = entries.filter((e) => e.formula && formulaInputs(e.formula).includes(entry.pack_key)).map((e) => e.name);
     if (needing.length && (!m || !to!.mayCompute.has(entry.pack_key))) f.problems.push(`${listed(needing)} cannot be added: it is computed from ${entry.name}, ${m ? "which you neither own nor edit" : "which is not there or not shared with you"}. Untick it.`);
   }
@@ -363,14 +380,15 @@ function plannedMetrics(f: Filling, entries: EntryRow[], workflows: PlannedWorkf
       const name = suffixed(entry.name, line);
       if ([...name].length > 120) f.problems.push(`“${name}” is longer than a Metric's name may be, 120 characters: shorten the line's name.`);
       const plain = !entry.formula;
-      const submitters = !plain ? [] : place?.submitters ? holders(f, place.submitters, line) : beside(entry.pack_key);
-      let standIn = plain ? holders(f, place?.standIn, line)[0] ?? null : null;
+      const { submitters, elsewhere, left } = plain ? ask(entry.pack_key, place?.submitters ? holders(f, place.submitters, line) : beside) : { submitters: [], elsewhere: null, left: [] };
+      // Nobody stands in for a number nobody types: a Stand-in would be asked for it.
+      let standIn = plain && !elsewhere ? holders(f, place?.standIn, line)[0] ?? null : null;
       if (standIn && submitters.includes(standIn)) {
         f.notes.push(`${named(f, standIn)} submits ${name} already, so nobody stands in for them there.`);
         // Someone else's Stand-in all the same.
         if (submitters.length === 1) standIn = null;
       }
-      const m: PlannedMetric = { plan: -(metrics.length + 1), entry, line, name, submitters, standIn, workflow: plain ? flowFor(line) : null };
+      const m: PlannedMetric = { plan: -(metrics.length + 1), entry, line, name, submitters, standIn, workflow: plain ? flowFor(line) : null, elsewhere, left };
       metrics.push(m);
       byPlace.set(at(entry.pack_key, line), m);
     }
@@ -445,19 +463,31 @@ function checkFormulas(metrics: PlannedMetric[], made: Made, existing: Metric[])
 }
 
 /** The Shares the Pack proposes among what is made: never one with the person setting up, who owns it all, nor with a
- * Contact. Editor wins over Viewer. */
+ * Contact. Editor wins over Viewer. Whoever holds a Position that submits a Metric and is not asked for it is proposed
+ * as its Viewer, so that the Position still lets them see it. */
 function proposedShares(f: Filling, actor: Actor, metrics: PlannedMetric[], dashboards: PlannedDashboard[]): ProposedShare[] {
   const shares = new Map<string, ProposedShare>();
-  const propose = (object: ProposedShare["object"], item: PlannedMetric | PlannedDashboard, key: string) => {
-    const place = object === "metric" ? f.places.metrics.get(key) : f.places.dashboards.get(key);
-    for (const [role, keys] of [["editor", place?.editors], ["viewer", place?.viewers]] as const) for (const person of holders(f, keys, item.line)) {
-      const one = `${object} ${item.plan} ${person}`;
-      if (person === actor.personId || shares.has(one) || f.people.get(person)?.kind === "contact") continue;
-      shares.set(one, { id: JSON.stringify([object, key, item.line?.name ?? "", person, role]), object, plan: item.plan, item: item.name, person, role });
-    }
+  const propose = (object: ProposedShare["object"], item: PlannedMetric | PlannedDashboard, key: string, role: ShareRole, person: string): ProposedShare | undefined => {
+    if (person === actor.personId || f.people.get(person)?.kind === "contact") return undefined;
+    const one = `${object} ${item.plan} ${person}`;
+    const share = shares.get(one) ?? { id: JSON.stringify([object, key, item.line?.name ?? "", person, role]), object, plan: item.plan, item: item.name, person, role, keeps: false };
+    shares.set(one, share);
+    return share;
   };
-  for (const m of metrics) propose("metric", m, m.entry.pack_key);
-  for (const d of dashboards) propose("dashboard", d, d.key);
+  const placed = (object: ProposedShare["object"], item: PlannedMetric | PlannedDashboard, key: string) => {
+    const place = object === "metric" ? f.places.metrics.get(key) : f.places.dashboards.get(key);
+    for (const [role, keys] of [["editor", place?.editors], ["viewer", place?.viewers]] as const) for (const person of holders(f, keys, item.line)) propose(object, item, key, role, person);
+  };
+  for (const m of metrics) {
+    placed("metric", m, m.entry.pack_key);
+    // Only a Position gave this sight: someone picked beside Positions was never promised it by the Pack.
+    if (!f.places.metrics.get(m.entry.pack_key)?.submitters) continue;
+    for (const person of m.left) {
+      const share = propose("metric", m, m.entry.pack_key, "viewer", person);
+      if (share) share.keeps = true;
+    }
+  }
+  for (const d of dashboards) placed("dashboard", d, d.key);
   return [...shares.values()];
 }
 
@@ -495,7 +525,7 @@ export async function buildSetup(actor: Actor, p: InstalledForSetup, input: Pack
 
   const { workflows, sends } = plannedWorkflows(filling, flows);
   const beside = strings(input.submitters, MAX_SUBMITTERS);
-  const { metrics, made } = plannedMetrics(filling, entries, workflows, askedBeside(p, input, beside), to);
+  const { metrics, made } = plannedMetrics(filling, entries, workflows, beside, asking(actor, p, input), to);
   const { dashboards, offered } = plannedDashboards(filling, boards, made);
   connectSends(filling, sends, dashboards);
   // Adding a line: one computed from a Metric that is not there to compute from is a problem said already, so its
