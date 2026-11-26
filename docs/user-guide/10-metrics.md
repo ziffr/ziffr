@@ -340,7 +340,7 @@ A Derived Metric has no values of its own, so it has no such list. If you submit
 
 ### A period's page
 
-Click a period on the History tab, or **Open this period** after clicking a point on the chart, to open one Metric's page for one period, such as `/metrics/churn-rate/2026-03-01` (a month may also be written `2026-03`). It shows:
+Click a period on the History tab, or **Open this period** after clicking a point on the chart, to open one Metric's page for one period, such as `/metrics/churn-rate/2026-03-01` (a month may also be written `2026-03`). The Metric's name on it leads to the Metric, and on a phone it is large enough to tap with a thumb. The page shows:
 
 - the Metric, the period and its state (for example **Locked** or **Waiting for Approval**), with the value in large figures; after a Correction, the value it was submitted as is struck through;
 - **History**: every step of that period's value in order, with the person, the channel and the date: submitted, entered by someone for the person ("Entered 42 by Ben for Sara"), replaced by a newer value, a Correction proposed, accepted or declined, approved, sent back, published, locked, and unlocked with its reason. A replaced value is struck through, and a value entered for someone that they replaced stays in the list with who entered it;
