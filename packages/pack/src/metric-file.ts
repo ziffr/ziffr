@@ -142,9 +142,3 @@ export function checkMetricFileValue(value: unknown, lines: Map<string, number> 
   return checkFormat({ ...FORMAT, reads: METRIC_FILE_FORMATS, schema }, value, lines);
 }
 
-/** Checks a Metric file where only ziffr.metric/1 is read: a Pack's Metric Catalog entry, which does not keep a
- * Calculation Note yet, refuses a newer file in words instead of dropping a part of it. */
-export function checkMetricFile1Value(value: unknown, lines: Map<string, number> = new Map()): FormatCheck<MetricFile> {
-  return checkFormat({ ...FORMAT, reads: [METRIC_FILE_FORMAT], schema: METRIC_FILE_SCHEMA }, value, lines);
-}
-

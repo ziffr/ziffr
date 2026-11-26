@@ -13,7 +13,7 @@ import { getMetrics } from "./workspace-data";
 import { checkPack, PACK_FORMAT, PACK_LICENSES, type Pack } from "./pack";
 import { checkSchema, type Schema } from "./json-check";
 import { PLAIN, WORDS, KEY } from "./file-text";
-import { checkMetricFileValue, type MetricFile } from "./metric-file";
+import { checkMetricFileValue, METRIC_FILE_LIMITS, type MetricFile } from "./metric-file";
 import { checkDashboardTemplateFileValue, type DashboardTemplateFile, type WidgetSettingsFile } from "./dashboard-template-file";
 import { checkDeckTemplateFileValue, DECK_TEMPLATE_FORMAT, DECK_TEMPLATE_FORMAT_2, type DeckTemplateFile } from "./deck-template-file";
 import { elementSlots, mapElementWords, SLIDE_ELEMENT_LIMITS } from "./slide-element";
@@ -49,6 +49,15 @@ const plain = (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
   return checkSchema({ type: "string", pattern: PLAIN } as Schema, t).length ? null : t;
 };
+/** A Calculation Note as a Pack keeps it: on one line and whole. One the format does not take (too long, or holding such
+ * a thing as a web address) is left out and said: half a definition would say something else. */
+function packNote(s: unknown, name: string, leftOut: ExportResult["leftOut"]): string | undefined {
+  const text = String(s ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return undefined;
+  const fits = [...text].length <= METRIC_FILE_LIMITS.calculationNote ? plain(text, METRIC_FILE_LIMITS.calculationNote) : null;
+  if (!fits) leftOut.push({ name, why: `Only how it is calculated was left out: a Pack keeps up to ${METRIC_FILE_LIMITS.calculationNote} characters of plain text, without markup or web addresses.` });
+  return fits ?? undefined;
+}
 const wordsOk = (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
   return t && !checkSchema({ type: "string", pattern: WORDS } as Schema, t).length ? t : undefined;
@@ -156,7 +165,7 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
   // Metrics and catalog entries: the entries a Pack holds. A formula names others by their key in this Pack.
   const metricRows = ids("metrics").filter((id) => seen.has(id)).map((id) => seen.get(id)!);
   for (const id of ids("metrics")) if (!seen.has(id)) leftOut.push({ name: `Metric ${id}`, why: "You do not see it." });
-  const catRows = await rows("catalog_metrics", ids("catalog"), "id, category, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, formula, tags, pack_key, pack_install_id");
+  const catRows = await rows("catalog_metrics", ids("catalog"), "id, category, name, description, calculation_note, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, formula, tags, pack_key, pack_install_id");
   const entries = [
     ...metricRows.map((m) => ({ src: "metric" as const, m: m as unknown as Row, key: keyFor(null, m.name), slugOrKey: m.slug })),
     ...catRows.map((r) => ({ src: "catalog" as const, m: r, key: keyFor(r.pack_key, String(r.name)), slugOrKey: String(r.pack_key ?? "") })),
@@ -178,12 +187,15 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
       formula = String(m.formula).replace(/\{([a-z0-9-]+)\}/g, (_x, i: string) => `{${keyOfInput.get(i)}}`);
     }
     const description = plain(m.description, 1000);
+    const note = packNote(m.calculation_note, name, leftOut);
     const unit = plain(m.unit, 20);
     const category = e.src === "catalog" && m.category !== installs.get(Number(m.pack_install_id)) ? plain(m.category, 60) : null;
     const tags = chosen?.tags === false ? [] : packTags(e.src === "metric" ? seenTags.get(Number(m.id)) : m.tags, name, leftOut);
     const file: MetricFile = {
-      format: "ziffr.metric/1", name,
+      // The newer format only for an entry that says how it is calculated, so an older Ziffr reads every other (spec 0060).
+      format: note ? "ziffr.metric/2" : "ziffr.metric/1", name,
       ...(description ? { description } : {}),
+      ...(note ? { calculationNote: note } : {}),
       ...(category ? { category } : {}),
       ...(Array.isArray(m.industries) && m.industries.length ? { industries: m.industries as string[] } : {}),
       ...(Array.isArray(m.segments) && m.segments.length ? { segments: m.segments as string[] } : {}),

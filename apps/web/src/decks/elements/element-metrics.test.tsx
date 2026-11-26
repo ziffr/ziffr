@@ -86,7 +86,7 @@ describe("picking a Metric", () => {
 
   it("says Pick a Metric for an unfilled Slot, and No access only for a Metric the viewer may not see", () => {
     const data = { metrics: [], series: {}, breakdowns: {}, targets: {}, numberStyle: "1,234.5", yearStart: 1 } as unknown as CanvasData;
-    for (const element of [{ kind: "figure" }, columns(), { kind: "gap-table" }, { kind: "metric-table" }] as SlideElement[]) {
+    for (const element of [{ kind: "figure" }, columns(), { kind: "gap-table" }, { kind: "metric-table" }, { kind: "definitions" }] as SlideElement[]) {
       const empty = renderToString(<SlideElementView element={element} context={{ data, metrics: [] }} w={600} h={300} />);
       expect(empty).toContain(PICK_METRIC);
       expect(empty).not.toContain(NO_ACCESS);

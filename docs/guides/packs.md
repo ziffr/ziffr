@@ -19,7 +19,7 @@ The exact formats are JSON Schemas in `docs/reference/`, generated from the defi
 | What | Format | Schema |
 | --- | --- | --- |
 | The Pack and its manifest | `ziffr.pack/1` | [`pack.schema.json`](../reference/pack.schema.json) |
-| A Metric Catalog entry | `ziffr.metric/1` | [`metric.schema.json`](../reference/metric.schema.json) |
+| A Metric Catalog entry | `ziffr.metric/1` or `ziffr.metric/2` | [`metric.schema.json`](../reference/metric.schema.json) and [`metric-2.schema.json`](../reference/metric-2.schema.json), see [How a Metric is calculated](#how-a-metric-is-calculated) |
 | A Dashboard Template | `ziffr.dashboard-template/1` | [`dashboard-template.schema.json`](../reference/dashboard-template.schema.json) |
 | A Deck Template | `ziffr.deck-template/1` or `ziffr.deck-template/2` | [`deck-template.schema.json`](../reference/deck-template.schema.json) and [`deck-template-2.schema.json`](../reference/deck-template-2.schema.json), see [Slides that look designed](#slides-that-look-designed) |
 | A Workflow Template | `ziffr.workflow-template/1` | [`workflow-template.schema.json`](../reference/workflow-template.schema.json) |
@@ -83,6 +83,16 @@ An item may name another item of the same Pack, and nothing outside it:
 - a widget drawn by a View Design names one of the Pack's View Designs: `"view": "design"`, `"settings": { "design": "trend" }`. Outside a Pack, the design is written out in full instead;
 - a Deck Template names one of the Pack's Themes, which a deck made from it starts with: `"theme": "board"`. Its Slots and widgets name entries and designs as a Dashboard Template's do;
 - a Derived Metric's formula names the Pack's other entries in braces: `"{mrr} / {customers}"`. Its inputs follow the same rules as in a Workspace: no Derived Metric among them, all of the Derived Metric's own period, none set to Aggregation none.
+
+## How a Metric is calculated
+
+An entry in the format `ziffr.metric/2` may carry a `calculationNote`: exactly what counts and what does not, where the figure comes from and which adjustments are made. The `description` says what the number is and why it matters; the note says how it is counted. It is plain text of up to 1,000 characters, without markup or web addresses, held to the same checks as every other text of a Pack.
+
+```json
+{ "key": "mrr", "metric": { "format": "ziffr.metric/2", "name": "MRR", "period": "month", "aggregation": "last", "polarity": "higher", "calculationNote": "Active subscriptions at month end, after discounts. One-off fees are left out." } }
+```
+
+Write `ziffr.metric/1` for an entry without a note. A Ziffr from before the note refuses a Pack with a `ziffr.metric/2` entry and names the formats it reads, so set the Pack's `ziffr` minimum to the release you tested it with. A Metric made from the entry gets the note, which its owner may then change. A slide shows it with the `{calculation note}` Placeholder or the `definitions` Slide Element.
 
 ## Slides that look designed
 

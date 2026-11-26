@@ -344,6 +344,7 @@ What each Finding needs:
 | {change prev} | The change on the period before, in % |
 | {top row} | The largest row of the latest Breakdown |
 | {target} | The target for the latest period |
+| {calculation note} | How the Metric is calculated, its **Calculation Note**. Where none is written the braces stay; a View Link or a Snapshot shows nothing in their place |
 
 Add a number for another Metric of the Finding, such as {metric 2}. A headline such as "{metric} rose {change yoy} on last year" stays right when the values move on, and when someone uses the Finding as a template with another Metric.
 

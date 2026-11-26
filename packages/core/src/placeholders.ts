@@ -16,9 +16,10 @@ export const PLACEHOLDERS = [
   { key: "change prev", hint: "change on the period before, in %" },
   { key: "top row", hint: "the largest row of the latest breakdown" },
   { key: "target", hint: "the target for the latest period" },
+  { key: "calculation note", hint: "how the metric is calculated" },
 ] as const;
 
-const PATTERN = /\{(metrics|metric|period|latest|change yoy|change prev|top row|target)(?:\s+(\d+))?\}/gi;
+const PATTERN = /\{(metrics|metric|period|latest|change yoy|change prev|top row|target|calculation note)(?:\s+(\d+))?\}/gi;
 
 /** The widget's metrics in slot order: its own metrics first, then each panel's. {metric 2} is the second. */
 export function metricsInOrder(widget: Pick<Widget, "metric_ids" | "settings">, metrics: Pick<Metric, "id">[]) {
@@ -31,6 +32,9 @@ function value(key: string, m: Metric, data: CanvasData): string | undefined {
   const last = pts[pts.length - 1];
   switch (key) {
     case "metric": return m.name;
+    // Nothing written reads as unfilled, so the author sees it; one withheld from what goes out ("", view-links.ts)
+    // reads as nothing, so an outsider is shown neither the words nor the braces.
+    case "calculation note": return m.calculation_note ?? undefined;
     case "period": return last ? periodLabel(last.period, m.period, data.yearStart) : undefined;
     case "latest": return last ? compactValue(m, last.value, data.numberStyle) : undefined;
     case "change yoy":

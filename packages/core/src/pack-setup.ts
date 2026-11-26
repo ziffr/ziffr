@@ -95,7 +95,7 @@ function assertManages(actor: Actor) {
   refuseInDemo(actor);
 }
 
-type EntryRow = { id: number; pack_key: string; name: string; description: string; unit: string; unit_position: string; format: string; decimals: number; period: string; submission_rule: string; polarity: string; target_min: number | null; target_max: number | null; sources: string[]; aggregation: string; formula: string | null; tags: string[] | null };
+type EntryRow = { id: number; pack_key: string; name: string; description: string; calculation_note: string | null; unit: string; unit_position: string; format: string; decimals: number; period: string; submission_rule: string; polarity: string; target_min: number | null; target_max: number | null; sources: string[]; aggregation: string; formula: string | null; tags: string[] | null };
 type TemplateRow = { id: number; kind: "dashboard" | "workflow"; pack_key: string; name: string; slots: Slot[]; body: unknown };
 
 /** The install of the actor's Workspace, with what it added that is still marked as from it. */
@@ -105,7 +105,7 @@ async function installed(actor: Actor, installId: number) {
   const { data: install } = await db().from("pack_installs").select("id, version, manifest").eq("id", installId).eq("workspace_id", ws).maybeSingle();
   if (!install) throw new Forbidden();
   const [{ data: entries }, { data: templates }] = await Promise.all([
-    db().from("catalog_metrics").select("id, pack_key, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, formula, tags").eq("workspace_id", ws).eq("pack_install_id", installId).order("id"),
+    db().from("catalog_metrics").select("id, pack_key, name, description, calculation_note, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, formula, tags").eq("workspace_id", ws).eq("pack_install_id", installId).order("id"),
     db().from("team_templates").select("id, kind, pack_key, name, slots, body").eq("workspace_id", ws).eq("pack_install_id", installId).in("kind", ["dashboard", "workflow"]).order("id"),
   ]);
   const byKey = <T extends { pack_key: string }>(rows: T[]) => new Map(rows.filter((r) => typeof r.pack_key === "string").map((r) => [r.pack_key, r]));
@@ -292,7 +292,7 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
     workflowId = workflow ? await createWorkflowFromTemplate(actor, { template: workflow.template.id, name: workflow.name, approvers: workflow.approvers }) : null;
     for (const e of [...plain, ...derived]) {
       const m = await createMetric(actor, {
-        name: e.name, description: e.description, unit: e.unit, unitPosition: e.unit_position, format: e.format, decimals: e.decimals, period: e.period,
+        name: e.name, description: e.description, calculationNote: e.calculation_note, unit: e.unit, unitPosition: e.unit_position, format: e.format, decimals: e.decimals, period: e.period,
         submissionRule: e.submission_rule, polarity: e.polarity, aggregation: e.aggregation, targetMin: e.target_min, targetMax: e.target_max,
         // A Derived Metric takes no values, so no Source and no Workflow.
         sources: e.formula ? [] : e.sources, fromCatalogId: e.id, workflowId: e.formula ? null : workflowId,

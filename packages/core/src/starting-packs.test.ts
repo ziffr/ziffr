@@ -24,11 +24,24 @@ describe("the starting Packs", () => {
     expect(res.assistantTexts).toEqual([]);
   });
 
+  it("every Metric Catalog entry of every Pack says how it is calculated, in one to three sentences", () => {
+    for (const file of STARTING_PACKS) {
+      const res = checkPack(startingPack(file));
+      if (!res.ok) throw new Error(`${file} does not pass`);
+      for (const e of res.pack.contents.metrics ?? []) {
+        const note = e.metric.calculationNote ?? "";
+        expect(e.metric.format, `${file} ${e.key}`).toBe("ziffr.metric/2");
+        expect(note, `${file} ${e.key}`).toMatch(/^\p{Lu}.{20,}\.$/u);
+        expect(note.split(/\.(?= \p{Lu})/u).length, `${file} ${e.key}`).toBeLessThanOrEqual(3);
+      }
+    }
+  });
+
   it("SaaS metrics 2.0 brings a logo, Tags on every entry, both decks and both close Workflows", () => {
     const res = checkPack(startingPack("saas-metrics.pack.json"));
     if (!res.ok) throw new Error("does not pass");
     const c = res.pack.contents;
-    expect(res.pack.version).toBe("2.1.0");
+    expect(res.pack.version).toBe("2.2.0");
     expect(res.pack.logo).toMatch(/^data:image\/svg\+xml;base64,/);
     expect(c.metrics!.every((e) => (e.metric.tags ?? []).length > 0)).toBe(true);
     expect(c.decks!.map((d) => d.key)).toEqual(["monthly-report", "quarterly-board"]);

@@ -93,6 +93,8 @@ export async function resetDemoWorkspace(opts: { onlyWhenNeeded?: boolean; openT
   await ok("no finished period in the close", () => db().rpc("prototype_seed_close"));
   // The Filled-in Values of the close (spec 0046): a Stand-in's while Away, and one the submitter later replaced.
   await ok("no Filled-in Values", () => db().rpc("prototype_seed_fill_in"));
+  // How each Metric is calculated (spec 0060), after the history, which adds Metrics of its own.
+  await ok("no Calculation Notes", () => db().rpc("prototype_seed_calculation_notes"));
   await ok("no Outbox", () => seedDemoOutbox());
   // Last, so it sees everything the steps above made: the seed's own rows and the showcase that visitors may not change (spec 0051).
   const showcase = await step("no showcase; visits stay refused until the next reset", () => db().rpc("prototype_seed_showcase"));
