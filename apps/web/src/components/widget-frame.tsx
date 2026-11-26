@@ -555,14 +555,14 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: {
       )}
       <label className="flex items-center gap-2 text-xs text-muted-foreground">
         Who can read
-        <select value={readers} onChange={(e) => setReaders(e.target.value)} className="h-8 flex-1 rounded-[var(--radius-input)] border border-input bg-card px-2">
+        <select value={readers} onChange={(e) => setReaders(e.target.value)} className="h-8 min-w-0 flex-1 rounded-[var(--radius-input)] border border-input bg-card px-2">
           <option value="">Everyone</option>
           {data.groups.map((g) => <option key={g.id} value={g.id}>{g.name} only</option>)}
         </select>
       </label>
       <label className="flex items-center gap-2 text-xs text-muted-foreground">
         Send via
-        <select value={via} onChange={(e) => setVia(e.target.value as ConnectorId | "")} className="h-8 flex-1 rounded-[var(--radius-input)] border border-input bg-card px-2">
+        <select value={via} onChange={(e) => setVia(e.target.value as ConnectorId | "")} className="h-8 min-w-0 flex-1 rounded-[var(--radius-input)] border border-input bg-card px-2">
           <option value="">{others.find((p) => p.id === assignee)?.name.split(" ")[0] ?? "Their"}&rsquo;s choice</option>
           {CONNECTOR_IDS.map((c) => <option key={c} value={c}>{CONNECTORS[c].label}</option>)}
         </select>

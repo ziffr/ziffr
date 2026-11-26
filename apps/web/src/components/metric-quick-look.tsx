@@ -35,8 +35,8 @@ function Panel({ slug }: { slug: string }) {
         <SheetTitle>{name}</SheetTitle>
         <SheetDescription>Quick look</SheetDescription>
       </SheetHeader>
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">{body}</div>
-      <div className="flex flex-col gap-2 border-t border-border p-3">
+      <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto px-4 pb-4">{body}</div>
+      <div className="flex flex-col gap-2 border-t border-border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {look.state === "ready" && look.look.record && <RecordValue offer={look.look.record} wide />}
         <Link href={`/metrics/${encodeURIComponent(slug)}`} className={buttonVariants({ variant: look.state === "ready" && look.look.record ? "outline" : "default", className: "w-full" })}>Open the Metric</Link>
       </div>
@@ -61,9 +61,9 @@ function Panel({ slug }: { slug: string }) {
         </div>
       </div>
       {pts.length > 1 && <Sparkline points={pts} height={64} tone={health(m, last?.value)} />}
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-        <dt className="text-muted-foreground">Target</dt><dd className="fig text-right">{targetText(m, numberStyle)}</dd>
-        <dt className="text-muted-foreground">Owner</dt><dd className="text-right">{ownerName ?? "–"}</dd>
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
+        <dt className="text-muted-foreground">Target</dt><dd className="fig min-w-0 text-right">{targetText(m, numberStyle)}</dd>
+        <dt className="text-muted-foreground">Owner</dt><dd className="min-w-0 text-right [overflow-wrap:anywhere]">{ownerName ?? "–"}</dd>
       </dl>
       {pts.length > 0 && (
         <table className="w-full text-sm">
