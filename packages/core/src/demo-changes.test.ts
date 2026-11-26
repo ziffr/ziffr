@@ -24,7 +24,7 @@ const OPENED_9 = [
   "theme-actions:addStandardTheme", "theme-actions:deleteTheme", "theme-actions:duplicateTheme", "theme-actions:saveTheme", "theme-actions:setDashboardTheme",
   "version-actions:nameVersion", "version-actions:restoreVersion", "version-actions:saveNamedVersion",
   // Ticket 10: decks and Snapshots.
-  "convert-actions:addToDeck", "convert-actions:makeDeck", "convert-actions:makeDeckFromSnapshot", "deck-actions:createDeck", "deck-actions:deleteDeck", "deck-actions:renameDeck",
+  "convert-actions:addSnapshotToDeck", "convert-actions:addToDeck", "convert-actions:makeDeck", "convert-actions:makeDeckFromSnapshot", "deck-actions:createDeck", "deck-actions:deleteDeck", "deck-actions:renameDeck",
   "deck-actions:saveDeck", "deck-actions:setDeckFooter", "deck-workflow-template-actions:createDeckFromTemplate", "deck-workflow-template-actions:saveAsDeckTemplate",
   "snapshot-actions:deleteSnapshot", "snapshot-actions:editSnapshotWords", "snapshot-actions:showSnapshot", "snapshot-actions:takeSnapshot",
   "template-actions:saveSlideLayout", "theme-actions:setDeckTheme",

@@ -4,7 +4,7 @@ export { checkPack, checkPackValue, FEED_TEMPLATE_IDS, PACK_2_SCHEMA, PACK_FORMA
 export { PACK_POSITION_LIMITS, type PackPosition, type PackRepeat } from "./pack-positions.js";
 export type { PackTotal } from "./pack-totals.js";
 export { guideRuns, PACK_GUIDE_LIMITS, PACK_GUIDE_SCHEMA, PACK_GUIDE_SECTIONS, type PackGuide, type PackGuideBlock, type PackGuideSection } from "./pack-guide.js";
-export { checkMetricFile, METRIC_FILE_SCHEMA, type MetricFile } from "./metric-file.js";
+export { checkMetricFile, METRIC_FILE_2_SCHEMA, METRIC_FILE_SCHEMA, type MetricFile } from "./metric-file.js";
 export { checkDashboardTemplateFile, DASHBOARD_TEMPLATE_SCHEMA, type DashboardTemplateFile } from "./dashboard-template-file.js";
 export { checkDeckTemplateFile, DECK_TEMPLATE_2_SCHEMA, DECK_TEMPLATE_SCHEMA, type DeckTemplateFile } from "./deck-template-file.js";
 export { SLIDE_ELEMENT_KINDS, SLIDE_ELEMENT_LIMITS, SLIDE_TONES, type SlideElement, type SlideElementKind, type SlideTone } from "./slide-element.js";

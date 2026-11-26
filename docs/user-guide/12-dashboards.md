@@ -81,7 +81,7 @@ The **⋯** menu holds:
 
 | Option | Who sees it | What it does |
 | --- | --- | --- |
-| **Make a deck** | Everyone who may create | Starts a Deck named after this dashboard and opens it. See [Decks and Themes](14-decks-and-themes.md). |
+| **Make a deck…** | Everyone who may create | Asks whether the new Deck shows **live numbers** (the default) or the numbers of one of the dashboard's shown Snapshots, then starts it and opens it. See [Decks and Themes](14-decks-and-themes.md#live-numbers-or-a-snapshots). |
 | **Save as template** | The owner and Editors, once there are Widgets | Saves the dashboard as a team Dashboard Template (see [Saving as a template](#saving-a-dashboard-as-a-dashboard-template)). |
 | **Who can see this** | Everyone | Lists everyone with access and why (see [Sharing](#sharing)). |
 | **View links…** | The owner | Links for people outside the team (see [View Links](#view-links)). |
@@ -405,6 +405,8 @@ A dashboard reads two ways. Switch with **Grid** and **Read** in the toolbar.
 | **Full screen** / **Leave full screen** | Uses the whole screen, without the browser around it. |
 | **Close** | Goes back to the dashboard. |
 
+On a phone, **Overview**, **One at a time**, **Full screen** and **Close** show as icons, each large enough to tap with a thumb.
+
 A Widget grows with the space it has: when it is large on a dashboard, and when presenting, its value, the gauge, the table rows, the chart axes and the line under it get larger, so a Widget shown on a big screen reads from across the room. Its parts share the room: the small trend line under a number grows into the free height and, from about Overview size on, names its first and last period, marks the latest value with a dot, labels its highest and lowest value and shows the target as a faint band or dashed line (a target far from the values is named at the edge instead), a table spreads its rows, and what does not grow sits in the middle rather than in a corner. Widgets of the usual size and phones show it at its normal size.
 
 Outside Edit mode you can also click or tap a Widget on the dashboard itself, outside its ⋯ menu, links, controls and the points of a chart (which show their value), to open it large, as **One at a time** does. Press **Enter** on a Widget you have reached with the keyboard to do the same. The Widget's **⋯** menu works in the large view too, on a phone as on a wide screen: its menu and the panels and dialogs it opens show in front of the large Widget. **Back**, **Close** and **Escape** return to the dashboard where you were. Scrolling on a touch screen opens nothing. In Edit mode a click selects or drags the Widget as before.
@@ -501,7 +503,7 @@ Press **Take Snapshot**. Ziffr keeps the dashboard as it is now, with the values
 
 ### Reading and writing a Snapshot
 
-A band at the top of a Snapshot says which period it is, when and by whom it was taken ("by Ziffr for" the owner when it was taken automatically), and **Draft: only the dashboard's owner and Editors see it** while it is a draft. **See it live** goes to the dashboard as it is today. Below, the dashboard reads top to bottom, drawn from the values it kept.
+A band at the top of a Snapshot says which period it is, when and by whom it was taken ("by Ziffr for" the owner when it was taken automatically), and **Draft: only the dashboard's owner and Editors see it** while it is a draft. **See it live** goes to the dashboard as it is today (on a phone it is large enough to tap with a thumb). Below, the dashboard reads top to bottom, drawn from the values it kept.
 
 - If you may not see some of its Metrics, the band says how many parts are not shown.
 - If a value was corrected or removed since, the band lists it under "Corrected since this Snapshot was taken; it keeps the values it had", with the value then and what it is now.
@@ -516,11 +518,18 @@ The owner and Editors have these buttons:
 | **Versions** | Every change to its words (see [Versions](#versions)). Everyone who can open it sees this. |
 | **Delete** | The owner only. Asks first; the Snapshot's values and words go for good, the dashboard and its values stay. |
 
-Everyone who may create also has **Make a deck**: it starts a Deck named after the dashboard and the period, with the Snapshot's introduction on the title slide and one slide for each part, drawn from the values the Snapshot kept.
+Everyone who may create also has:
+
+| Button | What it does |
+| --- | --- |
+| **Make a deck…** | Asks which numbers the new Deck shows: **the numbers of this Snapshot**, which never change (the default once it is shown), or **live numbers** from the dashboard as it is now. A Snapshot still in draft offers only live numbers. |
+| **Add to a deck…** | On a shown Snapshot: puts its slides, with its numbers, at the end of a deck you may edit, or of a new one. |
+
+Whoever looks at such a deck sees the Snapshot's numbers only if they may open this Snapshot; sharing the deck does not show them. See [Decks and Themes](14-decks-and-themes.md#live-numbers-or-a-snapshots).
 
 ### Example: the annual review
 
-A dashboard "Annual review" shows Revenue by month. In January 2027 its owner opens **Snapshots ▸ Take a Snapshot…**, chooses **Year** and **2026**, and presses **Take Snapshot**. The Snapshot "2026" keeps Revenue's twelve months of 2026 and those before, not January 2027. The owner writes the introduction ("Revenue grew by a quarter; the second half carried it") and shows it. In the Snapshots menu it comes first, above "H2 2026", "Q4 2026" and "December 2026". **Make a deck** on it starts the deck "Annual review, 2026" for the board.
+A dashboard "Annual review" shows Revenue by month. In January 2027 its owner opens **Snapshots ▸ Take a Snapshot…**, chooses **Year** and **2026**, and presses **Take Snapshot**. The Snapshot "2026" keeps Revenue's twelve months of 2026 and those before, not January 2027. The owner writes the introduction ("Revenue grew by a quarter; the second half carried it") and shows it. In the Snapshots menu it comes first, above "H2 2026", "Q4 2026" and "December 2026". **Make a deck…** on it, with the numbers of 2026, starts the deck "Annual review, 2026" for the board.
 
 To have it taken by itself next year, choose **Take one by itself…** ▸ **Every year**. The Snapshot "2027" is then taken as soon as every Metric on the dashboard is Locked for all twelve months of 2027, or the set number of days after 31 December.
 
