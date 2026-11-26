@@ -270,7 +270,7 @@ function PackItems({ items, viewer, numberStyle }: { items: PackPreviewItem[]; v
 
 const detail = (i: PackPreviewItem): string => {
   switch (i.kind) {
-    case "metric": return `${i.derived ? "A Derived Metric, " : ""}by ${i.period}${i.unit ? `, in ${i.unit}` : ""}`;
+    case "metric": return `${i.total ? "A Total, " : i.derived ? "A Derived Metric, " : ""}by ${i.period}${i.unit ? `, in ${i.unit}` : ""}`;
     case "dashboard": return `${i.body.widgets.length} widgets, ${i.slots.length} Slot${i.slots.length === 1 ? "" : "s"}`;
     case "deck": return `${i.slides} slide${i.slides === 1 ? "" : "s"}, ${i.slots.length} Slot${i.slots.length === 1 ? "" : "s"}`;
     case "workflow": return `Due ${i.body.dueWorkingDays} working days after the period, ${i.body.steps.length} steps`;

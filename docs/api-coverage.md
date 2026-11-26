@@ -81,6 +81,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `recordedSetups` (pack-setup-record.ts): Packs
 - `addingTo` (pack-setup-adding.ts): Packs
 - `additionsFor` (pack-setup-adding.ts): Packs
+- `makeTotal` (pack-setup-totals.ts): Packs
 - `packLineStart` (pack-setup-adding.ts): Packs
 - `setUpStep` (pack-setup.ts): Packs
 - `setSendSnapshot` (workflows.ts): the dashboard a Set up from a Pack gives a Send Snapshot step; a program saves the Workflow
