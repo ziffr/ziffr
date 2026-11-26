@@ -65,6 +65,19 @@ describe("SlideOverProvider", () => {
     expect(labels().some((l) => l.includes("Back"))).toBe(false);
   });
 
+  it("starts each step at its top, and leaves the scroll alone when a panel replaces itself", async () => {
+    const box = () => dialog()!.querySelector<HTMLElement>(".overflow-y-auto")!;
+    await act(async () => api.open({ title: "One", content: <p>first</p> })); await tick();
+    box().scrollTop = 80;
+    await act(async () => api.replace({ title: "One", content: <p>refreshed</p> })); await tick();
+    expect(box().scrollTop).toBe(80);
+    await act(async () => api.open({ title: "Two", content: <p>second</p> })); await tick();
+    expect(box().scrollTop).toBe(0);
+    box().scrollTop = 40;
+    await act(async () => api.back()); await tick();
+    expect(box().scrollTop).toBe(0);
+  });
+
   it("closes with Escape and returns focus to the button that opened it", async () => {
     const opener = host.querySelector("button")!;
     opener.focus();

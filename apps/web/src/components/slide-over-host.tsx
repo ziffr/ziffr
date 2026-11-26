@@ -4,7 +4,7 @@
 // its own Sheet. The host owns the shape (on a phone the whole screen, or a bottom sheet for a short panel; a fixed
 // width on a desktop), where focus goes on open and where it returns on close, Escape, the accessible title and the way back. It holds no data of its
 // own: `content` is a component the caller already built from what the page may show.
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -83,6 +83,9 @@ export function SlideOverProvider({ children }: { children: React.ReactNode }) {
   });
 
   const current = steps[steps.length - 1];
+  // Each step starts at its top: the one box that scrolls is shared, and Share is usually left from its last line.
+  const scroller = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => { if (scroller.current) scroller.current.scrollTop = 0; }, [steps.length, current?.title]);
   const isWide = Boolean(current?.widthToggle) && wide;
   const api = useMemo<SlideOverApi>(() => ({ open, replace, back, close, isOpen: steps.length > 0 }), [open, replace, back, close, steps.length]);
 
@@ -107,7 +110,7 @@ export function SlideOverProvider({ children }: { children: React.ReactNode }) {
               </div>
               {current.description && <SheetDescription>{current.description}</SheetDescription>}
             </SheetHeader>
-            <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{current.content}</div>
+            <div ref={scroller} className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{current.content}</div>
           </SheetContent>
         )}
       </Sheet>
