@@ -1,11 +1,11 @@
--- Which decks, Deck Templates and slide layouts hold numbers or Metric names typed into their text boxes (GLOSSARY:
--- Deck, Deck Template, Placeholder; ticket #1172). Such words stay as written; a value put in with Insert value fills
--- itself in instead. Slides made from a template or layout before text boxes had live values hold their figures as
--- typed words.
+-- Which decks, Deck Templates and slide layouts hold numbers typed into their text boxes (GLOSSARY: Deck, Deck
+-- Template, Placeholder; ticket #1172). Such words stay as written; a value put in with Insert value fills itself in
+-- instead. Slides made from a template or layout before text boxes had live values hold their figures as typed words.
 --
 -- For whoever runs the Installation. It only reads: the transaction is read-only and nothing is changed. It names each
--- object, its Workspace and owner, and counts the boxes; it prints none of their words. A number or name may well be
--- meant to be there: ask the owner. Earlier Versions and frozen View Links are not looked at.
+-- object, its Workspace and owner, and counts the boxes; it prints none of their words. A number may well be meant to
+-- be there: ask the owner. It does not look for Metric names, which are sealed with the Workspace Key and cannot be
+-- matched in the database, nor at earlier Versions and frozen View Links.
 --
 --   psql "$DATABASE_URL" -f scripts/find-typed-figures.sql
 begin transaction read only;
@@ -27,20 +27,13 @@ with boxes as (
   select b.kind, b.workspace_id, b.id, b.name, b.owner_id,
          regexp_replace(coalesce((select string_agg(t #>> '{}', ' ') from jsonb_path_query(b.rich, 'strict $.**.text') t), ''), '\{[^{}]*\}', ' ', 'g') as text
     from boxes b
-), found as (
-  select w.*,
-         -- Digits that do not continue a word: "Q3" is a name.
-         w.text ~ '(^|[^[:alnum:]_])[0-9]' as holds_number,
-         exists (select 1 from metrics m where m.workspace_id = w.workspace_id and length(m.name) > 2 and position(lower(m.name) in lower(w.text)) > 0) as names_metric
-    from words w
 )
-select s.name as workspace, f.kind, f.id, f.name, p.name as owner,
-       count(*) filter (where f.holds_number) as boxes_with_numbers,
-       count(*) filter (where f.names_metric) as boxes_naming_a_metric
-  from found f
+select s.name as workspace, f.kind, f.id, f.name, p.name as owner, count(*) as boxes_with_numbers
+  from words f
   join workspaces s on s.id = f.workspace_id
   left join profiles p on p.id = f.owner_id
- where f.holds_number or f.names_metric
+ -- Digits that do not continue a word: "Q3" is a name.
+ where f.text ~ '(^|[^[:alnum:]_])[0-9]'
  group by s.name, f.kind, f.id, f.name, p.name
  order by s.name, f.kind, f.name, f.id;
 

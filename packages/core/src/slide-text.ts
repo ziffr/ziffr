@@ -4,7 +4,8 @@
 // A text box (words, a box or a note with words, an arrow's label) keeps its Placeholders in the deck's document and
 // the Metrics they count in `meta.metrics`, in Slot order: {latest 2} is the second.
 // Visibility: the document holds no name and no number. They are filled from the data the viewer was sent, and a Metric
-// not in it becomes empty words. Only the Metrics the words ask for count as the box's: a deck's Share opens those.
+// not in it becomes empty words. Only the Metrics the words ask for count as the box's: a deck's Share opens those,
+// and a deck is stored with every other place of a list empty (0).
 import { fillSlideWords, SLIDE_PATTERN } from "./slide-figures";
 import type { CanvasData } from "./types";
 
@@ -87,14 +88,41 @@ export const placeholder = (key: string, place: number) => (place === 0 ? `{${ke
 
 const isId = (v: unknown): v is number => Number.isSafeInteger(v) && (v as number) > 0;
 
+/** A text box's list with every place its words do not ask for emptied (0). */
+export function askedList(shape: TextShapeLike, list: readonly unknown[]): unknown[] {
+  const named = namedSlots(richRuns(richOf(shape)), list.length);
+  return list.map((id, i) => (named.has(i) ? id : 0));
+}
+
 /** The Metrics a text box names: those of its list that its words ask for, so a Metric whose Placeholder was deleted
- * counts no longer. A list Ziffr cannot read yields an id no visibility check accepts. */
+ * counts no longer. An empty place (0) names none. A list Ziffr cannot read yields an id no visibility check
+ * accepts. */
 export function textMetricIds(shape: TextShapeLike): number[] {
   const list = textList(shape);
   if (list === undefined) return [];
   if (!Array.isArray(list) || list.length > TEXT_METRICS_MAX) return [Number.NaN];
   const named = namedSlots(richRuns(richOf(shape)), list.length);
-  return [...new Set([...named].map((i) => (isId(list[i]) ? (list[i] as number) : Number.NaN)))];
+  return [...new Set([...named].map((i) => list[i]).filter((id) => id !== 0).map((id) => (isId(id) ? id : Number.NaN)))];
+}
+
+/** A deck's document as it is stored: every shape lists only the Metrics its words ask for. Saving checks those for
+ * the person saving, so a stored deck names the Metrics its slides show and no others. The same document when
+ * nothing changes. */
+export function withoutUnaskedMetrics<T>(document: T): T {
+  const store = (document as { store?: unknown } | null)?.store;
+  if (!store || typeof store !== "object") return document;
+  let changed = false;
+  const entries = Object.entries(store as Record<string, unknown>).map(([key, r]): [string, unknown] => {
+    const shape = r as (TextShapeLike & { typeName?: unknown; meta?: { metrics?: unknown } }) | null;
+    const list = shape?.typeName === "shape" ? shape.meta?.metrics : undefined;
+    // A list too long to read stays as it is: the save is refused for it.
+    if (!Array.isArray(list) || list.length > TEXT_METRICS_MAX) return [key, r];
+    const asked = TEXT_SHAPE_TYPES.has(String(shape!.type)) ? askedList(shape!, list) : list.map(() => 0);
+    if (asked.every((id, i) => id === list[i])) return [key, r];
+    changed = true;
+    return [key, { ...shape, meta: { ...shape!.meta, metrics: asked } }];
+  });
+  return changed ? { ...(document as object), store: Object.fromEntries(entries) } as T : document;
 }
 
 /** The Metrics named by any text box of a deck's document. */

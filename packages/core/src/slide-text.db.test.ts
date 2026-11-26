@@ -38,8 +38,10 @@ describe("a deck's text boxes", () => {
     const theirs = await w.metric(sara, { name: "Commit" }); const mine = await w.metric(ben, { name: "Sales" });
     const deck = await createDeck(w.actor(ben, "member"), "Mine");
     await expect(saveDeck(w.actor(ben, "member"), deck, document(box("{latest}", [theirs.id])))).rejects.toEqual(forbidden);
-    // Listed but asked for by no word: nothing of it is drawn or opened, until a word asks.
+    // Listed but asked for by no word: the place is stored empty.
     await saveDeck(w.actor(ben, "member"), deck, document(box("{latest 2}", [theirs.id, mine.id])));
+    const kept = (await db().from("decks").select("document").eq("id", deck).single()).data!.document as { store: Record<string, { meta?: { metrics?: number[] } }> };
+    expect(kept.store["shape:t0"].meta?.metrics).toEqual([0, mine.id]);
     await expect(saveDeck(w.actor(ben, "member"), deck, document(box("{latest 2} {top row}", [theirs.id, mine.id])))).rejects.toEqual(forbidden);
     await expect(saveDeck(w.actor(ben, "member"), deck, document(box("{latest}", ["x" as unknown as number])))).rejects.toThrow("cannot read");
   });

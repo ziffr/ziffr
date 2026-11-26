@@ -10,7 +10,7 @@ import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { assertCanEditDashboard, editableWidget } from "./dashboards";
 import { assertSeesMetrics } from "./sharing";
 import { NOT_IN_DASHBOARD_TEMPLATES, SLIDE_SHAPES, toDashboardTemplate, toDeckTemplate, toSlideLayout, toTemplate, toWorkflowTemplate, type Choices } from "./team-templates";
-import { TEXT_METRICS_MAX, textMetricIds } from "./slide-text";
+import { askedList, TEXT_METRICS_MAX, textMetricIds } from "./slide-text";
 import { getCanvasData, getGroups } from "./access";
 import { widgetMetricIds } from "./widget-metrics";
 import { breakdownRowNames } from "./typed-words";
@@ -76,11 +76,12 @@ function withoutLinks(props: Record<string, unknown>): Record<string, unknown> {
   return rest.richText ? { ...rest, richText: strip(rest.richText) } : rest;
 }
 
-/** The list a text box counts its Slots in, as kept: at most so many ids, a 0 for an entry that is none. */
+/** The list a text box counts its Slots in, as kept: at most so many ids, and an empty place (0) for an entry that
+ * is none or that its words do not ask for. */
 function textMeta(sh: SlideShape): Pick<SlideShape, "meta"> {
   const list: unknown = sh.meta?.metrics;
   if (!Array.isArray(list)) return {};
-  return { meta: { metrics: list.slice(0, TEXT_METRICS_MAX).map((id) => (Number.isSafeInteger(id) && (id as number) > 0 ? (id as number) : 0)) } };
+  return { meta: { metrics: askedList(sh, list.slice(0, TEXT_METRICS_MAX)).map((id) => (Number.isSafeInteger(id) && (id as number) > 0 ? (id as number) : 0)) } };
 }
 
 /** A slide's shapes as the editor sends them, each checked: known kinds only, numbers that are numbers, widgets of

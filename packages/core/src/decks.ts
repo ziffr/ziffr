@@ -10,6 +10,7 @@ import { allDeckMetricIds, deckMetricIds, deckMetricIdsAdded } from "./visibilit
 import { assertWidgetDesigns } from "./widget-designs";
 import { ensureBaseline, recordVersion } from "./versions";
 import { assertNoOutsideContent } from "./deck-content";
+import { withoutUnaskedMetrics } from "./slide-text";
 import { snapshotPartProblem } from "./snapshot-parts";
 import { refuseSeeded } from "./demo-seeded-rows";
 import { visitorDeckDocument } from "./demo-visitor-deck";
@@ -82,6 +83,8 @@ export async function saveDeck(actor: Actor, id: number, document: unknown) {
   const { data: before } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", actor.workspaceId).single();
   // In a demo visit the document is rebuilt from words and shapes the demo accepts, within its size, before the write below.
   document = await visitorDeckDocument(actor, document, before?.document);
+  // A text box is stored listing only the Metrics its words ask for: those are what is checked here.
+  document = withoutUnaskedMetrics(document);
   const added = deckMetricIdsAdded(before?.document, document);
   if (added.some((m) => !Number.isFinite(m))) throw new Error("A widget or text box on this deck names its metrics in a way Ziffr cannot read. Remove or recreate it, then save.");
   await assertSeesWhatGoesLive(actor, before?.document, document);

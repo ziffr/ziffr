@@ -461,7 +461,7 @@ Releases are tagged `vX.Y.Z`, and each has its notes on the [Releases page](http
 2. Apply the new migrations: `supabase db push`. They only add, so the old app keeps working until it is replaced.
 3. Set any new settings the notes name, then build and start the new version.
 
-**Text boxes with typed numbers.** Text boxes on slides can show live values (**Insert value**). Words that were typed, or filled in when a slide was made from a template before that, stay as they are. To find the decks, Deck Templates and slide layouts whose text boxes hold numbers or Metric names, so their owners can replace them, run [`scripts/find-typed-figures.sql`](../../scripts/find-typed-figures.sql) against the database. It only reads, and prints names and counts, never the words:
+**Text boxes with typed numbers.** Text boxes on slides can show live values (**Insert value**). Words that were typed, or filled in when a slide was made from a template before that, stay as they are. To find the decks, Deck Templates and slide layouts whose text boxes hold numbers, so their owners can replace them, run [`scripts/find-typed-figures.sql`](../../scripts/find-typed-figures.sql) against the database. It only reads, and prints names of Workspaces, decks, templates and owners with counts, never the words:
 
 ```sh skip="needs your database"
 psql "$DATABASE_URL" -f scripts/find-typed-figures.sql

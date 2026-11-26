@@ -1,7 +1,7 @@
 // Live words in a slide's text boxes (GLOSSARY: Placeholder, Slide; ticket #1172): which Metrics a box names, what a
 // viewer reads of it, and what a deck, its Share and its View Links count it as.
 import { describe, expect, it } from "vitest";
-import { addTextValue, filledRichText, namedSlots, renumberSlots, richRuns, textBoxMetricIds, textMetricIds } from "./slide-text";
+import { addTextValue, filledRichText, namedSlots, renumberSlots, richRuns, textBoxMetricIds, textMetricIds, withoutUnaskedMetrics } from "./slide-text";
 import { keptRequests, liveDocument, withoutKeptNumbers } from "./snapshot-parts";
 import { allDeckMetricIds, deckMetricIds, deckMetricIdsAdded } from "./visibility";
 import { deckAsOf, deckForLink } from "./view-links";
@@ -58,6 +58,22 @@ describe("the Metrics a text box names", () => {
   });
 
   const shape = (id: string, words: string, metrics: number[], more: object = {}) => [id, { id, typeName: "shape", parentId: "page:p", ...box(words, metrics), ...more }] as const;
+
+  it("are all a stored deck lists: any other place is empty, and names nothing until a Metric is inserted", () => {
+    const document = { store: Object.fromEntries([shape("shape:a", "{latest 2}", [5, 2]), shape("shape:b", "Next", [5]), shape("shape:c", "{latest}", [5], { type: "frame" })]) };
+    const stored = withoutUnaskedMetrics(document) as typeof document;
+    expect(Object.values(stored.store).map((r) => (r.meta as { metrics: number[] }).metrics)).toEqual([[0, 2], [0], [0]]);
+    expect(JSON.stringify(stored)).not.toContain("5");
+    expect(withoutUnaskedMetrics(stored)).toBe(stored);
+    // A word typed later that asks for an empty place names no Metric and reads nothing.
+    expect(textMetricIds(box("{latest} {latest 2}", [0, 2]))).toEqual([2]);
+    expect(said("A {latest} B {latest 2}", [0, 2])).toBe("A  B 7");
+    // Insert value takes an empty place again.
+    expect(addTextValue(["{latest 2}"], [0, 2], "latest", [1])).toEqual({ list: [1, 2], words: "{latest}" });
+    // A list nobody can read is left for the save to refuse.
+    const long = { store: Object.fromEntries([shape("shape:a", "Next", Array.from({ length: 10 }, () => 5))]) };
+    expect(withoutUnaskedMetrics(long)).toBe(long);
+  });
 
   it("count for a deck, as a widget's do: for saving, for its Share and for knowing a Metric is on it", () => {
     const before = { store: Object.fromEntries([shape("shape:a", "{latest}", [1, 2])]) };
