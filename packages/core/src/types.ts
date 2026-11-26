@@ -40,6 +40,9 @@ export type MetricDescription = {
   name: string;
   aggregation: Aggregation;
   description: string;
+  /** How it is calculated (GLOSSARY: Calculation Note): what counts, where it comes from, adjustments. Null or missing
+   * where nothing is written. */
+  calculation_note?: string | null;
   unit: string;
   unit_position: UnitPosition;
   format: Format;

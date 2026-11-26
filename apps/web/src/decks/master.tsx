@@ -5,6 +5,7 @@
 import { createContext, useContext } from "react";
 import { FrameShapeUtil, HTMLContainer, useEditor, useValue, type SvgExportContext, type TLFrameShape } from "tldraw";
 import { slideNumber, useSlideMaster } from "./elements/slide-page";
+import { SlideLines } from "./kept/slide-lines";
 import type { SlideDesign } from "@ziffr/core/types";
 
 const MARGIN_X = 48;
@@ -109,6 +110,12 @@ function MasterSvg({ shape }: { shape: TLFrameShape }) {
   );
 }
 
+/** The slide's line about its numbers (spec 0061), in the colour of the Theme's footer. */
+function Lines({ shape }: { shape: TLFrameShape }) {
+  const master = useMaster();
+  return <SlideLines slide={shape.id} w={shape.props.w} h={shape.props.h} colour={master ? `color-mix(in oklab, ${master.text_color} 70%, transparent)` : undefined} />;
+}
+
 /** A slide is a tldraw frame with the deck's master drawn behind its content. */
 export class SlideFrameUtil extends FrameShapeUtil {
   override component(shape: TLFrameShape) {
@@ -116,6 +123,9 @@ export class SlideFrameUtil extends FrameShapeUtil {
       <>
         {super.component(shape)}
         <MasterLayer shape={shape} />
+        <HTMLContainer style={{ width: shape.props.w, height: shape.props.h, pointerEvents: "none", overflow: "hidden" }}>
+          <Lines shape={shape} />
+        </HTMLContainer>
       </>
     );
   }
@@ -125,6 +135,11 @@ export class SlideFrameUtil extends FrameShapeUtil {
       <>
         {super.toSvg(shape, ctx)}
         <MasterSvg shape={shape} />
+        <foreignObject x={0} y={0} width={shape.props.w} height={shape.props.h}>
+          <div style={{ position: "relative", width: shape.props.w, height: shape.props.h }}>
+            <Lines shape={shape} />
+          </div>
+        </foreignObject>
       </>
     );
   }

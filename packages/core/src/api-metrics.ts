@@ -26,6 +26,7 @@ import { audit, auditedAsKey } from "./audit-log";
 import type { WorkflowConfig, WorkflowStep } from "./types";
 import { isPeriodStart, periodStart } from "./periods";
 import { normalizeMetric } from "./metric-row";
+import { CALCULATION_NOTE_MAX } from "./calculation-note";
 import { getMetrics, getSeriesValues } from "./workspace-data";
 import { peopleFor, visibleMetricIds } from "./access";
 import type { Metric, SourceId } from "./types";
@@ -40,6 +41,8 @@ export { TooManyMetrics };
 export type ApiMetricInput = {
   name: string;
   description?: string;
+  /** How it is calculated (GLOSSARY: Calculation Note): what counts, where it comes from, adjustments. */
+  calculation_note?: string;
   unit?: string;
   unit_position?: string;
   format?: string;
@@ -133,7 +136,7 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
   const keyName = actor.key ? await nameOf(actor) : null;
   const { id } = await createMetric(creator, {
     name: String(input?.name ?? ""),
-    description: input.description, unit: input.unit, unitPosition: input.unit_position, format: input.format, decimals: input.decimals, period: input.period,
+    description: input.description, calculationNote: input.calculation_note, unit: input.unit, unitPosition: input.unit_position, format: input.format, decimals: input.decimals, period: input.period,
     submissionRule: input.submission_rule, polarity: input.polarity, aggregation: input.aggregation,
     targetMin: input.target_min, targetMax: input.target_max, attainmentMethod: input.attainment_method,
     // Left out, as in the form: every way Ziffr knows, the API among them, so the key can submit to it at once.
@@ -182,7 +185,7 @@ async function createDerivedWithKey(actor: Actor | KeyActor, creator: Actor, inp
   }
   const keyName = actor.key ? await nameOf(actor) : null;
   const made = await createDerivedMetric(creator, {
-    name: String(input?.name ?? ""), formula: input.formula as string, description: input.description, unit: input.unit, unitPosition: input.unit_position, format: input.format,
+    name: String(input?.name ?? ""), formula: input.formula as string, description: input.description, calculationNote: input.calculation_note, unit: input.unit, unitPosition: input.unit_position, format: input.format,
     decimals: input.decimals, period: input.period, polarity: input.polarity, targetMin: input.target_min, targetMax: input.target_max, attainmentMethod: input.attainment_method,
   }, { ...effects, recordCreated: (metricId, by) => effects.recordCreated(metricId, by, keyName ? `Created through the API (key “${keyName}”)` : "Created through the API") }, { accessKeyId: actor.key ? Number(actor.key.id) : undefined })
     .catch((e) => { throw e instanceof Refused ? new MetricChangeRefused(e.message) : e; });
@@ -235,6 +238,8 @@ export class MetricChangeRefused extends Error {
 export type ApiMetricPatch = {
   name?: string;
   description?: string;
+  /** How it is calculated (GLOSSARY: Calculation Note); "" takes it away. */
+  calculation_note?: string;
   unit?: string;
   format?: "number" | "currency" | "percent";
   /** Only while the Metric has no values and no targets or projections by period (the core says so otherwise). */
@@ -268,6 +273,7 @@ function assertPatchWords(p: ApiMetricPatch): void {
   };
   text(p.name, 120, "The name", true);
   text(p.description, 2000, "The description");
+  text(p.calculation_note, CALCULATION_NOTE_MAX, "The calculation note");
   text(p.unit, 20, "The unit");
   const word = (v: unknown, words: string[], label: string) => {
     if (v !== undefined && !words.includes(v as string)) throw new MetricChangeRefused(`${label} must be one of ${words.join(", ")}.`);
@@ -292,7 +298,7 @@ async function changeableByKey(actor: Actor | KeyActor, slug: string): Promise<{
   return { creator, metric };
 }
 
-/** Changes a Metric for a key with metrics:edit, as its creator: its description (name, description, unit, format,
+/** Changes a Metric for a key with metrics:edit, as its creator: its description (name, description, Calculation Note, unit, format,
  * Submission Rule, Polarity, Target Range, Attainment method, and the period while it has no values), its Sources and,
  * for its owner, its Workflow, as the Metric's page and the Workflow dropdown do. Everything is checked before the
  * first change. Its history names the key. Returns it as programs see it. */
@@ -308,7 +314,7 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
   for (const v of [p.target_min, p.target_max]) if (v !== undefined && v !== null && !inRange(v)) throw new MetricChangeRefused(`A target must be a number between -${SERIES_VALUE_MAX} and ${SERIES_VALUE_MAX}.`);
   // Only these parts, whatever else the patch holds: never the unit's side, the decimals or the Aggregation.
   const details = {
-    name: p.name, description: p.description, unit: p.unit, format: p.format, period: p.period, submissionRule: p.submission_rule,
+    name: p.name, description: p.description, calculationNote: p.calculation_note, unit: p.unit, format: p.format, period: p.period, submissionRule: p.submission_rule,
     polarity: p.polarity, targetMin: p.target_min, targetMax: p.target_max, attainmentMethod: p.attainment_method,
   };
   const sources = p.sources === undefined ? undefined : sourcesFrom(p.sources);
@@ -324,7 +330,7 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
     await updateMetricDetails(creator, metric.id as number, details).catch(refusedWithReason);
     // A key's change of what a Metric is called or says is read by other people and their assistants: the Audit Log names
     // the key and the fields (never the words, which are sealed).
-    const fields = (["name", "description", "unit", "format", "period", "submission_rule"] as const).filter((f) => p[f] !== undefined);
+    const fields = (["name", "description", "calculation_note", "unit", "format", "period", "submission_rule"] as const).filter((f) => p[f] !== undefined);
     if (fields.length && actor.key) await audit(creator, { kind: "metric.details_changed", object: { type: "metric", id: metric.id as number, name: metric.name }, details: { fields } });
     if (sources) await setMetricSources(creator, metric.id as number, sources);
     if (workflow !== undefined) await setMetricWorkflow(creator, metric.id as number, workflow.id, { from: workflow.from });

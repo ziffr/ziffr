@@ -25,12 +25,16 @@ export const MAX_PAGE = 100;
 export type Page<T, C = number> = { items: T[]; next: C | null };
 
 /** A Metric as a program sees it in a list or on its own. */
-export type ApiMetric = Pick<Metric, "slug" | "name" | "description" | "period" | "format" | "unit" | "unit_position" | "decimals" | "polarity" | "aggregation" | "target_min" | "target_max" | "attainment_method" | "sources"> & { derived: boolean; archived: boolean; tags: string[] } & ApiRetention;
+export type ApiMetric = Pick<Metric, "slug" | "name" | "description" | "period" | "format" | "unit" | "unit_position" | "decimals" | "polarity" | "aggregation" | "target_min" | "target_max" | "attainment_method" | "sources"> & {
+  /** How it is calculated (GLOSSARY: Calculation Note); empty where nothing is written. */
+  calculation_note: string;
+  derived: boolean; archived: boolean; tags: string[];
+} & ApiRetention;
 
 /** A Metric in the shape programs see it. `stored` is the row's Retention columns (normalizeMetric drops them from the
  * Metric): without them it reads as none. A program sees the setting and its first day only (spec 0033). */
 export const toApi = (m: Metric, stored?: { retention?: unknown; retention_pending?: unknown } | null, tags: string[] = []): ApiMetric => ({
-  slug: m.slug, name: m.name, description: m.description, period: m.period, format: m.format, unit: m.unit, unit_position: m.unit_position,
+  slug: m.slug, name: m.name, description: m.description, calculation_note: m.calculation_note ?? "", period: m.period, format: m.format, unit: m.unit, unit_position: m.unit_position,
   decimals: m.decimals, polarity: m.polarity, aggregation: m.aggregation, target_min: m.target_min, target_max: m.target_max,
   attainment_method: m.attainment_method ?? null, sources: [...(m.sources ?? [])], derived: Boolean(m.formula),
   archived: Boolean(m.archived_at), tags, ...retentionForApi(stored?.retention, stored?.retention_pending),

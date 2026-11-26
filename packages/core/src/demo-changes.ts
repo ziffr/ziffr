@@ -37,6 +37,8 @@ const READS: readonly string[] = [
   "convert-actions:deckChoices",
   "convert-actions:doneAddingToDeck",
   "dashboard-template-actions:draftDashboardTemplate",
+  "deck-actions:deckShareLeftOut",
+  "deck-actions:readDeckNumbers",
   "metric-actions-actions:metricActions",
   "observation-actions:observationDetailsAction",
   "pack-actions:exportAsPack",
@@ -363,6 +365,7 @@ const LIMITED: Readonly<Record<string, readonly string[]>> = {
     "canvas-actions:saveToPool",
   ],
   decks: [
+    "convert-actions:addSnapshotToDeck",
     "convert-actions:addToDeck",
     "convert-actions:makeDeck",
     "convert-actions:makeDeckFromSnapshot",
