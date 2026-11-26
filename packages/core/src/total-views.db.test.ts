@@ -45,7 +45,7 @@ describe("a Total in a Snapshot", () => {
   it("is given to who sees every Metric it counted, to others only while it is open", async () => {
     const { w, owner, ben, eva, total, board, open } = await setup();
     const dash = await board("Team", [total.id]);
-    const snapshot = await takeSnapshot(owner, dash, { period: "month", day: "2026-01-15" } as never, { today: "2026-03-01" });
+    const snapshot = await takeSnapshot(owner, dash, { kind: "month", start: "2026-01-01" }, { today: "2026-03-01" });
     await showSnapshot(owner, snapshot);
     await share(owner, "dashboard", dash, ben, "viewer");
     const reader = w.actor(ben);
@@ -128,7 +128,7 @@ describe("a message about a Total that waited", () => {
     await closeTotal(owner, total.id);
     expect(await archivedMetricHolds(january)).toBe("Not sent.");
     // The column takes what is kept.
-    expect((await db().from("deliveries").insert({ workspace_id: w.id, connector: "email", recipient_id: ben, kind: "alert", subject: "s", body: "b", alert_metric_id: total.id, total_rests: january.total_rests })).error).toBeNull();
+    expect((await db().from("deliveries").insert({ workspace_id: w.id, connector: "email", recipient_id: ben, kind: "alert", subject: "s", body: "b", mail_state: "outbox", alert_metric_id: total.id, total_rests: january.total_rests })).error).toBeNull();
   });
 });
 

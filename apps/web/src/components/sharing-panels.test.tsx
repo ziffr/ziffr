@@ -23,6 +23,7 @@ vi.mock("@/app/view-link-actions", () => ({
   setViewLinkNames: async () => ({}),
   shownSnapshots: async () => [],
   tagListsToFix: async () => 0,
+  emptyInLink: async () => [],
 }));
 vi.mock("@/app/canvas-actions", () => ({ setShare: async () => ({}), setGroupShare: async () => ({}) }));
 vi.mock("@/app/team-actions", () => ({ inviteMember: async () => ({}) }));

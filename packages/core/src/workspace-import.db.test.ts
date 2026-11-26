@@ -337,6 +337,22 @@ describe("a job that stopped", () => {
   });
 });
 
+describe("a file with a Total", () => {
+  it("becomes a Total with its list, closed whatever the file says", async () => {
+    const { person, email } = await importer();
+    const rs = records(email).map((r) => (r.kind === "header" ? { ...r, format: "ziffr.workspace-export/2" as const } : r));
+    rs.splice(rs.findIndex((r) => r.kind === "dashboard"), 0,
+      { kind: "metric", id: "m4", key: "all", metric: { ...metricDoc, name: "All orders" } },
+      { kind: "total", metric: "m4", targets: "own", open: true, parts: [{ metric: "m1", first: "2026-04-01" }, { metric: "m2", first: "2026-04-01", last: "2026-07-01" }] });
+    const status = await run(person, rs);
+    expect(status).toMatchObject({ status: "done", problem: null, counts: { metrics: 4, totals: 1 } });
+    const { data: made } = await db().from("metrics").select("id, formula, total_targets, total_opened_at, sources").eq("workspace_id", status.workspaceId!).not("total_targets", "is", null);
+    expect(made).toEqual([expect.objectContaining({ formula: "{-}", total_targets: "own", total_opened_at: null, sources: [] })]);
+    const { data: parts } = await db().from("total_parts").select("first_period, last_period").eq("total_id", made![0].id).order("part_id");
+    expect(parts).toEqual([{ first_period: "2026-04-01", last_period: null }, { first_period: "2026-04-01", last_period: "2026-07-01" }]);
+  });
+});
+
 describe("labels and sizes", () => {
   it("replaces a label only through its map: a missing one throws and is never used as an id", () => {
     const l = new Labels<number>("Metric");
