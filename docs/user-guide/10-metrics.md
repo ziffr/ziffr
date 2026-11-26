@@ -610,8 +610,8 @@ The page is drawn in the look of the Workspace's team default Theme: a header ro
 The form shows:
 
 - "Hi …, please report", then the Metric's name and description.
-- **For** the period running today. A number you type alone is recorded for it. If that period already has a value, the form says so and names the Submission Rule, such as "already has 84,000 € (overwrite with the newer value)".
-- When the request went by several ways and was already answered on Slack, Telegram or email, a note says **Already answered on** that way. A new value here still follows the Submission Rule.
+- **For** the period the value will be recorded for. With no request waiting, it is the period running today. While Ziffr's request for an earlier period is unanswered, **For** is a list that starts at that period, marked **asked for** (see [While a request waits](#while-a-request-waits)). If the period shown already has a value, the form says so and names the Submission Rule, such as "already has 84,000 € (overwrite with the newer value)".
+- When the request for the running period went by several ways and was already answered on Slack, Telegram or email, a note says **Already answered on** that way while the running period is picked. A new value here still follows the Submission Rule.
 - The value, labelled with the Metric's name. Type it as you would write it.
 - **Breakdown (optional)**: paste two columns from a spreadsheet, one row per line, such as country and revenue, or choose **Load a CSV file**. Add a third column headed **Parent** (or **Eltern**) with the name of another row, and the row is a part of it (leave the cell empty for a row at the top; without that heading a third cell is read as it always was); a CSV file may use commas for the three columns. Ziffr says how many rows it read, reading each number the way your Workspace writes them. If you leave the value empty, it becomes the sum of the rows. If you fill in both and they differ, the value you typed counts.
 - **Submit**: sends the value. The form then says what happened, for example that the value was recorded, added up, replaced, refused because the period already has one, or sent to the Metric Owner because the period is locked. If the Metric has a Workflow, it also says what the Workflow does next, such as asking for Approval, without giving a reason or saying who is asked. The form shows only what Ziffr answered to your own submission: reloading the page or opening a link with extra words in its address shows the empty form again.
@@ -620,9 +620,18 @@ When Ziffr cannot read the value, the reason appears under the field, such as "T
 
 At the bottom, **Open metric** leads to the Metric's page, for those who may sign in and see it.
 
-### Which periods the form link records
+### While a request waits
 
-A form link records the current period or one you were asked for. To send a value for an earlier period, name it with the number, such as "October 5". Ziffr takes it when it asked you (this link) for that period, you have not answered, and its value is still due: no value is in for it, from you or anyone else who submits the Metric, and it is not too old (a Due Date at most 90 days ago or, for a Metric without a Workflow, the period that ended last). A **Locked** one among them goes to the Metric Owner as a proposed Correction. For any other period nothing is recorded, and the form says so. Signed in, use **Record a value** on the Metric's page for an earlier period.
+A form link records the current period or one you were asked for. A Workflow usually asks for the period that has just ended. As long as you have not answered, your form link records that period, as a reply to the request does.
+
+- **For** lists every period you were asked for that still waits, newest first, and the running period, marked such as **this week**. It starts at the newest period asked for. Pick another one before you press **Submit**. If only the running period was asked for, there is no list, and **For** says "(asked for)".
+- A period waits while Ziffr asked you (this link) for it, you have not answered, and its value is still due: no value is in for it, from you or anyone else who submits the Metric (a value sent back at **Approval** counts as in), and it is not too old. Too old means a Due Date more than 90 days ago or, for a Metric without a Workflow, a period before the one that ended last.
+- A waiting period is never shown with a value. A **Locked** one is listed too, and what you send for it goes to the Metric Owner as a proposed Correction.
+- After you record a value for a waiting period, **For** moves to the next one that waits, or back to the running period. Check it before you send another value.
+- The form records the period shown under **For** only. If what you type names another period, such as "September 5", nothing is recorded and the form says so. With no list, no earlier period waits, so a value that names one is not recorded either.
+- If a period stopped waiting while the form was open, for example because you answered on Slack in the meantime, nothing is recorded and the form asks you to check **For**.
+- A Stand-in's form link lists the periods the Stand-in was asked for in that person's place.
+- For any other period, sign in and use **Record a value** on the Metric's page.
 
 ### On a phone
 
@@ -630,11 +639,21 @@ On a phone (under 640 px wide) the same link opens a shorter screen: the Metric'
 
 If you are also signed in, and the link is your own, the screen adds what the link alone does not show:
 
-- **Last value**, with its period: the newest value before the period on screen, if one of the eleven periods before the current one has a value.
-- After saving, **Next: …** with the Metric and the period of your next value that is due (the most overdue first, from your **Schedule**), or "No other value of yours is due now." It opens that value's screen for that period, and **For** names it. A value saved there is recorded as with **Record a value** on the Metric's page. The address of that screen keeps the period, so it shows the same period on a larger screen.
+- **Last value**, with its period: the newest value before the period picked under **For**, if one of the periods Record a value lists has one.
+- After saving, **Next: …** with the Metric and the period of your next value that is due (the most overdue first, from your **Schedule**), or "No other value of yours is due now." It opens that value's screen for that period, and **For** names it, or starts at it when it is a list; a period named this way that no request waits for, such as one that already has a value, is added to your list. A value saved for a period named this way is recorded as with **Record a value** on the Metric's page. The address of that screen keeps the period, so it shows the same period on a larger screen.
 
 Someone who has the link but is not signed in as you sees and can do only what the form above offers. This needs the Workspace you have open to be the one the link belongs to.
 
-Where the Workspace has Telegram on, the form also offers **Connect Telegram**: it gives a link that opens Ziffr's Telegram bot, valid for ten minutes. Tap **Start** there, and requests for numbers then reach you in Telegram as well. Once connected, the form says so. To stop, send `/stop` to the bot in Telegram; only then can the form connect another Telegram account. A form cannot disconnect, so a forwarded form link never moves your messages to someone else's Telegram. Only a Contact sees this on the form: members connect Telegram signed in, on the Connectors page.
+Where the Workspace has Telegram on, the form also offers **Connect Telegram** to a Contact. Members do not see it: they connect Telegram signed in, on the Connectors page. Connecting takes three steps:
+
+1. Choose **Connect Telegram**, then **Open Telegram**: the link opens Ziffr's Telegram bot and is valid for ten minutes. Tap **Start** there.
+2. The bot answers with a four-digit number. Ziffr sends an email, **Confirm Telegram for Ziffr**, to the address the Workspace keeps for you, with the name of the Telegram account. The number is not in the email.
+3. If you started this yourself, open the link in the email, type the number your own Telegram chat shows and choose **Confirm** within 30 minutes. Never type a number someone else gave you. If you did not start it, ignore the email: nothing is connected.
+
+Until you confirm, Ziffr sends that Telegram account nothing and takes no answer from it. Once you have, requests for numbers reach you in Telegram as well, the form says that you are connected, and Ziffr emails you that it is done. The link works once. After three wrong numbers it stops working. Starting again ends the link before, and Ziffr sends at most three of these emails in an hour and five in a day. You get this email also if you have stopped requests for numbers by email, because you ask for it. When Ziffr cannot send it, the bot says so, with who can help.
+
+The form cannot connect Telegram, and says so with who can help, when the Workspace has no email address for you, when this Ziffr sends no email, or in a trial, which sends nothing to Contacts.
+
+To stop, send `/stop` to the bot in Telegram; only then can the form connect another Telegram account. A form cannot disconnect.
 
 A Stand-in's form link works only while they stand in, and for the periods they were asked about; its page says whom they answer for. A Feed has no form link; it sends values with its Feed Key. The form only works when the Web form is one of the Metric's Sources.

@@ -2,6 +2,8 @@
 
 **Status:** done. **Tracking issue:** #259 (label `tracking`); tickets #273 to #281 carry `spec:0030`, built in #294, #301, #309, #322, #326, #327, #337, #344, #346 and the closing pull request of #281. The decisions that are hard to reverse, and the options weighed, are in [ADR 0013](../adr/0013-hosted-ziffr-priced-by-size-billing-outside-marketplace-without-code.md).
 
+> **Changed course (spec 0059, decided by the owner on 2026-11-26):** anyone publishes a free Pack and programs check it; no person reviews it before it is listed. A moderator reviews only a seller's first paid version. The Marketplace signs a statement about a file, and a purchase of a paid Pack belongs to an account. What stands below on those points is replaced; spec 0059 lists each change.
+
 > **Changed course (spec 0039):** a Pack may bring one logo and its Themes may use it (`"logo": "pack"`); the rest of "No images, fonts or links in the contents" stands.
 
 ## Problem Statement

@@ -70,6 +70,8 @@ The owner's decision (2026-11-22): a Pack may bring **one logo and a publisher n
 
 ### Checks on the Marketplace
 
+> **Changed course (spec 0059, decided by the owner on 2026-11-26):** a changed logo or author name goes to a person only when it resembles another publisher's; otherwise it is published and the page says when it changed.
+
 - **Automatic, every version:** the logo passes the shared checks (it decodes as the type it says, within the size); the author name passes the plain-text rules.
 - **A person reviews** the first Pack of a creator and every paid Pack's every version, as in spec 0030. **New in this spec:** a later free version whose **logo or author name differs from the last listed version** also goes to a person, because the cheapest way to impersonate a business is a harmless Pack that changes its mark later. The review asks: is this the creator's own mark, or a lookalike of someone else's? A logo that is the same picture (equal hash) needs nothing new.
 - **Taking a Pack down** for a logo that is not the creator's follows spec 0030's taking down: new installs and updates stop, installed copies stay, and the Packs page of those Workspaces says why in one line.

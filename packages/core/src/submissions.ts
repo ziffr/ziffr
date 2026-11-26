@@ -44,6 +44,9 @@ export type SubmissionInput = {
   value?: { value: number; breakdown?: BreakdownInput[] };
   /** The period a program names; otherwise the current one, or the Prompt's (source "api" only). */
   period?: string;
+  /** The first day of the period picked on the personal form link, as the browser sent it: untrusted. Honoured on the web
+   * form only, and only for the running period or one this Token was asked for and still owes (asked-periods.ts). */
+  formPeriod?: string;
   /** The Access Key a program submits with (source "api" only); the value names it. */
   accessKeyId?: number;
   /** Set only by a Feed's batch (feeds.ts), never from what a program sends: a value for a past period that has none
@@ -166,6 +169,9 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   const given = valueIsGiven(input, pasted !== null);
   const byLink = typedOnLink(input.source, given);
   const sent = given ? input.value : undefined;
+  // The period the value answers when it names none itself: the one picked on the form link, else the Prompt's.
+  const form = await formPick(input, { byLink, ws: workspaceId, metric, token, current, yearStart: ys, promptPeriod: prompt?.period_start ?? null });
+  if ("refused" in form) return log({ ...base, ok: false, ...form.refused });
   const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text, style, { parents: input.source === "web_form" });
   // Rows that are parts of others (spec 0041, ticket 12) are checked before anything is looked up or written: a list that
   // is refused is refused whole, in words, whichever way it came in (a program, a form, a message, a Feed).
@@ -182,12 +188,13 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
     if (named && periodStart(new Date(`${named}T00:00:00`), metric.period, ys) !== named)
       return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is not the first day of a ${metric.period} of ${metric.name}.` });
     if (named && named > current) return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is in the future.` });
-    period = named ?? prompt?.period_start ?? current;
+    period = named ?? form.asked ?? current;
   } else {
     // Period words are read with the workspace's Fiscal Year even for a monthly Metric, so the reply names "Q3"
     // rightly when it says that is not one of its periods.
-    const answer = readAnswer(input.text, { style, today: new Date(), period: metric.period, yearStart: workspaceYearStart, promptPeriod: prompt?.period_start ?? null, ...reading });
-    if (!answer.ok) return log({ ...base, ok: false, ...unread(byLink, answer, metric, workspaceYearStart, prompt?.period_start ?? current, input.source === "web_form" ? style : null) });
+    // A period picked on the form holds like a Prompt's: words naming another one record nothing.
+    const answer = readAnswer(input.text, { style, today: new Date(), period: metric.period, yearStart: workspaceYearStart, promptPeriod: form.asked, ...reading });
+    if (!answer.ok) return log({ ...base, ok: false, ...unread(byLink, answer, metric, workspaceYearStart, form.asked ?? current, input.source === "web_form" ? style : null, form.picked) });
     value = answer.value;
     period = answer.period;
   }
@@ -413,6 +420,17 @@ async function refusedByDatabase(error: { code?: string; message?: string } | nu
   return null;
 }
 
+/** The period a value answers when it names none itself, and whether it was picked on the form link. A pick counts for a
+ * form link only, as the browser sent it (untrusted): the running period, or one asked of this Token that is still due
+ * (asked-periods.ts). Any other gets the link's one refusal before it is used for anything. Without a pick it is the
+ * Prompt's. */
+async function formPick(input: SubmissionInput, at: { byLink: boolean; ws: string; metric: Metric; token: Token; current: string; yearStart: YearStart; promptPeriod: string | null }): Promise<{ refused: { outcome: string; detail: string } } | { asked: string | null; picked: boolean }> {
+  const sent = at.byLink ? input.formPeriod : undefined;
+  if (sent === undefined) return { asked: at.promptPeriod, picked: false };
+  if (sent !== at.current && !(await askedPeriods(at.ws, at.metric, at.token, at.current, at.yearStart)).includes(sent)) return { refused: LINK_PERIOD_REFUSED };
+  return { asked: sent, picked: true };
+}
+
 /** Whether the value and period come read already: a program's, a paste's, or one typed on the Metric's own page. */
 function valueIsGiven(input: SubmissionInput, pasted: boolean): boolean {
   return input.source === "api" || pasted || (input.typed === true && input.source === "web_form");
@@ -484,7 +502,7 @@ function numberExample(style: NumberStyle): string {
 
 /** Why an answer recorded nothing, as an outcome and a reply that asks back, naming what was found (spec 0022:
  * a wrong number recorded quietly is worse than a question). */
-function askBack(a: Exclude<AnswerReading, { ok: true }>, metric: Metric, yearStart: YearStart, fallback: string, formStyle: NumberStyle | null): { outcome: string; detail: string } {
+function askBack(a: Exclude<AnswerReading, { ok: true }>, metric: Metric, yearStart: YearStart, fallback: string, formStyle: NumberStyle | null, picked: boolean): { outcome: string; detail: string } {
   const label = (start: string, span: Span) => midSentence(periodLabel(start, span, yearStart));
   const forNow = label(fallback, metric.period);
   switch (a.reason) {
@@ -508,6 +526,7 @@ function askBack(a: Exclude<AnswerReading, { ok: true }>, metric: Metric, yearSt
     case "other_period": {
       const asked = label(a.promptPeriod, metric.period);
       const said = label(a.period, metric.period);
+      if (picked) return { outcome: "rejected_other_period", detail: `The form is set to ${asked}, but ${listed([a.named.text])} is ${said}. Nothing was recorded: type the number alone, or pick another period under “For”.` };
       return { outcome: "rejected_other_period", detail: `This Prompt asks for ${asked}, but ${listed([a.named.text])} is ${said}. Nothing was recorded: for ${asked}, reply with the value alone; for ${said}, send it as a new message.` };
     }
     case "future_period":
