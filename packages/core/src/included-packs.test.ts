@@ -12,14 +12,14 @@ describe("the Packs that come with Ziffr", () => {
   it("are what packs/ gives: the generated file is current, byte for byte", async () => {
     const { renderIncluded } = (await import(repoFile("scripts/generate-included-packs.mjs").href)) as { renderIncluded: () => string };
     expect(readFileSync(new URL("./included-packs.generated.ts", import.meta.url), "utf8")).toBe(renderIncluded());
-    const files = readdirSync(repoFile("packs/")).filter((f) => f.endsWith(".pack.json")).map((f) => f.replace(".pack.json", "")).sort();
+    const files = readdirSync(repoFile("packs/")).filter((f) => f.endsWith(".pack.json")).sort().map((f) => f.replace(".pack.json", ""));
     expect(INCLUDED_PACK_FILES.map(([n]) => n)).toEqual(files);
   });
 
-  it("are the twelve, in the order Ziffr ships them in, each passing every check and aiming no text at an assistant", () => {
+  it("are the thirteen, in the order Ziffr ships them in, each passing every check and aiming no text at an assistant", () => {
     const all = bundledPacks();
     expect([...all.keys()]).toEqual([...INCLUDED_PACK_ORDER]);
-    expect(all.size).toBe(12);
+    expect(all.size).toBe(13);
     for (const { id, text, pack } of all.values()) {
       const res = checkPack(text);
       expect(res.ok ? [] : res.problems, id).toEqual([]);
