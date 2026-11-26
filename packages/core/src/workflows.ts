@@ -246,6 +246,15 @@ export async function setWorkflowCheck(actor: Actor, id: number, check: { change
   return true;
 }
 
+/** Gives the Send Snapshot step of a Workflow the actor owns its dashboard and who gets the Snapshot, the rest as
+ * stored: for a Set up from a Pack, whose dashboard is made after the Workflow. Checked as any save of the Workflow. */
+export async function setSendSnapshot(actor: Actor, id: number, dashboardId: number, people: string[]): Promise<void> {
+  const stored = await ownWorkflow(actor, id);
+  const { data } = await db().from("workflows").select("name").eq("id", id).eq("workspace_id", actor.workspaceId).single();
+  if (!stored || !data) throw new Forbidden();
+  await saveWorkflow(actor, id, data.name as string, { ...stored, steps: stored.steps.map((s) => (s.type === "send_snapshot" ? { ...s, dashboardId, people } : s)) }, { message: "Chose the dashboard it sends" });
+}
+
 /** Deletes a Workflow the actor owns. With `keepPeople` (an Access Key without "workflows:people") a Workflow that has an
  * Approve or Tell step is refused: deleting it would drop its Approvals. */
 export async function deleteWorkflow(actor: Actor, id: number, opts: { keepPeople?: boolean } = {}) {

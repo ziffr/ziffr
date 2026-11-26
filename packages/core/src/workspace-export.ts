@@ -460,6 +460,12 @@ async function shareRecords(c: Ctx): Promise<void> {
 
 }
 
+/** The records of Set ups from Packs stay behind, and the Owner is told: the file holds no Positions (spec 0058). */
+async function setUpRecordsStay(c: Ctx) {
+  const { count } = await db().from("pack_setups").select("id", { count: "exact", head: true }).eq("workspace_id", c.ws);
+  if (count) c.skip("Set ups from Packs", `${count} record${count === 1 ? "" : "s"}`, "Not in the file: the record of a Set up, with its lines and who fills each Position. What it made is in the file.");
+}
+
 /** Reads everything but the numbers into records, as the actor, and says what does not fit. */
 async function plan(actor: Actor): Promise<Plan> {
   const ws = actor.workspaceId;
@@ -507,6 +513,7 @@ async function plan(actor: Actor): Promise<Plan> {
   await deckRecords(c);
   await workflowRecords(c);
   await shareRecords(c);
+  await setUpRecordsStay(c);
   // More of a kind than the format holds is refused now, before a byte goes out, not found by the writer half way.
   const kinds = new Map<string, number>();
   for (const r of records) kinds.set(r.kind, (kinds.get(r.kind) ?? 0) + 1);

@@ -196,7 +196,7 @@ function PackRow({ pack, p }: { pack: RecommendedPack; p: Props }) {
           {pack.installed && pack.installId !== null && !form && <Button type="button" size="sm" className="h-11 sm:h-8" disabled={pending} onClick={openSetUp}>Set up from this Pack</Button>}
         </div>
       </div>
-      {form && <SetUpHere options={form} viewer={p.viewer} following={p.following} onClose={() => setForm(null)} />}
+      {form && (form.positions ? <SetUpOnPacks name={form.install.name} onClose={() => setForm(null)} /> : <SetUpHere options={form} viewer={p.viewer} following={p.following} onClose={() => setForm(null)} />)}
     </li>
   );
 }
@@ -246,6 +246,16 @@ function EntryBox({ entry, on, forced, onChange }: { entry: PackSetupOptions["en
       <input type="checkbox" checked={on} disabled={forced} onChange={(ev) => onChange(ev.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
       <span>{entry.name} <span className="text-xs text-muted-foreground">{detail}</span></span>
     </label>
+  );
+}
+
+/** A Pack that asks who does what is set up on the Packs page, which has the pickers and shows who will see what. */
+function SetUpOnPacks({ name, onClose }: { name: string; onClose: () => void }) {
+  return (
+    <div className="mt-3 space-y-2 rounded-[var(--radius-input)] border border-input p-3">
+      <p>{name} asks who does what. <Link href="/settings/packs" className="underline">Set it up on the Packs page</Link>, where you pick the people and see who will see what.</p>
+      <Button type="button" size="sm" variant="ghost" onClick={onClose}>Close</Button>
+    </div>
   );
 }
 

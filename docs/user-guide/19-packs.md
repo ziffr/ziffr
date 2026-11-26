@@ -10,6 +10,20 @@ A **Pack** is a file of ready-made things for a Workspace: Metric Catalog entrie
 
 Each Pack shows "by" its author, with its logo when it has one, in a bordered box next to the name, and says who vouches for both. A Pack installed from the Marketplace says **Published through the Marketplace as @handle. Checked by program. No person reviewed it.** The last sentence is left out only when the Marketplace signed that a person looked at that version. The signature shows where the file came from, and the checks run on every Pack are the protection. A Pack installed from a file says **Uploaded file. The Marketplace did not check it. Its name and logo are what the file says about itself.**, shows the id as the file writes it, and, when the id begins with `ziffr/`, adds **This file says it is from Ziffr. It is not signed by the Marketplace.** There is no badge: read the lines. The logo is shown only here, in the install preview and on the update page, never anywhere else in Ziffr.
 
+## Who does what in a Pack
+
+A Pack may name **Positions**, such as "Sales lead" or "Salesperson": places that people fill when the Pack is set up. It names no person. It may also have **Repeats**: parts that are made once for each line of a list, such as each salesperson or site.
+
+The preview of such a Pack shows this before you install it, and the installed Pack keeps it under **Who does what**:
+
+| Section | What it shows |
+| --- | --- |
+| **Made once for each line of a list (Repeats)** | Each Repeat in the Pack's words, the most lines it takes, and the Metrics, dashboards and Workflows each line gets. |
+| **Who does what (Positions)** | Each Position, whether one person or several fill it (also once per line), and what it does: which Metrics it submits or stands in for, where it approves, which Checklist Items it is told or ticks off, and which Snapshot it gets. |
+| **Shares it proposes** | Each Position the Pack proposes to share Metrics or dashboards with, as Viewer or Editor. Installing shares nothing and sends nothing. |
+
+An item you removed after installing is left out, and so are the Positions of a Workflow Template kept from another version of the Pack. [Set up from this Pack](#set-up-with-positions) asks who fills each Position.
+
 ## Ziffr's own Packs
 
 **Ziffr's own Packs** lists the thirteen Packs that come with this version of Ziffr, for Owners and Admins. Each shows its name, version and summary and what it brings as counts (for example "13 Metrics, 2 dashboards, 2 Workflows"). It works on any Installation, also a self-hosted one with no Marketplace: nothing is downloaded and nothing leaves your server.
@@ -110,6 +124,29 @@ The form opens with the whole Pack chosen: every Metric ticked, the dashboard an
 | **Workflow** | One of the Pack's Workflow Templates, or none. If its Approve step asks for Approvers, pick each one, members of the Workspace. The Metrics that take values follow this Workflow. |
 | **How many Metrics it makes** | A line at the top of the form, which changes with every box: "Makes 18 Metrics: 20 of 50 left in Size Small afterwards." The Metrics made for a Derived Metric are counted. If the set goes past what the Size holds but within its room, the line says by how many, and that the 14 days over the limit start. If it does not fit at all, the line says how many do, and **Set up** waits: untick some entries, archive Metrics you no longer track, or follow **change the Size** to [Size and usage](16-workspace-settings.md#size-and-usage). Where the limit has no Size name (a trial's 25, or one your Installation Admin set), the line says "the limit". |
 | **Set up** | Makes it all. Ziffr checks everything first: if anything cannot be made, such as more Metrics than the Workspace's limit (see [Size and usage](16-workspace-settings.md#size-and-usage)) or a trial's 25, nothing is made and it says why. |
+
+### Set up with Positions
+
+For a Pack that names Positions or Repeats, the form has more parts. A Pack without them looks as above.
+
+1. **Lists.** For each Repeat, **List each …** takes one line per salesperson, site or company: type its name, such as "Munich", and pick the people for its Positions. **Add a line** adds one; **Paste a list of names**, or pasting a column into a name box, adds many at once. A name is never filled in from a person's name. A line's name appears in the names of its Metrics ("Incidents, Munich"), which everyone who sees them reads, Guests included. A Repeat takes at most 50 lines, or fewer when the Pack says so.
+2. **Dashboard** and **Workflow** are picked once for the whole set and once **for each** line of a Repeat, one of each. A line's Metrics follow its line's Workflow, else the one for the whole set. A dashboard for the whole set takes every line's Metric in a Slot for several Metrics, and shows all of them to whoever it is shared with.
+3. **Who does what.** One question per Position, such as **Who is the Sales lead?**; a Position for several people lets you tick several. Only people who may fill every place the Position takes in what you chose are offered, and **Why is someone missing?** says why: a Contact cannot approve, be told or be shared with, and a Guest cannot stand in. Invite a person on the Members page first; Set up invites nobody and changes no role. In a Workspace of one, you are filled in.
+4. **Check before you set up.** How many Metrics, dashboards and Workflows are made; **Who will see what**, with each person's Metrics and why (submits it, shared with them, on a dashboard); and the **Shares the Pack proposes**, each with its own box. A Share that would show someone a Metric they would not see otherwise, or lets them change something, starts unticked. Only ticked Shares are made.
+5. **Messages.** You are asked for your own values at once, as always. Others are asked at the Workflow's next run, unless you tick **Ask the others for the current period now**, which says how many messages that sends. A Metric that follows no Workflow asks nobody by itself.
+
+An empty Position leaves the place open: no Submitter, "nobody yet" on a Task, nobody told. A Workflow with an Approve step is not made while one of its Approvers is empty. Where someone submits values and approves them, the rules of Approval apply: nobody approves their own value. A Send Snapshot step gets its dashboard when that is made in the same go; a recipient the dashboard is not shared with gets nothing from it, and the form says so.
+
+Afterwards everything is ordinary: change who does what on each Metric, Workflow and dashboard. Ziffr keeps a record of what was made; it decides nothing, uninstalling the Pack deletes it, and a Workspace Export leaves it out. **Large sets.** One Set up makes at most 200 Metrics. The whole set is checked against the Workspace's limit before anything is made. It then makes the Metrics a few at a time and says how far it is; keep the page open. The dashboards and Shares come last. If it stops on the way, it says what was made, keeps that, and does not go on: archive or delete what you do not want, or set up the missing lines again.
+
+### Add a line
+
+Once something of a Repeat was set up, the installed Pack offers **Add a …** in the Repeat's own word, such as **Add a Salesperson** or **Add a Site**. It makes only that one line: give it a name no other line has and pick its people. What each line got so far is chosen, and the people of the other Positions are those of your last Set up; change any of it. The check is the same as for Set up, and also lists:
+
+- **Add to what is set up**, each ticked: the new Metrics joining the Workflow made for the whole set, when it is yours, and the widgets of several Metrics that show most lines' Metrics, on dashboards you may change. Whoever such a dashboard is shared with sees the new Metrics; **Who will see what** names them.
+- **Left to do by hand:** what Ziffr does not change, such as a Workflow or dashboard of someone else, a Workflow step that names the new person's Position, or a Share the Pack proposes of something made before.
+
+Nothing else made before changes. Removing a line is not automated: archive its Metrics.
 
 When Set up has made Metrics that take values, its result page offers **Fill from n8n** for them: the same download as under a Metric's **Who submits**, for all those Metrics at once, with a starter sheet naming each Metric's slug. When the Pack says which template fills which of its entries, the page reads "HR Pack says Google Sheets can fill Headcount, Attrition" with the template already chosen, one button per template. Metrics computed from others are left out, since they take no values.
 
