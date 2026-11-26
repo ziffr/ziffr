@@ -218,6 +218,18 @@ It is worked out per reader and period, at the time of reading.
 - A viewer gets the rows of the parts they see, with one line saying that others are not shown to them. The slide's total appears only where they may see the Total, and no total is ever worked out from the rows shown.
 - The Metric "Quota split" of spec 0062 then leaves the Pack. Existing set-ups that send Breakdowns keep their two-Metric gap table.
 
+#### The forecast Pack's team quota
+
+Decided by the owner on 2026-11-26: **the team's quota is the salespeople's targets added up** to begin with (`"targets": "parts"` on the Total over Commit), so each quota is set once, on a salesperson's Commit. A team may give the Total its own target instead, and the Pack Guide and the user guide say how:
+
+1. On the Total's page, tab **Overview**, section **What it adds up**: under **Target** choose **Its own target** (its owner or an Editor; only the owner while the Total is open).
+2. On its **Targets** tab give every week its quota (**Add row** or **Paste from a spreadsheet**), the quarter's quota in each of the quarter's weeks, past weeks that are still read included. **Edit details** and **Target from** give one quota for every week instead, without history.
+
+- **What changes:** every formula that reads `target()` of the Total (quota, gap, share, pipeline coverage), and with them the dashboard and the slides, reads the Total's own target; a week without one has no value, past weeks too.
+- **What does not:** the gap slide's rows. Each compares a salesperson with their own Commit's target, so the rows need not add up to the team's gap.
+- **Back:** choose **Its Metrics' targets added up**. This removes the Total's own Target Range; its Target Series is kept, unused, and counts again once **Its own target** is chosen again.
+- Updating the Pack changes neither choice in what was set up.
+
 #### Format
 
 - A Metric Catalog entry outside a Repeat may say `"total": { "of": "commit", "targets": "parts" }` in place of a formula: `of` names an entry of a Repeat in the same Pack, `targets` is `own` or `parts`. The gap table's element gains the one-Total form.

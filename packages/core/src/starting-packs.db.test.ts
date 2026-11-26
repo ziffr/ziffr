@@ -41,7 +41,8 @@ describe("installing the starting Packs", () => {
     expect(made.workflowId).not.toBeNull();
   });
 
-  it.each(["sales", "sales-forecast", "finance", "people", "customer-support", "fulfilment"])("sets up the %s Pack whole: every Metric, its dashboard with all its widgets and its Workflow", async (id) => {
+  // Sales forecast asks who does what, so it is set up in forecast-pack.db.test.ts.
+  it.each(["sales", "finance", "people", "customer-support", "fulfilment"])("sets up the %s Pack whole: every Metric, its dashboard with all its widgets and its Workflow", async (id) => {
     const w = await workspace(); cleanups.push(w.cleanup);
     const ann = await w.person("owner");
     const file = `${id}.pack.json`;

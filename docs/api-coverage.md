@@ -180,6 +180,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `setMyPromptWays` (ways-in-and-out.ts): one's own Delivery Preference for Prompts from the Setup Guide's Ways in and out step, only with ways that work here (spec 0052); a program sets its person's preference through the app
 - `waysInAndOut` (ways-in-and-out.ts): the Setup Guide's Ways in and out step for the viewer, in words; for the app's page only (spec 0052)
 - `teamSetup` (team-setup.ts): the Setup Guide's Team step for an Owner or Admin; it carries Business Functions, which no program may read, so for the app's page only (spec 0052)
+- `inviteGate` (invite-gate.ts): the words above a closed invite form in the app, with the asking Owner's own buttons; a program learns of a closed gate from the refusal of the API's invitation (spec 0040)
 - `startSetupGuide` (setup-guide.ts): the Setup Guide is for people in the app (spec 0052); programs never set up a Workspace
 - `setupGuide` (setup-guide.ts): the viewer's own guide steps, for the app
 - `skipSetupStep` (setup-guide.ts): skipping a step of the guide, for the app

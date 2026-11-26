@@ -26,7 +26,8 @@ vi.mock("@/app/view-link-actions", () => ({
   emptyInLink: async () => [],
 }));
 vi.mock("@/app/canvas-actions", () => ({ setShare: async () => ({}), setGroupShare: async () => ({}) }));
-vi.mock("@/app/team-actions", () => ({ inviteMember: async () => ({}) }));
+vi.mock("@/app/team-actions", () => ({ inviteMember: async () => ({}), inviteGateNow: async () => ({ state: "ended" }) }));
+vi.mock("@/app/series-actions", () => ({ askMeNow: async () => ({}), recordValue: async () => ({}) }));
 vi.mock("@/app/deck-actions", () => ({ deckShareLeftOut: async () => ({ who: { p2: [{ from: "Sales, Q3 2026", count: 3 }] }, unnamed: 1 }) }));
 import { SlideOverProvider } from "./slide-over-host";
 import { ShareSheet } from "./share-sheet";
@@ -92,6 +93,15 @@ describe("Share in the side panel", () => {
     await act(async () => button("Share").click()); await tick();
     await act(async () => button("Close").click()); await tick();
     expect(new URL(window.location.href).searchParams.has("panel")).toBe(false);
+  });
+
+  it("says why Invite someone is closed, right above its greyed fields", async () => {
+    await act(async () => { root.render(<SlideOverProvider><ShareSheet objectType="deck" objectId={2} name="Review" ownerId="p1" people={people} shares={[]} canInvite /></SlideOverProvider>); });
+    await act(async () => button("Share").click()); await tick();
+    await act(async () => button("Invite someone").click()); await tick();
+    expect(panel()!.textContent).toContain("This trial has ended, so nobody can be invited any more.");
+    expect(panel()!.querySelector<HTMLInputElement>('input[type="email"]')!.disabled).toBe(true);
+    expect(button("Invite").disabled).toBe(true);
   });
 
   it("says on a deck, before anything is shared, who will not see which Snapshot Parts", async () => {
