@@ -20,8 +20,8 @@ begin
   update workspaces set keyed_at = coalesce(keyed_at, now()) where id = p_workspace;
   delete from workspace_keys where workspace_id = p_workspace;
   insert into installation_audit_events (actor_id, actor_name, kind, subject) values (null, 'Ziffr', 'workspace.key_destroyed', p_workspace::text);
-  -- Values and their parts first, while the Workspace is still there: removing them writes history rows that name it,
-  -- which could not be written once it is going.
+  -- Values and their parts first, while the Workspace is still there, so their history rows can be written and then go
+  -- with it.
   delete from breakdown_rows where workspace_id = p_workspace;
   delete from observations where workspace_id = p_workspace;
   delete from intake_log where workspace_id = p_workspace;

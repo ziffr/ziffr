@@ -121,12 +121,17 @@ describe("the database step that deletes", () => {
     const owner = await home.person("owner");
     const p = await workspace("Practice", { practice: true }); cleanups.push(p.cleanup);
     const me = await p.person("owner", { id: p.practiceFor! });
-    await p.madeUp("member");
+    const ann = await p.madeUp("member");
+    // Values with a Breakdown and their history go with it (#1280).
+    const m = await p.metric(me, { name: "Sales" });
+    const value = await p.value(m.id, "2026-10-01", 5, ann);
+    await db().from("breakdown_rows").insert({ observation_id: value, label: "Germany", value: 5, position: 0 }).throwOnError();
     const asked: [string, string][] = [[home.id, owner], [home.id, me], [p.id, owner], [DEMO_WORKSPACE_ID, "sara"], [DEMO_WORKSPACE_ID, me], [randomUUID(), me]];
     for (const [ws, person] of asked) expect((await db().rpc("delete_practice_workspace", { p_workspace: ws, p_person: person })).data).toBe(false);
     expect((await db().from("workspaces").select("id").in("id", [home.id, p.id, DEMO_WORKSPACE_ID])).data).toHaveLength(3);
     expect((await db().rpc("delete_practice_workspace", { p_workspace: p.id, p_person: me })).data).toBe(true);
     expect((await db().from("workspaces").select("id").eq("id", p.id)).data).toEqual([]);
     expect((await db().from("profiles").select("id").eq("id", me)).data).toHaveLength(1);
+    expect((await db().from("breakdown_rows").select("id").eq("workspace_id", p.id)).data).toEqual([]);
   });
 });
