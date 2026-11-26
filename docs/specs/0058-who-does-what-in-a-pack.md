@@ -133,7 +133,7 @@ Set up from this Pack (spec 0030) gains three parts. A Pack without Positions lo
    - **messages now**: who would get a Prompt or a notice at once.
 
 - **Empty Positions** leave the place open as a template does today: no Submitter, "nobody yet" on a Checklist Task, nobody told. An Approve step is the exception: a Workflow is not made while one of its Approvers is empty.
-- **Shares start unticked** where they would show someone a Metric they do not already see in this plan. A Pack is a stranger's file, and sharing is a decision (decision 3).
+- **Shares start unticked** where they would show someone a Metric they do not already see in this plan. A Pack is a stranger's file, and sharing is a decision (decision 3). One exception: where a Position submits a number that its holder is not asked for (see "Where it is shown"), a Viewer Share of that Metric is proposed and starts ticked, since the Position would have shown it to them anyway. What else shows no more than they then see, such as their line's dashboard, is ticked with it, and unticked again if that Share is.
 - **Prompts to others wait** for the Workflow's next run. "Ask them for the current period now" is a tick, off by default, with the number of messages beside it. Prompts to the person setting up behave as today. Sending Limits and Quiet Hours apply as always.
 - **Self-approval** is not made possible: where one person is both Submitter and Approver, the preview says that the existing rules apply (nobody approves their own value; the Approve step's Self-check or count).
 - **Order:** Workflows, Metrics, Submitters, Stand-ins, dashboards, Shares, the Send Snapshot step. Each goes through the existing core function, so permissions, limits and the Audit Log apply as by hand.
@@ -229,7 +229,7 @@ It is worked out per reader and period, at the time of reading.
 - Ziffr keeps what a Set up did: the install, Pack version, who and when, the people per Position, the lines and their names (sealed with the Workspace Key), and the ids of what was made, by Pack key and line.
 - **The record decides nothing.** No permission, message or sight is ever worked out from it.
 - Owners and Admins read it, and see names of only those Metrics, dashboards and Workflows they may see. Removing a person takes them out of it. Uninstalling the Pack deletes it and leaves everything made. The new tables are classified for the demo and for deletion, and a Workspace Export leaves the record out and says so.
-- **Add a site** (the Repeat's own word) on the Pack's page runs Set up for one new line, with the same preview. It also offers to add the new Metrics to the shared Workflow and to the several-Metric widgets, each ticked and listed, only where this person may change them. What it cannot change, it lists.
+- **Add a site** (the Repeat's own word) on the Pack's page runs Set up for one new line, with the same preview. It also offers to add the new Metrics to the shared Workflow and to the several-Metric widgets, each listed with its own tick, only where this person may change them. The Workflow's offer starts ticked. A widget's offer says who would newly see the new Metrics, and **starts unticked** where anyone its dashboard is shared with would, or where it is shared with a Group, whose later members would too (decided by the owner on 2026-11-26). What it cannot change, it lists.
 - Removing a line is not automated: archive its Metrics by hand, which asks on each Total up to which period they count.
 - Updating a Pack never changes what was set up. The update page says which Positions and Repeats are new or gone.
 
@@ -333,7 +333,7 @@ A person about to install a Pack needs to know where its numbers will come from 
 
 - **Before installing,** in the preview, and on the Pack's Marketplace page: a table **Where the numbers come from**, then **Included** and **What you still need**.
 - **After installing,** in Help, with the installed Pack. The install keeps the worked-out overview, never the Pack's contents.
-- **At Set up:** each number says where it comes from, and **nobody is asked** for a number another system sends or one set as a target, unless the person ticks that they are. The Workflow then sends no request for it. Choosing a Feed is unchanged.
+- **At Set up:** each number says where it comes from, and **nobody is asked** for a number another system sends or one set as a target, whether they were picked beside Positions or hold a Position that submits it (decided by the owner on 2026-11-26). The one exception: with **Ask me also for …** ticked, the person setting up is asked where they would submit it; nobody else is asked either way. Such a number gets no Submitter otherwise and no Stand-in, and the Workflow sends no request for it. The plan, also of Add a line and of each step of a large set, says who is not asked and why. A holder keeps sight of it through the ticked Viewer Share above; a Contact cannot be shared with, and the plan says so. Choosing a Feed is unchanged.
 - **Export as Pack** asks for each number, with “A person types it” to begin with, or what the installed Pack it came from said.
 
 `@ziffr/pack` exports the working-out (`packOverview`, `comesFromWords`, `includedAndNeeded`), so every page shows the same.

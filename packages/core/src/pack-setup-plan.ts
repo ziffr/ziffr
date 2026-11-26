@@ -5,7 +5,8 @@
 // visibility rules the app uses, over the rows as they would be. Only Metrics made here and Metrics the actor sees are
 // named: no other Metric can be seen through anything a Set up makes.
 import type { Actor } from "./actor";
-import { getShares, visibilityOfMany, type PlannedRows } from "./access";
+import { getGroups, getRawShares, getShares, visibilityOfMany, type PlannedRows } from "./access";
+import { expandGroupShares } from "./visibility";
 import type { Offer } from "./pack-setup-adding";
 import { fromDashboardTemplate } from "./team-templates";
 import { widgetMetricIds } from "./widget-metrics";
@@ -28,14 +29,19 @@ export type PackSetupPlan = {
   /** For the person setting up and everyone picked: the Metrics they will see of those made or shown here, and why. */
   sees: { id: string; name: string; metrics: { name: string; why: string[] }[] }[];
   /** Every Share the Pack proposes among what is made. `showsMore`: it would show the person a Metric they do not see
-   * without it. `suggested`: whether the form ticks it by itself, which it does only for a Viewer who sees no more. */
-  shares: { id: string; person: string; role: "viewer" | "editor"; kind: "Metric" | "dashboard"; item: string; showsMore: boolean; suggested: boolean }[];
+   * without it. `keeps`: they hold a Position that submits the Metric and are not asked for it. `suggested`: whether
+   * the form ticks it by itself, which it does only for a Viewer who sees no more, or whose sight it keeps. */
+  shares: { id: string; person: string; role: "viewer" | "editor"; kind: "Metric" | "dashboard"; item: string; showsMore: boolean; keeps: boolean; suggested: boolean }[];
   /** Requests for values: those that go out at once, those that wait for the Workflow's next run, and those nobody
    * sends by themselves because the Metric follows no Workflow. */
   messages: { now: PlannedMessages[]; nextRun: PlannedMessages[]; unasked: PlannedMessages[]; /** How many requests go to others than the person setting up, if they are asked now. */ others: number };
+  /** Who would submit a number and is not asked for it, and why, in words. */
+  notAsked: string[];
+  /** The numbers nobody types that the person setting up would submit: what “Ask me also for …” is about. */
+  askMeAlso: string[];
   /** Adding a line: what is set up already that it may be added to, each ticked or not, and what is left to do by
-   * hand. */
-  offers: Offer[];
+   * hand. `suggested`: whether the form ticks it by itself, which it does not where that shows someone more. */
+  offers: (Offer & { suggested: boolean })[];
   byHand: string[];
   notes: string[];
   problems: string[];
@@ -46,8 +52,9 @@ export type PackSetupPlan = {
 const widgetsOf = (d: PlannedDashboard) => fromDashboardTemplate(d.template.body as DashboardTemplateBody, d.fills);
 const metricsOn = (d: PlannedDashboard) => [...new Set(widgetsOf(d).flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))];
 
-/** The rows a Set up would write that decide who sees what, with the Shares given. */
-function plannedRows(actor: Actor, b: Blueprint, shares: ProposedShare[]): PlannedRows {
+/** The rows a Set up would write that decide who sees what, with the Shares given, and with the widgets there already
+ * that `added` says take new Metrics. */
+function plannedRows(actor: Actor, b: Blueprint, shares: ProposedShare[], added: Blueprint["additions"]["widgets"] = b.additions.widgets): PlannedRows {
   return {
     // All are the actor's, who sees what they own whatever it is computed from, so no formula is needed.
     metrics: b.metrics.map((m) => ({ id: m.plan, name: m.name, slug: `planned-${-m.plan}`, owner_id: actor.personId, formula: null }) as unknown as Metric),
@@ -57,7 +64,7 @@ function plannedRows(actor: Actor, b: Blueprint, shares: ProposedShare[]): Plann
     widgets: [
       ...b.dashboards.flatMap((d) => widgetsOf(d).map((w) => ({ dashboard_id: d.plan, metric_ids: w.metric_ids, settings: w.settings }))),
       // A widget there already that takes the new Metrics shows them to whoever its dashboard is shared with.
-      ...b.additions.widgets.map((w) => ({ dashboard_id: w.dashboard.id, metric_ids: w.add, settings: {} })),
+      ...added.map((w) => ({ dashboard_id: w.dashboard.id, metric_ids: w.add, settings: {} })),
     ],
   };
 }
@@ -106,16 +113,57 @@ function sightNotes(actor: Actor, b: Blueprint, sees: (person: string) => Readon
   return notes;
 }
 
+/** Who would submit a number the Pack says nobody types, and is not asked for it. */
+function notAskedOf(actor: Actor, b: Blueprint): string[] {
+  return [...b.people.values()].flatMap((p) => (["system", "target"] as const).flatMap((by) => {
+    const names = b.metrics.filter((m) => m.elsewhere === by && m.left.includes(p.id)).map((m) => m.name);
+    if (!names.length) return [];
+    const one = names.length === 1;
+    const why = by === "system" ? `another system sends ${one ? "it" : "them"}` : `${one ? "it is" : "they are"} set as a target`;
+    const unshared = p.kind === "contact" ? " A Contact cannot be shared with." : "";
+    return [`${p.id === actor.personId ? "You are" : `${p.name} is`} not asked for ${listed(names)}: the Pack says ${why}.${unshared}`];
+  }));
+}
+
+/** The most people named as newly seeing the Metrics a widget takes. */
+const NAMED_MAX = 10;
+
+/** The offers of adding a line, each widget's with whom it would newly show the new Metrics: whoever its dashboard is
+ * shared with and does not see them all without it. One that shows anyone more, now or when they join a Group it is
+ * shared with, starts unticked. `without` is what someone sees before any widget takes them. */
+async function offersOf(actor: Actor, b: Blueprint, without: (person: string) => ReadonlySet<number>): Promise<PackSetupPlan["offers"]> {
+  const ws = actor.workspaceId;
+  const [raw, groups] = b.additions.offered.length ? await Promise.all([getRawShares(ws), getGroups(ws)]) : [[], []];
+  const shares = expandGroupShares(ws, raw, groups);
+  return b.additions.offers.map((o) => {
+    const widget = b.additions.offered.find((w) => w.offer === o.id);
+    if (!widget) return { ...o, suggested: true };
+    const here = (s: { object_type: string; object_id: number }) => s.object_type === "dashboard" && s.object_id === widget.dashboard.id;
+    const theirs = [...new Set(shares.filter(here).map((s) => String(s.user_id)))].filter((id) => id !== actor.personId);
+    const newly = theirs.filter((id) => widget.add.some((m) => !without(id).has(m))).map((id) => b.people.get(id)?.name ?? "Someone");
+    const later = raw.filter(here).flatMap((s) => groups.filter((g) => g.id === s.group_id).map((g) => `the Group ${g.name}`));
+    const them = widget.add.length === 1 ? "it" : "them";
+    const named = newly.length > NAMED_MAX ? [...newly.slice(0, NAMED_MAX), `${newly.length - NAMED_MAX} more`] : newly;
+    const now = named.length ? `${listed(named)} would newly see ${them}.` : `Nobody it is shared with now sees more by it.`;
+    const joining = later.length ? ` Whoever joins ${listed(later)} would see ${them} too.` : "";
+    return { ...o, words: `${o.words} ${now}${joining}`, suggested: !newly.length && !later.length };
+  });
+}
+
 /** Plans setting up from one of the Workspace's installed Packs (Owners and Admins). Nothing is written. */
 export async function planPackSetup(actor: Actor, installId: number, input: PackSetupInput): Promise<PackSetupPlan> {
   assertSetsUp(actor);
   const b = await buildSetup(actor, await installedForSetup(actor, Number(installId)), input);
   const ticked = tickedShares(b, input?.shares);
   const ws = actor.workspaceId;
+  // A ticked Share that keeps the sight a Position gives counts as seen already, when asking what else shows more.
+  const kept = ticked.filter((s) => s.keeps);
   const [after, without] = await Promise.all([
     visibilityOfMany(ws, b.existing, plannedRows(actor, b, ticked)),
-    visibilityOfMany(ws, b.existing, plannedRows(actor, b, [])),
+    visibilityOfMany(ws, b.existing, plannedRows(actor, b, kept)),
   ]);
+  // Who sees what before any widget there already takes the new Metrics, where one is offered.
+  const before = b.additions.offered.length ? await visibilityOfMany(ws, b.existing, plannedRows(actor, b, kept, [])) : without;
   // What is made, and what a dashboard made here shows besides: the actor sees those, as filling a Slot requires.
   const names = new Map<number, string>([...b.metrics.map((m): [number, string] => [m.plan, m.name]), ...b.existing.map((m): [number, string] => [m.id, m.name])]);
   const onBoards = new Map(b.dashboards.map((d) => [d.plan, metricsOn(d)]));
@@ -143,8 +191,9 @@ export async function planPackSetup(actor: Actor, installId: number, input: Pack
   });
   const shares = b.shares.map((s) => {
     const base = without(s.person).metrics;
-    const showsMore = (s.object === "metric" ? [s.plan] : onBoards.get(s.plan) ?? []).some((m) => !base.has(m));
-    return { id: s.id, person: b.people.get(s.person)!.name, role: s.role, kind: s.object === "metric" ? ("Metric" as const) : ("dashboard" as const), item: s.item, showsMore, suggested: !showsMore && s.role === "viewer" };
+    // One that keeps sight is itself among what is seen already when ticked, and shows more without it.
+    const showsMore = s.keeps || (s.object === "metric" ? [s.plan] : onBoards.get(s.plan) ?? []).some((m) => !base.has(m));
+    return { id: s.id, person: b.people.get(s.person)!.name, role: s.role, kind: s.object === "metric" ? ("Metric" as const) : ("dashboard" as const), item: s.item, showsMore, keeps: s.keeps, suggested: s.role === "viewer" && (s.keeps || !showsMore) };
   });
   return {
     people: [...b.people.values()],
@@ -156,7 +205,9 @@ export async function planPackSetup(actor: Actor, installId: number, input: Pack
     sees,
     shares,
     messages: messagesOf(actor, b, input?.askNow === true),
-    offers: b.additions.offers,
+    notAsked: notAskedOf(actor, b),
+    askMeAlso: [...new Set(b.metrics.filter((m) => m.elsewhere && [...m.left, ...m.submitters].includes(actor.personId)).map((m) => m.entry.name))],
+    offers: await offersOf(actor, b, (id) => before(id).metrics),
     byHand: b.additions.byHand,
     notes: [...b.notes, ...sightNotes(actor, b, (id) => after(id).metrics, ticked)],
     problems: b.problems,
