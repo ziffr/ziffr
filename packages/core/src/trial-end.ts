@@ -17,6 +17,8 @@ import { daysSetting } from "./installation-days";
 import { csvNumber } from "./export-values";
 import { inCondensed, partOfCondensed, valueOfParts } from "./condensed-parts";
 import { condensedFor } from "./condensed-values";
+import { NOT_FINAL_STATES, valueStateWords } from "./value-state";
+import { allRows, mustRead } from "./workspace-data";
 import type { Aggregation } from "./types";
 import { NUMBER_STYLE_MARKS } from "./number-style";
 import { numberStyleOf } from "./workspace-settings";
@@ -314,11 +316,15 @@ export async function endTrialNow(actor: Actor): Promise<void> {
 /** A trial's Metrics and values as CSV, for its Owner to keep: one row per value, oldest first per Metric. Every
  * field is quoted, and one that starts like a formula gets a leading apostrophe, so a spreadsheet never runs it.
  * Values are written in the workspace's Number Style, without group marks and as precise as stored, and the fields
- * are separated by ";" when the decimal mark is a comma, as spreadsheets set to that style expect (spec 0022). */
+ * are separated by ";" when the decimal mark is a comma, as spreadsheets set to that style expect (spec 0022). The
+ * last column says whether the value is final or not approved yet (GLOSSARY: Approval). */
 export async function trialValuesCsv(actor: Actor): Promise<string> {
   if (actor.role !== "owner" || !(await trialEndsAt(actor.workspaceId))) throw new Forbidden("Only a trial's Owner can download it this way.");
   return valuesCsv(actor.workspaceId, null);
 }
+
+/** What a person is told when the values file cannot be read whole. */
+const UNREAD = "The values could not be read. Try again in a moment.";
 
 /** A Workspace's values as CSV (see trialValuesCsv), of every Metric or only of the ones given. For callers that
  * checked who may read them. */
@@ -333,7 +339,7 @@ export async function valueLines(workspaceId: string, only: ReadonlySet<number> 
     db().from("metrics").select("id, slug, name, period, unit, aggregation").eq("workspace_id", workspaceId),
     numberStyleOf(workspaceId),
   ]);
-  if (unread) throw new Error("The values could not be read. Try again in a moment.");
+  if (unread) throw new Error(UNREAD);
   // Names are sealed, so the order by name is made here, on the opened rows.
   const all = (await openRows("metrics", workspaceId, sealedRows)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
   const metrics = all.filter((m) => !only || only.has(m.id as number));
@@ -347,20 +353,19 @@ export async function valueLines(workspaceId: string, only: ReadonlySet<number> 
   const number = (v: unknown) => `"${csvNumber(Number(v), style)}"`;
   // A Condensed Value (spec 0033) is one line for its span: `period` is the span's kind, `period_start` its first day,
   // `period_end` its last, `condensed_from` how many of the Metric's periods it was made from; both are empty on a value.
-  const lines = [["metric", "name", "period", "period_start", "value", "unit", "source", "recorded_at", "period_end", "condensed_from"].map(cell).join(sep)];
-  const condensed = await condensedFor(workspaceId, metrics.map((m) => m.id as number));
+  const lines = [["metric", "name", "period", "period_start", "value", "unit", "source", "recorded_at", "period_end", "condensed_from", "state"].map(cell).join(sep)];
+  const condensed = await condensedFor(workspaceId, metrics.map((m) => m.id as number), UNREAD);
   for (const m of metrics) {
-    for (let from = 0; ; from += 1000) {
-      const { data: rows, error } = await db().from("observations").select("id, period_start, value, value_sealed, source, created_at").eq("workspace_id", workspaceId).eq("metric_id", m.id)
-        .order("period_start").order("id").range(from, from + 999);
-      if (error) throw new Error("The values could not be read. Try again in a moment.");
-      // A period a Condensed Value stands for is written once, as it, even while its originals are not deleted yet.
-      for (const r of (await openRows("observations", workspaceId, (rows ?? []) as Record<string, unknown>[])).filter((x) => typeof x.value === "number" && !inCondensed(condensed[m.id as number] ?? [], String(x.period_start)))) lines.push([cell(m.slug), cell(m.name), cell(m.period), cell(r.period_start), number(r.value), cell(m.unit), cell(r.source), cell(r.created_at), cell(""), cell("")].join(sep));
-      if (!rows || rows.length < 1000) break;
-    }
+    const rows = await allRows<Record<string, unknown>>((from, to) => mustRead(db().from("observations").select("id, period_start, value, value_sealed, source, created_at").eq("workspace_id", workspaceId).eq("metric_id", m.id).order("period_start").order("id").range(from, to), UNREAD));
+    // Read after the values, so a value that arrived while they were read is not written as final.
+    const states = await allRows<{ period_start: string; state: string }>((from, to) => mustRead(db().from("period_states").select("period_start, state").eq("workspace_id", workspaceId).eq("metric_id", m.id).in("state", [...NOT_FINAL_STATES]).order("period_start").range(from, to), UNREAD));
+    const stateOf = new Map(states.map((s) => [s.period_start, s.state]));
+    // A period a Condensed Value stands for is written once, as it, even while its originals are not deleted yet.
+    for (const r of (await openRows("observations", workspaceId, rows)).filter((x) => typeof x.value === "number" && !inCondensed(condensed[m.id as number] ?? [], String(x.period_start)))) lines.push([cell(m.slug), cell(m.name), cell(m.period), cell(r.period_start), number(r.value), cell(m.unit), cell(r.source), cell(r.created_at), cell(""), cell(""), cell(valueStateWords(stateOf.get(String(r.period_start))))].join(sep));
     for (const c of condensed[m.id as number] ?? []) {
       const value = valueOfParts(m.aggregation as Aggregation, [partOfCondensed(c)], c.of);
-      if (value !== undefined) lines.push([cell(m.slug), cell(m.name), cell(c.into), cell(c.period), number(value), cell(m.unit), cell("condensed"), cell(c.condensedOn), cell(c.periodEnd), cell(c.held)].join(sep));
+      // Only finished periods are ever condensed (a Retention holds the others back), so a Condensed Value is final.
+      if (value !== undefined) lines.push([cell(m.slug), cell(m.name), cell(c.into), cell(c.period), number(value), cell(m.unit), cell("condensed"), cell(c.condensedOn), cell(c.periodEnd), cell(c.held), cell(valueStateWords(null))].join(sep));
     }
   }
   return lines;

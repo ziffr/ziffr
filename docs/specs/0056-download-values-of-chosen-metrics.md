@@ -19,12 +19,12 @@ A person ticks Metrics in the Metrics list, or opens one Metric, and downloads t
 
 - **In the Metrics list**, each row has a checkbox. A bar appears at the foot of the screen when something is ticked: "3 selected", **Download values** and **Clear**. A **Select all** box in the table head ticks the Metrics the list shows (after Tag and Archived filters); a phone shows no table head, so the bar has **Select all** there. Nothing is ticked by default and nothing is downloaded without a click. With more than 50 ticked the bar says so and the button is off: Ziffr never picks 50 of them by itself.
 - **On a Metric**, the History tab has **Download values** next to **Paste history**: the same file for this one Metric.
-- **The file** is the one the Workspace download writes, so a person who knows one knows both: one row per value, oldest first per Metric, columns `metric` (slug), `name`, `period`, `period_start`, `value`, `unit`, `source`, `recorded_at`, `period_end`, `condensed_from`; the Workspace's Number Style, a `;` separator where the decimal mark is a comma, every field quoted, and a leading apostrophe on text that a spreadsheet would run as a formula. A Condensed Value is one line for its span. Every stored value is a row, so a period a Metric keeps both values of has both.
+- **The file** is the one the Workspace download writes, so a person who knows one knows both: one row per value, oldest first per Metric, columns `metric` (slug), `name`, `period`, `period_start`, `value`, `unit`, `source`, `recorded_at`, `period_end`, `condensed_from`, `state`; the Workspace's Number Style, a `;` separator where the decimal mark is a comma, every field quoted, and a leading apostrophe on text that a spreadsheet would run as a formula. A Condensed Value is one line for its span. Every stored value is a row, so a period a Metric keeps both values of has both.
 - **Who:** every signed-in person in a Workspace, for the Metrics they may see: an Owner, an Admin, a Member, and a Guest for what is shared with them. The Metric Owner needs no other right. Reading is what the person could already do on screen; the file adds nothing they could not copy by hand.
 - **Not:** an Access Key (a program reads values through the API already, with its own scopes and its own log), a View Link, a visitor of the demo, or a Contact.
 - **Limits:** at most 50 Metrics and 250,000 rows in one download. Over the limit the person is told in words how to split it, and nothing is cut short. A Derived Metric has no values of its own and contributes no rows; the bar says so when one is ticked ("Revenue per head is worked out from other Metrics and has no values of its own").
 - **Archived Metrics** can be ticked under the Archived view and downloaded: their values are kept.
-- **A value waiting for Approval** is in the file as the API and the History tab show it to people who see the Metric; the file does not change what they see.
+- **Values that are not final** stay in the file, as people who see the Metric see them on screen. The `state` column says **not approved yet** (the History tab's words) for every value of a period that waits for Approval or was sent back to its Submitter, and **final** for all others, a Condensed Value among them: the app's one rule for what is final. The column is the last one, in this file, the trial's download and the Workspace's, which share their writer.
 - **Audit Log:** each download is written as `export.metric_values`, "downloaded the values of chosen Metrics", with the counts as its details ("1 Metric, 12 values"), never a name or a value. A download that cannot be written there is refused. Not recorded in the demo, where it is refused.
 
 ## What the core does
@@ -54,7 +54,7 @@ The route `GET /metric-values?metric=slug&metric=slug` (not under `/metrics/`, w
 - An Access Key, a visitor of the demo and a request from another site get a refusal.
 - 51 Metrics are refused with words; a file over the row limit is refused, never cut short.
 - The Audit Log has one line per download, with counts.
-- A database test covers who may and the file's columns; the user guide's Metrics chapter and the glossary are updated; a release note is written.
+- A database test covers who may, the file's columns and the state of values that are not final; the user guide's Metrics chapter and the glossary are updated; a release note is written.
 
 ## Ticket
 

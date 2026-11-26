@@ -240,8 +240,8 @@ describe("a Condensed Value as a program reads it", () => {
     await hold(w, m.id, ben, [...Q1, { period: "2024-04-01", value: 7 }], []);
     await storeCondensed(w.actor(ben, "member"), { metricId: m.id, into: "quarter", span: "2024-01-01" });
     const lines = (await valuesCsv(w.id, null)).trim().split("\r\n");
-    expect(lines[0]).toBe('"metric","name","period","period_start","value","unit","source","recorded_at","period_end","condensed_from"');
-    expect(lines.slice(1).map((l) => l.split(",").slice(2, 5).concat(l.split(",").slice(8)))).toEqual([['"month"', '"2024-04-01"', '"7"', '""', '""'], ['"quarter"', '"2024-01-01"', '"60.5"', '"2024-03-31"', '"3"']]);
+    expect(lines[0]).toBe('"metric","name","period","period_start","value","unit","source","recorded_at","period_end","condensed_from","state"');
+    expect(lines.slice(1).map((l) => l.split(",").slice(2, 5).concat(l.split(",").slice(8)))).toEqual([['"month"', '"2024-04-01"', '"7"', '""', '""', '"final"'], ['"quarter"', '"2024-01-01"', '"60.5"', '"2024-03-31"', '"3"', '"final"']]);
   });
 });
 

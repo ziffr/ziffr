@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { auditLog } from "./audit-log";
+import { db } from "./db";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 import { EXPORT_METRICS, exportMetricValues } from "./metric-values-export";
@@ -32,7 +33,7 @@ describe("exportMetricValues", () => {
     const { csv, metrics, rows } = await exportMetricValues(w.actor(sara, "member"), [revenue.slug, secret.slug]);
     expect(metrics).toBe(1);
     expect(rows).toBe(2);
-    expect(csv.split("\r\n")[0]).toBe('"metric","name","period","period_start","value","unit","source","recorded_at","period_end","condensed_from"');
+    expect(csv.split("\r\n")[0]).toBe('"metric","name","period","period_start","value","unit","source","recorded_at","period_end","condensed_from","state"');
     expect(csv).toContain("1200.5");
     expect(csv).toContain("2026-10-01");
     // Costs was not chosen; Ben's Metric is not Sara's to see, and nothing says it exists.
@@ -55,6 +56,21 @@ describe("exportMetricValues", () => {
     const { csv } = await exportMetricValues(w.actor(guest, "guest"), [revenue.slug, costs.slug]);
     expect(csv).toContain("1200.5");
     expect(csv).not.toContain(costs.slug);
+  });
+
+  it("says of every value whether it is final, and leaves none out", async () => {
+    const { w, sara, revenue, costs } = await base();
+    await w.value(revenue.id, "2026-08-01", 1100, sara);
+    // August is locked, September waits for Approval, October was sent back; Costs has no Workflow and so no state.
+    await w.lock(revenue.id, "2026-08-01");
+    for (const [period, state] of [["2026-09-01", "approval"], ["2026-10-01", "submitted"]]) {
+      const { error } = await db().from("period_states").insert({ metric_id: revenue.id, period_start: period, state, workspace_id: w.id });
+      expect(error).toBeNull();
+    }
+    const { csv, rows } = await exportMetricValues(w.actor(sara, "member"), [revenue.slug, costs.slug]);
+    expect(rows).toBe(4);
+    const said = csv.trim().split("\r\n").slice(1).map((l) => l.split(",").map((c) => c.replaceAll('"', ""))).map((c) => `${c[1]} ${c[3]} ${c.at(-1)}`);
+    expect(said).toEqual(["Costs 2026-09-01 final", "Revenue 2026-08-01 final", "Revenue 2026-09-01 not approved yet", "Revenue 2026-10-01 not approved yet"]);
   });
 
   it("includes an Archived Metric's values, and gives nothing to someone without a membership", async () => {
