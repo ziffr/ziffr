@@ -1,6 +1,6 @@
 # 0059 The community Marketplace: anyone publishes free Packs, and nobody waits for one person
 
-**Status:** draft. **Tracking issue:** #1165 (label `tracking`); tickets #1192 to #1197, labelled `spec:0059`, are the work that needs no account, key or private repository of the owner's. The rest waits for the [one-time steps](#one-time-steps-for-the-owner). Decision 2 (who moderates) is open, and **public opening waits for it**. Builds on spec 0030 and ADR 0013; spec 0058 lets a Pack say who does what and keeps where things came from; the draft spec 0044 (#770) covers paid Packs on self-hosted Ziffr. It changes parts of specs 0030, 0039 and 0044, listed under [Changes to earlier specs](#changes-to-earlier-specs).
+**Status:** draft. **Tracking issue:** #1165 (label `tracking`); tickets #1192 to #1197, labelled `spec:0059`, are the work that needs no account, key or private repository of the owner's. The rest waits for the [one-time steps](#one-time-steps-for-the-owner). Decision 2 (who moderates) is open, and **public opening waits for it**. **Amended on 2026-11-26** (by the owner): it runs on a server of the owner's, not on AWS, and the signer also takes signatures of moderators and of the release pipeline and signs withdrawals. Builds on spec 0030 and ADR 0013; spec 0058 lets a Pack say who does what and keeps where things came from; the draft spec 0044 (#770) covers paid Packs on self-hosted Ziffr. It changes parts of specs 0030, 0039 and 0044, listed under [Changes to earlier specs](#changes-to-earlier-specs).
 
 ## Problem Statement
 
@@ -45,13 +45,13 @@ Whether hosted Ziffr has the connection turned on was not checked.
 
 All over https, no redirects, 10 seconds. 404 reads as "does not know that Pack"; anything but 200 or 404 as "cannot be reached".
 
-**What changes before launch:** the version answer becomes `{ "file", "statement", "signature" }` (signing, below), the updates answer gains `"withdrawn"`, both can carry key revocations, and a listing gains a "new creator" mark.
+**What changes before launch:** the version answer becomes `{ "file", "statement", "signature" }` (signing, below), the updates answer gains `"withdrawals"`, both can carry key revocations, and a listing gains a "new creator" mark.
 
 | New in the contract | Shape |
 | --- | --- |
 | The signed statement | `{ "format": "ziffr.pack-signature/1", "id", "version", "sha256", "key", "signed", "reviewed" }`; `reviewed` says whether a moderator looked |
 | A revocation, in `"revocations"` of the version and updates answers | `{ "statement", "signature" }`, the statement `{ "format": "ziffr.key-revocation/1", "key", "signed" }`, signed by the reserve key |
-| A withdrawal, in the updates answer | `"withdrawn": [{ "id", "reason" }]`, the reason plain text of at most 200 characters |
+| A withdrawal, or its taking back, in the updates answer | `"withdrawals": [{ "statement", "signature" }]`, the statement `{ "format": "ziffr.pack-withdrawal/1", "id", "state", "reason", "sequence", "key", "signed" }`; `state` is `withdrawn`, with a reason in plain text of at most 200 characters, or `restored` |
 | A listing | may add `"newCreator": true` |
 | Web pages under the Marketplace's address | `packs/{handle}/{slug}` and `packs/{handle}/{slug}/report?version=` |
 
@@ -95,11 +95,10 @@ Free Packs only (CC BY 4.0 or MIT) until payments.
 
 ### The pieces
 
-- **A private repository**, `marketplace` (the service is closed, ADR 0013), deployed by its CI. Nothing runs from anyone's own computer.
-- **Public pages and published files**, served as static files behind a cache.
-- **A service** for accounts, uploads, checks, search, the updates question, reports and moderation.
+- **A private repository**, `marketplace` (the service is closed, ADR 0013). The server runs a released commit of it, installed by a step only the maintainer starts. Nothing runs from anyone's own computer.
+- **A web service** for the public pages and published files, with a short cache, and for accounts, uploads, checks, search, the updates question, reports and moderation.
 - **A database** of accounts, handles, versions, held items, reports, decisions and the audit record.
-- **A signer**, a separate small program that alone may use the signing key.
+- **A signer**, a separate small program under a user of its own that alone may use the signing key. It keeps its own ledger of what it signed and its own copy of the record.
 - **Ziffr's checks themselves:** the service runs `@ziffr/pack` of the latest release, the same code as an install.
 
 ### Accounts
@@ -162,17 +161,30 @@ Decided (decision 4). They are settings of the service and change without a rele
 ### Signing and keys
 
 - **A signed statement** replaces the signature over the file (shape above), with the file's SHA-256, the key's id and the time. Ed25519 signs the statement's exact bytes. Ziffr checks the signature with a key it trusts, then that id, version and hash are the file's.
-- **The key lives in AWS KMS** (key spec `ECC_NIST_EDWARDS25519`). The private key does not leave KMS unencrypted ([key specs](https://docs.aws.amazon.com/kms/latest/developerguide/symm-asymm-choose-key-spec.html)).
-- **Why a statement:** KMS signs messages of at most 4,096 bytes, and plain Ed25519 (`ED25519_SHA_512`) needs the whole message; a Pack may be 1 MiB ([Sign](https://docs.aws.amazon.com/kms/latest/APIReference/API_Sign.html)). A statement is a few hundred bytes. The result is ordinary Ed25519, which Ziffr's check already verifies.
-- **Not the digest mode:** KMS's `ED25519_PH_SHA_512` signs a digest, but it is another signature scheme, which Ziffr's check does not verify.
-- Google Cloud KMS also signs plain Ed25519 (`EC_SIGN_ED25519`), at software protection level only ([algorithms](https://docs.cloud.google.com/kms/docs/algorithms)). Other providers were not checked.
-- **Only the signer may call Sign**, by the cloud's own roles, with no stored secret. It builds each statement itself from a stored file that passed, and never signs bytes handed to it. The upload service cannot reach the key.
-- **Two keys from the start:** the signing key, and a reserve key in a second cloud account, so one stolen access does not reach both. Both public keys ship in `MARKETPLACE_PUBLIC_KEYS` in one release, each with its part.
-- **Watching:** each Sign call is matched against a publication. One without a match, or far more than usual, **switches the signer off by itself** and tells the moderators and maintainer. Publishing stops; downloads go on.
-- **Rotation** is on an incident, not a calendar: the reserve becomes the signing key, every statement is signed again (a job), and a new reserve key's public part ships in a later release.
+- **The signing key is a file on the server** that only the signer's user reads. The web service can neither read it nor change the signer's configuration or state. The signer is asked by a Pack's name over a local connection, builds each statement itself from what is stored, and never signs bytes handed to it. A managed key service can take the file's place later: a statement is small enough for one.
+- **The signer checks again before it signs** a file it has not signed: the Pack's checks and the holds of [automatic checks](#automatic-checks-for-every-version), against its own ledger; that a handle stays with the account that first published under it; that a version number only goes up; and that a signed version's file never changes. It signs only so many new files and new handles in a time.
+- **Two keys from the start:** the signing key, and a reserve key made and kept on a machine that stays offline. Both public keys ship in `MARKETPLACE_PUBLIC_KEYS` in one release, each with its part.
+- **Watching:** each signature is matched against a publication, and the record is copied where the web service cannot write. A signature without a match, a changed line of the record, or far more signatures than usual **switches the signer off by itself** and tells the maintainer. Publishing stops; downloads go on.
+- **Rotation** is on an incident, not a calendar: the reserve becomes the signing key, every statement of a version and of a withdrawal is signed again (a command with a runbook), and a new reserve key's public part ships in a later release.
 - **Revocation:** only the reserve key can revoke the signing key, so a thief of the signing key cannot revoke anything. The revocation travels in the version and updates answers. Ziffr keeps it and refuses that key's statements. A release removes the key for good. Until it ships a new reserve key, the promoted one cannot be revoked without a release.
-- **What remains:** whoever can change the signer's code through a deployment can use the key; the signer is deployed by a step of its own that only the maintainer starts, and each signature is still matched. Someone who can use the key and also answers at the Marketplace address could hide a revocation from an Installation that never saw it and has not upgraded. A signature is trusted only on answers from that address, so the key alone installs nothing.
 - **Both keys lost:** nothing new is published until a release ships new ones. Installed Packs stay.
+
+#### Signatures the signer asks for
+
+Some steps need more than the web service's word. Each is a signature by a key that is not on the server, over a statement that names exactly what it allows; the signer holds the public keys and verifies it.
+
+| Step | Signed by | The statement names |
+| --- | --- | --- |
+| A Pack under `ziffr/` is signed | the release pipeline (`ziffr.release/1`) | the Pack, the version and the file's SHA-256 |
+| A held upload is published, and its statement says `reviewed` | a moderator (`ziffr.approval/1`), after reading the file | the Pack, the version and the file's SHA-256 |
+| A withdrawal is taken back | a moderator (`ziffr.restoration/1`) | the Pack and the number of the withdrawal taken back |
+
+#### Signed withdrawals
+
+- **The signer signs every withdrawal** and every taking back, with a **sequence number** higher than in any earlier statement about that Pack. It signs nothing more of a Pack while it holds it as withdrawn.
+- **Ziffr believes only these statements**, signed by a key that may sign, and keeps the newest it has seen for each Pack it took from the Marketplace. An answer that leaves a Pack out, or repeats an older statement, changes nothing: while its key is in use, a withdrawal ends only with a newer statement that restores the Pack.
+- A statement signed by a key revoked since is no longer believed, and a statement of a trusted key replaces it whatever its number. So after a revocation every withdrawal and restoration is signed again.
+- A withdrawal takes effect on the Marketplace at once; its statement follows as soon as the signer gives it.
 
 ### Browsing
 
@@ -221,14 +233,14 @@ Parts that follow from law are **to be confirmed by a lawyer before the Marketpl
 
 **Appeal.** Creator and reporter, for six months. A person decides, another one than before where possible, never a program alone **[lawyer]** (article 20 asks this of larger platforms; micro and small firms are excused under article 19; we offer it regardless).
 
-**Withdrawal and installed copies (spec 0030).** A withdrawn Pack stops new installs and updates, and its version requests answer 404. The updates answer gains `"withdrawn": [{ "id", "reason" }]`, and the Packs page of a Workspace that installed it shows one line. **Installed copies stay**; Ziffr removes nothing from a Workspace. Files already downloaded and their signatures stay valid.
+**Withdrawal and installed copies (spec 0030).** A withdrawn Pack stops new installs and updates, and its version requests answer 404. The updates answer carries its signed statement ([signed withdrawals](#signed-withdrawals)), and the Packs page of a Workspace that installed it shows one line. **Installed copies stay**; Ziffr removes nothing from a Workspace. Files already downloaded and their signatures stay valid.
 
 **The record.** An add-only log keeps each report, step and decision, who or which program did it, the reasons, the times and the messages sent. Moderators read it; a creator sees their own cases. Nothing in it is edited. How long it is kept, what is deleted on request, and which numbers must be published **[lawyer]**. The counts are produced by the service, not by hand.
 
 ### Moderators, and what still needs a person
 
-- **Moderators** are accounts with that role and a second factor. At least two, neither needs to be the owner, before step B. One of them may appoint others. Who they are, their pay and their response times are open (decision 2).
-- They decide held uploads, reports and appeals, hide, withdraw and suspend. They cannot sign, and cannot touch keys.
+- **Moderators** are accounts with that role and a second factor. At least two, neither needs to be the owner, before step B. The owner appoints each on the server; a moderator sets up the second factor themselves. Their sessions are short, and withdrawing or suspending asks for a new code. Who they are, their pay and their response times are open (decision 2).
+- They decide held uploads, reports and appeals, hide, withdraw and suspend. Each has a key of their own, on their own computer, for the [signatures the signer asks for](#signatures-the-signer-asks-for). They cannot sign for the Marketplace and cannot touch its keys.
 - **A maintainer** handles incidents, key changes and updates that do not apply by themselves.
 
 What no program does:
@@ -253,8 +265,8 @@ What no program does:
 | An appeal | the decision stands; reminders go on |
 | A report or appeal has waited 14 days | **new creators' uploads pause**, and the site says reports are slow |
 | The same for 30 days | **all uploads pause**; browsing, downloads and updates go on; it resumes when the queue is worked off |
-| Spending over the set budget | uploads pause |
-| Signing that matches no publication | the signer switches off |
+| The cap on mail anyone can ask for is reached | the maintainer is told; sign-in links wait |
+| Signing that matches no publication, or a changed line of the record | the signer switches off |
 
 A timer cannot meet a duty to answer a legal notice **[lawyer]**. The pauses limit how much goes unwatched; they do not replace a person.
 
@@ -272,7 +284,7 @@ A timer cannot meet a duty to answer a legal notice **[lawyer]**. The pauses lim
 | Misleading formulas or descriptions | reports | nobody checks the arithmetic of a business |
 | People trusting "published" as "safe" | the voucher line says no person reviewed it | some will anyway |
 | Report brigading | the hiding rules above | aged accounts |
-| Flooding and cost attacks | limits, cache, budget pause | a large attack costs money or uptime |
+| Flooding and cost attacks | limits, a short cache, the cap on mail | a large attack costs uptime |
 | A taken-over creator or moderator account | sign-in link, second factor for moderators, record | a taken-over mailbox |
 | Legal exposure from slow answers | reminders, pauses, legal contact | the operator's |
 
@@ -282,41 +294,39 @@ Code from others never runs (ADR 0013), which removes the worst risk a plugin st
 
 | Option | For and against | Judgement |
 | --- | --- | --- |
-| **A. AWS, in an EU region:** a cache and file storage, functions, a key-value database, email, KMS | The signer gets its right from a role, with no stored secret; one bill, one provider | **Decided** |
-| B. Cloudflare for pages and service, AWS KMS for signing | Cheap and simple to run; a long-lived AWS credential has to be stored there, and whoever steals it can sign | Possible |
-| C. Google Cloud | Works with its KMS; Ed25519 at software level only; not priced | Possible |
-| D. A server of one's own | No managed key; patches and backups by hand | Rejected |
+| **A. A server of the owner's**, with the safeguards below | Paid for already, one place to look; updates, backups and watching are the operator's; no managed key | **Decided on 2026-11-26** (replaces B) |
+| B. AWS, in an EU region: a cache and file storage, functions, a key-value database, email, KMS | The signer gets its right from a role, with no stored secret; a service to learn and a bill that moves with traffic | Possible later |
+| C. Cloudflare for pages and service, AWS KMS for signing | Cheap and simple to run; a long-lived AWS credential has to be stored there | Not chosen |
+| D. Google Cloud | Works with its KMS; Ed25519 at software level only; not priced | Not chosen |
 
-Prices read on 2026-11-26, in US dollars; EU regions may differ and prices change.
+**The safeguards:**
 
-| Part | Price |
-| --- | --- |
-| Signing keys ([KMS](https://aws.amazon.com/kms/pricing/)) | 1 a month for each of two keys; 0.15 for 10,000 signatures, no free tier |
-| Functions ([Lambda](https://aws.amazon.com/lambda/pricing/)) | 1 million requests and 400,000 GB-seconds a month free |
-| Cache ([CloudFront](https://aws.amazon.com/cloudfront/pricing/)) | a free plan with 1 million requests and 100 GB a month |
-| Database ([DynamoDB](https://aws.amazon.com/dynamodb/pricing/on-demand/)) | 0.625 for a million writes, 0.125 for a million reads, 25 GB free |
-| Email ([SES](https://aws.amazon.com/ses/pricing/)) | 0.10 for 1,000 messages |
-| Bot check ([Turnstile](https://developers.cloudflare.com/turnstile/plans/)) | free plan |
+- The web service and the signer run as **users of their own**, **isolated from other applications** on the server, with limits on their memory and processor.
+- **The signer is separated** from the web service: its own user, key, configuration and state; it reaches nothing but the mail service.
+- Visitors reach only the web service, through a proxy or tunnel that is the one way in.
+- **Cloudflare Turnstile** (free) as the bot check, verified on the server; a **mail account** with a sending name of its own.
+- **Backups**, encrypted before they leave the server, stored where the server cannot delete them, and restored as a rehearsal before opening.
+- The **legal pages** before opening to the public.
+- Installing it follows a step-by-step plan the owner approves, with a way back for each step.
 
-- **Estimate, not a quote:** 2 to 10 dollars a month at launch; some tens at a hundred times that traffic. Not estimated: moderators, the lawyer, storage of logs, an attack.
-- **Scaling:** pages and files come from the cache; the service grows by itself; search starts as an index in memory, good for thousands of Packs, and is replaced when it is not. People are what does not scale, hence the limits and pauses.
-- A budget alarm and a cap on how many functions run at once keep a surprise bounded.
+- **Estimate, not a quote:** a few euros a month beside the server: mail costs cents ([SES](https://aws.amazon.com/ses/pricing/): 0.10 US dollars for 1,000 messages), the bot check is free ([Turnstile](https://developers.cloudflare.com/turnstile/plans/)), backups of this size cost little or nothing. Not estimated: moderators, the lawyer, an attack.
+- **Scaling:** one server with a short cache holds a catalogue of thousands of Packs. The service takes standard web requests and can move. People are what does not scale, hence the limits and pauses.
 
 ### One-time steps for the owner
 
 Each once. None of them recurs for publishing.
 
 1. Create the private repository.
-2. Choose the host, open the account with billing and a budget limit, and let the repository's CI deploy to it.
-3. Create the DNS records for `marketplace.ziffr.net` and for sending its mail, and ask the mail service for permission to send to anyone.
+2. Approve the setup plan for the server.
+3. Create the DNS records for `marketplace.ziffr.net` and for sending its mail, the mail login and the backup storage.
 4. Create the bot check.
-5. Let the infrastructure code make the two keys, and merge the change that puts their public keys in Ziffr; release it with the Release button.
-6. Appoint two moderators, a maintainer and a legal contact, and agree response times and pay.
+5. Make the keys: the signing key on the server, the reserve key offline, the release pipeline's; merge the change that puts the two public keys in Ziffr, and release it with the Release button.
+6. Appoint two moderators, who each make their own key, a maintainer and a legal contact, and agree response times and pay.
 7. Take the questions below to a lawyer; publish imprint, privacy notice, terms and publishing rules.
 8. Turn the connection on for hosted Ziffr.
 9. Open step B.
 
-What may still reach the owner: bills paid by card, a moderator who leaves with none to replace them, and the legal duties of an operator.
+What may still reach the owner: bills, the server's updates when they need a person, a moderator who leaves with none to replace them, and the legal duties of an operator.
 
 ### Legal duties: questions for a lawyer, before opening to the public
 
@@ -396,7 +406,7 @@ Accounts for buyers, payments, VAT, invoices and payouts (spec 0030: 80 % to the
 
 ## Docs and the threat model
 
-The service has a threat model of its own: uploads as hostile files (data only, never run, never written into a page unescaped), account takeover, the signer and key, search input, report abuse, moderator rights, flooding. This repository's boundary 17 gains the signed statement, revocations, withdrawals and the report link. An independent security review precedes steps A and B.
+The service has a threat model of its own: uploads as hostile files (data only, never run, never written into a page unescaped), account takeover, the signer and key, the server and its network, search input, report abuse, moderator rights, flooding. This repository's boundary 17 gains the signed statement, revocations, signed withdrawals and the report link. An independent security review precedes steps A and B.
 
 ## Testing Decisions
 
@@ -405,7 +415,8 @@ The service has a threat model of its own: uploads as hostile files (data only, 
 - **Copies:** a copied item held; common items ignored; a credited free remix published.
 - **Reporting:** each row of the hiding table, and each thing that must not hide; messages to both sides; the record.
 - **Nobody acts:** each row of that table, with the clock moved.
-- **Signer:** the upload service cannot call Sign; an unmatched signature switches it off.
+- **Signer:** the web service cannot read the key or the signer's state; what its own checks hold, `ziffr/` and the taking back of a withdrawal are signed only with the signature named above; an unmatched signature switches it off.
+- **Withdrawals:** Ziffr takes a signed withdrawal and its restoration, and nothing unsigned; an older or missing statement changes nothing; a statement of a revoked key is not believed, and one signed again counts.
 - **Step A** ends with a fresh self-hosted Installation installing and updating one Pack from the real address.
 - **Before step B:** a rehearsal in which a moderator, not the owner, takes a report from receipt to appeal.
 
@@ -426,7 +437,7 @@ Not opened yet, because they need the one-time steps:
 
 - Ship the two public keys in Ziffr. Needs the keys.
 - The release pipeline publishes Ziffr's own Packs. Needs a publishing identity.
-- In the private repository: infrastructure, deployment, keys, signer and its watching; published files, search, updates and web pages (step A); accounts, upload, checks and limits; the listing comparison and held uploads; reports, hiding, statements of reasons, appeals and the record; the moderator queue, reminders and pauses; terms and rules pages, runbooks and the rehearsal (step B).
+- In the private repository: the server's setup, deployment, keys, signer and its watching; published files, search, updates and web pages (step A); accounts, upload, checks and limits; the listing comparison and held uploads; signed withdrawals; reports, hiding, statements of reasons, appeals and the record; the moderator queue, reminders and pauses; terms and rules pages, runbooks and the rehearsal (step B).
 
 Later: publishing from Ziffr; payments and delivery of bought Packs.
 
@@ -443,12 +454,12 @@ Later: publishing from Ziffr; payments and delivery of bought Packs.
 
 - A community Marketplace with free Packs, starting with Ziffr's own.
 - The six points on paid Packs and copies above; no "Marketplace only" rule.
-- **No bottleneck:** self-service accounts and upload, automatic checks, signing and publishing, a managed key, nothing on the owner's computer. This overrides the earlier recommendations (submissions by email, signing by the owner, review of every version, invited creators first).
+- **No bottleneck:** self-service accounts and upload, automatic checks, signing and publishing, a managed key (replaced later that day, point 1), nothing on the owner's computer. This overrides the earlier recommendations (submissions by email, signing by the owner, review of every version, invited creators first).
 - **Every Pack can be reported**, with the duties confirmed by a lawyer before the Marketplace opens to the public.
 
 ### The points proposed in this spec
 
-1. **Hosting** on AWS in an EU region.
+1. **Hosting** on a server of the owner's, with the safeguards [above](#hosting-scaling-and-cost). It replaces the first choice, AWS in an EU region.
 2. **Open:** who moderates, whether they are paid, and the response times. **Public opening (step B) waits for it.**
 3. **A credited remix of a free Pack publishes by itself.**
 4. **Limits and the New creator period** as in the table above.

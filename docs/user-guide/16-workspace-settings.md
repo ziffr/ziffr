@@ -356,7 +356,7 @@ In the demo, adding a Contact says "The demo can't be changed."
 
 ### Send values
 
-The **Send values** tab is where everyone finds a working way to put values on their Metrics from a program or another system. Pick one of your Metrics that takes values from the API (its **Values arrive by** includes **API and Feeds**), and a kind of key: a **Feed Key** for a system (Owners and Admins; up to 500 values in one call) or an **Access Key** for you (one value at a time, as you). The page shows the call for this Ziffr's own address in curl, JavaScript, Python and n8n or Zapier, each with a **Copy** button. The key is a placeholder: the page holds no key and sends nothing (make a key under **Settings → Feeds** or **Settings → API keys**). Below it, **What the answers mean** says what a 400, 401, 409, 422 or 429 is and what to do, and **Other ways to connect** points to the ready-made n8n workflows (**Fill from n8n** on a Metric), the AI assistant and the keys. The full list of answers and codes is in the [Feeds guide](../guides/feeds.md).
+The **Send values** tab is where everyone finds a working way to put values on their Metrics from a program or another system. Pick one of your Metrics that takes values from the API (its **Values arrive by** includes **API and Feeds**), and a kind of key: a **Feed Key** for a system (Owners and Admins; up to 500 values in one call) or an **Access Key** for you (one value at a time, as you). The page shows the call for this Ziffr's own address in curl, JavaScript, Python and n8n or Zapier, each with a **Copy** button. The key is a placeholder: the page holds no key and sends nothing (make a key under **Settings → Feeds** or **Settings → API keys**). Below it, **What the answers mean** says what a 400, 401, 409, 422 or 429 is and what to do, and **Other ways to connect** points to the ready-made n8n workflows (**Fill from n8n** on a Metric), the AI assistant and the keys. The full list of answers and codes is in the [Feeds guide](../guides/feeds.md). For a step-by-step with n8n, Zapier, Make, Power Automate, a scheduled script or a system that only sends webhooks, see [Connect any system to Ziffr](../guides/connect-any-system.md).
 
 ### Slack
 
@@ -560,7 +560,7 @@ Owners and Admins also see, below the keys, who has a **Calendar Link**: a secre
 
 **Workspace → Feeds** is for Owners and Admins only. Others see a note to ask an Owner or Admin. The demo has no Feeds.
 
-A **Feed** brings in values from another system, such as a CRM or a data warehouse. It runs outside Ziffr, with a **Feed Key** that can only record values for the Metrics that take the Feed as a Submitter, never read them. It belongs to the Workspace and keeps working when the person who set it up leaves. See [Connecting Ziffr](04-connecting.md#feeds-numbers-from-other-systems) for how Feeds work.
+A **Feed** brings in values from another system, such as a CRM or a data warehouse. It runs outside Ziffr, with a **Feed Key** that can only record values for the Metrics that take the Feed as a Submitter, never read them. It belongs to the Workspace and keeps working when the person who set it up leaves. See [Connecting Ziffr](04-connecting.md#feeds-numbers-from-other-systems) for how Feeds work, and [Connect any system to Ziffr](../guides/connect-any-system.md) for the steps with your own system.
 
 ### Making a Feed
 
