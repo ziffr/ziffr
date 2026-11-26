@@ -41,11 +41,13 @@ An Owner or Admin opens **Connectors** and chooses **Turn on** in the Telegram b
 A bot cannot write to anyone first, and Telegram cannot look people up by email or phone number. So everyone connects their own Telegram, once per workspace:
 
 - **Members**: **Connect Telegram** in the Telegram box on the Connectors page, then **Open Telegram** and **Start**.
-- **Contacts** (no login): **Connect Telegram** on their personal form page, the same way.
+- **Contacts** (no login): **Connect Telegram** on their personal form page, **Open Telegram** and **Start**, then **Confirm** in the email Ziffr sends them.
 
-The link holds a one-time code, valid ten minutes; Ziffr keeps only its hash. When Telegram reports that account's **Start**, the account and its private chat are linked to the person. Then they choose Telegram where they want their messages, under **Who gets what, where** on the Connectors page, or the team default does.
+The link holds a one-time code, valid ten minutes; Ziffr keeps only its hash. When Telegram reports a member's **Start**, the account and its private chat are linked to them. Then they choose Telegram where they want their messages, under **Who gets what, where** on the Connectors page, or the team default does.
 
-A personal form link opens without signing in and travels in emails, so on a form only a Contact can connect, never over a Telegram already connected, and a form cannot disconnect: only `/stop` from the connected account does. The bot's confirmation names the person and workspace ("Connected as Cleo in Acme"), so nobody is connected as someone else without seeing it. Whenever a person's messages move to another Telegram account, the chat they went to is told.
+A Contact has no sign-in, so their **Start** connects nothing yet. Ziffr emails the address the Workspace keeps for them a link bound to that Contact and that chat. The email and the bot show the same four-digit number. The link opens a page that says what connecting does; only its **Confirm** button (a POST, so mail scanners that open links change nothing) connects, once, within 30 minutes. Until then Ziffr sends that chat nothing for the Contact and takes nothing from it. Then the bot and an email to the Contact both say that it is connected. A newer request ends the one before, and a Contact gets at most three of these emails in an hour and five in a day. This needs email: set up the mail server ([email guide](email.md)) before Contacts can connect. Without one, without an address for the Contact, or in a trial (which sends nothing to Contacts), their form says that it cannot connect Telegram and who can help. Proxies should not log paths under `/api/confirm-telegram/`.
+
+On a form only a Contact can connect, never over a Telegram already connected, and a form cannot disconnect: only `/stop` from the connected account does. The bot's confirmation names the person and workspace ("Connected as Cleo in Acme"). Whenever a member's messages move to another Telegram account, the chat they went to is told.
 
 Someone stops everything from the bot with `/stop`, by blocking the bot, or with **Disconnect** on the Connectors page (members). Someone who leaves the workspace gets nothing more, also nothing queued before.
 

@@ -635,6 +635,16 @@ If you are also signed in, and the link is your own, the screen adds what the li
 
 Someone who has the link but is not signed in as you sees and can do only what the form above offers. This needs the Workspace you have open to be the one the link belongs to.
 
-Where the Workspace has Telegram on, the form also offers **Connect Telegram**: it gives a link that opens Ziffr's Telegram bot, valid for ten minutes. Tap **Start** there, and requests for numbers then reach you in Telegram as well. Once connected, the form says so. To stop, send `/stop` to the bot in Telegram; only then can the form connect another Telegram account. A form cannot disconnect, so a forwarded form link never moves your messages to someone else's Telegram. Only a Contact sees this on the form: members connect Telegram signed in, on the Connectors page.
+Where the Workspace has Telegram on, the form also offers **Connect Telegram** to a Contact. Members do not see it: they connect Telegram signed in, on the Connectors page. Connecting takes three steps:
+
+1. Choose **Connect Telegram**, then **Open Telegram**: the link opens Ziffr's Telegram bot and is valid for ten minutes. Tap **Start** there.
+2. Ziffr sends an email, **Confirm Telegram for Ziffr**, to the address the Workspace keeps for you. The bot shows a four-digit number, and the email shows the same one, with the name of the Telegram account.
+3. If you started this yourself and the numbers match, open the link in the email and choose **Confirm** within 30 minutes. If not, ignore the email: nothing is connected.
+
+Until you confirm, Ziffr sends that Telegram account nothing and takes no answer from it. Once you have, requests for numbers reach you in Telegram as well, the form says that you are connected, and Ziffr emails you that it is done. The link works once. Starting again ends the link before, and Ziffr sends at most three of these emails in an hour and five in a day.
+
+The form cannot connect Telegram, and says so with who can help, when the Workspace has no email address for you, when this Ziffr sends no email, or in a trial, which sends nothing to Contacts.
+
+To stop, send `/stop` to the bot in Telegram; only then can the form connect another Telegram account. A form cannot disconnect.
 
 A Stand-in's form link works only while they stand in, and for the periods they were asked about; its page says whom they answer for. A Feed has no form link; it sends values with its Feed Key. The form only works when the Web form is one of the Metric's Sources.
