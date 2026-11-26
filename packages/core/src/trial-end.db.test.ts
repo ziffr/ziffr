@@ -144,7 +144,7 @@ describe("a trial's values as CSV", () => {
     await t.value(m.id, "2026-10-01", 4, t.owner);
     const csv = await trialValuesCsv(t.ownerActor);
     const lines = csv.trim().split("\r\n");
-    expect(lines[0]).toBe('"metric","name","period","period_start","value","unit","source","recorded_at","period_end","condensed_from"');
+    expect(lines[0]).toBe('"metric","name","period","period_start","value","unit","source","recorded_at","period_end","condensed_from","state"');
     expect(lines).toHaveLength(3);
     expect(lines[1]).toContain(`"'=HYPERLINK(""x"")"`);
     expect(lines[1]).toContain('"2026-09-01","3"');
@@ -160,7 +160,7 @@ describe("a trial's values as CSV", () => {
     expect(comma[1]).toContain('"2026-09-01","-1234.25","%"');
     await setNumberStyle(t.ownerActor, "1.234,5");
     const semi = (await trialValuesCsv(t.ownerActor)).trim().split("\r\n");
-    expect(semi[0]).toBe('"metric";"name";"period";"period_start";"value";"unit";"source";"recorded_at";"period_end";"condensed_from"');
+    expect(semi[0]).toBe('"metric";"name";"period";"period_start";"value";"unit";"source";"recorded_at";"period_end";"condensed_from";"state"');
     // No group marks, every stored decimal, and a negative value stays a number, not an escaped formula.
     expect(semi[1]).toContain('"2026-09-01";"-1234,25";"%"');
     expect(semi[2]).toContain('"2026-10-01";"0,000123"');

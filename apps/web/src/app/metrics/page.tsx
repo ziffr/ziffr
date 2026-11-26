@@ -7,12 +7,15 @@ import { Sparkline } from "@/views/sparkline";
 import { getAllSeries, getNumberStyle, getProfileMap, getYearStart } from "@/lib/data";
 import { visibleMetricIds } from "@/lib/access";
 import { currentActor, viewerId } from "@/lib/viewer";
+import { isDemo } from "@/lib/auth";
 import { can } from "@ziffr/core/actor";
 import { formatValue, health, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { Change, COLOUR_LEGEND, TargetChip } from "@/components/target-chip";
 import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 import { inUse, isArchived } from "@ziffr/core/metric-row";
 import { cn } from "@/lib/utils";
+import { MetricExportBar, MetricTick, SelectAllMetrics } from "@/components/metric-export-bar";
+import { EXPORT_METRICS } from "@ziffr/core/metric-values-export";
 import { QuickLookButton } from "@/components/metric-quick-look";
 import { TagChips } from "@/components/tag-chips";
 import { metricIdsWithTags, tagSight } from "@ziffr/core/tag-sight";
@@ -21,6 +24,8 @@ import { tagFilterHref, tagsFromParam } from "@/lib/tag-filter";
 export default async function MetricsPage({ searchParams }: { searchParams: Promise<{ show?: string; tag?: string | string[] }> }) {
   // The list shows the latest value, the change and a trend line of 30 periods: only those are read.
   const [{ metrics: all, series }, people, viewer, yearStart, numberStyle, sp, actor] = await Promise.all([getAllSeries({ points: 30 }), getProfileMap(), viewerId(), getYearStart(), getNumberStyle(), searchParams, currentActor()]);
+  // The demo does not offer the download (spec 0056): the core refuses it there.
+  const demo = await isDemo();
   // One source for who may start things: the core's `can`. A Guest sees no button that would be refused.
   const creates = can(actor, "create");
   const visible = await visibleMetricIds(viewer, all);
@@ -39,6 +44,8 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
   // A Tag's count is what this view lists: Archived Metrics count under Archived only.
   const offered = sight.tags.map((t) => ({ name: t.name, n: showArchived ? t.archived : t.metrics - t.archived })).filter((t) => t.n > 0 || pickedKeys.has(t.name.toLowerCase()));
   const toggled = (name: string) => (pickedKeys.has(name.toLowerCase()) ? picked.filter((p) => p.toLowerCase() !== name.toLowerCase()) : [...picked, name]);
+  // Which rows are shown, so the ticks are counted again when a filter changes them (spec 0056).
+  const listed = metrics.map((m) => m.slug).join(" ");
   const filter = (archived: boolean) => cn("inline-flex min-h-11 items-center rounded-[var(--radius-input)] px-3 no-underline sm:min-h-0 sm:px-2.5 sm:py-1", archived === showArchived ? "stock font-medium" : "text-muted-foreground hover:bg-muted");
   return (
     <>
@@ -95,7 +102,8 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
             <caption className="sr-only">Metrics with their latest value, change, trend, target and owner</caption>
             <thead className="max-sm:sr-only">
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th scope="col" className="px-4 py-2.5 font-medium">Metric</th>
+                {!demo && <th scope="col" className="w-12 pl-1 font-normal max-sm:hidden"><span className="sr-only">Select</span><SelectAllMetrics list={listed} /></th>}
+                <th scope="col" className={cn("px-4 py-2.5 font-medium", !demo && "sm:pl-2")}>Metric</th>
                 <th scope="col" className="px-4 py-2.5 text-right font-medium">Latest</th>
                 <th scope="col" className="px-4 py-2.5 text-right font-medium">Change</th>
                 <th scope="col" className="hidden px-4 py-2.5 font-medium md:table-cell">Trend</th>
@@ -112,7 +120,9 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
                 const change = last && prev && prev.value ? (last.value - prev.value) / Math.abs(prev.value) : null;
                 return (
                   <tr key={m.id} className="group relative cursor-pointer border-b border-border last:border-0 hover:bg-[var(--color-paper-2)] max-sm:flex max-sm:flex-wrap max-sm:items-center max-sm:gap-x-5 max-sm:px-4 max-sm:py-3">
-                    <td className="px-4 py-3 max-sm:w-full max-sm:p-0">
+                    {/* Above the row's stretched link; part of the download form below the list (spec 0056). */}
+                    {!demo && <td className="relative z-10 w-12 pl-1 max-sm:absolute max-sm:right-1 max-sm:top-1 max-sm:w-auto max-sm:p-0"><MetricTick slug={m.slug} name={m.name} derived={Boolean(m.formula)} /></td>}
+                    <td className={cn("px-4 py-3 max-sm:w-full max-sm:p-0", !demo && "max-sm:pr-12 sm:pl-2")}>
                       <Link href={`/metrics/${m.slug}`} className="font-medium no-underline after:absolute after:inset-0 group-hover:underline">
                         {m.name}
                       </Link>
@@ -140,6 +150,8 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
             </tbody>
           </table>
         </div>
+        {/* The demo does not offer the download (spec 0056). */}
+        {!demo && <MetricExportBar max={EXPORT_METRICS} list={listed} />}
         </>
       )}
     </>
