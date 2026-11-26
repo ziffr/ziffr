@@ -38,10 +38,10 @@
         "type": "list",
         "numbered": true,
         "items": [
-          "Make a Feed, with a Feed Key, on the **Feeds** page.",
-          "Open **Workspace**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Open **Settings**, then **Feeds**, and make a Feed with a Feed Key.",
+          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
           "Keep the Metrics ticked, pick **Values come from the Feed** and your Feed, pick the dashboard **Workspace usage**, and choose **Set up**.",
-          "Make an Access Key with **Read usage figures** on the **Access Keys** page.",
+          "Open **Access Keys** in **Settings** and make a key with **Read usage figures**.",
           "Have the Usage Feed run once a day with both keys, as its guide in Ziffr's repository says."
         ]
       }

@@ -46,7 +46,7 @@
         "type": "list",
         "numbered": true,
         "items": [
-          "Open **Workspace**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
           "Keep the Metrics you want ticked, up to all 6, with the dashboard **Shop weekly** and the Workflow **Monday numbers**. Tick **Ask me for their values** if you send the figures yourself, then choose **Set up**.",
           "To have someone else send a figure, open its Metric and add them under **Who submits**. Only a Submitter sees **Record a value** there.",
           "Send the first figures: open a Metric and choose **Record a value**, or answer the request Ziffr sends.",

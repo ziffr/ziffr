@@ -38,8 +38,8 @@
         "type": "list",
         "numbered": true,
         "items": [
-          "Make a Feed, with a Feed Key, on the **Feeds** page.",
-          "Open **Workspace**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Open **Settings**, then **Feeds**, and make a Feed with a Feed Key.",
+          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
           "Keep the Metrics ticked, pick **Values come from the Feed** and your Feed, pick the dashboard **Ziffr operations**, and choose **Set up**.",
           "On the Installation Settings page, choose **Make a Usage Key**, and leave this Workspace out of the figures.",
           "Put the Usage Key and the Feed Key into the settings, as the usage guide in Ziffr's repository says. The figures then arrive once a day."

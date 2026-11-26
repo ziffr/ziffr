@@ -62,7 +62,7 @@
         "type": "list",
         "numbered": true,
         "items": [
-          "Open **Workspace**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
           "Keep all eight Metrics ticked, with the dashboard and the Workflow **Weekly sales forecast**. Tick **Ask me for their values** only if you send the figures yourself.",
           "Pick the **Approver**, usually the sales lead, and choose **Set up**.",
           "If someone else sends the figures, open each of the five Metrics they send and add them under **Who submits**: Commit, Best case, Closed this quarter, Pipeline value and Quota.",
@@ -124,7 +124,7 @@
           "The dashboard **Weekly forecast meeting**: the call against quota, the change on last week, the last 13 weeks and the latest commit by salesperson.",
           "The deck **Weekly forecast meeting**: a cover, the call, where the gap sits, the change since last week, the weeks of the quarter, pipeline coverage, and the risks and asks.",
           "The Workflow **Weekly sales forecast**: asks on Monday, reminds on Tuesday, raises a missing value with the Metric's owner on Wednesday, marks a change of more than 25 % as unusual, has every value approved, locks the week and sends its Snapshot.",
-          "**Forecast Navy**, **Forecast Coral** and **Forecast Forest**: three Themes. The deck starts with Navy. Add your logo to the Theme you use on the **Themes** page."
+          "**Forecast Navy**, **Forecast Coral** and **Forecast Forest**: three Themes. The deck starts with Navy. Add your logo to the Theme you use under **Themes** in **Settings**."
         ]
       }
     ],
