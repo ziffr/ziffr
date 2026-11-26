@@ -1,4 +1,1 @@
-<path d=M 14 60 A 46 46 0 0 1 106 59.99999999999999 fill=none stroke-width=10 stroke=var(--color-paper-3)>
-<path d=M 14 60 A 46 46 0 0 1 106 59.99999999999999 fill=none stroke-opacity=0.45 stroke-width=10 stroke=var(--color-success)>
-<circle cx=60 cy=60 fill=var(--color-ink) r=3.5>
-"–"
+"No values to show yet."

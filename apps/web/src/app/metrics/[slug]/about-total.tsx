@@ -13,6 +13,10 @@ import type { Actor } from "@ziffr/core/actor";
 import type { Metric, Point } from "@ziffr/core/types";
 import { periodChoices } from "../period-choices";
 import type { CountingTotal } from "./archive-metric";
+import { RecordValue } from "./record-value";
+import { firstValueWords, recordLabel } from "@/views/no-values-words";
+import type { RecordingOffer } from "@ziffr/core/record-own-value";
+import { cn } from "@/lib/utils";
 
 /** What the page needs to know of a Metric's kind: the Total (null for any other Metric) and the Totals archiving it
  * would ask about, whether it is worked out by a formula someone wrote (then written with the names of the Metrics in
@@ -68,11 +72,18 @@ export function targetNote(metric: Metric, period: string | undefined, series: b
 
 /** What stands in place of the chart while there is no value to draw. `problem` is why a formula's inputs cannot be
  * combined; `seen` the Metrics this person sees. */
-export function NoValues({ metric, problem, seen, aimed }: { metric: Metric; problem: string | null; seen: Metric[]; aimed: Record<number, Point[]> }) {
+export function NoValues({ metric, problem, seen, aimed, offer }: { metric: Metric; problem: string | null; seen: Metric[]; aimed: Record<number, Point[]>; /** Set for someone who submits the Metric. */ offer?: RecordingOffer | null }) {
   const box = "rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center text-sm text-muted-foreground";
   // A Derived Metric whose inputs cannot be combined says why, instead of an empty chart (spec 0022).
   if (problem) return <div role="status" className={box}>{problem}</div>;
   if (metric.total || metric.reads_total) return <div role="status" className={box}>{noValuesWords(metric)}</div>;
   if (metric.formula) return <div role="status" className={box}>No values yet. {targetProblem(metric, seen, aimed) ?? "It has one for each period in which every Metric it is calculated from has a value."}</div>;
-  return <div className={box}>No values yet. They arrive by {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="?tab=settings" className="underline">See who submits</Link>.</div>;
+  const how = <>They arrive by {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="?tab=settings" className="underline">See who submits</Link>.</>;
+  if (!offer) return <div className={box}>No values yet. {how}</div>;
+  return (
+    <div className={cn(box, "flex flex-col items-center gap-3 max-sm:p-5")}>
+      <p><span className="block">{firstValueWords("line")}</span>{how}</p>
+      <RecordValue offer={offer} label={recordLabel(metric.period)} />
+    </div>
+  );
 }
