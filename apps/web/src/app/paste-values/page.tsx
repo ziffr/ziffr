@@ -15,7 +15,7 @@ export default async function PasteValuesPage({ searchParams }: { searchParams: 
   const opened = metrics.find((m) => m.slug === String(metric ?? "")) ?? null;
   return (
     <>
-      <Link href={opened ? `/metrics/${opened.slug}?tab=history` : "/metrics"} className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground">
+      <Link href={opened ? `/metrics/${opened.slug}?tab=history` : "/metrics"} className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground max-sm:min-h-11">
         <ArrowLeft className="size-4" aria-hidden /> {opened ? opened.name : "Metrics"}
       </Link>
       <PageHeader

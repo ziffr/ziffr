@@ -50,7 +50,7 @@ export function AnalysisTab({ metric, ready, points, forecast, numberStyle, year
                     const t = correlationTakeaway(metric, c.metric, c.result, ctx);
                     return (
                       <li key={c.metric.id}>
-                        <Link href={at({ vs: c.metric.slug, ...keepBasis })} scroll={false} aria-current={c.metric.id === partner.metric.id ? "true" : undefined} className={cn("flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-2 py-2 text-sm hover:bg-muted", c.metric.id === partner.metric.id && "bg-muted font-medium")}>
+                        <Link href={at({ vs: c.metric.slug, ...keepBasis })} scroll={false} aria-current={c.metric.id === partner.metric.id ? "true" : undefined} className={cn("flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-2 py-2 text-sm max-sm:min-h-11 hover:bg-muted", c.metric.id === partner.metric.id && "bg-muted font-medium")}>
                           <span>{c.metric.name}</span>
                           <span className="text-xs text-muted-foreground">{t.kind === "answer" ? t.strengthText : "cannot be told"} · {basisLabel(c.result)}</span>
                           <span className="fig ml-auto text-xs text-muted-foreground">{formatNumber(c.result.r, 2, numberStyle)}</span>
@@ -80,7 +80,7 @@ export function AnalysisTab({ metric, ready, points, forecast, numberStyle, year
           <section aria-label={`Ask about ${metric.name}`} className="stock rounded-[var(--radius-card)] p-5">
             <h2 className="text-base font-medium">Ask about {metric.name}</h2>
             <p className="mt-1 text-sm text-muted-foreground">Pick what you want to know, such as what moves it, whether it changed or what it would take to reach a value. The list starts with what fits {metric.name}.</p>
-            <Link href={`/analyze?metric=${encodeURIComponent(metric.slug)}`} className="mt-3 inline-flex min-h-10 items-center rounded-[var(--radius-stock)] bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90">Choose a method for {metric.name}</Link>
+            <Link href={`/analyze?metric=${encodeURIComponent(metric.slug)}`} className="mt-3 inline-flex min-h-11 items-center sm:min-h-10 rounded-[var(--radius-stock)] bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90">Choose a method for {metric.name}</Link>
           </section>
         </div>
   );

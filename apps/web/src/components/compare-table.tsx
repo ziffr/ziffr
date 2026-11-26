@@ -20,23 +20,26 @@ export function CompareTable({ metric, resolve, targets, full, compact, yearStar
         <div><dt className="text-xs text-muted-foreground">Target{s.target?.fromSeries ? " (series)" : ""}</dt><dd className="fig">{s.target?.value !== null && s.target?.value !== undefined ? formatValue(metric, s.target.value, style) : "–"}</dd></div>
         <div title={attainmentMethodNote(s.method)}><dt className="text-xs text-muted-foreground">Attainment</dt><dd className={cn("fig font-medium", s.onTarget !== null && (s.onTarget ? "text-[var(--color-success)]" : "text-destructive"))}>{attainmentShown(s.attainment) ? attainmentText(s.attainment, style, 1) : s.gap !== null ? gapText(metric, s.gap, style) : "–"}</dd></div>
       </dl>
-      <table className="w-full">
-        <thead className="text-left text-xs text-muted-foreground">
-          <tr><th className="pb-1.5 font-normal">Comparison</th><th className="pb-1.5 font-normal">Spans</th><th className="pb-1.5 text-right font-normal">Change</th><th className="pb-1.5 text-right font-normal">%</th></tr>
-        </thead>
-        <tbody>
-          {s.comparisons.map((c) => (
-            <tr key={c.key} className="border-t border-border align-top">
-              <td className="py-1.5 font-medium">{c.label}</td>
-              <td className="py-1.5 text-muted-foreground">
-                {c.available ? <>{c.currentSpan} <span className="fig whitespace-nowrap text-foreground">{formatValue(metric, c.current, style)}</span><br />vs {c.previousSpan} <span className="fig whitespace-nowrap text-foreground">{formatValue(metric, c.previous, style)}</span></> : c.reason}
-              </td>
-              <td className="fig whitespace-nowrap py-1.5 pl-2 text-right">{c.available ? `${sign(c.abs!)}${formatValue(metric, c.abs, style)}` : "–"}</td>
-              <td className="fig whitespace-nowrap py-1.5 pl-2 text-right">{c.available ? formatChange(c.pct, style) : "–"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Scrolls inside its own box where a phone-narrow panel cannot hold the four columns. */}
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="text-left text-xs text-muted-foreground">
+            <tr><th className="pb-1.5 font-normal">Comparison</th><th className="pb-1.5 font-normal">Spans</th><th className="pb-1.5 text-right font-normal">Change</th><th className="pb-1.5 text-right font-normal">%</th></tr>
+          </thead>
+          <tbody>
+            {s.comparisons.map((c) => (
+              <tr key={c.key} className="border-t border-border align-top">
+                <td className="py-1.5 font-medium">{c.label}</td>
+                <td className="py-1.5 text-muted-foreground">
+                  {c.available ? <>{c.currentSpan} <span className="fig whitespace-nowrap text-foreground">{formatValue(metric, c.current, style)}</span><br />vs {c.previousSpan} <span className="fig whitespace-nowrap text-foreground">{formatValue(metric, c.previous, style)}</span></> : c.reason}
+                </td>
+                <td className="fig whitespace-nowrap py-1.5 pl-2 text-right">{c.available ? `${sign(c.abs!)}${formatValue(metric, c.abs, style)}` : "–"}</td>
+                <td className="fig whitespace-nowrap py-1.5 pl-2 text-right">{c.available ? formatChange(c.pct, style) : "–"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <p className="mt-2 text-xs text-muted-foreground">{full ? "Full periods: the last complete span against the one before." : "To date: the current span so far against the same span before. YoY compares the same period a year earlier."}</p>
     </div>
   );

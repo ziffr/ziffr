@@ -17,7 +17,7 @@ type Mode = "edit" | "reject" | null;
 export function ReviewQueue({ items }: { items: Item[] }) {
   if (items.length === 0) return <p className="text-sm text-muted-foreground">Nothing is waiting for review.</p>;
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full min-w-[40rem] text-left text-sm">
         <caption className="sr-only">Feedback waiting for review, oldest first</caption>
         <thead className="text-xs text-muted-foreground">

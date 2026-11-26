@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { shown, unwrap } from "@/lib/action-error";
 import { pasteTemplateFile } from "@/app/paste-actions";
 import type { PasteChoice } from "./paste-screen";
+import { PHONE_BUTTON_SM, PHONE_FIELD } from "@/app/setup/phone";
+import { cn } from "@/lib/utils";
 
 type Kind = "rows" | "matrix" | "history";
 
@@ -33,27 +35,27 @@ export function TemplateDownload({ metrics, metricId }: { metrics: PasteChoice[]
   });
   if (!metrics.length) return null;
   return (
-    <div className="flex flex-wrap items-center gap-3 text-sm">
-      <label className="flex items-center gap-2">
+    <div className="flex flex-col gap-3 text-sm sm:flex-row sm:flex-wrap sm:items-center">
+      <label className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
         <span>Template</span>
-        <select className="rounded-[var(--radius-input)] border border-input bg-card px-2 py-1 text-sm" value={kind} onChange={(e) => setKind(e.target.value as Kind)} aria-label="Template layout">
+        <select className={cn(PHONE_FIELD, "min-w-0 sm:max-w-xs")} value={kind} onChange={(e) => setKind(e.target.value as Kind)} aria-label="Template layout">
           <option value="rows">One value per row (your Metrics, this period)</option>
           <option value="matrix">Metrics down, periods across (the last 12)</option>
           <option value="history">One Metric&rsquo;s periods without a value</option>
         </select>
       </label>
       {kind === "matrix" && (
-        <select className="rounded-[var(--radius-input)] border border-input bg-card px-2 py-1 text-sm" value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Period of the Metrics in the template">
+        <select className={cn(PHONE_FIELD, "min-w-0 sm:max-w-xs")} value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Period of the Metrics in the template">
           <option value="">Metrics with the most common period</option>
           {["day", "week", "month", "quarter", "half", "year"].map((p) => <option key={p} value={p}>{`${p[0].toUpperCase()}${p.slice(1)}ly Metrics`.replace("Dayly", "Daily").replace("Halfly", "Half-yearly").replace("Yearly Metrics", "Yearly Metrics")}</option>)}
         </select>
       )}
       {history && (
-        <select className="rounded-[var(--radius-input)] border border-input bg-card px-2 py-1 text-sm" value={chosen ?? ""} onChange={(e) => setChosen(Number(e.target.value))} aria-label="Metric for the template">
+        <select className={cn(PHONE_FIELD, "min-w-0 sm:max-w-xs")} value={chosen ?? ""} onChange={(e) => setChosen(Number(e.target.value))} aria-label="Metric for the template">
           {metrics.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
       )}
-      <Button variant="outline" size="sm" disabled={pending || (history && !chosen)} onClick={make}><Download aria-hidden /> Download a template</Button>
+      <Button variant="outline" size="sm" className={PHONE_BUTTON_SM} disabled={pending || (history && !chosen)} onClick={make}><Download aria-hidden /> Download a template</Button>
       <span className="text-muted-foreground">A CSV to fill in your spreadsheet and bring back here. Nothing is recorded by downloading it.</span>
     </div>
   );

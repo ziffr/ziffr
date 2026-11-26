@@ -9,6 +9,7 @@ import { Bot, ClipboardPaste, Download, FileSpreadsheet, Plug } from "lucide-rea
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { SCROLLING_DIALOG, SCROLLING_DIALOG_BODY, SCROLLING_DIALOG_TITLE } from "./scrolling-dialog";
 import { shown, unwrap } from "@/lib/action-error";
 import { pasteTemplateFile } from "@/app/paste-actions";
 
@@ -18,13 +19,14 @@ export type FillPastWays = { paste: boolean; assistant: boolean; system: boolean
 /** One way: what it is, in a sentence, and its one button. */
 function Way({ icon, title, children, action }: { icon: React.ReactNode; title: string; children: React.ReactNode; action: React.ReactNode }) {
   return (
-    <li className="flex items-start gap-3 rounded-[var(--radius-input)] border border-input p-3">
+    <li className="flex items-start gap-3 rounded-[var(--radius-input)] border border-input p-3 max-sm:flex-wrap">
       <span className="mt-0.5 text-muted-foreground" aria-hidden>{icon}</span>
       <div className="min-w-0 flex-1">
         <p className="font-medium">{title}</p>
         <p className="text-sm text-muted-foreground">{children}</p>
       </div>
-      <div className="shrink-0 self-center">{action}</div>
+      {/* Under the words on a phone: beside them the button leaves no room for them and pushes the dialog past the screen. */}
+      <div className="shrink-0 self-center max-sm:basis-full max-sm:[&>button]:w-full">{action}</div>
     </li>
   );
 }
@@ -50,37 +52,39 @@ export function FillPast({ metric, ways, open, onOpenChange, onAssistant }: { me
   });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogTitle>Fill past periods of {metric.name}</DialogTitle>
-        <p className="text-sm text-muted-foreground">Pick the way that suits where your numbers are. Whichever you choose, Ziffr checks every value as it checks any other, and shows what each would do before it records.</p>
-        <ul className="space-y-2">
-          {ways.paste && (
-            <Way icon={<ClipboardPaste className="size-5" />} title="Paste or upload a spreadsheet"
-              action={<Button size="sm" onClick={() => router.push(pasteHref)}>Open Paste history</Button>}>
-              Copy the cells from Excel or Google Sheets, or drop a CSV or Excel file. Ziffr reads the layout for you.
-            </Way>
-          )}
-          {ways.paste && (
-            <Way icon={<FileSpreadsheet className="size-5" />} title="Fill in a template"
-              action={downloaded
-                ? <Button size="sm" onClick={() => router.push(pasteHref)}>Bring it back</Button>
-                : <Button size="sm" variant="outline" disabled={pending} onClick={download}><Download aria-hidden /> Download</Button>}>
-              {downloaded ? "Fill in the numbers in your spreadsheet, then paste or upload them in Paste history." : "A file that already lists the periods without a value, to fill in your spreadsheet and bring back."}
-            </Way>
-          )}
-          {ways.assistant && (
-            <Way icon={<Bot className="size-5" />} title="Ask my assistant"
-              action={<Button size="sm" variant="outline" onClick={() => { onOpenChange(false); setTimeout(onAssistant, 0); }}>Get the text</Button>}>
-              A text for an assistant that is connected to Ziffr and can read where your numbers are. It shows you a table first.
-            </Way>
-          )}
-          {ways.system && (
-            <Way icon={<Plug className="size-5" />} title="Send from another system"
-              action={<Button size="sm" variant="outline" onClick={() => router.push("/connectors/send")}>See how</Button>}>
-              Keep it filled from Google Sheets, Excel, Stripe or HubSpot, or send values from a program.
-            </Way>
-          )}
-        </ul>
+      <DialogContent className={`${SCROLLING_DIALOG} sm:max-w-xl`}>
+        <DialogTitle className={SCROLLING_DIALOG_TITLE}>Fill past periods of {metric.name}</DialogTitle>
+        <div className={SCROLLING_DIALOG_BODY}>
+          <p className="text-sm text-muted-foreground">Pick the way that suits where your numbers are. Whichever you choose, Ziffr checks every value as it checks any other, and shows what each would do before it records.</p>
+          <ul className="space-y-2">
+            {ways.paste && (
+              <Way icon={<ClipboardPaste className="size-5" />} title="Paste or upload a spreadsheet"
+                action={<Button size="sm" onClick={() => router.push(pasteHref)}>Open Paste history</Button>}>
+                Copy the cells from Excel or Google Sheets, or drop a CSV or Excel file. Ziffr reads the layout for you.
+              </Way>
+            )}
+            {ways.paste && (
+              <Way icon={<FileSpreadsheet className="size-5" />} title="Fill in a template"
+                action={downloaded
+                  ? <Button size="sm" onClick={() => router.push(pasteHref)}>Bring it back</Button>
+                  : <Button size="sm" variant="outline" disabled={pending} onClick={download}><Download aria-hidden /> Download</Button>}>
+                {downloaded ? "Fill in the numbers in your spreadsheet, then paste or upload them in Paste history." : "A file that already lists the periods without a value, to fill in your spreadsheet and bring back."}
+              </Way>
+            )}
+            {ways.assistant && (
+              <Way icon={<Bot className="size-5" />} title="Ask my assistant"
+                action={<Button size="sm" variant="outline" onClick={() => { onOpenChange(false); setTimeout(onAssistant, 0); }}>Get the text</Button>}>
+                A text for an assistant that is connected to Ziffr and can read where your numbers are. It shows you a table first.
+              </Way>
+            )}
+            {ways.system && (
+              <Way icon={<Plug className="size-5" />} title="Send from another system"
+                action={<Button size="sm" variant="outline" onClick={() => router.push("/connectors/send")}>See how</Button>}>
+                Keep it filled from Google Sheets, Excel, Stripe or HubSpot, or send values from a program.
+              </Way>
+            )}
+          </ul>
+        </div>
       </DialogContent>
     </Dialog>
   );

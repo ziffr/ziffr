@@ -120,9 +120,9 @@ export function AppShell({ workspace, settings, pinned: pinnedByServer, due, acc
             {inSettings(path, settings) ? (
               <div className="grid gap-8 md:grid-cols-[12rem_minmax(0,1fr)]">
                 <SettingsNav groups={settings} />
-                <div className="min-w-0">{children}</div>
+                <div className="phone-fields min-w-0">{children}</div>
               </div>
-            ) : children}
+            ) : path.startsWith("/settings/") ? <div className="phone-fields">{children}</div> : children}
           </main>
         </SidebarInset>
         <TabBar due={due} pinned={pinned} workspace={workspace} account={account} guide={guide} demoPages={Boolean(people)} />
