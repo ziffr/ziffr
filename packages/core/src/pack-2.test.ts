@@ -472,7 +472,7 @@ describe("what an install keeps of Positions and Repeats", () => {
   });
 
   it("keeps nothing for a Pack without them", () => {
-    const res = checkPack(readFileSync(repoFile("packs/sales-forecast.pack.json"), "utf8"));
+    const res = checkPack(readFileSync(repoFile("packs/sales.pack.json"), "utf8"));
     expect(res.ok && "places" in installManifest(res.pack)).toBe(false);
   });
 
