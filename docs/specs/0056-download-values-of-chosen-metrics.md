@@ -25,7 +25,7 @@ A person ticks Metrics in the Metrics list, or opens one Metric, and downloads t
 - **Limits:** at most 50 Metrics and 250,000 rows in one download. Over the limit the person is told in words how to split it, and nothing is cut short. A Derived Metric has no values of its own and contributes no rows; the bar says so when one is ticked ("Revenue per head is worked out from other Metrics and has no values of its own").
 - **Archived Metrics** can be ticked under the Archived view and downloaded: their values are kept.
 - **A value waiting for Approval** is in the file as the API and the History tab show it to people who see the Metric; the file does not change what they see.
-- **Audit Log:** each download is written as `export.metric_values`, "downloaded the values of chosen Metrics", with the counts as its details ("2 Metrics, 24 values"), never a name or a value. A download that cannot be written there is refused. Not recorded in the demo, where it is refused.
+- **Audit Log:** each download is written as `export.metric_values`, "downloaded the values of chosen Metrics", with the counts as its details ("1 Metric, 12 values"), never a name or a value. A download that cannot be written there is refused. Not recorded in the demo, where it is refused.
 
 ## What the core does
 

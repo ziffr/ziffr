@@ -138,7 +138,7 @@ export const AUDIT_KINDS = {
   "export.workspace": "started downloading a Workspace Export of",
   "export.workspace_finished": "finished or stopped downloading a Workspace Export of",
   "export.deck": "exported the deck",
-  "export.metric_values": "downloaded the values of chosen Metrics in",
+  "export.metric_values": "downloaded the values of chosen Metrics",
   "export.retention_values": "exported the values a Retention would remove from",
   "email_reply.held": "held an email reply that no provider vouched for, until the person it went to confirms it, of",
   "email_reply.confirmed": "confirmed a held email reply",
