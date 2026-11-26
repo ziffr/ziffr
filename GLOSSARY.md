@@ -30,6 +30,10 @@ _Avoid_: Financial year, business year
 A metric computed by a formula from other metrics. It never receives observations directly. Its inputs are counted by its own period and combine by an Aggregation other than none; a formula Ziffr cannot read whole is refused. It is made from a Pack, in the new-Metric flow ("Calculated from other Metrics") or by a program, only from Metrics its maker owns or edits, since it shows their values to whoever it is shared with; while its owner may not share one of them, it shows no values. A formula may reach one period back: `prev({x})` is the input's value in the period before, `change({x})` this period's value minus that one. Such a Derived Metric is shown by its own period only. It may also read an input's target: `target({x})` is x's Target Series value for the period, else the number of its Target Range where that holds one number (one bound, or two equal ones), else nothing, and only where x has a value in the period too. A changed target changes the results at once, past periods included; a Snapshot keeps what it showed.
 _Avoid_: Calculated field, formula metric
 
+**Total**:
+A Derived Metric that adds up a list of Metrics it keeps, its parts, such as the Commit of every salesperson. Parts are added and ended on the Total, never by editing a formula; each counts from a first period and, once ended, up to a last one. A period has a value only when every part counting in it has one, and it is shown only to people who may see all of those parts, unless the Total's owner opens it. Not a formula, not an Aggregation (which combines one Metric's own periods) and not a Running total.
+_Avoid_: Roll-up, consolidation, group sum
+
 **Aggregation**:
 How a metric's values combine into a longer period: summed (revenue, deals), averaged (a score), the last value (a balance), or not at all (a rate).
 _Avoid_: Roll-up, rollup method, combine rule

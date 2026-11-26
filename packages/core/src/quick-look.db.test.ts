@@ -23,7 +23,7 @@ describe("the quick look of a Metric", () => {
       const q = await metricQuickLook(a, m.slug);
       expect(q.metric).toMatchObject({ name: "Cash", slug: m.slug, period: "month", derived: false });
       expect(q.record).toBeNull();
-      expect(Object.keys(q.metric).sort()).toEqual(["calculation_note", "decimals", "derived", "formula", "name", "period", "polarity", "slug", "sources", "target_max", "target_min", "unit", "unit_position"]);
+      expect(Object.keys(q.metric).sort()).toEqual(["calculation_note", "decimals", "derived", "empty", "formula", "name", "period", "polarity", "slug", "sources", "target_max", "target_min", "total", "unit", "unit_position"]);
       expect(q.points.map((p) => p.value)).toEqual([42]);
       expect(typeof q.ownerName === "string" || q.ownerName === null).toBe(true);
     }
