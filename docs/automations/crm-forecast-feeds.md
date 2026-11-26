@@ -13,7 +13,15 @@ Three [Automation Templates](../../GLOSSARY.md) send the weekly figures of the *
 
 Commit and best case are off until you put a slug in their settings. In the Pack, **Commit** is the call a person makes. A sum from the CRM replaces that call with what the deals' categories say, so send it only if that is how your team calls its quarter. **Quota split** is not filled, and the calculated Metrics need nothing.
 
-The template reads amounts and owner ids. Only a Metric's slug, the week and a number are sent to Ziffr: no deal, company, contact, name or email. Ids you put in the **Owners** node stay in n8n. The CRM is only read.
+Only a Metric's slug, the week and a number are sent to Ziffr: no deal, company, contact, name or email. The CRM is only read. The figures are worked out from amounts, owner ids and, to choose what counts, each deal's state, dates, currency and forecast category. Ids you put in the **Owners** node stay in n8n. **What n8n receives from the CRM can be more than the figures need:**
+
+| CRM | What reaches your n8n |
+|---|---|
+| HubSpot | For each won and open deal of the quarter: its amounts, currency, owner id and forecast category, with HubSpot's record id and its creation and change dates. No name is asked for. |
+| Salesforce | Totals and counts for each owner id and forecast category. No single opportunity. |
+| Pipedrive | **Whole deals**, since its list cannot be cut down: title, the ids of the person and organisation, custom fields and the rest. They may hold personal data. |
+
+n8n keeps what a run read: see [What n8n keeps](#what-n8n-keeps).
 
 ## Week, quarter and time zone
 
@@ -53,9 +61,16 @@ One Feed fills at most 100 Metrics with these templates: with four figures each,
 1. Install and set up the **Sales forecast** Pack, or make the Metrics yourself. They must be **weekly**, and their unit should be the currency the template adds up.
 2. **Settings → Feeds**: make a Feed, and a Feed Key with an end date within a year. Copy the key (shown once).
 3. On each Metric the template fills, add the Feed under **Who submits**. A person who stays a Submitter is still asked on Monday while the week has no value: take them off to stop that, and keep (or add) whoever should be able to correct a figure. **Fill from n8n** on a Metric makes the Feed a Submitter, does step 2 if you like, and hands you the file with your Ziffr address in it.
-4. In n8n, add a credential of the type **Header Auth** named `Ziffr Feed Key`: name `Authorization`, value `Bearer ` followed by your key. Choose it in **What is filled** and **Send to Ziffr**. Keep the key in the credential, never in the workflow.
+4. In n8n, add a credential of the type **Header Auth** named `Ziffr Feed Key`: name `Authorization`, value `Bearer ` followed by your key. Choose it in **What is filled** and **Send to Ziffr**. Keep the key in the credential, never in the workflow. Where your n8n offers **Allowed HTTP Request Domains** on the credential, choose **Specific Domains** and enter your Ziffr's host name only.
 
 Then follow the CRM's page, press **Execute workflow** once on a Monday or Tuesday, compare the figures with your CRM, and activate the workflow.
+
+## What n8n keeps
+
+By default n8n may save each run with everything its nodes received, and whoever may open the workflow can read it there. Decide this before you activate the workflow, above all for Pipedrive:
+
+- In the workflow's **Settings**, set **Save successful production executions** and **Save manual executions** to not save. Set **Save failed production executions** the same way if you can do without the details of a failed run.
+- Or have n8n delete old runs after a few days (self-hosted n8n: `EXECUTIONS_DATA_PRUNE` and `EXECUTIONS_DATA_MAX_AGE`), and delete the runs you made while trying it.
 
 ## What happens in Ziffr
 

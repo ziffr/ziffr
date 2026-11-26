@@ -271,6 +271,11 @@ describe("salesforce-forecast-feed.json", () => {
       "SELECT OwnerId, ForecastCategory, SUM(Amount) amountSum, COUNT(Id) dealCount, COUNT(Amount) pricedCount FROM Opportunity WHERE IsClosed = false AND CloseDate >= 2026-10-01 AND CloseDate <= 2026-12-31 GROUP BY OwnerId, ForecastCategory",
     ]);
   });
+  it("gives a read no host to call, and so no login, for an address that is not Salesforce's", () => {
+    for (const instanceUrl of ["https://evil.example", "http://acme.my.salesforce.com", "https://acme.salesforce.com.evil.example", "https://evil.example/.salesforce.com", "https://a@evil.example#.salesforce.com", "https://acme.my.salesforce.com/path"]) {
+      for (const n of reads) expect(worked(n.parameters.url, { Settings: one({ instanceUrl }) }), instanceUrl).toBe("/services/data/v62.0/query");
+    }
+  });
   it("sends nothing when there are more groups than one query gives, or a category it does not know", async () => {
     await expect(flow("salesforce", salesforce({ done: false }))).rejects.toThrow(/more groups than one query/);
     await expect(flow("salesforce", salesforce({ open: [total(ANA, 1, { ForecastCategory: "Commit" })] }))).rejects.toThrow(/does not know: Commit/);

@@ -20,7 +20,7 @@ One n8n workflow that adds up your Pipedrive deals every Monday and sends the we
 | Owner | `owner_id`. |
 | Pages | 500 deals a page, up to 100 pages (50,000 deals) for each of the two lists. More stops the run. |
 
-The list also carries each deal's title, which stays in n8n: only the totals are sent. Archived and deleted deals are not counted.
+**n8n receives whole deals.** Pipedrive's list cannot be cut down to the fields the sums need: each deal comes with its title, the ids of its person and organisation, its custom fields and the rest, which may hold personal data. Only the totals are sent to Ziffr, but n8n can keep all of it in its saved runs: turn that off, or delete old runs, as [What n8n keeps](crm-forecast-feeds.md#what-n8n-keeps) says. Archived and deleted deals are not counted.
 
 ## Set up
 
@@ -28,7 +28,7 @@ The list also carries each deal's title, which stays in n8n: only the totals are
 2. Do [the part in Ziffr](crm-forecast-feeds.md#set-up-the-part-in-ziffr).
 3. In n8n, import `pipedrive-forecast-feed.json` (**Workflows → Import from file**), or get it from Ziffr with your address in it (**Fill from n8n**).
 4. **Settings** node: your Ziffr address, your deals' currency (such as `EUR`), your time zone, and the slugs of the Metrics (after setting up the Pack usually `closed-this-quarter` and `pipeline-value`).
-5. Add a credential of the type **Header Auth** named `Pipedrive API Token`: name `x-api-token`, value the token. Choose it in **Read won deals** and **Read open deals**.
+5. Add a credential of the type **Header Auth** named `Pipedrive API Token`: name `x-api-token`, value the token. Choose it in **Read won deals** and **Read open deals**. Where your n8n offers **Allowed HTTP Request Domains** on the credential, choose **Specific Domains** and enter `api.pipedrive.com`.
 6. For salespeople with their own Metrics, fill in the **Owners** node with their Pipedrive user ids. A first run lists the ids that have deals in the output of **Figures**.
 
 ## Limits

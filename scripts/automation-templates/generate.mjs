@@ -512,9 +512,12 @@ const hubspotForecast = () => crmFeed(HUBSPOT_FORECAST, (w, x, y) => {
   return ["Read won deals", "Read open deals", "Read forecast categories"];
 });
 
-// The Salesforce login is sent to the address of the Settings, so only a Salesforce one is taken.
+// The Salesforce login is sent to the address of the Settings, so only a Salesforce one is taken: checked in the node
+// "Week", which says what is wrong, and again in the address of each read, for a read run on its own or rewired.
+const SALESFORCE_ADDRESS = String.raw`/^https:\/\/[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.salesforce\.com\/?$/`;
+const SALESFORCE_INSTANCE = "$('Settings').first().json.instanceUrl.trim()";
 const SALESFORCE_CHECK = `// The Salesforce login is sent to this address, so only a Salesforce one is taken.
-if (!/^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.salesforce\\.com\\/?$/.test(String(s.instanceUrl ?? '').trim())) throw new Error('Settings: instanceUrl is your Salesforce address, such as https://yourcompany.my.salesforce.com.');
+if (!${SALESFORCE_ADDRESS}.test(String(s.instanceUrl ?? '').trim())) throw new Error('Settings: instanceUrl is your Salesforce address, such as https://yourcompany.my.salesforce.com.');
 `;
 const SALESFORCE_FORECAST = {
   id: "salesforce-forecast", system: "salesforce", crm: "Salesforce", label: "Salesforce forecast", file: "salesforce-forecast-feed.json", guide: "salesforce-forecast-feed.md",
@@ -525,7 +528,7 @@ const SALESFORCE_FORECAST = {
   own: [["instanceUrl", "https://REPLACE-WITH-YOUR-DOMAIN.my.salesforce.com"]], check: SALESFORCE_CHECK,
 };
 /** One grouped query. Only dates the node "Week" worked out go into it: nothing typed into the Settings or read from the CRM. */
-const salesforceQuery = (w, name, soql, x, y) => w.http(name, "GET", "={{ $('Settings').first().json.instanceUrl.trim().replace(/\\/+$/, '') }}/services/data/v62.0/query", ["predefined", "salesforceOAuth2Api", "Salesforce account"], x, y, { query: [["q", `={{ ${soql} }}`]] });
+const salesforceQuery = (w, name, soql, x, y) => w.http(name, "GET", `={{ ${SALESFORCE_ADDRESS}.test(${SALESFORCE_INSTANCE}) ? ${SALESFORCE_INSTANCE}.replace(/\\/+$/, '') : '' }}/services/data/v62.0/query`, ["predefined", "salesforceOAuth2Api", "Salesforce account"], x, y, { query: [["q", `={{ ${soql} }}`]] });
 const salesforceForecast = () => crmFeed(SALESFORCE_FORECAST, (w, x, y) => {
   const sums = "SUM(Amount) amountSum, COUNT(Id) dealCount, COUNT(Amount) pricedCount FROM Opportunity";
   const between = (to) => `" AND CloseDate >= " + ${WEEK}.quarterFirst + " AND CloseDate <= " + ${WEEK}.${to}`;

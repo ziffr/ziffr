@@ -1,7 +1,8 @@
 // @@LABEL@@ -> Ziffr: the week's sales forecast figures. The first part of this node reads what @@LABEL@@ answered and makes
 // one plain line { owner, kind, amount, category } per deal that counts: kind is 'won' (this quarter, up to the week's end)
-// or 'open' (can still close this quarter), category '' , 'commit' or 'upside'. Only amounts and owner ids are looked
-// at, and only { metric, period, value } goes on to the next node: no deal, name, email or owner id leaves n8n.
+// or 'open' (can still close this quarter), category '' , 'commit' or 'upside'. The next node gets the rows
+// { metric, period, value } and notes for the person running it, which may name owner ids and stay in n8n. Only the rows
+// are sent to Ziffr: no deal, name, email or owner id leaves n8n.
 // What is sent:
 //  - closed: the amounts won;  pipeline: the amounts open (those in the commit too, those won not);
 @@RULES@@//  - the team's figures add up every owner; a line in Owners adds up that owner's deals only;
