@@ -6,6 +6,8 @@ A **Deck** is a set of slides you build from your Widgets, text, arrows and shap
 
 Open **Decks** in the sidebar. Owners, Admins and Members can make decks. Guests only see decks that someone shared with them: they get no **New deck** and no **Themes** link, and an empty list says "Nothing has been shared with you yet. Ask whoever invited you." The **Themes** page opens from the **Themes** link on the Decks page, or next to the theme picker on any deck or dashboard. Everyone can look at it, but only Owners and Admins change themes.
 
+If slides show the notice **Slides and free layouts cannot be shown here**, this Ziffr has no license key that the slide editor accepts. The person who runs it can [add one](18-installation-settings.md#slide-editor).
+
 ## The Decks page
 
 The page lists every deck you made and every deck someone shared with you. Each card shows the deck's name, how many slides it has and when it was last changed. On a deck from someone else, the card also says who it is from and what you may do: "you can edit it" or "you can present it".
