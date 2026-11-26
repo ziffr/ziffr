@@ -93,7 +93,8 @@ const signalOf = (m: Metric, d: number): "good" | "bad" | null => (d === 0 || m.
 // A Metric's name inside a sentence: "above quota". A name with capitals of its own (an acronym) stays as it is.
 const inSentence = (name: string) => (name.slice(1) === name.slice(1).toLowerCase() ? name.toLowerCase() : name);
 
-const SLIDE_PATTERN = /\{(metrics|metric|period|latest|change yoy|change prev|top row|target|quarter weeks|quarter week|quarter|weeks left|change|scale|slide|difference|gap|left)(?:\s+(\d))?(?:\s+(\d))?\}/gi;
+/** The Placeholders a slide's words can hold, with up to two Slot numbers. */
+export const SLIDE_PATTERN = /\{(metrics|metric|period|latest|change yoy|change prev|top row|target|quarter weeks|quarter week|quarter|weeks left|change|scale|slide|difference|gap|left)(?:\s+(\d))?(?:\s+(\d))?\}/gi;
 
 /** An element's words filled from the data, whether the first change or gap in them is good or bad news, and whether
  * anything in them had no value to show. A Placeholder of a Metric the viewer may not see is empty; one without a value

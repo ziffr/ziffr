@@ -39,7 +39,7 @@ const KINDS = {
   views: { field: "design", what: "View Designs", format: "ziffr.view/1", bytes: VIEW_LIMITS.bytes, check: (v: unknown, l: Map<string, number>): FormatCheck<ViewDesign> => { const r = checkViewDesignValue(v, l); return r.ok ? { ok: true, value: r.design } : r; } },
   analyses: { field: "recipe", what: "Analysis Recipes", format: "ziffr.analysis/1 or ziffr.analysis/2", bytes: RECIPE_LIMITS.bytes, check: (v: unknown, l: Map<string, number>): FormatCheck<AnyAnalysisRecipe> => { const r = checkAnalysisRecipeValue(v, l); return r.ok ? { ok: true, value: r.recipe } : r; } },
   themes: { field: "theme", what: "Themes", format: "ziffr.theme/1 or ziffr.theme/2", bytes: THEME_FILE_LIMITS.bytes, check: checkThemeFileValue },
-  decks: { field: "template", what: "Deck Templates", format: "ziffr.deck-template/1 or ziffr.deck-template/2", bytes: DECK_TEMPLATE_LIMITS.bytes, check: checkDeckTemplateFileValue },
+  decks: { field: "template", what: "Deck Templates", format: "ziffr.deck-template/1, ziffr.deck-template/2 or ziffr.deck-template/3", bytes: DECK_TEMPLATE_LIMITS.bytes, check: checkDeckTemplateFileValue },
   workflows: { field: "template", what: "Workflow Templates", format: "ziffr.workflow-template/1", bytes: WORKFLOW_TEMPLATE_LIMITS.bytes, check: checkWorkflowTemplateFileValue },
 } as const;
 /** A kind of thing in a Pack, as its manifest names the list. */

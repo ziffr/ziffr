@@ -4,14 +4,16 @@
 // sees every Metric it draws publishes it. Every function takes the Actor first.
 import { openWorkflowRow } from "./workflow-rows";
 import { db } from "./db";
-import { getGroups } from "./access";
 import { mayReadItem } from "./checklist-rules";
 import { openRows } from "./sealed-columns";
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { assertCanEditDashboard, editableWidget } from "./dashboards";
 import { assertSeesMetrics } from "./sharing";
 import { NOT_IN_DASHBOARD_TEMPLATES, SLIDE_SHAPES, toDashboardTemplate, toDeckTemplate, toSlideLayout, toTemplate, toWorkflowTemplate, type Choices } from "./team-templates";
+import { TEXT_METRICS_MAX, textMetricIds } from "./slide-text";
+import { getCanvasData, getGroups } from "./access";
 import { widgetMetricIds } from "./widget-metrics";
+import { breakdownRowNames } from "./typed-words";
 import { isTagWidget } from "./tag-widgets";
 import { visibleTags } from "./tag-sight";
 import { isView, TEMPLATES } from "./widget-templates";
@@ -74,8 +76,16 @@ function withoutLinks(props: Record<string, unknown>): Record<string, unknown> {
   return rest.richText ? { ...rest, richText: strip(rest.richText) } : rest;
 }
 
+/** The list a text box counts its Slots in, as kept: at most so many ids, a 0 for an entry that is none. */
+function textMeta(sh: SlideShape): Pick<SlideShape, "meta"> {
+  const list: unknown = sh.meta?.metrics;
+  if (!Array.isArray(list)) return {};
+  return { meta: { metrics: list.slice(0, TEXT_METRICS_MAX).map((id) => (Number.isSafeInteger(id) && (id as number) > 0 ? (id as number) : 0)) } };
+}
+
 /** A slide's shapes as the editor sends them, each checked: known kinds only, numbers that are numbers, widgets of
- * views that exist with their View Designs checked. Answers the shapes and every Metric their widgets draw. */
+ * views that exist with their View Designs checked. Answers the shapes and every Metric their widgets draw and their
+ * words name. */
 export function cleanSlideShapes(shapes: unknown): { shapes: SlideShape[]; metricIds: number[] } {
   const list = Array.isArray(shapes) ? (shapes as SlideShape[]) : [];
   if (list.length > 80 || JSON.stringify(list).length > 400_000) throw new Error("This slide is too large to save as a layout.");
@@ -83,8 +93,8 @@ export function cleanSlideShapes(shapes: unknown): { shapes: SlideShape[]; metri
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
   const clean: SlideShape[] = list
     .filter((sh) => sh && SLIDE_SHAPES.includes(String(sh.type)) && sh.props && typeof sh.props === "object")
-    .map((sh) => ({ type: String(sh.type), x: num(sh.x), y: num(sh.y), rotation: num(sh.rotation), opacity: Math.min(1, Math.max(0, num(sh.opacity) || 1)), props: withoutLinks(sh.props) }));
-  const metricIds: number[] = [];
+    .map((sh) => ({ type: String(sh.type), x: num(sh.x), y: num(sh.y), rotation: num(sh.rotation), opacity: Math.min(1, Math.max(0, num(sh.opacity) || 1)), props: withoutLinks(sh.props), ...textMeta(sh) }));
+  const metricIds: number[] = clean.flatMap(textMetricIds);
   for (const sh of clean.filter((x) => x.type === "ziffr-widget")) {
     const template = String(sh.props.template);
     if (!isView(template) || TEMPLATES[template].kind === "layout") throw new Forbidden();
@@ -96,14 +106,22 @@ export function cleanSlideShapes(shapes: unknown): { shapes: SlideShape[]; metri
   return { shapes: clean, metricIds };
 }
 
+/** The row names of these Metrics' Breakdowns as the actor sees them: what a template looks for typed into words. */
+async function breakdownRows(actor: Actor, metricIds: number[]): Promise<string[]> {
+  if (!metricIds.length) return [];
+  const data = await getCanvasData(actor.workspaceId, actor.personId, { seriesOf: metricIds });
+  return breakdownRowNames(data.breakdowns, metricIds);
+}
+
 /** Saves a slide of the actor's own deck as a team slide layout. The shapes come from the editor, so each is checked. */
-export async function saveSlideLayout(actor: Actor, input: { deckId: number; shapes: SlideShape[]; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }): Promise<number> {
+export async function saveSlideLayout(actor: Actor, input: { deckId: number; shapes: SlideShape[]; name: string; description: string; labels: string[]; choices: Choices; keepTyped?: boolean; replaceId?: number | null }): Promise<number> {
   const { data: deck } = await db().from("decks").select("owner_id").eq("id", input.deckId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!deck || deck.owner_id !== actor.personId) throw new Forbidden();
   // The shapes come from the editor and carry words: in a demo visit they are rebuilt as a deck's are (no picture, words through the text rules).
   const { shapes, metricIds } = cleanSlideShapes(await visitorSlideShapes(actor, input.shapes));
   await assertSeesMetrics(actor, metricIds);
-  const t = toSlideLayout(shapes, await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(actor, input.labels));
+  const typed = { rows: await breakdownRows(actor, metricIds), keep: input.keepTyped === true };
+  const t = toSlideLayout(shapes, await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(actor, input.labels), typed);
   return store(actor, "slide", input.replaceId, { ...names(actor, input.name, input.description, "Untitled layout"), view: "slide", slots: t.slots, body: t.body, w: 0, h: 0, updated_at: new Date().toISOString() });
 }
 
@@ -129,22 +147,24 @@ export function storedSlides(document: unknown): SlideShape[][] {
   return frames.map((f) => records
     .filter((r) => r.parentId === f.id)
     .sort((a, b) => String(a.index ?? "").localeCompare(String(b.index ?? "")))
-    .map((r) => ({ type: String(r.type), x: Number(r.x) || 0, y: Number(r.y) || 0, rotation: Number(r.rotation) || 0, opacity: Number(r.opacity ?? 1), props: (r.props ?? {}) as Record<string, unknown> })));
+    .map((r) => ({ type: String(r.type), x: Number(r.x) || 0, y: Number(r.y) || 0, rotation: Number(r.rotation) || 0, opacity: Number(r.opacity ?? 1), props: (r.props ?? {}) as Record<string, unknown>, ...(r.meta ? { meta: r.meta as SlideShape["meta"] } : {}) })));
 }
 
 /** Saves the actor's own deck as a team Deck Template, new or replacing one of the actor's own, as slide layouts are
  * saved by the deck's owner only: the template shows the deck's words to the whole team. Built from the deck as
  * stored, never from what the browser sends; each slide is checked as a slide layout is, and the actor must see every
  * Metric on it. */
-export async function saveDeckTemplate(actor: Actor, input: { deckId: number; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }): Promise<number> {
+export async function saveDeckTemplate(actor: Actor, input: { deckId: number; name: string; description: string; labels: string[]; choices: Choices; keepTyped?: boolean; replaceId?: number | null }): Promise<number> {
   const { data: deck } = await db().from("decks").select("owner_id, theme_id, document").eq("id", Number(input.deckId)).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!deck || deck.owner_id !== actor.personId) throw new Forbidden();
   const slides = storedSlides(deck.document);
   if (!slides.length) throw new Error("This deck has no slides to keep.");
   if (slides.length > MAX_DECK_TEMPLATE.slides || JSON.stringify(slides).length > MAX_DECK_TEMPLATE.bytes) throw new Error("This deck is too large to save as a template.");
   const cleaned = slides.map(cleanSlideShapes);
-  await assertSeesMetrics(actor, cleaned.flatMap((c) => c.metricIds));
-  const t = toDeckTemplate(cleaned.map((c) => c.shapes), await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(actor, input.labels), storedCovers(deck.document));
+  const metricIds = [...new Set(cleaned.flatMap((c) => c.metricIds))];
+  await assertSeesMetrics(actor, metricIds);
+  const typed = { rows: await breakdownRows(actor, metricIds), keep: input.keepTyped === true };
+  const t = toDeckTemplate(cleaned.map((c) => c.shapes), await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(actor, input.labels), storedCovers(deck.document), typed);
   return store(actor, "deck", input.replaceId, { ...names(actor, input.name, input.description, "Untitled deck template"), view: "deck", slots: t.slots, body: { ...t.body, themeId: deck.theme_id ?? null }, w: 0, h: 0, updated_at: new Date().toISOString() });
 }
 

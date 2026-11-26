@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fillsComplete, fromTemplate, specifics, toTemplate } from "./team-templates";
+import { fillsComplete, fromSlideLayout, fromTemplate, specifics, toDeckTemplate, toSlideLayout, toTemplate } from "./team-templates";
+import { richRuns } from "./slide-text";
 import { metric } from "./test/fixtures";
 
 const revenue = metric();
@@ -58,5 +59,51 @@ describe("team templates", () => {
     const element = { kind: "figure" as const, label: `${"x".repeat(76)} Gap`, note: "{gap 1 1} Gap" };
     const t = toTemplate({ template: "slide", title: null, metric_ids: [3], settings: { element } }, [gap], {});
     expect(t.body.settings.element).toEqual({ kind: "figure", label: `${"x".repeat(76)} `, note: "{gap 1 1} {metric}" });
+  });
+});
+
+describe("a template's text boxes", () => {
+  const rich = (text: string) => ({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+  const box = (text: string, metrics?: number[]) => ({ type: "text", x: 0, y: 0, rotation: 0, opacity: 1, props: { richText: rich(text) }, ...(metrics ? { meta: { metrics } } : {}) });
+  const widget = (id: number) => ({ type: "ziffr-widget", x: 0, y: 0, rotation: 0, opacity: 1, props: { template: "number", metricIds: [id], settings: "{}", title: "" } });
+  const words = (shape: { props: Record<string, unknown> }) => richRuns(shape.props.richText).join("\n");
+  const cash = metric({ id: 3, slug: "cash", name: "Cash" });
+
+  it("turn the Metrics they name into Slots, and hold no id or name", () => {
+    const t = toSlideLayout([widget(1), box("Stock {latest 2}, Orders last", [2, 3])], [revenue, orders, cash], {});
+    const made = t.body.shapes[1];
+    expect(words(made)).toBe("Stock {latest}, {metric 2} last");
+    expect(made.meta).toBeUndefined();
+    expect(made.textSlots).toEqual([1, 2]);
+    expect(t.slots.map((s) => s.exampleIds)).toEqual([[1], [3], [2]]);
+    expect(JSON.stringify(t.body)).not.toContain("Cash");
+    // Filled again with other Metrics: the box names those picked for its own Slots.
+    expect(fromSlideLayout(t.body, [[7], [8], [9]])[1].meta).toEqual({ metrics: [8, 9] });
+  });
+
+  it("need no Slots of their own when the slide fills them by itself", () => {
+    const t = toSlideLayout([widget(1), box("{metric} is {change prev}", [1]), box("Orders and revenue"), box("Next steps")], [revenue, orders], {});
+    expect(t.body.shapes[1].textSlots).toBeUndefined();
+    expect(words(t.body.shapes[1])).toBe("{metric} is {change prev}");
+    const filled = fromSlideLayout(t.body, [[7]]);
+    expect(filled[1].meta).toEqual({ metrics: [7] });
+    expect(filled[3].meta).toBeUndefined();
+  });
+
+  it("leave out numbers and Breakdown rows typed into them, say so, and keep them only when asked", () => {
+    const shapes = [widget(1), box("1. Revenue was 1,2 Mio € (+12 %) in Q3, led by Northwind"), box("{latest} of 40", [1])];
+    const rows = ["Northwind"];
+    const t = toDeckTemplate([shapes], [revenue], {}, [], [], { rows });
+    expect(words(t.body.slides[0].shapes[1])).toBe("1. {metric} was … (…) in Q3, led by …");
+    expect(words(t.body.slides[0].shapes[2])).toBe("{latest} of …");
+    expect(t.typed).toEqual(["Northwind", "1,2 Mio €", "+12 %", "40"]);
+    expect(t.notices.join(" ")).toMatch(/Left out of the text boxes/);
+    const kept = toDeckTemplate([shapes], [revenue], {}, [], [], { rows, keep: true });
+    expect(words(kept.body.slides[0].shapes[2])).toBe("{latest} of 40");
+    expect(kept.notices.join(" ")).toMatch(/kept, for everyone on the team/);
+  });
+
+  it("write “…” for a Metric that is gone", () => {
+    expect(words(toSlideLayout([box("{latest} of {metric 2}", [99, 1])], [revenue], {}).body.shapes[0])).toBe("… of {metric}");
   });
 });

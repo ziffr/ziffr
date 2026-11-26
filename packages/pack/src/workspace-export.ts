@@ -14,7 +14,7 @@ import { checkSchema, MAX_PROBLEMS, parseJson, under, type Problem, type Schema 
 import { appText, APP_TEXT, itemKey, PLAIN, SLIDE_WORDS, WORDS } from "./file-text.js";
 import { checkMetricFileValue, METRIC_FILE_SCHEMA, metricFileSchema2, type MetricFile } from "./metric-file.js";
 import { checkDashboardTemplateFileValue, DASHBOARD_TEMPLATE_LIMITS, DASHBOARD_TEMPLATE_SCHEMA, dashboardTemplateReferences, refusedOutsidePack, type DashboardTemplateFile } from "./dashboard-template-file.js";
-import { checkDeckTemplateFileValue, DECK_TEMPLATE_LIMITS, DECK_TEMPLATE_SCHEMA, deckTemplateReferences, deckTemplateSchema2, type DeckTemplateFile } from "./deck-template-file.js";
+import { checkDeckTemplateFileValue, DECK_TEMPLATE_LIMITS, DECK_TEMPLATE_SCHEMA, deckTemplateReferences, deckTemplateSchema2, deckTemplateSchema3, type DeckTemplateFile } from "./deck-template-file.js";
 import { checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_LIMITS, WORKFLOW_TEMPLATE_SCHEMA, type WorkflowTemplateFile } from "./workflow-template-file.js";
 import { checkThemeFileValue, THEME_FILE_LIMITS, THEME_FILE_2_SCHEMA, THEME_FILE_SCHEMA, type ThemeFile } from "./theme-file.js";
 import { VIEW_DESIGN_SCHEMA } from "./view-design.js";
@@ -139,7 +139,11 @@ function loosened(schema: Schema): Schema {
 const EXPORT_DASHBOARD_SCHEMA = loosened(DASHBOARD_TEMPLATE_SCHEMA);
 const EXPORT_DECK_SCHEMA = loosened(DECK_TEMPLATE_SCHEMA);
 // A Slide Element's words follow the app's text rules too, as a slide's words do.
-const EXPORT_DECK_SCHEMAS = { v1: EXPORT_DECK_SCHEMA, v2: deckTemplateSchema2(slideElementSchema(appText), EXPORT_DECK_SCHEMA) };
+const EXPORT_DECK_SCHEMAS = {
+  v1: EXPORT_DECK_SCHEMA,
+  v2: deckTemplateSchema2(slideElementSchema(appText), EXPORT_DECK_SCHEMA),
+  v3: deckTemplateSchema3(slideElementSchema(appText), EXPORT_DECK_SCHEMA, appText(DECK_TEMPLATE_LIMITS.words)),
+};
 const EXPORT_WORKFLOW_SCHEMA = loosened(WORKFLOW_TEMPLATE_SCHEMA);
 const EXPORT_THEME_SCHEMAS = { v1: loosened(THEME_FILE_SCHEMA), v2: loosened(THEME_FILE_2_SCHEMA) };
 /** A View Design inside a widget, with the app's text rules too: nothing the app stores may stop an export. */

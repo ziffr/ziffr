@@ -69,12 +69,6 @@ function fill(text: string, slots: (Metric | null)[], data: CanvasData): string 
   });
 }
 
-/** Fills every Placeholder it can in a text; one it cannot fill stays visible, so the author sees what is missing. */
-export function fillText(text: string | undefined, metrics: Metric[], data: CanvasData): string | undefined {
-  if (!text || !text.includes("{")) return text;
-  return fill(text, metrics, data);
-}
-
 /** A widget's title (or any text of its own) filled in from the data this viewer gets for it: {metric 2} is the widget's second
  * Metric even when the first is one the viewer may not see, which is then empty, so a shared surface says nothing about it. */
 export function fillWidgetText(text: string | undefined, widget: Pick<Widget, "metric_ids" | "settings">, data: CanvasData): string | undefined {

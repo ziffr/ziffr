@@ -3,7 +3,7 @@
 export { checkPack, checkPackValue, FEED_TEMPLATE_IDS, PACK_FORMAT, PACK_LICENSES, PACK_LIMITS, PACK_SCHEMA, UNSIGNED_WARNING, versionBelow, type Pack, type PackCheck, type PackItem, type PackKind } from "./pack.js";
 export { checkMetricFile, METRIC_FILE_2_SCHEMA, METRIC_FILE_SCHEMA, type MetricFile } from "./metric-file.js";
 export { checkDashboardTemplateFile, DASHBOARD_TEMPLATE_SCHEMA, type DashboardTemplateFile } from "./dashboard-template-file.js";
-export { checkDeckTemplateFile, DECK_TEMPLATE_2_SCHEMA, DECK_TEMPLATE_SCHEMA, type DeckTemplateFile } from "./deck-template-file.js";
+export { checkDeckTemplateFile, DECK_TEMPLATE_2_SCHEMA, DECK_TEMPLATE_3_SCHEMA, DECK_TEMPLATE_SCHEMA, type DeckTemplateFile } from "./deck-template-file.js";
 export { SLIDE_ELEMENT_KINDS, SLIDE_ELEMENT_LIMITS, SLIDE_TONES, type SlideElement, type SlideElementKind, type SlideTone } from "./slide-element.js";
 export { checkWorkflowTemplateFile, WORKFLOW_TEMPLATE_SCHEMA, type WorkflowTemplateFile } from "./workflow-template-file.js";
 export { checkThemeFile, THEME_FILE_2_SCHEMA, THEME_FILE_SCHEMA, type ThemeFile } from "./theme-file.js";

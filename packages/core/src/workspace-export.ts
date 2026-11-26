@@ -373,7 +373,8 @@ async function deckRecords(c: Ctx): Promise<void> {
       if (!raw.length) throw new Error("it has no slides");
       const total = raw.reduce((n, s) => n + s.length, 0);
       const cleaned = raw.map(cleanSlideShapes);
-      const t = toDeckTemplate(cleaned.map((c) => c.shapes), allMetrics, {}, [], storedCovers(d.document));
+      // The Owner's own file carries the words as they are typed; the notices below say where they hold numbers.
+      const t = toDeckTemplate(cleaned.map((c) => c.shapes), allMetrics, {}, [], storedCovers(d.document), { keep: true });
       const doc = deckFile({
         name, slots: slotFiles(t.slots) as DeckTemplateFile["slots"],
         slides: t.body.slides.map((s, i) => ({ ...(s.cover ? { cover: true } : {}), shapes: s.shapes.flatMap((sh: SlideShape, j) => slideShapeOf(sh.widget ? { ...sh, widget: { ...sh.widget, settings: withSource(sh.widget.settings, sourceSettings(cleaned[i]?.shapes[j])) } } : sh, new Map(), fit)) })),
