@@ -436,6 +436,11 @@ describe("a tree of a formula that reads a target (spec 0062)", () => {
     expect(ok(treeFromData(gap, given(2))).boxes.map((b) => [b.label, b.value])).toEqual([["Gap", 10], ["Target of Revenue", 130], ["Revenue", 120]]);
     expect(ok(treeFromData(gap, given(1))).boxes.map((b) => [b.label, b.value])).toEqual([["Gap", -10], ["Target of Revenue", 90], ["Revenue", 100]]);
   });
+  it("draws a target of a Metric that has no value at all as a gap", () => {
+    const other = { ...COST, target_min: null, target_max: null };
+    const mix = metric({ id: 3, slug: "profit", name: "Gap", formula: "target({revenue}) - {cost}", aggregation: "none" });
+    expect(ok(treeFromData(mix, dataOf([rev, other, mix], rows({ 2: [60] })))).boxes.map((b) => b.value)).toEqual([null, null, 60]);
+  });
   it("draws a target without a number, or of a Metric without a value, as a gap", () => {
     const band = { ...rev, target_max: 200 };
     expect(ok(treeFromData(gap, dataOf([band, gap], rows({ 1: [100] })))).boxes.map((b) => b.value)).toEqual([null, null, 100]);

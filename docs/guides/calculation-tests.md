@@ -10,7 +10,7 @@ Ziffr is only useful if its numbers are right. So every calculation on values is
   - `combine.ts` applies the rules for combining as the spec and the glossary write them: a series by a Display Period, one span's value for a Comparison, a Target Series combined, and what a Snapshot keeps;
   - `change.ts`: a Comparison's change and its percentage, target status, health and the Unusual Value check;
   - `attainment.ts`: Attainment by ratio and by distance;
-  - `formula.ts`: a formula read by the shunting-yard method and worked out on exact fractions;
+  - `formula.ts`: a formula read by the shunting-yard method and worked out on exact fractions (`target()` read as an input of its own);
   - `derived.ts`: a Derived Metric per period and over a longer span;
   - `write.ts`: a value written digit by digit in a Number Style, with its unit, a percentage change and a short value, with the minus sign "−" for people and the ASCII "-" without group marks, for files;
   - `analyses.ts`: Pearson's r and Holt's forecast, from their textbook definitions;

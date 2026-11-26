@@ -519,6 +519,11 @@ describe("a Derived Metric that reads targets (spec 0062)", () => {
       const built = buildSeries([commit, gap], obs, { 1: [{ period: "2026-02-01", value: 900 }] });
       expect(built.gap.map((p) => p.value)).toEqual([400, 700, 200, 100]);
     });
+    it("a Metric without a Target Series has its range, and a formula naming no Metric of the list has no value", () => {
+      expect(buildSeries([commit, gap], obs, {}).gap.map((p) => p.value)).toEqual([400, 300, 200, 100]);
+      const lost = metric({ id: 3, slug: "lost", formula: "target({nobody}) + {commit}", aggregation: "none" });
+      expect(buildSeries([commit, lost], obs, {}).lost).toEqual([]);
+    });
     it("over a quarter: all of a series combined, none for a part of one, the range for a last value", () => {
       const all = months("2026-01", [600, 700, 800]);
       expect(q1(commit, aim(all))).toBe(800);

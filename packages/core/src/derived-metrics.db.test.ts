@@ -6,11 +6,12 @@ import { Forbidden, Refused } from "./actor";
 import { createDerivedMetric, formulaChoices, setMetricFormula } from "./derived-metrics";
 import { db } from "./db";
 import { inputsProblem } from "./formula";
-import { deleteMetric } from "./metrics";
+import { deleteMetric, saveSeriesRows } from "./metrics";
+import { seriesFor } from "./access";
 import { buildSeries } from "./series";
 import { opened, workspace } from "./test/db-fixtures";
 import { restoreVersion } from "./version-history";
-import { getMetrics, getObservations } from "./workspace-data";
+import { getAllSeries, getMetrics, getObservations, getSeriesOf } from "./workspace-data";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -56,6 +57,31 @@ describe("createDerivedMetric", () => {
     await w.value(odo.id, "2026-11-02", 13573); await w.value(odo.id, "2026-11-09", 13650);
     const series = buildSeries(await getMetrics(w.id), await getObservations(w.id));
     expect(series["kilometres-per-day"]).toEqual([{ period: "2026-11-09", value: 11 }]);
+  });
+
+  it("reads a target with target(): the Target Series of the period, else the range, only of a Metric the person may share (spec 0062)", async () => {
+    const { w, sara, as } = await setup();
+    const lena = await w.person("member");
+    const commit = await w.metric(sara, { name: "Commit", slug: "commit", period: "week", aggregation: "last", target_min: 500 });
+    await w.metric(lena, { name: "Theirs", slug: "theirs", period: "week", aggregation: "last", target_min: 9 });
+    // Another person's target is as closed as their values: one the person does not see is not there.
+    const hidden = await createDerivedMetric(as, { name: "Peek", formula: "target({theirs}) - {commit}" }).catch((e) => e);
+    expect(hidden.message).toBe("{theirs} is not a Metric of this Workspace.");
+    const made = await createDerivedMetric(as, { name: "Gap", formula: "target({commit}) - {commit}" });
+    await w.value(commit.id, "2026-11-02", 300);
+    await w.value(commit.id, "2026-11-09", 450);
+    await saveSeriesRows(as, commit.id, "target", [{ period: "2026-11-09", value: 700 }], "");
+    // As someone who sees only the Derived Metric is served: its values, and nothing of the input.
+    const metrics = await getMetrics(w.id);
+    const served = await seriesFor(w.id, metrics, new Set([made.id]), [made.id]);
+    expect(served.series).toEqual({ gap: [{ period: "2026-11-02", value: 200 }, { period: "2026-11-09", value: 250 }] });
+    expect(served.targets).toEqual({});
+    // The same numbers on every way values are read.
+    expect((await getSeriesOf(w.id, metrics, [made.id])).gap).toEqual(served.series.gap);
+    expect((await getAllSeries(w.id)).series.gap).toEqual(served.series.gap);
+    expect((await getAllSeries(w.id, { points: 5 })).series.gap).toEqual(served.series.gap);
+    // The Metric whose target is read cannot be deleted from under the formula.
+    await expect(deleteMetric(as, commit.id, "Commit")).rejects.toThrow(/Other Metrics are computed from it/);
   });
 
   it("takes what the person gives for unit, format, decimals, period, polarity and target", async () => {
