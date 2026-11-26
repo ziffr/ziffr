@@ -332,6 +332,9 @@ export type CanvasData = {
   projections: Record<number, Point[]>;
   /** Condensed Values per metric id (GLOSSARY: Condensed Value); a missing key means none, or not sent. */
   condensed?: Record<number, import("./condensed-parts").CondensedPoint[]>;
+  /** By Total id, the Metrics it adds up that the viewer sees (GLOSSARY: Total): what a gap table of a Total draws its
+   * rows from. Left out where nothing of the kind goes out, as with a Snapshot. */
+  totalLists?: Record<number, import("./total-lists").SeenList>;
   /** Breakdowns per metric id, then per period (GLOSSARY: Breakdown). */
   breakdowns: Record<number, Record<string, BreakdownRow[]>>;
   /** The team's Widget Templates (GLOSSARY: Widget Template). */

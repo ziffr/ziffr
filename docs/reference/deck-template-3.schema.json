@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ziffr.net/schemas/ziffr.deck-template-3.json",
   "title": "Ziffr Deck Template (ziffr.deck-template/3)",
-  "description": "A starting point for a deck, as ziffr.deck-template/2, whose words and boxes may show live values: they name the Slots their Placeholders count. It holds no code, image or link.",
+  "description": "A starting point for a deck, as ziffr.deck-template/2, whose words and boxes may show live values (they name the Slots their Placeholders count) and whose gap tables may read a Total. It holds no code, image or link.",
   "type": "object",
   "properties": {
     "format": {
@@ -988,6 +988,10 @@
                   "properties": {
                     "kind": {
                       "const": "gap-table"
+                    },
+                    "total": {
+                      "type": "boolean",
+                      "description": "Reads one Total instead: a row for each Metric it adds up, against that Metric's target."
                     },
                     "rowLabel": {
                       "type": "string",

@@ -7,6 +7,7 @@ import { attempt } from "@/lib/action-result";
 import { attemptAsVisitor } from "@/lib/demo-write";
 import * as team from "@ziffr/core/team";
 import * as inv from "@ziffr/core/invitations";
+import { inviteGate } from "@ziffr/core/invite-gate";
 import * as clock from "@ziffr/core/workspace-clock";
 import { removeMember } from "@ziffr/core/handover";
 import { signedIn } from "@/lib/auth";
@@ -73,6 +74,11 @@ export async function inviteMember(input: { email: string; role: WorkspaceRoleNa
     done();
     return { link: `${SITE_URL}/invite/${token}`, emailed };
   });
+}
+
+/** Whether the person can invite somebody now, and if not, why: read by an invite form, and again while it is closed. */
+export async function inviteGateNow() {
+  return attempt(async () => inviteGate(await currentActor()));
 }
 
 /** Sets the workspace's time zone and the hour its Workflows run (spec 0005). */

@@ -133,7 +133,15 @@ In the format `ziffr.deck-template/3` a `text` or `box` shape may name the Slots
 { "shape": "text", "x": 64, "y": 600, "w": 900, "slots": [2, 0], "text": ["{metric}: {latest}, {difference 1 2} to {metric 2}"] }
 ```
 
-Ziffr writes `/3` only when a shape names Slots; other files stay `/1` or `/2`. An older Ziffr refuses a `/3` file naming the formats it reads, so give a Pack that uses it a `ziffr` minimum that has it. Write no figures into a template's words: they would read the same for everyone who uses it.
+### A gap table of a Total
+
+In the same format a `gap-table` element may read one [Total](#totals) instead of two Metrics. It says `"total": true`, names one Slot, which should suggest a Total entry, and draws a row for each Metric the Total adds up: that Metric's target for the period, its value and the gap, as far as the reader may see them.
+
+```json
+{ "shape": "element", "x": 64, "y": 85, "w": 1152, "h": 540, "slots": [0], "element": { "kind": "gap-table", "total": true, "rowLabel": "Salesperson" } }
+```
+
+Ziffr writes `/3` only when a shape names Slots or a gap table reads a Total; other files stay `/1` or `/2`. An older Ziffr refuses a `/3` file naming the formats it reads, so give a Pack that uses it a `ziffr` minimum that has it. Write no figures into a template's words: they would read the same for everyone who uses it.
 
 ## Filling the Metrics from other systems
 
@@ -249,7 +257,7 @@ A Metric Catalog entry outside every Repeat may be a **Total**, which adds up th
 - A Total takes no values: no `per`, formula, `sources`, `submitters` or `standIn`, and no Feed fills it. A formula may read it, and `viewers` and `editors` may be proposed.
 - **A Pack cannot open a Total.** Who sees a Total's numbers without seeing every part is its owner's decision in the app, and there is no field for it. A proposed Share of a Total therefore shows its sums only to someone who also sees every Metric it adds up.
 - **Set up** makes the Total after the Metrics it adds up, and the Derived Metrics that read it after the Total. The Metric Catalog's own list leaves a Total out: it is made only by Set up.
-- A gap table of a Deck Template does not take a Total yet.
+- A [gap table of a Total](#a-gap-table-of-a-total) on a slide shows a row for each Metric it adds up.
 
 ### Where each number comes from
 

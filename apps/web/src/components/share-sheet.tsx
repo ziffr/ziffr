@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Share2, UserPlus } from "lucide-react";
 import { setGroupShare, setShare } from "@/app/canvas-actions";
 import { inviteMember } from "@/app/team-actions";
+import { InviteLock, useInviteGate } from "@/components/invite-lock";
 import { told } from "@/lib/action-toast";
 import { useSlideOver } from "@/components/slide-over-host";
 import { usePanel } from "@/lib/panel-param";
@@ -145,6 +146,9 @@ function InviteSomeone({ alone, canInvite, objectType }: { alone: boolean; canIn
   const [role, setRole] = useState<"member" | "guest">("member");
   const [made, setMade] = useState<{ link: string; emailed: boolean } | null>(null);
   const [pending, start] = useTransition();
+  const invites = useInviteGate(undefined, canInvite && open);
+  const { closed } = invites;
+  const why = closed ? "share-invite-why" : undefined;
   if (!canInvite) {
     return alone ? <p className="text-sm text-muted-foreground">Nobody else is in this workspace yet. Ask an Owner or Admin to invite them{objectType === "metric" ? "." : ", or make a View link to show this to someone outside."}</p> : null;
   }
@@ -160,14 +164,17 @@ function InviteSomeone({ alone, canInvite, objectType }: { alone: boolean; canIn
           <p className="text-xs text-muted-foreground">Once they have joined, they appear in the list above: share it with them there.</p>
         </>
       ) : (
+        <>
+        <InviteLock {...invites} id="share-invite-why" />
         <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => {
           e.preventDefault();
-          start(async () => { const r = await inviteMember({ email, role }); if (!told(r, "Not invited")) setMade(r as { link: string; emailed: boolean }); });
+          start(async () => { const r = await inviteMember({ email, role }); if (!told(r, "Not invited")) setMade(r as { link: string; emailed: boolean }); invites.look(); });
         }}>
-          <label className="text-xs text-muted-foreground">Email address<Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className="mt-1 w-56" /></label>
-          <label className="text-xs text-muted-foreground">as<select value={role} onChange={(e) => setRole(e.target.value as "member" | "guest")} className="mt-1 block h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm"><option value="member">Member</option><option value="guest">Guest (sees only what is shared)</option></select></label>
-          <Button type="submit" disabled={pending}>Invite</Button>
+          <label className="text-xs text-muted-foreground">Email address<Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" disabled={closed} aria-describedby={why} className="mt-1 w-56" /></label>
+          <label className="text-xs text-muted-foreground">as<select value={role} disabled={closed} onChange={(e) => setRole(e.target.value as "member" | "guest")} className="mt-1 block h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm disabled:opacity-50"><option value="member">Member</option><option value="guest">Guest (sees only what is shared)</option></select></label>
+          <Button type="submit" disabled={pending || closed}>Invite</Button>
         </form>
+        </>
       )}
     </div>
   );

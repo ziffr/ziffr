@@ -12,10 +12,10 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 /** The Record a value button with its form. */
-export function RecordValue({ offer, wide, label = "Record a value" }: { offer: RecordingOffer; /** Fills its row, as in the list's slide-over. */ wide?: boolean; label?: string }) {
+export function RecordValue({ offer, wide, label = "Record a value", onClose }: { offer: RecordingOffer; /** Fills its row, as in the list's slide-over. */ wide?: boolean; label?: string; /** Called when the form is closed, whether or not a value was recorded. */ onClose?: () => void }) {
   const [open, setOpen] = useState(false);
   return (
-    <RecordSheet offer={offer} open={open} onOpenChange={setOpen}>
+    <RecordSheet offer={offer} open={open} onOpenChange={(next) => { setOpen(next); if (!next) onClose?.(); }}>
       <SheetTrigger className={buttonVariants({ className: wide ? "w-full" : "max-md:h-11" })}><Plus aria-hidden /> {label}</SheetTrigger>
     </RecordSheet>
   );

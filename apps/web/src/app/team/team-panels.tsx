@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useSlideOver } from "@/components/slide-over-host";
+import { InviteLock, useInviteGate } from "@/components/invite-lock";
 import { changeRole, createInviteLink, deleteGroup, inviteMember, removeMemberWithHandover, renameGroup, setDomainJoining, setMember } from "@/app/team-actions";
 import type { WorkspaceRoleName } from "@ziffr/core/actor";
 import { WORKSPACE_ROLE_ORDER, WORKSPACE_ROLE_WORDS } from "@ziffr/core/role-words";
@@ -190,18 +191,23 @@ export function InvitePanel() {
   const [role, setRole] = useState<WorkspaceRoleName>("member");
   const [contact, setContact] = useState("");
   const [link, setLink] = useState<{ url: string; emailed: boolean | null } | null>(null);
+  // Only a trial ever closes invitations.
+  const invites = useInviteGate(undefined, Boolean(data?.trial && data.canEdit));
   if (!data || !data.canEdit) return null;
+  const { closed } = invites;
+  const why = closed ? "invite-panel-why" : undefined;
   const grantable = ROLES.filter((r) => data.isOwner || r.id !== "owner");
   return (
     <div className="space-y-5 text-sm">
-      <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run(async () => { const made = unwrap(await inviteMember({ email, role, contactPersonId: contact || null })); setLink({ url: made.link, emailed: made.emailed }); toast.success(invitationMessage(made.emailed, email, data.mailOn)); setEmail(""); }); }}>
-        <label className="block text-xs text-muted-foreground">Invite by email<Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className="mt-1" /></label>
-        <label className="block text-xs text-muted-foreground">as<select value={role} onChange={(e) => setRole(e.target.value as WorkspaceRoleName)} className={`${field} mt-1 block w-full`}>{grantable.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></label>
+      <InviteLock {...invites} id="invite-panel-why" onMembers />
+      <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run(async () => { const made = unwrap(await inviteMember({ email, role, contactPersonId: contact || null })); setLink({ url: made.link, emailed: made.emailed }); toast.success(invitationMessage(made.emailed, email, data.mailOn)); setEmail(""); invites.look(); }); }}>
+        <label className="block text-xs text-muted-foreground">Invite by email<Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" disabled={closed} aria-describedby={why} className="mt-1" /></label>
+        <label className="block text-xs text-muted-foreground">as<select value={role} disabled={closed} onChange={(e) => setRole(e.target.value as WorkspaceRoleName)} className={`${field} mt-1 block w-full disabled:opacity-50`}>{grantable.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></label>
         {data.contacts.length > 0 && (
-          <label className="block text-xs text-muted-foreground">who is the Contact<select value={contact} onChange={(e) => setContact(e.target.value)} className={`${field} mt-1 block w-full`}><option value="">nobody yet</option>{data.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label className="block text-xs text-muted-foreground">who is the Contact<select value={contact} disabled={closed} onChange={(e) => setContact(e.target.value)} className={`${field} mt-1 block w-full`}><option value="">nobody yet</option>{data.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="outline" disabled={pending}>Invite</Button>
+          <Button type="submit" variant="outline" disabled={pending || closed}>Invite</Button>
           {!data.trial && <Button type="button" variant="ghost" disabled={pending} onClick={() => run(async () => setLink({ url: unwrap(await createInviteLink("member")), emailed: null }), "Link made: nobody was emailed, send it yourself")}><Link2 aria-hidden /> Link for Members</Button>}
         </div>
       </form>

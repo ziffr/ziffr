@@ -24,6 +24,7 @@ export function useCanvasSeries(data: CanvasData): { data: CanvasData; ensure: E
     targets: { ...extra.targets, ...data.targets },
     projections: { ...extra.projections, ...data.projections },
     condensed: { ...extra.condensed, ...data.condensed },
+    totalLists: { ...extra.totalLists, ...data.totalLists },
   }), [data, extra]);
   const latest = useRef(merged);
   latest.current = merged;
@@ -47,6 +48,7 @@ export function useCanvasSeries(data: CanvasData): { data: CanvasData; ensure: E
           targets: { ...e.targets, ...got.targets },
           projections: { ...e.projections, ...got.projections },
           condensed: { ...e.condensed, ...got.condensed },
+          totalLists: { ...e.totalLists, ...got.totalLists },
         }));
       }
     } catch {
