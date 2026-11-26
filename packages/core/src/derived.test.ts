@@ -441,7 +441,7 @@ const withTargets = (slugs: string[]) =>
 
 /** One input's targets: a range of none, one bound, two equal or two different ones, and a Target Series on all, some
  * or none of its periods, now and then one that cannot be read; sometimes a Condensed Value over one of its periods. */
-function targetsFor(periods: string[]): fc.Arbitrary<Required<ReferenceAim>> {
+function targetsFor(periods: string[]): fc.Arbitrary<Required<ReferenceAim> & { series: Point[] }> {
   const bound = fc.oneof(fc.constant(null), valueText.map(Number));
   const range = fc.oneof(
     fc.tuple(bound, bound),
