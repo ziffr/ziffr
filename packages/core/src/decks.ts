@@ -3,13 +3,14 @@
 // its Metrics to everyone it is shared with, so only Metrics the saver sees can be added to it.
 import { withoutNestedTagSources } from "./tag-source";
 import { db } from "./db";
-import { assertCan, Forbidden, type Actor } from "./actor";
+import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { visibleDecks } from "./access";
 import { assertSeesMetrics } from "./sharing";
-import { deckMetricIds } from "./visibility";
+import { deckMetricIds, deckMetricIdsAdded } from "./visibility";
 import { assertWidgetDesigns } from "./widget-designs";
 import { ensureBaseline, recordVersion } from "./versions";
 import { assertNoOutsideContent } from "./deck-content";
+import { snapshotPartProblem } from "./snapshot-parts";
 import { refuseSeeded } from "./demo-seeded-rows";
 import { visitorDeckDocument } from "./demo-visitor-deck";
 import { visitorSharedStaysSeen } from "./demo-visitor-sharing";
@@ -47,7 +48,7 @@ export async function createDeck(actor: Actor, name: string, opts: { derived?: b
   return data.id;
 }
 
-/** Saves a deck's slides. Metrics added since the last save must be ones the actor sees. */
+/** Saves a deck's slides. Metrics added since the last save, on any slide, must be ones the actor sees. */
 export async function saveDeck(actor: Actor, id: number, document: unknown) {
   await assertCanEditDeck(actor, id);
   // In the demo a deck the seed made is kept as it is (the tour opens it), refused before anything is read or written.
@@ -59,12 +60,13 @@ export async function saveDeck(actor: Actor, id: number, document: unknown) {
   assertNoOutsideContent(document, "deck");
   // A widget on a slide may carry a View Design: it is checked like a file brought in (spec 0024).
   assertWidgetDesigns(document);
+  // A Snapshot Part stores its Snapshot and part number and nothing else, and a deck holds so many (spec 0061).
+  const partProblem = snapshotPartProblem(document);
+  if (partProblem) throw new Refused(partProblem);
   const { data: before } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", actor.workspaceId).single();
   // In a demo visit the document is rebuilt from words and shapes the demo accepts, within its size, before the write below.
   document = await visitorDeckDocument(actor, document, before?.document);
-  // A malformed marker (NaN) never counts as "already there": only real ids are.
-  const had = new Set(deckMetricIds(before?.document).filter(Number.isFinite));
-  const added = deckMetricIds(document).filter((m) => !had.has(m));
+  const added = deckMetricIdsAdded(before?.document, document);
   if (added.some((m) => !Number.isFinite(m))) throw new Error("A widget on this deck names its metrics in a way Ziffr cannot read. Remove or recreate that widget, then save.");
   await assertSeesMetrics(actor, added);
   // A deck that is shared shows only Metrics its recipients see (spec 0051, ticket 11).
