@@ -16,7 +16,7 @@ import { deliverPrompt, type PromptOutcome } from "./deliveries";
 import { audit } from "./audit-log";
 import { formulaInputs } from "./formula";
 import { widgetMetricIds } from "./widget-metrics";
-import { deckMetricIds } from "./visibility";
+import { allDeckMetricIds } from "./visibility";
 import { allRows } from "./workspace-data";
 import { getShares } from "./access";
 import { feedIdsAmong } from "./feed-people";
@@ -32,6 +32,7 @@ import { chargeNewRows } from "./demo-creation";
 import { DemoTextRefused, inDemoVisit, visitorOptionalText, visitorText } from "./demo-visitor-words";
 import { visitorMembersOnly, visitorNumber, visitorSeries, visitorSlug } from "./demo-visitor-metrics";
 import { DEMO_METRIC_WORDS } from "./demo-words";
+import { calculationNoteFrom } from "./calculation-note";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month", "quarter", "year"];
@@ -43,7 +44,7 @@ const ALL_SOURCES: string[] = SOURCES;
 
 /** A new Metric as described in the form, before it is checked. */
 export type MetricInput = {
-  name: string; description?: string; unit?: string; unitPosition?: string; format?: string; decimals?: number; period?: string; submissionRule?: string;
+  name: string; description?: string; calculationNote?: string | null; unit?: string; unitPosition?: string; format?: string; decimals?: number; period?: string; submissionRule?: string;
   polarity?: string; aggregation?: string; targetMin?: number | null; targetMax?: number | null; sources?: string[]; submitters?: string[];
   fromCatalogId?: number | null;
   /** "ratio" or "distance" for an Attainment method of its own; anything else follows the Workspace. */
@@ -102,6 +103,7 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   visitorNumber(actor, numOrNull(input.targetMin));
   visitorNumber(actor, numOrNull(input.targetMax));
   const description = String(visitorOptionalText(actor, String(input.description ?? ""), "description"));
+  const note = calculationNoteFrom(visitorOptionalText(actor, String(input.calculationNote ?? ""), "description"));
   const unitText = input.unit === undefined ? undefined : String(visitorOptionalText(actor, String(input.unit ?? ""), "name"));
   if (inDemoVisit(actor) && numOrNull(input.workflowId) !== null) throw new DemoTextRefused(DEMO_METRIC_WORDS.workflow);
   await assertSubmittersIn(actor, submitters);
@@ -132,10 +134,11 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   // The description is sealed for its row, so the row's id is taken first (spec 0028).
   const [metricId] = await reserveIds("metrics", 1);
   // The name and the Target Range are sealed with it, for the same row (ticket #248).
-  const words = await sealRow("metrics", actor.workspaceId, { id: metricId, name, description: description.slice(0, 2000), target_min: numOrNull(input.targetMin), target_max: numOrNull(input.targetMax) });
+  const words = await sealRow("metrics", actor.workspaceId, { id: metricId, name, description: description.slice(0, 2000), calculation_note: note, target_min: numOrNull(input.targetMin), target_max: numOrNull(input.targetMax) });
   const { data: metric, error } = await db().from("metrics").insert({
     id: metricId, slug, name: words.name, workspace_id: actor.workspaceId, owner_id: actor.personId, retention_pending: retentionPending,
     description: words.description,
+    calculation_note: words.calculation_note,
     ...unit,
     format,
     decimals: Math.min(6, Math.max(0, Math.round(Number(input.decimals) || 0))),
@@ -204,7 +207,7 @@ export async function metricDraftFrom(actor: Actor, metricId: number): Promise<M
   const feeds = await feedIdsAmong((tokens ?? []).map((t) => t.submitter_id as string));
   return {
     original: m.name,
-    name: `${m.name} (copy)`.slice(0, 120), description: m.description, unit: m.unit, unit_position: m.unit_position, format: m.format, decimals: m.decimals, period: m.period,
+    name: `${m.name} (copy)`.slice(0, 120), description: m.description, calculation_note: m.calculation_note ?? null, unit: m.unit, unit_position: m.unit_position, format: m.format, decimals: m.decimals, period: m.period,
     submission_rule: m.submission_rule, polarity: m.polarity, aggregation: m.aggregation,
     target_min: m.target_min === null ? null : Number(m.target_min), target_max: m.target_max === null ? null : Number(m.target_max),
     attainment_method: methodOrNull(m.attainment_method),
@@ -252,7 +255,7 @@ export async function deleteMetric(actor: Actor, metricId: number, confirmName: 
   const usedBy = (await openRows("metrics", ws, derived)).filter((d) => formulaInputs(String(d.formula)).includes(m.slug)).map((d) => d.name as string);
   if (usedBy.length) throw new MetricKept(`Other Metrics are computed from it (${usedBy.length}). Change their formulas first.`);
   const inWidgets = (widgets ?? []).filter((w) => widgetMetricIds(w.metric_ids ?? [], w.settings).includes(metricId)).length;
-  const inDecks = (decks ?? []).filter((d) => deckMetricIds(d.document).includes(metricId)).length;
+  const inDecks = (decks ?? []).filter((d) => allDeckMetricIds(d.document).includes(metricId)).length;
   if (inWidgets || inDecks) throw new MetricKept(`It is shown in ${inWidgets} widget${inWidgets === 1 ? "" : "s"} and ${inDecks} deck${inDecks === 1 ? "" : "s"}. Take it out of them first.`);
   if ((links ?? []).some((l) => (l.metric_ids ?? []).map(Number).includes(metricId))) throw new MetricKept("A View Link that still works shows it. Revoke the link first.");
   const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("metric_id", metricId);
@@ -428,13 +431,15 @@ export async function setMetricSources(actor: Actor, metricId: number, sources: 
 
 /** The parts of a Metric's description its owner may change later. Each one left out stays as it is. */
 export type MetricDetails = {
-  name?: string; description?: string; unit?: string; unitPosition?: string; format?: string; decimals?: number; period?: string; submissionRule?: string;
+  name?: string; description?: string;
+  /** How it is calculated (GLOSSARY: Calculation Note); empty or null takes it away. */
+  calculationNote?: string | null; unit?: string; unitPosition?: string; format?: string; decimals?: number; period?: string; submissionRule?: string;
   polarity?: string; aggregation?: string; targetMin?: number | null; targetMax?: number | null;
   /** "ratio" or "distance" for an Attainment method of its own; null (or anything else) follows the Workspace. */
   attainmentMethod?: string | null;
 };
 
-/** Changes a Metric's description, for its owner and its Editors: name, description, unit and its side, format, decimals, Polarity, Submission
+/** Changes a Metric's description, for its owner and its Editors: name, description, Calculation Note, unit and its side, format, decimals, Polarity, Submission
  * Rule, Aggregation, the target range, the Attainment method, and the period while it has no values yet (later its values would sit in the
  * wrong periods). The slug stays, so links and programs keep finding it. Each change is a Version. */
 export async function updateMetricDetails(actor: Actor, metricId: number, patch: MetricDetails): Promise<void> {
@@ -453,6 +458,12 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
     update.name = name;
   }
   if (p.description !== undefined) update.description = changedWord(p.description, m.description, "description").slice(0, 2000);
+  if (p.calculationNote !== undefined) {
+    // Written only when it changes, so the history says "how it is calculated" exactly when the definition changed.
+    const now = calculationNoteFrom(m.calculation_note);
+    const sent = calculationNoteFrom(p.calculationNote);
+    if (sent !== now) update.calculation_note = calculationNoteFrom(visitorOptionalText(actor, sent ?? "", "description"));
+  }
   if (p.unit !== undefined) update.unit = changedWord(p.unit, m.unit, "name").slice(0, 20);
   if (p.unitPosition !== undefined) update.unit_position = pick(p.unitPosition, UNIT_POSITIONS, m.unit_position);
   if (p.format !== undefined) update.format = pick(p.format, FORMATS, m.format);
@@ -481,10 +492,19 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
   // A change of period or Aggregation that its Retention could not do is refused (a rate cannot be condensed), checked
   // against the final values, after the period above is settled.
   assertRetentionFits(m, { period: (update.period ?? m.period) as Period, aggregation: (update.aggregation ?? m.aggregation) as Aggregation });
-  // Name, description and Target Range are sealed for the row; a Target set to null clears both its columns.
+  // Name, description, Calculation Note and Target Range are sealed for the row; a Target set to null clears both its columns.
   const { error } = await db().from("metrics").update(await sealedPatch("metrics", ws, metricId, update)).eq("id", metricId).eq("workspace_id", ws);
   if (error) throw new Error("The change could not be saved.");
-  await recordVersion("metric", metricId, actor.personId, { message: "Changed its description" });
+  await recordVersion("metric", metricId, actor.personId, { message: changeMessage(m, update) });
+}
+
+/** What the Version of a change says: whether how the Metric is calculated changed, so a reader of its history sees when
+ * the definition changed (spec 0060). */
+function changeMessage(before: Record<string, unknown>, update: Record<string, unknown>): string {
+  if (!("calculation_note" in update)) return "Changed its description";
+  // The edit form sends every field, so only the ones that differ count.
+  const other = Object.entries(update).some(([k, v]) => k !== "calculation_note" && String(v ?? "") !== String(before[k] ?? ""));
+  return other ? "Changed how it is calculated and its description" : "Changed how it is calculated";
 }
 
 /** Whether the actor may change the Metric (see editableMetric), for showing the controls; the core checks again. */

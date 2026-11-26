@@ -33,12 +33,13 @@ export function SaveTemplateDialog({ widget, data, onClose }: { widget: Widget; 
 }
 
 /** "Save slide as layout…": every widget, text box and arrow on the slide. */
-export function SaveSlideDialog({ deckId, shapes, data, onClose }: { deckId: number; shapes: SlideShape[]; data: CanvasData; onClose: () => void }) {
+export function SaveSlideDialog({ deckId, shapes, data, note, onClose }: { deckId: number; shapes: SlideShape[]; data: CanvasData; /** What of the slide stays behind. */ note?: string; onClose: () => void }) {
   const items = useMemo(() => slideSpecifics(shapes), [shapes]);
   return (
     <TemplateSaveDialog
       kind="slide"
       title="Save slide as layout"
+      note={note}
       data={data}
       items={items}
       grain="month"
@@ -52,12 +53,13 @@ export function SaveSlideDialog({ deckId, shapes, data, onClose }: { deckId: num
 
 /** "Save as Deck Template…": every slide of the deck, sharing one set of Slots (spec 0030). The Preview reads the
  * slides in the editor; the core saves the deck as stored. */
-export function SaveDeckDialog({ deckId, slides, data, existing, onClose }: { deckId: number; slides: SlideShape[][]; data: CanvasData; existing: Mine[]; onClose: () => void }) {
+export function SaveDeckDialog({ deckId, slides, data, existing, note, onClose }: { deckId: number; slides: SlideShape[][]; data: CanvasData; existing: Mine[]; /** What of the deck stays behind. */ note?: string; onClose: () => void }) {
   const items = useMemo(() => deckSpecifics(slides), [slides]);
   return (
     <TemplateSaveDialog
       kind="deck"
       title="Save as Deck Template"
+      note={note}
       data={data}
       items={items}
       grain="month"
@@ -77,6 +79,8 @@ const WHERE = { widget: "Find it under Templates in the Pool, or in Change view.
 
 type SaveProps = {
   kind: "widget" | "slide" | "deck";
+  /** A sentence about what the template leaves out. */
+  note?: string;
   /** The viewer's own templates of this kind; left out, the widget templates and layouts the canvas has. */
   existing?: Mine[];
   title: string;
@@ -98,7 +102,7 @@ function TemplateSaveDialog(props: SaveProps) {
   );
 }
 
-function TemplateSaveForm({ kind, data, items, grain, defaultName, existing, preview: make, submit, onClose }: SaveProps) {
+function TemplateSaveForm({ kind, data, items, grain, defaultName, existing, note, preview: make, submit, onClose }: SaveProps) {
   const mine: Mine[] = existing ?? data.templates.filter((t) => t.owner_id === data.viewer && t.kind === kind);
   const [choices, setChoices] = useState<Choices>(() => Object.fromEntries(items.map((x) => [x.key, RULES_FOR[x.kind][0].rule])));
   const [name, setName] = useState(defaultName);
@@ -126,6 +130,7 @@ function TemplateSaveForm({ kind, data, items, grain, defaultName, existing, pre
             });
           }}
         >
+          {note && <p role="note" className="rounded-[var(--radius-input)] border border-input bg-muted/40 p-2.5 text-xs">{note}</p>}
           {mine.length > 0 && (
             <label className="block">
               <span className="mb-1 block text-xs font-medium">Save as</span>

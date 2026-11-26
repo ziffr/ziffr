@@ -19,7 +19,7 @@ import { signInAnnouncements } from "@/lib/announcements";
 
 /** The way into the shared demo. A plain link, so a full page load: /demo sets the cookie in the middleware, and the
  * root layout's header must be drawn again for it (#14). */
-const DEMO_LINK = <a href="/demo" className="font-medium text-foreground underline underline-offset-4 hover:no-underline">Try the demo</a>;
+const DEMO_LINK = <a href="/demo" className="font-medium text-foreground underline underline-offset-4 hover:no-underline max-md:-my-3 max-md:inline-flex max-md:min-h-11 max-md:items-center">Try the demo</a>;
 
 /** The public Announcements that are on now (spec 0054). The one read for someone not signed in: text, link and level only,
  * nothing about people, Workspaces or settings. There is no visit to dismiss in, so they are simply shown. */

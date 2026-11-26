@@ -102,7 +102,7 @@ Set these where the app runs. `.env.example` has them all with a comment each.
 | `ZIFFR_SMTP_URL`, `ZIFFR_MAIL_FROM` | Sending email ([email](email.md)); or set them on the [Installation settings](#installation-settings) page |
 | `ZIFFR_ALLOW_PRIVATE_MAIL_HOST` | `1` lets the Installation settings page save a mail server inside this server's network (`localhost`, `10.x`, a Docker service such as `mail`); off by default, so the page cannot reach into your network |
 | `ZIFFR_MARKETPLACE`, `ZIFFR_MARKETPLACE_URL` | The Marketplace connection ([Packs](packs.md)): off unless `on`. Ziffr's server, never a browser, asks the Marketplace (Ziffr's own unless the URL says otherwise, https only) for Packs, their files and newer versions, and sends no Workspace's or person's data. Also on the [Installation settings](#installation-settings) page. Without it, Packs are installed from a file |
-| `ZIFFR_MARKETPLACE_PUBLIC_KEY` | A Marketplace key Ziffr trusts besides its own (base64 of the raw 32-byte Ed25519 key), for a Marketplace you run yourself; never set on a page |
+| `ZIFFR_MARKETPLACE_PUBLIC_KEY` | Marketplace Keys Ziffr trusts besides its own, for a Marketplace you run yourself ([your own key](#a-marketplace-key-of-your-own)); never set on a page |
 | `ZIFFR_ALLOW_PRIVATE_MARKETPLACE` | `1` lets the Marketplace address be inside this server's network; off by default |
 | `ZIFFR_WEBHOOK_PRIVATE_HOSTS` | Exact host names (comma-separated, no ranges or wildcards) that Ziffr may send webhooks to even though they are inside this server's network, such as a self-hosted n8n. Every other address inside your network stays refused, and only https is used. List only names your own DNS answers: a listed name may reach any address. The list never applies to a trial. Only you set it here; a Workspace Admin cannot |
 | `ZIFFR_INSTALLATION_ADMINS` | Email addresses of the people who run this Installation, separated by commas, optional: they are Installation Admins without the setup code ([Installation settings](#installation-settings)) |
@@ -135,7 +135,7 @@ Call `POST /api/jobs/workflows` every hour and `POST /api/jobs/deliveries` every
 
 Open Ziffr, sign in with an email link, and create a workspace: you are its Owner. To run the Installation from the page as well, claim it at `/installation` with the setup code from the log ([Installation settings](#installation-settings)). On the Team page, set the workspace's time zone and the hour its Workflows run, and invite the others.
 
-A new Workspace opens on the Setup Guide ([Getting started](../user-guide/07-getting-started.md#the-setup-guide)), which asks for the time zone and the hour in its first step, and needs nothing from outside your server. Ziffr's own twelve Packs come with the image (and with a build from source), so **Workspace → Packs → Ziffr's own Packs** installs them with no download and no Marketplace. A way your server lacks (a mail server, a Slack app, a Telegram bot) is said in words in the guide's **Ways in and out** step, with a link to the [Installation settings](#installation-settings) for whoever runs it; the web form and paste still let the first Metric finish.
+A new Workspace opens on the Setup Guide ([Getting started](../user-guide/07-getting-started.md#the-setup-guide)), which asks for the time zone and the hour in its first step, and needs nothing from outside your server. Ziffr's own thirteen Packs come with the image (and with a build from source), so **Workspace → Packs → Ziffr's own Packs** installs them with no download and no Marketplace. A way your server lacks (a mail server, a Slack app, a Telegram bot) is said in words in the guide's **Ways in and out** step, with a link to the [Installation settings](#installation-settings) for whoever runs it; the web form and paste still let the first Metric finish.
 
 ## Installation settings
 
@@ -149,6 +149,31 @@ Some of what an Installation talks to can be set on a page instead of in the set
 - **The check against bots and the demo** are set up on the page too, as the user guide's Installation settings chapter shows. `ZIFFR_DEMO_ONLY` stays a server setting, since it also stops Supabase Auth from making accounts. With Docker, `ZIFFR_DEMO` in the settings file wins. On a domain the demo is off on the server unless the settings file sets `ZIFFR_DEMO=1`, so the page shows it as set on the server; on a laptop the page may switch it off.
 - **Replies by email** are set up on the page too: the domain for replies, a signing secret the page makes for your provider's forwarder (shown once), the provider that vouches for senders, the MX record the domain needs and what it has now, and a test that emails you and waits for your reply to come back.
 - **What is recorded.** Claiming, adding and removing Installation Admins, and every change of a setting, by name and never by value, with who did it, in a log the page shows.
+
+### A Marketplace key of your own
+
+Ziffr takes a Pack from a Marketplace only with a signed statement about that file by a key it trusts ([Marketplace contract](../reference/marketplace.md)). For a Marketplace you run yourself, name its public keys in `ZIFFR_MARKETPLACE_PUBLIC_KEY`, each the base64 of the raw 32-byte Ed25519 key, separated by commas:
+
+```text
+ZIFFR_MARKETPLACE_PUBLIC_KEY=signing:<base64 of the signing key>,reserve:<base64 of the reserve key>
+```
+
+- The **signing** key signs the statements. A key with no part named is a signing key.
+- The **reserve** key is optional and stays unused until the signing key is lost or misused. Then it signs a revocation, which your Marketplace sends with its answers, and signs the statements from there on. Ziffr keeps the revocation and refuses the old key, whatever later answers say.
+- **Keep the reserve key offline**: its private key belongs on no machine the Marketplace runs on, and not beside the signing key. Whoever holds it can take your signing key out of use and sign in its place.
+- Name two different keys. A key listed as both signing and reserve cannot be taken out of use; Ziffr says so in its log at start.
+- Ziffr never needs a private key.
+
+If the signing key is lost or misused:
+
+1. Take the reserve private key from where you keep it, and sign a revocation of the signing key with it.
+2. Give the reserve key to your signer, sign every published version again and send the revocation with your answers.
+3. Make a new reserve key pair, and keep its private key offline.
+4. Change the setting: the former reserve key as `signing:`, the new one as `reserve:`, and the revoked key gone. Restart Ziffr.
+
+Until the setting is changed, no key can take the former reserve key out of use.
+
+A Marketplace that signed the file itself, as Ziffr took it up to this release, has to sign statements now.
 
 ## Seeing how your Installation is used
 

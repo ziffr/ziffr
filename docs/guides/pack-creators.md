@@ -6,6 +6,10 @@ This is the short version for people who make Packs to share or publish. [Writin
 
 The easiest way is **Workspace → Packs → Export as Pack…**: pick what goes in, name the Pack, choose an **Author** (it starts as your name; use your company's if the Pack is theirs) and download it. The file holds descriptions and layouts, never a value or a person.
 
+## Explain it
+
+A Pack may carry a **Pack Guide**: what it is for, what to have ready, the first steps, each part and common questions, as headings, paragraphs, lists and bold words, written in the file's `guide` (format `ziffr.pack/2`). No links, images, HTML or code. Ziffr checks it already and will show it before installing and in Help; [the format](packs.md#the-pack-guide) says how to write one.
+
 ## Your logo
 
 A Pack may bring **one logo**, shown with the author's name on the Packs page and the Marketplace.

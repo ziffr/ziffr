@@ -11,8 +11,12 @@ A named, fully described number tracked over time. It must be defined before any
 _Avoid_: Number, KPI, measure, series
 
 **Metric Description**:
-Everything that defines a metric: name, description, unit and which side of the number it stands on, format, period, submission rule, sources, target range, polarity, how its Attainment is computed (or the Workspace's way), owner, its Tags and, for a derived metric, its formula.
+Everything that defines a metric: name, description, Calculation Note, unit and which side of the number it stands on, format, period, submission rule, sources, target range, polarity, how its Attainment is computed (or the Workspace's way), owner, its Tags and, for a derived metric, its formula.
 _Avoid_: Settings, config, schema
+
+**Calculation Note**:
+How a Metric is calculated, in words; screens call it **How it is calculated**: exactly what counts and what does not, where the figure comes from and which adjustments are made (for annual recurring revenue: one-off fees, discounts, contracts not yet started), while the Metric's description says what the number is and why it matters. It is part of the Metric Description: its owner and Editors change it, each change is a Version that says so, it is sealed with the Workspace Key, and it is shown to nobody who may not see the Metric, never on a View Link, a Snapshot shown outside the Workspace or the form link. A Derived Metric's formula stands beside it and is not it.
+_Avoid_: Methodology, counting rules, business logic
 
 **Period**:
 How often a Metric has a value: a day, week, month, quarter or year. Weeks run Monday to Sunday; quarters and years are those of the Fiscal Year. A period is named by its first day ("Week of 9 Nov 2026", "October 2026", "Q3 2026", "FY 2026/27").
@@ -391,6 +395,10 @@ _Avoid_: Page, frame, board
 A part of a slide that draws itself in the deck's Theme and fills its words from today's data: words, a box, a figure, a column chart, a gap table, a metric table, a numbered list, a logo place or cover art. It may read Metrics, and shows nothing of one the viewer may not see. It is for slides only; on a dashboard stand Widgets.
 _Avoid_: Block, component, shape (for this)
 
+**Snapshot Part**:
+One part of a dashboard's shown Snapshot on a deck's slide: one Widget as the Snapshot kept it, or the **opening part** with the dashboard's name, the period and the Snapshot's introduction. The deck stores only which Snapshot and which part; each person sees it only if the Snapshot itself would show it to them, so a deck's Share opens nothing through it, and View Links leave it out. A slide that holds one, or was made from a Snapshot, **keeps numbers**: every Widget and Slide Element on it that draws numbers draws that Snapshot's.
+_Avoid_: Embed, frozen widget, imported slide
+
 **Theme**:
 A named look for everything that shows numbers: colours for text, surfaces, data, good, bad and the target band, the fonts for headlines, text and figures, how cards are drawn, and what every slide shows (logo, footer, slide number, background image, type sizes). The team has one default theme; a dashboard or deck may use another, and a deck may set its own footer. A slide may hide the logo, footer and number. Ziffr's own screens are drawn by the person's Appearance, not by a Theme. Owners and Admins change Themes. The team default Theme also dresses what Ziffr sends and shows outside the app: emails, the form link, View Link pages and the side bar of Slack messages show its logo (or the Workspace's name), accent, footer and fonts, with every colour checked for contrast. A Theme can be written as a file and read back from one; a Theme in a Pack may use the Pack's logo. Every Theme has a **dark variant**, the colours it wears when the viewer's Appearance is dark: a Standard Theme carries a designed one, any other Theme gets one worked out from its own colours and checked for contrast (WCAG AA), falling back to Ziffr Dark's colours if that fails; a Theme that is dark already has none. Its setting **In a dark Appearance** is "Follows the viewer's Appearance" (the default) or "Always as designed", for brand decks and anything that must look the same for everyone. Fonts, corners and cards are the same in both.
 _Avoid_: Master, skin, style, brand kit, palette
@@ -482,16 +490,40 @@ The private service that runs hosted Ziffr's billing: Sizes, prices, payments, i
 _Avoid_: Billing service, SaaS, hosted edition
 
 **Pack**:
-A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Ziffr's own Packs (the twelve of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs. It may say whom it is for (its Pack Audience), which ranks it in the Setup Guide.
+A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Ziffr's own Packs (the thirteen of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs. It may say whom it is for (its Pack Audience), which ranks it in the Setup Guide.
 _Avoid_: Plugin, add-on, integration, app, bundle
 
 **Pack Audience**:
 The optional part of a Pack's manifest that says whom the Pack is for: industries, segments, Business Functions, employee bands, revenue bands and countries, each from Ziffr's fixed lists. Ziffr ranks Packs by it and never hides one for it.
 _Avoid_: Target group, persona, category
 
+**Position**:
+A named place in a Pack that people fill when it is set up, such as "Sales lead" or "Salesperson": who submits, approves, stands in, ticks off a Checklist Task, is told, gets a Snapshot or is shared with. It grants nothing by itself: filling it writes the people into those ordinary places. Not a Workspace Role, not a Viewer or Editor, not a Group, not a Business Function, and not a Slot, which takes a Metric.
+_Avoid_: Role, seat, persona, job title
+
+**Repeat**:
+A named part of a Pack that Set up makes once for each entry of a list a person types, such as each salesperson, site or company: its own Metrics, and its own Positions, Workflow or dashboard where the Pack says so.
+_Avoid_: Instance, copy, segment, dimension
+
+**Total**:
+A Derived Metric that adds up a list of Metrics it keeps, its parts, such as the Commit of every salesperson. Parts are added and ended on the Total, never by editing a formula; each counts from a first period and, once ended, up to a last one. A period has a value only when every part counting in it has one, and it is shown only to people who may see all of those parts, unless the Total's owner opens it. A Pack may name one, and cannot open it; Ziffr does not make Totals yet (spec 0058). Not a formula, not an Aggregation (which combines one Metric's own periods) and not a Running total.
+_Avoid_: Roll-up, consolidation, group sum
+
+**Pack Guide**:
+What a Pack's creator tells people about it, in five set sections whose titles Ziffr writes: What it's for, Before you start, First steps, Each part, and Questions. Headings, paragraphs, lists and bold words only; read before installing and, with the installed Pack, in Help. Not the user guide, which is Ziffr's own, not the Setup Guide, and not the summary of one or two sentences.
+_Avoid_: Readme, manual, documentation, tutorial
+
 **Marketplace**:
 Ziffr's catalogue of Packs, checked before they are listed, and of programs outside Ziffr that work with it, such as Feeds. Packs are installed from it into a Workspace; programs outside Ziffr are only listed, and their creators bill for them themselves.
 _Avoid_: Store, app store, gallery, hub
+
+**Signed Statement**:
+What a Marketplace signs about one file of one version of a Pack: its id, its version, a fingerprint of the file (SHA-256), the key used, the time and whether a moderator looked. Ziffr takes a file from a Marketplace only when the statement of a trusted Marketplace Key holds for it. It says where a file came from, not that the Pack is safe.
+_Avoid_: Certificate, stamp, seal
+
+**Marketplace Key**:
+A public key whose Signed Statements Ziffr trusts, with its part: the signing key signs them; the reserve key stays unused until it takes the signing key out of use with a revocation, which Ziffr keeps.
+_Avoid_: Publisher key, master key, certificate
 
 **Webhook**:
 An address that a Workspace's Owner or Admin sets so that Ziffr sends it signed messages about what happens there, such as a task given, a task done or a value recorded, for a program to pass on to another system. It belongs to the Workspace, like a Feed, and sees only what every Member sees; other things reach it with their words left out. It can mark a task done, reply to a thread or answer a question, as the Webhook, but only for tasks that were sent to it, and it can say which task in the other system an Action is (an _external id_, kept per Webhook, with an optional link shown on the Action as "Also in"). Not a Connector, which reaches a person. The app heads these **Workspace Webhooks** where it also lists Personal Webhooks; "Webhook" alone means this kind.

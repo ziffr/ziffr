@@ -1,6 +1,7 @@
 // Slide layouts: a 16:9 frame plus placeholder text, the way a deck tool starts a slide.
 import { createShapeId, toRichText, type Editor, type TLShapeId } from "tldraw";
 import type { SlideDesign, SlideShape } from "@ziffr/core/types";
+import { SNAPSHOT_PART_SHAPE } from "@ziffr/core/snapshot-parts";
 
 export const SLIDE_W = 1280;
 export const SLIDE_H = 720;
@@ -58,8 +59,8 @@ export function contentAreas(): { x: number; y: number; w: number; h: number }[]
   return [{ x: MARGIN, y: 150, w: SLIDE_W - MARGIN * 2, h: SLIDE_H - 150 - MARGIN }];
 }
 
-/** What a deck made from a dashboard starts with (spec 0010, spec 0013): its name, its introduction, and its widgets
- * in reading order. */
+/** What a deck of live numbers made from a dashboard starts with (spec 0010): its name, its introduction, and its
+ * widgets in reading order. */
 export type DeckSeed = { name: string; intro: string; widgets: { template: string; metric_ids: number[]; settings: unknown; title: string | null }[] };
 
 /** Lays out a new deck from a seed: a title slide, then one "title and content" slide per widget, the widget filling
@@ -71,6 +72,21 @@ export function seedSlides(editor: Editor, master: SlideDesign | null, seed: Dec
     const slide = addSlide(editor, "title-content", master, { title: titleOf(w) });
     editor.createShape({ type: widgetType, parentId: slide, x: area.x, y: area.y, props: { w: area.w, h: area.h, template: w.template, metricIds: w.metric_ids, settings: JSON.stringify(w.settings ?? {}), title: "" } });
   }
+  return first;
+}
+
+/** Adds a Snapshot's slides at the end (spec 0061): one per part, each marked as keeping that Snapshot's numbers and
+ * holding the part. Nothing already on the deck changes. Answers the first new slide. */
+export function snapshotSlides(editor: Editor, master: SlideDesign | null, { snapshotId, parts }: { snapshotId: number; parts: number[] }): TLShapeId | null {
+  let first: TLShapeId | null = null;
+  editor.run(() => {
+    for (const part of parts) {
+      const slide = addSlide(editor, "blank", master);
+      editor.updateShape({ id: slide, type: "frame", meta: { snapshot: snapshotId } });
+      editor.createShape({ type: SNAPSHOT_PART_SHAPE, parentId: slide, x: MARGIN, y: 56, props: { w: SLIDE_W - MARGIN * 2, h: SLIDE_H - 56 - MARGIN, snapshotId, part } });
+      first ??= slide;
+    }
+  });
   return first;
 }
 
@@ -101,8 +117,9 @@ export function templateSlides(editor: Editor, master: SlideDesign | null, slide
   return first ?? addSlide(editor, "title", master);
 }
 
-/** A slide's own shapes as plain JSON, in slide coordinates: what saving a layout or a Deck Template sends. */
+/** A slide's own shapes as plain JSON, in slide coordinates: what saving a layout or a Deck Template sends. Snapshot
+ * Parts stay on their deck: a layout keeps no numbers (spec 0061). */
 export function slideShapes(editor: Editor, slide: TLShapeId): SlideShape[] {
-  return editor.getSortedChildIdsForParent(slide).map((cid) => editor.getShape(cid)!).filter(Boolean)
+  return editor.getSortedChildIdsForParent(slide).map((cid) => editor.getShape(cid)!).filter((sh) => sh && sh.type !== SNAPSHOT_PART_SHAPE)
     .map((sh) => JSON.parse(JSON.stringify({ type: sh.type, x: sh.x, y: sh.y, rotation: sh.rotation, opacity: sh.opacity, props: sh.props })) as SlideShape);
 }

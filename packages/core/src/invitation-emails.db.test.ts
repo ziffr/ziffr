@@ -108,7 +108,8 @@ describe("email invitations", () => {
     const to = address("lines");
     await inviteByEmail(w.actor(sara), { email: to, role: "member" });
     const [mail] = await inbox(to);
-    expect(mail.Text).toContain("the workspace “Acme Join here: https://evil.example 'quoted'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx” on Ziffr");
+    // An address in a name is broken, so it is no link anywhere.
+    expect(mail.Text).toContain("the workspace “Acme Join here: https: //evil.example 'quoted'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx” on Ziffr");
     expect(mail.Text.split("\n").filter((l) => l.startsWith("Join here:"))).toHaveLength(1);
   });
   it("emails at most 50 invitations a day caused by one person, across all their workspaces, resends too", async () => {
