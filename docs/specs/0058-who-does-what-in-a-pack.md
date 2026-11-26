@@ -13,6 +13,7 @@ A good setup is mostly about people: who sends which number, who approves it, wh
 - **Set up from this Pack** asks for the Approvers, and whether the person setting up or a Feed sends the values. Everything else is wired by hand afterwards, on each Metric and Workflow.
 - **The Metric list of a Pack is fixed.** A sales team of eight who each report the same six numbers needs 48 Metrics. A Pack can only hold one set, and holds at most 50 Metric Catalog entries.
 - **Export as Pack** drops people. It takes Dashboard, Deck and Workflow Templates, so a live Workflow has to be saved as a template first.
+- **Where something came from is soon forgotten.** An installed copy is marked with its Pack. Uninstalling or an update that drops it removes the mark from what is kept. A dashboard, deck or Workflow made from a template carries none. Export as Pack gives no credit.
 
 ## Solution
 
@@ -20,6 +21,7 @@ A good setup is mostly about people: who sends which number, who approves it, wh
 2. **Set up** asks who fills each Position, shows who will then see what and which messages go out, and writes the people into the ordinary places. The result is ordinary Metrics, Shares and Workflows, as if made by hand.
 3. A Pack may have a **Repeat**: a part that Set up makes once for each salesperson, site or company a person lists, with its own Metrics.
 4. **Export as Pack** turns the people in a setup back into Positions. No name, address or id goes into the file, and Ziffr checks the file's words for names before it hands it out.
+5. **Ziffr remembers where things came from**, so an export credits free Packs by itself and leaves paid ones out (spec 0059).
 
 ## The word
 
@@ -57,6 +59,8 @@ On screen the Pack's own words do most of the work: "Who is the Sales lead?". Th
 8. As a salesperson, I want to see my own numbers and not my colleagues', unless someone chose to share them with me.
 9. As a creator, I want Export as Pack to turn my people into Positions, so that I can share how we work without saying who we are.
 10. As anyone whose name is in a Workspace, I want my name never to travel in a Pack by accident.
+11. As a creator, I want whoever builds on my free Pack to credit me without having to think of it.
+12. As a creator of a paid Pack, I want an export from a buyer's Workspace to leave my work out.
 
 ## Implementation Decisions
 
@@ -90,7 +94,7 @@ On screen the Pack's own words do most of the work: "Who is the Sales lead?". Th
 - The Pack manifest gains `positions` and `repeats`. The wrapper of a Metric entry gains `per`, `submitters`, `standIn`, `viewers` and `editors`; a dashboard's gains `per`, `viewers` and `editors`; a Workflow's gains `per`.
 - Steps of a Workflow Template name Positions inside the template document: `by` (Approve), `assignee` and `standIn` (to tick off), `to` (information, Tell, Send Snapshot), `dashboard` (Send Snapshot).
 - A Metric Description (`ziffr.metric/1`) stays without people, and Dashboard Template documents do not change.
-- The manifest also gains an optional `basedOn`: up to 10 Packs (id, name, author, license) whose items this one carries, so credit travels (spec 0059). It is plain text, shown on the Pack's page and proved by nothing.
+- The manifest also gains an optional `basedOn`: up to 10 Packs (id, name, author, license) whose items this one carries, and an item's wrapper says which of them it is `from`. So credit travels (spec 0059). It is plain text, shown on the Pack's page and proved by nothing.
 
 ```json
 {
@@ -111,7 +115,7 @@ On screen the Pack's own words do most of the work: "Who is the Sales lead?". Th
 
 - **New format versions:** `ziffr.pack/2` and `ziffr.workflow-template/2`. Ziffr writes `/2` only when a file uses something new, and reads `/1` for ever.
 - Earlier optional fields (the logo, Tags, the Pack Audience) stayed in `/1`. These do not: they change what Set up does, and an older Ziffr then says "This file is in format ziffr.pack/2; this Ziffr reads ziffr.pack/1" instead of "unknown field".
-- Spec 0057 adds `ziffr.deck-template/2` and `ziffr.theme/2` on its own; the two do not touch the same fields. `ziffr.workspace-export/1` is unchanged and carries no Positions.
+- Spec 0057 adds `ziffr.deck-template/2` and `ziffr.theme/2` on its own; the two do not touch the same fields. A Workspace Export carries no Positions; it gains where things came from, below.
 - **Keys** of Positions and Repeats are kept across versions, like item keys.
 - **Checks** (in `@ziffr/pack`, so the server and `npx @ziffr/pack check` agree): at most 20 Positions and 5 Repeats; names are plain text of at most 60 characters and are searched for words aimed at assistants; every key named exists; a Position for several people is refused where one is needed; the number of `by` entries equals `approvers`.
 - **Inside and outside a Repeat:** a Position of a Repeat, used in an item outside it, means everyone in all its entries where the place takes several, and is refused where it takes one.
@@ -166,8 +170,23 @@ A Workflow Template from a Pack, used on the Workflows page, asks "Who is the â€
 - **Repeats:** the person marks picked Metrics as "made once for each â€¦" and picks one example set. Only that set goes out. Where the setup has a record, the example set is preselected and the line's name is taken off the Metric names.
 - **Checking the words:** before download, every text of the file is searched for the names, first names, email addresses and handles of everyone in the Workspace, former members and Contacts included (the list that already hides names from Guests), for Group names and for the record's line names. Each hit is shown with where it is. The download waits until the text is changed for the export, or the person confirms that this word is not about a person ("May", "Will").
 - **What a machine cannot find** (customers, suppliers, a company's own figures in a sentence or a Target Range) is why the step ends with "Read what goes out": every text and every Target Range in the file, each of which can be left out.
-- **Credit:** items that came from an installed Pack add that Pack to `basedOn`. The person cannot untick it for a CC BY or MIT Pack's items.
+- **Credit and paid items** follow where each thing came from (next section). Credit for a CC BY or MIT Pack is added by itself and cannot be unticked. Parts that came from a paid Pack stay out and are listed with the Pack's name.
 - **Never in the file:** a person's or Group's id, name, address, handle or phone number, a Metric Owner, a value, a Tell level, a Webhook. The one name that travels on purpose is the author: the one the exporter writes, and those in `basedOn` as their Packs wrote them.
+
+### Where things came from
+
+Spec 0059's decisions on paid Packs need this, and it **has to be in place before any paid Pack exists**.
+
+- **An origin** names a Pack something was made from: id, version, author and license. A thing made from several keeps each.
+- **Where it is kept:** Metric Catalog entries, Metrics, templates of every kind, View Designs, Themes, dashboards, decks, Workflows, and each widget on a dashboard or slide.
+- **Every copy Ziffr makes carries it:** installing, Set up, adding a line, starting from a template, **save as template**, applying a template, duplicating, placing a saved widget, taking a new version, restoring a Version.
+- **It stays** through edits, updates and uninstalling. The link to the install may go; the origin does not. Nothing in the app, the API or an assistant removes it.
+- **The server keeps it, never the browser.** A browser cannot set or clear it. A new widget whose View Design or words equal those of a paid item installed in the Workspace is marked too.
+- **Workspace Export and import** keep it, in a new `ziffr.workspace-export/2`, written only when something has an origin. A Workspace Export is the Owner's own data and holds paid items too.
+- **Export as Pack** reads it: free origins become `basedOn` and `from`; paid ones are left out, unless the Workspace's purchase marks this person's account as the Pack's publisher (spec 0059).
+- **Who sees it:** whoever sees the thing, as one line, "From <Pack> by <author>". Never Guests, View Links, Snapshots or Webhooks.
+- **Existing Workspaces** get origins filled in from today's marks. What lost its mark earlier cannot be recovered.
+- **What it does not catch:** words typed again, a Metric made by hand or by a program after reading another, an exported file edited afterwards, and changed code on one's own Installation. Heavy editing does not free a paid item either: a dashboard rebuilt from one stays marked.
 
 ### Visibility and untrusted input
 
@@ -183,20 +202,22 @@ A Workflow Template from a Pack, used on the Workflows page, asks "Who is the â€
 - **Visibility:** the "who will see what" list equals what each person sees afterwards, compared for every person; a salesperson sees only their line.
 - **Add a line:** makes only the new line; changes only what the actor may change.
 - **Export:** a test greps the file for every id, name, first name, address, handle, Group name and line name of a seeded Workspace; round trip (export, install, set up with the same people, export again) gives the same file.
+- **Origin:** a table of every way to copy, each keeping it; uninstall and update keep it; a browser cannot clear it; an export credits free items and leaves paid ones out; the import of a Workspace Export keeps it.
 - **Pages** tried in the running app at phone and desktop widths.
 
 ## Tickets (not opened yet)
 
-1. The formats `ziffr.pack/2` and `ziffr.workflow-template/2`, their checks, hostile table, generated reference and glossary entries. Blocked by decisions 1 and 5.
+1. The formats `ziffr.pack/2` and `ziffr.workflow-template/2`, with `basedOn` and `from`, their checks, hostile table, generated reference and glossary entries. Blocked by decisions 1 and 5.
 2. The Pack's page shows its Positions, Repeats and what each does. Blocked by 1.
 3. Set up with Positions: the pickers, "who will see what", Share ticks, messages, the record. Blocked by 1 and decisions 2 to 4.
 4. Repeats in Set up: lines, names, limits, working in steps. Blocked by 3.
 5. Add a line. Blocked by 4.
 6. Starting a Workflow from a template with Positions. Blocked by 1.
-7. Export as Pack: live items, "Who does what", the name check, "Read what goes out". Blocked by 1.
-8. Export of Repeats and the round trip. Blocked by 4 and 7.
-9. Ziffr's Sales Pack gains Positions and a Repeat; the creators' guide. Blocked by 4.
-10. User guide, threat model, release notes and an independent security review of the whole spec. Blocked by 2 to 8.
+7. Where things came from: the origin, every copy, the existing Workspaces, `ziffr.workspace-export/2`. Not blocked; before any paid Pack.
+8. Export as Pack: live items, "Who does what", the name check, "Read what goes out", credit and paid items. Blocked by 1 and 7.
+9. Export of Repeats and the round trip. Blocked by 4 and 8.
+10. Ziffr's Sales Pack gains Positions and a Repeat; the creators' guide. Blocked by 4.
+11. User guide, threat model, release notes and an independent security review of the whole spec. Blocked by 2 to 9.
 
 ## Out of Scope
 
@@ -206,6 +227,11 @@ A Workflow Template from a Pack, used on the Workflows page, asks "Who is the â€
 - Team totals over a Repeat, and a Repeat inside a Repeat.
 - Removing a line automatically.
 - Positions in Deck Templates (Set up makes no deck).
+- Copy protection. Where things came from is a record, not a lock.
+
+## Decisions (2026-11-26, by the owner)
+
+- Installed items remember where they came from, through edits and "save as template". Export as Pack leaves out paid items and credits free ones by itself. This is part of this spec's work, before any paid Pack (spec 0059).
 
 ## Decisions for the owner
 
