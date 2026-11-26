@@ -430,7 +430,7 @@ One card per **Connector**, each with what it can do (receives values, sends rem
 | **WhatsApp** | Short messages from the Ziffr business number. Not live yet: Ziffr only records what it would send. |
 | **Ticket system** | Tasks become tickets; comments come back, and closing a ticket marks the task done. Not live yet: Ziffr only records what it would send. |
 
-If you stopped Prompts and reminders by email, a note at the top of **Channels** offers **Get them by email again**. On a card whose Connector is only simulated, an Installation Admin gets **Set it up on Installation settings**.
+If you stopped Prompts and reminders by email, a note at the top of **Channels** offers **Get them by email again**. On a card whose Connector is only simulated, an Installation Admin, and nobody else, gets **Set it up on Installation settings**, which also leads to an [Admin Address](18-installation-settings.md#an-address-of-its-own) where there is one.
 
 ### Who gets what, where
 
