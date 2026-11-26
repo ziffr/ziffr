@@ -15,7 +15,7 @@ vi.mock("@ziffr/core/page-data", () => ({
     person: { name: "Sara Owner" }, period: "2026-11-19", current: null, yearStart: 1, numberStyle: "1,234.5",
   }; },
 }));
-vi.mock("@ziffr/core/telegram-people", () => ({ formTelegramLink: async () => ({ linked: false, telegramOn: false }) }));
+vi.mock("@ziffr/core/telegram-people", () => ({ formTelegramLink: async () => ({ linked: false, telegramOn: false, help: null }) }));
 // Server-only modules are imported by the page; the test renders it as the server would.
 vi.mock("./telegram-connect", () => ({ TelegramConnect: () => null }));
 vi.mock("server-only", () => ({}));

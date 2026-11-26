@@ -15,7 +15,7 @@ import { approve } from "./workflow-engine";
 import { settingsInEffect } from "./settings-in-effect";
 import { callTelegram, telegramEnabled, telegramOn, telegramPolling, telegramWebhookSecret } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
-import { forgetTelegramUser, isTelegramId, linkTelegramByCode, personOfTelegramUser } from "./telegram-people";
+import { forgetTelegramUser, isTelegramId, linkTelegramByCode, personOfTelegramUser, type TelegramLinkOutcome } from "./telegram-people";
 import { isTelegramTestCode, takeTelegramTestAnswer, takeTelegramTestStart } from "./installation-telegram-test";
 import { trialEnded } from "./trials";
 
@@ -30,7 +30,7 @@ const REPLY_DAYS = 30;
 
 /** What became of an update; only this name is kept. */
 export type TelegramOutcome =
-  | "linked" | "refused" | "unlinked" | "blocked" | "hint" | "duplicate" | "too_many" | "ignored"
+  | "linked" | "confirm_sent" | "refused" | "unlinked" | "blocked" | "hint" | "duplicate" | "too_many" | "ignored"
   | "recorded" | "form_link" | "replied" | "corrected" | "empty" | "unknown_message" | "expired" | "wrong_user"
   | "approved" | "stopped" | "test_started" | "test_refused" | "test_answered" | "test_hint";
 
@@ -65,7 +65,7 @@ const MAX_ANSWERS_PER_SECOND = 5;
 async function quiet(userId: number): Promise<boolean> {
   // Every outcome the bot answers counts, the Installation's test included: a flood of wrong test codes must not
   // make it talk without limit.
-  const answered = ["hint", "linked", "refused", "unlinked", "test_started", "test_refused", "test_hint", "test_answered"];
+  const answered = ["hint", "linked", "confirm_sent", "refused", "unlinked", "test_started", "test_refused", "test_hint", "test_answered"];
   const [{ count: mine }, { count: all }] = await Promise.all([
     db().from("telegram_updates").select("update_id", { count: "exact", head: true }).eq("telegram_user_id", userId).in("outcome", answered).gt("received_at", new Date(Date.now() - 60_000).toISOString()),
     db().from("telegram_updates").select("update_id", { count: "exact", head: true }).in("outcome", answered).gt("received_at", new Date(Date.now() - 1000).toISOString()),
@@ -124,13 +124,10 @@ async function handle(u: Obj, userId: number | null, effects: { submission?: Sub
       return none(started ? "test_started" : "test_refused");
     }
     // A code still links when the bot keeps quiet: a flood by others must not stop someone linking.
-    const result = await linkTelegramByCode({ code: start[1], userId, chatId, chatType: chat.type });
-    if (!silent) {
-      await telegramSay(chatId, result.linked
-        ? `Connected as ${result.person} in ${result.workspace}: you get their Ziffr messages here. If that is not you, send /stop. To answer a message, reply to it.`
-        : result.why === "expired" ? "That link has run out. Choose “Connect Telegram” in Ziffr again." : "That link does not work. Choose “Connect Telegram” in Ziffr again.");
-    }
-    return none(result.linked ? "linked" : "refused");
+    const result = await linkTelegramByCode({ code: start[1], userId, chatId, chatType: chat.type, from: msg.from });
+    // The number to compare with the email is said even then: the database limits how often that happens.
+    if (!silent || (!result.linked && result.why === "confirm")) await telegramSay(chatId, startAnswer(result));
+    return none(result.linked ? "linked" : result.why === "confirm" ? "confirm_sent" : "refused");
   }
   if (/^\/stop(?:@\w+)?$/.test(text)) {
     const n = await forgetTelegramUser(userId);
@@ -148,6 +145,19 @@ async function handle(u: Obj, userId: number | null, effects: { submission?: Sub
   const test = await takeTelegramTestAnswer({ userId, chatId, repliedTo, text, say: async (t) => { if (!(await quiet(userId))) await telegramSay(chatId, t, Number(msg.message_id) || undefined); } });
   if (test) return none(test === "answered" ? "test_answered" : "test_hint");
   return reply(userId, chatId, repliedTo, Number(msg.message_id) || undefined, text, effects);
+}
+
+/** What the bot says to a /start with a Workspace's code. */
+function startAnswer(r: TelegramLinkOutcome): string {
+  if (r.linked) return `Connected as ${r.person} in ${r.workspace}: you get their Ziffr messages here. If that is not you, send /stop. To answer a message, reply to it.`;
+  switch (r.why) {
+    case "confirm": return `Almost done. Ziffr is emailing the address it keeps for you in ${r.workspace}. Check that it shows the number ${r.check}, open its link and press Confirm within ${r.minutes} minutes. Until then nothing is connected.`;
+    case "no_email": return "Nothing is connected: Ziffr cannot send you the email that confirms it. Ask an Owner or Admin of the workspace, or the person who asks you for numbers, for help.";
+    case "limited": return "Nothing is connected: Ziffr has sent several emails to confirm already and sends no more for now. Try again later.";
+    case "connected": return "Telegram is connected already, so nothing changed. To use another account, first send /stop from the one connected now.";
+    case "expired": return "That link has run out. Choose “Connect Telegram” in Ziffr again.";
+    default: return "That link does not work. Choose “Connect Telegram” in Ziffr again.";
+  }
 }
 
 /** A reply to a message: taken only for a sent Delivery in this chat, from the person it went to as linked now,
