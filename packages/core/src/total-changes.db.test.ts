@@ -149,7 +149,7 @@ describe("opening a Total", () => {
     await expect(removeTotalPart(owner, total.id, eva.id)).rejects.toThrow(OPEN_CONFIRM);
     expect((await totalPage(w.actor(ed), total.id))!.mayChange).toBe(false);
     // Also past the core's check.
-    expect((await db().rpc("change_total_part", { ws: w.id, total: total.id, part: eva.id, change: "remove", from_period: null, to_period: null, actor: ed, confirmed_open: true })).error?.code).toBe("ZF461");
+    expect((await db().rpc("change_total_part", { ws: w.id, total: total.id, part: eva.id, change: "remove", from_period: null, to_period: null, actor: ed, confirmed_open: true })).error?.code).toBe("ZF476");
     await removeTotalPart(owner, total.id, eva.id, true);
 
     await closeTotal(owner, total.id);
@@ -193,7 +193,7 @@ describe("what a Total keeps", () => {
     const owner = w.actor(sara);
     for (const id of [total.id, ana.id]) {
       await expect(updateMetricDetails(owner, id, { unit: "km" })).rejects.toBeInstanceOf(Refused);
-      expect((await db().from("metrics").update({ unit: "km" }).eq("id", id)).error?.code).toBe(id === total.id ? "ZF458" : "ZF459");
+      expect((await db().from("metrics").update({ unit: "km" }).eq("id", id)).error?.code).toBe(id === total.id ? "ZF473" : "ZF474");
     }
     // A name and a description are free to change, with the unit sent back as it is.
     await updateMetricDetails(owner, ana.id, { name: "Commit, Ana", unit: "EUR" });

@@ -39,10 +39,10 @@ create or replace function total_parts_check() returns trigger
 language plpgsql set search_path = public as $$
 begin
   if not exists (select 1 from metrics t where t.id = new.total_id and t.workspace_id = new.workspace_id and t.total_targets is not null and t.formula is null) then
-    raise exception using errcode = 'ZF455', message = 'Only a Total has parts';
+    raise exception using errcode = 'ZF470', message = 'Only a Total has parts';
   end if;
   if not exists (select 1 from metrics p where p.id = new.part_id and p.workspace_id = new.workspace_id and p.total_targets is null and p.formula is null) then
-    raise exception using errcode = 'ZF456', message = 'A part is a Metric of the same Workspace that takes values';
+    raise exception using errcode = 'ZF471', message = 'A part is a Metric of the same Workspace that takes values';
   end if;
   return new;
 end;

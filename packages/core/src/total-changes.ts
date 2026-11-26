@@ -42,10 +42,10 @@ const NOT_A_METRIC = "One of the Metrics you picked is not a Metric of this Work
 
 // The database's own refusals (migration 20270205180000), in words for people.
 const REFUSALS: Record<string, string> = {
-  ZF455: "Only a Total has a list of Metrics.",
-  ZF456: "That Metric cannot be added up here: a Total adds up Metrics that take values, with its own period, unit, number format and Aggregation.",
-  ZF460: `A Total adds up at most ${TOTAL_MAX_PARTS} Metrics.`,
-  ZF461: OPEN_OWNER_ONLY,
+  ZF470: "Only a Total has a list of Metrics.",
+  ZF471: "That Metric cannot be added up here: a Total adds up Metrics that take values, with its own period, unit, number format and Aggregation.",
+  ZF475: `A Total adds up at most ${TOTAL_MAX_PARTS} Metrics.`,
+  ZF476: OPEN_OWNER_ONLY,
   "23505": "The Total adds that Metric up already.",
   "23514": "The last period cannot be before the first.",
 };

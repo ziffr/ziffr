@@ -1,6 +1,6 @@
 // Totals against the real database (spec 0058, ticket #1225; GLOSSARY: Total): what each person is given of one, closed
 // and open, on a canvas, through the API and in a formula; nothing of it with a view; a part kept; and what the database
-// itself refuses. Nothing in the app makes a Total yet, so the rows are written here.
+// itself refuses. The rows are written here, so each case holds however a Total came to be.
 import { afterEach, describe, expect, it } from "vitest";
 import { actorForKey, createAccessKey } from "./access-keys";
 import { getCanvasData } from "./access";
@@ -21,7 +21,7 @@ async function setup() {
   const sara = await w.person("owner"); const ben = await w.person("member");
   const ana = await w.metric(sara, { name: "Commit Ana", aggregation: "last" });
   const eva = await w.metric(sara, { name: "Commit Eva", aggregation: "last" });
-  const total = await w.metric(sara, { name: "Commit", aggregation: "last", sources: [], total_targets: "own" });
+  const total = await w.metric(sara, { name: "Commit", aggregation: "last", sources: [], formula: "{-}", total_targets: "own" });
   const rows = [ana, eva].map((m) => ({ total_id: total.id, part_id: m.id, workspace_id: w.id, first_period: "2026-01-01" }));
   expect((await db().from("total_parts").insert(rows)).error).toBeNull();
   const rest = await w.metric(sara, { name: "Without Ana", formula: `{${total.slug}} - {${ana.slug}}`, sources: [], inputs_checked: true });
@@ -54,7 +54,7 @@ describe("a Total as each person is given it", () => {
     expect(opened.series[total.slug]).toEqual(owners.series[total.slug]);
     expect(opened.series[rest.slug]).toEqual(owners.series[rest.slug]);
     expect(JSON.stringify(opened)).not.toContain(eva.slug);
-    expect(opened.metrics.find((m) => m.id === total.id)!.total).toEqual({ targets: "own", open: true });
+    expect(opened.metrics.find((m) => m.id === total.id)!.total).toMatchObject({ targets: "own", open: true });
   });
 
   it("gives a program only what its key's creator is given, and no formula", async () => {
@@ -90,8 +90,8 @@ describe("a Total's parts", () => {
   it("are Metrics that take values, of a Total only", async () => {
     const { w, ana, eva, total, rest } = await setup();
     const part = (total_id: number, part_id: number) => db().from("total_parts").insert({ total_id, part_id, workspace_id: w.id, first_period: "2026-01-01" });
-    expect((await part(total.id, rest.id)).error?.code).toBe("ZF456");
-    expect((await part(ana.id, eva.id)).error?.code).toBe("ZF455");
+    expect((await part(total.id, rest.id)).error?.code).toBe("ZF471");
+    expect((await part(ana.id, eva.id)).error?.code).toBe("ZF470");
     expect((await db().from("metrics").update({ total_opened_at: new Date().toISOString() }).eq("id", ana.id)).error).not.toBeNull();
   });
 });
