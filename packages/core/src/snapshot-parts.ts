@@ -5,6 +5,7 @@
 // Snapshot's id and a part number and nothing else, and no shape on a slide that keeps numbers opens a Metric through
 // the deck (visibility.ts reads `liveDocument`). What is drawn there is asked of the core per viewer.
 import { widgetMetricIds } from "./widget-metrics";
+import { textMetricIds } from "./slide-text";
 import type { WidgetSettings } from "./types";
 
 /** The tldraw shape type of a Snapshot Part. */
@@ -20,7 +21,8 @@ export const SNAPSHOT_PART_LIMITS = { parts: 100, snapshots: 20, metrics: 500 } 
 /** What one deck asks of one Snapshot: its parts, and the Metrics of the other shapes that keep its numbers. */
 export type KeptRequest = { snapshotId: number; parts: number[]; metricIds: number[] };
 
-/** A shape that draws kept numbers: a part (`part` set), or a Widget or Slide Element on a slide that keeps numbers.
+/** A shape that draws kept numbers: a part (`part` set), or a Widget, Slide Element or text box that names a Metric on
+ * a slide that keeps numbers.
  * `snapshotId` is null when its slide holds parts of several Snapshots and says no one of them. */
 export type KeptShape = { id: string; slideId: string | null; snapshotId: number | null; part: number | null; metricIds: number[] };
 
@@ -61,7 +63,8 @@ function parentsOf(byId: ReadonlyMap<string, Rec>, r: Rec): string[] {
 const metricsOf = (r: Rec): number[] => widgetMetricIds([], { canvas: { document: { store: { shape: r } } } } as unknown as WidgetSettings);
 
 /** Every shape of a deck that draws kept numbers. A slide keeps numbers when it holds a Snapshot Part or carries the
- * mark of the Snapshot it was made from; on it every Widget and Slide Element that draws a Metric keeps them too. */
+ * mark of the Snapshot it was made from; on it every Widget, Slide Element and text box that names a Metric keeps them
+ * too. */
 export function keptShapes(document: unknown): KeptShape[] {
   const all = records(document).filter(([, r]) => r.typeName === "shape");
   const byId = new Map(all.map(([key, r]) => [idOf(key, r), r]));
@@ -89,8 +92,8 @@ export function keptShapes(document: unknown): KeptShape[] {
     if (r.type === SNAPSHOT_PART_SHAPE) {
       const { snapshotId, part } = r.props ?? {};
       out.push({ id, slideId, snapshotId: isId(snapshotId) ? snapshotId : null, part: isPartNumber(part) ? part : null, metricIds: [] });
-    } else if (r.type === "ziffr-widget" && slideId) {
-      const metricIds = metricsOf(r);
+    } else if (slideId) {
+      const metricIds = r.type === "ziffr-widget" ? metricsOf(r) : textMetricIds(r);
       // A shape that draws no number (a headline, a logo place) is drawn as anywhere else.
       if (metricIds.length) out.push({ id, slideId, snapshotId: snapshotOf(slideId), part: null, metricIds });
     }

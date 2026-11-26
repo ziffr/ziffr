@@ -88,6 +88,10 @@ export class Labels<T> {
   all(): IterableIterator<T> {
     return this.rows.values();
   }
+  /** Every label and what it became. */
+  map(): Map<string, T> {
+    return new Map(this.rows);
+  }
 }
 
 /** The reader's sizes: the defaults, lowered or raised by ZIFFR_IMPORT_MAX_FILE_MB and ZIFFR_IMPORT_MAX_TEXT_MB. */
@@ -291,7 +295,7 @@ async function runImport(id: string, personId: string, path: string, limits: Wor
     await job.write({ status: "importing", step: "Creating the Workspace", records_done: 0, records_total: checked.records, workspace_name: checked.header.workspace.name });
     workspaceId = await createPlace(personId, checked.header);
     await job.write({ workspace_id: workspaceId });
-    const counts = await writePass(path, limits, personId, workspaceId, checked, job);
+    const counts = await writeImport(path, limits, personId, workspaceId, checked, job);
     // Done: the Workspace stops being marked and appears in the Owner's list, only while the job is still running (a job
     // that was ended as stopped has its Workspace undone, never opened).
     const { data: still } = await db().from("workspace_imports").select("id").eq("id", id).in("status", ACTIVE).maybeSingle();
@@ -359,9 +363,10 @@ async function checkPass(path: string, limits: WorkspaceExportReaderLimits, job:
 // Pass two: the Workspace and what goes into it.
 
 /** Makes the Workspace, marked importing, with its Owner, its key and the starting Theme: what createWorkspace makes,
- * and not shown to anyone until the job ends. The key is made before anything is written to it. */
-async function createPlace(personId: string, header: HeaderRecord): Promise<string> {
-  const { data: ws, error } = await db().from("workspaces").insert({ name: header.workspace.name, importing_at: new Date().toISOString() }).select("id").single();
+ * and not shown to anyone until what fills it ends. The key is made before anything is written to it. `practiceFor`
+ * marks it as that person's Practice Workspace, which only the insert can (spec 0063). */
+export async function createPlace(personId: string, header: HeaderRecord, practiceFor?: string): Promise<string> {
+  const { data: ws, error } = await db().from("workspaces").insert({ name: header.workspace.name, importing_at: new Date().toISOString(), ...(practiceFor ? { practice_for: practiceFor } : {}) }).select("id").single();
   if (error || !ws) throw new Error("The Workspace could not be created.");
   const id = ws.id as string;
   try {
@@ -379,21 +384,60 @@ async function createPlace(personId: string, header: HeaderRecord): Promise<stri
 
 /** What the import knows of a Metric it made. */
 type MadeMetric = { id: number; slug: string; derived: boolean; polarity: string; rule: string };
-/** What the import knows of a person of the file: the Owner themself, or a held invitation. */
-type Person = { self: boolean; role: "admin" | "member" | "guest"; email: string; plan: ImportPlan; groups: string[] };
+/** A person of the records being written: the one writing (`self`), or somebody else, with what is theirs. */
+export type WrittenPerson = { label: string; self: boolean; role: "admin" | "member" | "guest"; email: string; plan: ImportPlan; groups: string[] };
 
-/** The second pass: writes the records in the order the file lists them. Returns what was made. */
-async function writePass(path: string, limits: WorkspaceExportReaderLimits, personId: string, workspaceId: string, checked: { header: HeaderRecord; totals: ReadonlySet<string> }, job: ReturnType<typeof progressWriter>): Promise<ImportCounts> {
-  const { header, totals } = checked;
+/** What is written into a new Workspace, and what becomes of its people. */
+export type WriteSource = {
+  /** The records after the header, in the format's order, each with its line. */
+  records: AsyncIterable<{ record: WorkspaceExportRecord; line: number }>;
+  /** The labels of the Metrics that are Totals, whose records come after them. */
+  totals: ReadonlySet<string>;
+  /** Whether a person of the records is the one writing, who owns the Workspace already. */
+  isSelf: (person: { id: string; email: string }) => boolean;
+  /** Keeps everyone, once everything else is written and their plans are complete. */
+  keepPeople: (actor: Actor, people: WrittenPerson[], groupOf: (label: string) => number) => Promise<void>;
+  /** Told now and then what is being written, and at the last step. */
+  progress?: (step: string, line: number | null, counts?: ImportCounts) => Promise<void>;
+};
+
+/** What was written: the counts, and the row each label of the records became. */
+export type Written = { counts: ImportCounts; groups: Map<string, number>; metrics: Map<string, number>; dashboards: Map<string, number>; decks: Map<string, number>; workflows: Map<string, number> };
+
+/** An imported file's second pass: the Owner themself is who their address says; everyone else is a held invitation. */
+async function writeImport(path: string, limits: WorkspaceExportReaderLimits, personId: string, workspaceId: string, checked: { header: HeaderRecord; totals: ReadonlySet<string> }, job: ReturnType<typeof progressWriter>): Promise<ImportCounts> {
+  const { data: me } = await db().from("profiles").select("email").eq("id", personId).maybeSingle();
+  const myEmail = typeof me?.email === "string" ? me.email.trim().toLowerCase() : "";
+  const written = await writeInto(personId, workspaceId, checked.header, {
+    records: records(path, limits),
+    totals: checked.totals,
+    isSelf: (p) => p.email.trim().toLowerCase() === myEmail && myEmail !== "",
+    progress: (step, line, counts) => job.write(line === null ? { step, counts } : { step, records_done: line }, line !== null),
+    // The Owner themself joins their Groups now; everyone else is a held invitation.
+    keepPeople: async (actor, people, groupOf) => {
+      for (const p of people) {
+        for (const g of p.groups) {
+          if (p.self) await setGroupMember(actor, groupOf(g), personId, true);
+          else p.plan.groups.push(groupOf(g));
+        }
+        if (!p.self) await holdInvitation(workspaceId, personId, p, p.plan);
+      }
+    },
+  });
+  return written.counts;
+}
+
+/** Writes records of a Workspace Export into a new Workspace through the core's ordinary operations, as its Owner, in
+ * the order they come. Returns what was made. */
+export async function writeInto(personId: string, workspaceId: string, header: HeaderRecord, source: WriteSource): Promise<Written> {
+  const { totals } = source;
   const actor: Actor = { personId, workspaceId, role: "owner" };
   const counts: ImportCounts = {};
   const bump = (k: keyof ImportCounts, n = 1) => void (counts[k] = (counts[k] ?? 0) + n);
-  const { data: me } = await db().from("profiles").select("email").eq("id", personId).maybeSingle();
-  const myEmail = typeof me?.email === "string" ? me.email.trim().toLowerCase() : "";
 
   const groups = new Labels<number>("Group");
   const themes = new Labels<number>("Theme");
-  const people = new Labels<Person>("person");
+  const people = new Labels<WrittenPerson>("person");
   const metrics = new Labels<MadeMetric>("Metric");
   const dashboards = new Labels<number>("dashboard");
   const decks = new Labels<number>("deck");
@@ -427,9 +471,8 @@ async function writePass(path: string, limits: WorkspaceExportReaderLimits, pers
         themes.set(r.id, (await addThemeFromFile(actor, r.theme, "Imported from a Workspace Export")).id);
         return bump("themes");
       case "person": {
-        // The person who imports is the Owner already: never invited, they own what the file says they owned.
-        const self = r.email.trim().toLowerCase() === myEmail && myEmail !== "";
-        people.set(r.id, { self, role: r.role, email: r.email, plan: emptyPlan(r.name), groups: r.groups ?? [] });
+        // The person who writes is the Owner already: never invited, they own what the records say they owned.
+        people.set(r.id, { label: r.id, self: source.isSelf(r), role: r.role, email: r.email, plan: emptyPlan(r.name), groups: r.groups ?? [] });
         return bump("people");
       }
       case "metric":
@@ -544,26 +587,20 @@ async function writePass(path: string, limits: WorkspaceExportReaderLimits, pers
   };
 
   let done = 0;
-  for await (const { record, line } of records(path, limits)) {
+  for await (const { record, line } of source.records) {
     // Formulas once every Metric and Total is made: one may name a Metric listed after it.
     if (record.kind !== "metric" && record.kind !== "total") await writeFormulas();
     await apply(record);
-    if (++done % 50 === 0) await job.write({ step: stepOf(record.kind), records_done: line }, true);
+    if (++done % 50 === 0) await source.progress?.(stepOf(record.kind), line);
   }
   await writeFormulas();
   await series.flush();
   await values.flush();
 
-  // The people last: their plans are complete. The Owner themself joins their Groups now; everyone else is a held invitation.
-  await job.write({ step: "Keeping the people as invitations", counts });
-  for (const p of people.all()) {
-    for (const g of p.groups) {
-      if (p.self) await setGroupMember(actor, groups.need(g), personId, true);
-      else p.plan.groups.push(groups.need(g));
-    }
-    if (!p.self) await holdInvitation(workspaceId, personId, p, p.plan);
-  }
-  return counts;
+  // The people last: their plans are complete.
+  await source.progress?.("Keeping the people as invitations", null, counts);
+  await source.keepPeople(actor, [...people.all()], (label) => groups.need(label));
+  return { counts, groups: groups.map(), metrics: new Map([...metrics.map()].map(([label, m]) => [label, m.id])), dashboards: dashboards.map(), decks: decks.map(), workflows: workflows.map() };
 }
 
 /** The words of the step a kind of record belongs to, for the progress page. */
@@ -587,7 +624,7 @@ class SeriesBuffer {
 }
 
 /** Values written in batches, each sealed for its row under the Workspace's key as every value is, as Imports. */
-class ValueWriter {
+export class ValueWriter {
   private rows: { metric: number; r: ValueRecord }[] = [];
   constructor(private readonly workspaceId: string) {}
   async add(metric: number, r: ValueRecord): Promise<void> {

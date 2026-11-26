@@ -87,7 +87,7 @@ export async function personFor(user: SessionAccount): Promise<string> {
   if (proven) {
     // Never one of the demo's made-up people: they belong to the demo, which anyone may visit.
     const { data: demoPeople } = await db.from("memberships").select("user_id").eq("workspace_id", DEMO_WORKSPACE);
-    const { data: same } = await db.from("profiles").update({ auth_user_id: user.id }).eq("email", proven).is("auth_user_id", null).not("id", "in", `(${[...DEMO_PEOPLE, ...(demoPeople ?? []).map((m) => m.user_id)].map((id) => `"${id}"`).join(",")})`).select("id").maybeSingle();
+    const { data: same } = await db.from("profiles").update({ auth_user_id: user.id }).eq("email", proven).is("auth_user_id", null).is("made_up_in", null).not("id", "in", `(${[...DEMO_PEOPLE, ...(demoPeople ?? []).map((m) => m.user_id)].map((id) => `"${id}"`).join(",")})`).select("id").maybeSingle();
     if (same) return same.id;
   }
   const name = String(user.user_metadata?.full_name ?? user.user_metadata?.name ?? proven?.split("@")[0] ?? "New person").slice(0, 80);

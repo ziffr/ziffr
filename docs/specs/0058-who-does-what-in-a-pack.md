@@ -134,7 +134,7 @@ Set up from this Pack (spec 0030) gains three parts. A Pack without Positions lo
 
 - **Empty Positions** leave the place open as a template does today: no Submitter, "nobody yet" on a Checklist Task, nobody told. An Approve step is the exception: a Workflow is not made while one of its Approvers is empty.
 - **Shares start unticked** where they would show someone a Metric they do not already see in this plan. A Pack is a stranger's file, and sharing is a decision (decision 3). One exception: where a Position submits a number that its holder is not asked for (see "Where it is shown"), a Viewer Share of that Metric is proposed and starts ticked, since the Position would have shown it to them anyway. What else shows no more than they then see, such as their line's dashboard, is ticked with it, and unticked again if that Share is.
-- **Prompts to others wait** for the Workflow's next run. "Ask them for the current period now" is a tick, off by default, with the number of messages beside it. Prompts to the person setting up behave as today. Sending Limits and Quiet Hours apply as always.
+- **Prompts wait** for the Workflow's next run, also those to the person setting up (changed by the owner's feedback on 2026-11-26: taking a whole Pack sent them one message per Metric). "Send the first requests now" is one tick, off by default, saying how many messages go to whom. Being made a Submitter sends nothing. Sending Limits and Quiet Hours apply as always.
 - **Self-approval** is not made possible: where one person is both Submitter and Approver, the preview says that the existing rules apply (nobody approves their own value; the Approve step's Self-check or count).
 - **Order:** Workflows, Metrics, Submitters, Stand-ins, dashboards, Shares, the Send Snapshot step. Each goes through the existing core function, so permissions, limits and the Audit Log apply as by hand.
 - **Who:** Owners and Admins, as today, never through an Access Key, never in the demo.
@@ -326,17 +326,17 @@ A person about to install a Pack needs to know where its numbers will come from 
 ```
 
 - **Never typed:** a Derived Metric or a Total takes no `comesFrom`, since its formula says it. A formula that only reads a target, `target({x})`, shows as set once as the target of x. The delivered n8n templates are the manifest's `feeds`; without one that fills an entry, another system's number is set up by whoever installs. Workflows, what is included and what is still needed are worked out from the Pack.
-- **Optional in the format;** a number without it shows as **The Pack does not say**. It is **required for every number that takes values** in order to be listed in the Marketplace (the publish check) and in Ziffr's own Packs (a test).
+- **Optional in the format;** a number without it is described by the ways Ziffr has, worked out from its Sources and the manifest's `feeds` (owner, 2026-11-26: never that the Pack does not say): **Ask a person**, **Ask a person, or another system sends it**, **Ask a person, or fill it from** a system **(template included)**, or, where only the API is a Source, **Another system sends it**. Numbers with the same answer share a row. It is **required for every number that takes values** in order to be listed in the Marketplace (the publish check) and in Ziffr's own Packs (a test).
 - **Text from a stranger:** `system` and `note` are held to the plain text of a Pack's names, read by the assistant-words check and drawn as text.
 
 ### Where it is shown
 
 - **Before installing,** in the preview, and on the Pack's Marketplace page: a table **Where the numbers come from**, then **Included** and **What you still need**.
 - **After installing,** in Help, with the installed Pack. The install keeps the worked-out overview, never the Pack's contents.
-- **At Set up:** each number says where it comes from, and **nobody is asked** for a number another system sends or one set as a target, whether they were picked beside Positions or hold a Position that submits it (decided by the owner on 2026-11-26). The one exception: with **Ask me also for …** ticked, the person setting up is asked where they would submit it; nobody else is asked either way. Such a number gets no Submitter otherwise and no Stand-in, and the Workflow sends no request for it. The plan, also of Add a line and of each step of a large set, says who is not asked and why. A holder keeps sight of it through the ticked Viewer Share above; a Contact cannot be shared with, and the plan says so. Choosing a Feed is unchanged.
-- **Export as Pack** asks for each number, with “A person types it” to begin with, or what the installed Pack it came from said.
+- **At Set up:** the same table, and **nobody is asked** for a number another system sends or one set as a target, whether they were picked beside Positions or hold a Position that submits it (decided by the owner on 2026-11-26). The one exception: with **Ask me also for …** ticked, the person setting up is asked where they would submit it; nobody else is asked either way. Such a number gets no Submitter otherwise and no Stand-in, and the Workflow sends no request for it. The plan, also of Add a line and of each step of a large set, says who is not asked and why. A holder keeps sight of it through the ticked Viewer Share above; a Contact cannot be shared with, and the plan says so. Choosing a Feed is unchanged.
+- **Export as Pack** asks for each number, with “Ask a person” to begin with, or what the installed Pack it came from said.
 
-`@ziffr/pack` exports the working-out (`packOverview`, `comesFromWords`, `includedAndNeeded`), so every page shows the same.
+`@ziffr/pack` exports the working-out (`packOverview`, `comesFromGroups`, `comesFromWords`, `includedAndNeeded`), so every page shows the same.
 
 ## Testing Decisions
 
@@ -392,7 +392,7 @@ A person about to install a Pack needs to know where its numbers will come from 
 1. **The word** is Position, with Repeat for the part made once per line.
 2. **Positions are filled once at Set up, with a record.** No live Positions.
 3. **Shares from a Pack start unticked** where they show someone more.
-4. **Prompts to others wait** for the next run unless ticked.
+4. **Prompts wait** for the next run unless ticked, those to the person setting up included (changed on 2026-11-26).
 5. **Tell steps travel** when they wait for a share, never a level.
 6. **Team totals** over a Repeat: first postponed; moved forward by the owner on 2026-11-26, specified under "Team totals" and built with Positions and Repeats. Decided by the owner the same day: a Total is shown only to people who may see every counted part, unless its owner deliberately opens it to others; a new person's figure joins a Total through Add a line, ticked and confirmed. Still for the owner to check there: one missing value empties the period, and a value not approved yet counts and marks the total.
 7. **Installed items remember where they came from**, through edits and "save as template". Export as Pack leaves out paid items and credits free ones by itself. This is part of this spec's work, before any paid Pack (spec 0059).

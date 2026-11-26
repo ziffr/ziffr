@@ -1,14 +1,14 @@
 {
-  "format": "ziffr.pack/1",
+  "format": "ziffr.pack/2",
   "id": "ziffr/people",
   "name": "People and HR",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "summary": "Headcount, hires, leavers, open roles, time to hire, absence and engagement, with attrition worked out, a monthly dashboard and a Workflow that asks HR for the month's figures.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.21",
   "audience": {
     "functions": [
       "people"
@@ -17,14 +17,73 @@
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For whoever looks after people and HR: the size of the team, who joined and left, open roles, time to hire, absence and engagement."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "The month's figures: headcount, hires, leavers, open roles, time to hire and absence rate. Engagement comes once a quarter.",
+          "Figures about people are sensitive: share these Metrics only with those who may see them.",
+          "Free room for the Metrics in your Workspace's size: the Set up form says how many it makes and how many fit."
+        ]
+      }
+    ],
+    "firstSteps": [
+      {
+        "type": "heading",
+        "text": "Start here"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Keep the Metrics you want ticked, up to all 8, with the dashboard **People monthly** and the Workflow **Monthly people figures**. Leave **Make me the Submitter of their values** ticked if you send the figures yourself, else untick it. Setting up sends no request unless you tick **Send the first requests now**. Choose **Set up**.",
+          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
+          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
+          "Open **Dashboards** and then **People monthly**. It fills as values come in."
+        ]
+      }
+    ],
+    "eachPart": [
+      {
+        "type": "list",
+        "items": [
+          "**Headcount**, **Hires**, **Leavers** and **Open roles**.",
+          "**Attrition rate**, which Ziffr works out as leavers as a share of headcount.",
+          "**Time to hire** in days, **Absence rate** and the quarterly **Engagement score**.",
+          "The dashboard **People monthly**.",
+          "The Workflow **Monthly people figures** asks on the third working day after the month and publishes. A figure that is still missing after its Due Date is raised with the Metric's owner."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "Who sees the figures?"
+      },
+      {
+        "type": "text",
+        "text": "A Metric is seen by its owner, its Submitters and those it is shared with, directly or through a dashboard."
+      }
+    ]
+  },
   "contents": {
     "metrics": [
       {
         "key": "headcount",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Headcount",
           "description": "People employed at month end, counted as people, not full-time equivalents.",
+          "calculationNote": "Employees with a contract on the last day of the month, each counted as one whatever their hours. Freelancers and agency staff are not counted.",
           "category": "People",
           "period": "month",
           "aggregation": "last",
@@ -48,10 +107,12 @@
       },
       {
         "key": "hires",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Hires",
           "description": "People who started in the month.",
+          "calculationNote": "Employees whose first working day lies in the month. A signed contract that starts later is counted when it starts.",
           "category": "People",
           "period": "month",
           "aggregation": "sum",
@@ -73,10 +134,12 @@
       },
       {
         "key": "leavers",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Leavers",
           "description": "People who left in the month, whatever the reason.",
+          "calculationNote": "Employees whose last day of employment lies in the month, whether they resigned, were let go, retired or reached the end of a contract.",
           "category": "People",
           "period": "month",
           "aggregation": "sum",
@@ -99,10 +162,12 @@
       },
       {
         "key": "open-roles",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Open roles",
           "description": "Positions being recruited for at month end.",
+          "calculationNote": "Approved positions without an accepted offer on the last day of the month. Two people sought for the same job count as two.",
           "category": "People",
           "period": "month",
           "aggregation": "last",
@@ -124,10 +189,12 @@
       },
       {
         "key": "time-to-hire",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Time to hire",
           "description": "The average days from opening a role to the accepted offer, for the roles filled in the month.",
+          "calculationNote": "Calendar days from the day a role was opened to the day its offer was accepted, averaged over the roles filled in the month.",
           "category": "People",
           "period": "month",
           "aggregation": "average",
@@ -151,10 +218,12 @@
       },
       {
         "key": "absence-rate",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Absence rate",
           "description": "Days of sickness absence as a share of the working days in the month.",
+          "calculationNote": "Working days lost to sickness divided by the working days employees were due to work in the month, in percent. Holidays and parental leave are not sickness.",
           "category": "People",
           "period": "month",
           "aggregation": "average",
@@ -180,10 +249,12 @@
       },
       {
         "key": "engagement",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Engagement score",
           "description": "The average answer to the engagement question in the latest survey, 0 to 100.",
+          "calculationNote": "The average of all answers to the engagement question in the latest survey of the quarter, on a scale of 0 to 100. People who did not answer are left out.",
           "category": "People",
           "period": "quarter",
           "aggregation": "last",
@@ -207,9 +278,10 @@
       {
         "key": "attrition-rate",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Attrition rate",
           "description": "People who left in the month as a share of the headcount at month end.",
+          "calculationNote": "Leavers of the month divided by the headcount at its end, in percent. It is a monthly rate, not scaled to a year.",
           "category": "People",
           "period": "month",
           "aggregation": "none",

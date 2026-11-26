@@ -16,6 +16,8 @@ import { SlackPanel } from "./slack-panel";
 import { TelegramPanel } from "./telegram-panel";
 import { whatWorksHere } from "@ziffr/core/what-works-here";
 import { DesktopOnly } from "@/components/desktop-only";
+import { practiceWays } from "@ziffr/core/practice-ways";
+import { PracticePanel } from "./practice-panel";
 
 const SLACK_OUTCOME: Record<string, string> = {
   connected: "Slack is connected.",
@@ -32,9 +34,12 @@ export default async function ConnectorsPage({ searchParams }: { searchParams: P
   // its username only; its token stays in the environment (spec 0016). Only whether the person runs the Installation
   // is passed on, for a link.
   const [optedOut, demo, slack, slackLink, slackStopped, telegram, telegramLink, telegramStopped, { slack: outcome }, installer, ways, mail, inbound] = await Promise.all([emailOptedOut(actor), isDemo(), slackConnection(actor), mySlackLink(actor), slackOptedOut(actor), telegramConnection(actor), myTelegramLink(actor), telegramOptedOut(actor), searchParams, installationActor(), whatWorksHere(actor), mailOn(), inboundOn()]);
+  // In a Practice Workspace only (spec 0063), and only for the person it was made for: null otherwise.
+  const toYourself = demo ? null : await practiceWays(actor);
   return (
     <div className="space-y-12">
       <DesktopOnly path="/connectors" />
+      {toYourself && <PracticePanel ways={toYourself} />}
       {optedOut && <OptedOutNote />}
       {(slack.enabled || slack.team) && <SlackPanel connection={slack} link={slackLink} stopped={slackStopped} notice={outcome ? SLACK_OUTCOME[String(outcome)] : undefined} />}
       {telegram.configured && <TelegramPanel connection={telegram} linked={Boolean(telegramLink)} stopped={telegramStopped} />}

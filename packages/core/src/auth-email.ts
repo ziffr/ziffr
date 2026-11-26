@@ -132,7 +132,8 @@ export async function sendAuthEmail(payload: unknown, transport?: MailTransport)
   }
   for (const m of mails) {
     try {
-      await sendMail(m, transport);
+      // A sign-in email belongs to no Workspace.
+      await sendMail(m, null, transport);
     } catch {
       // The mail server's own words stay out of Auth's log and the browser alike.
       throw new AuthEmailRefused("send_failed");

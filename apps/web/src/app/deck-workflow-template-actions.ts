@@ -14,7 +14,7 @@ import type { Choices } from "@ziffr/core/team-templates";
 const done = () => revalidatePath("/", "layout");
 
 /** Saves the viewer's own deck, as stored, as a team Deck Template; returns its id. */
-export async function saveAsDeckTemplate(input: { deckId: number; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }) {
+export async function saveAsDeckTemplate(input: { deckId: number; name: string; description: string; labels: string[]; choices: Choices; keepTyped?: boolean; replaceId?: number | null }) {
   return attemptAsVisitor("deck-workflow-template-actions:saveAsDeckTemplate", async () => {
     const id = await saveDeckTemplate(await currentActor(), input);
     done();

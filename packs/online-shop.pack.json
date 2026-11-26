@@ -1,14 +1,14 @@
 {
-  "format": "ziffr.pack/1",
+  "format": "ziffr.pack/2",
   "id": "ziffr/online-shop",
   "name": "Online shop",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "summary": "Orders, revenue by channel, average order value, conversion, returns and sessions, with a weekly dashboard and a Workflow that asks for the week's numbers on Monday.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.21",
   "audience": {
     "industries": [
       "ecommerce",
@@ -21,14 +21,72 @@
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For an online shop that looks at its week: orders, revenue by channel, the average order, how many visitors buy and how much comes back."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "The week's figures from your shop and your analytics: orders, online revenue, conversion rate, return rate and sessions.",
+          "Free room for the Metrics in your Workspace's size: the Set up form says how many it makes and how many fit."
+        ]
+      }
+    ],
+    "firstSteps": [
+      {
+        "type": "heading",
+        "text": "Start here"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Keep the Metrics you want ticked, up to all 6, with the dashboard **Shop weekly** and the Workflow **Monday numbers**. Leave **Make me the Submitter of their values** ticked if you send the figures yourself, else untick it. Setting up sends no request unless you tick **Send the first requests now**. Choose **Set up**.",
+          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
+          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
+          "Open **Dashboards** and then **Shop weekly**. It fills as values come in."
+        ]
+      }
+    ],
+    "eachPart": [
+      {
+        "type": "list",
+        "items": [
+          "**Orders**, **Online revenue** and **Sessions** by week.",
+          "**Average order value**, which Ziffr works out as online revenue divided by orders.",
+          "**Conversion rate** and **Return rate** as shares.",
+          "The dashboard **Shop weekly**.",
+          "The Workflow **Monday numbers**: due on Monday, with a reminder that day. A change of more than 40 % or a value outside its target is marked as unusual. A figure that is still missing after its Due Date is raised with the Metric's owner."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "How do I see revenue by channel?"
+      },
+      {
+        "type": "text",
+        "text": "Record **Online revenue** with a **Breakdown**, one line for each channel."
+      }
+    ]
+  },
   "contents": {
     "metrics": [
       {
         "key": "orders",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Orders",
           "description": "Orders placed in the week, including those later cancelled or returned.",
+          "calculationNote": "Orders placed from Monday to Sunday, counted on the day of the order, including those later cancelled or returned. Test orders are left out.",
           "category": "E-commerce",
           "industries": [
             "ecommerce",
@@ -53,10 +111,12 @@
       },
       {
         "key": "revenue",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Online revenue",
           "description": "Revenue from online orders in the week, excluding VAT and shipping fees, before returns. Record it with a Breakdown by channel to see where it comes from.",
+          "calculationNote": "What customers ordered from Monday to Sunday, after discounts and vouchers. VAT and shipping fees are left out, and later returns are not taken off.",
           "category": "E-commerce",
           "industries": [
             "ecommerce",
@@ -82,9 +142,10 @@
       {
         "key": "aov",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Average order value",
           "description": "Online revenue divided by the number of orders, in the week.",
+          "calculationNote": "Online revenue of the week divided by its number of orders. VAT and shipping fees are not in it, because they are not in the revenue.",
           "category": "E-commerce",
           "period": "week",
           "aggregation": "none",
@@ -99,10 +160,12 @@
       },
       {
         "key": "conversion",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Conversion rate",
           "description": "Share of website visitors who placed an order.",
+          "calculationNote": "Orders placed in the week divided by visits to the shop in the same week, in percent. A person who visits twice counts as two visits.",
           "category": "E-commerce",
           "industries": [
             "ecommerce"
@@ -127,10 +190,12 @@
       },
       {
         "key": "return-rate",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Return rate",
           "description": "Items returned as a share of items sold, by the week of sale.",
+          "calculationNote": "Items sent back divided by items sold, in percent, counted in the week the item was sold. The figure of a recent week can still rise.",
           "category": "E-commerce",
           "industries": [
             "ecommerce",
@@ -155,10 +220,12 @@
       },
       {
         "key": "sessions",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Sessions",
           "description": "Visits to the online shop in the week; one person can have several.",
+          "calculationNote": "Visits counted by your web analytics from Monday to Sunday. One person visiting twice counts twice, and known bots are left out.",
           "category": "E-commerce",
           "industries": [
             "ecommerce"

@@ -7,6 +7,7 @@ import { attempt } from "@/lib/action-result";
 import { packSetupOptions, setUpStep, type PackSetupInput, type SetupRun } from "@ziffr/core/pack-setup";
 import { planPackSetup } from "@ziffr/core/pack-setup-plan";
 import { packLineStart } from "@ziffr/core/pack-setup-adding";
+import { fillSetUpNumbers } from "@ziffr/core/practice-fill";
 
 /** What setting up from an installed Pack offers. */
 export async function packSetup(installId: number) {
@@ -29,5 +30,14 @@ export async function setUpPack(installId: number, input: PackSetupInput, run: S
   return attempt(async () => {
     // A step that stops has made things too: the pages are read again either way.
     try { return await setUpStep(await currentActor(), Number(installId), input, run); } finally { revalidatePath("/", "layout"); }
+  });
+}
+
+/** Takes one step of filling a Set up's Metrics with made-up numbers (spec 0063): the core allows it only in the
+ * person's own Practice Workspace. */
+export async function fillMadeUpNumbers(installId: number, after: number) {
+  return attempt(async () => {
+    // A step that stops has written numbers too: the pages are read again either way.
+    try { return await fillSetUpNumbers(await currentActor(), Number(installId), Number(after)); } finally { revalidatePath("/", "layout"); }
   });
 }

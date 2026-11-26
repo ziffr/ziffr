@@ -1,14 +1,14 @@
 {
-  "format": "ziffr.pack/1",
+  "format": "ziffr.pack/2",
   "id": "ziffr/finance",
   "name": "Finance",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "summary": "Revenue, cost of goods sold, operating costs, cash and invoices, with gross margin and net result worked out, a monthly dashboard and a close Workflow that locks the month.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.21",
   "audience": {
     "functions": [
       "finance"
@@ -17,14 +17,73 @@
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For closing the month: revenue, costs, the margin and result they leave, cash in the bank and the money still to be collected."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "The person who sends the month's figures and the person who approves unusual ones.",
+          "Revenue, cost of goods sold, operating costs, cash and the open and overdue invoices.",
+          "Free room for the Metrics in your Workspace's size: the Set up form says how many it makes and how many fit."
+        ]
+      }
+    ],
+    "firstSteps": [
+      {
+        "type": "heading",
+        "text": "Start here"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Keep the Metrics you want ticked, up to all 8, with the dashboard **Finance monthly** and the Workflow **Monthly finance close**. Leave **Make me the Submitter of their values** ticked if you send the figures yourself, else untick it. Setting up sends no request unless you tick **Send the first requests now**. Choose **Set up**.",
+          "Pick the **Approver** the Workflow asks for before you choose **Set up**.",
+          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
+          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
+          "Open **Dashboards** and then **Finance monthly**. It fills as values come in."
+        ]
+      }
+    ],
+    "eachPart": [
+      {
+        "type": "list",
+        "items": [
+          "You send **Revenue**, **Cost of goods sold**, **Operating costs**, **Cash balance**, **Open invoices** and **Overdue invoices**.",
+          "Ziffr works out **Gross margin**, revenue less the cost of goods sold as a share of revenue, and **Net result**, revenue less both costs.",
+          "The dashboard **Finance monthly**.",
+          "The Workflow **Monthly finance close**: due on the fifth working day, checked, unusual values approved, then locked. A figure that is still missing after its Due Date is raised with the Metric's owner."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "Which values need an approval?"
+      },
+      {
+        "type": "text",
+        "text": "Those the check marks as unusual: a change of more than 30 % or a value outside its target. Change the Approve step to **Every value** to approve all."
+      }
+    ]
+  },
   "contents": {
     "metrics": [
       {
         "key": "revenue",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Revenue",
           "description": "Revenue recognised in the month, excluding VAT.",
+          "calculationNote": "Counted in the month the goods were delivered or the service was given, not when money arrived. VAT, discounts, refunds and money paid in advance for later months are left out.",
           "category": "Finance",
           "period": "month",
           "aggregation": "sum",
@@ -51,10 +110,12 @@
       },
       {
         "key": "cogs",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Cost of goods sold",
           "description": "What it cost to deliver what was sold in the month: materials, delivery and direct labour.",
+          "calculationNote": "Materials, bought-in goods, delivery and the labour that goes directly into what was sold in the month. Rent, marketing and office staff are operating costs.",
           "category": "Finance",
           "period": "month",
           "aggregation": "sum",
@@ -78,10 +139,12 @@
       },
       {
         "key": "operating-costs",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Operating costs",
           "description": "Running costs of the business in the month, apart from the cost of goods sold: staff, rent, software, marketing.",
+          "calculationNote": "Everything it cost to run the business in the month that is not in the cost of goods sold. Interest, taxes on profit and the purchase of equipment are left out.",
           "category": "Finance",
           "period": "month",
           "aggregation": "sum",
@@ -106,10 +169,12 @@
       },
       {
         "key": "cash",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Cash balance",
           "description": "Money in the bank at month end.",
+          "calculationNote": "The balances of every bank account on the last day of the month, added up. Unpaid invoices and unused credit lines are not counted.",
           "category": "Finance",
           "period": "month",
           "aggregation": "last",
@@ -134,10 +199,12 @@
       },
       {
         "key": "open-invoices",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Open invoices",
           "description": "The value of invoices sent and not yet paid, at month end.",
+          "calculationNote": "The unpaid amount of every invoice sent to customers, on the last day of the month, overdue ones included. A part payment reduces it.",
           "category": "Finance",
           "period": "month",
           "aggregation": "last",
@@ -161,10 +228,12 @@
       },
       {
         "key": "overdue-invoices",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Overdue invoices",
           "description": "The value of invoices past their due date and not paid, at month end.",
+          "calculationNote": "The unpaid amount of invoices whose due date lies before the last day of the month. It is part of the open invoices, not in addition to them.",
           "category": "Finance",
           "period": "month",
           "aggregation": "last",
@@ -190,9 +259,10 @@
       {
         "key": "gross-margin",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Gross margin",
           "description": "Revenue less the cost of goods sold, as a share of revenue.",
+          "calculationNote": "Revenue less the cost of goods sold, divided by revenue, in percent. Operating costs are not deducted.",
           "category": "Finance",
           "period": "month",
           "aggregation": "none",
@@ -211,9 +281,10 @@
       {
         "key": "net-result",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Net result",
           "description": "Revenue less the cost of goods sold and the operating costs, in the month.",
+          "calculationNote": "Revenue less the cost of goods sold and less the operating costs of the month. Interest and taxes on profit are not deducted.",
           "category": "Finance",
           "period": "month",
           "aggregation": "none",

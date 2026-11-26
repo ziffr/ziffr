@@ -8,6 +8,7 @@ import * as slackConnection from "@ziffr/core/slack-connection";
 import * as slackPeople from "@ziffr/core/slack-people";
 import * as telegramConnection from "@ziffr/core/telegram-connection";
 import * as telegramPeople from "@ziffr/core/telegram-people";
+import * as practiceWays from "@ziffr/core/practice-ways";
 import * as testMessage from "@ziffr/core/test-message";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -22,6 +23,14 @@ import * as demo from "@ziffr/core/demo-channels";
 import type { ConnectorId, PreferenceKind } from "@ziffr/core/connectors/index";
 
 const done = () => revalidatePath("/", "layout");
+
+/** Switches a way to oneself on or off in a Practice Workspace (spec 0063; the core decides who may, and checks the way). */
+export async function setPracticeWay(way: string, on: boolean) {
+  return attempt(async () => {
+    await practiceWays.switchPracticeWay(await currentActor(), way, on === true);
+    done();
+  });
+}
 
 /** Turns Telegram on or off for the workspace (spec 0016; Owners and Admins, the core checks). */
 export async function setTelegram(on: boolean) {

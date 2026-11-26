@@ -5,6 +5,8 @@
 import { useEffect, useState } from "react";
 import { shown, unwrap } from "@/lib/action-error";
 import { planSetUp } from "@/app/pack-setup-actions";
+import { Input } from "@/components/ui/input";
+import { SendFirstRequests } from "@/components/first-requests";
 import type { PackSetupInput } from "@ziffr/core/pack-setup";
 import type { PackSetupPlan } from "@ziffr/core/pack-setup-plan";
 
@@ -93,9 +95,33 @@ export function ByHand({ items }: { items: string[] }) {
   );
 }
 
+type OfferState = { offerTicks: Record<string, boolean>; onOffer: (id: string, on: boolean) => void; offerFrom: Record<string, string>; onOfferFrom: (id: string, day: string) => void };
+
+/** What a new line may be added to, each with its tick; a Total also with the first period it counts the new Metric in. */
+function Offers({ offers, offerTicks, onOffer, offerFrom, onOfferFrom }: { offers: PackSetupPlan["offers"] } & OfferState) {
+  return (
+    <fieldset className="space-y-1 text-xs">
+      <legend className="font-medium">Add to what is set up</legend>
+      {offers.map((o) => {
+        const on = offerTicks[o.id] ?? o.suggested;
+        return (
+          <div key={o.id} className="space-y-1">
+            <label className="flex items-start gap-2"><input type="checkbox" className={check} checked={on} onChange={(e) => onOffer(o.id, e.target.checked)} /> <span>{o.words}</span></label>
+            {o.from && on && (
+              <label className="flex flex-wrap items-center gap-2 pl-6">A day in the first period it counts
+                <Input type="date" className="w-auto" value={offerFrom[o.id] ?? o.from} onChange={(e) => onOfferFrom(o.id, e.target.value)} />
+              </label>
+            )}
+          </div>
+        );
+      })}
+    </fieldset>
+  );
+}
+
 /** What to check before setting up: what is made, who will see what, the proposed Shares, what a new line is added to,
  * the messages and the rest. */
-export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow, offerTicks, onOffer }: { plan: PackSetupPlan; ticks: Record<string, boolean>; onTick: (changes: Record<string, boolean>) => void; askNow: boolean; onAskNow: (v: boolean) => void; offerTicks: Record<string, boolean>; onOffer: (id: string, on: boolean) => void }) {
+export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow, ...offers }: { plan: PackSetupPlan; ticks: Record<string, boolean>; onTick: (changes: Record<string, boolean>) => void; askNow: boolean; onAskNow: (v: boolean) => void } & OfferState) {
   const byPerson = [...new Set(plan.shares.map((s) => s.person))];
   return (
     <section aria-label="Check before you set up" className="space-y-3 rounded-[var(--radius-input)] bg-muted p-3 [overflow-wrap:anywhere]">
@@ -152,14 +178,7 @@ export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow, offerTicks, o
         </div>
       )}
 
-      {plan.offers.length > 0 && (
-        <fieldset className="space-y-1 text-xs">
-          <legend className="font-medium">Add to what is set up</legend>
-          {plan.offers.map((o) => (
-            <label key={o.id} className="flex items-start gap-2"><input type="checkbox" className={check} checked={offerTicks[o.id] ?? o.suggested} onChange={(e) => onOffer(o.id, e.target.checked)} /> <span>{o.words}</span></label>
-          ))}
-        </fieldset>
-      )}
+      {plan.offers.length > 0 && <Offers offers={plan.offers} {...offers} />}
       {plan.byHand.length > 0 && <ByHand items={plan.byHand} />}
 
       <div className="text-xs">
@@ -168,9 +187,7 @@ export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow, offerTicks, o
         {plan.messages.nextRun.length > 0 && <p>Asked at the Workflow&rsquo;s next run: {asks(plan.messages.nextRun)}.</p>}
         {plan.messages.unasked.length > 0 && <p>Nothing asks these by itself, as their Metrics follow no Workflow: {asks(plan.messages.unasked)}.</p>}
         {plan.notAsked.map((x) => <p key={x}>{x}</p>)}
-        {plan.messages.others > 0 && (
-          <label className="mt-1 flex items-start gap-2"><input type="checkbox" className={check} checked={askNow} onChange={(e) => onAskNow(e.target.checked)} /> Ask the others for the current period now ({many(plan.messages.others, "message")})</label>
-        )}
+        <div className="mt-1"><SendFirstRequests to={plan.messages.ifSent} checked={askNow} onChange={onAskNow} /></div>
       </div>
 
       {plan.notes.length > 0 && <ul className="list-disc space-y-0.5 pl-5 text-xs">{plan.notes.map((n) => <li key={n}>{n}</li>)}</ul>}
