@@ -14,7 +14,7 @@ import { openRows } from "./sealed-columns";
 import { workflowFacts, type ApiMetricWorkflow, type ApiNextAsked, type ApiNextDue } from "./api-metric-workflow";
 import { linkTo } from "./deliveries";
 import { recordView } from "./usage";
-import { buildSeries, getBreakdowns, getLatestObservations, getMetrics, withInputs } from "./workspace-data";
+import { buildSeries, getBreakdowns, getLatestObservations, getMetrics, withInputs, formulaTargets } from "./workspace-data";
 import { listRows, type ListedRow } from "./breakdown-parts";
 import type { Action, BreakdownRow, Metric } from "./types";
 
@@ -173,7 +173,7 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
     return value === undefined ? [] : [{ period: c.period, value, condensed: c }];
   }).filter(inRange);
   // A period a Condensed Value stands for is listed once, as it, even while its originals are not deleted yet.
-  const points: { period: string; value: number; condensed?: CondensedPoint }[] = [...(buildSeries(metrics, observations)[metric.slug] ?? []).filter((p) => inRange(p) && !inCondensed(spans, p.period)), ...condensed].sort((a, b) => a.period.localeCompare(b.period));
+  const points: { period: string; value: number; condensed?: CondensedPoint }[] = [...(buildSeries(metrics, observations, await formulaTargets(ws, metrics, withInputs(metrics, [metric.id])))[metric.slug] ?? []).filter((p) => inRange(p) && !inCondensed(spans, p.period)), ...condensed].sort((a, b) => a.period.localeCompare(b.period));
   const limit = clampLimit(range.limit);
   const page = points.slice(0, limit);
   if (!page.length) return { items: [], next: null };

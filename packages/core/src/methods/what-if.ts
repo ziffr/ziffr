@@ -28,7 +28,7 @@
 // whose links are exact only is "worked out"; one with any estimated link is "estimated". A fit handed over is checked against its own rows (its lowest and highest values, the strength word of each driver, the shape of the rest); its basis, last values, merged list and cautions are taken as given.
 import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "../exact";
 import type { Span } from "../periods";
-import { evaluateRange, formulaInputs, usesPrevious, type Bounds } from "../formula";
+import { evaluateRange, formulaInputs, usesPrevious, usesTarget, type Bounds } from "../formula";
 import type { Finding, Verdict } from "../suitability";
 import { strengthOf, type StrengthWord } from "../takeaways/strength";
 import { spendOn, wideColumns, widthOf, withWork, WORK_BUDGET } from "../work-bound";
@@ -176,7 +176,7 @@ function linkProblem(l: unknown): string | null {
       if (typeof w.target !== "string" || w.target === "" || typeof w.formula !== "string" || !w.names || !w.levels) return "a formula";
       const slugs = formulaInputs(w.formula);
       const named = slugs.map((s) => (own(w.names!, s) ? w.names![s] : null));
-      if (slugs.length === 0 || usesPrevious(w.formula) || named.some((n) => typeof n !== "string" || n === "" || n === w.target)) return "a formula";
+      if (slugs.length === 0 || usesPrevious(w.formula) || usesTarget(w.formula) || named.some((n) => typeof n !== "string" || n === "" || n === w.target)) return "a formula";
       if (named.some((n) => !own(w.levels!, n as string) || !Number.isFinite(w.levels![n as string]))) return "a formula";
       return null;
     }

@@ -165,7 +165,7 @@
       "type": "string",
       "maxLength": 500,
       "pattern": "^[a-z0-9{}()+\\-*/. ]*$",
-      "description": "a formula of + - * /, brackets, numbers and {key} of another entry, such as “{revenue} / {orders}”"
+      "description": "a formula of + - * /, brackets, numbers, {key} of another entry and target({key}) for its target, such as “{revenue} / {orders}”"
     }
   },
   "required": [
