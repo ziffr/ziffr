@@ -25,6 +25,8 @@ export type DerivedMetricInput = {
   /** Like "({revenue} - {cost}) / {revenue} * 100" or "change({odometer}) / 7": the slugs of the Metrics it reads. */
   formula: string;
   description?: string;
+  /** How it is calculated, in words, beside the formula (GLOSSARY: Calculation Note). */
+  calculationNote?: string | null;
   unit?: string;
   unitPosition?: string;
   format?: string;
@@ -97,7 +99,7 @@ export async function createDerivedMetric(actor: Actor, input: DerivedMetricInpu
   // A Derived Metric takes no values: no Source, no Submitter, no Workflow. Aggregation none keeps a default Retention
   // from condensing what it does not hold; it combines into longer periods through its inputs anyway.
   const made = await createMetric(actor, {
-    name: input.name, description: input.description, format: input.format, decimals, period, polarity: input.polarity, aggregation: "none",
+    name: input.name, description: input.description, calculationNote: input.calculationNote, format: input.format, decimals, period, polarity: input.polarity, aggregation: "none",
     targetMin: input.targetMin, targetMax: input.targetMax, attainmentMethod: input.attainmentMethod, sources: [],
     ...(unit ?? {}),
   }, effects, origin);

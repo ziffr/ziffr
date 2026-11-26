@@ -59,6 +59,10 @@ export type ViewPayload = {
 const pick = <T extends Record<string, unknown>>(o: T, keep: Set<number>) => Object.fromEntries(Object.entries(o).filter(([k]) => keep.has(Number(k)))) as T;
 const table = (type: "dashboard" | "deck") => (type === "deck" ? "decks" : "dashboards");
 
+/** A Metric as it may leave the Workspace: without the words that are for people inside it (its description and, spec
+ * 0060, its Calculation Note). */
+const insideOnly = <M extends { description: string; calculation_note?: string | null }>(m: M): M => ({ ...m, description: "", calculation_note: null });
+
 /** The people a shown view refers to, as the page may draw them: only the owners of the shown Metrics (the one place a
  * view names a person), by id, name and colour. No role, no contact details, and no one else of the Workspace, Guests
  * and Contacts included (rule 3; ticket #902). Also cuts down frozen copies and Snapshots made with the whole list. */
@@ -70,8 +74,8 @@ function peopleShown(people: CanvasData["people"], metrics: { owner_id: string }
 /** What may go out with a View Link or a Snapshot (spec 0013) of what one person sees: only these Metrics and their
  * own series, people's names without contact details, the theme in use and the default, and nothing to act on. */
 export function shownData(full: CanvasData, ids: Set<number>, themeId: number | null): CanvasData {
-  // A description is for people inside the Workspace: no view draws it, so it does not go out with one (rule 3).
-  const metrics = full.metrics.filter((m) => ids.has(m.id)).map((m) => ({ ...m, description: "" }));
+  // A description and a Calculation Note are for people inside the Workspace, so neither goes out with a view (rule 3).
+  const metrics = full.metrics.filter((m) => ids.has(m.id)).map(insideOnly);
   // Only the shown Metrics' own series: a derived Metric's inputs stay out (its comparisons then do not show).
   const slugs = new Set(metrics.map((m) => m.slug));
   return {
@@ -247,7 +251,7 @@ async function openLinkContent(token: string, opts: { count?: boolean }): Promis
     const ws = String(link.workspace_id);
     const [yearStart, numberStyle] = await Promise.all([yearStartOf(ws), numberStyleOf(ws)]);
     // A link made before descriptions were left out of what goes out still holds them: they are not sent (rule 3).
-    const metrics = frozen.data.metrics.map((m) => ({ ...normalizeMetric(keptUnit(m)), description: "" }));
+    const metrics = frozen.data.metrics.map((m) => insideOnly(normalizeMetric(keptUnit(m))));
     return { ...frozen, data: { ...frozen.data, metrics, yearStart, numberStyle, attainmentMethod: keptMethod(frozen.data.attainmentMethod), today: frozen.data.today ?? String(link.created_at).slice(0, 10) } };
   }
   // A link to a Snapshot reads it each time, so a deleted Snapshot ends the link; its words are those kept with it.

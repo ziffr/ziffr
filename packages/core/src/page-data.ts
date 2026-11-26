@@ -387,7 +387,8 @@ export async function submissionForm(code: string, demoVisit = false) {
     const { data: theirs } = await db().from("tokens").select("metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("metric_id", token.metric_id);
     if (!tokenValid(token, theirs ?? [])) return null;
   }
-  const metric = normalizeMetric((await openOne("metrics", String(token.workspace_id), token.metrics)) as Metric) as Metric;
+  // The form shows the description; how it is calculated is for those the Metric is shared with, so it stays here (spec 0060).
+  const metric = { ...(normalizeMetric((await openOne("metrics", String(token.workspace_id), token.metrics)) as Metric) as Metric), calculation_note: null };
   const [yearStart, numberStyle] = await Promise.all([yearStartOf(String(token.workspace_id)), numberStyleOf(String(token.workspace_id))]);
   const period = periodStart(new Date(), metric.period, yearStart);
   const { data: existingRows } = await db().from("observations").select("id, value, value_sealed").eq("workspace_id", String(token.workspace_id)).eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
