@@ -1,5 +1,7 @@
-// The Node half of the start hook (spec 0025, ticket #196; GLOSSARY: Installation Admin): prints the setup code.
+// The Node half of the start hook (spec 0025, ticket #196; GLOSSARY: Installation Admin): prints the setup code, and
+// says what is wrong with settings only whoever reads the server's log can fix.
 import { prepareSetupCode } from "@ziffr/core/installation-admins";
+import { marketplaceKeyProblem } from "@ziffr/core/marketplace";
 import { syncTrialLimits } from "@ziffr/core/trial-limits-in-effect";
 
 /** Prints a new setup code while the Installation has no Installation Admin; never stops the server from starting. */
@@ -11,6 +13,12 @@ export async function announceSetupCode(): Promise<void> {
     // The database may not be up yet (or not migrated): the claim page makes a code when it is opened.
     console.error("Ziffr: no setup code could be made at start; opening /installation makes one.");
   }
+}
+
+/** Warns in the server's log when a Marketplace Key is set in both parts (spec 0059); public keys only, never a stop. */
+export function warnOfMarketplaceKeys(): void {
+  const problem = marketplaceKeyProblem(process.env);
+  if (problem) console.warn(`Ziffr: ${problem}`);
 }
 
 /** Brings the numbers the database checks for Trial Limits in line with the environment at start, so a changed
