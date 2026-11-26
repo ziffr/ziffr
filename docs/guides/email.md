@@ -98,9 +98,13 @@ const signature = createHmac("sha256", process.env.ZIFFR_INBOUND_SECRET).update(
 
 Check the forwarder sends the message as received: changing it would break the provider's `Authentication-Results`.
 
+## Links in emails
+
+Every email Ziffr sends has an HTML part and a plain-text part. In the HTML part the main link is a button and every other link is a few words; no address shows as text. In the plain-text part every address of this Ziffr stands whole on a line of its own, between angle brackets, so mail apps do not cut it in two. Addresses go straight to your Ziffr (sign-in links to its sign-in service): nothing is shortened, redirected or counted. In code, every send goes through `composed` in `packages/core/src/mail.ts`: word a message with its link last, as `Open: <address>`, and the button follows.
+
 ## Opting out
 
-Every Prompt and reminder email has a one-click link, also in the `List-Unsubscribe` header that mail clients show. Using it stops Prompts and reminders by email for that person in that workspace, and the owners of the Metrics they submit to are told. Questions, tasks and replies in their Threads keep coming. A member can turn them on again on the Connectors page.
+Every Prompt and reminder email has a one-click link, worded at the foot of the email and also in the `List-Unsubscribe` header that mail clients show. Using it stops Prompts and reminders by email for that person in that workspace, and the owners of the Metrics they submit to are told. Questions, tasks and replies in their Threads keep coming. A member can turn them on again on the Connectors page.
 
 ## Trying it locally
 
