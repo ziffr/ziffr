@@ -9,7 +9,7 @@ import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { checkPack, versionBelow, type Pack } from "./pack";
 import { cleanLogo, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
-import { assertManages, itemHash, packLogoOf, safeLogo, themeHashInput, itemKeys, manifestOf, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
+import { assertManages, itemHash, packLogoOf, safeLogo, themeHashInput, itemKeys, installManifest, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
 import { packLogoAddress } from "./brand-logo";
 import { ensureBaseline, recordVersion } from "./versions";
 import type { ThemeSlides } from "./types";
@@ -229,7 +229,7 @@ export async function updatePack(actor: Actor, installId: number, text: string, 
   const logoChange = was === now ? "same" : !was ? "added" : !now ? "removed" : "changed";
   const { error } = await db().rpc("update_pack", {
     p_workspace: actor.workspaceId, p_install: Number(installId), p_by: actor.personId,
-    p_install_row: { version: res.pack.version, license: res.pack.license, manifest: { ...manifestOf(res.pack), ...(res.pack.logo === undefined ? {} : { logo: packLogoOf(res.pack) }) }, item_keys: itemKeys(res.stored), source: origin.source, signed: origin.signed },
+    p_install_row: { version: res.pack.version, license: res.pack.license, manifest: installManifest(res.pack), item_keys: itemKeys(res.stored), source: origin.source, signed: origin.signed },
     p_ops: res.ops,
   });
   if (error?.code === "40001") throw new Error("Something of this Pack changed meanwhile; choose the file again to see what an update does now.");

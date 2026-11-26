@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ziffr.net/schemas/ziffr.workflow-template-2.json",
+  "title": "Ziffr Workflow Template (ziffr.workflow-template/2)",
+  "description": "A starting point for a Workflow, as ziffr.workflow-template/1, whose steps may name Positions of the Pack that holds it, and which may tell people when a share is reached. It holds no code and names no person.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "ziffr.workflow-template/2",
+      "description": "The format and its version."
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 80,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 300,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses"
+    },
+    "dueWorkingDays": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 30,
+      "description": "The Due Date: how many working days after a period ends its values are due."
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 33,
+      "description": "What happens each period, in order.",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Remind each Submitter some days before the Due Date.",
+            "properties": {
+              "type": {
+                "const": "remind"
+              },
+              "daysBefore": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 30,
+                "description": "Working days before the Due Date."
+              }
+            },
+            "required": [
+              "type",
+              "daysBefore"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Ask the Stand-in, or the Metric's owner, when a value is late.",
+            "properties": {
+              "type": {
+                "const": "escalate"
+              },
+              "to": {
+                "enum": [
+                  "stand-in",
+                  "owner"
+                ]
+              },
+              "daysAfter": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 30,
+                "description": "Working days after the Due Date."
+              }
+            },
+            "required": [
+              "type",
+              "to",
+              "daysAfter"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Mark a value as unusual when it moves this much, or falls outside its Target Range.",
+            "properties": {
+              "type": {
+                "const": "check"
+              },
+              "changePct": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000
+              },
+              "outsideTarget": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "type",
+              "changePct",
+              "outsideTarget"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Hold values back for Approval.",
+            "properties": {
+              "type": {
+                "const": "approve"
+              },
+              "approvers": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "How many Approvers are picked when the template is used; with 0, no value waits."
+              },
+              "values": {
+                "enum": [
+                  "unusual",
+                  "every"
+                ],
+                "description": "Which values wait: Unusual Values only, or every value."
+              },
+              "nobodyElse": {
+                "enum": [
+                  "self-check",
+                  "count"
+                ],
+                "description": "When nobody but the submitter could approve a value: they check it themselves (a Self-check, the default), or it counts without Approval."
+              },
+              "by": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                  "description": "the key of a Position of the Pack that holds the template"
+                },
+                "description": "One Position for each Approver, in order: as many as “approvers”."
+              }
+            },
+            "required": [
+              "type",
+              "approvers"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "A Checklist Item: its words, and when. \"info\" is sent to people chosen when the template is used, `day` working days after the period ends; \"tick\" is given to a person chosen then, due `dueWorkingDays` after it ends.",
+            "properties": {
+              "type": {
+                "const": "checklist"
+              },
+              "kind": {
+                "enum": [
+                  "info",
+                  "tick"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+                "description": "plain text, without markup or web addresses",
+                "minLength": 1
+              },
+              "day": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "description": "For \"info\": working days after the period ends."
+              },
+              "dueWorkingDays": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 30,
+                "description": "For \"tick\": working days after the period ends by which it is due."
+              },
+              "to": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                  "description": "the key of a Position of the Pack that holds the template"
+                },
+                "description": "For \"info\": Positions of the Pack whose people are told."
+              },
+              "assignee": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                "description": "for \"tick\": the key of a Position for one person, whose Task it is"
+              },
+              "standIn": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                "description": "for \"tick\": the key of a Position for one person, who stands in for the Assignee"
+              }
+            },
+            "required": [
+              "type",
+              "kind",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Send a dashboard's Snapshot of the period to people chosen when the template is used, once the period is finished. The dashboard and the people are left open.",
+            "properties": {
+              "type": {
+                "const": "send_snapshot"
+              },
+              "to": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                  "description": "the key of a Position of the Pack that holds the template"
+                },
+                "description": "Positions of the Pack whose people get the Snapshot."
+              },
+              "dashboard": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                "description": "the key of a Dashboard Template of the same Pack, whose dashboard is sent"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Publish the period's values, and lock it if asked.",
+            "properties": {
+              "type": {
+                "const": "publish"
+              },
+              "lock": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "type",
+              "lock"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Tell people when a Metric of the Workflow reaches a share of its target, or changes more than a share on the period before. A level is never carried.",
+            "properties": {
+              "type": {
+                "const": "tell"
+              },
+              "condition": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "share_of_target",
+                      "changed_more"
+                    ]
+                  },
+                  "share": {
+                    "type": "string",
+                    "maxLength": 17,
+                    "pattern": "^[0-9]{1,4}(?:\\.[0-9]{1,12})?$",
+                    "description": "a share in % as a plain number from 1 to 1000, such as “90”"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "share"
+                ],
+                "additionalProperties": false
+              },
+              "to": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                  "description": "the key of a Position of the Pack that holds the template"
+                },
+                "description": "Positions of the Pack whose people get it."
+              }
+            },
+            "required": [
+              "type",
+              "condition"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "format",
+    "name",
+    "dueWorkingDays",
+    "steps"
+  ],
+  "additionalProperties": false
+}

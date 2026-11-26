@@ -162,6 +162,14 @@ export const manifestOf = (p: Pack): Omit<Pack, "contents"> => {
   return m;
 };
 
+/** The manifest an install keeps, with the logo checked again. What ziffr.pack/2 adds (Positions, Repeats, credit and
+ * the Pack Guide) is left out: nothing reads it from an install yet, and with a guide the manifest would not fit the
+ * 16,384 bytes the database keeps of it, so the whole Pack would be refused (spec 0058). */
+export const installManifest = (p: Pack): Omit<Pack, "contents" | "positions" | "repeats" | "basedOn" | "guide"> => {
+  const { positions: _p, repeats: _r, basedOn: _b, guide: _g, ...m } = manifestOf(p); // eslint-disable-line @typescript-eslint/no-unused-vars
+  return { ...m, ...(p.logo === undefined ? {} : { logo: packLogoOf(p)! }) };
+};
+
 /** Where a Pack's file came from: an upload (never signed here), the Marketplace with its signature checked, or Ziffr's
  * own Packs that come with this release (`signed`: they are part of Ziffr's code, checked in CI like it). */
 export type PackOrigin = { source: "upload" | "marketplace" | "included"; signed: boolean };
@@ -215,7 +223,7 @@ export async function installPack(actor: Actor, text: string, origin: PackOrigin
   const { data, error } = await db().rpc("install_pack", {
     p_workspace: actor.workspaceId,
     p_by: actor.personId,
-    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: origin.source, signed: origin.signed, manifest: { ...manifestOf(pack), ...(pack.logo === undefined ? {} : { logo: packLogoOf(pack) }) }, item_keys: itemKeys(stored) },
+    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: origin.source, signed: origin.signed, manifest: installManifest(pack), item_keys: itemKeys(stored) },
     p_catalog: stored.catalog,
     p_templates: stored.templates,
     p_designs: stored.views,
