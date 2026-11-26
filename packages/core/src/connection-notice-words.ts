@@ -6,6 +6,8 @@
 export type ChatService = "telegram" | "slack";
 
 const SERVICE: Record<ChatService, string> = { telegram: "Telegram", slack: "Slack" };
+/** What the button that disconnects one's own account is called on the Connectors page. */
+const OWN_DISCONNECT: Record<ChatService, string> = { telegram: "Disconnect", slack: "Forget me on Slack" };
 
 /** Marks a Delivery as a connection notice (its external reference), so notices are counted for their limit. */
 export const CONNECTION_NOTICE = "account-connection";
@@ -48,7 +50,7 @@ export function connectedWords(n: { service: ChatService; workspace: string; whe
   const found = n.by === "email";
   const action = found
     ? `If this is your account, there is nothing to do. If it is not, open Connectors with the workspace “${n.workspace}” chosen, choose Link my Slack account and send the code from your own Slack account: it replaces this one. Tell an Owner or Admin of the workspace too; they can disconnect Slack.`
-    : `If this was you, there is nothing to do. If it was not, ${n.disconnect ? "open the link below and press Disconnect" : `open Connectors with the workspace “${n.workspace}” chosen and disconnect ${service} there`}, then tell an Owner or Admin of the workspace.`;
+    : `If this was you, there is nothing to do. If it was not, ${n.disconnect ? "open the link below and press Disconnect" : `open Connectors with the workspace “${n.workspace}” chosen and choose ${OWN_DISCONNECT[n.service]} there`}, then tell an Owner or Admin of the workspace.`;
   return {
     subject: `${service} was connected to you in Ziffr`,
     text: [

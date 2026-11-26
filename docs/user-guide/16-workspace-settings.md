@@ -402,7 +402,7 @@ Ziffr emails a Member when a Telegram or Slack account becomes theirs in a Works
 | By your own link (**Connect Telegram**) or code (**Link my Slack account**) | A **Not you? Disconnect it** button. It opens a page, without signing in, that asks first; **Disconnect** there ends that connection and any link or code still waiting. The button works for that one connection only. After disconnecting Slack, Ziffr may find your own Slack account again by your email address. |
 | Slack found it by your email address | How to put your own in its place: **Open Connectors**, choose **Link my Slack account** and send the code from your own Slack account. An Owner or Admin can disconnect Slack. |
 
-Either way, also tell an Owner or Admin.
+Either way, also tell an Owner or Admin. Where this Ziffr has no secrets key (`ZIFFR_SECRETS_KEY`), there is no **Not you? Disconnect it** button: the email points you to **Connectors** instead.
 
 If an account that is yours in a Workspace is connected to someone else there, Ziffr emails you that it is not yours any more, without saying whose it is now. A Contact gets this email too, at the address the Workspace keeps for them. Nothing is sent when you connect the account you already have. One person gets at most five of these emails an hour and twenty a day in a Workspace. Where this Ziffr sends no email, they wait in the **Outbox**.
 

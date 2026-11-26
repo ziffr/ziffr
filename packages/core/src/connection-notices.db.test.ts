@@ -185,6 +185,24 @@ describe("telling a member an account became theirs", () => {
     expect(await notices(w.id, cleo)).toEqual([]);
   });
 
+  it("points to Connectors, with no link that disconnects, where there is no secrets key", async () => {
+    // A Workspace nothing sealed has been written to yet, so it works in clear without the key.
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("member", { email: address("sara") });
+    const saved = { key: process.env.ZIFFR_SECRETS_KEY, job: process.env.ZIFFR_JOB_SECRET };
+    delete process.env.ZIFFR_SECRETS_KEY;
+    process.env.ZIFFR_JOB_SECRET = "j".repeat(40);
+    try {
+      await tellConnected({ workspaceId: w.id, personId: sara, service: "telegram", account: "“Phone”", by: "code", linkedAt: new Date(), queue: true });
+      const [mail] = await notices(w.id, sara);
+      expect(mail.body).toMatch(/choose Disconnect there[\s\S]*\/connectors\?account=telegram$/);
+      expect(mail.body).not.toContain("disconnect-chat");
+    } finally {
+      process.env.ZIFFR_SECRETS_KEY = saved.key;
+      if (saved.job === undefined) delete process.env.ZIFFR_JOB_SECRET; else process.env.ZIFFR_JOB_SECRET = saved.job;
+    }
+  });
+
   it("sends a person only a few notices an hour", async () => {
     const { w, sara } = await setup();
     for (let i = 0; i < CONNECTION_NOTICES_PER_HOUR + 3; i++) await tellConnected({ workspaceId: w.id, personId: sara, service: "telegram", account: "“Phone”", by: "code", linkedAt: new Date(), queue: true });

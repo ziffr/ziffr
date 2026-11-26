@@ -17,7 +17,8 @@ describe("the notices", () => {
   const base = { service: "telegram", workspace: "Acme", when: "26 November 2026 at 13:00 (UTC)", account: "“Cleo”" } as const;
   it("say what to do, by the link when there is one", () => {
     expect(connectedWords({ ...base, by: "code", disconnect: true }).text).toMatch(/open the link below and press Disconnect/);
-    expect(connectedWords({ ...base, by: "code", disconnect: false }).text).toMatch(/open Connectors with the workspace “Acme” chosen and disconnect Telegram there/);
+    expect(connectedWords({ ...base, by: "code", disconnect: false }).text).toMatch(/open Connectors with the workspace “Acme” chosen and choose Disconnect there/);
+    expect(connectedWords({ ...base, service: "slack", by: "code", disconnect: false }).text).toMatch(/choose Forget me on Slack there/);
     expect(connectedWords({ ...base, service: "slack", by: "email", disconnect: false }).text).toMatch(/found your Slack account by your email address[\s\S]*Link my Slack account/);
     expect(disconnectedWords({ ...base, member: false }).text).toMatch(/use your personal form/);
     expect(disconnectedWords({ ...base, member: true }).text).toMatch(/open Connectors/);

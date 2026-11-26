@@ -2,7 +2,7 @@
 // spec 0007; GLOSSARY: Connector, Delivery). The email goes to the address the Workspace keeps for them, never by the
 // chat service it is about. A notice about an account a code connected carries a link that disconnects it with no
 // sign-in.
-// Security: that link is signed (unsubscribe-token.ts) for one connection, named by the Workspace, the person and the
+// Security: that link is signed (unsubscribe-token.ts), with the secrets key only, for one connection, named by the Workspace, the person and the
 // moment it was made, so it can only end that one and does nothing once it was replaced; it never connects anything,
 // which is why it does not expire. Opening it only asks; the page's button disconnects, drops any code the person had
 // waiting and writes an Audit Log entry. Notices are limited per person and Workspace. Sending one never fails what
@@ -23,7 +23,8 @@ export const CONNECTION_NOTICES_PER_DAY = 20;
 const LINKS = { telegram: "telegram_links", slack: "slack_links" } as const;
 const CODES = { telegram: "telegram_link_codes", slack: "slack_link_codes" } as const;
 
-const signer = unsubscribeSigner("ziffr/account-disconnect/v1", /^(telegram|slack)\|[0-9a-f-]{36}\|[^|\s]{1,100}\|\d{10,16}$/u, 400);
+// Without ZIFFR_SECRETS_KEY no link is made or accepted, and the notice points to Connectors instead.
+const signer = unsubscribeSigner("ziffr/account-disconnect/v1", /^(telegram|slack)\|[0-9a-f-]{36}\|[^|\s]{1,100}\|\d{10,16}$/u, 400, { secretsKeyOnly: true });
 
 /** The Workspace's name, and a moment as its people read the clock. */
 async function placeAndTime(workspaceId: string, at: Date): Promise<{ workspace: string; when: string }> {
