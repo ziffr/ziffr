@@ -6,6 +6,7 @@
 // The words among the strings are then cleaned by `visitorSettings` (demo-visitor-words.ts).
 import { COMPARE_LABEL } from "./compare";
 import { isDisplayPeriod } from "./display-periods";
+import { checkedElement } from "./slide-element";
 import type { Panel, WidgetSettings } from "./types";
 import { SLOPE_CHOICES } from "./view-design";
 
@@ -22,6 +23,10 @@ const text = (max = WORD_MAX): Check => (v) => (typeof v === "string" && v.lengt
 const number: Check = (v) => (typeof v === "number" && Number.isFinite(v) ? v : BAD);
 const flag: Check = (v) => (typeof v === "boolean" ? v : BAD);
 const oneOf = (allowed: readonly unknown[]): Check => (v) => (allowed.includes(v) ? v : BAD);
+// A Slide Element is held to its own schema (known fields and lengths only); its words go through the text rules after.
+const element: Check = (v) => {
+  try { return structuredClone(checkedElement(v)); } catch { return BAD; }
+};
 const day: Check = (v) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : BAD);
 const list = (item: Check, max: number): Check => (v) => {
   if (!Array.isArray(v) || v.length > max) return BAD;
@@ -64,7 +69,7 @@ const panel = shape(PANEL);
 /** Every key of a widget's settings (types.ts) except `tagView`, which is never stored, with its type: the one list the demo
  * checks them by. Typed by the keys of `WidgetSettings` (types.ts), so a setting added there and not here fails the type check. The words (a Finding's, a callout's, a panel's) are `DEMO_SETTING_WORD_KEYS` (demo-words-columns.ts). */
 const SETTINGS: Record<Exclude<keyof WidgetSettings, "tagView">, Check> = {
-  window: number, display: (v) => (isDisplayPeriod(v) ? v : BAD), showTarget: flag, showForecast: flag, rows: number,
+  element, window: number, display: (v) => (isDisplayPeriod(v) ? v : BAD), showTarget: flag, showForecast: flag, rows: number,
   slope: oneOf(SLOPE_CHOICES), kicker: text(), footnote: text(), panels: list(panel, 20), headline: text(), subline: text(), source: text(),
   highlight: text(), callouts: list(callout, 50), period: text(40), compare: list(oneOf(Object.keys(COMPARE_LABEL)), 7),
   fullPeriods: flag, canvas: (v) => (isObj(v) ? { document: v.document ?? null, stamp: {} } : BAD), asOf: day,

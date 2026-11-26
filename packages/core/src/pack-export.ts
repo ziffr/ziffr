@@ -15,7 +15,9 @@ import { checkSchema, type Schema } from "./json-check";
 import { PLAIN, WORDS, KEY } from "./file-text";
 import { checkMetricFileValue, type MetricFile } from "./metric-file";
 import { checkDashboardTemplateFileValue, type DashboardTemplateFile, type WidgetSettingsFile } from "./dashboard-template-file";
-import { checkDeckTemplateFileValue, type DeckTemplateFile } from "./deck-template-file";
+import { checkDeckTemplateFileValue, DECK_TEMPLATE_FORMAT, DECK_TEMPLATE_FORMAT_2, type DeckTemplateFile } from "./deck-template-file";
+import { elementSlots, mapElementWords, SLIDE_ELEMENT_LIMITS } from "./slide-element";
+import { slideWords } from "./file-text";
 import { checkWorkflowTemplateFileValue, type WorkflowTemplateFile } from "./workflow-template-file";
 import { checkThemeFileValue, themeToFile } from "./theme-file";
 import { checkViewDesignValue, type ViewDesign } from "./view-design";
@@ -41,7 +43,7 @@ export type ExportResult = { text: string; fileName: string; leftOut: { name: st
 
 /** How text is fitted into a file: a Pack keeps the Pack's plain-text rules; a Workspace Export (workspace-export.ts)
  * the app's own. Both say "does not fit" by an empty answer, and the caller says what was left out. */
-export type TextFit = { plain: (s: unknown, max: number) => string | null; words: (s: unknown, max: number) => string | undefined };
+export type TextFit = { plain: (s: unknown, max: number) => string | null; words: (s: unknown, max: number) => string | undefined; /** A Slide Element's words, spaces kept; empty when the file may not hold them. */ slide: (s: string) => string };
 
 const plain = (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
@@ -52,7 +54,9 @@ const wordsOk = (s: unknown, max: number) => {
   return t && !checkSchema({ type: "string", pattern: WORDS } as Schema, t).length ? t : undefined;
 };
 /** A Pack's text rules. */
-const PACK_FIT: TextFit = { plain, words: wordsOk };
+// An element's spaces are part of its layout, so nothing is collapsed: a text is kept whole or not at all.
+const slideOk = (s: string) => (checkSchema(slideWords(SLIDE_ELEMENT_LIMITS.words), s).length ? "" : s);
+const PACK_FIT: TextFit = { plain, words: wordsOk, slide: slideOk };
 const slug = (name: string) => {
   const s = name.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36);
   return /^[a-z]/.test(s) ? s : `x-${s || "item"}`.slice(0, 40);
@@ -225,7 +229,7 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
     } else if (r.kind === "deck" && ids("decks").includes(Number(r.id))) {
       const body = r.body as DeckTemplateBody;
       const theme = body.themeId ? themeKey.get(Number(body.themeId)) : undefined;
-      const file: DeckTemplateFile = { format: "ziffr.deck-template/1", ...head, slots: slotsOf(r.slots as Slot[]), ...(theme ? { theme } : {}), slides: body.slides.map((s) => ({ shapes: s.shapes.flatMap((sh) => slideShapeOf(sh, designKey)) })) };
+      const file = deckFile({ ...head, slots: slotsOf(r.slots as Slot[]), ...(theme ? { theme } : {}), slides: body.slides.map((s) => ({ ...(s.cover ? { cover: true } : {}), shapes: s.shapes.flatMap((sh) => slideShapeOf(sh, designKey)) })) });
       if (keep(file, checkDeckTemplateFileValue(file), name, leftOut)) decks.push({ key, template: file });
     } else if (r.kind === "workflow" && ids("workflows").includes(Number(r.id))) {
       const b = r.body as WorkflowTemplateBody;
@@ -307,6 +311,12 @@ export function settingsOf(s: WidgetSettings | undefined, designKey: ReadonlyMap
   return Object.keys(out).length ? { settings: out } : {};
 }
 
+/** A Deck Template file in the oldest format that holds it: /2 only when it has a Slide Element or a cover. */
+export function deckFile(t: Omit<DeckTemplateFile, "format">): DeckTemplateFile {
+  const newer = t.slides.some((s) => s.cover || s.shapes.some((sh) => sh.shape === "element"));
+  return { format: newer ? DECK_TEMPLATE_FORMAT_2 : DECK_TEMPLATE_FORMAT, ...t };
+}
+
 /** Paragraphs of a shape's words, from the rich text the deck editor keeps. */
 function paragraphsOf(rich: unknown, fit: TextFit = PACK_FIT): string[] {
   const doc = rich as { content?: { content?: { text?: string }[] }[] } | undefined;
@@ -322,6 +332,13 @@ export function slideShapeOf(sh: SlideShape, designKey: ReadonlyMap<string, stri
   const p = sh.props as Record<string, unknown>;
   const x = clamp(sh.x, 0, 1279), y = clamp(sh.y, 0, 719);
   const color = COLORS.includes(String(p.color)) ? { color: p.color as "black" } : {};
+  const element = sh.widget?.settings.element;
+  if (sh.type === "ziffr-widget" && sh.widget && p.template === "slide") {
+    // An element with a Slot still to pick stays behind: a file that holds it would be refused when read.
+    if (!element || sh.widget.metricSlots.length < elementSlots(element).min) return [];
+    // Words a file may not hold (an address, markup) are cut to nothing rather than keeping the whole slide out.
+    return [{ shape: "element", slots: sh.widget.metricSlots, x, y, w: clamp(p.w, 4, 1280 - x), h: clamp(p.h, 4, 720 - y), element: mapElementWords(element, fit.slide) }];
+  }
   if (sh.type === "ziffr-widget" && sh.widget && (TEMPLATE_VIEWS as readonly string[]).includes(String(p.template))) {
     return [{ shape: "widget", view: p.template as "line", slots: sh.widget.metricSlots, ...titleOf(sh.widget.title, fit), x, y, w: clamp(p.w, 40, 1280 - x), h: clamp(p.h, 40, 720 - y), ...settingsOf(sh.widget.settings, designKey, fit) }];
   }

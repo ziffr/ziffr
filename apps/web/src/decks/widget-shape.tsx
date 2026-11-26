@@ -8,6 +8,7 @@ import { templateOf } from "@/views/templates";
 import type { CanvasData, TemplateId, WidgetSettings } from "@ziffr/core/types";
 import { fillWidgetText } from "@ziffr/core/placeholders";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
+import { SlideElementShape } from "./elements/element-shape";
 
 export const WIDGET_SHAPE = "ziffr-widget";
 
@@ -40,6 +41,8 @@ function WidgetCard({ shape }: { shape: WidgetShape }) {
   const data = useContext(DeckData) ?? exportData;
   if (!data) return null;
   const widget = widgetFromShape(shape);
+  // A Slide Element is no card: it draws itself straight on the slide, in the Theme (spec 0057).
+  if (widget.template === "slide") return <SlideElementShape shape={shape} data={data} settings={widget.settings} />;
   const ms = widgetMetrics(widget, data);
   const t = templateOf(widget);
   const title = (widget.title ? fillWidgetText(widget.title, widget, widget.settings.asOf ? dataAsOf(data, widget.settings.asOf) : data) : undefined) ?? (t.kind === "metric" ? ms[0]?.name : `${t.label}: ${ms.map((m) => m.name).join(" vs. ")}`);
@@ -72,6 +75,12 @@ export class WidgetShapeUtil extends BaseBoxShapeUtil<WidgetShape> {
 
   override canEdit() {
     return false;
+  }
+
+  override getText(shape: WidgetShape) {
+    // What a Slide Element says, for tldraw's search and screen readers.
+    const e = widgetFromShape(shape).settings.element;
+    return e?.kind === "words" ? e.text.join(" ") : undefined;
   }
 
   component(shape: WidgetShape) {

@@ -297,6 +297,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `periodRecord` (period-record.ts): the period page
 - `observationDetails` (observation-details.ts): the popup on a chart's point in the app; a program reads the same through the API's period status and values
 - `calendarEntries` (schedule.ts): the schedule page
+- `formLinkExtras` (form-link-extras.ts): what the form link's page adds for its own signed-in person; a program reads the same through its Schedule and the Metric's values
 - `search` (search.ts): the search page
 - `listShareProposals` (share-proposals.ts): the Actions page; a key only proposes, it never reads what waits for the person (ticket #538)
 - `previewShareProposal` (share-proposals.ts): the confirm page shows what the recipient would see, to the person only (ticket #538)
@@ -339,6 +340,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `listTellSubscriptions` (tell.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `dashboardTemplateDraft` (templates.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `workspaceValuesCsv` (unused-workspaces.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `exportMetricValues` (metric-values-export.ts): the CSV download of chosen Metrics for a signed-in person (spec 0056); a program reads values through the API with its scopes and its own log, and the function refuses an Access Key
 - `versionAccess` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `listVersions` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `trialUsage` (trial-usage.ts): the trial bar and Try it show an Owner or Admin what the trial has used; the API has no such page

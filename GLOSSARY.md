@@ -130,7 +130,7 @@ Values recorded for past periods that had none yet, by a Feed (such as two years
 _Avoid_: Backfill, migration, sync
 
 **Token**:
-The standing permission that links one submitter to one metric. Every incoming value is checked against a token, which is usually invisible and implied by who sent the value and where.
+The standing permission that links one submitter to one metric. Every incoming value is checked against a token, which is usually invisible and implied by who sent the value and where. On the personal form link, which needs no sign-in, it records the current period or one that was asked for from it.
 _Avoid_: Key, code, credential
 
 **Submission Rule**:
@@ -384,8 +384,12 @@ An ordered set of slides that a user designs from widgets, text, arrows and shap
 _Avoid_: Presentation, slideshow, report
 
 **Slide**:
-One 16:9 page of a deck. Its order follows its position on the deck canvas, left to right and top to bottom.
+One 16:9 page of a deck. Its order follows its position on the deck canvas, left to right and top to bottom. A **cover slide** shows no logo, footer or number of the Theme and is not counted in page numbers.
 _Avoid_: Page, frame, board
+
+**Slide Element**:
+A part of a slide that draws itself in the deck's Theme and fills its words from today's data: words, a box, a figure, a column chart, a gap table, a metric table, a numbered list, a logo place or cover art. It may read Metrics, and shows nothing of one the viewer may not see. It is for slides only; on a dashboard stand Widgets.
+_Avoid_: Block, component, shape (for this)
 
 **Theme**:
 A named look for everything that shows numbers: colours for text, surfaces, data, good, bad and the target band, the fonts for headlines, text and figures, how cards are drawn, and what every slide shows (logo, footer, slide number, background image, type sizes). The team has one default theme; a dashboard or deck may use another, and a deck may set its own footer. A slide may hide the logo, footer and number. Ziffr's own screens are drawn by the person's Appearance, not by a Theme. Owners and Admins change Themes. The team default Theme also dresses what Ziffr sends and shows outside the app: emails, the form link, View Link pages and the side bar of Slack messages show its logo (or the Workspace's name), accent, footer and fonts, with every colour checked for contrast. A Theme can be written as a file and read back from one; a Theme in a Pack may use the Pack's logo. Every Theme has a **dark variant**, the colours it wears when the viewer's Appearance is dark: a Standard Theme carries a designed one, any other Theme gets one worked out from its own colours and checked for contrast (WCAG AA), falling back to Ziffr Dark's colours if that fails; a Theme that is dark already has none. Its setting **In a dark Appearance** is "Follows the viewer's Appearance" (the default) or "Always as designed", for brand decks and anything that must look the same for everyone. Fonts, corners and cards are the same in both.
@@ -416,6 +420,10 @@ _Avoid_: Plan limit, quota, entitlement
 **Workspace Export**:
 The file a Workspace's Owner downloads that holds the Workspace as the Owner may see it (its Metrics and their values, dashboards, decks, Workflows, Themes, Groups, Shares and people as invitations, but no secret, key or Connector link), so that another Installation can import it as a new Workspace (a Workspace made by an import is marked importing, and invisible to its Owner, until it is complete: a failed import deletes it with its key). It asks for a sign-in from the last 10 minutes, is made while it downloads and is never stored. What its format cannot carry is left out and said, never cut short. The people in it become invitations on hold, sent only when the new Owner presses Invite everyone. Not an Archived Metric, nor a Pack, which holds no values.
 _Avoid_: Backup, dump, archive
+
+**Values Download**:
+The CSV file of the values of the Metrics a person ticked in the Metrics list (or of one Metric, from its History tab): one row per value, written in the Workspace's Number Style as the Workspace's own download is. Any signed-in person gets it for the Metrics they may see, a Guest for what is shared with them; a Metric they may not see is left out as if it did not exist, at most 50 Metrics and 250,000 rows go in one file, and each download is written in the Audit Log in counts. Never for an Access Key, a View Link or the demo. Not a Workspace Export (the Owner's file for another Ziffr to read), and not the Workspace's download of every Metric for Owners and Admins (spec 0056).
+_Avoid_: Bulk export, data dump
 
 **Setup Guide**:
 The five steps that set up a Workspace (About you, Starting point, Ways in and out, First Metric, Team), opened by itself at a person's first sign-in and reopened from Help or the Setup line at the top of each page. Each step ticks from what the Workspace has, never from a flag a click sets, and each can be skipped. Its progress is the Workspace's, shared by its Owners and Admins; hiding it is each person's own. A Member sees the steps about themselves, a Guest none, and the demo never. What a person answers in it stays in the Workspace and is sent nowhere.

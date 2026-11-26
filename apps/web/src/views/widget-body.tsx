@@ -48,6 +48,8 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
   if (widget.settings.tagSource && widget.metric_ids.length === 0) return <TagEmpty view={widget.settings.tagView} />;
   if (!ready) return <div aria-busy="true" aria-label="Loading values" className="h-full min-h-16 w-full animate-pulse rounded-[var(--radius-input)] bg-muted/40" />;
   if (widget.template === "canvas") return <LayoutView settings={widget.settings} data={data} />;
+  // A Slide Element draws on a slide only (decks/elements); nothing else places one.
+  if (widget.template === "slide") return null;
   if (ms.length < widget.metric_ids.length) {
     return <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">No access to this metric. Ask its owner to share it.</div>;
   }

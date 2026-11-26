@@ -1,6 +1,6 @@
 // The Theme file format, ziffr.theme/1 (GLOSSARY: Theme): the format lives in @ziffr/pack (MIT), so a creator checks a file exactly as Ziffr does;
 // this module adds how a checked file becomes what a Theme stores.
-import { COLOR_NAMES, type ThemeFile } from "@ziffr/pack/theme-file";
+import { COLOR_NAMES, SLIDE_COLOR_NAMES, type ThemeFile } from "@ziffr/pack/theme-file";
 import { logoRatio } from "@ziffr/pack/logo";
 import { checkSchema, type Schema } from "./json-check";
 import { PLAIN } from "./file-text";
@@ -18,6 +18,7 @@ export function themeFromFile(t: ThemeFile, packLogo: string | null = null): { n
     name: t.name,
     tokens: {
       ...(Object.fromEntries(COLOR_NAMES.map((c) => [c, t.colors[c].toUpperCase()])) as Record<(typeof COLOR_NAMES)[number], string>),
+      ...Object.fromEntries(SLIDE_COLOR_NAMES.flatMap((c) => (t.colors[c] ? [[c, t.colors[c].toUpperCase()]] : []))),
       data: t.colors.data.map((c) => c.toUpperCase()),
       fontHeading: t.fonts.heading, fontBody: t.fonts.body, fontFigures: t.fonts.figures, radius: t.radius, cards: t.cards,
     },
@@ -41,9 +42,11 @@ const plain = (s: unknown, max: number) => {
 export function themeToFile(name: unknown, tokens: ThemeTokens, slides: Partial<ThemeSlides> | null | undefined, usesPackLogo = false, fit: (text: unknown, max: number) => string | null = plain): ThemeFile {
   const s = slides ?? {};
   const footer = fit(s.footer, 120);
+  const slideColors = SLIDE_COLOR_NAMES.flatMap((c) => (tokens[c] ? [[c, tokens[c]] as const] : []));
   return {
-    format: "ziffr.theme/1", name: fit(name, 60) || "Theme",
-    colors: { ...Object.fromEntries(COLOR_NAMES.map((c) => [c, tokens[c]])), data: tokens.data } as ThemeFile["colors"],
+    // Format /1 unless the Theme names a colour only /2 has, so an older Ziffr reads every file it can.
+    format: slideColors.length ? "ziffr.theme/2" : "ziffr.theme/1", name: fit(name, 60) || "Theme",
+    colors: { ...Object.fromEntries(COLOR_NAMES.map((c) => [c, tokens[c]])), ...Object.fromEntries(slideColors), data: tokens.data } as ThemeFile["colors"],
     fonts: { heading: tokens.fontHeading, body: tokens.fontBody, figures: tokens.fontFigures }, radius: tokens.radius, cards: tokens.cards,
     slides: { ...(usesPackLogo ? { logo: "pack" as const } : {}), ...(s.logo_position ? { logoPosition: s.logo_position } : {}), ...(s.logo_width ? { logoWidth: s.logo_width } : {}), ...(footer ? { footer } : {}), showSlideNumber: Boolean(s.show_slide_number), ...(s.title_size ? { titleSize: s.title_size } : {}), ...(s.body_size ? { bodySize: s.body_size } : {}) },
   };

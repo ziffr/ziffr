@@ -6,7 +6,7 @@ import "tldraw/tldraw.css";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Tldraw, type Editor, type TLEditorSnapshot } from "tldraw";
+import { Box, Tldraw, type Editor, type TLEditorSnapshot } from "tldraw";
 import { ChevronLeft, ChevronRight, Maximize, Minimize, RotateCw, X } from "lucide-react";
 import { ThemeScope } from "@/components/theme-scope";
 import { DeckData, WidgetShapeUtil } from "./widget-shape";
@@ -49,7 +49,8 @@ export function Slideshow({ deck, data, start, publicNote, back = `/decks/${deck
       editor.updateViewportScreenBounds(editor.getContainer());
       const slide = orderedSlides(editor)[step.i];
       const b = slide && editor.getShapePageBounds(slide);
-      if (b) editor.zoomToBounds(b, { inset: 0 });
+      // A cover is often filled to its edges: shown a pixel past them, so the white behind it leaves no pale line.
+      if (b) editor.zoomToBounds(slide.meta?.cover ? Box.ExpandBy(b, -1) : b, { inset: 0 });
     };
     fit();
     const ro = new ResizeObserver(fit);

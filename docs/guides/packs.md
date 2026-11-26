@@ -21,11 +21,11 @@ The exact formats are JSON Schemas in `docs/reference/`, generated from the defi
 | The Pack and its manifest | `ziffr.pack/1` | [`pack.schema.json`](../reference/pack.schema.json) |
 | A Metric Catalog entry | `ziffr.metric/1` | [`metric.schema.json`](../reference/metric.schema.json) |
 | A Dashboard Template | `ziffr.dashboard-template/1` | [`dashboard-template.schema.json`](../reference/dashboard-template.schema.json) |
-| A Deck Template | `ziffr.deck-template/1` | [`deck-template.schema.json`](../reference/deck-template.schema.json) |
+| A Deck Template | `ziffr.deck-template/1` or `ziffr.deck-template/2` | [`deck-template.schema.json`](../reference/deck-template.schema.json) and [`deck-template-2.schema.json`](../reference/deck-template-2.schema.json), see [Slides that look designed](#slides-that-look-designed) |
 | A Workflow Template | `ziffr.workflow-template/1` | [`workflow-template.schema.json`](../reference/workflow-template.schema.json) |
 | A View Design | `ziffr.view/1` | [`view-design.schema.json`](../reference/view-design.schema.json), see [Writing a View Design](view-designs.md) |
 | An Analysis Recipe | `ziffr.analysis/1` or `ziffr.analysis/2` | [`analysis-recipe.schema.json`](../reference/analysis-recipe.schema.json) and [`analysis-recipe-2.schema.json`](../reference/analysis-recipe-2.schema.json), see [Analysis Recipes](analysis-recipes.md) |
-| A Theme | `ziffr.theme/1` | [`theme.schema.json`](../reference/theme.schema.json) |
+| A Theme | `ziffr.theme/1` or `ziffr.theme/2` | [`theme.schema.json`](../reference/theme.schema.json) and [`theme-2.schema.json`](../reference/theme-2.schema.json) |
 
 ## The file
 
@@ -84,6 +84,35 @@ An item may name another item of the same Pack, and nothing outside it:
 - a Deck Template names one of the Pack's Themes, which a deck made from it starts with: `"theme": "board"`. Its Slots and widgets name entries and designs as a Dashboard Template's do;
 - a Derived Metric's formula names the Pack's other entries in braces: `"{mrr} / {customers}"`. Its inputs follow the same rules as in a Workspace: no Derived Metric among them, all of the Derived Metric's own period, none set to Aggregation none.
 
+## Slides that look designed
+
+A Deck Template in the format `ziffr.deck-template/2` may put **Slide Elements** on its slides: parts that draw themselves in the deck's Theme and fill their words from the data each time they are shown. A shape of the kind `element` names where it stands, the Slots it reads, in order, and what it draws:
+
+```json skip="two shapes of a slide, not a whole file"
+[
+  { "shape": "element", "x": 64, "y": 85, "w": 980, "h": 40, "slots": [7],
+    "element": { "kind": "words", "text": ["The commit covers {latest} of quota with {weeks left} left"], "font": "heading", "size": 33 } },
+  { "shape": "element", "x": 356, "y": 147, "w": 276, "h": 112, "slots": [1, 0],
+    "element": { "kind": "figure", "note": "{gap 2 1}", "signal": true } }
+]
+```
+
+| `kind` | Slots | What it draws |
+| --- | --- | --- |
+| `words` | any | Paragraphs in a Theme colour (`tone`) and font (`heading` or `body`), with size, weight, spacing, capitals, alignment and an optional `lead`. `foot` makes it the slide's footer line; `empty` stands instead of the words while a Placeholder has no value. |
+| `box` | none | A rectangle with a `fill` and an `edge` colour. |
+| `figure` | the value first | A label, the first Metric's latest value and a `note`; `signal` colours the note by good or bad, `strong` draws it on the cover colour. |
+| `columns` | the columns, then the filled part (`part`), then the line (`reference`) | Columns by period: the weeks of the quarter so far, or the last `periods`. |
+| `gap-table` | the Metric, then what it is compared with | Their latest Breakdowns row by row with the difference, with an optional `headline` above and a closing line (`lead`, `note`) under it that move with the table. |
+| `metric-table` | 1 to 12 | A row per Metric with the change, a trend of `periods` and whether it is on target. |
+| `list` | none | A `title` and up to 8 numbered `items`. |
+| `logo` | none | The Theme's logo, or a dashed box with `text`. |
+| `art` | none | A fixed ornament (`rings-trend`). |
+
+Colours are always roles of the Theme (`ink`, `muted`, `rule`, `surface`, `canvas`, `band`, `accent`, `soft`, `cover`, `cover-text`, `cover-accent`, `good`, `bad`, `data`), never values. Words hold plain text and these Placeholders: `{metric}`, `{latest}`, `{period}`, `{target}`, `{change yoy}`, `{change}`, `{difference 1 2}`, `{left 1 2}`, `{gap 1 2}`, `{quarter}`, `{quarter week}`, `{quarter weeks}`, `{weeks left}`, `{scale}` and `{slide}`; a number names the element's Slot, counted from 1. A slide may say `"cover": true`: no logo, footer or number of the Theme, and not counted in page numbers. The [user guide](../user-guide/14-decks-and-themes.md#slide-elements) says what each element shows.
+
+A file without elements and covers stays `ziffr.deck-template/1`. An older Ziffr refuses a `/2` file naming the formats it reads, so give a Pack that uses it a `ziffr` minimum that has it.
+
 ## Filling the Metrics from other systems
 
 A Pack may say which of Ziffr's ready n8n templates ([Automation Templates for Feeds](../automations/README.md)) fill which of its Metric Catalog entries, so that the person who sets the Pack up can fill them without anyone retyping the numbers:
@@ -140,7 +169,7 @@ Ziffr checks a Pack in full on its server before it shows or installs anything:
 - images and fonts, except the Pack's one `logo`: a Theme uses only fonts Ziffr ships, and its background image is set in Ziffr after installing;
 - a `logo` that is not a PNG, JPEG or plain SVG as a base64 data address, weighs over 128,000 bytes, measures over 512 pixels on a side, or whose bytes are not the type it says; an SVG with a script, a handler, foreign content, a link, a style, an entity or a `<!DOCTYPE>`. These are the checks a Theme's logo has, the very same code. `npx @ziffr/pack check` reports them with the line of `logo`;
 - a Dashboard Template with a Free Layout, a Slot it does not have, or widgets that overlap;
-- a slide of a Deck Template with anything but widgets, text and simple boxes, or a shape past the slide's edge;
+- a slide of a Deck Template with anything but widgets, text, simple boxes and Slide Elements, or a shape past the slide's edge;
 - a Workflow Template that names a person: an Approve step says only how many Approvers to pick;
 - an item that its own format's checks refuse, with the problem named by its place in the Pack, such as `contents.views[0].design.parts[2].show`, and its line;
 - a reference to an item that is not in the Pack.

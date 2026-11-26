@@ -23,7 +23,7 @@ export function BreakdownField({ numberStyle }: { numberStyle: NumberStyle }) {
         className="fig mt-2 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 py-2 text-sm"
       />
       <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <label className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-[var(--radius-input)] px-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-within:outline-2 focus-within:outline-ring">
+        <label className="inline-flex min-h-8 cursor-pointer max-sm:min-h-11 items-center gap-1.5 rounded-[var(--radius-input)] px-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-within:outline-2 focus-within:outline-ring">
           <FileUp aria-hidden className="size-3.5" /> Load a CSV file
           <input
             type="file"

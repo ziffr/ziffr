@@ -9,7 +9,7 @@ import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { cleanSlides, cleanTokens } from "./theme-tokens";
 import { deckMetricIds } from "./visibility";
 import { widgetMetricIds } from "./widget-metrics";
-import { TEMPLATES } from "./widget-templates";
+import { isDashboardView, isView } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import { diffSummary, openVersionSnapshot, recordVersion, VERSION_TYPES, type VersionType } from "./versions";
 import { insertSealed, sealedPatch } from "./sealed-columns";
@@ -153,11 +153,11 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
   const visible = async () => visibleMetricIds(ws, actor.personId, await getMetrics(ws));
   if (v.object_type === "widget" || v.object_type === "dashboard") {
     const widgets = (v.object_type === "widget" ? [s] : ((s.widgets as Record<string, unknown>[]) ?? [])) as { template?: string; metric_ids?: number[]; settings?: WidgetSettings }[];
-    if (widgets.some((w) => !w.template || !(w.template in TEMPLATES))) throw new Forbidden();
+    if (widgets.some((w) => !w.template || !isDashboardView(w.template))) throw new Forbidden();
     const seen = await visible();
     if (widgets.flatMap((w) => widgetMetricIds(w.metric_ids ?? [], w.settings)).some((m) => !seen.has(m))) throw new Error(HIDDEN);
   }
-  if (v.object_type === "template" && !((s.view as string) in TEMPLATES || s.view === "slide")) throw new Forbidden();
+  if (v.object_type === "template" && !(isView(String(s.view)) || s.view === "slide")) throw new Forbidden();
   // A deck restore may only bring back Metrics the restorer sees, as saving a deck does.
   if (v.object_type === "deck") {
     const { data: cur } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", ws).single();

@@ -1,0 +1,102 @@
+// Download the values of chosen Metrics (spec 0056): who may, which Metrics are in the file, and what is written down.
+import { afterEach, describe, expect, it } from "vitest";
+import { Forbidden } from "./actor";
+import { auditLog } from "./audit-log";
+import { db } from "./db";
+import { DEMO_WORKSPACE_ID } from "./team";
+import { workspace } from "./test/db-fixtures";
+import { EXPORT_METRICS, exportMetricValues } from "./metric-values-export";
+
+const cleanups: (() => Promise<void>)[] = [];
+afterEach(async () => { for (const c of cleanups.splice(0)) await c().catch(() => {}); });
+
+/** A Workspace with Sara (member) who owns Revenue, Ben (member) who owns Secret, and a Guest. */
+async function base() {
+  const w = await workspace("Export");
+  cleanups.push(w.cleanup);
+  const sara = await w.person("member");
+  const ben = await w.person("member");
+  const guest = await w.person("guest");
+  const revenue = await w.metric(sara, { name: "Revenue" });
+  const costs = await w.metric(sara, { name: "Costs" });
+  const secret = await w.metric(ben, { name: "Ben's secret" });
+  await w.value(revenue.id, "2026-09-01", 1200.5, sara);
+  await w.value(revenue.id, "2026-10-01", 1300, sara);
+  await w.value(costs.id, "2026-09-01", 40, sara);
+  await w.value(secret.id, "2026-09-01", 99, ben);
+  return { w, sara, ben, guest, revenue, costs, secret };
+}
+
+describe("exportMetricValues", () => {
+  it("gives a person the values of the chosen Metrics they see, and only those", async () => {
+    const { w, sara, revenue, costs, secret } = await base();
+    const { csv, metrics, rows } = await exportMetricValues(w.actor(sara, "member"), [revenue.slug, secret.slug]);
+    expect(metrics).toBe(1);
+    expect(rows).toBe(2);
+    expect(csv.split("\r\n")[0]).toBe('"metric","name","period","period_start","value","unit","source","recorded_at","period_end","condensed_from","state"');
+    expect(csv).toContain("1200.5");
+    expect(csv).toContain("2026-10-01");
+    // Costs was not chosen; Ben's Metric is not Sara's to see, and nothing says it exists.
+    expect(csv).not.toContain(costs.slug);
+    expect(csv).not.toContain("Ben's secret");
+  });
+
+  it("answers a Metric that is unknown and one the person may not see in the same words", async () => {
+    const { w, sara, secret } = await base();
+    const unseen = await exportMetricValues(w.actor(sara, "member"), [secret.slug]).catch((e: Error) => e.message);
+    const unknown = await exportMetricValues(w.actor(sara, "member"), ["no-such-metric"]).catch((e: Error) => e.message);
+    expect(unseen).toBe("Pick at least one Metric you can see.");
+    expect(unknown).toBe(unseen);
+  });
+
+  it("lets a Guest download what is shared with them, and nothing else", async () => {
+    const { w, guest, revenue, costs } = await base();
+    await expect(exportMetricValues(w.actor(guest, "guest"), [revenue.slug])).rejects.toThrow("Pick at least one Metric you can see.");
+    await w.share(revenue.id, guest);
+    const { csv } = await exportMetricValues(w.actor(guest, "guest"), [revenue.slug, costs.slug]);
+    expect(csv).toContain("1200.5");
+    expect(csv).not.toContain(costs.slug);
+  });
+
+  it("says of every value whether it is final, and leaves none out", async () => {
+    const { w, sara, revenue, costs } = await base();
+    await w.value(revenue.id, "2026-08-01", 1100, sara);
+    // August is locked, September waits for Approval, October was sent back; Costs has no Workflow and so no state.
+    await w.lock(revenue.id, "2026-08-01");
+    for (const [period, state] of [["2026-09-01", "approval"], ["2026-10-01", "submitted"]]) {
+      const { error } = await db().from("period_states").insert({ metric_id: revenue.id, period_start: period, state, workspace_id: w.id });
+      expect(error).toBeNull();
+    }
+    const { csv, rows } = await exportMetricValues(w.actor(sara, "member"), [revenue.slug, costs.slug]);
+    expect(rows).toBe(4);
+    const said = csv.trim().split("\r\n").slice(1).map((l) => l.split(",").map((c) => c.replaceAll('"', ""))).map((c) => `${c[1]} ${c[3]} ${c.at(-1)}`);
+    expect(said).toEqual(["Costs 2026-09-01 final", "Revenue 2026-08-01 final", "Revenue 2026-09-01 not approved yet", "Revenue 2026-10-01 not approved yet"]);
+  });
+
+  it("includes an Archived Metric's values, and gives nothing to someone without a membership", async () => {
+    const { w, sara, revenue } = await base();
+    await w.patchMetric(revenue.id, { archived_at: new Date().toISOString() });
+    expect((await exportMetricValues(w.actor(sara, "member"), [revenue.slug])).rows).toBe(2);
+    await w.dropMember(sara);
+    await expect(exportMetricValues(w.actor(sara, "member"), [revenue.slug])).rejects.toBeInstanceOf(Forbidden);
+  });
+
+  it("refuses an Access Key, the demo and a list that is too long", async () => {
+    const { w, sara, revenue } = await base();
+    await expect(exportMetricValues({ ...w.actor(sara, "member"), key: { id: "k", scopes: ["read"] } } as never, [revenue.slug])).rejects.toBeInstanceOf(Forbidden);
+    await expect(exportMetricValues({ ...w.actor(sara, "member"), workspaceId: DEMO_WORKSPACE_ID }, [revenue.slug])).rejects.toThrow();
+    await expect(exportMetricValues(w.actor(sara, "member"), Array.from({ length: EXPORT_METRICS + 1 }, (_, i) => `m-${i}`))).rejects.toThrow(`at most ${EXPORT_METRICS}`);
+  });
+
+  it("writes each download in the Audit Log, in counts and without a name or a value", async () => {
+    const { w, sara, revenue, costs } = await base();
+    await exportMetricValues(w.actor(sara, "member"), [revenue.slug, costs.slug]);
+    // Read as the Audit Log page reads it: the stored details are sealed with the Workspace Key.
+    const owner = await w.person("owner");
+    const { events } = await auditLog(w.actor(owner), { kind: "export.metric_values" });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ actorId: sara, objectName: null, details: { metrics: 2, rows: 3 } });
+    expect(JSON.stringify(events)).not.toContain("Revenue");
+    expect(JSON.stringify(events[0].details)).not.toContain("1200");
+  });
+});

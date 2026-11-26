@@ -59,6 +59,16 @@ export async function actorIn(workspaceId: string): Promise<Actor> {
   return { personId, workspaceId: w.id, role: w.role };
 }
 
+/** The person looking when there is one with a Workspace, else null: for a page that opens without signing in (the form
+ * link), so it never sends anyone to sign in. */
+export async function optionalActor(): Promise<Actor | null> {
+  if (!(await isDemo())) {
+    const user = await sessionUser();
+    if (!user || !(await myWorkspaces(await personFor(user))).length) return null;
+  }
+  return currentActor();
+}
+
 /** The person, workspace and Workspace Role together; refuses someone who is not a member of the workspace. */
 export async function currentActor(): Promise<Actor> {
   const [personId, workspaceId] = await Promise.all([viewerId(), currentWorkspaceId()]);
