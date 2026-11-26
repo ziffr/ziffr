@@ -103,6 +103,8 @@ A **Slide Element** is a part of a slide that draws itself in the deck's Theme: 
 
 Select an element to change its words, colours, size and Metrics in the side panel; drag it or its corners to move and resize it.
 
+**You pick every Metric.** A new element has none, and Ziffr never chooses one for you, because whoever the deck is shared with, and whoever opens its View Link, sees what is on the slide. A Figure, Column chart, Gap table or Metric table reads **Pick a Metric** until its Metrics are chosen under **Metrics**; **Add a Metric…** adds one more. When you switch on a column chart's filled part and it already has a reference line, pick the line's Metric again after the part's. An element with a Metric still to pick is left out when a deck is saved as a file or put in a Pack.
+
 **Words that stay current.** An element fills its words from the data every time the slide is shown, from the Metrics listed under **Metrics** in the panel. {metric 2} or {latest 2} means the second of them.
 
 | Placeholder | What it becomes |

@@ -1,15 +1,16 @@
 "use client";
 // The side panel for the selected Slide Element in the deck editor (GLOSSARY: Slide Element; spec 0057): its words,
 // colours, type and Metrics. Every change is held to the element's own schema before it reaches the slide; the core
-// checks the deck again when it is saved, and only Metrics the person sees are offered.
+// checks the deck again when it is saved, and only Metrics the person sees are offered, none chosen for them.
 import { useValue, type Editor } from "tldraw";
 import { checkedElement, elementSlots, SLIDE_ELEMENT_LIMITS, SLIDE_TONES, type SlideElement, type SlideTone } from "@ziffr/core/slide-element";
+import { PICK_METRIC } from "@ziffr/core/slide-figures";
 import type { CanvasData, WidgetSettings } from "@ziffr/core/types";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import type { WidgetShape } from "../widget-shape";
-import { fitMetrics } from "./element-add";
+import { metricsAfter, pickMetric } from "./element-add";
 
 const TONE_NAMES: Record<SlideTone, string> = { ink: "Ink", muted: "Muted", rule: "Rule", surface: "Surface", canvas: "Canvas", band: "Band", accent: "Accent", soft: "Soft accent", cover: "Cover", "cover-text": "Cover text", "cover-accent": "Cover accent", good: "Good", bad: "Bad", data: "Data" };
 const toneOptions = SLIDE_TONES.map((t) => [t, TONE_NAMES[t]] as const);
@@ -97,15 +98,36 @@ const readRows = (value: string) => value.split("\n").slice(0, SLIDE_ELEMENT_LIM
   return { text: t.replace(/\s+$/, "").slice(0, SLIDE_ELEMENT_LIMITS.label), ...(note ? { note: note.slice(0, SLIDE_ELEMENT_LIMITS.label) } : {}) };
 });
 
-/** The Metrics of a column chart after its filled part or reference line is switched: the part stands second and the
- * reference last, so a switch puts its Metric in or takes it out at that place. */
-function columnMetrics(e: SlideElement, ids: number[], key: string, on: boolean, fallback: number[]): number[] {
-  if (e.kind !== "columns" || (key !== "part" && key !== "reference") || on === Boolean(e[key])) return ids;
-  const at = key === "part" ? 1 : ids.length - (on ? 0 : 1);
-  const out = [...ids];
-  if (on) out.splice(at, 0, fallback.find((id) => !ids.includes(id)) ?? fallback[0]);
-  else out.splice(at, 1);
-  return out;
+/** An element's Metrics, a choice for each: a Slot nobody filled reads "Pick a Metric", and one more is added by
+ * choosing it. Only Metrics the person sees are offered, and none is ever chosen for them. */
+export function ElementMetrics({ element, ids, metrics, onChange }: { element: SlideElement; ids: number[]; metrics: { id: number; name: string }[]; onChange: (ids: number[]) => void }) {
+  const { min, max } = elementSlots(element);
+  if (max === 0) return null;
+  const pick = (slot: number, value: string) => onChange(pickMetric(element, ids, slot, Number(value)));
+  const unused = metrics.filter((m) => !ids.includes(m.id));
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium">Metrics</legend>
+      {Array.from({ length: Math.max(min, ids.length) }, (_, i) => (
+        <label key={i} className="block text-xs text-muted-foreground">
+          {slotName(element, i)}
+          {/* Slots fill in order. */}
+          <select value={ids[i] ?? ""} disabled={i > ids.length} onChange={(e) => pick(i, e.target.value)} className={select}>
+            {i >= ids.length && <option value="">{PICK_METRIC}</option>}
+            {i < ids.length && !metrics.some((m) => m.id === ids[i]) && <option value={ids[i]}>A Metric you cannot see</option>}
+            {metrics.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        </label>
+      ))}
+      {ids.length >= min && ids.length < max && unused.length > 0 && (
+        <select aria-label="Add a Metric" value="" onChange={(e) => pick(ids.length, e.target.value)} className={select}>
+          <option value="">Add a Metric…</option>
+          {unused.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+      )}
+      {ids.length > min && <Button variant="outline" onClick={() => onChange(ids.slice(0, -1))}>Remove last</Button>}
+    </fieldset>
+  );
 }
 
 /** The selected Slide Element's settings, beside the canvas; nothing when the selection is not one element. */
@@ -122,14 +144,13 @@ export function ElementPanel({ editor, data }: { editor: Editor; data: CanvasDat
   const save = (next: SlideElement, metrics: number[] = ids) => {
     // A change the format does not take (too long a line) is not applied; the field keeps what it had.
     try { checkedElement(next); } catch { return; }
-    editor.updateShape<WidgetShape>({ id: shape.id, type: "ziffr-widget", props: { settings: JSON.stringify({ ...settings, element: next }), metricIds: fitMetrics(next, metrics, data.metrics.map((m) => m.id)) } });
+    editor.updateShape<WidgetShape>({ id: shape.id, type: "ziffr-widget", props: { settings: JSON.stringify({ ...settings, element: next }), metricIds: metricsAfter(element, next, metrics) } });
   };
   const set = (key: string, value: unknown) => {
     const next = { ...element, [key]: value } as Record<string, unknown>;
     if (value === undefined) delete next[key];
-    save(next as SlideElement, columnMetrics(element, ids, key, Boolean(value), data.metrics.map((m) => m.id)));
+    save(next as SlideElement);
   };
-  const { min, max } = elementSlots(element);
   return (
     <section aria-label={`${NAMES[element.kind]} settings`} className="stock space-y-3 rounded-[var(--radius-card)] p-3">
       <h2 className="text-sm font-semibold">{NAMES[element.kind]}</h2>
@@ -148,24 +169,7 @@ export function ElementPanel({ editor, data }: { editor: Editor; data: CanvasDat
         </label>
       )}
       {FIELDS[element.kind].map((f) => <Control key={f.key} field={f} element={element as unknown as Record<string, unknown>} set={set} />)}
-      {max > 0 && (
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">Metrics</legend>
-          {ids.map((id, i) => (
-            <label key={i} className="block text-xs text-muted-foreground">
-              {slotName(element, i)}
-              <select value={id} onChange={(e) => save(element, ids.map((x, j) => (j === i ? Number(e.target.value) : x)))} className={select}>
-                {!data.metrics.some((m) => m.id === id) && <option value={id}>A Metric you cannot see</option>}
-                {data.metrics.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
-            </label>
-          ))}
-          <div className="flex gap-2">
-            {ids.length < max && data.metrics.length > 0 && <Button variant="outline" onClick={() => save(element, [...ids, (data.metrics.find((m) => !ids.includes(m.id)) ?? data.metrics[0]).id])}>Add Metric</Button>}
-            {ids.length > min && <Button variant="outline" onClick={() => save(element, ids.slice(0, -1))}>Remove last</Button>}
-          </div>
-        </fieldset>
-      )}
+      <ElementMetrics element={element} ids={ids} metrics={data.metrics} onChange={(next) => save(element, next)} />
     </section>
   );
 }

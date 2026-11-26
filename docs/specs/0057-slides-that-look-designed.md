@@ -25,7 +25,7 @@ A slide may hold **Slide Elements**: parts that draw themselves in the deck's Th
 
 ### A Slide Element is a widget on a slide
 
-An element is stored as a widget on a slide (`template: "slide"`) whose settings hold `element`, a checked structure, and whose Metric list holds every Metric it reads. So everything that already keeps hidden Metrics out of decks, View Links, Snapshots, templates, exports, version history and the demo applies to elements without a second path. Elements are for slides only: a dashboard refuses them.
+An element is stored as a widget on a slide (`template: "slide"`) whose settings hold `element`, a checked structure, and whose Metric list holds every Metric it reads. So everything that already keeps hidden Metrics out of decks, View Links, Snapshots, templates, exports, version history and the demo applies to elements without a second path. Elements are for slides only: a dashboard refuses them. The editor never puts a Metric on an element that the person did not pick: a new element starts with none and says "Pick a Metric", and no change of a setting adds one.
 
 The server checks every `element` wherever widget settings are stored, with the same schema the file checks use: known kinds and fields only, bounded lengths and counts, colours named by Theme role only. No element holds an address, an image or code.
 

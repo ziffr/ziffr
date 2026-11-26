@@ -16,7 +16,7 @@ import { PLAIN, WORDS, KEY } from "./file-text";
 import { checkMetricFileValue, type MetricFile } from "./metric-file";
 import { checkDashboardTemplateFileValue, type DashboardTemplateFile, type WidgetSettingsFile } from "./dashboard-template-file";
 import { checkDeckTemplateFileValue, DECK_TEMPLATE_FORMAT, DECK_TEMPLATE_FORMAT_2, type DeckTemplateFile } from "./deck-template-file";
-import { mapElementWords, SLIDE_ELEMENT_LIMITS } from "./slide-element";
+import { elementSlots, mapElementWords, SLIDE_ELEMENT_LIMITS } from "./slide-element";
 import { slideWords } from "./file-text";
 import { checkWorkflowTemplateFileValue, type WorkflowTemplateFile } from "./workflow-template-file";
 import { checkThemeFileValue, themeToFile } from "./theme-file";
@@ -334,7 +334,8 @@ export function slideShapeOf(sh: SlideShape, designKey: ReadonlyMap<string, stri
   const color = COLORS.includes(String(p.color)) ? { color: p.color as "black" } : {};
   const element = sh.widget?.settings.element;
   if (sh.type === "ziffr-widget" && sh.widget && p.template === "slide") {
-    if (!element) return [];
+    // An element with a Slot still to pick stays behind: a file that holds it would be refused when read.
+    if (!element || sh.widget.metricSlots.length < elementSlots(element).min) return [];
     // Words a file may not hold (an address, markup) are cut to nothing rather than keeping the whole slide out.
     return [{ shape: "element", slots: sh.widget.metricSlots, x, y, w: clamp(p.w, 4, 1280 - x), h: clamp(p.h, 4, 720 - y), element: mapElementWords(element, fit.slide) }];
   }

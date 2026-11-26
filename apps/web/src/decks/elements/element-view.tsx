@@ -4,8 +4,8 @@
 // plain HTML or SVG, which is what the PowerPoint export reads back (element-pptx.ts).
 // Visibility: the figures come from slide-figures.ts, which draws nothing of a Metric the viewer may not see.
 import type { CSSProperties, ReactNode } from "react";
-import { columnsModel, figureModel, fillSlideWords, gapModel, metricTableModel, NO_ACCESS, type SlideContext } from "@ziffr/core/slide-figures";
-import type { SlideElement, SlideTone, WordsElement } from "@ziffr/core/slide-element";
+import { columnsModel, figureModel, fillSlideWords, gapModel, metricTableModel, NO_ACCESS, PICK_METRIC, type SlideContext } from "@ziffr/core/slide-figures";
+import { elementSlots, type SlideElement, type SlideTone, type WordsElement } from "@ziffr/core/slide-element";
 
 /** A Theme colour by its role. */
 const tone = (t: SlideTone | "bad-soft") => `var(--tone-${t})`;
@@ -338,6 +338,8 @@ function Art() {
 /** A Slide Element drawn at `w` by `h` slide pixels. */
 export function SlideElementView(props: ElementProps) {
   const e = props.element;
+  // A Slot nobody has filled yet is not a Metric the viewer may not see, and says so.
+  if (props.context.metrics.length < elementSlots(e).min) return <Instead words={PICK_METRIC} />;
   if (e.kind === "words") return <Paragraphs e={e} context={props.context} />;
   if (e.kind === "box") return <div data-box style={{ width: "100%", height: "100%", boxSizing: "border-box", background: e.fill ? tone(e.fill) : "transparent", border: e.edge ? `1px ${e.dashed ? "dashed" : "solid"} ${tone(e.edge)}` : "none", opacity: e.opacity ?? 1 }} />;
   if (e.kind === "figure") return <Figure {...props} element={e} />;
