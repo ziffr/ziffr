@@ -70,7 +70,10 @@ describe("a gap table of a Total", () => {
 
   it("says that others are not shown also where no row is", () => {
     const g = model(canvas([total], { totalLists: { [total.id]: { parts: [], others: [], hidden: true } } }));
-    expect(g).toMatchObject({ rows: [], empty: "No value to show yet.", note: OTHERS_NOT_SHOWN });
+    expect(g).toMatchObject({ rows: [], empty: null, note: OTHERS_NOT_SHOWN });
+    // One they see that has no value yet still says so.
+    const anyway = model(canvas([total, dan], { totalLists: { [total.id]: { parts: [counts(dan)], others: [], hidden: true } } }));
+    expect(anyway).toMatchObject({ rows: [], empty: "No value to show yet.", note: OTHERS_NOT_SHOWN });
   });
 
   it("is refused to someone who may not see the Total, and asks for a Total where the Metric is none", () => {

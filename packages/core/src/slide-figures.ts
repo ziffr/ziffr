@@ -280,7 +280,9 @@ function totalGapModel(e: GapTableElement, ctx: SlideContext, total: Metric): Ga
     return { label: names.labels[i], goal: writeSlideValue(f.metric, f.target, scale, data), actual: writeSlideValue(f.metric, f.value, scale, data), gap, gapText: gap === null ? "–" : writeSlideValue(f.metric, gap, scale, data, { bare: true, change: true }) };
   }));
   const withheld = period ? list?.others.includes(period) : list?.hidden;
-  return { denied: false, head, rows: rows.slice(0, GAP_ROWS), more: Math.max(0, rows.length - GAP_ROWS), empty: rows.length ? null : "No value to show yet.", note: withheld ? OTHERS_NOT_SHOWN : null };
+  // Where the viewer is shown none of its Metrics, the note says all there is to say.
+  const empty = rows.length || (!parts.length && list?.hidden) ? null : "No value to show yet.";
+  return { denied: false, head, rows: rows.slice(0, GAP_ROWS), more: Math.max(0, rows.length - GAP_ROWS), empty, note: withheld ? OTHERS_NOT_SHOWN : null };
 }
 
 /** Two Metrics' latest Breakdowns side by side, the largest surplus first. The first Metric is the actual one. A gap
