@@ -336,9 +336,10 @@ export function toSlideLayout(shapes: SlideShape[], metrics: Metric[], choices: 
   return { slots: nameSlots(ctx, labels), body, notices: [...new Set([...notices, ...typedNotice(found, typed.keep)])], typed: found };
 }
 
-/** Every Metric some slides name, in a widget or a text box. */
+/** Every Metric some slides name, in a widget or in a text box's words. Only these are matched against typed names:
+ * the person saving was checked to see them, and an id a box lists without asking for it was not (rule 3). */
 const deckMetricsOf = (slides: SlideShape[][], metrics: Metric[]) => {
-  const ids = new Set(slides.flatMap((shapes) => [...widgetMetricsOf(shapes, metrics).map((m) => m.id), ...shapes.flatMap((sh) => sh.meta?.metrics ?? [])]));
+  const ids = new Set(slides.flatMap((shapes) => [...widgetMetricsOf(shapes, metrics).map((m) => m.id), ...shapes.flatMap(textMetricIds)]));
   return metrics.filter((m) => ids.has(m.id));
 };
 

@@ -70,7 +70,7 @@ describe("a template's text boxes", () => {
   const cash = metric({ id: 3, slug: "cash", name: "Cash" });
 
   it("turn the Metrics they name into Slots, and hold no id or name", () => {
-    const t = toSlideLayout([widget(1), box("Stock {latest 2}, Orders last", [2, 3])], [revenue, orders, cash], {});
+    const t = toSlideLayout([widget(1), box("Stock {latest 2}, Orders last", [2, 3]), box("{metric}", [2])], [revenue, orders, cash], {});
     const made = t.body.shapes[1];
     expect(words(made)).toBe("Stock {latest}, {metric 2} last");
     expect(made.meta).toBeUndefined();
@@ -101,6 +101,12 @@ describe("a template's text boxes", () => {
     const kept = toDeckTemplate([shapes], [revenue], {}, [], [], { rows, keep: true });
     expect(words(kept.body.slides[0].shapes[2])).toBe("{latest} of 40");
     expect(kept.notices.join(" ")).toMatch(/kept, for everyone on the team/);
+  });
+
+  it("match no name of a Metric a box lists without asking for it", () => {
+    const t = toSlideLayout([box("Cash and {latest}", [2, 3])], [revenue, orders, cash], {});
+    expect(words(t.body.shapes[0])).toBe("Cash and {latest}");
+    expect(t.slots.map((s) => s.exampleIds)).toEqual([[2]]);
   });
 
   it("write “…” for a Metric that is gone", () => {
