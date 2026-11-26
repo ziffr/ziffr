@@ -179,6 +179,16 @@
 .guide-prose-panel pre { white-space: pre-wrap; }
 .guide-prose-panel img { max-width: 100%; height: auto; }
 
+/* iOS Safari zooms the whole page when a field with text under 16px gets the focus, and stays zoomed: after that every
+   screen and side panel is wider than the phone and cut off at the right. So on touch screens no field is smaller
+   than 16px; a field that is meant to be larger (a title edited in place) keeps its size. */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px; }
+  /* A select is as wide as its longest choice; at 16px that can be wider than a phone, so it may shrink in its row. */
+  select, label:has(> select) { min-width: 0; max-width: 100%; }
+  input[class*="--text-xl"] { font-size: var(--text-xl); }
+}
+
 /* Touch targets (#535): on a phone, and on any touch screen, what you press is at least 44 px high (and wide when it
    is only an icon). Switches, checkboxes and sliders keep their own size, and the widget grid's drag handles too. */
 @media (max-width: 767px), (pointer: coarse) {

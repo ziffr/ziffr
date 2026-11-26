@@ -105,7 +105,7 @@ export function SlideOverProvider({ children }: { children: React.ReactNode }) {
               </div>
               {current.description && <SheetDescription>{current.description}</SheetDescription>}
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 pb-4">{current.content}</div>
+            <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{current.content}</div>
           </SheetContent>
         )}
       </Sheet>
