@@ -1,17 +1,21 @@
 // The Deck Template file format, ziffr.deck-template/1 (GLOSSARY: Deck Template, Slot, Placeholder, Pack): a deck's
 // slides with their widgets, words and boxes, the Metrics left open as Slots. The schema below is the only definition,
 // checked wherever such a file is read; docs/reference is generated from it.
-// Security: a slide holds only widgets, text and simple boxes: no images, no drawings, no links, and every word is
-// plain text. Widgets are held to exactly what a Dashboard Template's widgets are.
+// Format /2 (spec 0057) adds Slide Elements and cover slides; /1 is read for ever and means what it always meant.
+// Security: a slide holds only widgets, text, simple boxes and Slide Elements: no images, no drawings, no links, and
+// every word is plain text. Widgets are held to exactly what a Dashboard Template's widgets are.
 import { checkFormat, parseJson, type FormatCheck, type Schema } from "./json-check.js";
 import { VIEW_DESIGN_SCHEMA } from "./view-design.js";
 import { itemKey, plainText, words } from "./file-text.js";
+import { elementSlots, SLIDE_ELEMENT_LIMITS, slideElementSchema, type SlideElement } from "./slide-element.js";
 import { checkTemplateWidget, refusedOutsidePack, TEMPLATE_SLOTS, WIDGET_DEFS, WIDGET_FIELDS, type DashboardTemplateFile, type TemplateWidgetFile } from "./dashboard-template-file.js";
 
-/** The format this Ziffr writes; it reads every version in `DECK_TEMPLATE_FORMATS`. */
+/** The first format, which Ziffr writes for a deck without Slide Elements and cover slides, so an older Ziffr reads it. */
 export const DECK_TEMPLATE_FORMAT = "ziffr.deck-template/1";
+/** The format with Slide Elements and cover slides (spec 0057). */
+export const DECK_TEMPLATE_FORMAT_2 = "ziffr.deck-template/2";
 /** Every Deck Template file format Ziffr ever published, oldest first. */
-export const DECK_TEMPLATE_FORMATS = [DECK_TEMPLATE_FORMAT] as const;
+export const DECK_TEMPLATE_FORMATS = [DECK_TEMPLATE_FORMAT, DECK_TEMPLATE_FORMAT_2] as const;
 /** The exact limits a Deck Template file is held to; a slide is 1280 by 720. */
 export const DECK_TEMPLATE_LIMITS = { bytes: 524_288, depth: 18, slides: 40, shapes: 40, paragraphs: 20, name: 80, description: 300, words: 300, width: 1280, height: 720 } as const;
 
@@ -25,15 +29,20 @@ export type SlideWidgetFile = { shape: "widget"; x: number; y: number; w: number
 export type SlideTextFile = { shape: "text"; x: number; y: number; w: number; text: string[]; size?: "s" | "m" | "l" | "xl"; scale?: number; align?: "start" | "middle" | "end"; color?: Color };
 /** A simple box on a slide, with words in it if wanted. */
 export type SlideBoxFile = { shape: "box"; x: number; y: number; w: number; h: number; geo?: (typeof GEOS)[number]; fill?: "none" | "semi" | "solid"; color?: Color; text?: string[] };
-/** A Deck Template as a file (GLOSSARY: Deck Template), in the newest format. */
+/** A Slide Element on a slide (format /2): what it draws, where, and the Slots whose Metrics it reads, in order. */
+export type SlideElementFile = { shape: "element"; x: number; y: number; w: number; h: number; slots?: number[]; element: SlideElement };
+/** One shape of a slide in a file. */
+export type SlideShapeFile = SlideWidgetFile | SlideTextFile | SlideBoxFile | SlideElementFile;
+/** A Deck Template as a file (GLOSSARY: Deck Template). */
 export type DeckTemplateFile = {
-  format: typeof DECK_TEMPLATE_FORMAT;
+  format: (typeof DECK_TEMPLATE_FORMATS)[number];
   name: string;
   description?: string;
   slots: DashboardTemplateFile["slots"];
   /** In a Pack: the key of one of its Themes, which a deck made from it starts with. */
   theme?: string;
-  slides: { shapes: (SlideWidgetFile | SlideTextFile | SlideBoxFile)[] }[];
+  /** `cover` (format /2): the slide shows no logo, footer or number of the Theme and is not counted in page numbers. */
+  slides: { shapes: SlideShapeFile[]; cover?: boolean }[];
 };
 
 const L = DECK_TEMPLATE_LIMITS;
@@ -87,19 +96,59 @@ export const DECK_TEMPLATE_SCHEMA: Schema = {
   },
 };
 
+const elementShape = (element: Schema): Schema => shape("element", "A Slide Element: a part drawn in the deck's Theme.", {
+  ...at, w: size(L.width, 4), h: size(L.height, 4),
+  slots: { type: "array", maxItems: SLIDE_ELEMENT_LIMITS.slots, items: { type: "integer", minimum: 0, maximum: 11 }, description: "The Slots whose Metrics it reads, in order; {latest 2} is the second." },
+  element,
+}, ["x", "y", "w", "h", "element"]);
+
+/** Schema /2 made from schema /1 and the Slide Element schema given: the same file, with element shapes and covers. */
+export function deckTemplateSchema2(element: Schema = slideElementSchema(), base: Schema = DECK_TEMPLATE_SCHEMA): Schema {
+  const slides = base.properties!.slides;
+  return {
+    ...base,
+    $id: "https://ziffr.net/schemas/ziffr.deck-template-2.json",
+    title: "Ziffr Deck Template (ziffr.deck-template/2)",
+    description: "A starting point for a deck, as ziffr.deck-template/1, with Slide Elements that draw themselves in the deck's Theme and slides that are covers. It holds no code, image or link.",
+    properties: {
+      ...base.properties,
+      format: { const: DECK_TEMPLATE_FORMAT_2, description: "The format and its version." },
+      slides: { ...slides, items: { ...slides.items!, properties: { ...slides.items!.properties, cover: { type: "boolean", description: "A cover: no logo, footer or number of the Theme, and not counted in page numbers." } } } },
+    },
+    $defs: { ...base.$defs, shape: { oneOf: [...base.$defs!.shape.oneOf!, elementShape(element)] } },
+  };
+}
+
+/** The JSON Schema of ziffr.deck-template/2. */
+export const DECK_TEMPLATE_2_SCHEMA: Schema = deckTemplateSchema2();
+
 /** What the schema cannot say: every widget as a Dashboard Template's, and each shape on its slide. */
 function meaning(t: DeckTemplateFile, at: (path: string, message: string) => void, designSchema: Schema = VIEW_DESIGN_SCHEMA) {
   t.slides.forEach((s, i) =>
     s.shapes.forEach((sh, k) => {
       const here = `slides[${i}].shapes[${k}]`;
       if (sh.shape === "widget") checkTemplateWidget(sh, t.slots.length, here, at, designSchema);
+      if (sh.shape === "element") elementMeaning(sh, t.slots.length, here, at);
       if (sh.x + sh.w > L.width || ("h" in sh && sh.y + sh.h > L.height)) at(here, "reaches past the edge of the slide (1280 by 720).");
     }),
   );
 }
 
+/** An element's Slots: ones the template has, as many as its kind reads. */
+function elementMeaning(sh: SlideElementFile, slots: number, here: string, at: (path: string, message: string) => void) {
+  const used = sh.slots ?? [];
+  used.forEach((n, k) => n >= slots && at(`${here}.slots[${k}]`, `is Slot ${n}, but the template has Slots 0 to ${slots - 1}.`));
+  const { min, max } = elementSlots(sh.element);
+  if (used.length < min) at(`${here}.slots`, `“${sh.element.kind}” needs ${min} ${min === 1 ? "Slot" : "Slots"}.`);
+  if (used.length > max) at(`${here}.slots`, `“${sh.element.kind}” takes at most ${max} ${max === 1 ? "Slot" : "Slots"}.`);
+}
+
+/** The schemas a Deck Template file is checked against, by its format. */
+export type DeckTemplateSchemas = { v1: Schema; v2: Schema };
+
 /** Checks a Deck Template file already read from JSON; which Pack items it names is checked by its Pack. */
-export function checkDeckTemplateFileValue(value: unknown, lines: Map<string, number> = new Map(), schema: Schema = DECK_TEMPLATE_SCHEMA, designSchema: Schema = VIEW_DESIGN_SCHEMA): FormatCheck<DeckTemplateFile> {
+export function checkDeckTemplateFileValue(value: unknown, lines: Map<string, number> = new Map(), schemas: DeckTemplateSchemas = { v1: DECK_TEMPLATE_SCHEMA, v2: DECK_TEMPLATE_2_SCHEMA }, designSchema: Schema = VIEW_DESIGN_SCHEMA): FormatCheck<DeckTemplateFile> {
+  const schema = (value as { format?: unknown } | null)?.format === DECK_TEMPLATE_FORMAT_2 ? schemas.v2 : schemas.v1;
   return checkFormat({ family: "ziffr.deck-template", reads: DECK_TEMPLATE_FORMATS, schema, meaning: (t: DeckTemplateFile, at: (path: string, message: string) => void) => meaning(t, at, designSchema) }, value, lines);
 }
 

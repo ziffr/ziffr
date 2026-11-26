@@ -2,6 +2,7 @@
 // turning a widget, slide or dashboard into a template with its metrics left open, and filling a template's slots to
 // make it again. Pure.
 import { listOf, metricsInOrder } from "./placeholders";
+import { mapElementWords, type SlideElement } from "./slide-element";
 import { tagSourceId, takesTagSource } from "./tag-source";
 import type { AnchorRule, DashboardTemplateBody, DeckTemplateBody, WorkflowConfig, WorkflowStep, WorkflowTemplateBody, WorkflowTemplateStep, DashboardTemplateWidget, Metric, Slot, SlideBody, SlideShape, TemplateId, WidgetTemplate, Widget, WidgetSettings } from "./types";
 
@@ -53,6 +54,20 @@ function placeholderize(text: string | undefined, ms: Metric[]) {
   let t = text!;
   for (const { m, i } of order) t = t.replace(new RegExp(`\\b${escape(m.name)}\\b`, "gi"), i === 0 ? "{metric}" : `{metric ${i + 1}}`);
   return t;
+}
+
+/** A Slide Element with the names of its Metrics made Placeholders in every word, and those words. Its {metric 2} means
+ * its second Slot, and a Placeholder already there is left alone (a Metric may be called "Gap" or "Change"). A result
+ * longer than its field takes is cut, never left with the name in it. */
+function templatizeElement(element: SlideElement, ms: Metric[]) {
+  const words: string[] = [];
+  const made = mapElementWords(element, (text, max) => {
+    const out = text.split(/(\{[^{}]*\})/).map((part, i) => (i % 2 ? part : placeholderize(part, ms) ?? part)).join("");
+    const held = out.length > max ? out.slice(0, max).replace(/\{[^}]*$/, "") : out;
+    words.push(held);
+    return held;
+  });
+  return { element: made, words };
 }
 
 /** For each such note: the rule it follows from now on, or "drop" to leave it out. */
@@ -127,13 +142,17 @@ function templatize(widget: W, metrics: Metric[], choices: Choices, ctx: SlotCtx
   });
   if (s.highlight) notices.push(`The highlight on “${s.highlight}” becomes the largest row.`);
   if (s.period) notices.push("It will show the latest breakdown, not a fixed period.");
+  // A Slide Element's Placeholders count its Slots in the order it holds its Metrics.
+  const element = s.element ? templatizeElement(s.element, widget.metric_ids.map((id) => metrics.find((m) => m.id === id)).filter((m): m is Metric => !!m)) : null;
   const dropped = specifics(widget).filter((x) => (choices[prefix + x.key] ?? "drop") === "drop");
-  const words = [s.kicker, s.headline, s.subline, s.footnote, s.source, widget.title, ...(s.callouts ?? []).map((c) => c.text), ...(s.panels ?? []).flatMap((x) => [x.title, ...(x.annotations ?? []).map((a) => a.text)])];
+  const words = [s.kicker, s.headline, s.subline, s.footnote, s.source, widget.title, ...(s.callouts ?? []).map((c) => c.text), ...(s.panels ?? []).flatMap((x) => [x.title, ...(x.annotations ?? []).map((a) => a.text)]), ...(element?.words ?? [])];
   if (words.some((t) => t && /\d/.test(t.replace(/\{[^}]*\}/g, "")))) notices.push("Some words still contain numbers. They will read the same for every metric; use {latest} or {change yoy} to have them filled in.");
   if (dropped.length) notices.push(`${dropped.length} note${dropped.length > 1 ? "s" : ""} tied to one period or row will be left out.`);
 
   // Only what a template means to carry: no free-layout documents, no comparison choices of the original.
   const settings: WidgetSettings = {
+    // A Slide Element keeps what it draws; its words are filled live, from the Metrics picked for its Slots.
+    ...(element ? { element: element.element } : {}),
     window: s.window, display: s.display, showTarget: s.showTarget, showForecast: s.showForecast, rows: s.rows, fullPeriods: s.fullPeriods,
     kicker: p(s.kicker), headline: p(s.headline), subline: p(s.subline), footnote: p(s.footnote), source: p(s.source),
     highlight: null, period: null,
@@ -247,10 +266,14 @@ export function deckSpecifics(slides: SlideShape[][]): Specific[] {
   return slides.flatMap((shapes, j) => slideSpecifics(shapes).map((x) => ({ ...x, key: `d${j}:${x.key}` })));
 }
 
-/** The Deck Template a deck's slides make: shared Slots, each slide's shapes with Slot numbers instead of Metrics. */
-export function toDeckTemplate(slides: SlideShape[][], metrics: Metric[], choices: Choices, labels: string[] = []) {
+/** The Deck Template a deck's slides make: shared Slots, each slide's shapes with Slot numbers instead of Metrics.
+ * `covers` says which slides are covers. */
+export function toDeckTemplate(slides: SlideShape[][], metrics: Metric[], choices: Choices, labels: string[] = [], covers: boolean[] = []) {
   const ctx = newCtx();
-  const made = slides.map((shapes, j) => templatizeSlide(shapes, metrics, choices, ctx, `d${j}:`));
+  const made = slides.map((shapes, j) => {
+    const slide = templatizeSlide(shapes, metrics, choices, ctx, `d${j}:`);
+    return covers[j] ? { ...slide, body: { ...slide.body, cover: true } } : slide;
+  });
   return { slots: nameSlots(ctx, labels), body: { slides: made.map((m) => m.body) } as DeckTemplateBody, notices: [...new Set(made.flatMap((m) => m.notices))] };
 }
 
@@ -262,8 +285,9 @@ export function fromDeckTemplate(body: DeckTemplateBody, fills: number[][], fill
 // Dashboard Templates (spec 0014): a whole dashboard saved as a template. Its widgets share one set of slots, so a
 // Metric drawn by three widgets is picked once; each widget keeps its own words, with its own {metric}.
 
-/** Views a Dashboard Template cannot hold: a Free Layout keeps a drawing whose Metrics cannot be left open yet. */
-export const NOT_IN_DASHBOARD_TEMPLATES: TemplateId[] = ["canvas"];
+/** Views a Dashboard Template cannot hold: a Free Layout keeps a drawing whose Metrics cannot be left open yet, and a
+ * Slide Element is for slides only. */
+export const NOT_IN_DASHBOARD_TEMPLATES: TemplateId[] = ["canvas", "slide"];
 
 /** The Dashboard Template a dashboard makes: shared slots, each widget with slot numbers instead of Metrics, where
  * it sits, the widgets left out (by title or view) and what changed on the way. Every note tied to one period or row

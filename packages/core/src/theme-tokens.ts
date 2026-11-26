@@ -1,6 +1,7 @@
 // Theme checks (GLOSSARY: Theme): a theme's tokens and slide settings before they are stored. Colours are hex,
 // fonts are known, sizes are sane, images are inline pictures of a limited size.
 import { FONTS, HEX } from "./themes";
+import { SLIDE_COLOR_NAMES } from "./theme-file";
 import { cleanLogo } from "./theme-look";
 import { cleanDark } from "./theme-dark";
 import type { FontId, LogoPosition, ThemeSlides, ThemeTokens } from "./types";
@@ -23,6 +24,8 @@ export function cleanTokens(t: ThemeTokens): ThemeTokens | null {
   return {
     ...Object.fromEntries(COLORS.map((k) => [k, t[k].toUpperCase()])),
     data: t.data.map((c) => c.toUpperCase()),
+    // The colours of Slide Elements (spec 0057) are optional, and only valid ones are kept.
+    ...Object.fromEntries(SLIDE_COLOR_NAMES.flatMap((c) => (typeof t[c] === "string" && HEX.test(t[c]) ? [[c, t[c].toUpperCase()]] : []))),
     fontHeading, fontBody, fontFigures, radius, cards: t.cards,
     ...(dark ? { dark } : {}),
     ...(t.appearance === "fixed" ? { appearance: "fixed" as const } : {}),

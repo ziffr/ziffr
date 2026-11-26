@@ -7,21 +7,26 @@ import { checkFormat, parseJson, type FormatCheck, type Schema } from "./json-ch
 import { plainText } from "./file-text.js";
 import { FONT_IDS, type FontId, type LogoPosition } from "./kinds.js";
 
-/** The format this Ziffr writes; it reads every version in `THEME_FILE_FORMATS`. */
+/** The first format, which Ziffr writes for a Theme that names no colour of format /2, so an older Ziffr reads it. */
 export const THEME_FILE_FORMAT = "ziffr.theme/1";
+/** The format with the colours of Slide Elements (spec 0057). */
+export const THEME_FILE_FORMAT_2 = "ziffr.theme/2";
 /** Every Theme file format Ziffr ever published, oldest first. */
-export const THEME_FILE_FORMATS = [THEME_FILE_FORMAT] as const;
+export const THEME_FILE_FORMATS = [THEME_FILE_FORMAT, THEME_FILE_FORMAT_2] as const;
 /** The exact limits a Theme file is held to, as the Theme editor keeps them. */
 export const THEME_FILE_LIMITS = { bytes: 8_192, depth: 4, name: 60, footer: 120 } as const;
 
 /** The colours a Theme names, besides its data colours. */
 export const COLOR_NAMES = ["canvas", "surface", "ink", "muted", "rule", "accent", "good", "bad", "band"] as const;
+/** The colours format /2 may add (spec 0057): a dark panel, the words and the accent on it, and a pale accent. Each is
+ * optional; a Theme without one works it out from its others. */
+export const SLIDE_COLOR_NAMES = ["cover", "coverText", "coverAccent", "soft"] as const;
 
-/** A Theme as a file (GLOSSARY: Theme), in the newest format. */
+/** A Theme as a file (GLOSSARY: Theme). */
 export type ThemeFile = {
-  format: typeof THEME_FILE_FORMAT;
+  format: (typeof THEME_FILE_FORMATS)[number];
   name: string;
-  colors: Record<(typeof COLOR_NAMES)[number], string> & { data: string[] };
+  colors: Record<(typeof COLOR_NAMES)[number], string> & Partial<Record<(typeof SLIDE_COLOR_NAMES)[number], string>> & { data: string[] };
   fonts: { heading: FontId; body: FontId; figures: FontId };
   radius: number;
   cards: "paper" | "flat" | "plain";
@@ -71,6 +76,22 @@ export const THEME_FILE_SCHEMA: Schema = {
   additionalProperties: false,
 };
 
+/** The JSON Schema of ziffr.theme/2: schema /1 with the optional colours of Slide Elements. */
+export const THEME_FILE_2_SCHEMA: Schema = (() => {
+  const colors = THEME_FILE_SCHEMA.properties!.colors;
+  return {
+    ...THEME_FILE_SCHEMA,
+    $id: "https://ziffr.net/schemas/ziffr.theme-2.json",
+    title: "Ziffr Theme (ziffr.theme/2)",
+    description: "A ziffr.theme/1 Theme that may also name the colours of Slide Elements: cover, coverText, coverAccent and soft.",
+    properties: {
+      ...THEME_FILE_SCHEMA.properties,
+      format: { const: THEME_FILE_FORMAT_2, description: "The format and its version." },
+      colors: { ...colors, properties: { ...colors.properties, ...Object.fromEntries(SLIDE_COLOR_NAMES.map((c) => [c, HEX_COLOR])) } },
+    },
+  };
+})();
+
 /** Where a Theme file is read: on its own (no logo may be named), in a Pack without a logo or in one with a logo. */
 export type ThemeLogoContext = "standalone" | "pack-without-logo" | "pack-with-logo";
 
@@ -91,6 +112,7 @@ export function checkThemeFile(textIn: string): FormatCheck<ThemeFile> {
 }
 
 /** Checks a Theme file already read from JSON (`lines` names where each path starts, when known). */
-export function checkThemeFileValue(value: unknown, lines: Map<string, number> = new Map(), context: ThemeLogoContext = "standalone", schema: Schema = THEME_FILE_SCHEMA): FormatCheck<ThemeFile> {
+export function checkThemeFileValue(value: unknown, lines: Map<string, number> = new Map(), context: ThemeLogoContext = "standalone", schemas: { v1: Schema; v2: Schema } = { v1: THEME_FILE_SCHEMA, v2: THEME_FILE_2_SCHEMA }): FormatCheck<ThemeFile> {
+  const schema = (value as { format?: unknown } | null)?.format === THEME_FILE_FORMAT_2 ? schemas.v2 : schemas.v1;
   return checkFormat({ family: "ziffr.theme", reads: THEME_FILE_FORMATS, schema, meaning: logoMeaning(context) }, value, lines);
 }

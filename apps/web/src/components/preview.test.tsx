@@ -9,7 +9,8 @@ import { templatesFor } from "@ziffr/core/widget-templates";
 import { Preview, TemplatePreview } from "./preview";
 
 describe("Preview", () => {
-  it.each((Object.keys(TEMPLATES) as TemplateId[]).filter((id) => id !== "design"))("draws %s with Sample Data", (id) => {
+  // A Slide Element is no Widget: it is offered in the deck editor only and has no Preview.
+  it.each((Object.keys(TEMPLATES) as TemplateId[]).filter((id) => id !== "design" && id !== "slide"))("draws %s with Sample Data", (id) => {
     const html = renderToString(<TemplatePreview numberStyle={"1,234.5"} template={id} viewer="v" />);
     expect(html).toContain(`data-preview="${id}"`);
     expect(html).toContain("Sample data");

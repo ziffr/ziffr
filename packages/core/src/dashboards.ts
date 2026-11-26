@@ -8,7 +8,7 @@ import { visibleDashboards, readableActions } from "./access";
 import { assertSeesMetrics } from "./sharing";
 import { fillsComplete, fromTemplate } from "./team-templates";
 import { widgetMetricIds } from "./widget-metrics";
-import { DEFAULT_TEMPLATE, TEMPLATES, templateOf } from "./widget-templates";
+import { DEFAULT_TEMPLATE, isDashboardView, TEMPLATES, templateOf } from "./widget-templates";
 import { designSettings } from "./built-in-designs";
 import { allowedDesign } from "./view-designs";
 import { assertSettingsDesigns, checkedDesignSetting } from "./widget-designs";
@@ -153,7 +153,7 @@ export async function specFrom(actor: Actor, source: DropSource) {
     return { template: w.template, metric_ids: w.metric_ids, settings: s, title: w.title, w: w.w, h: w.h };
   }
   if (source?.type === "template") return fromTeamTemplate(actor, Number(source.id), source.fills);
-  if (source?.type !== "spec" || !(source.template in TEMPLATES)) throw new Forbidden();
+  if (source?.type !== "spec" || !isDashboardView(source.template)) throw new Forbidden();
   let metricIds = ids(source.metricIds);
   const s = visitorSettings(actor, fromBrowser(source.settings ?? TEMPLATES[source.template].settings));
   // "All Metrics tagged X" (spec 0038) replaces the list: nothing is stored of the Metrics the person sees now.
@@ -234,7 +234,7 @@ export async function saveLayout(actor: Actor, dashboardId: number, items: { i: 
 /** Changes a widget's template, settings, title or Metrics (including Free Layouts and composed stories). */
 export async function updateWidget(actor: Actor, id: number, patch: { template?: TemplateId; settings?: WidgetSettings; title?: string | null; metricIds?: number[] }) {
   const cur = await editableWidget(actor, id);
-  if (patch.template && !(patch.template in TEMPLATES)) throw new Forbidden();
+  if (patch.template && !isDashboardView(patch.template)) throw new Forbidden();
   const metricIds = patch.metricIds ? ids(patch.metricIds) : undefined;
   const newSettings = patch.settings !== undefined ? visitorSettings(actor, fromBrowser(patch.settings, cur.settings?.canvasSeed)) : undefined;
   // A View Design of the Workspace, or the one the widget has; any other view keeps none (spec 0024).

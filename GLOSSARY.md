@@ -384,8 +384,12 @@ An ordered set of slides that a user designs from widgets, text, arrows and shap
 _Avoid_: Presentation, slideshow, report
 
 **Slide**:
-One 16:9 page of a deck. Its order follows its position on the deck canvas, left to right and top to bottom.
+One 16:9 page of a deck. Its order follows its position on the deck canvas, left to right and top to bottom. A **cover slide** shows no logo, footer or number of the Theme and is not counted in page numbers.
 _Avoid_: Page, frame, board
+
+**Slide Element**:
+A part of a slide that draws itself in the deck's Theme and fills its words from today's data: words, a box, a figure, a column chart, a gap table, a metric table, a numbered list, a logo place or cover art. It may read Metrics, and shows nothing of one the viewer may not see. It is for slides only; on a dashboard stand Widgets.
+_Avoid_: Block, component, shape (for this)
 
 **Theme**:
 A named look for everything that shows numbers: colours for text, surfaces, data, good, bad and the target band, the fonts for headlines, text and figures, how cards are drawn, and what every slide shows (logo, footer, slide number, background image, type sizes). The team has one default theme; a dashboard or deck may use another, and a deck may set its own footer. A slide may hide the logo, footer and number. Ziffr's own screens are drawn by the person's Appearance, not by a Theme. Owners and Admins change Themes. The team default Theme also dresses what Ziffr sends and shows outside the app: emails, the form link, View Link pages and the side bar of Slack messages show its logo (or the Workspace's name), accent, footer and fonts, with every colour checked for contrast. A Theme can be written as a file and read back from one; a Theme in a Pack may use the Pack's logo. Every Theme has a **dark variant**, the colours it wears when the viewer's Appearance is dark: a Standard Theme carries a designed one, any other Theme gets one worked out from its own colours and checked for contrast (WCAG AA), falling back to Ziffr Dark's colours if that fails; a Theme that is dark already has none. Its setting **In a dark Appearance** is "Follows the viewer's Appearance" (the default) or "Always as designed", for brand decks and anything that must look the same for everyone. Fonts, corners and cards are the same in both.

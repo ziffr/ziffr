@@ -34,6 +34,8 @@ import { StoryEditor } from "@/components/story-editor";
 import { widgetFromShape } from "@/decks/widget-shape";
 import type { CanvasData, Group, Share, SlideDesign, TemplateId, Widget } from "@ziffr/core/types";
 import { DeckMaster, setDeckExportMaster, SlideFrameUtil } from "@/decks/master";
+import { ElementPanel } from "@/decks/elements/element-panel";
+import { ElementMenu } from "@/decks/elements/element-menu";
 import Link from "next/link";
 import { DeckData, setDeckExportData, WIDGET_SHAPE, WidgetShapeUtil, type WidgetShape } from "@/decks/widget-shape";
 import { type DeckSeed, LAYOUTS, type LayoutId, MARGIN, SLIDE_H, SLIDE_W, addSlide, contentAreas, orderedSlides, placeShapes, seedSlides, slideShapes, templateSlides } from "@/decks/layouts";
@@ -120,7 +122,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
         const { seed, templateSeed, data: first } = firstLayout.current;
         const byId = (ids: number[]) => ids.map((mid) => first.metrics.find((m) => m.id === mid)!).filter(Boolean);
         const id = templateSeed
-          ? templateSlides(ed, masterRef.current, fromDeckTemplate({ slides: templateSeed.slides }, templateSeed.fills, (txt, ids) => fillText(txt, byId(ids), first) ?? txt))
+          ? templateSlides(ed, masterRef.current, fromDeckTemplate({ slides: templateSeed.slides }, templateSeed.fills, (txt, ids) => fillText(txt, byId(ids), first) ?? txt), templateSeed.slides.map((s) => Boolean(s.cover)))
           : seed
             ? seedSlides(ed, masterRef.current, seed, WIDGET_SHAPE, (w) => w.title || first.metrics.find((m) => m.id === w.metric_ids[0])?.name || "")
             : addSlide(ed, "title", masterRef.current);
@@ -327,6 +329,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+        <ElementMenu editor={editor} data={data} />
         {/* On a phone the note above the editor carries this button. */}
         <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline", className: "max-sm:hidden" })}><MonitorPlay aria-hidden /> Present</Link>
         {sharing && <ShareSheet objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} canInvite={sharing.canInvite} />}
@@ -371,6 +374,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
       {/* The one column may shrink on a phone: without the minimum of 0 the Pool and the canvas set the page's width. */}
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
         <div className="order-2 space-y-4 lg:order-1">
+          {/* Above the Pool, which stays in view while the column scrolls: below it a long panel would slide under. */}
+          {editor && <ElementPanel editor={editor} data={data} />}
           <Pool data={data} saved={saved} onAdd={(s) => place(s)} hint="Drag onto a slide, or click + to add to the slide in view." />
           {slotFill.dialog}
           {editor && <SelectionPanel editor={editor} data={data} onSaveLayout={setLayoutShapes} />}
@@ -479,6 +484,16 @@ function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: 
           Hide logo, footer and number on this slide
         </label>
         <p className="mt-1.5 text-xs text-muted-foreground">For full-bleed title or image slides.</p>
+        <label className="mt-3 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={Boolean(slide.meta?.cover)}
+            onChange={(e) => editor.updateShape({ id: slide.id, type: "frame", meta: { ...slide.meta, cover: e.target.checked } })}
+            className="size-4 accent-[var(--color-ink)]"
+          />
+          Cover slide
+        </label>
+        <p className="mt-1.5 text-xs text-muted-foreground">A cover shows no logo, footer or number and is not counted in page numbers.</p>
         <Button
           variant="outline"
           className="mt-3 w-full"

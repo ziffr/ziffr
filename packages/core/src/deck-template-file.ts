@@ -18,7 +18,9 @@ export function deckTemplateFromFile(t: DeckTemplateFile, designs: ReadonlyMap<s
   return {
     themeId,
     slides: t.slides.map((s) => ({
+      ...(s.cover ? { cover: true } : {}),
       shapes: s.shapes.flatMap((sh): SlideShape[] => {
+        if (sh.shape === "element") return [{ type: "ziffr-widget", ...base(sh.x, sh.y), props: { w: sh.w, h: sh.h, template: "slide" }, widget: { metricSlots: sh.slots ?? [], title: null, settings: { element: sh.element } } }];
         if (sh.shape === "text") return [{ type: "text", ...base(sh.x, sh.y), props: { richText: richText(sh.text), w: sh.w, autoSize: false, size: sh.size ?? "m", scale: sh.scale ?? 1, textAlign: sh.align ?? "start", color: sh.color ?? "black", font: "sans" } }];
         if (sh.shape === "box") return [{ type: "geo", ...base(sh.x, sh.y), props: { geo: sh.geo ?? "rectangle", w: sh.w, h: sh.h, fill: sh.fill ?? "none", color: sh.color ?? "black", dash: "solid", font: "sans", ...(sh.text ? { richText: richText(sh.text) } : {}) } }];
         const settings = templateWidgetSettings(sh.settings, designs);

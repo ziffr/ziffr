@@ -19,7 +19,7 @@ import { isActionError } from "@/lib/action-error";
 import { checkThemeFile, THEME_FILE_LIMITS } from "@ziffr/core/theme-file";
 import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
 import type { Problem } from "@ziffr/core/json-check";
-import { FONTS, slideDesign } from "@ziffr/core/themes";
+import { FONTS, slideDesign, slideTones } from "@ziffr/core/themes";
 import { darkOf, tokensForViewer } from "@ziffr/core/theme-dark";
 import { SlidePreview, SlidesEditor } from "./slides-editor";
 import { EmailPreview } from "./email-preview";
@@ -27,7 +27,15 @@ import type { CanvasData, FontId, Theme, ThemeSlides, ThemeTokens } from "@ziffr
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/confirm-dialog";
 
-const COLOURS: { key: Exclude<keyof ThemeTokens, "data" | "fontHeading" | "fontBody" | "fontFigures" | "radius" | "cards" | "dark" | "appearance">; label: string }[] = [
+// The colours only Slide Elements use (spec 0057), each with the tone it stands for while a Theme names none.
+const SLIDE_COLOURS = [
+  { key: "cover", tone: "cover", label: "Cover" },
+  { key: "coverText", tone: "cover-text", label: "Cover text" },
+  { key: "coverAccent", tone: "cover-accent", label: "Cover accent" },
+  { key: "soft", tone: "soft", label: "Soft accent" },
+] as const;
+
+const COLOURS: { key: Exclude<keyof ThemeTokens, "data" | "fontHeading" | "fontBody" | "fontFigures" | "radius" | "cards" | "dark" | "appearance" | (typeof SLIDE_COLOURS)[number]["key"]>; label: string }[] = [
   { key: "canvas", label: "Behind the cards" },
   { key: "surface", label: "Cards and slides" },
   { key: "ink", label: "Text and values" },
@@ -113,6 +121,21 @@ export function ThemesScreen({ data, current, standardKey, workspaceName }: { da
                   </li>
                 ))}
               </ul>
+            </div>
+            <div role="group" aria-label="Colours of Slide Elements">
+              <div className="mb-1.5 text-xs font-medium">On slides</div>
+              <ul className="grid grid-cols-2 gap-x-3 gap-y-2">
+                {SLIDE_COLOURS.map((c) => (
+                  <li key={c.key} className="flex items-center gap-2">
+                    <label className="flex min-w-0 items-center gap-2">
+                      <input type="color" value={t[c.key] ?? slideTones(t)[c.tone]} onChange={(e) => set(c.key, e.target.value.toUpperCase())} className="h-8 w-9 shrink-0 cursor-pointer rounded border border-input bg-card p-0.5" />
+                      <span className="text-xs leading-tight">{c.label}</span>
+                    </label>
+                    {t[c.key] && <button type="button" onClick={() => setT((x) => { const rest = { ...x }; delete rest[c.key]; return rest; })} aria-label={`${c.label}: back to automatic`} className="text-xs text-muted-foreground underline">Auto</button>}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1.5 text-xs text-muted-foreground">For cover panels and pale accents on slides. Until you set one, it is worked out from the colours above.</p>
             </div>
             <div>
               <div className="mb-1.5 text-xs font-medium">Data, first for single series</div>

@@ -89,11 +89,12 @@ export function placeShapes(editor: Editor, slide: TLShapeId, shapes: SlideShape
 }
 
 /** Lays out a new deck from a Deck Template (spec 0030): one slide per slide of the template, its Slots already
- * filled. Answers the first slide. */
-export function templateSlides(editor: Editor, master: SlideDesign | null, slides: SlideShape[][]): TLShapeId {
+ * filled; `covers` says which are cover slides. Answers the first slide. */
+export function templateSlides(editor: Editor, master: SlideDesign | null, slides: SlideShape[][], covers: boolean[] = []): TLShapeId {
   let first: TLShapeId | null = null;
-  for (const shapes of slides) {
+  for (const [i, shapes] of slides.entries()) {
     const id = addSlide(editor, "blank", master);
+    if (covers[i]) editor.updateShape({ id, type: "frame", meta: { cover: true } });
     first ??= id;
     placeShapes(editor, id, shapes);
   }
