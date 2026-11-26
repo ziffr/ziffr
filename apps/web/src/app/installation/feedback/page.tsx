@@ -8,6 +8,7 @@ import { isInstallationAdmin } from "@ziffr/core/installation-admins";
 import { PageHeader } from "@/components/page-header";
 import { installationActor } from "@/lib/installation";
 import { ReviewQueue } from "./queue";
+import { DesktopOnly } from "@/components/desktop-only";
 
 export default async function FeedbackQueuePage() {
   const actor = await installationActor();
@@ -23,6 +24,7 @@ export default async function FeedbackQueuePage() {
   return (
     <>
       <PageHeader title="Feedback waiting for review" sub="With review first, each feedback waits here until you approve it, edit it or reject it. Approved feedback is filed on GitHub without the person's name. The people who wrote it are not shown." />
+      <DesktopOnly path="/installation/feedback" />
       <ReviewQueue items={waiting} />
     </>
   );

@@ -5,6 +5,7 @@ import { homeDashboard, switchableDashboards } from "@ziffr/core/home";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { pinnedDashboards } from "@ziffr/core/pinned-dashboards";
 import { DashboardScreen } from "@/app/dashboards/screen";
+import { maySendLink } from "@/components/desktop-only";
 import { can } from "@ziffr/core/actor";
 import { isDemo } from "@/lib/auth";
 import { listDashboardTemplates } from "@ziffr/core/dashboard-templates";
@@ -45,9 +46,11 @@ export async function DashboardView({ id, view }: { id?: number; view?: string }
   const own = current?.role === "owner" ? shares.filter((s) => s.object_type === "dashboard" && s.object_id === current.id) : [];
   // Only someone who may create starts a dashboard, so only they get the templates.
   const dashboardTemplates = can(actor, "create") ? await listDashboardTemplates(actor, new Set(data.metrics.map((m) => m.id))) : [];
+  // Whether Edit mode on a phone offers the person their own link to this dashboard.
+  const sendLink = current ? await maySendLink() : false;
   return <>
     {/* Home is the visit's own where visitors may change the demo (demo-visit-prefs.tsx): go to it when it is not the one drawn. */}
     {demo && !id && <DemoHomeRedirect shownId={current?.id ?? null} />}
-    <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} homeId={home?.id ?? null} pinned={current ? (await pinnedDashboards(actor)).some((d) => d.id === current.id) : false} demo={demo} canCreate={can(actor, "create")} canInvite={can(actor, "manage-members")} dashboardTemplates={dashboardTemplates} reading={view === "read"} snapshots={snapshots} />
+    <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} homeId={home?.id ?? null} pinned={current ? (await pinnedDashboards(actor)).some((d) => d.id === current.id) : false} demo={demo} canCreate={can(actor, "create")} canInvite={can(actor, "manage-members")} dashboardTemplates={dashboardTemplates} reading={view === "read"} snapshots={snapshots} sendLink={sendLink} />
   </>;
 }
