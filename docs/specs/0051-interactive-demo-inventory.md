@@ -35,7 +35,7 @@ This is the survey behind [spec 0051](0051-interactive-demo.md), read from the c
 
 | Kind of change | Server actions | Today | Risk if opened | Recommendation |
 | --- | --- | --- | --- | --- |
-| Make a deck (new, from a dashboard, from a Snapshot), add a widget to a deck | `deck-actions:createDeck`, `convert-actions:makeDeck`, `makeDeckFromSnapshot`, `addToDeck` (`deckChoices`, `doneAddingToDeck` read) | DB | growth (a deck's store is a large JSON), spam | **open with limits**: 15 decks made by visitors, a deck's store at most 512 KB |
+| Make a deck (new, from a dashboard, from a Snapshot), add a widget to a deck | `deck-actions:createDeck`, `convert-actions:makeDeck`, `makeDeckFromSnapshot`, `addToDeck`, `addSnapshotToDeck` (`deckChoices`, `doneAddingToDeck`, `deck-actions:readDeckNumbers`, `deck-actions:deckShareLeftOut` read) | DB | growth (a deck's store is a large JSON), spam | **open with limits**: 15 decks made by visitors, a deck's store at most 512 KB |
 | Edit a deck: slides, rename, footer, delete | `deck-actions:saveDeck`, `renameDeck`, `setDeckFooter`, `deleteDeck` | DB | broken seed (the seeded decks the tour opens) | **open with limits**: a visitor's own decks; seeded decks refuse |
 | Record a deck export | `deck-actions:noteDeckExport` | nothing (the demo keeps no Audit Log) | none: the export itself happens in the browser | **keep as is** |
 | Take a Snapshot | `snapshot-actions:takeSnapshot` | DB | compute (every widget's values computed and kept), growth | **open with limits**: 3 per visit per reset window, one at a time in the whole demo, 20 taken by visitors |

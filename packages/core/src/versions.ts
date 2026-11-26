@@ -12,6 +12,7 @@ import { DemoLimit } from "./demo";
 import { DemoSizeRefused } from "./demo-visitor-limits";
 import { DEMO_STORE_MAX } from "./demo-limits";
 import { visitHeaders } from "./demo-visit-scope";
+import { CALCULATION_NOTE_LABEL } from "./calculation-note";
 import { mayRecordAutoVersion } from "./demo-creation";
 
 // Changes a program makes through an Access Key go through the same core functions as people's (spec 0014), and those
@@ -75,8 +76,10 @@ async function loadSnapshot(type: VersionType, id: number): Promise<{ snapshot: 
   if (type === "theme") return loaded((await db().from("themes").select("workspace_id, name, tokens, slides").eq("id", id).single()).data);
   if (type === "template") return loaded((await db().from("team_templates").select("workspace_id, kind, name, description, view, slots, body, w, h").eq("id", id).single()).data);
   if (type !== "metric") throw new Error(`Unknown version type: ${String(type)}`);
-  const { data } = await db().from("metrics").select("id, workspace_id, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, target_min_sealed, target_max_sealed, attainment_method, sources, aggregation, formula").eq("id", id).single();
-  const metric = await loaded(data ? (await openRows("metrics", String(data.workspace_id), [data]))[0] : null, ["id"]);
+  const { data } = await db().from("metrics").select("id, workspace_id, name, description, calculation_note, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, target_min_sealed, target_max_sealed, attainment_method, sources, aggregation, formula").eq("id", id).single();
+  const row = data ? (await openRows("metrics", String(data.workspace_id), [data]))[0] : null;
+  // A Metric without a Calculation Note keeps no empty one, so Versions from before the field existed read the same (spec 0060).
+  const metric = await loaded(row, row?.calculation_note ? ["id"] : ["id", "calculation_note"]);
   // A Metric's Tags are part of its description (spec 0038): a Version keeps their names as they were then.
   return metric && { ...metric, snapshot: { ...metric.snapshot, tags: await tagNamesOfMetric(metric.ws, id) } };
 }
@@ -187,6 +190,7 @@ export function diffSummary(type: VersionType, a: Record<string, unknown> | null
       const added = [...has].filter((t) => !had.has(t)), removed = [...had].filter((t) => !has.has(t));
       out.push(`tags: ${[...added.map((t) => `+${t}`), ...removed.map((t) => `-${t}`)].join(", ") || "changed"}`);
     } else if (k === "theme_id") out.push("theme");
+    else if (k === "calculation_note") out.push(CALCULATION_NOTE_LABEL.toLowerCase());
     else if (k === "body") out.push("content replaced");
     else if (k === "document") out.push("slides edited");
     else if (k === "logo" || k === "background_image") out.push(`${k.replace("_", " ")} ${b[k] ? "changed" : "removed"}`);

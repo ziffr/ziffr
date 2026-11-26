@@ -1,5 +1,5 @@
 // The Pack ranking as a table (spec 0052, ticket 5; GLOSSARY: Pack Audience): every rule of the points, the reasons, the ties,
-// a Pack with no audience, the empty profile, and the twelve starting Packs against the answers they are for.
+// a Pack with no audience, the empty profile, and the thirteen starting Packs against the answers they are for.
 import { describe, expect, it } from "vitest";
 import type { PackAudience } from "@ziffr/pack/audience";
 import { becauseText, rankPacks, REASON_POINTS, suggestedPacks, type RankAnswers, type RankablePack } from "./pack-ranking";
@@ -139,7 +139,7 @@ describe("suggestedPacks and becauseText", () => {
   });
 });
 
-describe("the twelve starting Packs", () => {
+describe("the thirteen starting Packs", () => {
   const packs = [...bundledPacks().values()].map(({ id, pack: p }) => ({ id, name: p.name, audience: p.audience }));
   const top3 = (answers: RankAnswers) => ids(suggestedPacks(rankPacks(answers, packs, INCLUDED_PACK_ORDER)));
   const firstOf = (a: PackAudience | undefined): RankAnswers => ({
@@ -158,6 +158,7 @@ describe("the twelve starting Packs", () => {
     ["a one-person agency", ans({ industry: "agency", segment: "b2b", employeeBand: "1-10" }), "ziffr/agency"],
     ["a sports club's chair", ans({ industry: "other", segment: "non_profit" }), "ziffr/sports-club"],
     ["a head of sales", ans({ functions: ["sales"] }), "ziffr/sales"],
+    ["a sales lead who runs the forecast", ans({ functions: ["sales"] }), "ziffr/sales-forecast"],
     ["a controller", ans({ functions: ["finance"] }), "ziffr/finance"],
     ["an HR lead", ans({ functions: ["people"] }), "ziffr/people"],
     ["a support lead", ans({ functions: ["customer_support"] }), "ziffr/customer-support"],
@@ -172,10 +173,10 @@ describe("the twelve starting Packs", () => {
     for (const id of ["ziffr/workspace-usage", "ziffr/ziffr-operations"]) expect(r.find((x) => x.id === id)).toMatchObject({ score: 0, because: [] });
   });
 
-  it("lists all twelve for every row, none hidden", () => {
+  it("lists all thirteen for every row, none hidden", () => {
     for (const answers of [none, ans({ industry: "saas", segment: "b2b", functions: ["finance"], country: "DE" }), ans({ industry: "healthcare" })]) {
       expect(ids(rankPacks(answers, packs, INCLUDED_PACK_ORDER)).sort()).toEqual(packs.map((p) => p.id).sort());
-      expect(packs).toHaveLength(12);
+      expect(packs).toHaveLength(13);
     }
   });
 

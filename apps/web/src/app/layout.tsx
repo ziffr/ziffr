@@ -100,7 +100,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <body className="min-h-screen bg-background font-sans antialiased">
           <header className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
             <span className="text-lg font-semibold tracking-[-0.03em]">Ziffr</span>
-            <GuideLink href={guideHref()} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">User guide</GuideLink>
+            <GuideLink href={guideHref()} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline max-md:-my-3 max-md:inline-flex max-md:min-h-11 max-md:items-center">User guide</GuideLink>
           </header>
           {lines.length > 0 && <AnnouncementLine items={shellOrder([], lines, false)} scope={await announcementScope(false)} />}
           <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>

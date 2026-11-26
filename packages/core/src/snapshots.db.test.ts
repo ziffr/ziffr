@@ -7,7 +7,8 @@ import { createDashboard, placeWidget, removeWidget, saveDashboardText } from ".
 import { dashboardWidgets } from "./page-data";
 import { share } from "./sharing";
 import { createViewLink, openViewLink } from "./view-links";
-import { deleteSnapshot, editSnapshotWords, listSnapshots, MAX_SNAPSHOTS, openSnapshot, showSnapshot, snapshotDeckSeed, takeSnapshot } from "./snapshots";
+import { deleteSnapshot, editSnapshotWords, listSnapshots, MAX_SNAPSHOTS, openSnapshot, showSnapshot, takeSnapshot } from "./snapshots";
+import { snapshotSlides } from "./deck-snapshots";
 import { listVersions, restoreVersion, saveNamedVersion } from "./version-history";
 import { activityView } from "./page-data";
 import { visibleMetricIds } from "./access";
@@ -256,7 +257,8 @@ describe("half-year and annual Snapshots (spec 0020)", () => {
     expect(list.map((s) => s.label)).toEqual(["2026", "H2 2026", "Q4 2026", "December 2026", "November 2026", "H1 2026"]);
     expect(list.map((s) => s.kind).slice(0, 2)).toEqual(["year", "half"]);
     expect(list.find((s) => s.id === h2)).toMatchObject({ start: "2026-07-01", end: "2026-12-31" });
-    expect((await snapshotDeckSeed(owner, year)).name).toBe("Monthly overview, 2026");
+    await showSnapshot(owner, year);
+    expect((await snapshotSlides(owner, year)).name).toBe("Monthly overview, 2026");
     const data = await opened("audit_events", w.id, (await db().from("audit_events").select("id, details").eq("workspace_id", w.id).eq("kind", "snapshot.taken").order("id").limit(1)).data, { dropId: true });
     expect(data?.[0].details).toMatchObject({ snapshot_id: year, period: "2026" });
   });

@@ -1,8 +1,12 @@
 "use client";
 // A Ziffr Widget as a tldraw shape: the same metric + template + settings as on a dashboard,
 // drawn by our own WidgetBody, so decks and dashboards share one View per template.
-import { createContext, useContext } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { BaseBoxShapeUtil, HTMLContainer, T, type TLShape } from "tldraw";
+import { SeriesProvider } from "@/canvas/series-store";
+import { onSlide } from "./kept/kept-drawing";
+import { useKept, useKeptShape } from "./kept/kept-store";
+import { ShapeNotice } from "./kept/shape-notice";
 import { WidgetBody, widgetMetrics } from "@/views/widget-body";
 import { templateOf } from "@/views/templates";
 import type { CanvasData, TemplateId, WidgetSettings } from "@ziffr/core/types";
@@ -20,7 +24,7 @@ declare module "tldraw" {
 
 export type WidgetShape = TLShape<typeof WIDGET_SHAPE>;
 
-/** Live metric data for every widget on the deck canvas. */
+/** Live metric data for every widget on the deck canvas; a slide that keeps numbers draws its own instead. */
 export const DeckData = createContext<CanvasData | null>(null);
 
 // tldraw renders shapes for image export in a separate React tree, outside our provider.
@@ -37,12 +41,11 @@ export function widgetFromShape(shape: WidgetShape) {
   };
 }
 
-function WidgetCard({ shape }: { shape: WidgetShape }) {
-  const data = useContext(DeckData) ?? exportData;
-  if (!data) return null;
-  const widget = widgetFromShape(shape);
-  // A Slide Element is no card: it draws itself straight on the slide, in the Theme (spec 0057).
-  if (widget.template === "slide") return <SlideElementShape shape={shape} data={data} settings={widget.settings} />;
+/** Live data for shapes: the page's, or the one parked for an export. */
+export const useDeckData = () => useContext(DeckData) ?? exportData;
+
+/** A widget's card on a slide: its title and its View drawn from `data`, with room for a line under it. */
+export function WidgetCard({ widget, data, footer }: { widget: ReturnType<typeof widgetFromShape>; data: CanvasData; footer?: ReactNode }) {
   const ms = widgetMetrics(widget, data);
   const t = templateOf(widget);
   const title = (widget.title ? fillWidgetText(widget.title, widget, widget.settings.asOf ? dataAsOf(data, widget.settings.asOf) : data) : undefined) ?? (t.kind === "metric" ? ms[0]?.name : `${t.label}: ${ms.map((m) => m.name).join(" vs. ")}`);
@@ -54,8 +57,23 @@ function WidgetCard({ shape }: { shape: WidgetShape }) {
       <div className={story ? "min-h-0 flex-1 p-4" : "min-h-0 flex-1 px-4 pb-4"}>
         <WidgetBody widget={widget} data={data} />
       </div>
+      {footer}
     </div>
   );
+}
+
+function WidgetOnSlide({ shape }: { shape: WidgetShape }) {
+  const live = useDeckData();
+  const kept = useKeptShape(shape.id);
+  const numbers = useKept();
+  if (!live) return null;
+  const widget = widgetFromShape(shape);
+  // On a slide that keeps numbers: the Snapshot's, or words in their place; never the live ones (spec 0061).
+  const on = onSlide(kept, numbers, live, widget.settings);
+  if ("words" in on) return <ShapeNotice words={on.words} />;
+  // A Slide Element is no card: it draws itself straight on the slide, in the Theme (spec 0057).
+  const drawn = widget.template === "slide" ? <SlideElementShape shape={shape} data={on.data} settings={on.settings} /> : <WidgetCard widget={{ ...widget, settings: on.settings }} data={on.data} />;
+  return on.kept ? <SeriesProvider ensure={null}>{drawn}</SeriesProvider> : drawn;
 }
 
 export class WidgetShapeUtil extends BaseBoxShapeUtil<WidgetShape> {
@@ -86,7 +104,7 @@ export class WidgetShapeUtil extends BaseBoxShapeUtil<WidgetShape> {
   component(shape: WidgetShape) {
     return (
       <HTMLContainer style={{ pointerEvents: "none", width: shape.props.w, height: shape.props.h }}>
-        <WidgetCard shape={shape} />
+        <WidgetOnSlide shape={shape} />
       </HTMLContainer>
     );
   }

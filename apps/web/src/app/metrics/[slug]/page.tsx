@@ -10,6 +10,8 @@ import { ATTAINMENT_METHOD_LABEL, methodFor } from "@ziffr/core/attainment-metho
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
 import { inputsProblem } from "@ziffr/core/formula";
+import { CALCULATION_NOTE_LABEL, formulaInWords } from "@ziffr/core/calculation-note";
+import { CalculationDisclosure, CalculationWords } from "@/components/calculation-note";
 import { TargetsEditor } from "./series-form";
 import { MetricTabs } from "./metric-tabs";
 import { ArchivedNote } from "./archived-note";
@@ -194,6 +196,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const promptWays = metric.formula ? {} : await nextPromptWays(actor, metric.id);
   // Which target counts for the latest period: its own Target Series value if there is one, else the Target Range.
   const periodTarget = last ? tSeries.find((t) => t.period === last.period) : undefined;
+  // A Derived Metric's formula by its inputs' names, only for someone who sees every one of them.
+  const formula = metric.formula ? formulaInWords(metric.formula, metrics.filter((m) => visible.has(m.id))) : null;
   // Says nothing of the inputs but that their periods differ: it may be read by someone who cannot see them.
   const derivedProblem = inputsProblem(metric, metrics);
   // The first requests as the Outbox recorded them (owner and Editors); the entry Tags it lacks are recomputed, never read from the address.
@@ -215,13 +219,15 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       >
         {/* Record a value is the one main button, for someone who submits the Metric; Share is the owner's; the rest is in the ⋯ menu. */}
         <MetricToolbar
-          id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug, description: metric.description, unit: metric.unit, period: metric.period }} mcp={mcpAddress()} record={record} askable={askable}
+          id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug, description: metric.description, calculationNote: metric.calculation_note, unit: metric.unit, period: metric.period }} mcp={mcpAddress()} record={record} askable={askable}
           share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups, canInvite: can(actor, "manage-members") } : null} alert={alertMe ? { mine: alertMe.mine, choices: alertMe.choices, webhooks: alertMe.webhooks } : null}
           canDuplicate={can(actor, "create") && !metric.formula} canPaste={mayPaste(metric, tokens, actor.personId)} canCreateDashboard={can(actor, "create")} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
           archive={{ allowed: archivable && (!demo || demoChanges), archived: Boolean(metric.archived_at) }} canDelete={isOwner && !demo}
         />
       </PageHeader>
       <ArchivedNote archivedAt={metric.archived_at ?? null} /><MetricTagChips actor={actor} metricId={metric.id} />
+      {/* The Description tab shows it in full, so the disclosure stands on the other tabs. */}
+      {tab !== "settings" && <CalculationDisclosure note={metric.calculation_note} derived={Boolean(metric.formula)} formula={formula} className="mb-4" />}
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
         <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, yearStart)}` : "Latest"}>
@@ -389,14 +395,20 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
               <Row k="Owner"><span className="flex flex-wrap items-center gap-2"><Person p={peopleById[metric.owner_id]} />{!demo && <HandOver metricId={metric.id} name={metric.name} choices={await handOverChoices(actor, metric.id)} />}</span></Row>
               <Row k="Tags"><MetricTagsRow actor={actor} metricId={metric.id} /></Row>
+              <div className="col-span-2">
+                <dt className="text-muted-foreground">{CALCULATION_NOTE_LABEL}</dt>
+                <dd className="mt-1">
+                  {metric.calculation_note || metric.formula
+                    ? <CalculationWords note={metric.calculation_note} derived={Boolean(metric.formula)} formula={formula} />
+                    : <span className="text-muted-foreground">Not written down yet.{canEdit ? " Add it with Edit details." : ""}</span>}
+                </dd>
+              </div>
               <Row k="Period">{PERIOD_LABEL[metric.period]}</Row>
               <Row k="Format">{metric.format}{metric.unit && metric.format === "number" ? ` (${metric.unit})` : ""}, {metric.decimals} decimals</Row>
               <Row k="Which way is good">{POLARITY_LABEL[metric.polarity]}</Row>
               <Row k="Target">{targetText(metric, numberStyle)}</Row>
               <Row k="Attainment">{ATTAINMENT_METHOD_LABEL[methodFor(metric, attainmentMethod)]}{metric.attainment_method ? "" : ", as the workspace"}</Row>
-              {metric.formula ? (
-                <Row k="Formula"><code className="rounded bg-muted px-1 py-0.5 text-xs">{metric.formula.replace(/\{([a-z-]+)\}/g, (_, s) => metrics.find((m) => m.slug === s)?.name ?? s)}</code></Row>
-              ) : (
+              {!metric.formula && (
                 <>
                   <Row k="Values arrive by">{canEdit ? <SourcesEditor metricId={metric.id} sources={metric.sources} /> : metric.sources.map((s) => SOURCE_LABEL[s]).join(", ") || "None"}<p className="mt-1 text-xs text-muted-foreground">The ways an answer is accepted. A request for a value goes only by a way ticked here; which of them is each person’s choice under <Link href="/connectors/who-gets-what" className="underline">Who gets what, where</Link>.</p></Row>
                   <Row k="A second value">{RULE_LABEL[metric.submission_rule]}</Row>

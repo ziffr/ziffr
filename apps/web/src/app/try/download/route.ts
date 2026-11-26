@@ -1,5 +1,6 @@
 // GET /try/download (spec 0021): a trial's Metrics and values as a CSV file, for its Owner to keep before the trial is
 // deleted. The core checks that the person is the trial's Owner; the file holds only that workspace's values.
+import { csvFile } from "@/lib/csv-file";
 import { currentActor } from "@/lib/viewer";
 import { trialValuesCsv } from "@ziffr/core/trial-end";
 
@@ -11,5 +12,5 @@ export async function GET() {
   } catch {
     return new Response("Not allowed.", { status: 403 });
   }
-  return new Response(csv, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="ziffr-trial-values.csv"', "cache-control": "no-store" } });
+  return new Response(csvFile(csv), { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="ziffr-trial-values.csv"', "cache-control": "no-store" } });
 }

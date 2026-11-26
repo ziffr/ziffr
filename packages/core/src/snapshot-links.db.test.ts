@@ -1,10 +1,11 @@
-// A deck made from a Snapshot, and View Links that show one (spec 0013, ticket #178), against the database.
+// A deck made from a Snapshot (spec 0061), and View Links that show one (spec 0013, ticket #178), against the database.
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
 import { createDashboard, placeWidget, saveDashboardText } from "./dashboards";
 import { share } from "./sharing";
-import { deleteSnapshot, editSnapshotWords, openSnapshot, showSnapshot, snapshotDeckSeed, takeSnapshot } from "./snapshots";
+import { deleteSnapshot, editSnapshotWords, openSnapshot, showSnapshot, takeSnapshot } from "./snapshots";
+import { readKeptNumbers, snapshotSlides } from "./deck-snapshots";
 import { createViewLink, listViewLinks, openViewLink } from "./view-links";
 import { workspace, opened } from "./test/db-fixtures";
 
@@ -32,22 +33,19 @@ async function setup() {
 }
 
 describe("a deck from a Snapshot", () => {
-  it("starts with its words and draws only the values of its period, for whoever may open the Snapshot", async () => {
-    const { owner, ann, rev, dash, snap } = await setup();
+  it("is named after it and draws its words and kept numbers, for whoever may open the Snapshot", async () => {
+    const { owner, ann, rev, snap } = await setup();
     const [finding] = (await openSnapshot(owner, snap)).widgets;
     await editSnapshotWords(owner, snap, { intro: "October in short.", widgets: { [finding.id]: { headline: "Revenue grew" } } });
-    // A draft is the owner's and Editors' only.
-    await expect(snapshotDeckSeed(ann, snap)).rejects.toEqual(forbidden);
+    // A draft is the owner's and Editors' only, and goes on no deck.
+    await expect(snapshotSlides(ann, snap)).rejects.toEqual(forbidden);
     await showSnapshot(owner, snap);
-    const seed = await snapshotDeckSeed(ann, snap);
-    expect(seed.name).toBe("Monthly overview, October 2026");
-    expect(seed.intro).toBe("October in short.");
-    expect(seed.widgets).toHaveLength(1);
-    expect(seed.widgets[0]).toMatchObject({ template: "story", metric_ids: [rev.id] });
-    expect(seed.widgets[0].settings).toMatchObject({ headline: "Revenue grew", asOf: "2026-10-31" });
+    const slides = await snapshotSlides(ann, snap);
+    expect(slides).toEqual({ snapshotId: snap, name: "Monthly overview, October 2026", parts: [0, finding.id], leftOut: 0 });
+    const [kept] = await readKeptNumbers(ann, [{ snapshotId: snap, parts: slides.parts, metricIds: [] }]);
+    expect(kept).toMatchObject({ state: "shown", intro: "October in short.", parts: [{ part: 0, widget: null }, { part: finding.id, widget: { template: "story", metric_ids: [rev.id], settings: { headline: "Revenue grew" } } }] });
     const other = await ws("Other"); const zoe = await other.person("owner");
-    await expect(snapshotDeckSeed(other.actor(zoe), snap)).rejects.toEqual(forbidden);
-    expect(dash).toBeGreaterThan(0);
+    await expect(snapshotSlides(other.actor(zoe), snap)).rejects.toEqual(forbidden);
   });
 });
 
@@ -98,14 +96,14 @@ describe("a View Link to a Snapshot", () => {
     await showSnapshot(owner, id);
     const token = await createViewLink(owner, "dashboard", dash, { label: "", expires: inDays(30), frozen: false, snapshotId: id });
     expect((await openViewLink(token))!.widgets).toHaveLength(2);
-    expect((await snapshotDeckSeed(owner, id)).widgets).toHaveLength(2);
+    expect((await snapshotSlides(owner, id)).parts).toHaveLength(3);
     // Ben stops sharing Cost with Sara: it goes from her link and from a deck she makes, as from the live dashboard.
     await share(ben, "metric", cost.id, owner.personId, null);
     const view = (await openViewLink(token))!;
     expect([view.widgets!.length, view.data.metrics.some((m) => m.id === cost.id), view.data.series[cost.slug]]).toEqual([1, false, undefined]);
-    expect((await snapshotDeckSeed(owner, id)).widgets.map((x) => x.metric_ids)).not.toContainEqual([cost.id]);
+    expect(await snapshotSlides(owner, id)).toMatchObject({ parts: expect.any(Array), leftOut: 1 });
     // Ben, who owns Cost, still gets it in his deck.
-    expect((await snapshotDeckSeed(ben, id)).widgets).toHaveLength(2);
+    expect((await snapshotSlides(ben, id)).parts).toHaveLength(3);
   });
 
   it("cannot be stored with frozen numbers of its own besides the Snapshot", async () => {

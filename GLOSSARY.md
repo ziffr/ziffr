@@ -11,8 +11,12 @@ A named, fully described number tracked over time. It must be defined before any
 _Avoid_: Number, KPI, measure, series
 
 **Metric Description**:
-Everything that defines a metric: name, description, unit and which side of the number it stands on, format, period, submission rule, sources, target range, polarity, how its Attainment is computed (or the Workspace's way), owner, its Tags and, for a derived metric, its formula.
+Everything that defines a metric: name, description, Calculation Note, unit and which side of the number it stands on, format, period, submission rule, sources, target range, polarity, how its Attainment is computed (or the Workspace's way), owner, its Tags and, for a derived metric, its formula.
 _Avoid_: Settings, config, schema
+
+**Calculation Note**:
+How a Metric is calculated, in words; screens call it **How it is calculated**: exactly what counts and what does not, where the figure comes from and which adjustments are made (for annual recurring revenue: one-off fees, discounts, contracts not yet started), while the Metric's description says what the number is and why it matters. It is part of the Metric Description: its owner and Editors change it, each change is a Version that says so, it is sealed with the Workspace Key, and it is shown to nobody who may not see the Metric, never on a View Link, a Snapshot shown outside the Workspace or the form link. A Derived Metric's formula stands beside it and is not it.
+_Avoid_: Methodology, counting rules, business logic
 
 **Period**:
 How often a Metric has a value: a day, week, month, quarter or year. Weeks run Monday to Sunday; quarters and years are those of the Fiscal Year. A period is named by its first day ("Week of 9 Nov 2026", "October 2026", "Q3 2026", "FY 2026/27").
@@ -486,7 +490,7 @@ The private service that runs hosted Ziffr's billing: Sizes, prices, payments, i
 _Avoid_: Billing service, SaaS, hosted edition
 
 **Pack**:
-A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Ziffr's own Packs (the twelve of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs. It may say whom it is for (its Pack Audience), which ranks it in the Setup Guide.
+A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Ziffr's own Packs (the thirteen of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs. It may say whom it is for (its Pack Audience), which ranks it in the Setup Guide.
 _Avoid_: Plugin, add-on, integration, app, bundle
 
 **Pack Audience**:
