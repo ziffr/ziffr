@@ -189,7 +189,7 @@ function byMetrics(metrics: Metric[], data: SlopeData, against: "previous" | "ye
   if (metrics.length < 2) return { ok: false, reason: SLOPE_NEEDS };
   if (metrics.length > SLOPE_ROWS) return { ok: false, reason: `Slope charts show up to ${SLOPE_ROWS} Metrics and this has ${metrics.length}. More cannot be read: pick fewer.` };
   if (new Set(metrics.map((m) => m.unit.trim())).size > 1) return { ok: false, reason: SLOPE_UNITS };
-  const resolve = resolverFrom(metrics, data.series);
+  const resolve = resolverFrom(metrics, data.series, data);
   const key = against === "year" ? "yoy" : "prev";
   const lastOf = (m: Metric) => latestOfEach(data.series[m.slug] ?? []).filter((p) => !asOf || p.period <= asOf).at(-1);
   const pairs: Pair[] = [];

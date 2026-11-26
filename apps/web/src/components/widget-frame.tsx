@@ -446,7 +446,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
         <div className="text-xs text-muted-foreground"><span className="fig">{data.series[m.slug]?.length ?? 0}</span> {m.period}s on record</div>
         <div className="mt-2"><MetricChart metric={m} points={data.series[m.slug] ?? []} height={120} markers={h?.actions.map((a) => a.period_start)} yearStart={data.yearStart} numberStyle={data.numberStyle} /></div>
       </div>
-      <div className="border-b p-3"><CompareTable metric={m} resolve={resolverFrom(data.metrics, data.series)} targets={data.targets[m.id]} compact yearStart={data.yearStart} numberStyle={data.numberStyle} attainmentMethod={data.attainmentMethod} /></div>
+      <div className="border-b p-3"><CompareTable metric={m} resolve={resolverFrom(data.metrics, data.series, data)} targets={data.targets[m.id]} compact yearStart={data.yearStart} numberStyle={data.numberStyle} attainmentMethod={data.attainmentMethod} /></div>
       {h && h.actions.length > 0 && (
         <div className="border-b p-3">
           <div className="mb-1 text-xs font-medium text-muted-foreground">Questions and tasks</div>

@@ -16,7 +16,7 @@ const arrow = (n: number) => (n > 0 ? "↗ " : n < 0 ? "↘ " : "→ ");
 /** The attainment and comparisons under a widget's value. */
 export function CompareStrip({ metric, data, keys = DEFAULT_COMPARE, full }: { metric: Metric; data: CanvasData; keys?: CompareKey[]; full?: boolean }) {
   if (!keys.length) return null;
-  const s = summary(metric, resolverFrom(data.metrics, data.series), data.targets[metric.id], { keys, full, yearStart: data.yearStart, attainmentMethod: data.attainmentMethod });
+  const s = summary(metric, resolverFrom(data.metrics, data.series, data), data.targets[metric.id], { keys, full, yearStart: data.yearStart, attainmentMethod: data.attainmentMethod });
   if (s.value === undefined) return null;
   const style = data.numberStyle;
   return (

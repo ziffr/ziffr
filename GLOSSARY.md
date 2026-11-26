@@ -27,7 +27,7 @@ The year a workspace reports in, starting in the month it sets (January unless s
 _Avoid_: Financial year, business year
 
 **Derived Metric**:
-A metric computed by a formula from other metrics. It never receives observations directly. Its inputs are counted by its own period and combine by an Aggregation other than none; a formula Ziffr cannot read whole is refused. It is made from a Pack, in the new-Metric flow ("Calculated from other Metrics") or by a program, only from Metrics its maker owns or edits, since it shows their values to whoever it is shared with; while its owner may not share one of them, it shows no values. A formula may reach one period back: `prev({x})` is the input's value in the period before, `change({x})` this period's value minus that one. Such a Derived Metric is shown by its own period only.
+A metric computed by a formula from other metrics. It never receives observations directly. Its inputs are counted by its own period and combine by an Aggregation other than none; a formula Ziffr cannot read whole is refused. It is made from a Pack, in the new-Metric flow ("Calculated from other Metrics") or by a program, only from Metrics its maker owns or edits, since it shows their values to whoever it is shared with; while its owner may not share one of them, it shows no values. A formula may reach one period back: `prev({x})` is the input's value in the period before, `change({x})` this period's value minus that one. Such a Derived Metric is shown by its own period only. It may also read an input's target: `target({x})` is x's Target Series value for the period, else the number of its Target Range where that holds one number (one bound, or two equal ones), else nothing, and only where x has a value in the period too. A changed target changes the results at once, past periods included; a Snapshot keeps what it showed.
 _Avoid_: Calculated field, formula metric
 
 **Aggregation**:
@@ -524,6 +524,14 @@ _Avoid_: Certificate, stamp, seal
 **Marketplace Key**:
 A public key whose Signed Statements Ziffr trusts, with its part: the signing key signs them; the reserve key stays unused until it takes the signing key out of use with a revocation, which Ziffr keeps.
 _Avoid_: Publisher key, master key, certificate
+
+**New creator**:
+A Marketplace creator in the first days after their first publish, or after a report against them was upheld. Their Packs say so wherever they are listed; it changes their limits, never what a Pack may hold.
+_Avoid_: Unverified, rookie, untrusted
+
+**Withdrawn Pack**:
+A Pack its Marketplace no longer offers: no new installs and no updates. Workspaces that installed it are told why in one line and keep everything they installed.
+_Avoid_: Banned, removed, recalled, deleted Pack
 
 **Webhook**:
 An address that a Workspace's Owner or Admin sets so that Ziffr sends it signed messages about what happens there, such as a task given, a task done or a value recorded, for a program to pass on to another system. It belongs to the Workspace, like a Feed, and sees only what every Member sees; other things reach it with their words left out. It can mark a task done, reply to a thread or answer a question, as the Webhook, but only for tasks that were sent to it, and it can say which task in the other system an Action is (an _external id_, kept per Webhook, with an optional link shown on the Action as "Also in"). Not a Connector, which reaches a person. The app heads these **Workspace Webhooks** where it also lists Personal Webhooks; "Webhook" alone means this kind.
