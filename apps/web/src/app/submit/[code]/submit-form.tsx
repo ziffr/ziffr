@@ -62,6 +62,8 @@ export function SubmitForm({ code, label, placeholder, numberStyle, named = null
   const [picked, setPicked] = useState<string | null>(null);
   const choice = offer.choices.find((c) => c.start === picked) ?? offer.choices.find((c) => c.start === offer.preselected) ?? offer.choices[0];
   const id = useId();
+  // The period the last try was sent for: after saving, a phone shows "For" only while it still names that one.
+  const [sent, setSent] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const after = useRef<HTMLDivElement>(null);
   const refused = result && !result.ok ? result.detail : null;
@@ -78,7 +80,7 @@ export function SubmitForm({ code, label, placeholder, numberStyle, named = null
   useEffect(() => { if (again) input.current?.focus(); }, [again]);
   return (
     <>
-      <RecordPeriod choice={choice} choices={offer.choices} selectable={offer.selectable} rule={rule} form={id} onPick={setPicked} className={done && offer.selectable ? "max-sm:hidden" : undefined} />
+      <RecordPeriod choice={choice} choices={offer.choices} selectable={offer.selectable} rule={rule} form={id} onPick={setPicked} className={done && (offer.selectable || (sent !== null && sent !== choice.start)) ? "max-sm:hidden" : undefined} />
       {children}
       {choice.running && answered}
       {result?.ok && (
@@ -95,7 +97,7 @@ export function SubmitForm({ code, label, placeholder, numberStyle, named = null
           <Button type="button" variant="outline" size="lg" className="w-full" onClick={() => setAgain(true)}>Send another value</Button>
         </div>
       )}
-      <form id={id} action={action} className={cn("mt-4", done && "max-sm:hidden")}>
+      <form id={id} action={action} onSubmit={() => setSent(choice.start)} className={cn("mt-4", done && "max-sm:hidden")}>
         {/* The heading above names the Metric already: on a phone the field comes straight after the period. */}
         <label htmlFor="value" className="text-sm font-medium max-sm:sr-only">{label}</label>
         <Input

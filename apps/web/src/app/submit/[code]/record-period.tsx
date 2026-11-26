@@ -28,12 +28,15 @@ export function RecordPeriod({ choice, choices, selectable, rule, form, onPick, 
     <div className={cn("mt-4 rounded-lg bg-muted px-3 py-2 text-sm", className)}>
       {selectable ? (
         <>
-          <label className="flex items-center gap-2">
+          {/* On a phone the list takes the whole width, so the period's name is not cut off. */}
+          <label className="flex gap-2 max-sm:flex-col max-sm:gap-1 sm:items-center">
             <span>For</span>
-            <select ref={select} name="period" form={form} value={choice.start} onChange={(e) => onPick(e.target.value)} className="h-9 min-w-0 flex-1 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm font-medium">
+            <select ref={select} name="period" form={form} value={choice.start} onChange={(e) => onPick(e.target.value)} className="h-9 min-w-0 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm font-medium sm:flex-1">
               {choices.map((c) => <option key={c.start} value={c.start}>{[c.label, ...c.notes].join(" · ")}</option>)}
             </select>
           </label>
+          {/* The narrowest phones cut the end of the closed list, where the mark stands: it is said again below. */}
+          {choice.notes.includes("asked for") && <p className="mt-1 sm:hidden">Asked for</p>}
           {holds && <p className="mt-1">This period {holds}</p>}
         </>
       ) : (
