@@ -24,8 +24,8 @@ import { knownTimeZone, workspaceClock } from "./workspace-clock";
 import { openWorkflowRows } from "./workflow-rows";
 import { mayReadItem } from "./checklist-rules";
 import { NOT_IN_DASHBOARD_TEMPLATES, toDashboardTemplate, toDeckTemplate, toWorkflowTemplate } from "./team-templates";
-import { cleanSlideShapes, storedSlides } from "./templates";
-import { settingsOf, slideShapeOf, titleOf, type TextFit } from "./pack-export";
+import { cleanSlideShapes, storedCovers, storedSlides } from "./templates";
+import { deckFile, settingsOf, slideShapeOf, titleOf, type TextFit } from "./pack-export";
 import { themeToFile } from "./theme-file";
 import { writeWorkspaceExport } from "./workspace-export-file";
 import { exportDocumentProblem, exportNumbersProblem, WORKSPACE_EXPORT_FORMAT, WORKSPACE_EXPORT_LIMITS, type MetricRecord, type PersonRecord, type ProjectionRecord, type TargetRecord, type ValueRecord, type WorkspaceExportRecord } from "@ziffr/pack/workspace-export";
@@ -82,7 +82,8 @@ function looseFit(over: (what: string) => void): TextFit {
     }
     return text;
   };
-  return { plain, words: (s, max) => plain(s, max) || undefined };
+  // A Slide Element's words were checked by the app's rules when they were saved: they travel as they are.
+  return { plain, words: (s, max) => plain(s, max) || undefined, slide: (s) => s };
 }
 
 const fitsLabel = (s: unknown, max: number): string | null => {
@@ -370,11 +371,11 @@ async function deckRecords(c: Ctx): Promise<void> {
       if (!raw.length) throw new Error("it has no slides");
       const total = raw.reduce((n, s) => n + s.length, 0);
       const cleaned = raw.map(cleanSlideShapes);
-      const t = toDeckTemplate(cleaned.map((c) => c.shapes), allMetrics, {});
-      const doc: DeckTemplateFile = {
-        format: "ziffr.deck-template/1", name, slots: slotFiles(t.slots) as DeckTemplateFile["slots"],
-        slides: t.body.slides.map((s, i) => ({ shapes: s.shapes.flatMap((sh: SlideShape, j) => slideShapeOf(sh.widget ? { ...sh, widget: { ...sh.widget, settings: withSource(sh.widget.settings, sourceSettings(cleaned[i]?.shapes[j])) } } : sh, new Map(), fit)) })),
-      };
+      const t = toDeckTemplate(cleaned.map((c) => c.shapes), allMetrics, {}, [], storedCovers(d.document));
+      const doc = deckFile({
+        name, slots: slotFiles(t.slots) as DeckTemplateFile["slots"],
+        slides: t.body.slides.map((s, i) => ({ ...(s.cover ? { cover: true } : {}), shapes: s.shapes.flatMap((sh: SlideShape, j) => slideShapeOf(sh.widget ? { ...sh, widget: { ...sh.widget, settings: withSource(sh.widget.settings, sourceSettings(cleaned[i]?.shapes[j])) } } : sh, new Map(), fit)) })),
+      });
       const kept = doc.slides.reduce((n, s) => n + s.shapes.length, 0);
       const fills = filled(t.slots);
       const why = !fills ? "it draws a Metric that is not in the file" : exportDocumentProblem("deck", doc);

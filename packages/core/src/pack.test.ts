@@ -8,11 +8,11 @@ import { checkPack, checkPackValue, PACK_LIMITS, PACK_SCHEMA, versionBelow, type
 import { aimsAtAssistant } from "./assistant-words";
 import { METRIC_FILE_SCHEMA } from "./metric-file";
 import { DASHBOARD_TEMPLATE_SCHEMA } from "./dashboard-template-file";
-import { THEME_FILE_SCHEMA } from "./theme-file";
+import { THEME_FILE_2_SCHEMA, THEME_FILE_SCHEMA } from "./theme-file";
 import { EXAMPLE as VIEW, WITH_RECIPE } from "./view-design.test";
 import { repoFile } from "./test/repo-file";
 import { DASHBOARD, DECK, METRIC, THEME, WORKFLOW } from "./pack-files.test";
-import { DECK_TEMPLATE_SCHEMA } from "./deck-template-file";
+import { DECK_TEMPLATE_2_SCHEMA, DECK_TEMPLATE_SCHEMA } from "./deck-template-file";
 import { WORKFLOW_TEMPLATE_SCHEMA } from "./workflow-template-file";
 
 /** A Pack with one item of every kind, the dashboard naming the Pack's entries and design, as a creator might write it. */
@@ -244,7 +244,9 @@ describe("the published schemas", () => {
     ["docs/reference/metric.schema.json", METRIC_FILE_SCHEMA],
     ["docs/reference/dashboard-template.schema.json", DASHBOARD_TEMPLATE_SCHEMA],
     ["docs/reference/theme.schema.json", THEME_FILE_SCHEMA],
+    ["docs/reference/theme-2.schema.json", THEME_FILE_2_SCHEMA],
     ["docs/reference/deck-template.schema.json", DECK_TEMPLATE_SCHEMA],
+    ["docs/reference/deck-template-2.schema.json", DECK_TEMPLATE_2_SCHEMA],
     ["docs/reference/workflow-template.schema.json", WORKFLOW_TEMPLATE_SCHEMA],
   ];
   it.each(published)("%s is the one the checks run", (file, schema) => {

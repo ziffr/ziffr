@@ -11,6 +11,7 @@ import { checkedSettingsShape } from "./demo-settings-shape";
 import { demoTextOk, type DemoTextKind } from "./demo-text";
 import { visitHeaders } from "./demo-visit-scope";
 import { SETTING_WORDS } from "./sealed-words";
+import { mapElementWords, type SlideElement } from "./slide-element";
 import { DEMO_WORKSPACE_ID } from "./team";
 import type { ThemeSlides, WidgetSettings } from "./types";
 
@@ -83,6 +84,9 @@ export function visitorSettings(actor: Pick<Actor, "workspaceId">, settings: Wid
   const s: Obj = checked.settings;
   for (const key of SETTING_WORDS) cleanWord(actor, s, key, key === "kicker" || key === "headline" ? "name" : "description");
   cleanWord(actor, s, "highlight", "name");
+  // Every word of a Slide Element goes through the same rules, whichever field it stands in. The spaces at its ends are
+  // part of its layout (a lead-in and its words) and are kept.
+  if (isObj(s.element)) s.element = mapElementWords(s.element as unknown as SlideElement, (text) => { const held: Obj = { text }; cleanWord(actor, held, "text", "description"); const clean = String(held.text ?? "").trim(); return clean ? `${/^ {0,20}/.exec(text)![0]}${clean}${/ {0,20}$/.exec(text)![0]}` : ""; });
   if (Array.isArray(s.callouts)) s.callouts = s.callouts.map((c) => (isObj(c) ? (() => { const o = { ...c }; cleanWord(actor, o, "text", "description"); return o; })() : c));
   if (Array.isArray(s.panels)) {
     s.panels = s.panels.map((p) => {

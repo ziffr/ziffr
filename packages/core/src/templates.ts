@@ -14,7 +14,7 @@ import { NOT_IN_DASHBOARD_TEMPLATES, SLIDE_SHAPES, toDashboardTemplate, toDeckTe
 import { widgetMetricIds } from "./widget-metrics";
 import { isTagWidget } from "./tag-widgets";
 import { visibleTags } from "./tag-sight";
-import { TEMPLATES } from "./widget-templates";
+import { isView, TEMPLATES } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import { ensureBaseline, recordVersion } from "./versions";
 import { visitorOptionalText } from "./demo-visitor-words";
@@ -87,7 +87,7 @@ export function cleanSlideShapes(shapes: unknown): { shapes: SlideShape[]; metri
   const metricIds: number[] = [];
   for (const sh of clean.filter((x) => x.type === "ziffr-widget")) {
     const template = String(sh.props.template);
-    if (!(template in TEMPLATES) || TEMPLATES[template as keyof typeof TEMPLATES].kind === "layout") throw new Forbidden();
+    if (!isView(template) || TEMPLATES[template].kind === "layout") throw new Forbidden();
     let settings: WidgetSettings = {};
     try { settings = JSON.parse(String(sh.props.settings ?? "{}")); } catch { throw new Forbidden(); }
     const ids = Array.isArray(sh.props.metricIds) ? (sh.props.metricIds as unknown[]).map(Number) : [];
@@ -110,13 +110,22 @@ export async function saveSlideLayout(actor: Actor, input: { deckId: number; sha
 /** Most slides and bytes a Deck Template keeps, so one cannot fill the database. */
 const MAX_DECK_TEMPLATE = { slides: 40, bytes: 2_000_000 };
 
+type Rec = { id?: unknown; typeName?: unknown; type?: unknown; parentId?: unknown; index?: unknown; x?: unknown; y?: unknown; rotation?: unknown; opacity?: unknown; props?: unknown; meta?: unknown };
+
+/** The shapes of a stored deck document and its frames in slide order. */
+function storedFrames(document: unknown) {
+  const records = Object.values(((document as { store?: Record<string, Rec> } | null)?.store ?? {})).filter((r) => r && r.typeName === "shape");
+  const at = (r: Rec) => [Number(r.y) || 0, Number(r.x) || 0];
+  return { records, frames: records.filter((r) => r.type === "frame").sort((a, b) => at(a)[0] - at(b)[0] || at(a)[1] - at(b)[1]) };
+}
+
+/** Which slides of a stored deck document are covers, in the order of `storedSlides`. */
+export const storedCovers = (document: unknown): boolean[] => storedFrames(document).frames.map((f) => (f.meta as { cover?: unknown } | undefined)?.cover === true);
+
 /** The slides of a stored deck document, in the order the editor shows them (top to bottom, then left to right), each
  * with its own shapes in their order, in slide coordinates. */
 export function storedSlides(document: unknown): SlideShape[][] {
-  type Rec = { id?: unknown; typeName?: unknown; type?: unknown; parentId?: unknown; index?: unknown; x?: unknown; y?: unknown; rotation?: unknown; opacity?: unknown; props?: unknown };
-  const records = Object.values(((document as { store?: Record<string, Rec> } | null)?.store ?? {})).filter((r) => r && r.typeName === "shape");
-  const at = (r: Rec) => [Number(r.y) || 0, Number(r.x) || 0];
-  const frames = records.filter((r) => r.type === "frame").sort((a, b) => at(a)[0] - at(b)[0] || at(a)[1] - at(b)[1]);
+  const { records, frames } = storedFrames(document);
   return frames.map((f) => records
     .filter((r) => r.parentId === f.id)
     .sort((a, b) => String(a.index ?? "").localeCompare(String(b.index ?? "")))
@@ -135,7 +144,7 @@ export async function saveDeckTemplate(actor: Actor, input: { deckId: number; na
   if (slides.length > MAX_DECK_TEMPLATE.slides || JSON.stringify(slides).length > MAX_DECK_TEMPLATE.bytes) throw new Error("This deck is too large to save as a template.");
   const cleaned = slides.map(cleanSlideShapes);
   await assertSeesMetrics(actor, cleaned.flatMap((c) => c.metricIds));
-  const t = toDeckTemplate(cleaned.map((c) => c.shapes), await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(actor, input.labels));
+  const t = toDeckTemplate(cleaned.map((c) => c.shapes), await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(actor, input.labels), storedCovers(deck.document));
   return store(actor, "deck", input.replaceId, { ...names(actor, input.name, input.description, "Untitled deck template"), view: "deck", slots: t.slots, body: { ...t.body, themeId: deck.theme_id ?? null }, w: 0, h: 0, updated_at: new Date().toISOString() });
 }
 

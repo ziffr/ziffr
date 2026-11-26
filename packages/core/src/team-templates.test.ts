@@ -38,4 +38,25 @@ describe("team templates", () => {
     const t = toTemplate(bars, [revenue], {});
     expect(fromTemplate({ view: "bars", body: t.body }, [[7]]).settings).toMatchObject({ window: 8, display: "quarter" });
   });
+
+  it("leaves no Metric's name in a Slide Element's words, and warns of numbers in them", () => {
+    const slide = (element: object, metric_ids = [1, 2]) => ({ template: "slide" as const, title: null, metric_ids, settings: { element: element as never } });
+    const t = toTemplate(slide({ kind: "columns", part: true, title: "Revenue and Orders", partLabel: "Orders so far", restLabel: "Revenue", referenceLabel: "Revenue plan" }), [revenue, orders], {});
+    expect(t.body.settings.element).toEqual({ kind: "columns", part: true, title: "{metrics}", partLabel: "{metric 2} so far", restLabel: "{metric}", referenceLabel: "{metric} plan" });
+    expect(t.notices.join(" ")).not.toMatch(/numbers/);
+    // {metric 2} is the element's second Slot, whatever order the Metrics were listed in.
+    const list = toTemplate(slide({ kind: "words", text: ["Orders trail Revenue"], lead: "Revenue:", empty: "Where are Orders?" }, [2, 1]), [revenue, orders], {});
+    expect(list.body.settings.element).toEqual({ kind: "words", text: ["{metric} trail {metric 2}"], lead: "{metric 2}:", empty: "Where are {metric}?" });
+    for (const element of [{ kind: "figure", note: "Up 12 % in May" }, { kind: "words", text: ["We closed 40 deals"] }, { kind: "list", items: [{ text: "Win", note: "by 31 May" }] }, { kind: "gap-table", headline: "3 are behind" }]) {
+      expect(toTemplate(slide(element), [revenue, orders], {}).notices.join(" ")).toMatch(/still contain numbers/);
+    }
+    expect(toTemplate(slide({ kind: "words", text: ["{difference 1 2} to go"] }), [revenue, orders], {}).notices).toEqual([]);
+  });
+
+  it("leaves a Placeholder alone when a Metric is called like one, and never makes words too long for their field", () => {
+    const gap = metric({ id: 3, slug: "gap", name: "Gap" });
+    const element = { kind: "figure" as const, label: `${"x".repeat(76)} Gap`, note: "{gap 1 1} Gap" };
+    const t = toTemplate({ template: "slide", title: null, metric_ids: [3], settings: { element } }, [gap], {});
+    expect(t.body.settings.element).toEqual({ kind: "figure", label: `${"x".repeat(76)} `, note: "{gap 1 1} {metric}" });
+  });
 });

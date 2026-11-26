@@ -44,9 +44,14 @@ export function aimsAtAssistant(text: string): boolean {
   return ALWAYS.some((r) => r.test(text)) || (ADDRESS.test(text) && ORDER.test(text));
 }
 
+// A Workflow Template step's type that reads like a tool's name. It is a fixed word of the format, at this one place of
+// a Pack, which no person writes: only exactly this word there is passed over, so any other text is checked as ever.
+const STEP_TYPE = /^contents\.workflows\[\d+\]\.template\.steps\[\d+\]\.type$/;
+const FORMAT_WORD = "send_snapshot";
+
 /** Every text in a value read from JSON that aims at an assistant, by its path (`contents.metrics[0].metric.description`). */
 export function textsAimedAtAssistants(value: unknown, path = ""): { path: string; text: string }[] {
-  if (typeof value === "string") return aimsAtAssistant(value) ? [{ path, text: value }] : [];
+  if (typeof value === "string") return aimsAtAssistant(value) && !(value === FORMAT_WORD && STEP_TYPE.test(path)) ? [{ path, text: value }] : [];
   if (Array.isArray(value)) return value.flatMap((v, i) => textsAimedAtAssistants(v, `${path}[${i}]`));
   if (value && typeof value === "object") return Object.entries(value).flatMap(([k, v]) => textsAimedAtAssistants(v, path ? `${path}.${k}` : k));
   return [];
