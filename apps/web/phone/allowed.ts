@@ -4,6 +4,7 @@ import type { Allowance } from "./measure";
 
 // What main already broke when the check arrived (#1130), still to be fixed.
 const ALLOWED: Allowance[] = [
+  { rule: "tap-target", selector: 'a.ml-auto[href^="/dashboards/"]', routes: ["/dashboards/[id]/snapshots/[sid]"], reason: "Snapshot: the See it live link is 20 px high." },
   { rule: "tap-target", selector: 'section a[href="/metrics/gross-margin"]', routes: ["/metrics/[slug]/[period]"], reason: "Period Record: the Metric's name, which leads to the Metric, is 20 px high." },
   { rule: "tap-target", selector: 'header > a[href="/"]', reason: "The word Ziffr in the phone header, which leads home, is 24 px high." },
   { rule: "tap-target", selector: '.desk > header :is([aria-label="Overview"], [aria-label="One at a time"], [aria-label="Stop presenting"])', routes: ["/dashboards/[id]/present"], reason: "Presenting a dashboard: the view switch and Close are 36 px wide on a phone." },

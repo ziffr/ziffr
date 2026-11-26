@@ -351,8 +351,10 @@ jobs:
       # The Phone-first pages (spec 0055) at 390 and 320 wide, light and dark, as a person of the demo: no sideways scroll,
       # nothing to tap under 44 px, no field under 16 px (apps/web/phone/). The demo is reset first, so the walk sees what a
       # new demo holds, with its Snapshots, whatever the tests above left. Last, so it cannot hide their failures.
+      # Only the browser: the runner has the libraries it needs. --with-deps adds fonts from the Ubuntu mirrors, which took
+      # five minutes, and no measurement needs them: the app loads its web fonts itself.
       - name: The browser for the phone check
-        run: pnpm --filter @ziffr/web exec playwright install --with-deps chromium-headless-shell
+        run: pnpm --filter @ziffr/web exec playwright install chromium-headless-shell
       - name: The Phone-first pages at phone width
         run: |
           curl -sf -X POST -H "Authorization: Bearer $ZIFFR_JOB_SECRET" http://localhost:3000/api/jobs/demo-reset | grep -q '"reset":true' || { echo "::error::The demo was not reset."; cat "$RUNNER_TEMP/app.log"; exit 1; }
