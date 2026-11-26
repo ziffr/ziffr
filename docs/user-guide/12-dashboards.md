@@ -438,7 +438,7 @@ Only a dashboard's owner shares it. **Share** opens a panel on the right, over t
 
 The choice takes effect at once. A Group share also reaches whoever joins the Group later.
 
-**Sharing a dashboard also lets people see every Metric on it.** When that would show someone a Metric they could not see before, the line under their name says so in colour: "Also shows Cost, Margin and 2 more". Check this before you share.
+**Sharing a dashboard also lets people see every Metric on it.** When that would show someone a Metric they could not see before, the line under their name says so in colour: "Also shows Cost, Margin and 2 more". Check this before you share. A [Total](10-metrics.md#adding-up-metrics-a-total) is held more tightly: sharing it, also through a dashboard, shows its sums only to people who may see every Metric it adds up, unless its owner opened it. For anyone else its widget says "Not shown: you do not see every Metric it adds up." While a period waits for a value, a widget draws the latest period that is complete, and says "Not all in yet." where none is.
 
 At the bottom of the panel, **Who can see this** and, for the owner, **View links for outsiders** open those panels on top of it; **Back** returns to Share.
 

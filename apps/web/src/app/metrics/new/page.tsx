@@ -4,7 +4,7 @@ import { ArrowLeft, BookOpen, PenLine, Sigma } from "lucide-react";
 import { metricCatalog } from "@ziffr/core/page-data";
 import { metricDraftFrom, type MetricDraft } from "@ziffr/core/metrics";
 import { can, Forbidden } from "@ziffr/core/actor";
-import { getNumberStyle, getProfiles, getAttainmentMethod } from "@/lib/data";
+import { getNumberStyle, getProfiles, getAttainmentMethod, getYearStart } from "@/lib/data";
 import { moneyUnit } from "@ziffr/core/units";
 import { AttainmentMethodField } from "../attainment-method-field";
 import { UnitDecimals, UnitExample, UnitFormat, UnitInput, UnitProvider, UnitSide } from "../unit-fields";
@@ -28,6 +28,8 @@ import { CalculationNoteField } from "../calculation-note-field";
 import { CatalogBrowser } from "./catalog-browser";
 import { DesktopOnly } from "@/components/desktop-only";
 import { DerivedForm } from "./derived-form";
+import { TotalForm } from "./total-form";
+import { totalChoices } from "@ziffr/core/total-page";
 import { formulaChoices } from "@ziffr/core/derived-metrics";
 import { workspaceProfile } from "@ziffr/core/workspace-settings";
 import { INDUSTRY_LABEL } from "@ziffr/core/workspace-profile";
@@ -59,7 +61,7 @@ const BLANK: MetricDescription = {
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 
-export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string; copy?: string; derived?: string; setup?: string }> }) {
+export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string; copy?: string; derived?: string; add?: string; setup?: string }> }) {
   const sp = await searchParams;
   // Opened from the Setup Guide's Starting point: a way back, and the new Metric becomes the guide's (spec 0052).
   const guide = sp.setup === "1";
@@ -74,6 +76,20 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
 
   // Near the Workspace Limit, everyone sees how many it holds of how many (spec 0029), on the Catalog and the form.
   const note = nearLimitNote(await metricsOfLimit(await currentActor()));
+  // "Add up Metrics", within "Calculated from other Metrics": a Total, which keeps a list instead of a formula.
+  if (sp.derived && sp.add && !picked && !copy) {
+    const [choices, refusal, yearStart] = await Promise.all([totalChoices(await currentActor()), newMetricRefusal(await currentActor()), getYearStart()]);
+    return (
+      <>
+        <Link href="/metrics/new" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> Catalog</Link>
+        <PageHeader title="New total" sub="A sum over a list of Metrics, such as the commit of every salesperson. The list can change; past totals stay." />
+        <CalculatedAs total />
+        <DesktopOnly path="/metrics/new" />
+        <LimitNotes refusal={refusal} note={note} />
+        <TotalForm choices={choices} yearStart={yearStart} />
+      </>
+    );
+  }
   // "Calculated from other Metrics": a Derived Metric, which takes a formula instead of values and Sources.
   if (sp.derived && !picked && !copy) {
     const [choices, refusal] = await Promise.all([formulaChoices(await currentActor()), newMetricRefusal(await currentActor())]);
@@ -81,6 +97,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
       <>
         <Link href="/metrics/new" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> Catalog</Link>
         <PageHeader title="New calculated metric" sub="A number worked out from other Metrics, such as a margin or the change since last week. Nobody is asked for its values." />
+        <CalculatedAs />
         <DesktopOnly path="/metrics/new" />
         <LimitNotes refusal={refusal} note={note} />
         <DerivedForm choices={choices} />
@@ -108,7 +125,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
           <Sigma className="size-5 text-muted-foreground" />
           <div>
             <div className="font-medium">Calculated from other Metrics</div>
-            <div className="text-xs text-muted-foreground">A formula over Metrics you already have, such as a margin or the change since last week.</div>
+            <div className="text-xs text-muted-foreground">A formula over Metrics you already have, such as a margin, or a total that adds a list of them up.</div>
           </div>
         </Link>
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground"><BookOpen className="size-4" /> Metric Catalog</h2>
@@ -240,6 +257,17 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
         </aside>
       </form>
     </>
+  );
+}
+
+/** The two ways a Metric is calculated from others: a formula, or a list it adds up. */
+function CalculatedAs({ total = false }: { total?: boolean }) {
+  const tab = (on: boolean) => `inline-flex min-h-11 items-center rounded-[var(--radius-input)] px-3 no-underline sm:min-h-9 ${on ? "stock font-medium" : "text-muted-foreground hover:bg-muted"}`;
+  return (
+    <nav aria-label="How it is calculated" className="mb-4 flex flex-wrap gap-1 text-sm">
+      <Link href="/metrics/new?derived=1" aria-current={!total ? "true" : undefined} className={tab(!total)}>A formula</Link>
+      <Link href="/metrics/new?derived=1&add=1" aria-current={total ? "true" : undefined} className={tab(total)}>Add up Metrics</Link>
+    </nav>
   );
 }
 

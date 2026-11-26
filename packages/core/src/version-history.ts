@@ -238,11 +238,14 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
       // A restore never turns a Derived Metric into a plain one or back: the kind stays what it is now, with its Sources.
       // A formula it brings back goes through the checks of changing one, so an old formula cannot reach what a change
       // would be refused (an input the Editor or the owner may not share, a Metric that is Derived since, itself).
-      const { data: now } = await db().from("metrics").select("slug, period, owner_id, formula").eq("id", id).eq("workspace_id", ws).single();
+      const { data: now } = await db().from("metrics").select("slug, period, owner_id, formula, total_targets").eq("id", id).eq("workspace_id", ws).single();
       const patch = Object.fromEntries(fields.filter((f) => f in kept).map((f) => [f, kept[f]]));
       // A Version without a Calculation Note had none, so a restore takes today's away (spec 0060).
       patch.calculation_note = calculationNoteFrom(kept.calculation_note);
-      if (now?.formula) {
+      if (now?.total_targets) {
+        // A Total keeps what its parts share, has no formula to bring back, and takes no range where its target is theirs.
+        for (const k of ["formula", "sources", "period", "aggregation", "unit", "format", ...(now.total_targets === "parts" ? ["target_min", "target_max"] : [])]) delete patch[k];
+      } else if (now?.formula) {
         // Its period follows its inputs', and it has no Sources: those stay.
         delete patch.sources;
         delete patch.period;
