@@ -4,7 +4,30 @@
 
 This chapter is for the people who run a Ziffr for others: a team, a club or a company. If someone else runs your Ziffr, you never see this page, and you can skip it.
 
-An **Installation** is one running Ziffr, with all its Workspaces. Its **Installation Settings** say what it talks to: the mail server, Telegram and Slack, and the check against bots. The people who may change them are its **Installation Admins**. Being an Owner of a Workspace does not make you one, and being one shows you nothing of anyone's Workspace.
+An **Installation** is one running Ziffr, with all its Workspaces. Its **Installation Settings** say what it talks to: the mail server, Telegram and Slack, and the check against bots. The people who may change them are its **Installation Admins**. Being an Owner of a Workspace does not make you one, and being one shows you nothing a Workspace holds.
+
+## The pages
+
+A row of links at the top of each page leads to the others:
+
+- **Settings**: what this Ziffr talks to, its limits, its [Changes](#changes) and the rest of this chapter.
+- [**Users**](#users): everyone who signed up, and blocking or signing them out.
+- [**Workspaces**](#workspaces): every Workspace with its kind, limit and counts, and giving a trial more days.
+- [**Health**](#health): whether this Ziffr does its own work.
+- [**Announcements**](#announcements): the lines above every screen, such as before maintenance.
+- **Feedback**: only in the central version (ziffr.net), [the review queue](#feedback).
+
+All of them answer "not found" to everyone who is not an Installation Admin. The Settings page and the feedback review are made for a larger screen; Users, Workspaces and Health work on a phone too.
+
+## What an Installation Admin can see
+
+- Of each **User**: name, email address, when they signed up and last signed in, whether they are blocked or an Installation Admin, and how many Workspaces they belong to.
+- Of each **Workspace**: its name, its Owners' names and email addresses, what kind it is, its trial's dates, its Workspace Limit, how many people, Metrics and dashboards it holds, and when it was made and last used.
+- Of the **Installation**: [Usage](#usage) totals, counts of waiting and failed messages, when background jobs ran, how far encryption is, and what people wrote as feedback, without their names.
+
+Never a Metric's name or value, a note, a comment, what is on a dashboard or in a deck, a Contact, or any key or secret. There is no way to sign in as someone else. A Workspace Key stays sealed: these pages open nothing it protects.
+
+This is more than an Installation Admin saw before these pages: the list of Users with their sign-ins, and each Workspace's Owners, kind, dates and counts of people and dashboards. Tell the people who use your Ziffr, for example in your privacy notice. Whoever runs the server and its database can reach more than any page shows (see [Encryption](#encryption)).
 
 ## Becoming the first Installation Admin
 
@@ -26,6 +49,41 @@ Once you are an Installation Admin, your own menu at the bottom of the sidebar h
 ## Other Installation Admins
 
 Under **Installation Admins**, add someone by the email address they signed in with. They must have signed in to this Ziffr once before. **Remove** takes someone off the list, yourself included, but the last one stays: add another one first. People named on the server stay until the server's settings change.
+
+## Users
+
+**Users** lists everyone who signed up at this Ziffr, newest first, 50 a page. Search by a part of the name or email address. Each shows how they stand (**Active**, **Blocked** or **Never signed in**), whether they are an Installation Admin, when they signed up, when they last signed in and how many Workspaces they belong to. The demo's made-up people, Contacts and Feeds are not Users.
+
+- **Sign out everywhere** ends every session: each of their browsers and apps must sign in again. Their Access Keys and connected assistants keep working. You may sign yourself out too.
+- **Block** is for an account that must stop now, such as one that was taken over or that abuses your Ziffr. A **Blocked User** is signed out everywhere and cannot sign in. Nothing acts as them: their Access Keys and connected assistants, their Personal Webhooks, their replies by email, Slack and Telegram, their form links and their Calendar Links stop working. No message is sent to them; what is due stays in the Outbox. You cannot block yourself or an Installation Admin (remove them from the Installation Admins first).
+- **Unblock** lets them sign in again, and their keys, links and replies work as before. If someone else may have had the account, ask the Owners to revoke its Access Keys first.
+
+What belongs to a Workspace carries on while someone is blocked: their Workspaces, Metrics and Shares, the Workflows they own, Workspace Webhooks, Feeds and their keys, and View Links they made, which an Owner can revoke. Messages that stayed in the Outbox are not sent later.
+
+Ziffr cannot delete an account from this page.
+
+## Workspaces
+
+**Workspaces** lists every Workspace by name, 50 a page, except the demo and Practice Workspaces. Search by its name, or an Owner's name or email address. Each shows its kind (**Workspace**, a **Size**, **Trial**, **Trial ended** or **Closed**), its Owners, how many people, Metrics and dashboards it holds, its [Workspace Limit](#workspace-limits), and when it was made and last used. A trial shows the days left and its last day; an ended or closed one shows the day it is deleted.
+
+- **Change limit** gives the Workspace a limit of its own, as under [Workspace Limits](#workspace-limits). On hosted Ziffr, where Ziffr Cloud sets the limits, there is no such button.
+- **Give more days** adds days to a running trial. A trial can end at most 30 days from today. Its reminders are sent again before the new end, and the Access Keys and View Links the trial had shortened get their own end date back, as far as the new end allows. Invitations that are still open keep their own last day. A trial that has ended cannot be given days: closing it already revoked its keys and connections. The Workspace's **Audit Log** records the extension.
+
+A Workspace cannot be closed or deleted from this page.
+
+## Health
+
+**Health** shows whether this Ziffr does its own work, from what it records anyway.
+
+- **Release**: which release this server runs. Ziffr does not look for newer releases, so the page links to the list on GitHub.
+- **Messages**: whether mail, Telegram and Slack work, how many messages wait to be sent and since when, and how many failed for good in the last 24 hours and 7 days, by channel. A warning appears when a message has been due for more than 30 minutes: check that the clock runs and that the connection works.
+- **Background jobs**: when each last recorded a run, how often it is called, and failed runs of Workflows and Retention in the last 7 days. A job with nothing to do records nothing, so an old time is not a fault by itself. Trial clean-up, unused Workspaces and the monthly usage email record no run.
+
+## An address of its own
+
+Whoever runs the server can give these pages an **Admin Address**, such as `https://admin.example.com`, and restrict who reaches it, for example to a private network. The pages then answer only there; on Ziffr's ordinary address they are "not found". The Admin Address serves signing in and these pages, nothing else of Ziffr, so you sign in there separately and **Open Ziffr** leads back. **Installation settings** in your menu takes you to it. How to set it up is in the [self-hosting guide](../guides/self-hosting.md#an-address-of-its-own-for-the-installation-settings). Without one, everything is where it was.
+
+A Practice Workspace made or started over at the Admin Address opens on Ziffr's ordinary address: choose it in the Workspace switcher.
 
 ## Practice Workspace
 
@@ -121,7 +179,7 @@ Everyone who sees a deck or a free layout gets the key in their browser, people 
 A **Workspace Limit** is the most Metrics a Workspace may hold. Archived Metrics do not count; Derived Metrics do. Without a default and without a limit of its own, a Workspace has no limit, which is how most Installations run.
 
 - **Default limit** and **Name of the default** apply to every Workspace without a limit of its own, such as 10 and "Standard". Empty means no limit. "Working" next to the title means a default is set. The demo never has a limit, and a Trial Workspace keeps its own rule of 25 Metrics while it runs.
-- **Workspaces** lists every Workspace by name with how many Metrics it holds and its limit, marked "the default" when it has none of its own, and since when it is over its limit. Nothing else of a Workspace is shown: being an Installation Admin still shows no Workspace's data.
+- **Workspaces**, in this section, lists every Workspace by name with how many Metrics it holds and its limit, marked "the default" when it has none of its own, and since when it is over its limit. The [Workspaces](#workspaces) page shows more of each, and changes a limit the same way.
 - **Change** on a Workspace sets a limit of its own: the most Metrics (empty for no limit at all) and its name, such as "Team". **Use the default** gives it back to the default. Under a limit of its own the page says who set it and when; a limit set by Ziffr Cloud says so, and saving here overrides it until Ziffr Cloud sets it again.
 
 Over its limit a Workspace keeps everything working: its Metrics, values, Prompts, Workflows, dashboards and the API, and values keep arriving. The first Metric that takes it over starts 14 days in which it may hold 10 % more (at least one Metric more). After that, no new Metric can be made, and no Archived Metric brought back, while it holds as many Metrics as its limit or more. People who try are told how many Metrics the Workspace holds and to archive one or ask an Owner. A limit set below what a Workspace already holds starts the 14 days the same way. Each change is in the Workspace's **Audit Log** and in **Changes** below.
@@ -231,7 +289,7 @@ The **Usage** section shows what this Installation is used for, as daily counts:
 
 **How each figure is counted.** Calls (`api_calls`, `feed_calls`, `mcp_calls`) are counted in memory by each server and written once a minute, so a crash loses at most a minute; Like values by Source, `feed_calls` and `mcp_calls` are left out of a day when fewer than 3 Workspaces made such calls. `mcp_calls` are the calls the remote MCP Server makes for a connected assistant, while a local MCP Server uses an ordinary Access Key and counts as `api_calls`. Values arrive by Source: `values_feed` are those a Feed sent, `values_mcp` those of a connected assistant, `values_api` those of a person's Access Key; a Derived Metric is computed when it is opened and never recorded, so it has no figure. `signups` are accounts made that day by people who belong to a Workspace in the figures. `people_active_7d` counts people whose account signed in within 7 days, so someone whose session stays open for weeks is not counted; `workspaces_active_7d` counts Workspaces used within 7 days, where a value from any Source is use too. `trials_started`, `sizes_booked` (a Size booked by Ziffr Cloud) and `workspaces_deleted` are counts of events, nothing about which Workspace. If a day's count was missed, the next run rebuilds its events from the records and the states that a creation date can show (Workspaces, people, Metrics, dashboards, decks, Feeds, Packs installed); anything deleted since is not counted, so such a day can be a little low, and the kinds of Workspace, Workflows and the 7-day figures are left out for it. Calls and openings of a missed day are lost.
 
-Under **The last 30 days**, the page lists the days newest first. With fewer than 3 Workspaces, only totals are shown, nothing split by kind, Source or Pack; and in a larger Installation a figure for one kind of Workspace or one Source is left out of a day when fewer than 3 Workspaces are behind it, so that nobody running a shared Installation gets a view of one small Workspace. Per-Pack figures appear only for Packs from the Marketplace that at least 3 Workspaces hold.
+Under **The last 30 days**, the page lists the days newest first. With fewer than 3 Workspaces, only totals are shown, nothing split by kind, Source or Pack; and in a larger Installation a figure for one kind of Workspace or one Source is left out of a day when fewer than 3 Workspaces are behind it, so that these figures give nobody a view of what one small Workspace does. (The [Workspaces](#workspaces) page does show each Workspace's counts of people, Metrics and dashboards.) Per-Pack figures appear only for Packs from the Marketplace that at least 3 Workspaces hold.
 
 **Usage Key.** A program can read the same figures from `GET /api/v1/installation/usage` with a Usage Key. Choose **Make a Usage Key**: the page shows the key once, with **Copy**, and keeps only a fingerprint of it. There is one key at a time; **Make a new Usage Key** replaces it at once, and **Revoke** ends it. The key opens that one address and nothing else: it is not an Access Key, it sees no Workspace, and the job secret does not open the address either. Anyone else, with a wrong or revoked key, gets "not found". A Usage Key may call it 60 times an hour. The changes list says when a key was made or revoked, never the key.
 
@@ -285,4 +343,4 @@ In the central version (ziffr.net), one GitHub account is enough for feedback: t
 
 ## Changes
 
-**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server, the replies signing secret, the Turnstile secret key, trials, the demo, the Telegram bot token or the Slack Client Secret, a Workspace's limit, adding, changing, switching on or off and deleting an Announcement (with its words), test emails and replies tests. It names the setting, never its value. When Ziffr deletes a Workspace, such as a trial that ended, it shows one line by **Ziffr** with the Workspace's id, never its name, at the moment it destroys the Workspace's key, the first step of the deletion. What is left of it in the database, or in backups taken afterwards, can no longer be opened; backups from before the deletion open until they expire.
+**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, blocking, unblocking and signing out a User (by their name as it is now; only the account's id is kept), giving a trial more days (by the Workspace's id), saving or removing a setting such as the mail server, the replies signing secret, the Turnstile secret key, trials, the demo, the Telegram bot token or the Slack Client Secret, a Workspace's limit, adding, changing, switching on or off and deleting an Announcement (with its words), test emails and replies tests. It names the setting, never its value. One Installation Admin can block, unblock, sign out and extend trials at most 60 times an hour. When Ziffr deletes a Workspace, such as a trial that ended, it shows one line by **Ziffr** with the Workspace's id, never its name, at the moment it destroys the Workspace's key, the first step of the deletion. What is left of it in the database, or in backups taken afterwards, can no longer be opened; backups from before the deletion open until they expire.

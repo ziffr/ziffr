@@ -474,12 +474,28 @@ One running Ziffr: its app, its database and its keys, reached at one address. I
 _Avoid_: Instance, deployment, server, tenant
 
 **Installation Admin**:
-A person who runs an Installation as a whole: they open its Installation Settings and add or remove other Installation Admins, never the last one. It is not a Workspace Role: an Owner of every Workspace is not one, and being one shows no Workspace's data. The first one claims the Installation with a one-time setup code that Ziffr writes to its server log while it has none; the server's settings can also name them by address.
+A person who runs an Installation as a whole: they open its Installation Settings and add or remove other Installation Admins, never the last one. It is not a Workspace Role: an Owner of every Workspace is not one, and being one shows nothing a Workspace holds (no Metric name, value, note, comment, dashboard or Contact) and gives no way to sign in as someone else. They do see its Users and, of each Workspace, its name, Owners, kind, limit and counts. The first one claims the Installation with a one-time setup code that Ziffr writes to its server log while it has none; the server's settings can also name them by address.
 _Avoid_: Superadmin, root, system administrator
 
 **Installation Settings**:
-What an Installation talks to, such as its mail server, set by an Installation Admin on a page of its own instead of in the server's environment. A value set in the environment wins and is shown as set on the server; secret values are sealed and never shown again. Settings of a Workspace are not Installation Settings.
+What an Installation talks to, such as its mail server, set by an Installation Admin on a page of its own instead of in the server's environment. A value set in the environment wins and is shown as set on the server; secret values are sealed and never shown again. The same menu item opens the Installation's panel, whose other pages are Users, Workspaces and Health. Settings of a Workspace are not Installation Settings.
 _Avoid_: Admin settings, system settings, global config
+
+**Admin Address**:
+An address of its own that whoever runs the server may give the Installation's panel (`ZIFFR_ADMIN_URL`), such as `https://admin.example.com`, so the network can restrict who reaches it. Where one is set, the panel answers only there, and that address serves only signing in and the panel. A server setting, never on a page. It adds to the check of the Installation Admin and never replaces it.
+_Avoid_: Admin domain, admin subdomain, back office
+
+**User**:
+Someone who signed up at an Installation, as its Installation Admins see them: name, email address, when they signed up and last signed in, whether they are blocked, and how many Workspaces they belong to. Not a Contact (who never signs in), not a Made-up Person, and not a Workspace Role, which says what a person may do in one Workspace.
+_Avoid_: Customer, subscriber, login
+
+**Blocked User**:
+A User an Installation Admin has blocked: they cannot sign in, every session of theirs ended, and nothing acts as them (their Access Keys, connected assistants, Personal Webhooks, replies, form links and Calendar Links) and nothing is sent to them, until they are unblocked. Nothing is revoked or deleted, and what belongs to a Workspace carries on. Nobody blocks themself or an Installation Admin.
+_Avoid_: Banned, suspended, deactivated, disabled user
+
+**Installation Health**:
+What an Installation Admin reads on the Health page to see whether the Installation does its own work: its release, the messages that wait or failed, and when each background job last recorded a run. Counts and times only, from what Ziffr records anyway.
+_Avoid_: Monitoring, status page, diagnostics
 
 **Sending Limit**:
 One of the abuse safeguards of an Installation that an Installation Admin may move within a range, as an Installation Setting named `ZIFFR_LIMIT_*`: emails, chat messages, Alerts, values, calls, Webhooks, sign-in links, Contacts and Snapshots per day, hour or minute. None can be switched off; they are the same for every Workspace whatever its Size, and Ziffr Cloud never sets them. Lowering one never deletes or stops what exists: only what is new waits. Not a Workspace Limit, which counts Metrics.
@@ -733,7 +749,7 @@ Where a person wants to get questions, tasks, reminders and replies. The team se
 _Avoid_: Notification settings, routing
 
 **Usage**:
-What a Workspace or an Installation is used for, as counts: what is looked at, which Metrics have values, what arrives by which Source. It never says who looked. A Workspace's Owners and Admins see theirs on the Usage page; an Installation Admin sees only totals across all Workspaces.
+What a Workspace or an Installation is used for, as counts: what is looked at, which Metrics have values, what arrives by which Source. It never says who looked. A Workspace's Owners and Admins see theirs on the Usage page; of Usage, an Installation Admin sees only totals across all Workspaces.
 _Avoid_: Analytics, telemetry, tracking, statistics, activity
 
 **Usage Digest**:
