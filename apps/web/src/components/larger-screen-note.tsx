@@ -14,7 +14,9 @@ import { shown, unwrap } from "@/lib/action-error";
 /** Where "Look at it" leads: another address, or something the screen does in place. */
 export type Look = { href: string } | { onLook: () => void };
 
-const BUTTON = "h-11 flex-1";
+// Sized from their words, so two that do not fit side by side (320 px) go under each other; a basis of zero let the
+// touch rule for tap targets squeeze one narrower than its label.
+const BUTTON = "h-11 flex-auto";
 
 /** The note for the screen at `path`. `send` offers "Send me the link" (not in the demo or to a Guest: the core refuses
  * those anyway). The browser names only the path; who it goes to is decided on the server. */

@@ -42,11 +42,11 @@ Ziffr records nothing and asks back when it cannot be sure:
 - **A different period than the Prompt asked for**, such as "this week 3" in reply to last week's Prompt. Reply with the value alone for the Prompt's period, or send the other one as a new message.
 - **A period the Metric does not count in**, such as "Q3" for a monthly Metric, or one that has not begun yet.
 
-Without a Prompt, for example on the form link, a period you name is used instead of the current one. Ziffr's reply always names the value and the period as it read them, such as "2 recorded for Sign-ups, week of 9 Nov 2026", so you see a misreading at once.
+Without a Prompt, for example in a new message, a period you name is used instead of the current one. The personal form link is narrower: it records the current period or one you were asked for (see below). Ziffr's reply always names the value and the period as it read them, such as "2 recorded for Sign-ups, week of 9 Nov 2026", so you see a misreading at once.
 
 ### The personal form link
 
-Every Submitter has a personal link for each Metric they send in. It needs no password, which is why Contacts such as an outside bookkeeper can use it. The link only lets them send values for their own Metrics; it shows them nothing else.
+Every Submitter has a personal link for each Metric they send in. It needs no password, which is why Contacts such as an outside bookkeeper can use it. The link only lets them send values for their own Metrics: for the current period, or for an earlier one Ziffr asked them for.
 
 If Ziffr cannot read what you typed, it says so under the field, with an example such as "Type a number, such as 88 or 1,250." What you typed stays in the field so you can correct it, and the cursor goes back to it.
 

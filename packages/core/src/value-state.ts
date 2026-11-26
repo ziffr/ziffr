@@ -9,3 +9,6 @@ export const NOT_FINAL_STATES = ["approval", "submitted"] as const;
 export function isFinalState(state: string | null | undefined): boolean {
   return !(NOT_FINAL_STATES as readonly string[]).includes(state ?? "");
 }
+
+/** What the values file writes about a value, in the words the History tab uses for one that is not final. */
+export const valueStateWords = (state: string | null | undefined): "final" | "not approved yet" => (isFinalState(state) ? "final" : "not approved yet");

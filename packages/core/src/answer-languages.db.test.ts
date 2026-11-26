@@ -51,14 +51,17 @@ describe("the Answer Languages", () => {
   });
 
   it("tries only the chosen languages when an answer is read", async () => {
-    const w = await ws(); const ann = await w.person("owner"); const m = await w.metric(ann, { name: "Inscriptions", period: "week" }); const code = await w.token(m.id, ann);
+    // By mail: a form link takes an earlier week only when it was asked for.
+    const address = `ann-${Math.random().toString(36).slice(2, 8)}@example.test`;
+    const w = await ws(); const ann = await w.person("owner", { email: address }); const m = await w.metric(ann, { name: "Inscriptions", period: "week" }); await w.token(m.id, ann);
+    const send = () => submitValue({ source: "mail", sender: address, text: "la semaine dernière 2", workspaceId: w.id }, quiet());
     const lastWeek = shiftPeriod(periodStart(new Date(), "week", JANUARY), "week", -1);
     const periods = async () => (await db().from("observations").select("period_start").eq("metric_id", m.id)).data!.map((o) => String(o.period_start));
     // Not yet a language of the workspace: "la semaine dernière" names nothing, and 2 goes to this week.
-    await submitValue({ source: "web_form", sender: code, text: "la semaine dernière 2" }, quiet());
+    await send();
     expect(await periods()).toEqual([periodStart(new Date(), "week", JANUARY)]);
     await setAnswerLanguages(w.actor(ann), ["en", "fr"]);
-    const r = await submitValue({ source: "web_form", sender: code, text: "la semaine dernière 2" }, quiet());
+    const r = await send();
     expect(r).toMatchObject({ ok: true, outcome: "recorded" });
     expect((await periods()).sort()).toEqual([lastWeek, periodStart(new Date(), "week", JANUARY)].sort());
   });

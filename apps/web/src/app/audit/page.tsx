@@ -82,6 +82,8 @@ function detailText(e: AuditEvent, nameOf: (id: string) => string | undefined): 
     case "workspace.attainment_method_changed": return `${d.from} → ${d.to}`;
     case "workspace.settable_limit_changed": case "person.settable_limit_changed": return `${d.limit}: ${d.from ?? "follows the level above"} → ${d.to ?? "follows the level above"}`;
     case "export.deck": return String(d.format ?? "").toUpperCase();
+    // Counts only: neither a Metric's name nor a value is written down (spec 0056).
+    case "export.metric_values": return `${d.metrics ?? 0} ${d.metrics === 1 ? "Metric" : "Metrics"}, ${d.rows ?? 0} ${d.rows === 1 ? "value" : "values"}`;
     default: return "";
   }
 }

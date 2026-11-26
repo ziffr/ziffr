@@ -102,8 +102,14 @@ export async function createDashboardFromBody(actor: Actor, t: Pick<DashboardTem
   await assertSeesMetrics(actor, widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)));
   const id = await createDashboard(actor, String(name ?? "").trim() || t.name);
   if (widgets.length) {
-    const placed = await insertSealed("widgets", actor.workspaceId, widgets.map((w) => ({ ...w, owner_id: actor.personId, dashboard_id: id, saved: false })));
-    if (placed.length !== widgets.length) throw new Error("The dashboard could not be made from the template.");
+    try {
+      const placed = await insertSealed("widgets", actor.workspaceId, widgets.map((w) => ({ ...w, owner_id: actor.personId, dashboard_id: id, saved: false })));
+      if (placed.length !== widgets.length) throw new Error("The dashboard could not be made from the template.");
+    } catch (e) {
+      // The dashboard was made a moment ago: without its widgets it goes again, rather than staying behind empty.
+      await db().from("dashboards").delete().eq("id", id).eq("workspace_id", actor.workspaceId);
+      throw e;
+    }
   }
   await recordVersion("dashboard", id, actor.personId, { message });
   return id;

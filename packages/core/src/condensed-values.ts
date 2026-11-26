@@ -13,7 +13,7 @@ import { yearStartFor } from "./fiscal-year";
 import { condense, condensedTarget, keptFrom, MIN_KEEP_MONTHS, retentionProblem, type CondenseInto } from "./retention-rules";
 import { isPeriodStart, periodEnd } from "./periods";
 import { openRows, sealRow } from "./sealed-columns";
-import { allRows } from "./workspace-data";
+import { allRows, mustRead } from "./workspace-data";
 import type { Metric } from "./types";
 
 /** The database's code for a value refused because its period was condensed (trigger observations_not_condensed). */
@@ -93,12 +93,14 @@ function pointFrom(row: Record<string, unknown>): CondensedPoint | null {
 /** The Condensed Values of some Metrics of a Workspace, per Metric id, oldest span first, with their numbers opened.
  * It answers for the Metrics named and does not check who may see them: the caller asks only about those the viewer
  * sees (access.ts), as it does for the series. */
-export async function condensedFor(ws: string, metricIds: readonly number[]): Promise<Record<number, CondensedPoint[]>> {
+export async function condensedFor(ws: string, metricIds: readonly number[], unread?: string): Promise<Record<number, CondensedPoint[]>> {
   const out: Record<number, CondensedPoint[]> = {};
   for (let i = 0; i < metricIds.length; i += AT_A_TIME) {
     const ids = metricIds.slice(i, i + AT_A_TIME);
-    const rows = await allRows<Record<string, unknown>>((from, to) =>
-      db().from("condensed_values").select("id, metric_id, period_start, period_end, span, held, of, locked, payload, condensed_on").eq("workspace_id", ws).in("metric_id", ids).order("metric_id").order("period_start").range(from, to));
+    const rows = await allRows<Record<string, unknown>>((from, to) => {
+      const page = db().from("condensed_values").select("id, metric_id, period_start, period_end, span, held, of, locked, payload, condensed_on").eq("workspace_id", ws).in("metric_id", ids).order("metric_id").order("period_start").range(from, to);
+      return unread ? mustRead<Record<string, unknown>>(page, unread) : page;
+    });
     for (const row of await openRows("condensed_values", ws, rows)) {
       const point = pointFrom(row);
       if (point) (out[Number(row.metric_id)] ??= []).push(point);

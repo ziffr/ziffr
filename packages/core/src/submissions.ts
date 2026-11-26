@@ -3,9 +3,11 @@
 // members, Contacts and Feeds alike; a Metric owner
 // accepts or declines Corrections. Every lookup stays inside one Workspace.
 import { announceNewAction } from "./action-state";
+import { askedPeriods } from "./asked-periods";
 import { db } from "./db";
 import { insertSealed, openNames, openOne, openRows, reserveIds, sealRow } from "./sealed-columns";
 import { formatValue, SOURCE_LABEL } from "./format";
+import { answeredMeanwhile, LINK_PERIOD_REFUSED } from "./form-link-rules";
 import { isArchived, normalizeMetric } from "./metric-row";
 import { readAnswer, type AnswerReading } from "./numbers";
 import { NUMBER_STYLE_MARKS, type NumberStyle } from "./number-style";
@@ -77,8 +79,9 @@ export type IntakeMark = "paste" | "import";
 export type SubmissionEffects = {
   /** Tells the Metric owner about a late value proposed as a Correction. */
   notifyCorrection: (e: { actionId: number; senderId: string; ownerId: string; value: number }) => Promise<void>;
-  /** Hands a new value to the Metric's Workflow; returns what it did, in words. An Import skips the check. */
-  afterValue: (metricId: number, period: string, submitterId: string, opts?: { imported?: boolean }) => Promise<string[]>;
+  /** Hands a new value to the Metric's Workflow; returns what it did, in words. An Import skips the check. With
+   * `withoutDetails` the words give no reason and name nobody. */
+  afterValue: (metricId: number, period: string, submitterId: string, opts?: { imported?: boolean; withoutDetails?: boolean }) => Promise<string[]>;
 };
 
 /** Takes a value that arrived by Slack, mail or a personal form link (GLOSSARY: Submission Rule, Token, Lock).
@@ -161,6 +164,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   const current = periodStart(new Date(), metric.period, ys);
   // A program names its value and period; so does a paste, whose cells the paste reader has read already, and a value typed on the Metric's page.
   const given = valueIsGiven(input, pasted !== null);
+  const byLink = typedOnLink(input.source, given);
   const sent = given ? input.value : undefined;
   const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text, style, { parents: input.source === "web_form" });
   // Rows that are parts of others (spec 0041, ticket 12) are checked before anything is looked up or written: a list that
@@ -183,16 +187,12 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
     // Period words are read with the workspace's Fiscal Year even for a monthly Metric, so the reply names "Q3"
     // rightly when it says that is not one of its periods.
     const answer = readAnswer(input.text, { style, today: new Date(), period: metric.period, yearStart: workspaceYearStart, promptPeriod: prompt?.period_start ?? null, ...reading });
-    if (!answer.ok) return log({ ...base, ok: false, ...askBack(answer, metric, workspaceYearStart, prompt?.period_start ?? current, input.source === "web_form" ? style : null) });
+    if (!answer.ok) return log({ ...base, ok: false, ...unread(byLink, answer, metric, workspaceYearStart, prompt?.period_start ?? current, input.source === "web_form" ? style : null) });
     value = answer.value;
     period = answer.period;
   }
-  // A visitor of the demo (spec 0051) enters values for the last two years up to the current period only, whichever way the
-  // value came in (the form, a paste, a filled-in value, an answer in a simulated channel). The seed is never a visit.
-  if (!preview && visitHeaders()) {
-    const outside = demoValuePeriodRefusal(period, current, new Date());
-    if (outside) return log({ ...base, ok: false, outcome: "rejected_period", detail: outside });
-  }
+  const may = await periodStage({ byLink, preview, ws: workspaceId, metric, token, period, current, yearStart: ys });
+  if ("refused" in may) return log({ ...base, ok: false, ...may.refused });
   // The reply writes values the way the workspace does, so a misreading shows at once.
   const fv = (v: number) => formatValue(metric, v, style);
   const when = midSentence(periodLabel(period, metric.period, ys));
@@ -233,7 +233,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   // A Filled-in Value is never an Import, so it never skips the Unusual Value check (spec 0046).
   const mayImport = !filled && importable(Boolean((input.import && feed) || historyAllowed), period, current, metric.period);
   // The core applies the rule and seals what it writes; the database only checks and stores (record-value.ts, spec 0028).
-  const { data, error } = await record(workspaceId, metric, period, value, row, mayImport, breakdown?.rows ?? []);
+  const { data, error } = await record(workspaceId, may.rules, period, value, row, mayImport, breakdown?.rows ?? []);
   // Archived between the check above and the write: the database refuses it the same way.
   // Condensed in between (spec 0033): the database refuses it the same way.
   const raced = await refusedByDatabase(error, workspaceId, metric.id, period);
@@ -247,7 +247,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   const before = data.before === null ? null : Number(data.before);
   // A Filled-in Value the submitter replaces with their own says so: who had entered it (a Guest is told "a colleague").
   const replacedBy = data.replacedFilledIn ? await enteredByWords(workspaceId, submitterId, data.replacedFilledIn, profiles) : null;
-  const result = outcomeWords(data, { metric, when, value, before, imported, how, replacedBy, fv });
+  const result = outcomeWords(data, { metric, when, value, before, imported, how, replacedBy, fv, earlierByLink: may.earlierByLink });
   if (breakdown && result.ok) result.detail += breakdownWords(breakdown, rowsSum, fv);
   // The first accepted value closes the Prompt, by whichever way it arrived (prompt-ways.ts); one that comes second says so.
   if (result.ok && !preview) result.detail += await settlePrompts({ ws: workspaceId, prompt, metricId: metric.id, senderId, source: input.source, period, said: `${fv(value)} for ${metric.name}, ${when}.` });
@@ -256,7 +256,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   if (result.ok && !preview && filled) result.detail = await settleFilled(workspaceId, { metric, period, value: fv(value), when, forId: filled.forId, by: filled.by, as: filled.as, awayBy: filled.awayBy, observationId: Number(data.observation_id), source: input.source, forName: profiles.find((p) => p.id === filled!.forId)?.name, detail: result.detail });
   // The metric's Workflow takes it from here: check, approval, publish.
   if (result.ok && submitterId) {
-    const next = await effects.afterValue(metric.id, period, submitterId, { imported });
+    const next = await effects.afterValue(metric.id, period, submitterId, afterOptions(byLink, imported));
     if (next.length) result.detail += ` Workflow: ${next.join("; ")}.`;
   }
   // The value it became, so the intake log and the Metric's history can say how it arrived.
@@ -316,8 +316,10 @@ async function chooseToken(input: SubmissionInput, ws: string, sender: Profile, 
 }
 
 /** What a recording answers the sender, in words (the intake's reply). */
-function outcomeWords(data: { outcome: string; after: number | string; earlier: number }, c: { metric: Metric; when: string; value: number; before: number | null; imported: boolean; how: string; replacedBy: string | null; fv: (v: number) => string }): SubmissionResult {
+function outcomeWords(data: { outcome: string; after: number | string; earlier: number }, c: { metric: Metric; when: string; value: number; before: number | null; imported: boolean; how: string; replacedBy: string | null; fv: (v: number) => string; earlierByLink: boolean }): SubmissionResult {
   const { metric, when, value, before, fv } = c;
+  // An earlier period taken from a form link has its own words, should it be answered in the meantime (form-link-rules.ts).
+  if (c.earlierByLink && before !== null) return answeredMeanwhile(data.outcome, `${fv(value)} recorded for ${metric.name}, ${when}.`);
   switch (data.outcome) {
     case "recorded": return { ok: true, outcome: "recorded", detail: `${fv(value)} ${c.imported ? "imported" : "recorded"} for ${metric.name}, ${when} (via ${c.how}).`, imported: c.imported };
     case "added": return { ok: true, outcome: "added", detail: `${fv(before!)} + ${fv(value)} = ${fv(Number(data.after))} for ${metric.name}, ${when}.`, imported: false };
@@ -326,6 +328,34 @@ function outcomeWords(data: { outcome: string; after: number | string; earlier: 
     case "kept_both": return { ok: true, outcome: "kept_both", detail: `Kept ${fv(value)} alongside ${data.earlier} earlier value(s) for ${metric.name}, ${when}.` };
     default: return { ok: false, outcome: "rejected_duplicate", detail: `${metric.name} already has ${fv(before!)} for ${when}, and its rule rejects a second value.` };
   }
+}
+
+/** Whether a value is text typed on a personal form link: on the web form, and not read already by the core (a paste,
+ * Record a value, a Filled-in Value). A form link has rules of its own for the periods it records and for its reply. */
+function typedOnLink(source: SourceId, given: boolean): boolean {
+  return source === "web_form" && !given;
+}
+
+/** Why text recorded nothing (askBack); a form link naming a period still to come gets its one fixed refusal. */
+function unread(byLink: boolean, ...args: Parameters<typeof askBack>): { outcome: string; detail: string } {
+  return byLink && args[0].reason === "future_period" ? LINK_PERIOD_REFUSED : askBack(...args);
+}
+
+/** Whether a value may be recorded for its period. A form link records the running period, or one asked of its Token
+ * that is still due (asked-periods.ts). Such an earlier period is asked for as a first value, so it is written under
+ * "reject". A visitor of the demo (spec 0051) enters values for the last two years up to the current period only, whichever way the value came in
+ * (the form, a paste, a filled-in value, an answer in a simulated channel). The seed is never a visit. */
+async function periodStage(i: { byLink: boolean; preview: boolean; ws: string; metric: Metric; token: Token; period: string; current: string; yearStart: YearStart }): Promise<{ refused: { outcome: string; detail: string } } | { earlierByLink: boolean; rules: Metric }> {
+  const earlierByLink = i.byLink && i.period !== i.current;
+  if (earlierByLink && !(await askedPeriods(i.ws, i.metric, i.token, i.current, i.yearStart)).includes(i.period)) return { refused: LINK_PERIOD_REFUSED };
+  const outside = !i.preview && visitHeaders() ? demoValuePeriodRefusal(i.period, i.current, new Date()) : null;
+  if (outside) return { refused: { outcome: "rejected_period", detail: outside } };
+  return { earlierByLink, rules: earlierByLink ? { ...i.metric, submission_rule: "reject" } : i.metric };
+}
+
+/** What the Workflow is told with a new value: a form link's reply takes its short words. */
+function afterOptions(byLink: boolean, imported: boolean): { imported: boolean; withoutDetails?: boolean } {
+  return byLink ? { imported, withoutDetails: true } : { imported };
 }
 
 /** The words added to the reply for a value with a Breakdown, saying when its rows and its total disagree. */
