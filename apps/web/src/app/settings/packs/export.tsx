@@ -84,7 +84,7 @@ export function ExportPack({ options, defaultAuthor = "" }: { options: ExportOpt
       <p className="mb-2 text-sm text-muted-foreground">Make a Pack of things in this Workspace to share or publish. It holds their descriptions and layouts, never a value or a person.</p>
       <Button variant="outline" onClick={() => { setDescribing(false); setOpen(true); }}><PackagePlus aria-hidden /> Export as Pack…</Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col">
+        <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-2xl">
           <DialogTitle>{describing ? "Describe your Pack" : "Export as Pack"}</DialogTitle>
           <DialogDescription>{describing ? "Optional: tell whoever gets the Pack what it is for and how to start. They read it before installing and in Help." : "Pick what goes in and name the Pack. Words you wrote in templates go in as written; words with web addresses or markup, images and drawings stay out, and so does every logo but the one you choose below, and Ziffr says so."}</DialogDescription>
           <div key={describing ? "describe" : "pick"} className="-mx-1 min-h-0 flex-1 space-y-4 overflow-y-auto px-1 text-sm">
