@@ -2,7 +2,7 @@
 # `pnpm ci:local`: everything CI checks (.github/workflows/ci.yml), on this machine, against the local Supabase that
 # `pnpm prototype` (or `supabase start`) already runs. Run it before pushing: GitHub Actions minutes are counted, local
 # runs are not. Steps whose tool is not installed (gitleaks, vale) are skipped with a note; CI still runs them.
-# `--quick` leaves out the database, the app build and the SDK and MCP tests.
+# `--quick` leaves out the database, the app build, the SDK and MCP tests and the phone check.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -84,5 +84,8 @@ ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/mcp test:app
 ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/feed-kit test:app
 ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/feed-sql test:app
 ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/feed-usage test:app
+# The Phone-first pages at phone width (spec 0055), on your demo as it is: CI resets its own first, yours is left alone.
+pnpm --filter @ziffr/web exec playwright install chromium-headless-shell
+ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/web test:phone
 
 echo; echo "Everything CI checks passed locally."

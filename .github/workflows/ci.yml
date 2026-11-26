@@ -264,7 +264,8 @@ jobs:
   # Core operations against a real Postgres with the migrations applied (spec 0001, testing decisions), in the merge
   # queue and on main only: a pull request gets the quick checks, and its group is tested in full before it lands.
   # Five jobs side by side, each with its own local Supabase: the core's database tests in three shards, the app
-  # (its API over HTTP, its production build, and the SDK, MCP server and Feeds against it), and the upgrade test.
+  # (its API over HTTP, its production build, the SDK, MCP server and Feeds against it, and its pages at phone width),
+  # and the upgrade test.
   # The job named core-db, the required check, waits for all five and passes only if each did.
   core-db-shard:
     runs-on: ubuntu-latest
@@ -326,6 +327,8 @@ jobs:
         run: sudo sysctl -w net.ipv4.ip_local_port_range="60000 65535" >/dev/null; for i in 1 2 3; do supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,realtime,storage-api,postgres-meta && exit 0; supabase stop --no-backup || true; sleep 10; done; exit 1
       - name: The API over HTTP (route handlers against the same database)
         run: pnpm --filter @ziffr/web test:db
+      # Made up for this run only: the phone check asks the app for a fresh demo with it.
+      - run: echo "ZIFFR_JOB_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       # The production build here also fails if the core's database module is bundled for a browser (next.config.ts).
       - name: The app, built and running, for the SDK and the MCP server
         run: |
@@ -345,6 +348,23 @@ jobs:
           pnpm --filter @ziffr/feed-kit test:app
           pnpm --filter @ziffr/feed-sql test:app
           pnpm --filter @ziffr/feed-usage test:app
+      # The Phone-first pages (spec 0055) at 390 and 320 wide, light and dark, as a person of the demo: no sideways scroll,
+      # nothing to tap under 44 px, no field under 16 px (apps/web/phone/). The demo is reset first, so the walk sees what a
+      # new demo holds, with its Snapshots, whatever the tests above left. Last, so it cannot hide their failures.
+      - name: The browser for the phone check
+        run: pnpm --filter @ziffr/web exec playwright install --with-deps chromium-headless-shell
+      - name: The Phone-first pages at phone width
+        run: |
+          curl -sf -X POST -H "Authorization: Bearer $ZIFFR_JOB_SECRET" http://localhost:3000/api/jobs/demo-reset | grep -q '"reset":true' || { echo "::error::The demo was not reset."; cat "$RUNNER_TEMP/app.log"; exit 1; }
+          pnpm --filter @ziffr/web test:phone
+      # Screenshots of the pages that failed; they show made-up demo data only.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: phone-check
+          path: apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   # The upgrade test (#602): the newest release's migrations and demo seed plus a trial Workspace, then this branch's
   # migrations pushed the way the image does (scripts/upgrade-test.sh). A migration that touches demo rows without
