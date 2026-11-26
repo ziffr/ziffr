@@ -56,6 +56,8 @@ export async function addingTo(actor: Actor, installId: number, repeat: string, 
   return { repeat, taken: record.lines, given, mayCompute, edits, made: record.made, active, seen };
 }
 
+/** A widget the new line's Metrics may be added to: which of them, by the number that stands for each. */
+export type AddedWidget = { id: number; dashboard: { id: number; name: string }; add: number[] };
 /** Something already set up that the new line may be added to, as the person ticks it. `from` is the first day of the
  * first period a Total would count it in, which the person may change; `suggested` is false where the form leaves the
  * tick to the person. */
@@ -66,8 +68,10 @@ export type Additions = {
   byHand: string[];
   /** The shared Workflow the new Metrics join, when ticked, or null. */
   join: number | null;
-  /** The widgets that take the new Metrics, when ticked: which of them, by the number that stands for each. */
-  widgets: { id: number; dashboard: { id: number; name: string }; add: number[] }[];
+  /** The ticked widgets, which take the new Metrics. */
+  widgets: AddedWidget[];
+  /** Every widget offered, ticked or not, by its offer: for saying whom it would newly show them. */
+  offered: (AddedWidget & { offer: string })[];
   /** The Totals that count a new Metric, when ticked. */
   totals: TotalAddition[];
   /** Why what is asked for cannot be added as asked. */
@@ -75,7 +79,7 @@ export type Additions = {
 };
 
 /** Nothing to add to: a Set up that adds no line. */
-export const NO_ADDITIONS: Additions = { offers: [], byHand: [], join: null, widgets: [], totals: [], problems: [] };
+export const NO_ADDITIONS: Additions = { offers: [], byHand: [], join: null, widgets: [], offered: [], totals: [], problems: [] };
 
 /** Where the new line's Metrics may be added to what is there: the shared Workflow, only when it is the actor's, each
  * widget of several Metrics that shows most lines' Metrics of an entry, only on a dashboard they may change, and the
@@ -83,7 +87,7 @@ export const NO_ADDITIONS: Additions = { offers: [], byHand: [], join: null, wid
 export async function additionsFor(actor: Actor, to: AddingTo, places: PackPlaces, asked: { entries: ReadonlyMap<string, EntryRow>; metrics: PlannedMetric[]; ticked: ReadonlySet<string>; from: unknown }): Promise<Additions> {
   const ws = actor.workspaceId;
   const { metrics, ticked } = asked;
-  const out: Additions = { offers: [], byHand: [], join: null, widgets: [], totals: [], problems: [] };
+  const out: Additions = { offers: [], byHand: [], join: null, widgets: [], offered: [], totals: [], problems: [] };
   const offer = (id: string, words: string, extra: Pick<Offer, "from" | "suggested"> = {}) => { out.offers.push({ id, words, on: ticked.has(id), ...extra }); return ticked.has(id); };
   const shared = (kind: MadeThing["kind"]) => to.made.filter((t) => t.kind === kind && t.line === null);
 
@@ -95,7 +99,7 @@ export async function additionsFor(actor: Actor, to: AddingTo, places: PackPlace
   const flow = [...flows].sort((a, b) => Number(b.id) - Number(a.id))[0];
   if (flow && joining.length) {
     if (flow.owner_id === actor.personId) {
-      if (offer(`workflow:${flow.id}`, `Add ${listed(joining)} to the Workflow ${flow.name}: it asks for them, and its Approvers read the values they approve.`)) out.join = Number(flow.id);
+      if (offer(`workflow:${flow.id}`, `Add ${listed(joining)} to the Workflow ${flow.name}: it asks whoever submits them, and its Approvers read the values they approve.`)) out.join = Number(flow.id);
     } else out.byHand.push(`The Workflow ${flow.name} is not yours to change, so ${listed(joining)} ${joining.length === 1 ? "does" : "do"} not follow it. Its owner can choose it on each Metric's page.`);
   }
 
@@ -124,7 +128,11 @@ export async function additionsFor(actor: Actor, to: AddingTo, places: PackPlace
     const board = mine.get(Number(w.dashboard_id))!;
     const names = listed(add.map((m) => m.name));
     if (board.role === "viewer") out.byHand.push(`You may not change the dashboard ${board.name}: its owner can add ${names} there.`);
-    else if (offer(`widget:${w.id}`, `Add ${names} to ${w.title ? `“${String(w.title)}”` : "a widget"} on the dashboard ${board.name}. Whoever it is shared with sees them.`)) out.widgets.push({ id: Number(w.id), dashboard: { id: board.id, name: board.name }, add: add.map((m) => m.plan) });
+    else {
+      const widget = { id: Number(w.id), dashboard: { id: board.id, name: board.name }, add: add.map((m) => m.plan) };
+      out.offered.push({ ...widget, offer: `widget:${w.id}` });
+      if (offer(`widget:${w.id}`, `Add ${names} to ${w.title ? `“${String(w.title)}”` : "a widget"} on the dashboard ${board.name}.`)) out.widgets.push(widget);
+    }
   }
 
   out.totals = await totalAdditions(actor, to, asked, { offer, byHand: out.byHand, problems: out.problems });
