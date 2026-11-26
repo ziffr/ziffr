@@ -122,7 +122,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// OWNERS: the one table to edit if salespeople have Metrics of their own (from a Pack that makes one per salesperson,\n// or duplicates of the team's Metrics). Leave the list empty to send the team's figures only.\n// One line per salesperson:\n//   owner     Pipedrive's user id of the deal owner (owner_id), a number\n//   others    the slug of that person's Metric (the last part of the Metric's address in Ziffr). Leave one out, or\n//             empty, to send nothing for it.\n// Owner ids stay in n8n: Ziffr is sent only a slug, a week and a number.\nconst OWNERS = [\n  // { owner: '1234567', closed: 'closed-this-quarter-ana', pipeline: 'pipeline-value-ana' },\n];\nreturn [{ json: { owners: OWNERS } }];\n"
+        "jsCode": "// OWNERS: the one table to edit if salespeople have Metrics of their own, as the Sales forecast Pack makes them (its\n// team figures are Totals, which take no values: leave the team's settings empty). Leave the list empty to send the\n// team's figures only.\n// One line per salesperson:\n//   owner     Pipedrive's user id of the deal owner (owner_id), a number\n//   others    the slug of that person's Metric (the last part of the Metric's address in Ziffr). Leave one out, or\n//             empty, to send nothing for it.\n// Owner ids stay in n8n: Ziffr is sent only a slug, a week and a number.\nconst OWNERS = [\n  // { owner: '1234567', closed: 'closed-this-quarter-ana', pipeline: 'pipeline-value-ana' },\n];\nreturn [{ json: { owners: OWNERS } }];\n"
       },
       "id": "c5d6a2b6-3c3c-5706-83f8-76beacc65bd4",
       "name": "Owners",
