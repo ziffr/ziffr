@@ -11,7 +11,7 @@
 // are finite and bounded, dates real and in range; text follows the Pack's plain-text rules; "__proto__" and its kin
 // are data (ids are held in Maps, keys are refused by pattern). Nothing here runs or queries what it reads.
 import { checkSchema, MAX_PROBLEMS, parseJson, under, type Problem, type Schema } from "./json-check.js";
-import { appText, APP_TEXT, itemKey, PLAIN, SLIDE_WORDS, WORDS } from "./file-text.js";
+import { appText, APP_TEXT, itemKey, PLAIN, SAVED_WORDS, SLIDE_WORDS, WORDS } from "./file-text.js";
 import { checkMetricFileValue, METRIC_FILE_SCHEMA, metricFileSchema2, type MetricFile } from "./metric-file.js";
 import { checkDashboardTemplateFileValue, DASHBOARD_TEMPLATE_LIMITS, DASHBOARD_TEMPLATE_SCHEMA, dashboardTemplateReferences, refusedOutsidePack, type DashboardTemplateFile } from "./dashboard-template-file.js";
 import { checkDeckTemplateFileValue, DECK_TEMPLATE_LIMITS, DECK_TEMPLATE_SCHEMA, deckTemplateReferences, deckTemplateSchema2, type DeckTemplateFile } from "./deck-template-file.js";
@@ -127,7 +127,7 @@ const slots: Schema = { type: "array", minItems: 1, maxItems: DASHBOARD_TEMPLATE
  * typed in the app, with an "@", an emoji or an address, travels; a Pack file keeps the Pack's rule. */
 function loosened(schema: Schema): Schema {
   const walk = (s: Schema): Schema => {
-    const out: Schema = s.pattern === PLAIN || s.pattern === WORDS || s.pattern === SLIDE_WORDS ? { ...s, pattern: APP_TEXT, description: appText(1).description } : { ...s };
+    const out: Schema = s.pattern === PLAIN || s.pattern === WORDS || s.pattern === SAVED_WORDS || s.pattern === SLIDE_WORDS ? { ...s, pattern: APP_TEXT, description: appText(1).description } : { ...s };
     if (s.properties) out.properties = Object.fromEntries(Object.entries(s.properties).map(([k, v]) => [k, walk(v)]));
     if (s.items) out.items = walk(s.items);
     if (s.oneOf) out.oneOf = s.oneOf.map(walk);

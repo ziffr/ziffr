@@ -3,7 +3,9 @@
 import { describe, expect, it } from "vitest";
 import { definitionsLayout, definitionsModel, fillSlideWords, type DefinitionRow } from "./slide-figures";
 import { checkedElement, elementSlots } from "./slide-element";
-import { fillText } from "./placeholders";
+import { fillText, fillWidgetText } from "./placeholders";
+import { fromDeckTemplate, fromSlideLayout } from "./team-templates";
+import type { SlideBody } from "./types";
 import { canvas, metric } from "./test/fixtures";
 
 const arr = metric({ id: 1, slug: "arr", name: "ARR", description: "What recurs each year.", calculation_note: "One-off fees are left out." });
@@ -48,15 +50,47 @@ describe("the Definitions element", () => {
 });
 
 describe("the {calculation note} Placeholder", () => {
-  it("fills in how the Metric is calculated, by Slot", () => {
-    expect(fillText("{calculation note}", [arr], data)).toBe("One-off fees are left out.");
-    expect(fillText("{calculation note 2}", [plain, arr], data)).toBe("One-off fees are left out.");
+  const drawn = (text: string, ids: number[]) => fillWidgetText(text, { metric_ids: ids, settings: {} }, data);
+
+  it("fills in how the Metric is calculated where words are drawn, by Slot", () => {
+    expect(drawn("{calculation note}", [1])).toBe("One-off fees are left out.");
+    expect(drawn("{calculation note 2}", [2, 1])).toBe("One-off fees are left out.");
   });
 
   it("stays written where nothing is written, reads as missing on a slide, and as empty for a hidden Metric", () => {
-    expect(fillText("{calculation note}", [plain], data)).toBe("{calculation note}");
+    expect(drawn("{calculation note}", [2])).toBe("{calculation note}");
     expect(fillSlideWords("{calculation note}", { data, metrics: [plain] })).toMatchObject({ text: "–", missing: true });
     expect(fillSlideWords("{calculation note}", { data, metrics: [null] })).toMatchObject({ text: "", missing: true });
     expect(fillSlideWords("{calculation note}", { data, metrics: [arr] })).toMatchObject({ text: "One-off fees are left out.", missing: false });
+  });
+});
+
+describe("words filled once and saved", () => {
+  const rich = (text: string) => ({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+  const written = "{metric}: {calculation note}, {Calculation Note 1}";
+  // A slide as a template or a layout keeps it: a widget that fills the Slot, a Slide Element, and a text box.
+  const slide: SlideBody = {
+    shapes: [
+      { type: "ziffr-widget", x: 0, y: 0, rotation: 0, opacity: 1, props: { template: "number", w: 300, h: 200 }, widget: { metricSlots: [0], settings: { headline: written }, title: written } },
+      { type: "ziffr-widget", x: 0, y: 210, rotation: 0, opacity: 1, props: { template: "slide", w: 300, h: 200 }, widget: { metricSlots: [0], settings: { element: { kind: "words", text: [written] } }, title: null } },
+      { type: "text", x: 0, y: 420, rotation: 0, opacity: 1, props: { richText: rich(written) } },
+    ],
+  };
+  // As the deck editor fills them (decks/[id]/editor.tsx).
+  const once = (text: string, ids: number[]) => fillText(text, data.metrics.filter((m) => ids.includes(m.id)), data) ?? text;
+
+  it.each([
+    ["a slide from a layout", () => fromSlideLayout(slide, [[1]], once)],
+    ["a deck from a Deck Template", () => fromDeckTemplate({ slides: [slide, slide] }, [[1]], once).flat()],
+  ])("keeps no word of the note in the document of %s, and the Placeholder as written", (_what, make) => {
+    const document = JSON.stringify(make());
+    expect(document).not.toContain("One-off fees");
+    // The other Placeholders of the text box are filled as before; this one waits.
+    expect(document).toContain("ARR: {calculation note}, {Calculation Note 1}");
+  });
+
+  it("writes it down from no text at all", () => {
+    expect(fillText("{calculation note}", [arr], data)).toBe("{calculation note}");
+    expect(fillText("{calculation note 2}", [plain, arr], data)).toBe("{calculation note 2}");
   });
 });

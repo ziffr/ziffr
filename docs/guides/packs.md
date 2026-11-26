@@ -92,7 +92,7 @@ An entry in the format `ziffr.metric/2` may carry a `calculationNote`: exactly w
 { "key": "mrr", "metric": { "format": "ziffr.metric/2", "name": "MRR", "period": "month", "aggregation": "last", "polarity": "higher", "calculationNote": "Active subscriptions at month end, after discounts. One-off fees are left out." } }
 ```
 
-Write `ziffr.metric/1` for an entry without a note. A Ziffr from before the note refuses a Pack with a `ziffr.metric/2` entry and names the formats it reads, so set the Pack's `ziffr` minimum to the release you tested it with. A Metric made from the entry gets the note, which its owner may then change. A slide shows it with the `{calculation note}` Placeholder or the `definitions` Slide Element.
+Write `ziffr.metric/1` for an entry without a note. A Ziffr from before the note refuses a Pack with a `ziffr.metric/2` entry and names the formats it reads, so set the Pack's `ziffr` minimum to the release you tested it with. A Metric made from the entry gets the note, which its owner may then change. A slide shows it with the `definitions` Slide Element, or with the `{calculation note}` Placeholder in a widget's words or a Slide Element. A slide's `text` and `box` shapes may not hold that Placeholder: their words are filled once and saved, so the note would stay for people who may not see the Metric.
 
 ## Slides that look designed
 

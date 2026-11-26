@@ -12,7 +12,7 @@ import { normaliseTagName, tagKey, tagNameProblem, TAGS_PER_ENTRY } from "./tag-
 import { getMetrics } from "./workspace-data";
 import { checkPack, PACK_FORMAT, PACK_LICENSES, type Pack } from "./pack";
 import { checkSchema, type Schema } from "./json-check";
-import { PLAIN, WORDS, KEY } from "./file-text";
+import { PLAIN, SAVED_WORDS, WORDS, KEY } from "./file-text";
 import { checkMetricFileValue, METRIC_FILE_LIMITS, type MetricFile } from "./metric-file";
 import { checkDashboardTemplateFileValue, type DashboardTemplateFile, type WidgetSettingsFile } from "./dashboard-template-file";
 import { checkDeckTemplateFileValue, DECK_TEMPLATE_FORMAT, DECK_TEMPLATE_FORMAT_2, type DeckTemplateFile } from "./deck-template-file";
@@ -43,7 +43,7 @@ export type ExportResult = { text: string; fileName: string; leftOut: { name: st
 
 /** How text is fitted into a file: a Pack keeps the Pack's plain-text rules; a Workspace Export (workspace-export.ts)
  * the app's own. Both say "does not fit" by an empty answer, and the caller says what was left out. */
-export type TextFit = { plain: (s: unknown, max: number) => string | null; words: (s: unknown, max: number) => string | undefined; /** A Slide Element's words, spaces kept; empty when the file may not hold them. */ slide: (s: string) => string };
+export type TextFit = { plain: (s: unknown, max: number) => string | null; words: (s: unknown, max: number) => string | undefined; /** A paragraph of a slide's text or box, whose words are filled once and saved. */ saved: (s: unknown, max: number) => string | undefined; /** A Slide Element's words, spaces kept; empty when the file may not hold them. */ slide: (s: string) => string };
 
 const plain = (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
@@ -58,14 +58,15 @@ function packNote(s: unknown, name: string, leftOut: ExportResult["leftOut"]): s
   if (!fits) leftOut.push({ name, why: `Only how it is calculated was left out: a Pack keeps up to ${METRIC_FILE_LIMITS.calculationNote} characters of plain text, without markup or web addresses.` });
   return fits ?? undefined;
 }
-const wordsOk = (s: unknown, max: number) => {
+const fitting = (pattern: string) => (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
-  return t && !checkSchema({ type: "string", pattern: WORDS } as Schema, t).length ? t : undefined;
+  return t && !checkSchema({ type: "string", pattern } as Schema, t).length ? t : undefined;
 };
+const wordsOk = fitting(WORDS);
 /** A Pack's text rules. */
 // An element's spaces are part of its layout, so nothing is collapsed: a text is kept whole or not at all.
 const slideOk = (s: string) => (checkSchema(slideWords(SLIDE_ELEMENT_LIMITS.words), s).length ? "" : s);
-const PACK_FIT: TextFit = { plain, words: wordsOk, slide: slideOk };
+const PACK_FIT: TextFit = { plain, words: wordsOk, saved: fitting(SAVED_WORDS), slide: slideOk };
 const slug = (name: string) => {
   const s = name.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36);
   return /^[a-z]/.test(s) ? s : `x-${s || "item"}`.slice(0, 40);
@@ -332,7 +333,7 @@ export function deckFile(t: Omit<DeckTemplateFile, "format">): DeckTemplateFile 
 /** Paragraphs of a shape's words, from the rich text the deck editor keeps. */
 function paragraphsOf(rich: unknown, fit: TextFit = PACK_FIT): string[] {
   const doc = rich as { content?: { content?: { text?: string }[] }[] } | undefined;
-  return (doc?.content ?? []).map((p) => (p.content ?? []).map((t) => t.text ?? "").join("")).slice(0, 20).map((t) => fit.words(t, 300) ?? "").filter((t, i, all) => t || i < all.length - 1);
+  return (doc?.content ?? []).map((p) => (p.content ?? []).map((t) => t.text ?? "").join("")).slice(0, 20).map((t) => fit.saved(t, 300) ?? "").filter((t, i, all) => t || i < all.length - 1);
 }
 
 const COLORS = ["black", "grey", "light-violet", "violet", "blue", "light-blue", "yellow", "orange", "green", "light-green", "light-red", "red", "white"];

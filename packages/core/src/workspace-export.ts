@@ -83,7 +83,8 @@ function looseFit(over: (what: string) => void): TextFit {
     return text;
   };
   // A Slide Element's words were checked by the app's rules when they were saved: they travel as they are.
-  return { plain, words: (s, max) => plain(s, max) || undefined, slide: (s) => s };
+  const words = (s: unknown, max: number) => plain(s, max) || undefined;
+  return { plain, words, saved: words, slide: (s) => s };
 }
 
 const fitsLabel = (s: unknown, max: number): string | null => {
