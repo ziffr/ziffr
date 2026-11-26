@@ -45,6 +45,14 @@ describe("outside a demo visit", () => {
 });
 
 describe("in a demo visit", () => {
+  it("keeps a Snapshot Part and a slide's mark: numbers only (spec 0061)", async () => {
+    const d = deck(
+      shape("shape:s1", "frame", { w: 1600, h: 900, name: "Slide 1" }, { meta: { snapshot: 7 } }),
+      shape("shape:p1", "ziffr-snapshot-part", { w: 1152, h: 506, snapshotId: 7, part: 12 }, { parentId: "shape:s1" }),
+    );
+    expect(await visit(() => visitorDeckDocument(demo, d, same(d)))).toEqual(d);
+  });
+
   it("keeps a deck as the editor writes it, with the words cleaned", async () => {
     const d = deck(
       shape("shape:s1", "frame", { w: 1600, h: 900, name: "Slide 1" }),

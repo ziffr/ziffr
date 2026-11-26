@@ -329,7 +329,8 @@ export async function openSnapshot(actor: Actor, snapshotId: number): Promise<Op
   const frozen = row.frozen as Frozen;
   const words = await readWords(actor.workspaceId, row);
   const seen = await forReader(actor, withWords(frozen.widgets, words), keptDay(frozen.data, row), frozen.themeId);
-  const corrections = await correctionsFor(actor, seen.data);
+  const ids = seen.data.metrics.map((m) => m.id);
+  const corrections = ids.length ? correctedSince(seen.data, await recordedNow(actor, ids)) : [];
   return { ...summary(row), name: frozen.name, themeId: frozen.themeId, intro: String(words.intro ?? ""), widgets: seen.widgets, data: seen.data, hiddenParts: seen.hidden, canWrite: writer, canDelete: role === "owner", corrections };
 }
 
@@ -370,6 +371,38 @@ export async function snapshotForLink(snapshotId: number, dashboardId: number, k
   return { name: row.frozen.name, themeId: row.frozen.themeId, intro: String(words.intro ?? ""), widgets, data: keptDay(row.frozen.data, row), label: row.label, takenAt: row.taken_at, words };
 }
 
+/** A shown Snapshot as one reader gets it on a deck's slide (spec 0061): what opening it shows them. */
+export type ShownSnapshot = SnapshotSummary & {
+  name: string; intro: string;
+  /** The widgets the reader may see, with the words written about them, in reading order. */
+  widgets: Widget[];
+  /** How many widgets the Snapshot keeps, the ones this reader does not get included. */
+  kept: number;
+  data: CanvasData;
+};
+
+/** A shown Snapshot for a deck that draws it (spec 0061), by exactly the rules of opening it: whoever may open the
+ * dashboard, and of it the Metrics they may see now. "deleted" is told only to who may open the dashboard, and only
+ * of one that was shown. Null for everything else, so that a draft, a Snapshot of a dashboard that is not shared, one
+ * of another Workspace and an id nobody has answer alike. The id may come from a deck's document: untrusted. */
+export async function shownForReader(actor: Actor, snapshotId: number): Promise<ShownSnapshot | "deleted" | null> {
+  if (!Number.isSafeInteger(snapshotId) || snapshotId <= 0) return null;
+  const { data: found } = await db().from("dashboard_snapshots").select(`${SUMMARY}, frozen, words, deleted_at`).eq("id", snapshotId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const row = found as unknown as (Row & { deleted_at: string | null }) | null;
+  if (!row?.shown_at || !(await roleOn(actor, row.dashboard_id))) return null;
+  if (row.deleted_at) return "deleted";
+  const frozen = row.frozen ? await openedFrozen(actor.workspaceId, row.id, row.frozen) : null;
+  if (!frozen) return null;
+  const words = await readWords(actor.workspaceId, row);
+  const seen = await forReader(actor, withWords(inReadingOrder(frozen.widgets), words), keptDay(frozen.data, row), frozen.themeId);
+  // On a slide a Snapshot's quarters keep their months: the Fiscal Year it kept, where it kept one (spec 0061).
+  const data = { ...seen.data, yearStart: frozen.data.yearStart ?? seen.data.yearStart };
+  return { ...summary(row), name: frozen.name, intro: String(words.intro ?? ""), widgets: seen.widgets, kept: frozen.widgets.length, data };
+}
+
+/** Widgets top to bottom, then left to right: the order a Snapshot is read in. */
+const inReadingOrder = (widgets: Widget[]) => [...widgets].sort((a, b) => a.y - b.y || a.x - b.x || a.id - b.id);
+
 /** What a new deck made from a Snapshot starts with (#178): the dashboard's name and the period, the Snapshot's
  * introduction, and its widgets in reading order with the words written about them, each drawing only the Metric
  * periods complete by the period's last day. Only the widgets the person may see now (decided on #193); placing the
@@ -378,8 +411,7 @@ export async function snapshotDeckSeed(actor: Actor, snapshotId: number): Promis
   const { row } = await readable(actor, snapshotId, `${SUMMARY}, frozen, words`);
   const frozen = row.frozen as Frozen;
   const words = await readWords(actor.workspaceId, row);
-  const ordered = [...frozen.widgets].sort((a, b) => a.y - b.y || a.x - b.x || a.id - b.id);
-  const seen = await forReader(actor, withWords(ordered, words, { asOf: row.period_end }), frozen.data, frozen.themeId);
+  const seen = await forReader(actor, withWords(inReadingOrder(frozen.widgets), words, { asOf: row.period_end }), frozen.data, frozen.themeId);
   return {
     name: `${frozen.name}, ${row.label}`.slice(0, 120),
     intro: String(words.intro ?? ""),
@@ -387,13 +419,15 @@ export async function snapshotDeckSeed(actor: Actor, snapshotId: number): Promis
   };
 }
 
-/** The values a Snapshot kept that were corrected or removed since, of the data the reader gets from it: only
- * Metrics they see now, and checked again against what they see today. */
-async function correctionsFor(actor: Actor, kept: CanvasData): Promise<Correction[]> {
-  const ids = kept.metrics.map((m) => m.id);
-  if (!ids.length) return [];
-  // Only the series of Metrics the reader sees come back: getCanvasData leaves the others out.
-  const now = await getCanvasData(actor.workspaceId, actor.personId, { seriesOf: ids });
+/** What is recorded now for some Metrics, as the reader sees it: the other side of `correctedSince`. Only the series
+ * of Metrics the reader sees come back: getCanvasData leaves the others out. */
+export async function recordedNow(actor: Actor, metricIds: number[]): Promise<CanvasData> {
+  return getCanvasData(actor.workspaceId, actor.personId, { seriesOf: metricIds });
+}
+
+/** The values a Snapshot kept that were corrected or removed since, of the data the reader gets from it, against what
+ * they see recorded today (`now`). */
+export function correctedSince(kept: CanvasData, now: CanvasData): Correction[] {
   const out: Correction[] = [];
   for (const m of kept.metrics) {
     const current = now.series[m.slug];
