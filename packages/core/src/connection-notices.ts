@@ -4,12 +4,15 @@
 // sign-in.
 // Security: that link is signed (unsubscribe-token.ts) for one connection, named by the Workspace, the person and the
 // moment it was made, so it can only end that one and does nothing once it was replaced; it never connects anything,
-// which is why it does not expire. Opening it only asks; the page's button disconnects and drops any code the person
-// had waiting. Notices are limited per person and Workspace. Sending one never fails what caused it.
+// which is why it does not expire. Opening it only asks; the page's button disconnects, drops any code the person had
+// waiting and writes an Audit Log entry. Notices are limited per person and Workspace. Sending one never fails what
+// caused it.
+import { recordAudit } from "./audit-log";
 import { db } from "./db";
 import { deliverEmailNotice } from "./deliveries";
 import { CONNECTION_NOTICE, connectedWords, DISCONNECT_PATH, disconnectedWords, type ChatService, type NoticeWords } from "./connection-notice-words";
 import { headerSafe } from "./mail";
+import { openNames } from "./sealed-columns";
 import { unsubscribeSigner } from "./unsubscribe-token";
 
 /** Connection notices one person gets in an hour at most, per Workspace. */
@@ -91,15 +94,25 @@ export async function chatDisconnectView(token: string): Promise<{ service: Chat
   return c ? { service: c.service, workspace: c.workspace, connected: c.linkedAt !== null } : null;
 }
 
-/** Ends the connection a disconnect link names, if it still stands, with no sign-in, and drops a code the person had
- * waiting for that service. Using it again changes nothing. Null for any other link. */
+/** A person's name as the Audit Log keeps it, or null when it cannot be read. */
+async function nameOf(workspaceId: string, personId: string): Promise<string | null> {
+  const { data } = await db().from("profiles").select("id, name").eq("id", personId).maybeSingle();
+  if (!data) return null;
+  return openNames(workspaceId, [data]).then(([p]) => (p?.name as string | undefined) ?? null, () => null);
+}
+
+/** Ends the connection a disconnect link names, if it still stands, with no sign-in, drops a code the person had waiting
+ * for that service and records it in the Audit Log. Using it again changes and records nothing. Null for any other
+ * link. */
 export async function disconnectByLink(token: string): Promise<{ service: ChatService; workspace: string } | null> {
   const c = await named(token);
   if (!c) return null;
   if (c.linkedAt !== null) {
-    const { error } = await db().from(LINKS[c.service]).delete().eq("workspace_id", c.workspaceId).eq("person_id", c.personId).eq("linked_at", c.linkedAt);
+    const { data: ended, error } = await db().from(LINKS[c.service]).delete().eq("workspace_id", c.workspaceId).eq("person_id", c.personId).eq("linked_at", c.linkedAt).select("person_id");
     if (error) throw new Error("The account could not be disconnected.");
     await db().from(CODES[c.service]).delete().eq("workspace_id", c.workspaceId).eq("person_id", c.personId);
+    // In the name of the person the email went to, as the link carries no sign-in (as for a held reply they confirm).
+    if (ended?.length) await recordAudit(c.workspaceId, c.personId, { kind: `${c.service}.account_disconnected`, object: { type: "person", id: c.personId, name: await nameOf(c.workspaceId, c.personId) } });
   }
   return { service: c.service, workspace: c.workspace };
 }

@@ -3,6 +3,7 @@
 // disconnects exactly that connection with no sign-in, and the notices are limited.
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { auditLog } from "./audit-log";
 import { CONNECTION_NOTICES_PER_HOUR, chatDisconnectView, disconnectByLink, tellConnected } from "./connection-notices";
 import { CONNECTION_NOTICE } from "./connection-notice-words";
 import { finishSlackInstall, slackBot, startSlackInstall } from "./slack-connection";
@@ -89,8 +90,9 @@ describe("telling a member an account became theirs", () => {
     expect(await notices(w.id, sara)).toHaveLength(2);
   });
 
-  it("disconnects exactly the connection the link was made for, once, and drops a waiting code", async () => {
-    const { w, sara, connect } = await setup();
+  it("disconnects exactly the connection the link was made for, once, drops a waiting code and records it", async () => {
+    const { w, owner, sara, connect } = await setup();
+    const recorded = async () => (await auditLog(w.actor(owner), { kind: "telegram.account_disconnected" })).events;
     const first = id();
     await connect(sara, first);
     const old = linkIn((await notices(w.id, sara))[0].body);
@@ -107,12 +109,16 @@ describe("telling a member an account became theirs", () => {
     }
     expect(await chatDisconnectView(current)).toEqual({ service: "telegram", workspace: "Test", connected: true });
     expect(await personOfTelegramUser(w.id, second)).toBe(sara);
+    // Neither a link that ends nothing nor looking is recorded.
+    expect(await recorded()).toEqual([]);
     const waiting = codeOf((await startTelegramLink(w.actor(sara, "member"))).url);
     expect(await disconnectByLink(current)).toEqual({ service: "telegram", workspace: "Test" });
     expect(await personOfTelegramUser(w.id, second)).toBeNull();
     expect(await receiveTelegramUpdate(message(id(), `/start ${waiting}`))).toBe("refused");
     expect(await disconnectByLink(current)).not.toBeNull();
     expect((await chatDisconnectView(current))!.connected).toBe(false);
+    // Once, in the name of the person it was about, whose account it was.
+    expect(await recorded()).toMatchObject([{ actorId: sara, objectType: "person", objectId: sara, label: "disconnected, from the email's link, the Telegram account of" }]);
   });
 
   it("tells whoever loses a Telegram account to someone else, naming nobody", async () => {
@@ -154,6 +160,7 @@ describe("telling a member an account became theirs", () => {
     expect((await chatDisconnectView(linkIn(mine.body)))!.connected).toBe(true);
     await disconnectByLink(linkIn(mine.body));
     expect(await rowsOf("slack_links", { workspace_id: w.id, person_id: ben })).toEqual([]);
+    expect((await auditLog(w.actor(owner), { kind: "slack.account_disconnected" })).events).toMatchObject([{ actorId: ben, objectId: ben }]);
     // A user Slack says nothing about is named by the member ID.
     const unknown = slackId("U");
     await link(ben, unknown);
