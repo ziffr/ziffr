@@ -81,7 +81,7 @@ export default async function SubmitPage({ params, searchParams }: { params: Pro
       </div>
       {telegram?.telegramOn && <TelegramConnect code={code} linked={telegram.linked} />}
       <p className="mt-4 text-center text-xs text-muted-foreground">
-        This is your own link for {m.name}; anyone with it can submit. <Link href={`/metrics/${m.slug}`} className="underline max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">Open metric</Link>
+        This is your own link for {m.name}; anyone with it can submit. <Link href={`/metrics/${m.slug}`} className="underline max-sm:flex max-sm:min-h-11 max-sm:items-center max-sm:justify-center">Open metric</Link>
       </p>
       {look.footer && <p className="mt-2 text-center text-xs text-muted-foreground">{look.footer}</p>}
     </div>

@@ -75,7 +75,8 @@ export function SubmitForm({ code, label, placeholder, numberStyle, named = null
         </div>
       )}
       <form action={action} className={cn("mt-4", done && "max-sm:hidden")}>
-        <label htmlFor="value" className="text-sm font-medium">{label}</label>
+        {/* The heading above names the Metric already: on a phone the field comes straight after the period. */}
+        <label htmlFor="value" className="text-sm font-medium max-sm:sr-only">{label}</label>
         <Input
           ref={input}
           id="value"
@@ -87,7 +88,7 @@ export function SubmitForm({ code, label, placeholder, numberStyle, named = null
           aria-invalid={refused ? true : undefined}
           aria-describedby={refused ? "value-error" : undefined}
           // Important: on a touch screen every field is otherwise set to 16px (globals.css).
-          className="mt-1.5 h-10 text-base max-sm:h-14 max-sm:text-2xl!"
+          className="mt-1.5 h-10 text-base max-sm:mt-0 max-sm:h-14 max-sm:text-2xl! max-sm:dark:bg-card"
           autoFocus
         />
         {refused && <p id="value-error" role="alert" className="mt-1.5 text-sm text-destructive">{refused}</p>}
