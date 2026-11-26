@@ -63,6 +63,7 @@ describe("the values", () => {
     ["a percentage", { unit: "%", format: "percent", decimals: 1 }, 0, 100],
     ["a count", { unit: "orders", format: "number" }, 0, 10_000],
     ["money", { unit: "€", format: "currency" }, 1000, 2_000_000],
+    ["visits", { unit: "sessions", format: "number" }, 2000, 150_000],
     ["days", { unit: "days", format: "number", polarity: "lower", decimals: 1 }, 0, 100],
     ["a score", { unit: "NPS", format: "number" }, 0, 100],
   ])("are believable for %s", (_name, over, low, high) => {

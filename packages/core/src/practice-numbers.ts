@@ -57,6 +57,8 @@ function shapeOf(m: MadeUpMetric): Shape {
   if (/day|hour|minute|second|^h$|^d$|^min$/.test(unit)) return { level: pick(2, 30), spread: 0.08, max: null };
   if (/score|point|nps|rating|star/.test(unit)) return { level: pick(30, 70), spread: 0.05, max: 100 };
   if (m.format === "ratio" || unit === "x") return { level: pick(1, 4), spread: 0.05, max: null };
+  // What comes in crowds: far more of these than of anything done by hand.
+  if (/session|visit|view|click|impression|user|subscriber|follower/.test(unit)) return { level: pick(8_000, 60_000) * perPeriod, spread: 0.08, max: null };
   return { level: Math.max(4, pick(60, 600) * perPeriod), spread: 0.08, max: null };
 }
 
