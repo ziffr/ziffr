@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { openImported } from "@/app/workspace-import-actions";
 import { Refresh } from "./refresh";
+import { DesktopOnly } from "@/components/desktop-only";
 
 const COUNTS: [string, string][] = [["groups", "Groups"], ["themes", "Themes"], ["people", "People, kept as invitations"], ["metrics", "Metrics"], ["values", "Values"], ["targets", "Target Series points"], ["projections", "Projections"], ["dashboards", "Dashboards"], ["decks", "Decks"], ["workflows", "Workflows"], ["shares", "Shares"]];
 
@@ -22,6 +23,7 @@ export default async function ImportProgress({ params }: { params: Promise<{ id:
   return (
     <AuthShell>
       {running && <Refresh />}
+      <DesktopOnly path={`/welcome/import/${job.id}`} />
       <AuthHeading title={job.status === "done" ? "Your Workspace is ready" : job.status === "failed" ? "The import did not work" : "Importing a Workspace"}>
         {job.status === "failed" ? "Nothing was kept: no Workspace and no key were left behind." : job.status === "done" ? "Everything the file holds is in a new Workspace, sealed under its own key." : `${job.status === "uploading" ? "Receiving the file" : job.status === "checking" ? "Checking the whole file first" : "Writing the Workspace"}. You can leave this page open or come back to it.`}
       </AuthHeading>

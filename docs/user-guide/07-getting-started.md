@@ -206,6 +206,17 @@ Ziffr installs as an app from the browser: it then opens from your home screen o
 
 The installed app is the same Ziffr as in the browser and needs a connection: your numbers stay on the server, never on the device. Without a connection it shows a page saying so. Signing out in the app signs you out there, as in the browser.
 
+## Screens made for a larger screen
+
+A phone is good for looking at numbers and for quick answers; building is easier with a larger screen. On a phone these screens show a note at the top that says "This is easier on a larger screen." and why: editing a dashboard, the deck editor, Workflows, the tabs of Connectors except the Outbox, Packs, the Playground, Installation settings, Analyze, New metric and the import of a Workspace Export. Nothing is switched off: the screen is below the note and you may use it.
+
+The note offers up to two things:
+
+- **Send me the link** emails the address of this screen to you, and to nobody else, so you can open it at your desk. The email names the screen and the Workspace, not the dashboard, deck or Metric on it. Ziffr says what became of it: **Sent. Look in your email.**, that it is on its way, or why it was not emailed (for example because this Ziffr has no mail server yet); it then stays in your Outbox. These emails and the emails of **Send me a test** count together: at most 3 in 10 minutes and 20 a day (5 in a trial). Guests are not offered the button, nor is the demo, which sends nothing.
+- **Look at it** is there where the screen can also be only looked at: it leaves editing on a dashboard, presents a deck, and goes to a Workflow's steps.
+
+From 640 pixels wide, such as on a laptop, the note is not shown.
+
 ## What to do next
 
 - **Bring in numbers from other systems.** Ask whoever looks after your systems to set up a Feed for numbers that already live in your CRM, shop or data warehouse. See [Connecting Ziffr](04-connecting.md).

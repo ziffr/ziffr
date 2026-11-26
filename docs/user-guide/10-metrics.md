@@ -120,6 +120,8 @@ The list shows the Metrics in use. Once a Metric you may see is archived, two fi
 
 ## New metric
 
+On a phone the page says at the top that it is easier on a larger screen; see [Screens made for a larger screen](07-getting-started.md#screens-made-for-a-larger-screen).
+
 **New metric** opens a page with two ways to begin. You can change everything afterwards.
 
 - **Start from scratch**: an empty form, for a number nobody has described before.
