@@ -103,6 +103,8 @@ A **Slide Element** is a part of a slide that draws itself in the deck's Theme: 
 
 Select an element to change its words, colours, size and Metrics in the side panel; drag it or its corners to move and resize it.
 
+**You pick every Metric.** A new element has none, and Ziffr never chooses one for you, because whoever the deck is shared with, and whoever opens its View Link, sees what is on the slide. A Figure, Column chart, Gap table or Metric table reads **Pick a Metric** until its Metrics are chosen under **Metrics**; **Add a Metric…** adds one more. When you switch on a column chart's filled part and it already has a reference line, pick the line's Metric again after the part's. An element with a Metric still to pick is left out when a deck is saved as a file or put in a Pack.
+
 **Words that stay current.** An element fills its words from the data every time the slide is shown, from the Metrics listed under **Metrics** in the panel. {metric 2} or {latest 2} means the second of them.
 
 | Placeholder | What it becomes |
@@ -148,7 +150,7 @@ Select a slide and choose **Save slide as layout…**; a panel opens beside the 
 
 ### Saving a deck as a Deck Template
 
-A **Deck Template** keeps a whole deck: every slide with its Widgets, words and boxes, with the Metrics left open as Slots. Choose **Save as Deck Template…** at the top; a panel opens beside the deck. A Metric shown on several slides becomes one Slot, which you can name, such as "Revenue". Its name in the words becomes {metric}. Notes tied to one period or row can follow a rule instead, or are left out, as for a layout. Images and links stay behind. You can do this for a deck of your own once it is saved, when you see every Metric on it. Everyone in the team can then start a deck from it on the Decks page; only you can change or replace it.
+A **Deck Template** keeps a whole deck: every slide with its Widgets, words and boxes, with the Metrics left open as Slots. Choose **Save as Deck Template…** at the top; a panel opens beside the deck. A Metric shown on several slides becomes one Slot, which you can name, such as "Revenue". Its name in the words becomes {metric}; in the words of a [Slide Element](#slide-elements) this happens for the Metrics listed on that element, and any other name stays as you typed it. Notes tied to one period or row can follow a rule instead, or are left out, as for a layout. Images and links stay behind. You can do this for a deck of your own once it is saved, when you see every Metric on it. Everyone in the team can then start a deck from it on the Decks page; only you can change or replace it.
 
 ## Presenting
 

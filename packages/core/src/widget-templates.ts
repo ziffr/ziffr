@@ -75,8 +75,12 @@ export const templatesFor = (hasBreakdown: boolean) => [...METRIC_TEMPLATES, ...
  * offered by its own name (GLOSSARY: View Design). */
 export const OFFERED_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.id !== "design" && t.kind !== "slide");
 
+/** Whether a view of this name exists. Only the list's own entries count: the name may come from a browser, and
+ * "constructor" is `in` every object. */
+export const isView = (template: string): template is TemplateId => Object.hasOwn(TEMPLATES, template);
+
 /** Whether a view can stand on a dashboard: one that exists and is not a slide's own (a Slide Element). */
-export const isDashboardView = (template: string): template is TemplateId => template in TEMPLATES && TEMPLATES[template as TemplateId].kind !== "slide";
+export const isDashboardView = (template: string): template is TemplateId => isView(template) && TEMPLATES[template].kind !== "slide";
 
 /** A Workspace's View Design as a template to offer and fill: by its own name, Slots, size and settings. */
 export function designTemplate(design: ViewDesign): TemplateDef {
@@ -91,7 +95,7 @@ export function templateOf(widget: { template: TemplateId; settings: WidgetSetti
 /** Whether a view can take a Tag instead of a list: only one whose Metrics are a single "one or more" Slot (a matrix of
  * Metrics, or a View Design asking for exactly that), since a Tag fills the whole list and nothing else. */
 export function takesTagSource(widget: Pick<Widget, "template" | "settings">): boolean {
-  if (!(widget.template in TEMPLATES)) return false;
+  if (!isView(widget.template)) return false;
   const slots = templateOf(widget).slots;
   return slots.length === 1 && slots[0].multiple;
 }

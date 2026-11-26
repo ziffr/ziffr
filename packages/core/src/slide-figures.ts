@@ -156,6 +156,9 @@ export function fillSlideWords(text: string, ctx: SlideContext): { text: string;
   return { text: out, signal, missing };
 }
 
+/** What a Slide Element says, and its settings offer, while a Slot it needs has no Metric. */
+export const PICK_METRIC = "Pick a Metric";
+
 /** What a Slide Element says when it may not show a Metric it reads. */
 export const NO_ACCESS = "No access to a Metric here. Ask its owner to share it.";
 

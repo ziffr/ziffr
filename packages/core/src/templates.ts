@@ -14,7 +14,7 @@ import { NOT_IN_DASHBOARD_TEMPLATES, SLIDE_SHAPES, toDashboardTemplate, toDeckTe
 import { widgetMetricIds } from "./widget-metrics";
 import { isTagWidget } from "./tag-widgets";
 import { visibleTags } from "./tag-sight";
-import { TEMPLATES } from "./widget-templates";
+import { isView, TEMPLATES } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import { ensureBaseline, recordVersion } from "./versions";
 import { visitorOptionalText } from "./demo-visitor-words";
@@ -87,7 +87,7 @@ export function cleanSlideShapes(shapes: unknown): { shapes: SlideShape[]; metri
   const metricIds: number[] = [];
   for (const sh of clean.filter((x) => x.type === "ziffr-widget")) {
     const template = String(sh.props.template);
-    if (!(template in TEMPLATES) || TEMPLATES[template as keyof typeof TEMPLATES].kind === "layout") throw new Forbidden();
+    if (!isView(template) || TEMPLATES[template].kind === "layout") throw new Forbidden();
     let settings: WidgetSettings = {};
     try { settings = JSON.parse(String(sh.props.settings ?? "{}")); } catch { throw new Forbidden(); }
     const ids = Array.isArray(sh.props.metricIds) ? (sh.props.metricIds as unknown[]).map(Number) : [];
