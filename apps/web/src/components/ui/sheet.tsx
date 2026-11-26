@@ -40,17 +40,17 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          "fixed z-[var(--z-popup)] flex flex-col gap-3 bg-popover text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none duration-200 ease-out data-open:animate-in data-closed:animate-out motion-reduce:animate-none",
-          side === "right" && "inset-y-0 right-0 h-full w-full max-w-[26rem] data-open:slide-in-from-right data-closed:slide-out-to-right",
-          side === "left" && "inset-y-0 left-0 h-full w-full max-w-[20rem] data-open:slide-in-from-left data-closed:slide-out-to-left",
-          side === "bottom" && "inset-x-0 bottom-0 max-h-[85dvh] rounded-t-xl data-open:slide-in-from-bottom data-closed:slide-out-to-bottom",
+          "fixed z-[var(--z-popup)] flex min-w-0 flex-col gap-3 overflow-x-hidden overscroll-contain bg-popover text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none duration-200 ease-out data-open:animate-in data-closed:animate-out motion-reduce:animate-none max-sm:[overflow-wrap:anywhere]",
+          side === "right" && "inset-y-0 right-0 h-full w-full max-w-[min(26rem,100vw)] data-open:slide-in-from-right data-closed:slide-out-to-right",
+          side === "left" && "inset-y-0 left-0 h-full w-full max-w-[min(20rem,100vw)] data-open:slide-in-from-left data-closed:slide-out-to-left",
+          side === "bottom" && "inset-x-0 bottom-0 max-h-[85dvh] rounded-t-xl pb-[env(safe-area-inset-bottom)] data-open:slide-in-from-bottom data-closed:slide-out-to-bottom",
           className
         )}
         {...props}
       >
         {children}
         {showCloseButton && (
-          <SheetPrimitive.Close render={<Button variant="ghost" size="icon-sm" className="absolute top-2.5 right-2.5" />}>
+          <SheetPrimitive.Close render={<Button variant="ghost" size="icon-sm" className="absolute top-2.5 right-2.5 max-sm:top-1.5 max-sm:right-1 max-sm:size-11" />}>
             <XIcon aria-hidden />
             <span className="sr-only">Close</span>
           </SheetPrimitive.Close>
