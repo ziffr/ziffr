@@ -230,6 +230,29 @@ function noDueDatePeriod(m: Metric, since: string, ctx: Ctx): { start: string; d
   return due >= ctx.lo && due <= ctx.hi ? [{ start, due }] : [];
 }
 
+/** Of some periods of one Metric that were asked for, those whose value is still due as a Schedule means it, in the
+ * order given: no value is in (one sent back at Approval is in), and the Schedule still reaches the period, which is a
+ * Due Date at most OVERDUE_DAYS_BACK days ago or, without a Workflow, no earlier than the latest period that ended. A
+ * request is a record of its own, so a period that ended before the Metric or the Token existed counts here, unlike in
+ * a Schedule. Internal to the core: it checks no Actor and returns no value. `now` is for tests. */
+export async function periodsStillDue(ws: string, m: Metric, starts: string[], now = new Date()): Promise<string[]> {
+  if (!starts.length) return [];
+  const ctx = await loadContext(ws, now);
+  const workflowId = (m as Metric & { workflow_id?: number | null }).workflow_id;
+  const cfg = workflowId ? ctx.workflows.get(workflowId) : undefined;
+  const oldestDue = plusDays(ctx.today, -OVERDUE_DAYS_BACK);
+  const reached = starts.filter((s) => (cfg ? dueDate(s, m.period, cfg) >= oldestDue : s >= workingPeriod(ctx.today, m.period, ctx.yearStart)));
+  if (!reached.length) return [];
+  const values = await allRows<{ period_start: string }>(async (from, to) => {
+    const page = await db().from("observations").select("period_start").eq("workspace_id", ws).eq("metric_id", m.id).in("period_start", reached).order("id").range(from, to);
+    // Fails closed: a period whose values cannot be read is never offered as one without a value.
+    if (page.error) throw new Error("The values could not be read. Try again in a moment.");
+    return page;
+  });
+  const has = new Set(values.map((v) => v.period_start));
+  return reached.filter((s) => !has.has(s));
+}
+
 /** The open Approvals, Tasks and Questions assigned to the person. `metrics` are the Metrics their Actions may be
  * about: being the Assignee is enough to have one (as on the Actions page), even on a Metric they do not see. */
 async function actionEntries(ws: string, person: string, metrics: Map<number, Metric>, ctx: Ctx, readable: (a: ActionRow) => boolean): Promise<ScheduleEntry[]> {

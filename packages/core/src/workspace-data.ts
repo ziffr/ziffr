@@ -27,6 +27,14 @@ export async function allRows<T>(page: (from: number, to: number) => PromiseLike
   }
 }
 
+/** A page for allRows that must not pass for empty when it failed: it throws `words` instead. For reads whose answer
+ * must be whole, such as a file handed to a person. */
+export async function mustRead<T>(page: PromiseLike<{ data: T[] | null; error: unknown }>, words: string): Promise<{ data: T[] | null }> {
+  const read = await page;
+  if (read.error) throw new Error(words);
+  return read;
+}
+
 /** The Metrics of a workspace. */
 export async function getMetrics(ws: string): Promise<Metric[]> {
   const { data } = await db().from("metrics").select("*").eq("workspace_id", ws).order("id");

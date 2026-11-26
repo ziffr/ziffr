@@ -26,7 +26,7 @@ const panel = useSlideOver();
 
 ## On a phone
 
-Below 640 px a panel takes one of two shapes (spec 0055). The panel says which; the CSS in `components/ui/sheet.tsx` does the rest, so the address (`?panel=…`), focus, Tab, Escape, the locked page behind and the desktop panel are the same for both.
+The rules for any screen on a phone, such as breakpoints and tap sizes, are in [Screens on a phone](phone-screens.md). Below 640 px a panel takes one of two shapes (spec 0055). The panel says which; the CSS in `components/ui/sheet.tsx` does the rest, so the address (`?panel=…`), focus, Tab, Escape, the locked page behind and the desktop panel are the same for both.
 
 - **Work panel** (the default): covers the screen. For reading or working for a while: a Metric's quick look, Help, Version history, browsing templates, the Setup Guide.
 - **Short panel** (`short: true` in `panel.open`, `short` on `SlideOverWindow` or `SheetContent`): a bottom sheet as high as its content, at most 85 % of the screen, with a grab bar; it scrolls inside, and its close button or a tap above it closes it. For one quick job: Share, Who can see this, View links, Alert me, Add to deck. The grab bar is a look only; there is no swipe.

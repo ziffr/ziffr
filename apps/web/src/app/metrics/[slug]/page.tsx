@@ -335,7 +335,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5">
               {/* Paste history is offered to whoever submits for the Metric on the web form; the core checks again when they paste. */}
-              <div className="mb-3 flex items-baseline justify-between gap-3"><h2 className="font-medium">Latest values</h2>{mayPaste(metric, tokens, actor.personId) && <Link href={`/paste-values?metric=${encodeURIComponent(metric.slug)}`} className="text-sm">Paste history</Link>}</div>
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3"><h2 className="font-medium">Latest values</h2><HistoryLinks slug={metric.slug} download={!demo} paste={mayPaste(metric, tokens, actor.personId)} /></div>
               {obs.length === 0 ? <p className="text-sm text-muted-foreground">No values yet.</p> : (
                 <table className="w-full text-sm">
                   <thead className="text-left text-xs text-muted-foreground">
@@ -458,6 +458,19 @@ function basisOf(byValue: boolean): ["values" | "auto", Record<string, string>] 
   return byValue ? ["values", { basis: "values" }] : ["auto", {}];
 }
 
+/** The links above a Metric's latest values: the download of this Metric's values (spec 0056: the file holds only what
+ * this person sees, and the demo does not offer it) and, for who may paste, "Paste history". */
+function HistoryLinks({ slug, download, paste }: { slug: string; download: boolean; paste: boolean }) {
+  const q = `?${new URLSearchParams({ metric: slug })}`;
+  const link = "inline-flex items-center max-md:min-h-11 pointer-coarse:min-h-11";
+  // A plain link without `download`: the server names the file, and a refusal is read as a sentence, not saved as one.
+  return (
+    <span className="flex flex-wrap gap-x-4 text-sm">
+      {download && <a href={`/metric-values${q}`} className={link}>Download values</a>}
+      {paste && <Link href={`/paste-values${q}`} className={link}>Paste history</Link>}
+    </span>
+  );
+}
 
 /** Whether the person may paste or upload values for the Metric: it takes the web form, is not computed, and they submit it. The core checks again when they paste. */
 function mayPaste(metric: { formula?: unknown; sources: string[] }, tokens: { submitter_id: string }[], personId: string): boolean {

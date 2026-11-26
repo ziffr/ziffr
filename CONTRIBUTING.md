@@ -62,9 +62,14 @@ Every calculation on values is listed in the Calculation Catalogue (`docs/refere
 
 ## Screens on a phone
 
-Every page of the app is in a Route Tier (spec 0055), listed in `apps/web/src/lib/route-tiers.ts`; a new page is added there, or a test fails. The Phone-first pages are also checked in a browser at 390 and 320 wide, light and dark, as a person of the demo (`apps/web/phone/`, in CI's `core-db` job): no sideways scroll, nothing to tap under 44 px, no field with text under 16 px. `walk.ts` there says how each Phone-first page is opened, or why it is not. To run it against your running app: `pnpm --filter @ziffr/web exec playwright install chromium-headless-shell` once, then `pnpm --filter @ziffr/web test:phone` (set `ZIFFR_TEST_URL` for another address than `http://localhost:3000`). It only reads.
+A new or changed screen follows [docs/guides/phone-screens.md](docs/guides/phone-screens.md), which holds the Route Tiers, the breakpoints, the shared building blocks and the check. In short:
 
-Fix what it finds. Where a rule cannot hold, `allowed.ts` there takes one entry for one rule, a narrow selector, the pages and the reason. The check measures sizes and widths only: look at a changed screen on a phone yourself too.
+- A new page gets its Route Tier in `apps/web/src/lib/route-tiers.ts`, or a test fails.
+- Look at the screen in a real browser at 390 and 320 wide, light and dark.
+- No sideways page scroll, nothing to tap under 44 px, no field with text under 16 px, plain words.
+- A phone shows only what the person may see, as everywhere.
+
+CI checks sizes and widths on the Phone-first pages (`pnpm --filter @ziffr/web test:phone` against your running app). The rest takes your own look.
 
 ## Code health
 
