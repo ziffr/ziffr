@@ -541,7 +541,7 @@ A Workspace setting, off by default, that lets people with a verified address at
 _Avoid_: Auto-join, SSO
 
 **Contact**:
-A person known to a Workspace who has no login, such as a field worker or an outside bookkeeper who submits values by Slack, email or the form. A contact can be invited later and then becomes a Member or Guest.
+A person known to a Workspace who has no login, such as a field worker or an outside bookkeeper who submits values by Slack, email or the form. A Contact who connects Telegram on their personal form confirms it from an email to the address the Workspace keeps for them; until then nothing goes to or comes from that account. A contact can be invited later and then becomes a Member or Guest.
 _Avoid_: External user, anonymous submitter
 
 **Access Key**:
