@@ -4,6 +4,8 @@ A Feed brings values for some Metrics into Ziffr from another system, such as a 
 
 A Feed belongs to the workspace, not to a person. Its values show up under its name ("HubSpot"), and it keeps working when the person who set it up leaves. A Feed Key can do one thing: record values for the Metrics that take the Feed as a Submitter. It can see their descriptions and which periods already have a value, never the values themselves, the people or any other Metric.
 
+To connect a system step by step, with n8n, Zapier, Make, Power Automate, a scheduled script or a system that only sends webhooks, start with [Connect any system to Ziffr](connect-any-system.md).
+
 ## Setting one up
 
 1. **Create the Feed.** In Settings, Feeds (Owners and Admins only), create a Feed named after the system it reads, such as "HubSpot".
