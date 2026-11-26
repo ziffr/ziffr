@@ -150,9 +150,11 @@ function Columns({ element, context, w, h }: ElementProps & { element: Extract<S
   );
 }
 
-// The room a gap table keeps for a headline of two lines with the space under it, and for its closing line.
+// The room a gap table keeps for a headline of two lines with the space under it, for its closing line, and for the
+// line saying that some rows are not shown.
 const HEADLINE_ROOM = 106;
 const CLOSING_ROOM = 58;
+const NOTE_ROOM = 24;
 
 // The heights of a table: its heading line with the rule under it, and the least a row may shrink to.
 const TABLE_HEAD = 25;
@@ -191,7 +193,7 @@ function GapTable({ element, context, w, h }: ElementProps & { element: Extract<
   const per = Math.min(below ? (chart * 0.45) / below : Infinity, above ? Math.max(20, chart * 0.4 - 60) / above : Infinity);
   // A row is 68 pixels with its rule under it.
   const say = (t: string) => fillSlideWords(t, context).text;
-  const rows = rowsThatFit(g.rows.length, h - (element.headline ? HEADLINE_ROOM : 0) - (element.note ? CLOSING_ROOM : 0), 69);
+  const rows = rowsThatFit(g.rows.length, h - (element.headline ? HEADLINE_ROOM : 0) - (element.note ? CLOSING_ROOM : 0) - (g.note ? NOTE_ROOM : 0), 69);
   const bar = Math.min(40, rows.height - 4);
   return (
     <div style={base}>
@@ -203,11 +205,11 @@ function GapTable({ element, context, w, h }: ElementProps & { element: Extract<
         <Words style={{ ...oneLine, textAlign: "center" }}>{g.head.gap}</Words>
       </div>
       {g.empty && <Words style={{ fontSize: 15, color: tone("muted"), paddingTop: 20 }}>{g.empty}</Words>}
-      {g.rows.slice(0, rows.shown).map((r) => {
+      {g.rows.slice(0, rows.shown).map((r, i) => {
         const long = r.gap === null || r.gap === 0 ? 0 : Math.max(3, Math.round(Math.abs(r.gap) * per));
         const up = (r.gap ?? 0) >= 0;
         return (
-          <div key={r.label} style={{ ...grid(widths), alignItems: "center", height: rows.height, boxSizing: "border-box", borderBottom: `1px solid ${tone("rule")}`, fontSize: 17 }}>
+          <div key={`${i} ${r.label}`} style={{ ...grid(widths), alignItems: "center", height: rows.height, boxSizing: "border-box", borderBottom: `1px solid ${tone("rule")}`, fontSize: 17 }}>
             <Words style={{ ...oneLine, fontWeight: 600 }}>{r.label}</Words>
             <Words style={{ ...right, color: tone("muted") }}>{r.goal}</Words>
             <Words style={{ ...right, fontSize: 20, fontWeight: 600 }}>{r.actual}</Words>
@@ -221,7 +223,8 @@ function GapTable({ element, context, w, h }: ElementProps & { element: Extract<
           </div>
         );
       })}
-      <More n={rows.more} />
+      <More n={rows.more + g.more} />
+      {g.note && <Words style={{ fontSize: 13, color: tone("muted"), paddingTop: 6 }}>{g.note}</Words>}
       {element.note && (
         <div style={{ display: "flex", gap: 16, marginTop: 24 }}>
           <span style={{ width: 6, flexShrink: 0, background: tone("accent") }} />

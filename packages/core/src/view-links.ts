@@ -31,6 +31,7 @@ import { effectiveLimit } from "./limits";
 import { trialEnded, trialLastDay, trialLimitMessage } from "./trials";
 import type { CanvasData, Widget } from "./types";
 import { gateTotals, type Allowed, type KeptData } from "./total-views";
+import { seenList } from "./total-lists";
 import { allowedNow, restsNow } from "./total-parts";
 import { restsOnTotal } from "./totals";
 import { withoutUnseenInputs } from "./formula";
@@ -117,6 +118,14 @@ export function shownData(full: CanvasData, ids: Set<number>, themeId: number | 
   };
 }
 
+/** The data of a deck's link with the lists of the Totals it shows, each cut to the Metrics it shows too. */
+function withLists(cut: CanvasData, lists: CanvasData["totalLists"], ids: ReadonlySet<number>): CanvasData {
+  const slugs = new Map(cut.metrics.map((m) => [m.id, m.slug]));
+  const periodsOf = (id: number) => (cut.series[slugs.get(id) ?? ""] ?? []).map((p) => p.period);
+  const shown = Object.entries(lists ?? {}).filter(([id]) => ids.has(Number(id)));
+  return shown.length ? { ...cut, totalLists: Object.fromEntries(shown.map(([id, list]) => [id, seenList(list, (m) => ids.has(m), periodsOf)])) } : cut;
+}
+
 /** Everything a View Link page needs, built as its owner sees it inside their workspace and cut down to the one
  * object. For a live link, only the Metrics agreed to when it was made. */
 export async function buildView(type: "dashboard" | "deck", id: number, allowed?: number[], allowedWidgets?: number[] | null, allowedShapes?: string[] | null): Promise<ViewPayload | null> {
@@ -158,7 +167,8 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
   // A deck made from a Snapshot draws its Metrics as of the period's end: then only that much goes out (spec 0013).
   // Read from the deck this link shows, so a widget added since cannot make a Metric go out whole again.
   const cut = shownData(full, ids, obj.theme_id ?? null, totals);
-  const data = type === "deck" ? dataAsOfEach(cut, deckAsOf(document)) : cut;
+  // A deck's gap table of a Total draws rows only of the Metrics the link shows anyway.
+  const data = type === "deck" ? dataAsOfEach(withLists(cut, full.totalLists, ids), deckAsOf(document)) : cut;
   return { type, id, name: obj.name, themeId: obj.theme_id ?? null, data, widgets, document, footer: type === "deck" ? obj.footer : undefined, intro: type === "dashboard" ? String(obj.intro ?? "") : undefined, asOf: new Date().toISOString() };
 }
 

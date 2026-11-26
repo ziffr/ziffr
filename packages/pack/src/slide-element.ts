@@ -36,9 +36,10 @@ export type BoxElement = { kind: "box"; fill?: SlideTone; edge?: SlideTone; dash
 export type FigureElement = { kind: "figure"; label?: string; note?: string; /** The note takes the good or bad colour its first {gap} or {change} says. */ signal?: boolean; /** Drawn on the cover colour. */ strong?: boolean };
 /** Columns of one Metric by period; a second Metric may fill part of each, and one more draws a reference line. */
 export type ColumnsElement = { kind: "columns"; title?: string; part?: boolean; reference?: boolean; partLabel?: string; restLabel?: string; referenceLabel?: string; /** How many periods; left out, the periods of the quarter so far. */ periods?: number };
-/** Two Metrics' latest Breakdowns row by row, with the difference as bars either side of zero. A headline above the
- * table and a closing line under it (after a bar, with its lead-in) move with it, however many lines they take. */
-export type GapTableElement = { kind: "gap-table"; rowLabel?: string; gapLabel?: string; headline?: string; lead?: string; note?: string };
+/** Two Metrics' latest Breakdowns row by row, with the difference as bars either side of zero; with `total`, one Total
+ * and a row for each Metric it adds up, against that Metric's target. A headline above the table and a closing line
+ * under it (after a bar, with its lead-in) move with it, however many lines they take. */
+export type GapTableElement = { kind: "gap-table"; total?: boolean; rowLabel?: string; gapLabel?: string; headline?: string; lead?: string; note?: string };
 /** One row per Metric: latest value, the one before, the change, a trend and whether it is on target. */
 export type MetricTableElement = { kind: "metric-table"; /** How many periods the trend shows. */ periods?: number };
 /** Numbered rows under a heading, such as an agenda. */
@@ -56,7 +57,7 @@ export function elementSlots(e: SlideElement): { min: number; max: number } {
   if (e.kind === "words") return { min: 0, max: L.slots };
   if (e.kind === "figure") return { min: 1, max: L.slots };
   if (e.kind === "columns") { const n = 1 + (e.part ? 1 : 0) + (e.reference ? 1 : 0); return { min: n, max: n }; }
-  if (e.kind === "gap-table") return { min: 2, max: 2 };
+  if (e.kind === "gap-table") return e.total ? { min: 1, max: 1 } : { min: 2, max: 2 };
   if (e.kind === "metric-table") return { min: 1, max: L.slots };
   // A box, list, logo or ornament shows no number.
   return { min: 0, max: 0 };
@@ -69,8 +70,8 @@ const flag = (description: string): Schema => ({ type: "boolean", description })
 const share: Schema = { type: "number", minimum: 0.1, maximum: 1, description: "How opaque, from 0.1 to 1." };
 
 /** The schema of a Slide Element, its words held to `text`: a Pack's plain text (the default) or, for what a person
- * typed in the app, a looser rule. */
-export function slideElementSchema(text: (max: number) => Schema = slideWords): Schema {
+ * typed in the app, a looser rule. `totals` takes a gap table of a Total, which only a newer file format holds. */
+export function slideElementSchema(text: (max: number) => Schema = slideWords, { totals = false }: { totals?: boolean } = {}): Schema {
   const label = text(L.label);
   const line = text(L.words);
   const kind = (name: SlideElementKind, description: string, props: Record<string, Schema>, required: string[] = []): Schema => ({
@@ -93,7 +94,7 @@ export function slideElementSchema(text: (max: number) => Schema = slideWords): 
         title: line, part: flag("The next Metric fills part of each column."), reference: flag("One more Metric draws a reference line."),
         partLabel: label, restLabel: label, referenceLabel: label, periods: { type: "integer", minimum: 1, maximum: L.periods },
       }),
-      kind("gap-table", "Two Metrics' Breakdowns row by row, with the difference.", { rowLabel: label, gapLabel: line, headline: line, lead: label, note: line }),
+      kind("gap-table", "Two Metrics' Breakdowns row by row, with the difference.", { ...(totals ? { total: flag("Reads one Total instead: a row for each Metric it adds up, against that Metric's target.") } : {}), rowLabel: label, gapLabel: line, headline: line, lead: label, note: line }),
       kind("metric-table", "One row per Metric.", { periods: { type: "integer", minimum: 2, maximum: L.periods } }),
       kind("list", "Numbered rows under a heading.", {
         title: label,
