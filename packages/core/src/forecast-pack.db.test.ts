@@ -2,13 +2,14 @@
 // Repeat, Total): four figures for each salesperson, the team's added up, the quota from the salespeople's targets, and
 // who then sees what.
 import { afterEach, describe, expect, it } from "vitest";
-import { allSeriesFor } from "./access";
+import { allSeriesFor, canvasSeries, visibleMetricIds } from "./access";
 import { db } from "./db";
 import { workflowsView } from "./page-data";
 import { installPackFile } from "./packs";
 import { setUpFromPack } from "./pack-setup";
 import { planPackSetup } from "./pack-setup-plan";
 import { periodStart } from "./periods";
+import { getMetrics } from "./workspace-data";
 import { saveSeriesRows } from "./metrics";
 import { startingPack } from "./starting-packs.test";
 import { workspace } from "./test/db-fixtures";
@@ -44,6 +45,7 @@ describe("setting up the Sales forecast Pack", () => {
     expect(plan.makes.workflows).toEqual(["Weekly sales forecast"]);
     // The sales lead ticks every Share proposed for them.
     const shares = plan.shares.map((s) => s.id);
+    const said = (await planPackSetup(t.by, t.install, { ...t.input, shares })).sees;
     const made = await setUpFromPack(t.by, t.install, { ...t.input, shares });
     expect(made.metrics).toHaveLength(16);
     expect(made.tagsLeftOut).toEqual([]);
@@ -66,10 +68,17 @@ describe("setting up the Sales forecast Pack", () => {
       for (const [what, value] of [["Commit", commit], ["Best case", commit + 50], ["Closed this quarter", 40], ["Pipeline value", 500]] as const) await t.w.value(metric(`${what}, ${name}`).id, week, value);
       await saveSeriesRows(t.by, metric(`Commit, ${name}`).id, "target", [{ period: week, value: quota }], "");
     }
+    // Everyone sees the Metrics the plan said, no more and no fewer.
+    const all = await getMetrics(t.w.id);
+    expect(said.map((p) => p.id).sort()).toEqual([t.sara, t.lena, t.anna, t.ben].sort());
+    for (const p of said) {
+      const visible = await visibleMetricIds(t.w.id, p.id, all);
+      expect(all.filter((m) => visible.has(m.id)).map((m) => m.name).sort(), p.name).toEqual(p.metrics.map((m) => m.name).sort());
+    }
+    // What a canvas sends each person: only the series of Metrics they see, each Total worked out for them.
     const of = async (person: string, name: string) => {
-      const seen = await allSeriesFor(t.w.actor(person, "member"));
-      const m = seen.metrics.find((x) => x.name === name);
-      return m ? seen.series[m.slug]?.find((p) => p.period === week)?.value : undefined;
+      const sent = await canvasSeries(t.w.actor(person, "member"), all.map((m) => m.id));
+      return sent.series[metric(name).slug]?.find((p) => p.period === week)?.value;
     };
     expect([await of(t.lena, "Team commit"), await of(t.lena, "Quota"), await of(t.lena, "Commit gap to quota")]).toEqual([400, 600, -200]);
     // A salesperson sees their own figures and none of a colleague's or the team's.
