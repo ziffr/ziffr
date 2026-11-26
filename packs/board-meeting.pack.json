@@ -1,14 +1,14 @@
 {
-  "format": "ziffr.pack/1",
+  "format": "ziffr.pack/2",
   "id": "ziffr/board-meeting",
   "name": "Board meeting deck",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "summary": "A Deck Template for a quarterly board meeting, a Theme for it, and the Workflow for the quarter's close.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.21",
   "audience": {
     "functions": [
       "management",
@@ -18,10 +18,67 @@
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For a quarterly board meeting of any kind of business: key figures, revenue against its target, cash and runway, headcount, highlights and risks."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "An **Owner** installs the Pack, because it holds a Theme. An Owner or Admin sets it up.",
+          "The person who approves the figures.",
+          "Revenue, cash, months of runway and headcount."
+        ]
+      }
+    ],
+    "firstSteps": [
+      {
+        "type": "heading",
+        "text": "Start here"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Keep the four Metrics and the Workflow **Quarter close** ticked, pick the **Approver**, and choose **Set up**.",
+          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
+          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
+          "Open **Decks**, choose **From a Deck Template**, pick **Quarterly board meeting** and a Metric for each Slot.",
+          "Set a target on **Revenue** so the deck can show revenue against it, and write your highlights and risks on their slide."
+        ]
+      }
+    ],
+    "eachPart": [
+      {
+        "type": "list",
+        "items": [
+          "**Revenue** by month, **Cash balance** and **Cash runway** at month end, and **Headcount** by quarter.",
+          "The deck **Quarterly board meeting**: six slides, with the **Board** Theme.",
+          "The Workflow **Quarter close**: values due on the fifth working day, checked, every value approved by one person, then locked. A figure that is still missing after its Due Date is asked from the Submitter's Stand-in. Choose a Stand-in for each Submitter in the Workflow box on the Metric's **Description** tab."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "Is there a dashboard?"
+      },
+      {
+        "type": "text",
+        "text": "No. This Pack is made for the deck. Add a dashboard of your own if you want one."
+      }
+    ]
+  },
   "contents": {
     "metrics": [
       {
         "key": "revenue",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Revenue",
@@ -47,6 +104,7 @@
       },
       {
         "key": "cash",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Cash balance",
@@ -73,6 +131,7 @@
       },
       {
         "key": "runway",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Cash runway",
@@ -99,6 +158,7 @@
       },
       {
         "key": "headcount",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/2",
           "name": "Headcount",

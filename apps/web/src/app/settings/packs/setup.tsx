@@ -16,9 +16,8 @@ import { approversStart, lineSetupStart, openSlots, setupStart, type LineRow } f
 import { DashboardPick, WorkflowPick } from "./setup-templates";
 import { RepeatLines } from "./setup-lines";
 import { FillFromN8n } from "@/components/fill-from-n8n";
-import { PackNeeds } from "@/components/pack-numbers";
+import { PackNumbersView } from "@/components/pack-numbers";
 import { ownRequests, RequestsAfterSetUp, SendFirstRequests } from "@/components/first-requests";
-import { comesFromWords } from "@ziffr/pack/comes-from";
 import { lineStart, packSetup, setUpPack } from "@/app/pack-setup-actions";
 import { ByHand, PlanCheck, PositionField, usePlan } from "./setup-positions";
 import type { PackSetupInput, PackSetupOptions, PackSetupResult, PackSetupRoom, PackSetupStep, SetupRun } from "@ziffr/core/pack-setup";
@@ -240,7 +239,7 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
       {options.room && !options.refusal && <Fit room={options.room} n={count} />}
       {options.room && options.refusal && <p className="text-xs"><Link href="/settings/workspace#size" className="underline">Size and usage</Link></p>}
 
-      {options.overview && <div className="@container text-xs"><PackNeeds overview={options.overview} included={false} /></div>}
+      {options.overview && <PackNumbersView overview={options.overview} included={false} />}
 
       <fieldset className="space-y-1">
         <legend className="mb-1 text-xs font-medium">Metrics to make</legend>
@@ -249,7 +248,7 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
           return (
             <label key={e.key} className="flex items-start gap-2">
               <input type="checkbox" checked={making.has(e.key)} disabled={needed} onChange={(ev) => toggle(e.key, ev.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
-              <span>{e.name} <span className="text-xs text-muted-foreground">by {e.period}{e.unit ? `, in ${e.unit}` : ""}{e.repeat ? `, one for each ${options.repeats.find((r) => r.key === e.repeat)?.name ?? e.repeat}` : ""}{e.derived ? madeWith(e, e.inputs.map((i) => byKey.get(i)?.name ?? i), options) : ""}{needed ? ", made for a Derived Metric" : ""}</span>{e.comesFrom && !e.derived && <span className="block text-xs text-muted-foreground">{comesFromWords(e.comesFrom).from}</span>}{e.tags.length > 0 && <span className="mt-0.5 flex flex-wrap gap-1">{e.tags.map((t) => <span key={t} className="rounded-full bg-muted px-1.5 py-0.5 text-[11px]">{t}</span>)}</span>}</span>
+              <span>{e.name} <span className="text-xs text-muted-foreground">by {e.period}{e.unit ? `, in ${e.unit}` : ""}{e.repeat ? `, one for each ${options.repeats.find((r) => r.key === e.repeat)?.name ?? e.repeat}` : ""}{e.derived ? madeWith(e, e.inputs.map((i) => byKey.get(i)?.name ?? i), options) : ""}{needed ? ", made for a Derived Metric" : ""}</span>{e.tags.length > 0 && <span className="mt-0.5 flex flex-wrap gap-1">{e.tags.map((t) => <span key={t} className="rounded-full bg-muted px-1.5 py-0.5 text-[11px]">{t}</span>)}</span>}</span>
             </label>
           );
         })}
@@ -257,7 +256,7 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
           <label className="mt-2 flex items-start gap-2"><input type="checkbox" checked={askMe} onChange={(e) => setAskMe(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> Make me the Submitter of {options.positions ? "the values no Position covers" : "their values"}</label>
         )}
         {alsoAsk.length > 0 && (
-          <label className={`${uncovered ? "ml-6" : "mt-2"} flex items-start gap-2`}><input type="checkbox" checked={askElsewhere} onChange={(e) => setAskElsewhere(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /><span>Ask me also for {alsoAsk.join(", ")}<span className="block text-xs text-muted-foreground">The Pack says another system sends {alsoAsk.length === 1 ? "it" : "them"} or that {alsoAsk.length === 1 ? "it is" : "they are"} set as a target, so nobody is asked unless you tick this{options.positions ? ", and nobody else is asked either way" : ""}.</span></span></label>
+          <label className={`${uncovered ? "pl-6" : "mt-2"} flex items-start gap-2`}><input type="checkbox" checked={askElsewhere} onChange={(e) => setAskElsewhere(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /><span>Ask me also for {alsoAsk.join(", ")}<span className="block text-xs text-muted-foreground">The Pack says another system sends {alsoAsk.length === 1 ? "it" : "them"} or that {alsoAsk.length === 1 ? "it is" : "they are"} set as a target, so nobody is asked unless you tick this{options.positions ? ", and nobody else is asked either way" : ""}.</span></span></label>
         )}
         {making.size > 0 && options.feeds.length > 0 && (
           <label className="mt-2 flex flex-wrap items-center gap-2">

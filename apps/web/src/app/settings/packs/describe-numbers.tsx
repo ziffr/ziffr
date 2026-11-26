@@ -1,13 +1,13 @@
 "use client";
 // Where each number of an exported Pack comes from (spec 0058, GLOSSARY: Comes From): one answer for each number that
-// somebody or something sends, "A person types it" to begin with, with the kind of system where another system sends it
+// somebody or something sends, "Ask a person" to begin with, with the kind of system where another system sends it
 // and a short note. Numbers Ziffr calculates are not asked: the formula says it. The core checks every answer.
 import { useId } from "react";
 import { Input } from "@/components/ui/input";
 import { COMES_FROM_BY, COMES_FROM_LIMITS, type PackComesFrom } from "@ziffr/pack/comes-from";
 import type { Description } from "./describe";
 
-const SAYS: Record<PackComesFrom["by"], string> = { person: "A person types it", system: "Another system sends it", target: "Set once as a target" };
+const SAYS: Record<PackComesFrom["by"], string> = { person: "Ask a person", system: "Another system sends it", target: "Set once as a target" };
 
 /** One field set for each number of the file; draws nothing when the file has none. */
 export function PackNumberFields({ state, setState }: { state: Description; setState: React.Dispatch<React.SetStateAction<Description>> }) {

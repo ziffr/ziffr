@@ -70,7 +70,7 @@ Ziffr's own starting Packs, in [`packs/`](../../packs/README.md), are complete e
 - **`id`** is your Marketplace handle and a slug. It stays the same for every version.
 - **`version`** is three numbers: major, minor and patch. Each new version is higher than the last.
 - **`license`** is `CC-BY-4.0` or `MIT` for a free Pack, `Ziffr-Pack-1.0` for a paid one. Nothing else is accepted.
-- **`ziffr`** is the oldest Ziffr that can install the Pack. An older Ziffr says "needs Ziffr 0.12 or later" and installs nothing.
+- **`ziffr`** is the oldest Ziffr that can install the Pack. An older Ziffr says "needs Ziffr 0.12 or later" and installs nothing. A build that is not a release (the development app, the image of `main`, one you built yourself) takes any minimum of its major version, since it is newer than the releases.
 - **`listing`** holds the only web addresses a Pack may have, `https` only: a homepage and a support page.
 - **Every item** has a `key`, unique in the Pack and kept across versions. Updating and uninstalling match items by it.
 
@@ -266,7 +266,7 @@ Say for every number somebody or something has to send where it comes from, with
 | `system` | with `system` only, and needed then: the kind of system, such as “CRM”, at most 60 characters |
 | `note` | optional, at most 300 characters |
 
-Do not write it on a Derived Metric or a [Total](#totals): Ziffr calculates those and shows from which entries. Name the n8n templates that fill an entry in [`feeds`](#filling-the-metrics-from-other-systems); say only what they really do. Ziffr shows a table **Where the numbers come from** and what is **Included** and **still needed** before installing and in Help, and Set up asks nobody for a number another system sends unless the person chooses to. A number without `comesFrom` shows as **The Pack does not say**; the Marketplace lists a Pack only when every number that takes values has it.
+Do not write it on a Derived Metric or a [Total](#totals): Ziffr calculates those and shows from which entries. Name the n8n templates that fill an entry in [`feeds`](#filling-the-metrics-from-other-systems); say only what they really do. Ziffr shows a table **Where the numbers come from** and what is **Included** and **still needed** before installing and in Help, and Set up asks nobody for a number another system sends unless the person chooses to. A number without `comesFrom` is described by what Ziffr can do with it, from its `sources` and your `feeds`: **Ask a person**, **Ask a person, or another system sends it**, **Ask a person, or fill it from Google Sheets (template included)**, or for a number only the API takes **Another system sends it**. The Marketplace lists a Pack only when every number that takes values has `comesFrom`.
 
 ### Credit
 
@@ -275,6 +275,8 @@ Do not write it on a Derived Metric or a [Total](#totals): Ziffr calculates thos
 ### The Pack Guide
 
 `guide` is where you explain your Pack, read before installing (in the preview) and afterwards in Help, with the installed Pack. It has five sections, each optional, in this order and under Ziffr's own titles: `whatItsFor` (What it's for), `beforeYouStart` (Before you start), `firstSteps` (First steps), `eachPart` (Each part) and `questions` (Questions).
+
+For a whole guide to learn from, read the one of Ziffr's [Sales forecast Pack](../../packs/sales-forecast.pack.json): what the Pack is for, what to have ready, a numbered **Start here**, each part and the questions people ask.
 
 A section is a list of blocks:
 
