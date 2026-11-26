@@ -218,6 +218,12 @@ export async function deliverNotice(ws: string, input: { recipientId: string; se
   await deliverPlain(ws, "notice", input);
 }
 
+/** A notice from Ziffr itself by email, whatever the person's Delivery Preference, sent at once when email goes out here.
+ * Returns the Delivery's id, so the caller can say what became of it. */
+export async function deliverEmailNotice(ws: string, input: { recipientId: string; subject: string; text: string; link: string }): Promise<number | null> {
+  return deliverPlain(ws, "notice", { ...input, senderId: null, via: "email" });
+}
+
 /** An Alert's message (GLOSSARY: Alert) through the person's Connector: the same path as a notice, with its own kind so
  * that nothing can answer it. It has no Action, no Prompt and no reference, and the email carries no reply address
  * (mail.ts), so a reply to it records nothing (reply-routing.ts). Returns the Delivery's id. The caller has checked, a

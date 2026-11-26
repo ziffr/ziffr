@@ -638,10 +638,10 @@ Someone who has the link but is not signed in as you sees and can do only what t
 Where the Workspace has Telegram on, the form also offers **Connect Telegram** to a Contact. Members do not see it: they connect Telegram signed in, on the Connectors page. Connecting takes three steps:
 
 1. Choose **Connect Telegram**, then **Open Telegram**: the link opens Ziffr's Telegram bot and is valid for ten minutes. Tap **Start** there.
-2. Ziffr sends an email, **Confirm Telegram for Ziffr**, to the address the Workspace keeps for you. The bot shows a four-digit number, and the email shows the same one, with the name of the Telegram account.
-3. If you started this yourself and the numbers match, open the link in the email and choose **Confirm** within 30 minutes. If not, ignore the email: nothing is connected.
+2. The bot answers with a four-digit number. Ziffr sends an email, **Confirm Telegram for Ziffr**, to the address the Workspace keeps for you, with the name of the Telegram account. The number is not in the email.
+3. If you started this yourself, open the link in the email, type the number your own Telegram chat shows and choose **Confirm** within 30 minutes. Never type a number someone else gave you. If you did not start it, ignore the email: nothing is connected.
 
-Until you confirm, Ziffr sends that Telegram account nothing and takes no answer from it. Once you have, requests for numbers reach you in Telegram as well, the form says that you are connected, and Ziffr emails you that it is done. The link works once. Starting again ends the link before, and Ziffr sends at most three of these emails in an hour and five in a day.
+Until you confirm, Ziffr sends that Telegram account nothing and takes no answer from it. Once you have, requests for numbers reach you in Telegram as well, the form says that you are connected, and Ziffr emails you that it is done. The link works once. After three wrong numbers it stops working. Starting again ends the link before, and Ziffr sends at most three of these emails in an hour and five in a day. You get this email also if you have stopped requests for numbers by email, because you ask for it. When Ziffr cannot send it, the bot says so, with who can help.
 
 The form cannot connect Telegram, and says so with who can help, when the Workspace has no email address for you, when this Ziffr sends no email, or in a trial, which sends nothing to Contacts.
 

@@ -151,7 +151,12 @@ async function handle(u: Obj, userId: number | null, effects: { submission?: Sub
 function startAnswer(r: TelegramLinkOutcome): string {
   if (r.linked) return `Connected as ${r.person} in ${r.workspace}: you get their Ziffr messages here. If that is not you, send /stop. To answer a message, reply to it.`;
   switch (r.why) {
-    case "confirm": return `Almost done. Ziffr is emailing the address it keeps for you in ${r.workspace}. Check that it shows the number ${r.check}, open its link and press Confirm within ${r.minutes} minutes. Until then nothing is connected.`;
+    case "confirm": {
+      const email = r.sent
+        ? `Ziffr emailed the address it keeps for you in ${r.workspace}.`
+        : `Ziffr could not send the email to the address it keeps for you in ${r.workspace} yet, and tries again. If none arrives, ask an Owner or Admin of the workspace, or the person who asks you for numbers, for help.`;
+      return `Almost done. Your number is ${r.check}. ${email} Open the link in that email, type this number and press Confirm within ${r.minutes} minutes. Give the number to nobody. Until then nothing is connected.`;
+    }
     case "no_email": return "Nothing is connected: Ziffr cannot send you the email that confirms it. Ask an Owner or Admin of the workspace, or the person who asks you for numbers, for help.";
     case "limited": return "Nothing is connected: Ziffr has sent several emails to confirm already and sends no more for now. Try again later.";
     case "connected": return "Telegram is connected already, so nothing changed. To use another account, first send /stop from the one connected now.";

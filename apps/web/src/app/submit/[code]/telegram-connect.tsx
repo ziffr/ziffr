@@ -24,7 +24,7 @@ export function TelegramConnect({ code, linked, help }: { code: string; linked: 
       ) : link ? (
         <p className="flex flex-wrap items-center gap-2">
           <a href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center max-sm:h-11 rounded-[var(--radius-input)] border border-input px-3 font-medium hover:bg-muted">Open Telegram</a>
-          <span className="text-muted-foreground">and tap Start within {link.minutes} minutes. Then confirm in the email Ziffr sends you.</span>
+          <span className="text-muted-foreground">and tap Start within {link.minutes} minutes. Then confirm in the email Ziffr sends you, with the number the bot shows.</span>
         </p>
       ) : (
         <p className="flex flex-wrap items-center justify-between gap-2">
