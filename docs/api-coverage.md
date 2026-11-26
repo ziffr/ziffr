@@ -39,6 +39,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `canvasExplain` (dashboards.ts): the dashboard canvas
 - `readyFor` (analysis-picker.ts): what is ready for one Metric on its page; the analyses are reached through the Takeaway reads, not as an operation of their own
 - `newDeckFor` (deck-additions.ts): Deck building
+- `newDeckFromSnapshot` (deck-snapshots.ts): Deck building
 - `createDeckFromTemplate` (deck-templates.ts): Deck Templates
 - `createDeck` (decks.ts): Deck building
 - `saveDeck` (decks.ts): Deck building
@@ -318,6 +319,12 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `editableWidget` (dashboards.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `specFrom` (dashboards.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `deckAddition` (deck-additions.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `readKeptNumbers` (deck-snapshots.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `snapshotSlides` (deck-snapshots.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `snapshotAddition` (deck-snapshots.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `deckShareGaps` (deck-snapshots.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `shownForReader` (snapshots.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `recordedNow` (snapshots.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `deckTemplateChoices` (deck-templates.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `deckTemplateSeed` (deck-templates.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `switchableDashboards` (home.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads

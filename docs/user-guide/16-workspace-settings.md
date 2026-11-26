@@ -33,6 +33,8 @@ Choose **Workspace** in the sidebar to open its pages. They are:
 | **Usage** | Owners and Admins | Below |
 | **Audit log** | Owners and Admins | Below |
 
+On a phone these pages are listed under **More** in the bar at the bottom, and **Ziffr** at the top leads home.
+
 A Guest sees only what is shared with them, and never who else is in the Workspace: other people's names, emails and Slack handles do not appear anywhere. Whoever owns, edits, approves or comments on what is shared with them reads as "Someone", **Who can see this** shows them only their own line ("Viewer", or "Viewer through" a Group they are in), and search finds only themselves. A Version history of a Theme is not open to them. Their **Connectors** page shows their own Delivery Preferences, their **Workflows** are those of the Metrics shared with them (the page still opens from a link), and **Changes** lists changes to what they may see.
 
 General, Packs, Library, Access Keys, Feeds and Usage open inside the settings area. It has a side list in three parts: **Workspace** (**General**, **Size and Retention**, **Themes**, **Packs**, **Library**, **Tags** and, for the Owner, **Workspace Export**), **Programs** (**Access Keys**, **Feeds**, **Webhooks**) and **Records** (**Changes**, **Usage**, **Audit log**), showing only the pages your role can use. On a phone the side list becomes one **Section** menu at the top that always names the page you are on, and each checkbox on these pages has its own line; the bar at the top keeps the ? button next to the Ziffr name. Your own pages (**My schedule**, **Profile**, **Appearance**, **Deliveries**, **Alerts** and **Connected assistants**, see [Signing in and your own settings](17-your-settings.md)) open from your menu at the bottom of the sidebar (on a phone, in **More**).
@@ -129,7 +131,7 @@ The 14 days come at most once in 90 days. If the Workspace goes over its limit a
 
 Near the limit, from 90 % on, everyone who opens **New metric** sees how many Metrics the Workspace holds of how many, such as "48 of 50 Metrics". When new Metrics wait, the page says so before the form is filled in.
 
-**Download the values** saves the values of every Metric you see as a CSV file, written as the trial's download is (with the columns `period_end` and `condensed_from`, empty except on a Condensed Value, which is one line for its span, and `state`, which says **final** or **not approved yet**); the warning before an unused Workspace is deleted links to it.
+**Download the values** saves the values of every Metric you see as a CSV file (UTF-8 with a byte-order mark, so Excel shows umlauts rightly), written as the trial's download is (with the columns `period_end` and `condensed_from`, empty except on a Condensed Value, which is one line for its span, and `state`, which says **final** or **not approved yet**); the warning before an unused Workspace is deleted links to it.
 On hosted Ziffr, Owners also see **Change Size** and **Billing and invoices**. Both take you to Ziffr Cloud, where you book, change or cancel the Size and see invoices; Ziffr hands you over with a token that works for five minutes and knows only the Workspace, its name and your address. Admins see the section without these buttons, and Ziffr never holds payment details.
 **Make room** opens when a smaller Size needs fewer Metrics than the Workspace holds, such as when an Owner moves to a smaller Size on hosted Ziffr. It says how many Metrics the smaller Size allows, how many the Workspace holds and how many to archive, and lists the Metrics you see with the month of their latest value. The ones whose latest value is oldest, or that have none, are ticked first, as many as needed; change the ticks as you like, and the line below says how many more are needed. **Archive** archives the ticked ones and takes you back here. Metrics not shared with you are only counted: their owners archive them. Owners and Admins only.
 
@@ -385,7 +387,7 @@ The Telegram box appears when this Ziffr has a Telegram bot (never in the demo).
 | **Disconnect** | Everyone who is connected | Ziffr no longer reaches you on Telegram in this Workspace. |
 | **Get them on Telegram again** | Whoever stopped them | Shown if you pressed "Stop these on Telegram" under a Prompt or reminder there |
 
-A bot cannot find anyone by email or phone number, so everyone connects their own Telegram, once per Workspace. Contacts without a login connect it on their personal form. To stop everything from Ziffr in Telegram, send the bot `/stop`, or block it.
+A bot cannot find anyone by email or phone number, so everyone connects their own Telegram, once per Workspace. Contacts without a login connect it on their [personal form](10-metrics.md#the-personal-form-link) and confirm it from an email to the address the Workspace keeps for them, so a Contact needs an email address for this. To stop everything from Ziffr in Telegram, send the bot `/stop`, or block it.
 
 Telegram can read what its bots send and receive, so numbers and questions sent this way pass through Telegram's servers. The box says so as well.
 
@@ -662,6 +664,6 @@ Click a person's name in the list to see only their events. Click what an event 
 
 ### Download CSV
 
-**Download CSV** saves the events of the current filter as a spreadsheet file, at most 50,000 at a time; pick dates for more. Each download is itself recorded in the Audit Log, and a Workspace can download it at most ten times an hour.
+**Download CSV** saves the events of the current filter as a spreadsheet file (UTF-8 with a byte-order mark, so Excel shows umlauts rightly), at most 50,000 at a time; pick dates for more. Each download is itself recorded in the Audit Log, and a Workspace can download it at most ten times an hour.
 
 In the demo, where visitors may change it, the pins in the sidebar are your own, kept in your browser.

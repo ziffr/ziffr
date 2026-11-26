@@ -382,7 +382,7 @@ async function deckRecords(c: Ctx): Promise<void> {
       const fills = filled(t.slots);
       const why = !fills ? "it draws a Metric that is not in the file" : exportDocumentProblem("deck", doc);
       if (why) throw new Error(why);
-      if (kept < total) skip("Deck", name, `${total - kept} shape${total - kept === 1 ? "" : "s"} stay behind: images, arrows, lines, notes and drawings are not in the file.`);
+      if (kept < total) skip("Deck", name, `${total - kept} shape${total - kept === 1 ? "" : "s"} stay behind: images, arrows, lines, notes, drawings and Snapshot Parts are not in the file.`);
       if (t.notices.length) skip("Deck", name, t.notices.join(" "));
       const theme = d.theme_id ? themeLabel.get(d.theme_id as number) : undefined;
       const label = `k${labelOf.deck.size + 1}`;

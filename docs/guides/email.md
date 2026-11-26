@@ -98,9 +98,13 @@ const signature = createHmac("sha256", process.env.ZIFFR_INBOUND_SECRET).update(
 
 Check the forwarder sends the message as received: changing it would break the provider's `Authentication-Results`.
 
+## Links in emails
+
+Every email Ziffr sends has an HTML part and a plain-text part. In the HTML part the link Ziffr added is a button, the stop link is a few words at the foot, and no whole address shows as text. A link in words a person wrote (a name, a comment, a message) shows where it leads, as its host and the start of its path, and never becomes a button. In the plain-text part every address Ziffr added stands whole on a line of its own, between angle brackets, so mail apps do not cut it in two; a person's words stay as written. Addresses go straight to your Ziffr (sign-in links to its sign-in service): nothing is shortened, redirected or counted. In code, every send goes through `composed` in `packages/core/src/mail.ts`. A button is never looked for in the words: pass it as `action` to `sendMail` and `brandedParts`, or make a Delivery whose last line is the link Ziffr appends (`Open: <address>`, see `appendedLink` in `mail-links.ts`). Names put into a line of Ziffr's own that says who sent a message go through `unlinked`.
+
 ## Opting out
 
-Every Prompt and reminder email has a one-click link, also in the `List-Unsubscribe` header that mail clients show. Using it stops Prompts and reminders by email for that person in that workspace, and the owners of the Metrics they submit to are told. Questions, tasks and replies in their Threads keep coming. A member can turn them on again on the Connectors page.
+Every Prompt and reminder email has a one-click link, worded at the foot of the email and also in the `List-Unsubscribe` header that mail clients show. Using it stops Prompts and reminders by email for that person in that workspace, and the owners of the Metrics they submit to are told. Questions, tasks and replies in their Threads keep coming. A member can turn them on again on the Connectors page.
 
 ## Trying it locally
 
