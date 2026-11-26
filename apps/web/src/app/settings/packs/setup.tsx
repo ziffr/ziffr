@@ -145,13 +145,13 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
   // The entries offered here, and those asked for: adding a line asks only for what each line gets, and the core finds
   // what it is computed from among what was made before.
   const entries = adding ? options.entries.filter((e) => e.repeat === adding.repeat.key) : options.entries;
-  // The numbers being made that the Pack says nobody types. Those a Position covers are asked of whoever the person puts
-  // into it.
-  const elsewhere = entries.filter((e) => making.has(e.key) && !e.derived && !e.asksPosition && (e.comesFrom?.by === "system" || e.comesFrom?.by === "target"));
+  // The numbers being made that the Pack says nobody types, in a Pack without Positions; with Positions the plan names
+  // those the person would submit.
+  const elsewhere = entries.filter((e) => making.has(e.key) && !e.derived && (e.comesFrom?.by === "system" || e.comesFrom?.by === "target")).map((e) => e.name);
   const asked: PackSetupInput = {
     metrics: adding ? [...making].filter((k) => byKey.get(k)?.repeat === adding.repeat.key) : [...making],
     submitters: askMe && uncovered ? [viewer] : [],
-    askElsewhere: askMe && askElsewhere,
+    askElsewhere,
     feed: feed || null,
     dashboard: shared ? pickOf(shared) : null,
     workflow: sharedFlow ? flowOf(sharedFlow) : null,
@@ -168,11 +168,13 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
     const fillsFor = (repeat: string | null, from: Record<string, string[]>) => (plan?.positions ?? []).filter((p) => p.repeat === repeat).map((p) => ({ position: p.key, people: chosen(plan, from, p.key) }));
     return {
       ...asked, askNow, people: fillsFor(null, positionFills),
-      // Every offer is ticked until the person unticks it.
-      ...(adding ? { adding: { ticked: (plan?.offers ?? []).filter((o) => offerTicks[o.id] ?? true).map((o) => o.id) } } : {}),
+      // An offer is ticked as the person ticked it, else as the plan suggests.
+      ...(adding ? { adding: { ticked: (plan?.offers ?? []).filter((o) => offerTicks[o.id] ?? o.suggested).map((o) => o.id) } } : {}),
       lines: repeats.flatMap((r) => (lines[r.key] ?? []).filter((l) => l.name.trim()).map((l) => ({ repeat: r.key, name: l.name.trim(), people: fillsFor(r.key, l.fills) }))),
     };
   }, ticks);
+  // What “Ask me also for …” is about.
+  const alsoAsk = options.positions ? planned.plan?.askMeAlso ?? [] : askMe ? elsewhere : [];
   const count = options.positions ? planned.plan?.makes.metrics.length ?? 0 : making.size;
   // A line with people but no name would be left out without a word.
   const unnamed = Object.values(lines).some((rows) => rows.some((l) => !l.name.trim() && Object.values(l.fills).some((x) => x.length)));
@@ -241,8 +243,8 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
         {uncovered && (
           <label className="mt-2 flex items-start gap-2"><input type="checkbox" checked={askMe} onChange={(e) => setAskMe(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> Ask me for {options.positions ? "the values no Position covers" : "their values"} (a first request goes out now)</label>
         )}
-        {askMe && elsewhere.length > 0 && (
-          <label className="ml-6 flex items-start gap-2"><input type="checkbox" checked={askElsewhere} onChange={(e) => setAskElsewhere(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /><span>Ask me also for {elsewhere.map((e) => e.name).join(", ")}<span className="block text-xs text-muted-foreground">The Pack says another system sends {elsewhere.length === 1 ? "it" : "them"} or that {elsewhere.length === 1 ? "it is" : "they are"} set as a target, so nobody is asked unless you tick this.</span></span></label>
+        {alsoAsk.length > 0 && (
+          <label className={`${uncovered ? "ml-6" : "mt-2"} flex items-start gap-2`}><input type="checkbox" checked={askElsewhere} onChange={(e) => setAskElsewhere(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /><span>Ask me also for {alsoAsk.join(", ")}<span className="block text-xs text-muted-foreground">The Pack says another system sends {alsoAsk.length === 1 ? "it" : "them"} or that {alsoAsk.length === 1 ? "it is" : "they are"} set as a target, so nobody is asked unless you tick this{options.positions ? ", and nobody else is asked either way" : ""}.</span></span></label>
         )}
         {making.size > 0 && options.feeds.length > 0 && (
           <label className="mt-2 flex flex-wrap items-center gap-2">

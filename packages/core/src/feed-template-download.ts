@@ -14,6 +14,9 @@ import stripeFeed from "../../../docs/automations/stripe-feed.json";
 import hubspotFeed from "../../../docs/automations/hubspot-feed.json";
 import bigqueryFeed from "../../../docs/automations/bigquery-feed.json";
 import snowflakeFeed from "../../../docs/automations/snowflake-feed.json";
+import hubspotForecastFeed from "../../../docs/automations/hubspot-forecast-feed.json";
+import salesforceForecastFeed from "../../../docs/automations/salesforce-forecast-feed.json";
+import pipedriveForecastFeed from "../../../docs/automations/pipedrive-forecast-feed.json";
 import index from "../../../docs/automations/feed-templates.json";
 import { audit } from "./audit-log";
 import { Forbidden, type Actor } from "./actor";
@@ -35,6 +38,9 @@ const WORKFLOWS: Record<string, Workflow> = {
   "hubspot-feed.json": hubspotFeed as unknown as Workflow,
   "bigquery-feed.json": bigqueryFeed as unknown as Workflow,
   "snowflake-feed.json": snowflakeFeed as unknown as Workflow,
+  "hubspot-forecast-feed.json": hubspotForecastFeed as unknown as Workflow,
+  "salesforce-forecast-feed.json": salesforceForecastFeed as unknown as Workflow,
+  "pipedrive-forecast-feed.json": pipedriveForecastFeed as unknown as Workflow,
 };
 const TEMPLATES = (index as { templates: IndexEntry[] }).templates;
 

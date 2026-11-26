@@ -1,8 +1,9 @@
-// Signed one-click links that work with no sign-in (RFC 8058): the usage digest's (usage-digest-token.ts) and the
-// invitation stop link's (invitation-stop.ts) are made here. A token carries one subject and an HMAC-SHA256 over a label
+// Signed one-click links that work with no sign-in (RFC 8058): the usage digest's (usage-digest-token.ts), the
+// invitation stop link's (invitation-stop.ts) and the one that disconnects a chat account (connection-notices.ts) are
+// made here. A token carries one subject and an HMAC-SHA256 over a label
 // and that subject, under a key derived (HKDF) from ZIFFR_SECRETS_KEY, or from ZIFFR_JOB_SECRET where there is no secrets
-// key, so a label's tokens never validate as another's and never share bytes with what seals other things. It names one
-// subject and one use; it never expires, because stopping a mail is always safe; it opens nothing and reveals nothing
+// key (a label may ask for the secrets key only), so a label's tokens never validate as another's and never share bytes with what seals other things. It names one
+// subject and one use; it never expires, because stopping a mail, or ending one connection, is always safe; it opens nothing and reveals nothing
 // but its own validity. Nothing is stored for it.
 import { createHmac, hkdfSync, timingSafeEqual } from "node:crypto";
 import { previousSecretsKey, secretsKey } from "./secrets";
@@ -11,8 +12,9 @@ type Env = Record<string, string | undefined>;
 
 /** The signing keys in effect for a label, newest first: the secrets key, its previous one (so links survive a change of
  * key), then, only where neither is set, the job secret (always set where the clock runs). Empty when none is set: no
- * link can then be made or checked. */
-function keys(label: string, env: Env): Buffer[] {
+ * link can then be made or checked. With `secretsKeyOnly`, empty also wherever there is no secrets key. */
+function keys(label: string, env: Env, secretsKeyOnly: boolean): Buffer[] {
+  if (secretsKeyOnly && !secretsKey(env)) return [];
   const roots: Buffer[] = [];
   const current = secretsKey(env);
   if (current) roots.push(current);
@@ -25,16 +27,17 @@ function keys(label: string, env: Env): Buffer[] {
   return roots.map((r) => Buffer.from(hkdfSync("sha256", r, Buffer.alloc(0), label, 32)));
 }
 
-/** A signer for one label: which subjects are allowed (a shape check, so nothing odd is ever signed or accepted). */
-export function unsubscribeSigner(label: string, subject: RegExp, maxSubjectBytes: number) {
+/** A signer for one label: which subjects are allowed (a shape check, so nothing odd is ever signed or accepted).
+ * `secretsKeyOnly` makes and accepts nothing without ZIFFR_SECRETS_KEY: never the job secret. */
+export function unsubscribeSigner(label: string, subject: RegExp, maxSubjectBytes: number, { secretsKeyOnly = false }: { secretsKeyOnly?: boolean } = {}) {
   const token = new RegExp(`^[A-Za-z0-9_-]{1,${Math.ceil((maxSubjectBytes * 4) / 3) + 2}}\\.[A-Za-z0-9_-]{43}$`);
   const mac = (key: Buffer, s: string) => createHmac("sha256", key).update(`${label}\0${s}`).digest();
   return {
     /** Whether a link can be signed here at all. */
-    available: (env: Env = process.env): boolean => keys(label, env).length > 0,
+    available: (env: Env = process.env): boolean => keys(label, env, secretsKeyOnly).length > 0,
     /** The token for a subject, or null when this Installation has no key to sign with or the subject has a wrong shape. */
     sign(s: string, env: Env = process.env): string | null {
-      const [key] = keys(label, env);
+      const [key] = keys(label, env, secretsKeyOnly);
       if (!key || !subject.test(s)) return null;
       return `${Buffer.from(s, "utf8").toString("base64url")}.${mac(key, s).toString("base64url")}`;
     },
@@ -45,7 +48,7 @@ export function unsubscribeSigner(label: string, subject: RegExp, maxSubjectByte
       const s = Buffer.from(who, "base64url").toString("utf8");
       if (!subject.test(s) || Buffer.from(s, "utf8").toString("base64url") !== who) return null;
       const given = Buffer.from(sig, "base64url");
-      const ok = keys(label, env).some((key) => {
+      const ok = keys(label, env, secretsKeyOnly).some((key) => {
         const want = mac(key, s);
         return given.length === want.length && timingSafeEqual(given, want);
       });
