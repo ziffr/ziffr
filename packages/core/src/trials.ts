@@ -149,7 +149,7 @@ export function trialLimitMessage(code: string | undefined): string | null {
   if (code === "ZF434") return `A trial may connect ${n.assistants === 1 ? "one assistant" : `${n.assistants} assistants`} at a time. Disconnect one to connect another.`;
   if (code === "ZF433") return `A trial has at most ${s(n.feeds, "Feed")}. Delete one to make another.`;
   if (code === "ZF435") return `A trial holds at most ${s(n.people, "person", "people")}, invitations that are still open included. Revoke an invitation or wait until it ends to invite another.`;
-  if (code === "ZF439") return "Invitations open once the Owner has recorded a first value of their own. Answer the first request in the Setup Guide, then invite your colleagues.";
+  if (code === "ZF439") return "Invitations open once the Owner has recorded a first value of their own: reply to a request for a Metric, or use Record a value. Then invite your colleagues.";
   if (code === "ZF437") return `A trial has at most ${s(n.viewLinks, "View Link")} that work. Revoke one to make another.`;
   return null;
 }
