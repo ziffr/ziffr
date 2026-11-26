@@ -50,6 +50,8 @@ describe("Add to deck in the side panel", () => {
     await mount(screen());
     await act(async () => { host.querySelector("button")!.click(); }); await tick();
     expect(title()).toBe("Add to deck");
+    // A choice: a bottom sheet on a phone (spec 0055).
+    expect(panel()!.dataset.short).toBe("true");
     expect(panel()!.textContent).toContain("A copy of this widget goes on the slide you pick.");
     expect(panel()!.textContent).toContain("Board deck");
     expect(deckChoices).toHaveBeenCalledTimes(1);
@@ -99,6 +101,7 @@ describe("Browse templates in the side panel", () => {
     await mount(<Pool onAdd={onAdd} />);
     await act(async () => { host.querySelector("button")!.click(); }); await tick();
     expect(title()).toBe("Browse templates");
+    expect(panel()!.dataset.short).toBeUndefined();
     expect(panel()!.querySelector("[aria-label='Filter templates']")).not.toBeNull();
     const use = panel()!.querySelector<HTMLButtonElement>("button[aria-label^='Use ']")!;
     expect(use).not.toBeNull();

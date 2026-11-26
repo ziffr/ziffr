@@ -149,9 +149,9 @@ export function AlertMe({ metric, mine, choices, webhooks, controlled }: { metri
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       {!controlled && <SheetTrigger className={buttonVariants({ variant: "outline" })}>{trigger}</SheetTrigger>}
-      <SheetContent>
+      <SheetContent short>
         <SheetHeader><SheetTitle>Alert me about {metric.name}</SheetTitle></SheetHeader>
-        <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-4">{body}</div>
+        <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{body}</div>
       </SheetContent>
     </Sheet>
   );
