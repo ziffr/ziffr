@@ -81,7 +81,7 @@ The **⋯** menu holds:
 
 | Option | Who sees it | What it does |
 | --- | --- | --- |
-| **Make a deck** | Everyone who may create | Starts a Deck named after this dashboard and opens it. See [Decks and Themes](14-decks-and-themes.md). |
+| **Make a deck…** | Everyone who may create | Asks whether the new Deck shows **live numbers** (the default) or the numbers of one of the dashboard's shown Snapshots, then starts it and opens it. See [Decks and Themes](14-decks-and-themes.md#live-numbers-or-a-snapshots). |
 | **Save as template** | The owner and Editors, once there are Widgets | Saves the dashboard as a team Dashboard Template (see [Saving as a template](#saving-a-dashboard-as-a-dashboard-template)). |
 | **Who can see this** | Everyone | Lists everyone with access and why (see [Sharing](#sharing)). |
 | **View links…** | The owner | Links for people outside the team (see [View Links](#view-links)). |
@@ -516,11 +516,18 @@ The owner and Editors have these buttons:
 | **Versions** | Every change to its words (see [Versions](#versions)). Everyone who can open it sees this. |
 | **Delete** | The owner only. Asks first; the Snapshot's values and words go for good, the dashboard and its values stay. |
 
-Everyone who may create also has **Make a deck**: it starts a Deck named after the dashboard and the period, with the Snapshot's introduction on the title slide and one slide for each part, drawn from the values the Snapshot kept.
+Everyone who may create also has:
+
+| Button | What it does |
+| --- | --- |
+| **Make a deck…** | Asks which numbers the new Deck shows: **the numbers of this Snapshot**, which never change (the default once it is shown), or **live numbers** from the dashboard as it is now. A Snapshot still in draft offers only live numbers. |
+| **Add to a deck…** | On a shown Snapshot: puts its slides, with its numbers, at the end of a deck you may edit, or of a new one. |
+
+Whoever looks at such a deck sees the Snapshot's numbers only if they may open this Snapshot; sharing the deck does not show them. See [Decks and Themes](14-decks-and-themes.md#live-numbers-or-a-snapshots).
 
 ### Example: the annual review
 
-A dashboard "Annual review" shows Revenue by month. In January 2027 its owner opens **Snapshots ▸ Take a Snapshot…**, chooses **Year** and **2026**, and presses **Take Snapshot**. The Snapshot "2026" keeps Revenue's twelve months of 2026 and those before, not January 2027. The owner writes the introduction ("Revenue grew by a quarter; the second half carried it") and shows it. In the Snapshots menu it comes first, above "H2 2026", "Q4 2026" and "December 2026". **Make a deck** on it starts the deck "Annual review, 2026" for the board.
+A dashboard "Annual review" shows Revenue by month. In January 2027 its owner opens **Snapshots ▸ Take a Snapshot…**, chooses **Year** and **2026**, and presses **Take Snapshot**. The Snapshot "2026" keeps Revenue's twelve months of 2026 and those before, not January 2027. The owner writes the introduction ("Revenue grew by a quarter; the second half carried it") and shows it. In the Snapshots menu it comes first, above "H2 2026", "Q4 2026" and "December 2026". **Make a deck…** on it, with the numbers of 2026, starts the deck "Annual review, 2026" for the board.
 
 To have it taken by itself next year, choose **Take one by itself…** ▸ **Every year**. The Snapshot "2027" is then taken as soon as every Metric on the dashboard is Locked for all twelve months of 2027, or the set number of days after 31 December.
 
