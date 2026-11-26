@@ -338,6 +338,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `listTellSubscriptions` (tell.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `dashboardTemplateDraft` (templates.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `workspaceValuesCsv` (unused-workspaces.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `exportMetricValues` (metric-values-export.ts): the CSV download of chosen Metrics for a signed-in person (spec 0056); a program reads values through the API with its scopes and its own log, and the function refuses an Access Key
 - `versionAccess` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `listVersions` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `trialUsage` (trial-usage.ts): the trial bar and Try it show an Owner or Admin what the trial has used; the API has no such page

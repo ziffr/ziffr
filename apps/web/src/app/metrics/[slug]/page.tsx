@@ -334,7 +334,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5">
               {/* Paste history is offered to whoever submits for the Metric on the web form; the core checks again when they paste. */}
-              <div className="mb-3 flex items-baseline justify-between gap-3"><h2 className="font-medium">Latest values</h2>{mayPaste(metric, tokens, actor.personId) && <Link href={`/paste-values?metric=${encodeURIComponent(metric.slug)}`} className="text-sm">Paste history</Link>}</div>
+              <div className="mb-3 flex items-baseline justify-between gap-3"><h2 className="font-medium">Latest values</h2><span className="flex gap-4 text-sm">{/* The file holds only what this person sees (spec 0056); the demo does not offer it. */}{!demo && <a href={`/metric-values?metric=${encodeURIComponent(metric.slug)}`} download>Download values</a>}{mayPaste(metric, tokens, actor.personId) && <Link href={`/paste-values?metric=${encodeURIComponent(metric.slug)}`}>Paste history</Link>}</span></div>
               {obs.length === 0 ? <p className="text-sm text-muted-foreground">No values yet.</p> : (
                 <table className="w-full text-sm">
                   <thead className="text-left text-xs text-muted-foreground">

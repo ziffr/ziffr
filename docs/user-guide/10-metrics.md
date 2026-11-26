@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/metrics/**, apps/web/src/app/paste-values/**, apps/web/src/app/submit/**, apps/web/src/components/target-chip.tsx, apps/web/src/components/metric-quick-look.tsx, apps/web/src/components/compare-strip.tsx, apps/web/src/components/compare-table.tsx, apps/web/src/components/status.tsx, apps/web/src/components/tag-chips.tsx, apps/web/src/lib/tag-filter.ts -->
+<!-- screens: apps/web/src/app/metrics/**, apps/web/src/app/paste-values/**, apps/web/src/app/metric-values/**, apps/web/src/components/metric-export-bar.tsx, apps/web/src/app/submit/**, apps/web/src/components/target-chip.tsx, apps/web/src/components/metric-quick-look.tsx, apps/web/src/components/compare-strip.tsx, apps/web/src/components/compare-table.tsx, apps/web/src/components/status.tsx, apps/web/src/components/tag-chips.tsx, apps/web/src/lib/tag-filter.ts -->
 # The Metrics screens
 
 Every number your team tracks is a **Metric**. This chapter walks through every screen about Metrics: the list, describing a new one, a Metric's own page with its tabs, and the small form a Submitter opens to send in a value. Open them with **Metrics** in the sidebar.
@@ -35,6 +35,14 @@ Under a Metric's name, its **Tags** show as small chips, at most three and then 
 On a phone (under 640 px wide) each Metric is a small card instead of a table row: its name with the quick-look button, how often and where its values come from, the target, then the latest value with its status and date, and the change as an arrow and a signed percentage. Nothing is cut off at the side. Click a row to open the Metric's page. **New metric** (top right) starts a new one. **Paste values** opens a page that records many values at once from a spreadsheet (see [Paste values from a spreadsheet](#paste-values-from-a-spreadsheet)). With no Metrics yet, the list says "No metrics yet" and offers **New metric**.
 
 Each row also has a **Quick look** button beside the Metric's name (it shows on hover or keyboard focus, and always on a phone). It opens a panel on the right, over the list, with the latest value and its on-target label, the change, a trend line, the **Target** and **Owner**, and the latest six values, with **Open the Metric** at the bottom. For a Metric you submit, the panel also has **Record a value**, the same form as on the Metric's page (see below). The same button sits beside a Widget's title on a dashboard. **Esc** or **Close** closes it and you are back where you were; while it is open the keys stay inside it, and on a phone it fills the screen. The page address ends in `?panel=metric-` and the Metric's short name, so a link to it opens the panel.
+
+### Download values
+
+Each row has a checkbox (on a phone, in the card's top right corner). Tick the Metrics you want and select **Download values** above the list: you get one CSV file with every value of those Metrics, one row per value, oldest first for each Metric. **Select all** ticks every Metric the list shows (after the Tag and Archived filters) and **Clear** unticks them. One file holds at most 50 Metrics and 250,000 values; over that, Ziffr says so and nothing is cut short.
+
+The columns are `metric` (the Metric's slug), `name`, `period`, `period_start`, `value`, `unit`, `source`, `recorded_at`, `period_end` and `condensed_from`; the last two are filled only for a [Condensed Value](#retention), which is one row for its span. Numbers are written in your Workspace's **Number Style** without group marks, and where that style writes a decimal comma the columns are separated by semicolons, as a spreadsheet there expects. A value that still waits for **Approval** is in the file, as it is in the History tab. A Derived Metric has no values of its own and adds no rows.
+
+Anyone who signs in can download the values of the Metrics they may see, a Guest those shared with them; a Metric you may not see is never in the file. The History tab of a single Metric has **Download values** beside **Paste history** for that Metric alone. Each download is written in the [Audit Log](16-workspace-settings.md) as a count of Metrics and values, never their names or numbers. The demo does not offer it, and programs read values through the API instead.
 
 ## Paste values from a spreadsheet
 
