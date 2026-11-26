@@ -171,7 +171,7 @@ export function comesFromWords(n: PackNumber, count = 1): { from: string; delive
   const included = templates.length ? `${list(templates, "or")} (${templates.length === 1 ? "template" : "templates"} included)` : "";
   const connect = "with n8n, a SQL Feed or another program";
   if (n.by === "system") {
-    return { from: `Another system sends ${it}: ${n.system ?? "not named"}`, delivered: included ? `Fill ${it} from ${included}; you connect it.` : `Connect ${it} ${connect}.` };
+    return { from: `Another system sends ${it}: ${n.system ?? "not named"}`, delivered: included ? `Fill ${it} from ${included}; you connect ${templates.length === 1 ? "it" : "one"}.` : `Connect ${it} ${connect}.` };
   }
   const { asked, system } = ways(n);
   const answers = asked.length ? `A person answers by ${list(asked, "or")}` : "";

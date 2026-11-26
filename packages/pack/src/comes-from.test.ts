@@ -60,7 +60,7 @@ describe("the overview of a Pack", () => {
     expect(rows.get("gap")).toEqual({ key: "gap", name: "Gap", by: "calculated", of: ["Commit", "Quota"] });
     expect(rows.get("closed")).toEqual({ key: "closed", name: "Closed this quarter", by: "system", system: "CRM", templates: ["google-sheets", "excel"] });
     expect(rows.get("hours")).toEqual({ key: "hours", name: "Hours", by: "unsaid" });
-    expect(comesFromWords(rows.get("closed")!)).toEqual({ from: "Another system sends it: CRM", delivered: "Fill it from Google Sheets or Microsoft Excel (templates included); you connect it." });
+    expect(comesFromWords(rows.get("closed")!)).toEqual({ from: "Another system sends it: CRM", delivered: "Fill it from Google Sheets or Microsoft Excel (templates included); you connect one." });
     expect(comesFromWords(rows.get("pipeline")!).delivered).toBe("Connect it with n8n, a SQL Feed or another program.");
     expect(comesFromWords(rows.get("hours")!)).toEqual({ from: "Ask a person, or another system sends it", delivered: "A person answers by web form, email, Slack or Telegram; a system sends it with n8n, a SQL Feed or another program." });
     expect(comesFromWords(rows.get("commit")!)).toEqual({ from: "Ask a person, or fill it from Microsoft Excel (template included)", delivered: "A person answers by web form, email, Slack or Telegram." });
