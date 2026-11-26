@@ -21,7 +21,7 @@ async function original() {
   const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const cleo = await w.contact({ email: "c@t.test" });
   const workflowId = await saveWorkflow(w.actor(sara), null, "Monthly close", config as never);
   const m = await w.metric(sara, {
-    name: "Cash", description: "Money in the bank at month end.", unit: "EUR", format: "currency", decimals: 2, period: "month",
+    name: "Cash", description: "Money in the bank at month end.", calculation_note: "All bank accounts; no overdraft is deducted.", unit: "EUR", format: "currency", decimals: 2, period: "month",
     submission_rule: "reject", polarity: "target", aggregation: "last", target_min: 1000, target_max: 5000, attainment_method: null, sources: ["mail", "web_form"], workflow_id: workflowId,
   });
   await w.token(m.id, cleo);
@@ -36,7 +36,7 @@ describe("metricDraftFrom", () => {
   it("prefills the description, Workflow and regular Submitters, named as a copy", async () => {
     const { w, sara, cleo, m, workflowId } = await original();
     expect(await metricDraftFrom(w.actor(sara), m.id)).toEqual({
-      original: "Cash", name: "Cash (copy)", description: "Money in the bank at month end.", unit: "EUR", unit_position: "after", format: "currency", decimals: 2, period: "month",
+      original: "Cash", name: "Cash (copy)", description: "Money in the bank at month end.", calculation_note: "All bank accounts; no overdraft is deducted.", unit: "EUR", unit_position: "after", format: "currency", decimals: 2, period: "month",
       submission_rule: "reject", polarity: "target", aggregation: "last", target_min: 1000, target_max: 5000, attainment_method: null, sources: ["mail", "web_form"],
       workflow: { id: workflowId, name: "Monthly close" }, submitters: [cleo], duplicateOf: m.id,
     });
@@ -66,13 +66,13 @@ describe("createMetric as a duplicate", () => {
     const draft = await metricDraftFrom(w.actor(dan, "member"), m.id);
     const effects = fx();
     const copy = await createMetric(w.actor(dan, "member"), {
-      name: draft.name, description: draft.description, unit: draft.unit, unitPosition: draft.unit_position, format: draft.format, decimals: draft.decimals, period: draft.period,
+      name: draft.name, description: draft.description, calculationNote: draft.calculation_note, unit: draft.unit, unitPosition: draft.unit_position, format: draft.format, decimals: draft.decimals, period: draft.period,
       submissionRule: draft.submission_rule, polarity: draft.polarity, aggregation: draft.aggregation, targetMin: draft.target_min, targetMax: draft.target_max,
       sources: draft.sources, submitters: draft.submitters, workflowId: draft.workflow?.id, duplicateOf: draft.duplicateOf,
     }, effects);
     const [row] = await opened("metrics", w.id, (await db().from("metrics").select("*").eq("id", copy.id)).data);
     expect(row).toMatchObject({
-      workspace_id: w.id, owner_id: dan, name: "Cash (copy)", slug: "cash-copy", unit: "EUR", format: "currency", decimals: 2, submission_rule: "reject",
+      workspace_id: w.id, owner_id: dan, name: "Cash (copy)", slug: "cash-copy", calculation_note: "All bank accounts; no overdraft is deducted.", unit: "EUR", format: "currency", decimals: 2, submission_rule: "reject",
       polarity: "target", aggregation: "last", target_min: 1000, target_max: 5000, attainment_method: null, sources: ["mail", "web_form"], workflow_id: workflowId, from_catalog_id: null, formula: null,
     });
     const [{ data: obs }, { data: shares }, { data: series }, { data: tokens }, { data: versions }] = await Promise.all([

@@ -47,7 +47,6 @@ export function DerivedForm({ choices }: { choices: FormulaChoice[] }) {
               <Label htmlFor="derived-description" className="mb-1.5 block">Description</Label>
               <Textarea id="derived-description" name="description" rows={2} placeholder="What is it, and why does it matter?" />
             </div>
-            <CalculationNoteField id="derived-calc" className="sm:col-span-2" />
           </div>
         </section>
 
@@ -93,6 +92,7 @@ export function DerivedForm({ choices }: { choices: FormulaChoice[] }) {
               </div>
             </>
           )}
+          <CalculationNoteField id="derived-calc" label="In words (optional)" className="mt-4" />
         </section>
 
         <section className="stock rounded-[var(--radius-card)] p-5">

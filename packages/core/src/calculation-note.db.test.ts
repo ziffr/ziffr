@@ -107,18 +107,19 @@ describe("the Calculation Note", () => {
   it("keeps every change as a Version that says so, and restores it", async () => {
     const { w, sara, m } = await made();
     const versions = async () => (await listVersions(w.actor(sara), "metric", m.id)).versions;
-    const before = (await versions()).length;
-    // Saving the form with the same words is no change of the definition.
+    const created = (await versions()).at(-1)!;
+    // Saving the form with the same words is no change of the definition, whatever else the history makes of it.
     await updateMetricDetails(w.actor(sara), m.id, { name: "ARR", description: "What recurs each year.", calculationNote: NOTE });
-    expect(await versions()).toHaveLength(before);
+    expect((await versions())[0].message).not.toMatch(/how it is calculated/);
+    expect((await versions())[0].changes).not.toContain("how it is calculated");
     await updateMetricDetails(w.actor(sara), m.id, { description: "What recurs each year.", calculationNote: "Net of discounts." });
-    const [latest, first] = await versions();
+    const [latest] = await versions();
     expect(latest.message).toBe("Changed how it is calculated");
     expect(latest.changes).toContain("how it is calculated");
     await updateMetricDetails(w.actor(sara), m.id, { name: "Annual recurring revenue", calculationNote: "" });
     expect((await versions())[0].message).toBe("Changed how it is calculated and its description");
     expect(await stored(m.id)).toBeNull();
-    await restoreVersion(w.actor(sara), first.id);
+    await restoreVersion(w.actor(sara), created.id);
     expect((await read(w.id, m.id)).calculation_note).toBe(NOTE);
     // Kept Versions hold the words sealed, like the row.
     const { data: kept } = await db().from("versions").select("snapshot").eq("object_type", "metric").eq("object_id", m.id);

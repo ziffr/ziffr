@@ -387,8 +387,9 @@ A **Derived Metric** is a number worked out from other Metrics, such as a margin
 
 To make one, choose **New metric**, then **Calculated from other Metrics**:
 
-1. Give it a **Name**, and if you like a **Description** and **How it is calculated**: in words, what the formula cannot say, such as what its inputs leave out.
+1. Give it a **Name**, and if you like a **Description**.
 2. Build the **Formula**: click a Metric in the list to put it into the formula (it is written as its slug in curly brackets, such as `{revenue}`), and type `+ - * /`, brackets and numbers between them. For example `({revenue} - {cost}) / {revenue} * 100`.
+   Below the formula, **In words (optional)** takes what the formula cannot say, such as what its inputs leave out: the Metric's **Calculation Note**.
 3. Under **How is it shown?**, set a **Unit**, **Decimals**, **Period** or **Which way is good**, or leave them empty: Ziffr takes the period of the Metrics it is calculated from, their unit where a sum or difference keeps it, and two decimals where the formula divides. The page of the new Metric says nothing of this; the Description box shows what was chosen, and **Edit details...** changes it.
 4. **Create metric**.
 
