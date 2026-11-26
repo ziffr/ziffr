@@ -261,6 +261,9 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `setTelegramEnabled` (telegram-connection.ts): the Telegram connection
 - `trialFeedKey` (trial-feed-key.ts): a Trial's key for n8n
 - `makeGuideFeedKey` (trial-feed-key.ts): a Trial's key for n8n
+- `makeTrialExample` (trial-seed.ts): a Trial's example, made when its Owner chooses it in the app; a program makes Metrics and dashboards of its own (#1292)
+- `chooseTrialExample` (trial-example.ts): "Try the example" on Home, which also sets the person's own Home (#1292)
+- `removeTrialExample` (trial-example.ts): Remove on the example's dashboard, asked and answered in the app; a program deletes a Metric with delete_metric (#1292)
 - `archiveMetrics` (usage-report.ts): the Usage page
 - `createWebhook` (webhooks.ts): Webhooks settings (#401)
 - `listWebhooks` (webhooks.ts): Webhooks settings (#401)
@@ -363,6 +366,8 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `deckTemplateSeed` (deck-templates.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `switchableDashboards` (home.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `homeDashboard` (home.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `startChoices` (trial-example.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `exampleNote` (trial-example.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `makeRoomPlan` (make-room.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `metricDraftFrom` (metrics.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `exportOptions` (pack-export.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
@@ -441,7 +446,7 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `noticeEffectsFor` (sharing.ts): what the Share functions use to tell people
 - `endTrialNow` (trial-end.ts): ends a Trial Workspace
 - `trialValuesCsv` (trial-end.ts): ends a Trial Workspace
-- `seedTrialWorkspace` (trial-seed.ts): makes a Trial Workspace
+- `startTrialWorkspace` (trial-seed.ts): prepares a new Trial Workspace
 - `runWorkflowsAsOf` (workflows.ts): what the schedule runs
 - `newMetricRefusal` (workspace-limits.ts): what the Metric functions use to refuse at a limit
 
