@@ -93,27 +93,25 @@ describe("where to start", () => {
 });
 
 describe("the First Metric step of a trial without Metrics", () => {
-  it("makes the example for the Owner, once, and not again after it was removed", async () => {
+  it("has the example due for the Owner, makes nothing by being read, and has it due no more once removed", async () => {
     const { w, o } = await trial();
-    const s = await firstMetricStep(o);
-    expect(s.metric).toMatchObject({ name: "Cups of coffee", example: true });
-    await firstMetricStep(o);
-    expect(await count("metrics", w.id)).toBe(1);
-    const dashboard = (await switchableDashboards(o))[0];
-    await removeTrialExample(o, dashboard.id);
-    const after = await firstMetricStep(o);
-    expect(after).toMatchObject({ metric: null, canTryExample: true });
+    expect(await firstMetricStep(o)).toMatchObject({ metric: null, canTryExample: true, exampleDue: true });
+    expect(await count("metrics", w.id)).toBe(0);
+    // What the page's action does.
+    const e = await makeTrialExample(o);
+    expect(await firstMetricStep(o)).toMatchObject({ metric: { name: "Cups of coffee", example: true }, canTryExample: false, exampleDue: false });
+    await removeTrialExample(o, e.dashboardId);
+    expect(await firstMetricStep(o)).toMatchObject({ metric: null, canTryExample: true, exampleDue: false });
     expect(await count("metrics", w.id)).toBe(0);
   });
 
-  it("makes nothing for an Admin, or where the trial has a Metric", async () => {
+  it("has nothing due for an Admin, or where the trial has a Metric", async () => {
     const { w, owner, o } = await trial();
     const admin = w.actor(await w.person("admin"), "admin");
-    expect(await firstMetricStep(admin)).toMatchObject({ metric: null, canTryExample: false });
+    expect(await firstMetricStep(admin)).toMatchObject({ metric: null, canTryExample: false, exampleDue: false });
     expect(await count("metrics", w.id)).toBe(0);
     await w.metric(owner, { name: "Visits" });
-    expect((await firstMetricStep(o)).metric).toBeNull();
-    expect(await count("metrics", w.id)).toBe(1);
+    expect(await firstMetricStep(o)).toMatchObject({ metric: null, exampleDue: false });
   });
 });
 

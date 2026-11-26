@@ -87,6 +87,20 @@ export function FirstMetricStepView({ step, following }: { step: FirstMetricStep
     return () => clearInterval(t);
   }, [m, done, look]);
 
+  // A trial that never had a Metric is given the example when the step is reached: asked for once, by an action.
+  const madeExample = useRef(false);
+  useEffect(() => {
+    if (!step.exampleDue || madeExample.current) return;
+    madeExample.current = true;
+    start(async () => {
+      try {
+        const r = await tryExampleHere();
+        if (isActionError(r)) setError(r.error);
+        else router.refresh();
+      } catch { setError(UNEXPECTED); }
+    });
+  }, [step.exampleDue, router]);
+
   const lines: Line[] = just
     ? just.results.map((r) => ({ label: r.label, state: r.state, held: Boolean(just.held) && r.state === "queued", note: r.note, look: r.look, at: just.at }))
     : step.asked.map((a) => ({ label: a.label, state: a.state, held: a.held, note: a.note, look: a.look, at: a.at }));
@@ -104,6 +118,8 @@ export function FirstMetricStepView({ step, following }: { step: FirstMetricStep
       </select>
     </label>
   );
+
+  if (!m && step.exampleDue && !error) return <p role="status" className="text-sm text-muted-foreground">Making the example…</p>;
 
   if (!m) {
     return (

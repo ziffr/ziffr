@@ -14,7 +14,7 @@ import { FirstMetricStepView, POLL_EVERY_MS, POLL_FOR_MS } from "./first-metric"
 
 const mine = { id: 1, name: "MRR", unit: "EUR", slug: "mrr", mine: true, submitting: true, ownerName: null, canAsk: true, example: false };
 const base = (over: Partial<FirstMetricStep> = {}): FirstMetricStep => ({
-  metric: mine, choices: [{ id: 1, name: "MRR" }, { id: 2, name: "Visits" }], trial: false, canTryExample: false, ways: [{ connector: "email", label: "Email" }], asked: [], formCode: null,
+  metric: mine, choices: [{ id: 1, name: "MRR" }, { id: 2, name: "Visits" }], trial: false, canTryExample: false, exampleDue: false, ways: [{ connector: "email", label: "Email" }], asked: [], formCode: null,
   quietBefore: null, cooldown: null, out: false, in: false, value: null, works: null,
   checks: didntArrive({ ways: ["email"], mailReal: true, quietUntil: null, repliesByEmail: true, email: "anna@example.org" }), ...over,
 });
@@ -90,6 +90,11 @@ describe("who owns it", () => {
     const owner = html(base({ metric: null, choices: [], trial: true, canTryExample: true }));
     expect(buttons(owner)).toContain("Try the example");
     expect(owner).toContain("how many cups of coffee you drank");
+  });
+  it("waits while the example is made in a trial that never had a Metric", () => {
+    const h = html(base({ metric: null, choices: [], trial: true, canTryExample: true, exampleDue: true }));
+    expect(h).toContain("Making the example…");
+    expect(buttons(h)).toEqual([]);
   });
   it("says what the example is before anyone is asked about it", () => {
     const h = html(base({ trial: true, metric: { ...mine, name: "Cups of coffee", example: true } }));

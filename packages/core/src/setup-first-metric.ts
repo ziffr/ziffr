@@ -21,7 +21,7 @@ import { openNames, openOne, openRows } from "./sealed-columns";
 import { recordOwnValue } from "./record-own-value";
 import { canSee } from "./sharing";
 import { setSetupFirstMetric, startSetupGuide } from "./setup-guide";
-import { isRunningTrialOwner, makeTrialExample, testMetricId } from "./trial-seed";
+import { isRunningTrialOwner, testMetricId } from "./trial-seed";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { trialEndsAt } from "./trials";
 import { whatWorksHere } from "./what-works-here";
@@ -66,6 +66,8 @@ export type FirstMetricStep = {
   trial: boolean;
   /** There is no Metric to try and the viewer may have the trial's example made. */
   canTryExample: boolean;
+  /** The viewer's trial never had a Metric, so the step has the example made as soon as it is reached. */
+  exampleDue: boolean;
   /** The ways the viewer will be asked by, in their order (empty: the first way that reaches them). */
   ways: { connector: ConnectorId; label: string }[];
   asked: FirstMetricAsked[];
@@ -97,29 +99,22 @@ async function guideRow(actor: Actor): Promise<{ firstMetricId: number | null; s
   return data ? { firstMetricId: (data.first_metric_id as number | null) ?? null, startedAt: data.started_at as string } : null;
 }
 
-// Reaching the step in a trial that has no Metric makes the example, so there is one to try (#1292). Not once a Metric
-// was deleted there: someone who removed the example is not given it again unasked. Anything unreadable makes nothing.
-async function exampleOnReach(actor: Actor): Promise<number | null> {
-  const ws = actor.workspaceId;
-  if (!(await isRunningTrialOwner(actor)) || (await guideRow(actor))?.firstMetricId) return null;
+// Reaching the step in a trial that has no Metric has the example made, so there is one to try (#1292). Not once a
+// Metric was deleted there: someone who removed the example is not given it again unasked. Anything unreadable makes
+// nothing. Only asked here: the page makes it with an action, since a page being drawn reads its own writes stale.
+async function exampleIsDue(actor: Actor): Promise<boolean> {
   const head = { count: "exact" as const, head: true };
   const [metrics, deleted] = await Promise.all([
-    db().from("metrics").select("id", head).eq("workspace_id", ws),
-    db().from("audit_events").select("id", head).eq("workspace_id", ws).eq("kind", "metric.deleted"),
+    db().from("metrics").select("id", head).eq("workspace_id", actor.workspaceId),
+    db().from("audit_events").select("id", head).eq("workspace_id", actor.workspaceId).eq("kind", "metric.deleted"),
   ]);
-  if (metrics.count !== 0 || deleted.count !== 0) return null;
-  try {
-    return (await makeTrialExample(actor)).metricId;
-  } catch (e) {
-    console.error("The trial's example could not be made:", (e as Error).message);
-    return null;
-  }
+  return metrics.count === 0 && deleted.count === 0;
 }
 
 /** In a trial the Test Metric is the First Metric until the person picks another: written once, when the guide has none. */
 async function adoptTestMetric(actor: Actor): Promise<void> {
   if (!(await trialEndsAt(actor.workspaceId))) return;
-  const id = (await testMetricId(actor.workspaceId)) ?? (await exampleOnReach(actor));
+  const id = await testMetricId(actor.workspaceId);
   if (!id) return;
   await startSetupGuide(actor);
   await db().from("setup_guides").update({ first_metric_id: id, updated_at: new Date().toISOString() }).eq("workspace_id", actor.workspaceId).is("first_metric_id", null);
@@ -206,9 +201,10 @@ export async function firstMetricStep(actor: Actor): Promise<FirstMetricStep> {
   const choices = metrics.filter((m) => m.owner_id === actor.personId && !m.formula && !m.archived_at).slice(0, MAX_CHOICES).map((m) => ({ id: m.id, name: m.name }));
   const ways = wi.askedBy.map((c) => ({ connector: c as ConnectorId, label: CONNECTORS[c as ConnectorId].label }));
   const wentBy = asked.length ? asked.map((a) => a.connector) : ways.map((w) => w.connector);
+  const canTryExample = !metric && (await isRunningTrialOwner(actor));
   return {
     metric, choices, trial: Boolean(trial), ways, asked, formCode,
-    canTryExample: !metric && (await isRunningTrialOwner(actor)),
+    canTryExample, exampleDue: canTryExample && (await exampleIsDue(actor)),
     quietBefore: heldUntil ? quietBefore(heldUntil) : null,
     cooldown: againAt && againAt.getTime() > now.getTime() ? cooldownWords(againAt.toISOString(), now, zone) : null,
     out: loop.promptOut, in: loop.valueIn,
