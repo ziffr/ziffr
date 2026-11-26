@@ -153,7 +153,7 @@ const EXPORT_DECK_SCHEMA = loosened(DECK_TEMPLATE_SCHEMA);
 const EXPORT_DECK_SCHEMAS = {
   v1: EXPORT_DECK_SCHEMA,
   v2: deckTemplateSchema2(slideElementSchema(appText), EXPORT_DECK_SCHEMA),
-  v3: deckTemplateSchema3(slideElementSchema(appText), EXPORT_DECK_SCHEMA, appText(DECK_TEMPLATE_LIMITS.words)),
+  v3: deckTemplateSchema3(slideElementSchema(appText, { totals: true }), EXPORT_DECK_SCHEMA, appText(DECK_TEMPLATE_LIMITS.words)),
 };
 const EXPORT_WORKFLOW_SCHEMA = loosened(WORKFLOW_TEMPLATE_SCHEMA);
 const EXPORT_THEME_SCHEMAS = { v1: loosened(THEME_FILE_SCHEMA), v2: loosened(THEME_FILE_2_SCHEMA) };

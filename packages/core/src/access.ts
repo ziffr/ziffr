@@ -14,7 +14,7 @@ import { nameHider } from "./hide-names";
 import type { Action, CanvasData, Dashboard, Group, Metric, Point, Profile, Share, ShareRole, TeamTemplate, Theme, WidgetSettings } from "./types";
 import { yearStartOf } from "./fiscal-year";
 import { condensedFor } from "./condensed-values";
-import { unapprovedTotals, withTotalNotes } from "./total-parts";
+import { seenLists, unapprovedTotals, withTotalNotes } from "./total-parts";
 import { attainmentMethodOf, numberStyleOf } from "./workspace-settings";
 import { withoutUnseenInputs } from "./formula";
 
@@ -170,7 +170,7 @@ export async function visibilityOfMany(ws: string, metrics: Metric[], planned?: 
 }
 
 /** The parts of CanvasData that are per Metric and can be large: values, Breakdowns, Target Series, Projections. */
-export type CanvasSeries = Pick<CanvasData, "series" | "breakdowns" | "targets" | "projections" | "condensed">;
+export type CanvasSeries = Pick<CanvasData, "series" | "breakdowns" | "targets" | "projections" | "condensed" | "totalLists">;
 
 /** Which Metrics' series a page sends: some ids, or chosen from the visible Metrics (in the order they are listed). */
 export type SeriesOf = number[] | ((visible: Metric[]) => number[]);
@@ -191,8 +191,12 @@ export async function seriesFor(ws: string, metrics: Metric[], visible: Set<numb
   const [series, breakdowns, { targets, projections }, condensed] = await Promise.all([getSeriesOf(ws, metrics, wanted, {}, { sees: (id) => visible.has(id), aims }), getBreakdowns(ws, wanted), getSeriesValues(ws, wanted), condensedFor(ws, wanted)]);
   // A Total whose target is its parts' added up has that one, never a series stored under its own name.
   for (const id of wanted) if (byId.get(id)!.total?.targets === "parts") targets[id] = aims[id] ?? [];
+  const sent = Object.fromEntries(wanted.map((id) => byId.get(id)!).map((m) => [m.slug, series[m.slug] ?? []]));
+  // `wanted` holds visible ids only, so a list is made only for a Total this person sees.
+  const totalLists = await seenLists(ws, metrics, wanted, (id) => visible.has(id), sent);
   return {
-    series: Object.fromEntries(wanted.map((id) => byId.get(id)!).map((m) => [m.slug, series[m.slug] ?? []])),
+    series: sent,
+    ...(Object.keys(totalLists).length ? { totalLists } : {}),
     breakdowns,
     targets,
     projections,
@@ -258,7 +262,7 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
   // A Guest's canvas names only themselves (peopleFor), not the Workspace.
   const named = await peopleFor({ workspaceId: ws, personId: viewer, role: guest ? "guest" : "member" }, people);
   const wanted = opts.seriesOf === undefined ? [...ids] : typeof opts.seriesOf === "function" ? opts.seriesOf(visible) : opts.seriesOf;
-  const { series, breakdowns, targets, projections, condensed } = await seriesFor(ws, metrics, ids, wanted);
+  const { series, breakdowns, targets, projections, condensed, totalLists } = await seriesFor(ws, metrics, ids, wanted);
   // A Total's period is not approved yet while one of its parts' is not (spec 0058).
   const unapproved = await unapprovedTotals(ws, visible.map((metric) => ({ metric, points: series[metric.slug] ?? [] })));
   const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
@@ -277,6 +281,7 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     targets,
     projections,
     condensed,
+    ...(totalLists ? { totalLists } : {}),
     templates: guest ? [] : ((templates ?? []) as TeamTemplate[]),
     // Guests place nothing; a row that no longer passes the checks is never sent.
     designs: me && me.role !== "guest" ? (designRows ?? []).flatMap((r) => { const c = checkViewDesignValue(r.body); return c.ok ? [{ id: Number(r.id), name: String(r.name), body: c.design }] : []; }) : [],
