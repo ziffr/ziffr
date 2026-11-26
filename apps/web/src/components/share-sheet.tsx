@@ -15,7 +15,7 @@ import type { Group, Profile, Share } from "@ziffr/core/types";
 /** GLOSSARY: Share, Slide-over. The Share button opens the share panel beside the page (`?panel=share` is its direct URL, and opening that link opens it).
  * Dashboards can be shared as Viewer or Editor; metrics as Viewer. `more` are related panels offered at the bottom ("Who can see this", "View links"):
  * they open on top of this one, which stays one step back. */
-export function ShareSheet({ objectType, objectId, name, ownerId, people, shares, groups = [], reveals = {}, canInvite = false, primary, more = [] }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]>; /** May invite people (Owners and Admins, decided in the core): the panel offers to invite someone. Others are told whom to ask. */ canInvite?: boolean; /** The page's main button. */ primary?: boolean; /** Related panels offered at the bottom ("Who can see this", "View links"). */ more?: { label: string; icon: React.ReactNode; onClick: () => void }[] }) {
+export function ShareSheet({ objectType, objectId, name, ownerId, people, shares, groups = [], reveals = {}, canInvite = false, primary, more = [], warning }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]>; /** May invite people (Owners and Admins, decided in the core): the panel offers to invite someone. Others are told whom to ask. */ canInvite?: boolean; /** Said above the list before anything is shared, such as what an open Total tells. */ warning?: string; /** The page's main button. */ primary?: boolean; /** Related panels offered at the bottom ("Who can see this", "View links"). */ more?: { label: string; icon: React.ReactNode; onClick: () => void }[] }) {
   const panel = useSlideOver();
   const [urlOpen, setUrlOpen] = usePanel("share");
   // Whether the host's panel is the one this button opened, so closing it can take `?panel=share` out of the address.
@@ -33,7 +33,7 @@ export function ShareSheet({ objectType, objectId, name, ownerId, people, shares
         : objectType === "deck"
           ? "Viewers can present it. Editors can also change slides. Everyone you share with can see the metrics its slides draw live, not the numbers they keep from a Snapshot."
           : "People you share with can see this metric and use it on their own dashboards and analyses. Only you can change its description.",
-      content: <ShareBody objectType={objectType} objectId={objectId} ownerId={ownerId} people={people} shares={shares} groups={groups} reveals={reveals} canInvite={canInvite} more={more} />,
+      content: <ShareBody objectType={objectType} objectId={objectId} ownerId={ownerId} people={people} shares={shares} groups={groups} reveals={reveals} canInvite={canInvite} more={more} warning={warning} />,
     });
   };
   // A link with `?panel=share` opens the panel once the page is up.
@@ -53,7 +53,7 @@ export function ShareSheet({ objectType, objectId, name, ownerId, people, shares
 }
 
 /** The share panel's content: who it is shared with, as a form that saves each change at once. */
-function ShareBody({ objectType, objectId, ownerId, people, shares, groups, reveals, canInvite, more }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; ownerId: string; people: Profile[]; shares: Share[]; groups: Group[]; reveals: Record<string, string[]>; canInvite: boolean; more: { label: string; icon: React.ReactNode; onClick: () => void }[] }) {
+function ShareBody({ objectType, objectId, ownerId, people, shares, groups, reveals, canInvite, more, warning }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; ownerId: string; people: Profile[]; shares: Share[]; groups: Group[]; reveals: Record<string, string[]>; canInvite: boolean; more: { label: string; icon: React.ReactNode; onClick: () => void }[]; warning?: string }) {
   const [pending, start] = useTransition();
   // Contacts have no login: nothing is shared with them.
   const others = people.filter((p) => p.id !== ownerId && !p.contact);
@@ -66,6 +66,7 @@ function ShareBody({ objectType, objectId, ownerId, people, shares, groups, reve
   const gaps = useDeckGaps(objectType === "deck" ? objectId : null);
   return (
     <div className="flex min-h-full flex-col gap-3">
+        {warning && <p role="note" className="rounded-[var(--radius-card)] border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] p-3 text-sm">{warning}</p>}
         <LeftOutNote gaps={gaps} />
         <ul className="space-y-2">
           {others.map((p) => (

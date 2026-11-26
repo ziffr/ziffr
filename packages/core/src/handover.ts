@@ -70,6 +70,8 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
   const owned = await ownedBy(actor, personId);
   // The Actions waiting on them: noted before the handover moves them to the successor, who is then named in `action.updated`.
   const { data: waiting } = await db().from("actions").select("id, metric_id, period_start").eq("workspace_id", ws).eq("assignee_id", personId).in("status", ["open", "answered"]);
+  // Their open Totals, which the hand-over closes.
+  const { data: open } = await db().from("metrics").select("id").eq("workspace_id", ws).eq("owner_id", personId).not("total_opened_at", "is", null);
   // The acting role goes along: the database checks it in the same step, so a promotion in between changes nothing.
   const { error } = await db().rpc("hand_over", { ws, leaving: personId, successor: successorId, actor_role: actor.role, actor_id: actor.personId });
   if (error) {
@@ -83,6 +85,10 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
   for (const a of waiting ?? []) await queueWebhookEvent(ws, "action.updated", { type: "system" }, { actionId: a.id as number, metricId: a.metric_id as number | null, period: a.period_start as string });
   const from = (leaving.profiles as unknown as { name: string } | null)?.name ?? "a former member";
   const to = (successor.profiles as unknown as { name: string } | null)?.name ?? "a member";
+  if (open?.length) {
+    const names = new Map((await getMetrics(ws)).map((m) => [m.id, m.name]));
+    for (const { id } of open) await audit(actor, { kind: "metric.total_closed", object: { type: "metric", id: id as number, name: names.get(id as number) ?? "" }, details: { reason: "handed over" } });
+  }
   // Automatic Snapshots are taken in the owner's name, with what they see (spec 0013): the successor chooses again.
   if (owned.dashboard.length) await db().from("dashboards").update({ snapshot_every: null }).eq("workspace_id", ws).in("id", owned.dashboard);
   // Taking someone's Metrics for oneself by one's role is a hand-over like any other: audited, so a round trip is seen.

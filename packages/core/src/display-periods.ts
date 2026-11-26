@@ -76,9 +76,13 @@ export function dayAfter(day: string): string {
   return shiftPeriod(day, "day", 1);
 }
 
+// Whether a Metric is worked out by its formula: a Total's only names its parts, and it combines over longer periods
+// as any Metric that takes values does, by its Aggregation, from its own periods (spec 0058).
+const byFormula = (m: Pick<Metric, "formula" | "total">): m is typeof m & { formula: string } => Boolean(m.formula) && !m.total;
+
 /** Whether a Metric's values combine into longer periods: by its Aggregation, or a Derived Metric through its inputs. */
-export function combines(metric: Pick<Metric, "formula" | "aggregation">): boolean {
-  return Boolean(metric.formula) || metric.aggregation !== "none";
+export function combines(metric: Pick<Metric, "formula" | "aggregation" | "total">): boolean {
+  return byFormula(metric) || metric.aggregation !== "none";
 }
 
 /** The Display Periods longer than a Metric's own, shortest first (a monthly Metric: quarter, half-year, year). */
@@ -108,8 +112,8 @@ export function valueOver(slug: string, start: string, end: string, resolve: Res
   const { metric, points } = r;
   // A Derived Metric whose inputs cannot be combined (one is Derived itself, or another period) has no value, and no
   // formula is ever followed from one Derived Metric to another: nothing can recurse, whatever is stored.
-  if (metric.formula && inputsProblem(metric, formulaInputs(metric.formula).flatMap((s) => resolve(s)?.metric ?? []))) return undefined;
-  if (metric.formula && usesPrevious(metric.formula)) {
+  if (byFormula(metric) && inputsProblem(metric, formulaInputs(metric.formula).flatMap((s) => resolve(s)?.metric ?? []))) return undefined;
+  if (byFormula(metric) && usesPrevious(metric.formula)) {
     // It reaches back one of its own periods, so it has a value for one period only, never for a longer span.
     if (start !== end) return undefined;
     const vars: Record<string, number> = {};
@@ -123,7 +127,7 @@ export function valueOver(slug: string, start: string, end: string, resolve: Res
     }
     return evaluate(metric.formula, vars, before, aimsOver(metric.formula, resolve, start, end)) ?? undefined;
   }
-  if (metric.formula) {
+  if (byFormula(metric)) {
     // A Derived Metric is computed from its inputs' combined values (revenue minus cost per quarter), not by adding
     // up its own periods: a margin of sums, not a sum of margins.
     const vars: Record<string, number> = {};
@@ -191,8 +195,8 @@ export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts:
   // instead of drawing an empty chart (spec 0022).
   // So do inputs of another period, or Derived Metrics themselves: no span could be computed rightly from them.
   // Both checks find nothing for a Metric that is not derived.
-  const inputs = metric.formula ? formulaInputs(metric.formula).flatMap((s) => resolve(s) ?? []) : [];
-  const why = inputsProblem(metric, inputs.map((r) => r.metric)) ?? inputsNotCombined(metric, inputs.map((r) => r.metric));
+  const inputs = byFormula(metric) ? formulaInputs(metric.formula).flatMap((s) => resolve(s) ?? []) : [];
+  const why = byFormula(metric) ? inputsProblem(metric, inputs.map((r) => r.metric)) ?? inputsNotCombined(metric, inputs.map((r) => r.metric)) : null;
   if (why) return { ok: false, reason: why, points: [] };
   const inputPoints = inputs.map((r) => latestOfEach(r.points));
   const ys = opts.yearStart;
@@ -205,7 +209,7 @@ export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts:
   // so two inputs may both count in a half-year without a month of both (spec 0022, #126).
   // Condensed Values of a span no longer than the Display Period count in its spans (spec 0033); longer ones are drawn
   // as points of their own by shownSeries. A Derived Metric has none.
-  const condensed = metric.formula ? [] : (opts.condensed ?? []).filter((c) => !isLonger(c.into, display));
+  const condensed = byFormula(metric) ? [] : (opts.condensed ?? []).filter((c) => !isLonger(c.into, display));
   const starts = new Set([...points, ...inputPoints.flat(), ...condensed].map((p) => periodStart(p.period, display, ys)));
   const out: DisplayPoint[] = [];
   for (const start of [...starts].sort()) {
@@ -226,11 +230,11 @@ export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts:
     const inside = condensed.filter((c) => periodStart(c.period, display, ys) === start);
     if (inside.some((c) => c.periodEnd > end)) continue;
     const parts: Part[] = inside.length ? [...inSpan.map(partOfPoint), ...inside.map(partOfCondensed)].sort((a, b) => a.period.localeCompare(b.period)) : [];
-    const value = inside.length ? valueOfParts(metric.aggregation, parts, expected) : metric.formula ? valueOver(metric.slug, start, end, resolve, expected) : combined(metric.aggregation, inSpan, expected);
+    const value = inside.length ? valueOfParts(metric.aggregation, parts, expected) : byFormula(metric) ? valueOver(metric.slug, start, end, resolve, expected) : combined(metric.aggregation, inSpan, expected);
     if (value === undefined) continue;
     // Every value in the span lies on or before its cut (a span to date is cut at the latest value), so `inSpan`
     // is what it holds; a Derived Metric holds what the input with the fewest values holds.
-    const held = metric.formula ? Math.min(...inputPoints.map((ps) => ps.filter((p) => p.period >= start && p.period <= end).length)) : inSpan.length + inside.reduce((n, c) => n + c.held, 0);
+    const held = byFormula(metric) ? Math.min(...inputPoints.map((ps) => ps.filter((p) => p.period >= start && p.period <= end).length)) : inSpan.length + inside.reduce((n, c) => n + c.held, 0);
     out.push({ period: start, value, held, length, toDate, through: end });
   }
   return { ok: true, points: out };
@@ -388,7 +392,7 @@ export function shownSeries(metric: Metric, data: Pick<CanvasData, "metrics" | "
   const resolve = resolverFrom(data.metrics, condensed.length ? { ...data.series, [metric.slug]: kept } : data.series, data);
   // A View Link or Snapshot leaves a Derived Metric's inputs out (only what is shown goes out): without them its
   // quarters cannot be computed, and adding up its own months would give a sum of margins.
-  if (metric.formula && formulaInputs(metric.formula).some((s) => !bySlug.has(s))) {
+  if (byFormula(metric) && formulaInputs(metric.formula).some((s) => !bySlug.has(s))) {
     return { by: metric.period, combined: false, points: own, reason: INPUTS_MISSING, targets: null };
   }
   const r = seriesBy(metric, resolve, display, { yearStart: data.yearStart, today: opts.today ?? data.today, condensed });

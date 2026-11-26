@@ -131,7 +131,7 @@ A Pack may say which of Ziffr's ready n8n templates ([Automation Templates for F
 "feeds": [{ "template": "google-sheets", "fills": ["headcount", "attrition"] }]
 ```
 
-- `template` is the id of a template Ziffr ships (today `google-sheets`, `excel`, `stripe`, `hubspot`, `bigquery` and `snowflake`; the ids are in `docs/automations/feed-templates.json`). Nothing else is accepted: a Pack names a template, it never carries or links to a flow of its own.
+- `template` is the id of a template Ziffr ships (today `google-sheets`, `excel`, `stripe`, `hubspot`, `bigquery`, `snowflake`, and for a weekly sales forecast `hubspot-forecast`, `salesforce-forecast` and `pipedrive-forecast`; the ids are in `docs/automations/feed-templates.json`). A Pack that names an id states a `ziffr` minimum that has it. Nothing else is accepted: a Pack names a template, it never carries or links to a flow of its own.
 - `fills` are keys of the Pack's own Metric Catalog entries that take values. A Derived Metric cannot be filled, and an entry or a template is named once.
 - Installing makes nothing of it. After **Set up from this Pack**, the page offers **Fill from n8n** for the Metrics made from those entries, with the template already chosen.
 - A Pack that uses `feeds` should say so in its `ziffr` minimum version: an older Ziffr refuses a field it does not know. `npx @ziffr/pack check` checks it with the same code as the server.
@@ -166,9 +166,9 @@ How a Workspace's answers rank the Packs: an industry that matches adds 4 points
 
 ## Who does what (`ziffr.pack/2`)
 
-A Pack in the format `ziffr.pack/2` may also say who does what, as **Positions** such as "Sales lead" that people fill when it is set up, which parts are made once for each salesperson, site or company, its **Repeats**, and which Metrics add those up, its [Totals](#totals). It names no person. It may credit the Packs it builds on and carry a [Pack Guide](#the-pack-guide).
+A Pack in the format `ziffr.pack/2` may also say who does what, as **Positions** such as "Sales lead" that people fill when it is set up, which parts are made once for each salesperson, site or company, its **Repeats**, which Metrics add those up, its [Totals](#totals), and [where each number comes from](#where-each-number-comes-from). It names no person. It may credit the Packs it builds on and carry a [Pack Guide](#the-pack-guide).
 
-Ziffr checks all of it and installs such a Pack today, unless it holds a Total. **Set up from this Pack does not use Positions or Repeats yet:** it sets the Pack up as if it named none, so nobody is assigned and nothing is shared, and the Workflow Templates it stores keep neither the Positions nor the Tell steps. **A Pack with a Total cannot be installed yet:** Ziffr says so and adds nothing of it. The screens follow in later versions.
+Ziffr checks all of it and installs such a Pack today, unless it holds a Total. The Packs page shows its Positions, Repeats and proposed Shares before and after installing. **Set up from this Pack** asks who fills each Position, shows who will then see what and which messages go out, and writes the people into the ordinary places; a proposed Share is made only when ticked, and one that would show someone more starts unticked. Nobody is asked for a number the Pack says another system sends or one set as a target, also not whoever holds a Position that submits it, unless the person setting up chooses to be asked themselves; for such a holder Set up proposes a ticked Viewer Share, so they still see the number. For each Repeat it takes the lines a person types or pastes (at most 50, and at most 200 Metrics in one Set up), names each line's Metrics "<entry>, <line>", makes a Workflow and a dashboard of the Repeat once per line, and fills a Slot for several Metrics of a dashboard outside the Repeat with every line's. **Add a …** on the installed Pack makes one more line, and offers to add its Metrics to the shared Workflow and to the widgets that show the lines (a widget's offer starts unticked where it would show someone more). A Workflow Template stored by the Workspace holds neither Positions nor Tell steps: Set up reads them from the install. **A Pack with a Total cannot be installed yet:** Ziffr says so and adds nothing of it. The rest follows in later versions.
 
 Keep a file in `ziffr.pack/1` unless it uses something below: an older Ziffr refuses a `/2` file, saying which formats it reads. A whole example:
 
@@ -238,13 +238,30 @@ A Metric Catalog entry outside every Repeat may be a **Total**, which adds up th
 - **A Pack cannot open a Total.** Who sees a Total's numbers without seeing every part is its owner's decision in the app, and there is no field for it.
 - A gap table of a Deck Template does not take a Total yet.
 
+### Where each number comes from
+
+Say for every number somebody or something has to send where it comes from, with `comesFrom` on the entry's wrapper:
+
+```json skip="two entries of a Pack, not a whole file"
+{ "key": "commit", "comesFrom": { "by": "person" }, "metric": { "format": "ziffr.metric/1", "name": "Commit", "period": "week", "aggregation": "last", "polarity": "higher" } },
+{ "key": "closed", "comesFrom": { "by": "system", "system": "CRM", "note": "The deals won this quarter." }, "metric": { "format": "ziffr.metric/1", "name": "Closed", "period": "week", "aggregation": "last", "polarity": "higher" } }
+```
+
+| Field | Takes |
+| --- | --- |
+| `by` | `person`, someone types it; `system`, another system sends it; `target`, it is set once as a target |
+| `system` | with `system` only, and needed then: the kind of system, such as “CRM”, at most 60 characters |
+| `note` | optional, at most 300 characters |
+
+Do not write it on a Derived Metric or a [Total](#totals): Ziffr calculates those and shows from which entries. Name the n8n templates that fill an entry in [`feeds`](#filling-the-metrics-from-other-systems); say only what they really do. Ziffr shows a table **Where the numbers come from** and what is **Included** and **still needed** before installing and in Help, and Set up asks nobody for a number another system sends unless the person chooses to. A number without `comesFrom` shows as **The Pack does not say**; the Marketplace lists a Pack only when every number that takes values has it.
+
 ### Credit
 
 `basedOn` lists at most 10 Packs whose items yours carries, each with its `id`, `name`, `author` and `license` as that Pack wrote them, and an item's wrapper says which it is `from`: `"from": "someone/safety"`. It is shown as credit and proved by nothing.
 
 ### The Pack Guide
 
-`guide` is where you explain your Pack, read before installing and, later, in Help. It has five sections, each optional, in this order and under Ziffr's own titles: `whatItsFor` (What it's for), `beforeYouStart` (Before you start), `firstSteps` (First steps), `eachPart` (Each part) and `questions` (Questions). Ziffr does not show the guide on its pages yet.
+`guide` is where you explain your Pack, read before installing (in the preview) and afterwards in Help, with the installed Pack. It has five sections, each optional, in this order and under Ziffr's own titles: `whatItsFor` (What it's for), `beforeYouStart` (Before you start), `firstSteps` (First steps), `eachPart` (Each part) and `questions` (Questions).
 
 A section is a list of blocks:
 
@@ -290,6 +307,7 @@ A Pack with Themes can be installed only by an Owner, since only Owners change T
 Under **Workspace → Packs**, **Export as Pack…** makes a Pack of things you pick in your Workspace: Metrics (as Metric Catalog entries), the Workspace's own catalog entries from Packs, Dashboard, Deck and Workflow Templates, View Designs and Themes. Give it a name, an id (your handle and a slug), a version, a summary, an author and a license, and choose **Download Pack**. The Tags of the Metrics you pick go in, up to 5 per entry and only Tags you can see on those Metrics; untick **Carry the Tags** to leave them out.
 
 - It holds Metric Descriptions only, never a value, an owner, a Submitter or a Token, and only of Metrics you see.
+- The step **Describe your Pack** writes the [Pack Guide](#the-pack-guide): one field per section, **Each part** starting with the list of what goes into the file. A Pack with a guide is written as `ziffr.pack/2`; without one it stays `ziffr.pack/1`. A guide a Pack was installed with can be taken over there.
 - A Slot suggests the catalog entry of the Metric the template was made with, when that Metric is in the Pack too. A Derived Metric goes in only with the Metrics it is computed from.
 - Words that a Pack may not hold, such as a description with a web address, stay out of the file. Drawings on slides stay out, and so does every logo but the one you choose: under **Logo** you take the logo of one of your Themes or upload a picture, and Themes that use it say `"logo": "pack"`. The **Author** starts as your name and is the publisher the logo is shown with. Ziffr lists everything that stayed out, and why.
 - Things a Pack installed keep their keys, so exporting what a Pack added gives the same file again.

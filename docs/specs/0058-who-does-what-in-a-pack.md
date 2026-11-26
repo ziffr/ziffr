@@ -133,7 +133,7 @@ Set up from this Pack (spec 0030) gains three parts. A Pack without Positions lo
    - **messages now**: who would get a Prompt or a notice at once.
 
 - **Empty Positions** leave the place open as a template does today: no Submitter, "nobody yet" on a Checklist Task, nobody told. An Approve step is the exception: a Workflow is not made while one of its Approvers is empty.
-- **Shares start unticked** where they would show someone a Metric they do not already see in this plan. A Pack is a stranger's file, and sharing is a decision (decision 3).
+- **Shares start unticked** where they would show someone a Metric they do not already see in this plan. A Pack is a stranger's file, and sharing is a decision (decision 3). One exception: where a Position submits a number that its holder is not asked for (see "Where it is shown"), a Viewer Share of that Metric is proposed and starts ticked, since the Position would have shown it to them anyway. What else shows no more than they then see, such as their line's dashboard, is ticked with it, and unticked again if that Share is.
 - **Prompts to others wait** for the Workflow's next run. "Ask them for the current period now" is a tick, off by default, with the number of messages beside it. Prompts to the person setting up behave as today. Sending Limits and Quiet Hours apply as always.
 - **Self-approval** is not made possible: where one person is both Submitter and Approver, the preview says that the existing rules apply (nobody approves their own value; the Approve step's Self-check or count).
 - **Order:** Workflows, Metrics, Submitters, Stand-ins, dashboards, Shares, the Send Snapshot step. Each goes through the existing core function, so permissions, limits and the Audit Log apply as by hand.
@@ -229,7 +229,7 @@ It is worked out per reader and period, at the time of reading.
 - Ziffr keeps what a Set up did: the install, Pack version, who and when, the people per Position, the lines and their names (sealed with the Workspace Key), and the ids of what was made, by Pack key and line.
 - **The record decides nothing.** No permission, message or sight is ever worked out from it.
 - Owners and Admins read it, and see names of only those Metrics, dashboards and Workflows they may see. Removing a person takes them out of it. Uninstalling the Pack deletes it and leaves everything made. The new tables are classified for the demo and for deletion, and a Workspace Export leaves the record out and says so.
-- **Add a site** (the Repeat's own word) on the Pack's page runs Set up for one new line, with the same preview. It also offers to add the new Metrics to the shared Workflow and to the several-Metric widgets, each ticked and listed, only where this person may change them. What it cannot change, it lists.
+- **Add a site** (the Repeat's own word) on the Pack's page runs Set up for one new line, with the same preview. It also offers to add the new Metrics to the shared Workflow and to the several-Metric widgets, each listed with its own tick, only where this person may change them. The Workflow's offer starts ticked. A widget's offer says who would newly see the new Metrics, and **starts unticked** where anyone its dashboard is shared with would, or where it is shared with a Group, whose later members would too (decided by the owner on 2026-11-26). What it cannot change, it lists.
 - Removing a line is not automated: archive its Metrics by hand, which asks on each Total up to which period they count.
 - Updating a Pack never changes what was set up. The update page says which Positions and Repeats are new or gone.
 
@@ -309,6 +309,35 @@ An install keeps the guide from the ticket that shows it in Help on; the databas
 
 **Later:** pictures, and a guide in more than one language.
 
+## Where each number comes from
+
+A person about to install a Pack needs to know where its numbers will come from and what they must provide themselves. Asked for by the owner on 2026-11-26, in `ziffr.pack/2`.
+
+### Glossary
+
+**Comes From**: What a Pack says of each of its numbers: a person types it, another system sends it, or it is set once as a target; and what Ziffr works out from the Pack: that it calculates a number, which n8n templates are delivered, and what the installer still needs. Not a **Source** (the way a value arrives) and not where a thing came from (its origin). _Avoid_: Provenance, data source, lineage
+
+### What a creator writes
+
+- A field of a Metric Catalog entry's wrapper, `comesFrom`: `by` (`person`, `system` or `target`), with `system` (the kind of system, such as “CRM”, 1 to 60 characters) exactly when `by` is `system`, and an optional `note` of at most 300 characters.
+
+```json skip="one entry of a Pack, not a whole file"
+{ "key": "closed-quarter", "comesFrom": { "by": "system", "system": "CRM", "note": "The won deals of the quarter." }, "metric": { "format": "ziffr.metric/1", "name": "Closed this quarter" } }
+```
+
+- **Never typed:** a Derived Metric or a Total takes no `comesFrom`, since its formula says it. A formula that only reads a target, `target({x})`, shows as set once as the target of x. The delivered n8n templates are the manifest's `feeds`; without one that fills an entry, another system's number is set up by whoever installs. Workflows, what is included and what is still needed are worked out from the Pack.
+- **Optional in the format;** a number without it shows as **The Pack does not say**. It is **required for every number that takes values** in order to be listed in the Marketplace (the publish check) and in Ziffr's own Packs (a test).
+- **Text from a stranger:** `system` and `note` are held to the plain text of a Pack's names, read by the assistant-words check and drawn as text.
+
+### Where it is shown
+
+- **Before installing,** in the preview, and on the Pack's Marketplace page: a table **Where the numbers come from**, then **Included** and **What you still need**.
+- **After installing,** in Help, with the installed Pack. The install keeps the worked-out overview, never the Pack's contents.
+- **At Set up:** each number says where it comes from, and **nobody is asked** for a number another system sends or one set as a target, whether they were picked beside Positions or hold a Position that submits it (decided by the owner on 2026-11-26). The one exception: with **Ask me also for …** ticked, the person setting up is asked where they would submit it; nobody else is asked either way. Such a number gets no Submitter otherwise and no Stand-in, and the Workflow sends no request for it. The plan, also of Add a line and of each step of a large set, says who is not asked and why. A holder keeps sight of it through the ticked Viewer Share above; a Contact cannot be shared with, and the plan says so. Choosing a Feed is unchanged.
+- **Export as Pack** asks for each number, with “A person types it” to begin with, or what the installed Pack it came from said.
+
+`@ziffr/pack` exports the working-out (`packOverview`, `comesFromWords`, `includedAndNeeded`), so every page shows the same.
+
 ## Testing Decisions
 
 - **Format** (`@ziffr/pack`): `/1` files check as before; a hostile table of unknown keys, a several-people Position in a one-person place, a Repeat's Position used outside it, a wrong number of `by`, a Tell level, a Send Snapshot dashboard not in the Pack, markup and web addresses in names, every limit, `__proto__`.
@@ -346,6 +375,7 @@ An install keeps the guide from the ticket that shows it in Help on; the databas
 | #1230 | Pack Guide: the "Describe your Pack" step of Export as Pack | #1177 |
 | #1231 | Pack Guide: keep it with the install and read it in Help | #1177 |
 | #1232 | Pack Guide: guides for Ziffr's own Packs | #1177 |
+| #1246 | Where each number comes from: format, preview, Help, Set up, Export as Pack | #1230 |
 
 ## Out of Scope
 

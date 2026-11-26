@@ -10,6 +10,10 @@ let path = "/metrics";
 // The Setup Guide's server actions reach the core, which a component test never loads (spec 0052).
 vi.mock("@/app/setup/actions", () => ({ hideSetup: vi.fn(), reopenSetup: vi.fn(), skipStep: vi.fn(), readSetupSteps: vi.fn() }));
 vi.mock("next/navigation", () => ({ usePathname: () => path }));
+// The installed Packs' guides (spec 0058): none unless a test gives some.
+let packs: { installId: number; name: string; version: string }[] = [];
+const readPackGuide = vi.fn(async (id: number) => ({ installId: id, name: "Sales forecast", version: "1.1.0", author: "Ziffr", overview: null, guide: { whatItsFor: [{ type: "text", text: "The weekly **forecast** call. <b>As words</b>" }] } }));
+vi.mock("@/app/pack-guide-actions", () => ({ readPackGuides: async () => packs, readPackGuide: (id: number) => readPackGuide(id) }));
 const index: HelpIndex = {
   chapters: [
     { slug: "metrics", title: "The Metrics screens", part: null, sections: [
@@ -50,6 +54,8 @@ function type(input: HTMLInputElement, value: string) {
 
 beforeEach(async () => {
   path = "/metrics";
+  packs = [];
+  readPackGuide.mockClear();
   fetchMock.mockClear();
   vi.stubGlobal("fetch", fetchMock);
   try { window.sessionStorage.clear(); } catch { /* none */ }
@@ -171,6 +177,35 @@ describe("Help panel", () => {
     await act(async () => button().click()); await tick();
     expect(dialog()!.textContent).toContain("There is no chapter for this screen");
     expect(inPanel("Packs")).toBeTruthy();
+  });
+
+  it("offers the installed Packs' guides, first on the Packs screen, and shows one as text with Back", async () => {
+    path = "/settings/packs";
+    packs = [{ installId: 7, name: "Sales forecast", version: "1.1.0" }];
+    await act(async () => { root.render(<SlideOverProvider><HelpButton guide="/guide" /></SlideOverProvider>); });
+    await act(async () => button().click()); await tick();
+    const text = dialog()!.textContent!;
+    expect(text.indexOf("Guides from your Packs")).toBeGreaterThan(-1);
+    expect(text.indexOf("Guides from your Packs")).toBeLessThan(text.indexOf("About this screen"));
+    await act(async () => inPanel("Sales forecast").click()); await tick();
+    expect(readPackGuide).toHaveBeenCalledWith(7);
+    expect(dialog()!.querySelector("section[aria-label='Pack Guide']")!.textContent).toContain("The weekly forecast call. <b>As words</b>");
+    expect(dialog()!.querySelector("section[aria-label='Pack Guide'] b, section[aria-label='Pack Guide'] a")).toBeNull();
+    await act(async () => inPanel("Back").click()); await tick();
+    expect(dialog()!.textContent).toContain("About this screen: Packs");
+  });
+
+  it("puts the guides after the screen's own help elsewhere, and shows none while searching or when there is none", async () => {
+    packs = [{ installId: 7, name: "Sales forecast", version: "1.1.0" }];
+    await act(async () => button().click()); await tick();
+    const text = dialog()!.textContent!;
+    expect(text.indexOf("Guides from your Packs")).toBeGreaterThan(text.indexOf("About this screen"));
+    await act(async () => type(dialog()!.querySelector<HTMLInputElement>("input")!, "marketplace")); await tick();
+    expect(dialog()!.textContent).not.toContain("Guides from your Packs");
+    await act(async () => { dialog()!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); }); await tick();
+    packs = [];
+    await act(async () => button().click()); await tick();
+    expect(dialog()!.textContent).not.toContain("Guides from your Packs");
   });
 
   it("returns focus to the button when it closes", async () => {

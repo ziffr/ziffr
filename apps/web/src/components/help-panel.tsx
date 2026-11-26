@@ -4,7 +4,8 @@
 // and any guide page read right there (Back goes one page back, "Wider" widens the panel). Nothing in it leaves the screen
 // except "Open full page", which opens a new tab. The search text is the guide's own, bundled at build time
 // (help-index.generated.json) and searched in the browser, so nothing typed leaves it; a page is fetched, already rendered,
-// from /api/guide/<chapter> when it is opened. No model is involved.
+// from /api/guide/<chapter> when it is opened. No model is involved. The guides of the installed Packs are offered here too
+// (pack-guide-help.tsx): the Pack creators' words, listed and read through the core, apart from the user guide.
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, CircleHelp, ExternalLink } from "lucide-react";
@@ -13,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSlideOver } from "@/components/slide-over-host";
 import { SetupGuideButton, useSetupState } from "@/components/setup-panel";
+import { PackGuideList, PackGuidePage, usePackGuides } from "@/components/pack-guide-help";
 import type { HelpIndex } from "@/lib/help-index-build";
 import { chapterForPath } from "@/lib/help-routes";
 import { searchHelp } from "@/lib/help-search";
@@ -120,6 +122,9 @@ function HelpContent({ path, guide, start, load = loadIndex }: { path: string; g
   const cache = useRef<Cache>(new Map());
   const inputId = useId();
   const setup = useSetupState();
+  // The installed Packs' guides (spec 0058), and the one being read, which takes the panel until Back.
+  const guides = usePackGuides();
+  const [pack, setPack] = useState<number | null>(null);
   useEffect(() => { let live = true; load().then((i) => live && setIndex(i), () => live && setFailed(true)); return () => { live = false; }; }, [load]);
 
   const inPanel = guide.startsWith("/");
@@ -132,10 +137,14 @@ function HelpContent({ path, guide, start, load = loadIndex }: { path: string; g
   const back = useCallback(() => setPages((p) => p.slice(0, -1)), []);
   const entry = (s: string, id: string, children: React.ReactNode) => <Entry inPanel={inPanel} guide={guide} slug={s} id={id} onOpen={open}>{children}</Entry>;
 
+  if (pack !== null) return <PackGuidePage installId={pack} onBack={() => setPack(null)} />;
   const page = pages[pages.length - 1];
   if (page) return <PageView key={page.slug + "#" + pages.length} page={page} guide={guide} valid={valid} cache={cache.current} onOpen={open} onBack={back} />;
 
   const showChapter = index && !searching && !contents && chapter;
+  // On the Packs screen and in the list of chapters the Packs' guides come first; elsewhere after the screen's own help.
+  const packsFirst = !showChapter || slug === "packs";
+  const packList = searching ? null : <PackGuideList entries={guides} onOpen={setPack} />;
   // The chapter for this screen first, then the rest in the guide's order.
   const listed = index ? [...index.chapters.filter((c) => c.slug === slug), ...index.chapters.filter((c) => c.slug !== slug)] : [];
   return (
@@ -148,6 +157,7 @@ function HelpContent({ path, guide, start, load = loadIndex }: { path: string; g
       </div>
       {failed && <p className="text-muted-foreground">The help could not be loaded. <GuideAnchor href={guide}>Open the full guide</GuideAnchor> instead.</p>}
       {!index && !failed && <p className="text-muted-foreground">Loading the help…</p>}
+      {packsFirst && packList}
       {index && searching && (hits.length === 0
         ? <p className="text-muted-foreground">Nothing in the guide matches “{query.trim()}”. Try fewer or other words.</p>
         : (
@@ -188,6 +198,7 @@ function HelpContent({ path, guide, start, load = loadIndex }: { path: string; g
           </ul>
         </div>
       )}
+      {!packsFirst && packList}
       <p className="border-t border-border pt-3"><GuideAnchor href={guide}>Open the full guide</GuideAnchor></p>
     </div>
   );

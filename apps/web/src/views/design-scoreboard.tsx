@@ -4,6 +4,7 @@
 // (shownSeries, formatValue in the Number Style, compare, targetStatus through the target chip); this file only lays
 // them out. Colour keeps its one meaning (on or off target, in the chip): a change is an arrow and a sign.
 // It reaches no Metric outside the widget's own, as the person may see them.
+import { noValuesWords } from "@ziffr/core/total-rules";
 import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
 import { compare, resolverFrom } from "@ziffr/core/compare";
 import { dayAfter, heldText, isPartial, pointName, shownSeries, type DisplayPoint } from "@ziffr/core/display-periods";
@@ -74,7 +75,7 @@ export function ScoreboardMark({ v }: { v: DesignValues }) {
               return (
                 <tr key={`${m.id}-${i}`} className="border-t border-border">
                   <th scope="row" className="py-[0.43em] pr-2 text-left font-medium">{m.name}</th>
-                  <td colSpan={4} className="py-[0.43em] text-muted-foreground">No values yet</td>
+                  <td colSpan={4} className="py-[0.43em] text-muted-foreground">{noValuesWords(m)}</td>
                 </tr>
               );
             const when = last.toDate || isPartial(last) ? `${periodLabel(last.period, by, data.yearStart, true)}, ${heldText(last, m.period)}` : last.period !== newest ? pointName(last, by, m.period, data.yearStart) : null;

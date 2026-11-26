@@ -236,7 +236,10 @@ describe("a Test Message cannot reach anyone else", () => {
     const { w, sara, ann, bo, cy } = await setup();
     const posts = slack.of("chat.postMessage").length; const sends = tg.of("sendMessage").length;
     for (const way of ["email", "slack", "telegram"] as const) await sendTestMessage(w.actor(ann.id), way);
-    const all = await deliveriesOf(w.id);
+    const made = await deliveriesOf(w.id);
+    // Finding Ann on Slack by her address also tells her so (a connection notice, left in the queue): to her alone.
+    expect(made.filter((d) => d.kind !== "test")).toMatchObject([{ kind: "notice", recipient_id: ann.id, sender_id: null }]);
+    const all = made.filter((d) => d.kind === "test");
     expect(all).toHaveLength(3);
     for (const d of all) expect(d).toMatchObject({ kind: "test", recipient_id: ann.id, sender_id: null });
     expect(slack.of("conversations.open").slice(-1).map((c) => c.params.users)).toEqual([ann.slackUser]);

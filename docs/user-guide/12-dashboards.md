@@ -439,7 +439,7 @@ Only a dashboard's owner shares it. **Share** opens a panel on the right, over t
 
 The choice takes effect at once. A Group share also reaches whoever joins the Group later.
 
-**Sharing a dashboard also lets people see every Metric on it.** When that would show someone a Metric they could not see before, the line under their name says so in colour: "Also shows Cost, Margin and 2 more". Check this before you share.
+**Sharing a dashboard also lets people see every Metric on it.** When that would show someone a Metric they could not see before, the line under their name says so in colour: "Also shows Cost, Margin and 2 more". Check this before you share. A [Total](10-metrics.md#adding-up-metrics-a-total) is held more tightly: sharing it, also through a dashboard, shows its sums only to people who may see every Metric it adds up, unless its owner opened it. For anyone else its widget says "Not shown: you do not see every Metric it adds up." While a period waits for a value, a widget draws the latest period that is complete, and says "Not all in yet." where none is.
 
 At the bottom of the panel, **Who can see this** and, for the owner, **View links for outsiders** open those panels on top of it; **Back** returns to Share.
 
@@ -469,6 +469,8 @@ The page a View Link opens is drawn in the dashboard's Theme and says whose numb
 A dashboard with a Widget of all Metrics tagged X needs its list fixed first: the window says so and offers **Fix the list**, which turns each such Widget into a fixed list of the Metrics you see now, which then no longer follows the Tag. A link shows a list its maker chose, never what a Tag collects for each viewer. A link to a shown Snapshot needs no fixing.
 
 A live link shows only what the dashboard held when the link was made: Widgets added later, and Metrics added later, stay out. A Widget that draws a Metric the owner can no longer see is left out whole.
+
+A [Total](10-metrics.md#adding-up-metrics-a-total) goes out with its numbers only while it is open, or where the link also shows every Metric it adds up, frozen links included: closing a Total empties it in links already made. Where a link would show one with no number, the panel names it before you make the link ("Shown with no number: …"). The same holds for a formula that reads a Total.
 
 ### What an outside visitor sees
 
