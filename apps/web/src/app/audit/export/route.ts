@@ -1,6 +1,7 @@
 // GET /audit/export (spec 0008, GLOSSARY: Audit Log): the workspace's Audit Log as a CSV file, for its signed-in
 // Owners and Admins, with the same filter as the page. The core checks who asks, records the export and writes the
 // lines; this only streams them, never cached, as a download.
+import { CSV_BYTE_ORDER_MARK } from "@/lib/csv-file";
 import { currentActor } from "@/lib/viewer";
 import { AuditExportLimit, exportAuditLog } from "@ziffr/core/audit-log";
 import { Forbidden } from "@ziffr/core/actor";
@@ -21,6 +22,7 @@ export async function GET(req: Request) {
   const encoder = new TextEncoder();
   const lines = file.lines[Symbol.asyncIterator]();
   const body = new ReadableStream<Uint8Array>({
+    start(controller) { controller.enqueue(encoder.encode(CSV_BYTE_ORDER_MARK)); },
     // One batch of lines per pull, so a large export is read from the database only as fast as it is sent.
     async pull(controller) {
       const next = await lines.next();
