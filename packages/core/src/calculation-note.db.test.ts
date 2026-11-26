@@ -95,7 +95,7 @@ describe("the Calculation Note", () => {
       const token = await createViewLink(w.actor(sara), "dashboard", dash, { label: "", expires: new Date(Date.now() + 86_400_000 * 5).toISOString().slice(0, 10), frozen });
       const view = await openViewLink(token);
       const shown = view!.data.metrics.find((x) => x.id === m.id)!;
-      expect(shown.calculation_note ?? null).toBeNull();
+      expect(shown.calculation_note).toBe("");
       expect(JSON.stringify(view)).not.toContain("One-off fees");
     }
     const code = await w.token(m.id, sara);

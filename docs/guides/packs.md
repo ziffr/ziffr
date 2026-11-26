@@ -19,7 +19,7 @@ The exact formats are JSON Schemas in `docs/reference/`, generated from the defi
 | What | Format | Schema |
 | --- | --- | --- |
 | The Pack and its manifest | `ziffr.pack/1` or `ziffr.pack/2` | [`pack.schema.json`](../reference/pack.schema.json) and [`pack-2.schema.json`](../reference/pack-2.schema.json), see [Who does what](#who-does-what-ziffrpack2) |
-| A Metric Catalog entry | `ziffr.metric/1` | [`metric.schema.json`](../reference/metric.schema.json) |
+| A Metric Catalog entry | `ziffr.metric/1` or `ziffr.metric/2` | [`metric.schema.json`](../reference/metric.schema.json) and [`metric-2.schema.json`](../reference/metric-2.schema.json), see [How a Metric is calculated](#how-a-metric-is-calculated) |
 | A Dashboard Template | `ziffr.dashboard-template/1` | [`dashboard-template.schema.json`](../reference/dashboard-template.schema.json) |
 | A Deck Template | `ziffr.deck-template/1` or `ziffr.deck-template/2` | [`deck-template.schema.json`](../reference/deck-template.schema.json) and [`deck-template-2.schema.json`](../reference/deck-template-2.schema.json), see [Slides that look designed](#slides-that-look-designed) |
 | A Workflow Template | `ziffr.workflow-template/1` or `ziffr.workflow-template/2` | [`workflow-template.schema.json`](../reference/workflow-template.schema.json) and [`workflow-template-2.schema.json`](../reference/workflow-template-2.schema.json), see [Who does what](#who-does-what-ziffrpack2) |
@@ -83,6 +83,16 @@ An item may name another item of the same Pack, and nothing outside it:
 - a widget drawn by a View Design names one of the Pack's View Designs: `"view": "design"`, `"settings": { "design": "trend" }`. Outside a Pack, the design is written out in full instead;
 - a Deck Template names one of the Pack's Themes, which a deck made from it starts with: `"theme": "board"`. Its Slots and widgets name entries and designs as a Dashboard Template's do;
 - a Derived Metric's formula names the Pack's other entries in braces: `"{mrr} / {customers}"`, and may read another entry's target with `"target({mrr}) - {mrr}"` ([what it gives](../user-guide/10-metrics.md#reading-a-target); a Pack carries no Target Series, so whoever sets it up gives that Metric its target). An older Ziffr refuses a Pack with `target()` naming the character it cannot read. Its inputs follow the same rules as in a Workspace: no Derived Metric among them, all of the Derived Metric's own period, none set to Aggregation none.
+
+## How a Metric is calculated
+
+An entry in the format `ziffr.metric/2` may carry a `calculationNote`: exactly what counts and what does not, where the figure comes from and which adjustments are made. The `description` says what the number is and why it matters; the note says how it is counted. It is plain text of up to 1,000 characters, without markup or web addresses, held to the same checks as every other text of a Pack.
+
+```json
+{ "key": "mrr", "metric": { "format": "ziffr.metric/2", "name": "MRR", "period": "month", "aggregation": "last", "polarity": "higher", "calculationNote": "Active subscriptions at month end, after discounts. One-off fees are left out." } }
+```
+
+Write `ziffr.metric/1` for an entry without a note. A Ziffr from before the note refuses a Pack with a `ziffr.metric/2` entry and names the formats it reads, so set the Pack's `ziffr` minimum to the release you tested it with. A Metric made from the entry gets the note, which its owner may then change. A slide shows it with the `definitions` Slide Element, or with the `{calculation note}` Placeholder in a widget's words or a Slide Element. A slide's `text` and `box` shapes may not hold that Placeholder: their words are filled once and saved, so the note would stay for people who may not see the Metric.
 
 ## Slides that look designed
 
@@ -158,7 +168,7 @@ How a Workspace's answers rank the Packs: an industry that matches adds 4 points
 
 A Pack in the format `ziffr.pack/2` may also say who does what, as **Positions** such as "Sales lead" that people fill when it is set up, which parts are made once for each salesperson, site or company, its **Repeats**, which Metrics add those up, its [Totals](#totals), and [where each number comes from](#where-each-number-comes-from). It names no person. It may credit the Packs it builds on and carry a [Pack Guide](#the-pack-guide).
 
-Ziffr checks all of it and installs such a Pack today, unless it holds a Total. The Packs page shows its Positions, Repeats and proposed Shares before and after installing. **Set up from this Pack** asks who fills each Position, shows who will then see what and which messages go out, and writes the people into the ordinary places; a proposed Share is made only when ticked, and one that would show someone more starts unticked. Nobody is asked for a number the Pack says another system sends or one set as a target, also not whoever holds a Position that submits it, unless the person setting up chooses to be asked themselves; for such a holder Set up proposes a ticked Viewer Share, so they still see the number. For each Repeat it takes the lines a person types or pastes (at most 50, and at most 200 Metrics in one Set up), names each line's Metrics "<entry>, <line>", makes a Workflow and a dashboard of the Repeat once per line, and fills a Slot for several Metrics of a dashboard outside the Repeat with every line's. **Add a …** on the installed Pack makes one more line, and offers to add its Metrics to the shared Workflow and to the widgets that show the lines (a widget's offer starts unticked where it would show someone more). A Workflow Template stored by the Workspace holds neither Positions nor Tell steps: Set up reads them from the install. **A Pack with a Total cannot be installed yet:** Ziffr says so and adds nothing of it. The rest follows in later versions.
+Ziffr checks all of it and installs such a Pack. The Packs page shows its Positions, Repeats and proposed Shares before and after installing. **Set up from this Pack** asks who fills each Position, shows who will then see what and which messages go out, and writes the people into the ordinary places; a proposed Share is made only when ticked, and one that would show someone more starts unticked. Nobody is asked for a number the Pack says another system sends or one set as a target, also not whoever holds a Position that submits it, unless the person setting up chooses to be asked themselves; for such a holder Set up proposes a ticked Viewer Share, so they still see the number. For each Repeat it takes the lines a person types or pastes (at most 50, and at most 200 Metrics in one Set up), names each line's Metrics "<entry>, <line>", makes a Workflow and a dashboard of the Repeat once per line, and fills a Slot for several Metrics of a dashboard outside the Repeat with every line's. Each Total is made over the Metrics of every line, closed. **Add a …** on the installed Pack makes one more line, and offers to add its Metrics to the shared Workflow and to the widgets that show the lines (a widget's offer starts unticked where it would show someone more). It also offers to count the new Metrics in the Totals that add them up. A Workflow Template stored by the Workspace holds neither Positions nor Tell steps: Set up reads them from the install. **Export as Pack** does not write Repeats or Totals yet.
 
 Keep a file in `ziffr.pack/1` unless it uses something below: an older Ziffr refuses a `/2` file, saying which formats it reads. A whole example:
 
@@ -225,7 +235,8 @@ A Metric Catalog entry outside every Repeat may be a **Total**, which adds up th
 - `of` names an entry with `per` that takes values, whose Aggregation is not `none`. The Total has its period, unit, number format (`valueFormat`) and Aggregation.
 - `targets` is `own`, for a target set on the Total, or `parts`, for the targets of its parts added up; with `parts` the entry has no `targetMin` or `targetMax`.
 - A Total takes no values: no `per`, formula, `sources`, `submitters` or `standIn`, and no Feed fills it. A formula may read it, and `viewers` and `editors` may be proposed.
-- **A Pack cannot open a Total.** Who sees a Total's numbers without seeing every part is its owner's decision in the app, and there is no field for it.
+- **A Pack cannot open a Total.** Who sees a Total's numbers without seeing every part is its owner's decision in the app, and there is no field for it. A proposed Share of a Total therefore shows its sums only to someone who also sees every Metric it adds up.
+- **Set up** makes the Total after the Metrics it adds up, and the Derived Metrics that read it after the Total. The Metric Catalog's own list leaves a Total out: it is made only by Set up.
 - A gap table of a Deck Template does not take a Total yet.
 
 ### Where each number comes from

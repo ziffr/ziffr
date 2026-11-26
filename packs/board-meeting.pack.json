@@ -2,7 +2,7 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/board-meeting",
   "name": "Board meeting deck",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "summary": "A Deck Template for a quarterly board meeting, a Theme for it, and the Workflow for the quarter's close.",
   "author": {
     "name": "Ziffr"
@@ -23,9 +23,10 @@
       {
         "key": "revenue",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Revenue",
           "description": "Net revenue invoiced in the month, excluding VAT, discounts and credit notes.",
+          "calculationNote": "Counted by the date of the invoice. VAT, discounts and credit notes are taken off, and money paid in advance for work not yet invoiced is not counted.",
           "category": "Finance",
           "period": "month",
           "aggregation": "sum",
@@ -47,9 +48,10 @@
       {
         "key": "cash",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Cash balance",
           "description": "Cash across all bank accounts at period end.",
+          "calculationNote": "The balances of every bank account on the last day of the period, added up. Unpaid invoices and unused credit lines are not counted.",
           "category": "Finance",
           "period": "month",
           "aggregation": "last",
@@ -72,9 +74,10 @@
       {
         "key": "runway",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Cash runway",
           "description": "Months the cash balance lasts at the average net burn of the last three months.",
+          "calculationNote": "Cash balance divided by the average net burn of the last three months, where net burn is money spent less money received. Funding that has been agreed but not paid in is not counted.",
           "category": "Finance",
           "period": "month",
           "aggregation": "last",
@@ -97,9 +100,10 @@
       {
         "key": "headcount",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Headcount",
           "description": "People on payroll at the end of the quarter.",
+          "calculationNote": "Employees with a contract on the last day of the quarter, each counted as one whatever their hours. Freelancers and agency staff are not counted.",
           "category": "People",
           "period": "quarter",
           "aggregation": "last",

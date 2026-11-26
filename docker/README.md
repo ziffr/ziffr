@@ -64,6 +64,7 @@ All go in `.env` next to `compose.yml`, and all are optional. After changing one
 | `ZIFFR_CLOUD_KEY`, `ZIFFR_CLOUD_URL` | Hosted Ziffr only: the secret that signs Ziffr Cloud's API calls and the Owners' handover (at least 32 characters, environment only), and where Owners are handed over to. Self-hosters leave them unset: trials exist only where the key is set |
 | `ZIFFR_LIMIT_*` (15 variables, listed in `.env.example`) | Sending limits (ticket #516): emails, chat messages, Alerts, values, calls, Webhooks, sign-in links, Contacts and Snapshots per day, hour or minute, each moved within a range and never switched off. Also on the Installation Settings page |
 | `ZIFFR_DELETE_UNUSED_AFTER_DAYS` | With a default limit: days without a sign-in or a value after which a Workspace on it is warned, and deleted 14 days later (30 to 3650; unset: never). Also on the Installation Settings page |
+| `ZIFFR_TLDRAW_LICENSE_KEY` | The license key for tldraw, which draws decks and free layouts: needed to show them on an `https://` address (https://tldraw.dev/pricing). It must list your domain. Also on the Installation Settings page |
 | `ZIFFR_TURNSTILE_SITE_KEY`, `ZIFFR_TURNSTILE_SECRET` | Cloudflare Turnstile on the sign-in form: no link is sent before the server has checked the answer with Cloudflare. For any public Ziffr |
 | `ZIFFR_SITE_URL`, `ZIFFR_PROXY_HOPS` | Only behind a reverse proxy of your own (see below): the address people reach, such as `https://ziffr.example.com`, and how many proxies add to `X-Forwarded-For` (yours and Caddy: `2`) |
 | `ZIFFR_REMOTE_MCP` | The remote MCP Server at `https://<your domain>/mcp`, for assistants such as Claude.ai. On with a domain, off at `http://localhost`; `0` turns it off, `1` on |
@@ -134,7 +135,7 @@ Try a restore once before you rely on it. The dump can also move to a Supabase p
 - [ ] Backups of `ziffr_db` and `ziffr_keys`, and one restore tried
 - [ ] The demo off (the default on a domain), unless you set `ZIFFR_DEMO=1` to offer it; a demo that visitors may change only as a demo-only Ziffr, with the [checklist](../docs/guides/self-hosting.md#before-you-open-it-a-checklist) done
 - [ ] The workspace's time zone and run hour set on the Team page; after the run hour, the Workflows page shows a run "by the clock"
-- [ ] Decks: the slide editor uses tldraw, which needs a license from tldraw for production use
+- [ ] Decks and free layouts: with `https://`, they show only with a tldraw license key for your domain (https://tldraw.dev/pricing: a free 100-day trial, commercial and hobby licenses). Enter it on the Installation settings page under **Slide editor**, or as `ZIFFR_TLDRAW_LICENSE_KEY` in `.env`
 
 ## Building the image yourself
 

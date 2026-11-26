@@ -30,7 +30,7 @@ import type { DashboardTemplateBody, DeckTemplateBody, Slot, ThemeSlides, ThemeT
 /** One item of a Pack as the Packs page lists it before installing, already in the form it would be stored in, so its
  * Preview draws exactly what installing adds (with Sample Data, never a Workspace's values). */
 export type PackPreviewItem =
-  | { kind: "metric"; key: string; name: string; description: string; period: string; unit: string; derived: boolean }
+  | { kind: "metric"; key: string; name: string; description: string; /** How it is calculated, as the Pack says it. */ calculationNote: string; period: string; unit: string; derived: boolean; /** A Total, which is a Derived Metric that adds up one entry of every line of a Repeat. */ total?: boolean }
   | { kind: "dashboard"; key: string; name: string; description: string; slots: Slot[]; body: DashboardTemplateBody }
   | { kind: "deck"; key: string; name: string; description: string; slots: Slot[]; slides: number }
   | { kind: "workflow"; key: string; name: string; description: string; body: WorkflowTemplateBody }
@@ -112,7 +112,7 @@ export function storedItems(pack: Pack) {
   const designs = new Map<string, ViewDesign>((c.views ?? []).map((v) => [v.key, v.design]));
   const recipeDesigns = (c.analyses ?? []).map((a) => ({ key: a.key, body: designWithRecipe(a.recipe) }));
   for (const d of recipeDesigns) if (!checkViewDesignValue(d.body).ok) throw new Error(`The Analysis Recipe “${d.key}” cannot be drawn as a View Design.`);
-  const catalog = (c.metrics ?? []).map(({ key, metric: m }) => {
+  const catalog = (c.metrics ?? []).map(({ key, metric: m, total }) => {
     const row = {
       category: m.category ?? pack.name, name: m.name, description: m.description ?? "", unit: m.unit ?? "", unit_position: m.unitPosition ?? "after",
       format: m.valueFormat ?? "number", decimals: m.decimals ?? 0, period: m.period, submission_rule: m.submissionRule ?? "overwrite", polarity: m.polarity,
@@ -120,6 +120,10 @@ export function storedItems(pack: Pack) {
       aggregation: m.aggregation, industries: m.industries ?? null, segments: m.segments ?? null, formula: m.formula ?? null,
       // Only an entry that brings Tags has the field, so the hash of every entry installed before Tags existed stays what it was.
       ...(m.tags?.length ? { tags: tagNamesOf(m.tags, TAGS_PER_ENTRY) } : {}),
+      // Likewise only a Total has this one. It takes no values, so it has no Sources either.
+      ...(total ? { total: { of: total.of, targets: total.targets }, sources: [] } : {}),
+      // The same for a Calculation Note (spec 0060): only an entry that brings one has the field.
+      ...(m.calculationNote ? { calculation_note: m.calculationNote } : {}),
     };
     return { key, ...row, hash: itemHash(row) };
   });
@@ -144,18 +148,8 @@ export const itemKeys = (stored: ReturnType<typeof storedItems>) => [...stored.c
 /** The most a Workspace holds from Packs: installs, its own Metric Catalog entries, and templates of any kind. */
 export const PACK_CAPS = { installs: 25, entries: 1000, templates: 1000 } as const;
 
-/** Why this Ziffr cannot take this Pack in yet, or null. A Total (spec 0058) is stored as nothing but its Metric, so Set
- * up would make an ordinary Metric that people type values into: until #1226 builds Totals, a Pack holding one is refused
- * whole, at installing and at updating, so that no part of it is ever stored. */
-export function notBuiltYet(pack: Pick<Pack, "contents">): string | null {
-  const total = pack.contents.metrics?.find((m) => m.total);
-  return total ? `This Pack holds a Total, “${total.metric.name}”, which this version of Ziffr cannot make yet. Nothing of the Pack is added.` : null;
-}
-
 /** Why this actor cannot install this Pack in their Workspace, or null. */
 async function blockedFor(actor: Actor, pack: Pack): Promise<string | null> {
-  const early = notBuiltYet(pack);
-  if (early) return early;
   if ((pack.contents.themes?.length ?? 0) > 0 && actor.role !== "owner") return "This Pack holds Themes, and only Owners change Themes: an Owner installs it.";
   const { data } = await db().from("pack_installs").select("version").eq("workspace_id", actor.workspaceId).eq("pack_id", pack.id).maybeSingle();
   // A Workspace holds at most so many Packs and so many rows from them, so a taken-over Admin cannot fill the database.
@@ -190,6 +184,19 @@ const MANIFEST_ROOM = 240_000;
 function placesOf(pack: Pack, stored: ReturnType<typeof storedItems>["templates"]): PackPlaces | null {
   const bodies = new Map(stored.filter((t) => t.kind === "workflow").map((t) => [t.key, (t.body as WorkflowTemplateBody).steps]));
   return packPlaces(pack, (key) => itemHash(bodies.get(key)));
+}
+
+/** A checked Pack's Positions, Repeats and proposed Shares in words, as its Preview shows them, or null. */
+export function previewPeople(pack: Pack, stored: ReturnType<typeof storedItems> = storedItems(pack)) {
+  const places = placesOf(pack, stored.templates);
+  const names = new Map([
+    ...(pack.contents.metrics ?? []).map(({ key, metric }): [string, string] => [`metric ${key}`, metric.name]),
+    ...stored.templates.map((t): [string, string] => [`${t.kind} ${t.key}`, t.name]),
+  ]);
+  return places && describePlaces(places, {
+    name: (kind, key) => names.get(`${kind} ${key}`) ?? null,
+    steps: (w) => (stored.templates.find((t) => t.kind === "workflow" && t.key === w.key)?.body as WorkflowTemplateBody | undefined)?.steps ?? null,
+  });
 }
 
 /** The manifest an install keeps, with the logo checked again; as `places`, what Set up and the Packs page read of
@@ -232,19 +239,14 @@ export async function previewPack(actor: Actor, text: string, origin: PackOrigin
   const by = <T extends { key: string }>(xs: T[]) => new Map(xs.map((x) => [x.key, x]));
   const [views, templates] = [by(stored.views), by(stored.templates)];
   const items: PackPreviewItem[] = [
-    ...(pack.contents.metrics ?? []).map(({ key, metric: m }): PackPreviewItem => ({ kind: "metric", key, name: m.name, description: m.description ?? "", period: m.period, unit: m.unit ?? "", derived: m.formula !== undefined || pack.contents.metrics!.some((x) => x.key === key && x.total) })),
+    ...(pack.contents.metrics ?? []).map(({ key, metric: m, total }): PackPreviewItem => ({ kind: "metric", key, name: m.name, description: m.description ?? "", calculationNote: m.calculationNote ?? "", period: m.period, unit: m.unit ?? "", derived: m.formula !== undefined || Boolean(total), ...(total ? { total: true } : {}) })),
     ...(pack.contents.dashboards ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "dashboard", key, name: t.name, description: t.description, slots: t.slots, body: t.body as DashboardTemplateBody }; }),
     ...(pack.contents.decks ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "deck", key, name: t.name, description: t.description, slots: t.slots, slides: (t.body as DeckTemplateBody).slides.length }; }),
     ...(pack.contents.workflows ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "workflow", key, name: t.name, description: t.description, body: t.body as WorkflowTemplateBody }; }),
     ...[...(pack.contents.views ?? []), ...(pack.contents.analyses ?? [])].map(({ key }): PackPreviewItem => { const v = views.get(key)!; return { kind: "view", key, name: v.name, description: v.body.description ?? "", body: v.body }; }),
     ...stored.themes.map((t): PackPreviewItem => ({ kind: "theme", key: t.key, name: t.name, tokens: t.tokens, logo: Boolean(t.slides.logo) })),
   ];
-  const places = placesOf(pack, stored.templates);
-  const names = new Map(items.map((i) => [`${i.kind} ${i.key}`, i.name]));
-  const people = places && describePlaces(places, {
-    name: (kind, key) => names.get(`${kind} ${key}`) ?? null,
-    steps: (w) => (templates.get(w.key)?.body as WorkflowTemplateBody | undefined)?.steps ?? null,
-  });
+  const people = previewPeople(pack, stored);
   return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, overview: keptOverview(pack), people, logo: safeLogo(pack), unsigned: !origin.signed, source: origin.source, reviewed: origin.reviewed === true, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
 }
 

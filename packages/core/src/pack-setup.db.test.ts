@@ -59,7 +59,7 @@ describe("setting up Metrics from a Pack", () => {
     const ids = new Set(made.metrics.map((m) => m.id));
     expect(widgets!.length).toBeGreaterThan(0);
     expect(widgets!.every((x) => (x.metric_ids as number[]).every((id) => ids.has(id)))).toBe(true);
-    // The Metrics that take values take the Workflow and ask their Submitter; the Derived one neither.
+    // The Metrics that take values take the Workflow and a Submitter; the Derived one neither.
     const rows = await metricsOf(w.id);
     expect(rows.filter((m) => !m.formula).every((m) => m.workflow_id === made.workflowId)).toBe(true);
     expect(rows.find((m) => m.formula)!.workflow_id).toBeNull();

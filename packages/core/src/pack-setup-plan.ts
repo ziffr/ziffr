@@ -1,6 +1,6 @@
 // Planning a Set up (spec 0058, #1179; GLOSSARY: Pack, Position, Repeat, Share, Submitter, Stand-in, Approver,
 // Prompt, Workspace Limit): from the people picked, who may fill each Position, what would be made, who will then see
-// what and why, every Share the Pack proposes and who would be messaged at once. Nothing is written.
+// what and why, every Share the Pack proposes and who would be asked for values, and when. Nothing is written.
 // Security: Owners and Admins only, never through a key, never in the demo. Who will see what is answered by the same
 // visibility rules the app uses, over the rows as they would be. Only Metrics made here and Metrics the actor sees are
 // named: no other Metric can be seen through anything a Set up makes.
@@ -14,10 +14,11 @@ import { listed } from "./pack-places";
 import { buildSetup, SETUP_METRICS_MAX, tickedShares, type Blueprint, type PackSetupInput, type PlannedDashboard, type ProposedShare } from "./pack-setup-build";
 import { installedForSetup, assertSetsUp, roomNow, type PackSetupRoom } from "./pack-setup-install";
 import { PLACE_WORDS, whyNot, type PersonKind } from "./pack-setup-who";
+import { isComputed, plannedSums } from "./pack-setup-totals";
 import type { DashboardTemplateBody, Metric, WorkflowStep } from "./types";
 
-/** How many requests for values a person gets. */
-export type PlannedMessages = { name: string; count: number };
+/** How many requests for values a person gets. `you`: the person setting up. */
+export type PlannedMessages = { name: string; count: number; you: boolean };
 
 /** The plan of a Set up, as the form shows it. */
 export type PackSetupPlan = {
@@ -33,8 +34,9 @@ export type PackSetupPlan = {
    * the form ticks it by itself, which it does only for a Viewer who sees no more, or whose sight it keeps. */
   shares: { id: string; person: string; role: "viewer" | "editor"; kind: "Metric" | "dashboard"; item: string; showsMore: boolean; keeps: boolean; suggested: boolean }[];
   /** Requests for values: those that go out at once, those that wait for the Workflow's next run, and those nobody
-   * sends by themselves because the Metric follows no Workflow. */
-  messages: { now: PlannedMessages[]; nextRun: PlannedMessages[]; unasked: PlannedMessages[]; /** How many requests go to others than the person setting up, if they are asked now. */ others: number };
+   * sends by themselves because the Metric follows no Workflow. `ifSent`: what goes out at once if sending the first
+   * requests is chosen, one message for each Metric and person. */
+  messages: { now: PlannedMessages[]; nextRun: PlannedMessages[]; unasked: PlannedMessages[]; ifSent: PlannedMessages[] };
   /** Who would submit a number and is not asked for it, and why, in words. */
   notAsked: string[];
   /** The numbers nobody types that the person setting up would submit: what “Ask me also for …” is about. */
@@ -58,7 +60,7 @@ function plannedRows(actor: Actor, b: Blueprint, shares: ProposedShare[], added:
   return {
     // All are the actor's, who sees what they own whatever it is computed from, so no formula is needed.
     metrics: b.metrics.map((m) => ({ id: m.plan, name: m.name, slug: `planned-${-m.plan}`, owner_id: actor.personId, formula: null }) as unknown as Metric),
-    tokens: b.metrics.flatMap((m) => [...m.submitters, ...(b.feed && !m.entry.formula ? [b.feed] : [])].map((s) => ({ metric_id: m.plan, submitter_id: s }))),
+    tokens: b.metrics.flatMap((m) => [...m.submitters, ...(b.feed && !isComputed(m.entry) ? [b.feed] : [])].map((s) => ({ metric_id: m.plan, submitter_id: s }))),
     shares: shares.map((s) => ({ object_type: s.object, object_id: s.plan, user_id: s.person, role: s.role })),
     dashboards: b.dashboards.map((d) => ({ id: d.plan, owner_id: actor.personId })),
     widgets: [
@@ -77,21 +79,23 @@ function involved(actor: Actor, b: Blueprint, alsoSee: string[]): string[] {
   return [...new Set(all.filter((id): id is string => typeof id === "string" && b.people.has(id)))];
 }
 
-const countBy = (b: Blueprint, ids: string[]): PlannedMessages[] => [...b.people.values()].flatMap((p) => {
+const countBy = (actor: Actor, b: Blueprint, ids: string[]): PlannedMessages[] => [...b.people.values()].flatMap((p) => {
   const count = ids.filter((id) => id === p.id).length;
-  return count ? [{ name: p.name, count }] : [];
+  return count ? [{ name: p.name, count, you: p.id === actor.personId }] : [];
 });
 
-/** Who is asked for values: the person setting up at once, as ever; others at once only when asked for, else by the
- * Workflow's next run, if the Metric follows one. */
+/** Who is asked for values: at once only when sending the first requests was chosen, the person setting up included;
+ * else by the Workflow's next run, if the Metric follows one. */
 function messagesOf(actor: Actor, b: Blueprint, askNow: boolean): PackSetupPlan["messages"] {
-  const now: string[] = [], nextRun: string[] = [], unasked: string[] = [];
+  const all: string[] = [], nextRun: string[] = [], unasked: string[] = [];
   for (const m of b.metrics) for (const s of m.submitters) {
     if (!b.people.has(s)) continue;
-    (s === actor.personId || askNow ? now : m.workflow || b.additions.join !== null ? nextRun : unasked).push(s);
+    all.push(s);
+    (m.workflow || b.additions.join !== null ? nextRun : unasked).push(s);
   }
-  const others = b.metrics.flatMap((m) => m.submitters).filter((s) => s !== actor.personId && b.people.has(s)).length;
-  return { now: countBy(b, now), nextRun: countBy(b, nextRun), unasked: countBy(b, unasked), others };
+  const ifSent = countBy(actor, b, all);
+  if (askNow) return { ifSent, now: ifSent, nextRun: [], unasked: [] };
+  return { ifSent, now: [], nextRun: countBy(actor, b, nextRun), unasked: countBy(actor, b, unasked) };
 }
 
 /** What the person should know about places that show or tell something, given who will see what. */
@@ -137,7 +141,8 @@ async function offersOf(actor: Actor, b: Blueprint, without: (person: string) =>
   const shares = expandGroupShares(ws, raw, groups);
   return b.additions.offers.map((o) => {
     const widget = b.additions.offered.find((w) => w.offer === o.id);
-    if (!widget) return { ...o, suggested: true };
+    // A Total’s offer says itself whether it starts ticked.
+    if (!widget) return { ...o, suggested: o.suggested ?? true };
     const here = (s: { object_type: string; object_id: number }) => s.object_type === "dashboard" && s.object_id === widget.dashboard.id;
     const theirs = [...new Set(shares.filter(here).map((s) => String(s.user_id)))].filter((id) => id !== actor.personId);
     const newly = theirs.filter((id) => widget.add.some((m) => !without(id).has(m))).map((id) => b.people.get(id)?.name ?? "Someone");
@@ -182,7 +187,9 @@ export async function planPackSetup(actor: Actor, installId: number, input: Pack
       ...b.dashboards.filter((d) => onBoards.get(d.plan)!.includes(metric) && ticked.some((s) => s.object === "dashboard" && s.plan === d.plan && s.person === person)).map((d) => `on the dashboard ${d.name}`),
       ...new Set(joins(person, metric)),
     ];
-    return reasons.length ? reasons : ["sees it already"];
+    // A Total's sums, and what is computed from them, are shown only to who sees every Metric it adds up.
+    const sums = planned ? plannedSums(b.metrics, planned, after(person).metrics) : null;
+    return [...(reasons.length ? reasons : ["sees it already"]), ...(sums ? [sums] : [])];
   };
   const everyone = involved(actor, b, through.map((s) => s.user_id));
   const sees = everyone.map((id) => {

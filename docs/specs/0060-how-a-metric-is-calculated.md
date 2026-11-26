@@ -1,6 +1,6 @@
 # 0060 How a Metric is calculated
 
-**Status:** in progress. **Ticket:** tracking issue #1198, tickets #1199 and #1200 (the owner's approval, 2026-11-26).
+**Status:** done. **Ticket:** tracking issue #1198, tickets #1199 and #1200 (the owner's approval, 2026-11-26).
 
 ## Problem Statement
 
@@ -47,7 +47,7 @@ The Metric's page shows **How it is calculated** under the description, closed u
 
 ### Slides
 
-The Placeholder `{calculation note}` (with a number for another Slot) is filled where a deck's words are drawn, and a **Definitions** Slide Element lists Metrics with their description and Calculation Note for an appendix. Both show nothing of a Metric the viewer may not see, and nothing on a View Link, which carries no Calculation Note.
+The Placeholder `{calculation note}` (with a number for another Slot) is filled where a widget's, a Finding's or a Slide Element's words are drawn for the person looking. It is never filled into words that are saved: a slide's own text and boxes, made from a Deck Template or a layout, keep it as written, and a file may not hold it there. A **Definitions** Slide Element lists up to 12 Metrics with their description and Calculation Note for an appendix. Both show nothing of a Metric the viewer may not see. A View Link carries no Calculation Note: the Placeholder is empty there and the element shows only the names.
 
 ### Content
 
