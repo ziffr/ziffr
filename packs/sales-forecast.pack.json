@@ -136,7 +136,7 @@
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Quota",
-          "description": "The team's quota for the whole quarter, not a weekly share. Send it every week, unchanged until it changes: without it, that week has no gap and no coverage. Taken as it stood at the end of the week: an answer to Monday's request, by reply or form link, counts for the week just ended.",
+          "description": "The team's quota for the whole quarter, not a weekly share. Send it every week, unchanged until it changes: without it, that week has no gap and no coverage. Taken as it stood at the end of the week: an answer to Monday's request, by reply or form link, counts for the week just ended. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -462,9 +462,9 @@
       {
         "key": "forecast-meeting-deck",
         "template": {
-          "format": "ziffr.deck-template/1",
+          "format": "ziffr.deck-template/2",
           "name": "Weekly forecast meeting",
-          "description": "Five slides for the weekly meeting: the call against quota, the change since last week, the calls over the quarter, pipeline coverage, and the risks and what the team needs.",
+          "description": "A cover and six slides for the weekly meeting: the call against quota, the gap by salesperson, the change since last week, the weeks of the quarter, pipeline coverage, and the risks and asks.",
           "slots": [
             {
               "label": "Commit",
@@ -499,249 +499,565 @@
               "suggests": "commit-share"
             }
           ],
+          "theme": "forecast-navy",
           "slides": [
             {
+              "cover": true,
               "shapes": [
                 {
-                  "shape": "text",
-                  "x": 64,
-                  "y": 48,
-                  "w": 1152,
-                  "text": [
-                    "This week’s call against quota"
-                  ],
-                  "size": "xl"
+                  "shape": "element",
+                  "x": 0,
+                  "y": 0,
+                  "w": 780,
+                  "h": 720,
+                  "element": {
+                    "kind": "box",
+                    "fill": "cover"
+                  }
                 },
                 {
-                  "shape": "text",
-                  "x": 64,
-                  "y": 128,
-                  "w": 1152,
-                  "text": [
-                    "{period}"
-                  ],
-                  "size": "m"
+                  "shape": "element",
+                  "x": 0,
+                  "y": 0,
+                  "w": 780,
+                  "h": 720,
+                  "element": {
+                    "kind": "art",
+                    "art": "rings-trend"
+                  }
                 },
                 {
-                  "shape": "widget",
-                  "view": "number",
+                  "shape": "element",
+                  "x": 780,
+                  "y": 0,
+                  "w": 500,
+                  "h": 720,
+                  "element": {
+                    "kind": "box",
+                    "fill": "canvas"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 56,
+                  "w": 240,
+                  "h": 42,
+                  "element": {
+                    "kind": "logo",
+                    "size": "m",
+                    "tone": "cover-text",
+                    "align": "start"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 281,
+                  "w": 56,
+                  "h": 4,
+                  "element": {
+                    "kind": "box",
+                    "fill": "cover-accent"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 307,
+                  "w": 652,
+                  "h": 134,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Weekly sales",
+                      "forecast"
+                    ],
+                    "font": "heading",
+                    "size": 62,
+                    "line": 1.08,
+                    "tone": "cover-text"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 463,
+                  "w": 652,
+                  "h": 25,
                   "slots": [
                     0
                   ],
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "{quarter}, week {quarter week} of {quarter weeks} · Forecast meeting"
+                    ],
+                    "size": 20,
+                    "tone": "cover-text",
+                    "opacity": 0.82
+                  }
+                },
+                {
+                  "shape": "element",
                   "x": 64,
-                  "y": 180,
-                  "w": 568,
-                  "h": 200,
-                  "settings": {
-                    "compare": [
-                      "prev"
+                  "y": 649,
+                  "w": 652,
+                  "h": 15,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Confidential"
+                    ],
+                    "size": 12,
+                    "tone": "cover-text",
+                    "opacity": 0.7,
+                    "foot": true
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 836,
+                  "y": 56,
+                  "w": 388,
+                  "h": 608,
+                  "element": {
+                    "kind": "list",
+                    "title": "Agenda",
+                    "items": [
+                      {
+                        "text": "The call against quota",
+                        "note": "10 min"
+                      },
+                      {
+                        "text": "Where the gap sits",
+                        "note": "10 min"
+                      },
+                      {
+                        "text": "Change since last week",
+                        "note": "5 min"
+                      },
+                      {
+                        "text": "Calls and coverage",
+                        "note": "10 min"
+                      },
+                      {
+                        "text": "Risks and asks",
+                        "note": "15 min"
+                      }
                     ]
                   }
-                },
+                }
+              ]
+            },
+            {
+              "shapes": [
                 {
-                  "shape": "widget",
-                  "view": "number",
-                  "slots": [
-                    1
-                  ],
-                  "x": 648,
-                  "y": 180,
-                  "w": 568,
-                  "h": 200,
-                  "settings": {
-                    "compare": [
-                      "prev"
-                    ]
-                  }
-                },
-                {
-                  "shape": "widget",
-                  "view": "number",
-                  "slots": [
-                    2
-                  ],
+                  "shape": "element",
                   "x": 64,
-                  "y": 396,
-                  "w": 568,
-                  "h": 200,
-                  "title": "Gap to quota",
-                  "settings": {
-                    "compare": []
+                  "y": 36,
+                  "w": 860,
+                  "h": 29,
+                  "slots": [
+                    0
+                  ],
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "  /  {quarter}, week {quarter week} of {quarter weeks}"
+                    ],
+                    "lead": "Sales forecast",
+                    "leadTone": "accent",
+                    "tone": "muted",
+                    "size": 12,
+                    "tracking": 0.1,
+                    "caps": true,
+                    "valign": "middle"
                   }
                 },
                 {
-                  "shape": "widget",
-                  "view": "number",
+                  "shape": "element",
+                  "x": 1016,
+                  "y": 36,
+                  "w": 200,
+                  "h": 29,
+                  "element": {
+                    "kind": "logo"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 85,
+                  "w": 1100,
+                  "h": 40,
                   "slots": [
                     7
                   ],
-                  "x": 648,
-                  "y": 396,
-                  "w": 568,
-                  "h": 200,
-                  "settings": {
-                    "compare": [
-                      "prev"
-                    ]
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "The commit covers {latest} of quota with {weeks left} left"
+                    ],
+                    "font": "heading",
+                    "size": 33,
+                    "line": 1.2
                   }
                 },
                 {
-                  "shape": "text",
+                  "shape": "element",
                   "x": 64,
-                  "y": 624,
-                  "w": 1152,
-                  "text": [
-                    "The commit is {latest 1}, against a quota of {latest 2}."
-                  ],
-                  "size": "l"
-                }
-              ]
-            },
-            {
-              "shapes": [
-                {
-                  "shape": "text",
-                  "x": 64,
-                  "y": 48,
-                  "w": 1152,
-                  "text": [
-                    "Change since last week"
-                  ],
-                  "size": "xl"
+                  "y": 681,
+                  "w": 900,
+                  "h": 13,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Source: Ziffr, weekly calls locked each Monday"
+                    ],
+                    "size": 11,
+                    "tone": "muted",
+                    "foot": true
+                  }
                 },
                 {
-                  "shape": "text",
-                  "x": 64,
-                  "y": 128,
-                  "w": 1152,
-                  "text": [
-                    "{period}, compared with the week before"
-                  ],
-                  "size": "m"
+                  "shape": "element",
+                  "x": 1136,
+                  "y": 681,
+                  "w": 80,
+                  "h": 13,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "{slide}"
+                    ],
+                    "size": 11,
+                    "tone": "muted",
+                    "align": "end"
+                  }
                 },
                 {
-                  "shape": "widget",
-                  "view": "number",
+                  "shape": "element",
+                  "x": 64,
+                  "y": 147,
+                  "w": 276,
+                  "h": 112,
                   "slots": [
                     0
                   ],
-                  "x": 64,
-                  "y": 180,
-                  "w": 568,
-                  "h": 200,
-                  "settings": {
-                    "compare": [
-                      "prev"
-                    ]
+                  "element": {
+                    "kind": "figure",
+                    "note": "{change} on last week",
+                    "strong": true
                   }
                 },
                 {
-                  "shape": "widget",
-                  "view": "number",
+                  "shape": "element",
+                  "x": 356,
+                  "y": 147,
+                  "w": 276,
+                  "h": 112,
                   "slots": [
-                    4
+                    1,
+                    0
                   ],
-                  "x": 648,
-                  "y": 180,
-                  "w": 568,
-                  "h": 200,
-                  "settings": {
-                    "compare": [
-                      "prev"
-                    ]
+                  "element": {
+                    "kind": "figure",
+                    "note": "{gap 2 1}",
+                    "signal": true
                   }
                 },
                 {
-                  "shape": "widget",
-                  "view": "number",
+                  "shape": "element",
+                  "x": 648,
+                  "y": 147,
+                  "w": 276,
+                  "h": 112,
                   "slots": [
+                    4,
+                    1
+                  ],
+                  "element": {
+                    "kind": "figure",
+                    "note": "{gap 1 2}",
+                    "signal": true
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 940,
+                  "y": 147,
+                  "w": 276,
+                  "h": 112,
+                  "slots": [
+                    3,
+                    1,
                     5
                   ],
-                  "x": 64,
-                  "y": 396,
-                  "w": 568,
-                  "h": 200,
-                  "settings": {
-                    "compare": [
-                      "prev"
-                    ]
+                  "element": {
+                    "kind": "figure",
+                    "note": "of the {difference 2 3} still to close"
                   }
                 },
                 {
-                  "shape": "widget",
-                  "view": "number",
-                  "slots": [
-                    6
-                  ],
-                  "x": 648,
-                  "y": 396,
-                  "w": 568,
-                  "h": 200,
-                  "settings": {
-                    "compare": [
-                      "prev"
-                    ]
-                  }
-                },
-                {
-                  "shape": "text",
+                  "shape": "element",
                   "x": 64,
-                  "y": 618,
+                  "y": 283,
                   "w": 1152,
-                  "text": [
-                    "Commit {change prev 1}, best case {change prev 2}.",
-                    "Closed this quarter {change prev 3}, pipeline {change prev 4}."
+                  "h": 316,
+                  "slots": [
+                    0,
+                    5,
+                    1
                   ],
-                  "size": "m"
+                  "element": {
+                    "kind": "columns",
+                    "title": "Weekly commit and closed to date, {scale}",
+                    "part": true,
+                    "reference": true,
+                    "partLabel": "Closed",
+                    "restLabel": "Commit still open",
+                    "referenceLabel": "Quota"
+                  }
                 }
               ]
             },
             {
               "shapes": [
                 {
-                  "shape": "text",
+                  "shape": "element",
                   "x": 64,
-                  "y": 48,
-                  "w": 1152,
-                  "text": [
-                    "The calls over the quarter"
-                  ],
-                  "size": "xl"
-                },
-                {
-                  "shape": "widget",
-                  "view": "line",
+                  "y": 36,
+                  "w": 860,
+                  "h": 29,
                   "slots": [
                     0
                   ],
-                  "x": 64,
-                  "y": 150,
-                  "w": 568,
-                  "h": 500,
-                  "title": "Commit",
-                  "settings": {
-                    "window": 13,
-                    "compare": [
-                      "prev"
-                    ]
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "  /  Where the gap sits"
+                    ],
+                    "lead": "Sales forecast",
+                    "leadTone": "accent",
+                    "tone": "muted",
+                    "size": 12,
+                    "tracking": 0.1,
+                    "caps": true,
+                    "valign": "middle"
                   }
                 },
                 {
-                  "shape": "widget",
-                  "view": "line",
+                  "shape": "element",
+                  "x": 1016,
+                  "y": 36,
+                  "w": 200,
+                  "h": 29,
+                  "element": {
+                    "kind": "logo"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 85,
+                  "w": 1100,
+                  "h": 40,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Commit against quota, by salesperson"
+                    ],
+                    "font": "heading",
+                    "size": 33,
+                    "line": 1.2
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 681,
+                  "w": 900,
+                  "h": 13,
                   "slots": [
+                    0
+                  ],
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Source: Ziffr, calls of week {quarter week}"
+                    ],
+                    "size": 11,
+                    "tone": "muted",
+                    "foot": true
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 1136,
+                  "y": 681,
+                  "w": 80,
+                  "h": 13,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "{slide}"
+                    ],
+                    "size": 11,
+                    "tone": "muted",
+                    "align": "end"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 151,
+                  "w": 1152,
+                  "h": 365,
+                  "slots": [
+                    0,
+                    1
+                  ],
+                  "element": {
+                    "kind": "gap-table",
+                    "rowLabel": "Salesperson"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 540,
+                  "w": 6,
+                  "h": 34,
+                  "element": {
+                    "kind": "box",
+                    "fill": "accent"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 86,
+                  "y": 544,
+                  "w": 1130,
+                  "h": 26,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      " Say what you need, from whom and by when."
+                    ],
+                    "lead": "Ask for the meeting:",
+                    "size": 17,
+                    "line": 1.5
+                  }
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 36,
+                  "w": 860,
+                  "h": 29,
+                  "slots": [
+                    0
+                  ],
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "  /  Change since last week"
+                    ],
+                    "lead": "Sales forecast",
+                    "leadTone": "accent",
+                    "tone": "muted",
+                    "size": 12,
+                    "tracking": 0.1,
+                    "caps": true,
+                    "valign": "middle"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 1016,
+                  "y": 36,
+                  "w": 200,
+                  "h": 29,
+                  "element": {
+                    "kind": "logo"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 85,
+                  "w": 1100,
+                  "h": 40,
+                  "slots": [
+                    0,
                     4
                   ],
-                  "x": 648,
-                  "y": 150,
-                  "w": 568,
-                  "h": 500,
-                  "title": "Best case",
-                  "settings": {
-                    "window": 13,
-                    "compare": [
-                      "prev"
-                    ]
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Commit {change 1} and best case {change 2} on last week"
+                    ],
+                    "font": "heading",
+                    "size": 33,
+                    "line": 1.2
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 681,
+                  "w": 900,
+                  "h": 13,
+                  "slots": [
+                    0
+                  ],
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Source: Ziffr, calls of week {quarter week}"
+                    ],
+                    "size": 11,
+                    "tone": "muted",
+                    "foot": true
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 1136,
+                  "y": 681,
+                  "w": 80,
+                  "h": 13,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "{slide}"
+                    ],
+                    "size": 11,
+                    "tone": "muted",
+                    "align": "end"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 151,
+                  "w": 1152,
+                  "h": 385,
+                  "slots": [
+                    0,
+                    4,
+                    5,
+                    6,
+                    7,
+                    3
+                  ],
+                  "element": {
+                    "kind": "metric-table"
                   }
                 }
               ]
@@ -749,73 +1065,109 @@
             {
               "shapes": [
                 {
-                  "shape": "text",
+                  "shape": "element",
                   "x": 64,
-                  "y": 48,
-                  "w": 1152,
-                  "text": [
-                    "Pipeline coverage"
-                  ],
-                  "size": "xl"
-                },
-                {
-                  "shape": "text",
-                  "x": 64,
-                  "y": 128,
-                  "w": 1152,
-                  "text": [
-                    "Open pipeline divided by what is still missing to the quota."
-                  ],
-                  "size": "m"
-                },
-                {
-                  "shape": "widget",
-                  "view": "number",
+                  "y": 36,
+                  "w": 860,
+                  "h": 29,
                   "slots": [
-                    3
+                    0
                   ],
-                  "x": 64,
-                  "y": 200,
-                  "w": 440,
-                  "h": 218,
-                  "settings": {
-                    "compare": [
-                      "prev"
-                    ]
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "  /  The weeks of the quarter"
+                    ],
+                    "lead": "Sales forecast",
+                    "leadTone": "accent",
+                    "tone": "muted",
+                    "size": 12,
+                    "tracking": 0.1,
+                    "caps": true,
+                    "valign": "middle"
                   }
                 },
                 {
-                  "shape": "widget",
-                  "view": "number",
-                  "slots": [
-                    6
-                  ],
-                  "x": 64,
-                  "y": 434,
-                  "w": 440,
-                  "h": 218,
-                  "settings": {
-                    "compare": [
-                      "prev"
-                    ]
+                  "shape": "element",
+                  "x": 1016,
+                  "y": 36,
+                  "w": 200,
+                  "h": 29,
+                  "element": {
+                    "kind": "logo"
                   }
                 },
                 {
-                  "shape": "widget",
-                  "view": "line",
+                  "shape": "element",
+                  "x": 64,
+                  "y": 85,
+                  "w": 1100,
+                  "h": 40,
                   "slots": [
-                    3
+                    4,
+                    0
                   ],
-                  "x": 520,
-                  "y": 200,
-                  "w": 696,
-                  "h": 452,
-                  "title": "Pipeline coverage, week by week",
-                  "settings": {
-                    "window": 13,
-                    "compare": [
-                      "prev"
-                    ]
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Best case stands at {latest 1}, the commit at {latest 2}"
+                    ],
+                    "font": "heading",
+                    "size": 33,
+                    "line": 1.2
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 681,
+                  "w": 900,
+                  "h": 13,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Source: Ziffr, weekly calls locked each Monday"
+                    ],
+                    "size": 11,
+                    "tone": "muted",
+                    "foot": true
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 1136,
+                  "y": 681,
+                  "w": 80,
+                  "h": 13,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "{slide}"
+                    ],
+                    "size": 11,
+                    "tone": "muted",
+                    "align": "end"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 151,
+                  "w": 1152,
+                  "h": 490,
+                  "slots": [
+                    4,
+                    0,
+                    1
+                  ],
+                  "element": {
+                    "kind": "columns",
+                    "title": "Best case and commit by week, {scale}",
+                    "part": true,
+                    "reference": true,
+                    "partLabel": "Commit",
+                    "restLabel": "Best case above commit",
+                    "referenceLabel": "Quota"
                   }
                 }
               ]
@@ -823,48 +1175,588 @@
             {
               "shapes": [
                 {
-                  "shape": "text",
+                  "shape": "element",
                   "x": 64,
-                  "y": 48,
-                  "w": 1152,
-                  "text": [
-                    "Risks, and what we need"
+                  "y": 36,
+                  "w": 860,
+                  "h": 29,
+                  "slots": [
+                    0
                   ],
-                  "size": "xl"
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "  /  Pipeline coverage"
+                    ],
+                    "lead": "Sales forecast",
+                    "leadTone": "accent",
+                    "tone": "muted",
+                    "size": 12,
+                    "tracking": 0.1,
+                    "caps": true,
+                    "valign": "middle"
+                  }
                 },
                 {
-                  "shape": "text",
-                  "x": 64,
-                  "y": 170,
-                  "w": 1152,
-                  "text": [
-                    "Deals at risk, and why:"
-                  ],
-                  "size": "l"
+                  "shape": "element",
+                  "x": 1016,
+                  "y": 36,
+                  "w": 200,
+                  "h": 29,
+                  "element": {
+                    "kind": "logo"
+                  }
                 },
                 {
-                  "shape": "text",
+                  "shape": "element",
                   "x": 64,
-                  "y": 340,
-                  "w": 1152,
-                  "text": [
-                    "Deals that could still move into this quarter:"
+                  "y": 85,
+                  "w": 1100,
+                  "h": 40,
+                  "slots": [
+                    3
                   ],
-                  "size": "l"
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Pipeline coverage stands at {latest}"
+                    ],
+                    "font": "heading",
+                    "size": 33,
+                    "line": 1.2
+                  }
                 },
                 {
-                  "shape": "text",
+                  "shape": "element",
                   "x": 64,
-                  "y": 510,
-                  "w": 1152,
-                  "text": [
-                    "What we need, from whom, and by when:"
+                  "y": 681,
+                  "w": 900,
+                  "h": 13,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Source: Ziffr, open pipeline divided by what is missing to the quota"
+                    ],
+                    "size": 11,
+                    "tone": "muted",
+                    "foot": true
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 1136,
+                  "y": 681,
+                  "w": 80,
+                  "h": 13,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "{slide}"
+                    ],
+                    "size": 11,
+                    "tone": "muted",
+                    "align": "end"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 151,
+                  "w": 760,
+                  "h": 490,
+                  "slots": [
+                    3
                   ],
-                  "size": "l"
+                  "element": {
+                    "kind": "columns",
+                    "title": "Pipeline coverage by week, times what is still missing"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 872,
+                  "y": 151,
+                  "w": 344,
+                  "h": 116,
+                  "element": {
+                    "kind": "box",
+                    "fill": "canvas"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 892,
+                  "y": 169,
+                  "w": 304,
+                  "h": 16,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "What happened"
+                    ],
+                    "size": 12,
+                    "tracking": 0.1,
+                    "caps": true,
+                    "weight": 700,
+                    "tone": "accent"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 892,
+                  "y": 191,
+                  "w": 304,
+                  "h": 64,
+                  "slots": [
+                    6,
+                    1,
+                    5
+                  ],
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Open pipeline of {latest 1}, with {difference 2 3} still to close."
+                    ],
+                    "size": 16,
+                    "line": 1.5,
+                    "tone": "ink"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 872,
+                  "y": 281,
+                  "w": 344,
+                  "h": 116,
+                  "element": {
+                    "kind": "box",
+                    "fill": "canvas"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 892,
+                  "y": 299,
+                  "w": 304,
+                  "h": 16,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Why"
+                    ],
+                    "size": 12,
+                    "tracking": 0.1,
+                    "caps": true,
+                    "weight": 700,
+                    "tone": "accent"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 892,
+                  "y": 321,
+                  "w": 304,
+                  "h": 64,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Say what moved the pipeline this week."
+                    ],
+                    "size": 16,
+                    "line": 1.5,
+                    "tone": "ink"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 872,
+                  "y": 411,
+                  "w": 344,
+                  "h": 140,
+                  "element": {
+                    "kind": "box",
+                    "fill": "cover"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 892,
+                  "y": 429,
+                  "w": 304,
+                  "h": 16,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Decision needed"
+                    ],
+                    "size": 12,
+                    "tracking": 0.1,
+                    "caps": true,
+                    "weight": 700,
+                    "tone": "cover-text"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 892,
+                  "y": 451,
+                  "w": 304,
+                  "h": 88,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Say what you need, from whom and by when."
+                    ],
+                    "size": 16,
+                    "line": 1.5,
+                    "tone": "cover-text"
+                  }
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 36,
+                  "w": 860,
+                  "h": 29,
+                  "slots": [
+                    0
+                  ],
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "  /  Risks and asks"
+                    ],
+                    "lead": "Sales forecast",
+                    "leadTone": "accent",
+                    "tone": "muted",
+                    "size": 12,
+                    "tracking": 0.1,
+                    "caps": true,
+                    "valign": "middle"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 1016,
+                  "y": 36,
+                  "w": 200,
+                  "h": 29,
+                  "element": {
+                    "kind": "logo"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 85,
+                  "w": 1100,
+                  "h": 40,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Risks, and what we need"
+                    ],
+                    "font": "heading",
+                    "size": 33,
+                    "line": 1.2
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 681,
+                  "w": 900,
+                  "h": 13,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Source: Ziffr, weekly calls locked each Monday"
+                    ],
+                    "size": 11,
+                    "tone": "muted",
+                    "foot": true
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 1136,
+                  "y": 681,
+                  "w": 80,
+                  "h": 13,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "{slide}"
+                    ],
+                    "size": 11,
+                    "tone": "muted",
+                    "align": "end"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 64,
+                  "y": 151,
+                  "w": 373,
+                  "h": 440,
+                  "element": {
+                    "kind": "box",
+                    "fill": "canvas"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 84,
+                  "y": 169,
+                  "w": 333,
+                  "h": 16,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Deals at risk"
+                    ],
+                    "size": 12,
+                    "tracking": 0.1,
+                    "caps": true,
+                    "weight": 700,
+                    "tone": "accent"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 84,
+                  "y": 191,
+                  "w": 333,
+                  "h": 388,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Name each deal, what it is worth and why it may slip."
+                    ],
+                    "size": 16,
+                    "line": 1.5,
+                    "tone": "ink"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 453,
+                  "y": 151,
+                  "w": 374,
+                  "h": 440,
+                  "element": {
+                    "kind": "box",
+                    "fill": "canvas"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 473,
+                  "y": 169,
+                  "w": 334,
+                  "h": 16,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Could still move in"
+                    ],
+                    "size": 12,
+                    "tracking": 0.1,
+                    "caps": true,
+                    "weight": 700,
+                    "tone": "accent"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 473,
+                  "y": 191,
+                  "w": 334,
+                  "h": 388,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "Name the deals that may close this quarter after all, and what they need."
+                    ],
+                    "size": 16,
+                    "line": 1.5,
+                    "tone": "ink"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 843,
+                  "y": 151,
+                  "w": 373,
+                  "h": 440,
+                  "element": {
+                    "kind": "box",
+                    "fill": "cover"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 863,
+                  "y": 169,
+                  "w": 333,
+                  "h": 16,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "What we need"
+                    ],
+                    "size": 12,
+                    "tracking": 0.1,
+                    "caps": true,
+                    "weight": 700,
+                    "tone": "cover-text"
+                  }
+                },
+                {
+                  "shape": "element",
+                  "x": 863,
+                  "y": 191,
+                  "w": 333,
+                  "h": 388,
+                  "element": {
+                    "kind": "words",
+                    "text": [
+                      "What, from whom and by when."
+                    ],
+                    "size": 16,
+                    "line": 1.5,
+                    "tone": "cover-text"
+                  }
                 }
               ]
             }
           ]
+        }
+      }
+    ],
+    "themes": [
+      {
+        "key": "forecast-navy",
+        "theme": {
+          "format": "ziffr.theme/2",
+          "name": "Forecast Navy",
+          "colors": {
+            "canvas": "#F2F5F8",
+            "surface": "#FFFFFF",
+            "ink": "#0B1F33",
+            "muted": "#52667A",
+            "rule": "#D9E0E7",
+            "accent": "#1558B0",
+            "good": "#1B7350",
+            "bad": "#B23A1B",
+            "band": "#E3ECF7",
+            "cover": "#0B1F33",
+            "coverText": "#FFFFFF",
+            "coverAccent": "#7FB0F0",
+            "soft": "#B7CCEA",
+            "data": [
+              "#1558B0",
+              "#0B1F33",
+              "#52667A",
+              "#7FB0F0"
+            ]
+          },
+          "fonts": {
+            "heading": "source-serif",
+            "body": "inter",
+            "figures": "inter"
+          },
+          "radius": 0,
+          "cards": "flat",
+          "slides": {
+            "showSlideNumber": true,
+            "titleSize": 33,
+            "bodySize": 17
+          }
+        }
+      },
+      {
+        "key": "forecast-coral",
+        "theme": {
+          "format": "ziffr.theme/2",
+          "name": "Forecast Coral",
+          "colors": {
+            "canvas": "#F8F4F1",
+            "surface": "#FFFFFF",
+            "ink": "#1F1917",
+            "muted": "#6A5D56",
+            "rule": "#E7DED7",
+            "accent": "#B24A38",
+            "good": "#256B55",
+            "bad": "#9A2A14",
+            "band": "#F6E4DF",
+            "cover": "#1F1917",
+            "coverText": "#FFFFFF",
+            "coverAccent": "#EF8B7B",
+            "soft": "#F5C4BB",
+            "data": [
+              "#B24A38",
+              "#1F1917",
+              "#6A5D56",
+              "#EF8B7B"
+            ]
+          },
+          "fonts": {
+            "heading": "libre-franklin",
+            "body": "libre-franklin",
+            "figures": "libre-franklin"
+          },
+          "radius": 0,
+          "cards": "flat",
+          "slides": {
+            "showSlideNumber": true,
+            "titleSize": 33,
+            "bodySize": 17
+          }
+        }
+      },
+      {
+        "key": "forecast-forest",
+        "theme": {
+          "format": "ziffr.theme/2",
+          "name": "Forecast Forest",
+          "colors": {
+            "canvas": "#F1F5F2",
+            "surface": "#FFFFFF",
+            "ink": "#12291F",
+            "muted": "#51655C",
+            "rule": "#D8E2DC",
+            "accent": "#0E6B4E",
+            "good": "#0E6B4E",
+            "bad": "#A0421A",
+            "band": "#E0EEE7",
+            "cover": "#12291F",
+            "coverText": "#FFFFFF",
+            "coverAccent": "#8FC3AD",
+            "soft": "#B4D3C5",
+            "data": [
+              "#0E6B4E",
+              "#12291F",
+              "#51655C",
+              "#8FC3AD"
+            ]
+          },
+          "fonts": {
+            "heading": "playfair",
+            "body": "ibm-plex-sans",
+            "figures": "ibm-plex-sans"
+          },
+          "radius": 0,
+          "cards": "flat",
+          "slides": {
+            "showSlideNumber": true,
+            "titleSize": 33,
+            "bodySize": 17
+          }
         }
       }
     ],
@@ -874,7 +1766,7 @@
         "template": {
           "format": "ziffr.workflow-template/1",
           "name": "Weekly sales forecast",
-          "description": "Asks on Monday for the week just ended, due Tuesday with a reminder, then tells the Metric Owner. The sales lead approves every value, which publishes and locks. Add a Send Snapshot step to send the dashboard once the week is finished.",
+          "description": "Asks on Monday for the week just ended, due Tuesday with a reminder, then tells the Metric Owner. The sales lead approves every value, which publishes and locks. Once the week is finished it sends a dashboard's Snapshot to the people you pick.",
           "dueWorkingDays": 2,
           "steps": [
             {
@@ -896,6 +1788,9 @@
               "approvers": 1,
               "values": "every",
               "nobodyElse": "self-check"
+            },
+            {
+              "type": "send_snapshot"
             },
             {
               "type": "publish",

@@ -14,7 +14,7 @@ Each Pack shows "by" its author, with its logo when it has one, in a bordered bo
 
 **Ziffr's own Packs** lists the thirteen Packs that come with this version of Ziffr, for Owners and Admins. Each shows its name, version and summary and what it brings as counts (for example "13 Metrics, 2 dashboards, 2 Workflows"). It works on any Installation, also a self-hosted one with no Marketplace: nothing is downloaded and nothing leaves your server.
 
-Choose **Preview with Sample Data** to see everything the Pack adds, drawn with Sample Data and never your own values. These Packs need no confirmation about where they came from; texts aimed at assistants, if one ever had any, would still be listed and need a tick. Choose **Install** to add it. Nothing installs until you do, and the Audit log records it as installed from Ziffr's own Packs. A Pack that holds a Theme, such as SaaS metrics and Board meeting, needs an Owner. A Pack that is installed already shows its version instead of a Preview.
+Choose **Preview with Sample Data** to see everything the Pack adds, drawn with Sample Data and never your own values. These Packs need no confirmation about where they came from; texts aimed at assistants, if one ever had any, would still be listed and need a tick. Choose **Install** to add it. Nothing installs until you do, and the Audit log records it as installed from Ziffr's own Packs. A Pack that holds a Theme, such as SaaS metrics, Board meeting and Sales forecast, needs an Owner. A Pack that is installed already shows its version instead of a Preview.
 
 When a newer Ziffr brings a newer version of a Pack you installed, that Pack shows **Version … comes with this Ziffr…**, which shows what an update changes before it is done, as under Updating a Pack. It is never applied by itself.
 
@@ -54,11 +54,23 @@ The [Setup Guide](07-getting-started.md#the-setup-guide) offers the same Packs i
 | **Commit gap to quota**, **Commit as share of quota** | Commit minus Quota, and Commit as a percentage of Quota. 0 or more, and 100 % or more, cover the quota. |
 | **Pipeline coverage** | Pipeline value divided by what is still missing (Quota minus Closed this quarter). 3 times means the open deals are worth three times what is missing. |
 | The dashboard **Weekly forecast meeting** | This week's call against quota and the change on last week, then the last 13 weeks, and the latest commit by salesperson. On a phone the call against quota comes first. |
-| The Workflow **Weekly sales forecast** | Asks on Monday for the week just ended. The values are due on Tuesday, with a reminder that day; the Metric Owner is told on Wednesday about a value still missing. A change of more than 25 % is marked unusual. The sales lead you pick as Approver approves every value, which is then published and locked. |
+| The Workflow **Weekly sales forecast** | Asks on Monday for the week just ended. The values are due on Tuesday, with a reminder that day; the Metric Owner is told on Wednesday about a value still missing. A change of more than 25 % is marked unusual. The sales lead you pick as Approver approves every value, which is then published and locked. Once the week is finished it sends a dashboard's Snapshot to the people you pick. |
 
 All eight Metrics are weekly. The five that people send have the **Aggregation** last value, so a widget shown by quarter shows each quarter's latest figure, never the weeks added up.
 
-The Pack also has a Deck Template, **Weekly forecast meeting**, of five slides: the call against quota, the change since last week, the calls over the quarter, pipeline coverage, and **Risks, and what we need** to write in. Start it on the Decks page with **From a Deck Template** and pick the Metric for each Slot.
+The Pack also has a Deck Template, **Weekly forecast meeting**, drawn from [Slide Elements](14-decks-and-themes.md#slide-elements), so every colour and font follows the deck's Theme and the words fill themselves in each week:
+
+| Slide | What it shows |
+| --- | --- |
+| Cover | The deck's title, the week of the quarter and the agenda. |
+| The call | "The commit covers … of quota with … left", Commit, Quota, Best case and Pipeline coverage as figures, and the weeks of the quarter as columns against the quota. |
+| Where the gap sits | Quota and commit by salesperson with the gap as bars. It needs the latest breakdown of both **Commit** and **Quota**, with the same names. Write what you ask the meeting for in the line below. |
+| Change since last week | Every figure with last week's, the change and an 8-week trend. |
+| The weeks of the quarter | Best case and commit by week against the quota. |
+| Pipeline coverage | Coverage by week, with **What happened**, **Why** and **Decision needed** beside it. |
+| Risks, and what we need | Three panels to write in. |
+
+Three Themes come with the Pack, **Forecast Navy** (the deck starts with it), **Forecast Coral** and **Forecast Forest**: switch the deck's Theme under **⋯ → Theme…**. Each shows a dashed **Your logo** box until you add your logo to the Theme on the Themes page, or delete the box from the slides. A footer you type for the deck, such as "Confidential", follows each slide's source line. Start the deck on the Decks page with **From a Deck Template** and pick the Metric for each Slot. Headlines that make a judgement are yours to write.
 
 **Which week a figure belongs to.** Each week holds the figures as they stood at the end of that week. An answer to Monday's request, by reply or through the form link in it, counts for the week just ended (see [The personal form link](10-metrics.md#the-personal-form-link)). In **Record a value**, pick the week. In a week that spans two quarters, send the figures of the quarter the week starts in, as Ziffr counts that week to it. Earlier weeks can be brought in with [Paste values](10-metrics.md#paste-values-from-a-spreadsheet).
 
@@ -75,7 +87,7 @@ The Pack also has a Deck Template, **Weekly forecast meeting**, of five slides: 
 3. Choose **New metric**, then [Calculated from other Metrics](10-metrics.md#calculated-from-other-metrics), and add them up into "Commit, sum of salespeople". It has a value in a week once all of them have one.
 4. The team's **Commit** stays the sales lead's call. Add the sum to the dashboard to see both side by side.
 
-**Sending the Snapshot** is not part of the Pack. To send the dashboard once a week is finished, open the Workflow, add a **Send Snapshot** step, and pick **Weekly forecast meeting** and the people (see [The steps](11-workflows.md#the-steps)). Share the dashboard with them, or the link is not sent to them.
+**Sending the Snapshot.** The Workflow has a **Send Snapshot** step; **Set up from this Pack** leaves the dashboard and the people open. Open the Workflow, pick **Weekly forecast meeting** and the people in the step (see [The steps](11-workflows.md#the-steps)), and share the dashboard with them, or the link is not sent to them.
 
 ## Set up from this Pack
 

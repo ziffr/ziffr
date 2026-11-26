@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { evaluate } from "./formula";
 import { checkPack } from "./pack";
+import { mapElementWords } from "./slide-element";
 import { repoFile } from "./test/repo-file";
 
 /** Every file in packs/, by name. */
@@ -68,6 +69,8 @@ describe("the starting Packs", () => {
         // A slide's Placeholders are filled from the Metrics of its own widgets: with none, they would stay visible.
         if (words.some((t) => t.includes("{"))) expect(slide.shapes.some((sh) => sh.shape === "widget"), `${key} slide ${i + 1}`).toBe(true);
         for (const sh of slide.shapes) {
+          // A Slide Element's Placeholders are filled from its own Slots; only the page number needs none.
+          if (sh.shape === "element") mapElementWords(sh.element, (text) => { if (/\{(?!slide\})/.test(text)) expect(sh.slots?.length ?? 0, `${key} slide ${i + 1}: ${text}`).toBeGreaterThan(0); return text; });
           if (sh.shape !== "widget" || !sh.settings?.display) continue;
           const m = entries.get(template.slots[sh.slots[0]].suggests!)!;
           expect(Boolean(m.formula) || m.aggregation !== "none", `${key} slide ${i + 1} shows by ${sh.settings.display}`).toBe(true);
