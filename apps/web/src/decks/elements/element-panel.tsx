@@ -15,13 +15,15 @@ const TONE_NAMES: Record<SlideTone, string> = { ink: "Ink", muted: "Muted", rule
 const toneOptions = SLIDE_TONES.map((t) => [t, TONE_NAMES[t]] as const);
 
 type Field =
-  | { type: "text"; key: string; label: string; hint?: string }
+  | { type: "text"; key: string; label: string; hint?: string; long?: boolean }
   | { type: "number"; key: string; label: string; min: number; max: number; hint?: string }
   | { type: "flag"; key: string; label: string }
   | { type: "choice"; key: string; label: string; options: readonly (readonly [string | number, string])[]; unset?: string };
 
 const text = (key: string, label: string, hint?: string): Field => ({ type: "text", key, label, hint });
 const flag = (key: string, label: string): Field => ({ type: "flag", key, label });
+// A whole line of words, longer than a label may be.
+const line = (key: string, label: string): Field => ({ type: "text", key, label, long: true });
 const tones = (key: string, label: string, unset: string): Field => ({ type: "choice", key, label, options: toneOptions, unset });
 const align = [["start", "Left"], ["middle", "Centre"], ["end", "Right"]] as const;
 
@@ -34,15 +36,16 @@ const FIELDS: Record<SlideElement["kind"], Field[]> = {
     { type: "choice", key: "weight", label: "Weight", options: [[400, "Regular"], [500, "Medium"], [600, "Semibold"], [700, "Bold"]], unset: "Automatic" },
     tones("tone", "Colour", "Ink"), { type: "choice", key: "align", label: "Align", options: align, unset: "Left" },
     flag("caps", "In capitals"), flag("foot", "Footer line: shows the deck's footer"),
+    line("empty", "While a value is missing"),
   ],
   box: [tones("fill", "Fill", "None"), tones("edge", "Edge", "None"), flag("dashed", "Dashed edge")],
-  figure: [text("label", "Label", "Empty shows the Metric's name."), text("note", "Line under the value"), flag("signal", "Colour that line by good or bad"), flag("strong", "Emphasised, on the cover colour")],
+  figure: [text("label", "Label", "Empty shows the Metric's name."), line("note", "Line under the value"), flag("signal", "Colour that line by good or bad"), flag("strong", "Emphasised, on the cover colour")],
   columns: [
-    text("title", "Title"), flag("part", "Second Metric fills part of each column"), flag("reference", "Last Metric draws a reference line"),
+    line("title", "Title"), flag("part", "Second Metric fills part of each column"), flag("reference", "Last Metric draws a reference line"),
     text("partLabel", "Legend of the filled part"), text("restLabel", "Legend of the rest"), text("referenceLabel", "Label of the line"),
     { type: "number", key: "periods", label: "Periods", min: 1, max: SLIDE_ELEMENT_LIMITS.periods, hint: "Empty shows the quarter so far." },
   ],
-  "gap-table": [text("rowLabel", "Heading of the rows", "Such as Salesperson."), text("gapLabel", "Heading of the difference")],
+  "gap-table": [line("headline", "Headline above"), text("rowLabel", "Heading of the rows", "Such as Salesperson."), line("gapLabel", "Heading of the difference"), text("lead", "Closing line: lead-in"), line("note", "Closing line")],
   "metric-table": [{ type: "number", key: "periods", label: "Periods in the trend", min: 2, max: SLIDE_ELEMENT_LIMITS.periods }],
   list: [text("title", "Heading")],
   logo: [text("text", "Words without a logo"), { type: "choice", key: "size", label: "Size", options: [["s", "Small"], ["m", "Large"]], unset: "Small" }, { type: "choice", key: "align", label: "Align", options: [["start", "Left"], ["end", "Right"]], unset: "Right" }, tones("tone", "Colour", "Muted")],
@@ -80,7 +83,7 @@ function Control({ field, element, set }: { field: Field; element: Record<string
       ) : field.type === "number" ? (
         <Input type="number" min={field.min} max={field.max} value={typeof value === "number" ? value : ""} onChange={(e) => { const n = Number(e.target.value); set(field.key, e.target.value === "" ? undefined : Math.min(field.max, Math.max(field.min, Math.round(n)))); }} className="mt-1" />
       ) : (
-        <Input value={String(value ?? "")} maxLength={SLIDE_ELEMENT_LIMITS.label} onChange={(e) => set(field.key, e.target.value || undefined)} className="mt-1" />
+        <Input value={String(value ?? "")} maxLength={field.long ? SLIDE_ELEMENT_LIMITS.words : SLIDE_ELEMENT_LIMITS.label} onChange={(e) => set(field.key, e.target.value || undefined)} className="mt-1" />
       )}
       {"hint" in field && field.hint && <span className="mt-1 block text-xs text-muted-foreground">{field.hint}</span>}
     </label>
@@ -134,7 +137,7 @@ export function ElementPanel({ editor, data }: { editor: Editor; data: CanvasDat
         <label className="block text-sm">
           <span className="font-medium">Words</span>
           <Textarea rows={3} value={element.text.join("\n")} onChange={(e) => save({ ...element, text: e.target.value.split("\n").slice(0, SLIDE_ELEMENT_LIMITS.paragraphs) })} className="mt-1" />
-          <span className="mt-1 block text-xs text-muted-foreground">{"Filled from the Metrics below: {latest}, {change}, {difference 1 2}, {gap 1 2}, {quarter}, {quarter week}, {weeks left}, {slide}."}</span>
+          <span className="mt-1 block text-xs text-muted-foreground">{"Filled from the Metrics below: {latest}, {change}, {difference 1 2}, {left 1 2}, {gap 1 2}, {quarter}, {quarter week}, {weeks left}, {slide}."}</span>
         </label>
       )}
       {element.kind === "list" && (

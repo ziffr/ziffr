@@ -75,7 +75,8 @@ function runsOf(el: Element, opacity: number) {
     const s = getComputedStyle(node.parentElement!);
     const raw = node.textContent ?? "";
     const text = s.textTransform === "uppercase" ? raw.toUpperCase() : raw;
-    const paint = paintOf(s.color, opacity);
+    // Words in a drawing take the drawing's fill as their colour.
+    const paint = paintOf(node.parentElement instanceof SVGElement ? s.fill : s.color, opacity);
     if (!text || !paint) continue;
     const spacing = parseFloat(s.letterSpacing) || 0;
     out.push({ text, options: { ...paint, bold: Number(s.fontWeight) >= 600, fontSize: parseFloat(s.fontSize) * POINT, fontFace: officeFont(s.fontFamily), ...(spacing ? { charSpacing: spacing * POINT } : {}) } });
@@ -89,7 +90,10 @@ function words(o: Out, el: Element, align: string, opacity: number) {
   const runs = runsOf(el, opacity);
   if (!runs.length) return;
   const style = getComputedStyle(el);
-  const r = relative(o, el.getBoundingClientRect());
+  const outer = relative(o, el.getBoundingClientRect());
+  // The words start inside the box's padding.
+  const pad = (side: "Top" | "Right" | "Bottom" | "Left") => parseFloat(style[`padding${side}`]) || 0;
+  const r = { x: outer.x + pad("Left"), y: outer.y + pad("Top"), w: outer.w - pad("Left") - pad("Right"), h: outer.h - pad("Top") - pad("Bottom") };
   const size = parseFloat(style.fontSize);
   const lineHeight = parseFloat(style.lineHeight) || size * 1.21;
   const single = r.h < lineHeight * 1.5;

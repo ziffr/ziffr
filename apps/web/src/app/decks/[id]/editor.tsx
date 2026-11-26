@@ -407,10 +407,11 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
       {/* The one column may shrink on a phone: without the minimum of 0 the Pool and the canvas set the page's width. */}
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
         <div className="order-2 space-y-4 lg:order-1">
+          {/* Above the Pool, which stays in view while the column scrolls: below it a long panel would slide under. */}
+          {editor && <ElementPanel editor={editor} data={data} />}
           <Pool data={data} saved={saved} onAdd={(s) => place(s)} hint="Drag onto a slide, or click + to add to the slide in view." />
           {slotFill.dialog}
           {editor && <SelectionPanel editor={editor} data={data} onSaveLayout={setLayoutShapes} />}
-          {editor && <ElementPanel editor={editor} data={data} />}
           {editor && <GroupPanel editor={editor} />}
           <label className="stock block rounded-[var(--radius-card)] p-3 text-sm">
             <span className="mb-1 block text-xs font-medium">Footer on every slide</span>

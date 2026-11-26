@@ -99,17 +99,17 @@ A Deck Template in the format `ziffr.deck-template/2` may put **Slide Elements**
 
 | `kind` | Slots | What it draws |
 | --- | --- | --- |
-| `words` | any | Paragraphs in a Theme colour (`tone`) and font (`heading` or `body`), with size, weight, spacing, capitals, alignment and an optional `lead`. `foot` makes it the slide's footer line. |
+| `words` | any | Paragraphs in a Theme colour (`tone`) and font (`heading` or `body`), with size, weight, spacing, capitals, alignment and an optional `lead`. `foot` makes it the slide's footer line; `empty` stands instead of the words while a Placeholder has no value. |
 | `box` | none | A rectangle with a `fill` and an `edge` colour. |
 | `figure` | the value first | A label, the first Metric's latest value and a `note`; `signal` colours the note by good or bad, `strong` draws it on the cover colour. |
 | `columns` | the columns, then the filled part (`part`), then the line (`reference`) | Columns by period: the weeks of the quarter so far, or the last `periods`. |
-| `gap-table` | the Metric, then what it is compared with | Their latest Breakdowns row by row with the difference. |
+| `gap-table` | the Metric, then what it is compared with | Their latest Breakdowns row by row with the difference, with an optional `headline` above and a closing line (`lead`, `note`) under it that move with the table. |
 | `metric-table` | 1 to 12 | A row per Metric with the change, a trend of `periods` and whether it is on target. |
 | `list` | none | A `title` and up to 8 numbered `items`. |
 | `logo` | none | The Theme's logo, or a dashed box with `text`. |
 | `art` | none | A fixed ornament (`rings-trend`). |
 
-Colours are always roles of the Theme (`ink`, `muted`, `rule`, `surface`, `canvas`, `band`, `accent`, `soft`, `cover`, `cover-text`, `cover-accent`, `good`, `bad`, `data`), never values. Words hold plain text and these Placeholders: `{metric}`, `{latest}`, `{period}`, `{target}`, `{change yoy}`, `{change}`, `{difference 1 2}`, `{gap 1 2}`, `{quarter}`, `{quarter week}`, `{quarter weeks}`, `{weeks left}`, `{scale}` and `{slide}`; a number names the element's Slot, counted from 1. A slide may say `"cover": true`: no logo, footer or number of the Theme, and not counted in page numbers. The [user guide](../user-guide/14-decks-and-themes.md#slide-elements) says what each element shows.
+Colours are always roles of the Theme (`ink`, `muted`, `rule`, `surface`, `canvas`, `band`, `accent`, `soft`, `cover`, `cover-text`, `cover-accent`, `good`, `bad`, `data`), never values. Words hold plain text and these Placeholders: `{metric}`, `{latest}`, `{period}`, `{target}`, `{change yoy}`, `{change}`, `{difference 1 2}`, `{left 1 2}`, `{gap 1 2}`, `{quarter}`, `{quarter week}`, `{quarter weeks}`, `{weeks left}`, `{scale}` and `{slide}`; a number names the element's Slot, counted from 1. A slide may say `"cover": true`: no logo, footer or number of the Theme, and not counted in page numbers. The [user guide](../user-guide/14-decks-and-themes.md#slide-elements) says what each element shows.
 
 A file without elements and covers stays `ziffr.deck-template/1`. An older Ziffr refuses a `/2` file naming the formats it reads, so give a Pack that uses it a `ziffr` minimum that has it.
 

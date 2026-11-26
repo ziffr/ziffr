@@ -15,7 +15,9 @@ export type ElementProps = { element: SlideElement; context: SlideContext; w: nu
 
 const HEADING = "var(--slide-heading)";
 const BODY = "var(--slide-body)";
-const base: CSSProperties = { width: "100%", height: "100%", boxSizing: "border-box", fontFamily: BODY, color: tone("ink"), fontVariantNumeric: "tabular-nums", lineHeight: "normal", letterSpacing: "normal", textAlign: "left", textRendering: "geometricPrecision" };
+const base: CSSProperties = { width: "100%", height: "100%", boxSizing: "border-box", fontFamily: BODY, color: tone("ink"), fontVariantNumeric: "tabular-nums", lineHeight: "normal", letterSpacing: "normal", textAlign: "left", textRendering: "auto", WebkitFontSmoothing: "auto", MozOsxFontSmoothing: "auto" };
+// Chrome keeps words in a drawing where the last zoom put them unless they are laid out at their own size.
+const drawing: CSSProperties = { display: "block", overflow: "visible", textRendering: "geometricPrecision" };
 const oneLine: CSSProperties = { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
 const caption: CSSProperties = { fontSize: 12, letterSpacing: "0.06em", textTransform: "uppercase", color: tone("muted") };
 
@@ -40,10 +42,13 @@ function Paragraphs({ e, context }: { e: WordsElement; context: SlideContext }) 
   const say = (t: string) => fillSlideWords(t, context).text;
   const heading = e.font === "heading";
   const footer = e.foot && context.footer ? context.footer : "";
+  // Words that would speak of a missing value give way to the element's own line for that.
+  const missing = e.empty !== undefined && [e.lead ?? "", ...e.text].some((t) => fillSlideWords(t, context).missing);
+  const paragraphs = missing ? [e.empty!] : e.text;
   return (
     <div style={{ ...base, display: "flex", flexDirection: "column", justifyContent: VALIGN[e.valign ?? "top"], fontFamily: heading ? HEADING : BODY, fontSize: e.size ?? 17, fontWeight: e.weight ?? (heading ? 600 : 400), lineHeight: e.line ?? "normal", letterSpacing: e.tracking ? `${e.tracking}em` : "normal", textTransform: e.caps ? "uppercase" : "none", textAlign: ALIGN[e.align ?? "start"], color: tone(e.tone ?? "ink"), opacity: e.opacity ?? 1 }}>
-      {e.text.map((p, i) => {
-        const after = footer && i === e.text.length - 1 ? `${p ? " · " : ""}${footer}` : "";
+      {paragraphs.map((p, i) => {
+        const after = footer && i === paragraphs.length - 1 ? `${p ? " · " : ""}${footer}` : "";
         const lead = i === 0 && e.lead ? say(e.lead) : "";
         const words = `${say(p)}${after}`;
         return (
@@ -66,7 +71,8 @@ function Figure({ element, context, w }: ElementProps & { element: Extract<Slide
   const plain = f.strong ? tone("cover-text") : tone("muted");
   const signalled = f.noteTone !== "muted" && !f.strong;
   return (
-    <div style={{ ...base, padding: "16px 20px", background: tone(f.strong ? "cover" : "canvas"), color: tone(f.strong ? "cover-text" : "ink"), overflow: "hidden" }}>
+    // As tall as its place, or as its words where the Theme's font sets taller lines.
+    <div style={{ ...base, height: "auto", minHeight: "100%", padding: "16px 20px", background: tone(f.strong ? "cover" : "canvas"), color: tone(f.strong ? "cover-text" : "ink") }}>
       <Words style={{ ...oneLine, fontSize: 13, color: plain }}>{f.label}</Words>
       <Words style={{ ...oneLine, fontSize: fitted(f.value, w - 40, 40), fontWeight: 700, minHeight: "1.2em" }}>{f.value}</Words>
       {f.note && <Words style={{ fontSize: 13, color: signalled ? tone(f.noteTone as "good" | "bad") : plain, fontWeight: signalled ? 600 : 400 }}>{f.note}</Words>}
@@ -76,6 +82,12 @@ function Figure({ element, context, w }: ElementProps & { element: Extract<Slide
 
 const COLUMNS_HEAD = 26;
 
+/** Where a column's value is written: just above the column, or, where the reference line would run through it, just
+ * above the line. `baseline` is the writing's foot; its digits reach about 13 pixels up and 4 down. */
+export function clearOf(line: number | null, baseline: number): number {
+  return line !== null && line > baseline - 15 && line < baseline + 5 ? line - 7 : baseline;
+}
+
 function Columns({ element, context, w, h }: ElementProps & { element: Extract<SlideElement, { kind: "columns" }> }) {
   const c = columnsModel(element, context);
   if (c.denied) return <Instead words={NO_ACCESS} />;
@@ -84,10 +96,12 @@ function Columns({ element, context, w, h }: ElementProps & { element: Extract<S
   const floor = height - 32;
   const top = Math.max(...c.columns.flatMap((x) => [x.total ?? 0, x.part ?? 0]), c.reference?.value ?? 0, 0);
   const tall = (v: number) => (top > 0 ? Math.round((Math.max(0, v) / top) * Math.max(0, floor - 34)) : 0);
-  const step = (w - 64) / Math.max(1, c.columns.length);
+  // A reference line keeps room at the right for its name.
+  const step = (w - (c.reference ? 64 : 0)) / Math.max(1, c.columns.length);
   const bar = Math.max(2, Math.min(84, step * (84 / 136)));
   const every = Math.max(1, Math.ceil(52 / Math.max(step, 1)));
   const refEnd = c.reference ? w - Math.max(60, c.reference.label.length * 8 + 14) : w;
+  const refY = c.reference ? floor - tall(c.reference.value) : null;
   const text = (size: number, fill: SlideTone, weight = 400): CSSProperties => ({ fontSize: size, fill: tone(fill), fontWeight: weight });
   return (
     <div style={base}>
@@ -107,10 +121,10 @@ function Columns({ element, context, w, h }: ElementProps & { element: Extract<S
       {c.columns.length === 0 ? (
         <div style={{ height }}><Instead words="No values yet." /></div>
       ) : (
-        <svg role="img" aria-label={c.description} width={w} height={height} viewBox={`0 0 ${w} ${height}`} style={{ display: "block", overflow: "visible" }}>
+        <svg role="img" aria-label={c.description} width={w} height={height} viewBox={`0 0 ${w} ${height}`} style={drawing}>
           <line x1={0} y1={floor} x2={w} y2={floor} style={{ stroke: tone("ink"), strokeWidth: 1 }} />
           {c.columns.map((col, i) => {
-            const x = i * step + (step - bar) * (24 / 52);
+            const x = i * step + (step - bar) * (c.reference ? 24 / 52 : 0.5);
             const total = col.total === null ? 0 : tall(col.total);
             // The part never stands above its column.
             const part = col.part === null ? 0 : Math.min(total, tall(col.part));
@@ -119,15 +133,15 @@ function Columns({ element, context, w, h }: ElementProps & { element: Extract<S
               <g key={col.period}>
                 {split && total > part && <rect x={x} y={floor - total} width={bar} height={total - part} style={{ fill: tone("soft") }} />}
                 {(split ? part : total) > 0 && <rect x={x} y={floor - (split ? part : total)} width={bar} height={split ? part : total} style={{ fill: tone("accent") }} />}
-                {col.total !== null && step >= 34 && <text x={x + bar / 2} y={floor - total - 6} textAnchor="middle" style={text(step < 60 ? 12 : 15, "ink", 600)}>{col.text}</text>}
+                {col.total !== null && step >= 34 && <text x={x + bar / 2} y={clearOf(refY, floor - total - 6)} textAnchor="middle" style={text(step < 60 ? 12 : 15, "ink", 600)}>{col.text}</text>}
                 {(c.columns.length - 1 - i) % every === 0 && <text x={x + bar / 2} y={height - 10} textAnchor="middle" style={text(13, "muted")}>{col.label}</text>}
               </g>
             );
           })}
           {c.reference && (
             <g>
-              <line x1={0} y1={floor - tall(c.reference.value)} x2={refEnd} y2={floor - tall(c.reference.value)} style={{ stroke: tone("ink"), strokeWidth: 2, strokeDasharray: "8 6" }} />
-              <text x={w} y={floor - tall(c.reference.value) + 4} textAnchor="end" style={text(13, "ink", 700)}>{c.reference.label}</text>
+              <line x1={0} y1={refY!} x2={refEnd} y2={refY!} style={{ stroke: tone("ink"), strokeWidth: 2, strokeDasharray: "8 6" }} />
+              <text x={w} y={refY! + 4} textAnchor="end" style={text(13, "ink", 700)}>{c.reference.label}</text>
             </g>
           )}
         </svg>
@@ -135,6 +149,10 @@ function Columns({ element, context, w, h }: ElementProps & { element: Extract<S
     </div>
   );
 }
+
+// The room a gap table keeps for a headline of two lines with the space under it, and for its closing line.
+const HEADLINE_ROOM = 106;
+const CLOSING_ROOM = 58;
 
 // The heights of a table: its heading line with the rule under it, and the least a row may shrink to.
 const TABLE_HEAD = 25;
@@ -157,9 +175,11 @@ const right: CSSProperties = { ...oneLine, textAlign: "right" };
 function GapTable({ element, context, w, h }: ElementProps & { element: Extract<SlideElement, { kind: "gap-table" }> }) {
   const g = gapModel(element, context);
   if (g.denied) return <Instead words={NO_ACCESS} />;
-  // At the design's width the columns are fixed; a narrower table gives each its share.
+  // At the design's width the columns are fixed; a narrower table gives each its share. Long names get more room, up
+  // to half as much again, out of the bars' side (a letter of a name is about 9 pixels wide).
   const k = Math.min(1, w / 1000);
-  const widths = [Math.round(240 * k), Math.round(130 * k), Math.round(130 * k)];
+  const longest = Math.max(0, ...g.rows.map((r) => r.label.length));
+  const widths = [Math.round(Math.min(360, Math.max(240, longest * 9.2)) * k), Math.round(130 * k), Math.round(130 * k)];
   const cell = w - widths[0] - widths[1] - widths[2];
   const pad = Math.round(40 * k);
   const chart = Math.max(80, Math.min(600, cell - pad));
@@ -167,12 +187,15 @@ function GapTable({ element, context, w, h }: ElementProps & { element: Extract<
   const gaps = g.rows.map((r) => r.gap ?? 0);
   const below = Math.max(0, -Math.min(0, ...gaps));
   const above = Math.max(0, ...gaps);
-  // One scale either side of zero, with room left for the numbers past the longest bar.
-  const per = Math.min(below ? (chart * 0.45) / below : Infinity, above ? (chart * 0.3) / above : Infinity);
-  const rows = rowsThatFit(g.rows.length, h, 68);
+  // One scale either side of zero, with room left past the longest bar for its number (about 60 pixels).
+  const per = Math.min(below ? (chart * 0.45) / below : Infinity, above ? Math.max(20, chart * 0.4 - 60) / above : Infinity);
+  // A row is 68 pixels with its rule under it.
+  const say = (t: string) => fillSlideWords(t, context).text;
+  const rows = rowsThatFit(g.rows.length, h - (element.headline ? HEADLINE_ROOM : 0) - (element.note ? CLOSING_ROOM : 0), 69);
   const bar = Math.min(40, rows.height - 4);
   return (
     <div style={base}>
+      {element.headline && <Words style={{ fontFamily: HEADING, fontWeight: 600, fontSize: 33, lineHeight: 1.2, maxWidth: 1000, marginBottom: 26 }}>{say(element.headline)}</Words>}
       <div style={{ ...grid(widths), ...headLine }}>
         <Words style={oneLine}>{g.head.row}</Words>
         <Words style={right}>{g.head.goal}</Words>
@@ -188,8 +211,8 @@ function GapTable({ element, context, w, h }: ElementProps & { element: Extract<
             <Words style={{ ...oneLine, fontWeight: 600 }}>{r.label}</Words>
             <Words style={{ ...right, color: tone("muted") }}>{r.goal}</Words>
             <Words style={{ ...right, fontSize: 20, fontWeight: 600 }}>{r.actual}</Words>
-            <div style={{ paddingLeft: pad, display: "flex" }}>
-              <svg aria-hidden="true" width={chart} height={bar} viewBox={`0 0 ${chart} ${bar}`} style={{ display: "block", overflow: "visible" }}>
+            <div style={{ paddingLeft: pad, height: Math.min(rows.height - 1, bar + 4) }}>
+              <svg aria-hidden="true" width={chart} height={bar} viewBox={`0 0 ${chart} ${bar}`} style={drawing}>
                 <line x1={zero} y1={0} x2={zero} y2={bar} style={{ stroke: tone("ink"), strokeWidth: 1 }} />
                 {long > 0 && <rect x={up ? zero : zero - long} y={bar * 0.225} width={long} height={bar * 0.55} style={{ fill: tone(up ? "good" : "bad") }} />}
                 <text x={up ? zero + 10 + long : zero - 10 - long} y={bar / 2 + 6} textAnchor={up ? "start" : "end"} style={{ fontSize: 15, fontWeight: 700, fill: tone("ink") }}>{r.gapText}</text>
@@ -199,6 +222,15 @@ function GapTable({ element, context, w, h }: ElementProps & { element: Extract<
         );
       })}
       <More n={rows.more} />
+      {element.note && (
+        <div style={{ display: "flex", gap: 16, marginTop: 24 }}>
+          <span style={{ width: 6, flexShrink: 0, background: tone("accent") }} />
+          <Words style={{ fontSize: 17, lineHeight: 1.5, padding: "4px 0" }}>
+            {element.lead && <span style={{ fontWeight: 700 }}>{`${say(element.lead)} `}</span>}
+            {say(element.note)}
+          </Words>
+        </div>
+      )}
     </div>
   );
 }
@@ -208,7 +240,7 @@ function MetricTable({ element, context, w, h }: ElementProps & { element: Extra
   if (!t.rows.length) return <Instead words={NO_ACCESS} />;
   const k = w / 1152;
   const widths = [300, 160, 150, 150, 212].map((x) => Math.round(x * k));
-  const rows = rowsThatFit(t.rows.length, h, 60);
+  const rows = rowsThatFit(t.rows.length, h, 61);
   const spark = Math.max(40, Math.min(130, widths[4] - 60));
   return (
     <div style={base}>
@@ -234,7 +266,7 @@ function MetricTable({ element, context, w, h }: ElementProps & { element: Extra
             <Words style={{ ...right, fontWeight: 600, color: colour }}>{r.change}</Words>
             <div style={{ paddingLeft: 36 * k, display: "flex" }}>
               {dots.length > 0 && (
-                <svg aria-hidden="true" width={spark} height={30} viewBox={`0 0 ${spark} 30`} style={{ display: "block", overflow: "visible" }}>
+                <svg aria-hidden="true" width={spark} height={30} viewBox={`0 0 ${spark} 30`} style={drawing}>
                   <polyline points={dots.map((d) => `${d.x},${d.y}`).join(" ")} style={{ fill: "none", stroke: tone("accent"), strokeWidth: 2 }} />
                   <circle cx={dots.at(-1)!.x} cy={dots.at(-1)!.y} r={3.5} style={{ fill: tone("accent") }} />
                 </svg>
@@ -255,13 +287,16 @@ function MetricTable({ element, context, w, h }: ElementProps & { element: Extra
   );
 }
 
-function List({ element, context }: ElementProps & { element: Extract<SlideElement, { kind: "list" }> }) {
+function List({ element, context, h }: ElementProps & { element: Extract<SlideElement, { kind: "list" }> }) {
   const say = (t: string) => fillSlideWords(t, context).text;
+  // Rows close up where they would not fit: each takes its line (36 pixels), its rule and the space around it.
+  const n = element.items.length;
+  const around = Math.max(2, Math.min(18, Math.floor(((h - (element.title ? 37 : 0) - 8 * (n - 1)) / n - 37) / 2)));
   return (
     <div style={{ ...base, display: "flex", flexDirection: "column", justifyContent: "center", gap: 8, overflow: "hidden" }}>
       {element.title && <Words style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: tone("accent"), fontWeight: 600, paddingBottom: 14 }}>{say(element.title)}</Words>}
       {element.items.map((item, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 18, padding: "18px 0", borderTop: `1px solid ${tone("rule")}` }}>
+        <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 18, padding: `${around}px 0`, borderTop: `1px solid ${tone("rule")}` }}>
           <Words style={{ fontFamily: HEADING, fontSize: 26, color: tone("accent"), width: 40, flexShrink: 0 }}>{String(i + 1).padStart(2, "0")}</Words>
           <Words style={{ flex: 1, minWidth: 0, fontSize: 18, fontWeight: 500 }}>{say(item.text)}</Words>
           {item.note && <Words style={{ fontSize: 13, color: tone("muted"), whiteSpace: "nowrap" }}>{say(item.note)}</Words>}
@@ -280,8 +315,9 @@ function Logo({ element, context, h, logo }: ElementProps & { element: Extract<S
   const big = element.size === "m";
   return (
     <div style={place}>
-      <div style={{ position: "relative", padding: big ? "10px 26px" : "6px 18px" }}>
-        <span data-outline style={{ position: "absolute", inset: 0, border: `1px dashed ${tone(colour)}`, opacity: colour === "muted" ? 1 : 0.55 }} />
+      {/* The padding holds the pixel of the dashed edge, which lies over it so that it may be drawn paler than the words. */}
+      <div style={{ position: "relative", padding: big ? "11px 27px" : "7px 19px" }}>
+        <span style={{ position: "absolute", inset: 0, border: `1px dashed ${tone(colour)}`, opacity: colour === "muted" ? 1 : 0.55 }} />
         <Words style={{ fontSize: big ? 13 : 12, letterSpacing: big ? "0.14em" : "0.1em", textTransform: "uppercase", color: tone(colour), whiteSpace: "nowrap" }}>{fillSlideWords(element.text ?? "Your logo", context).text}</Words>
       </div>
     </div>

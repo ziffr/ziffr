@@ -199,7 +199,8 @@ export async function exportPptx(editor: Editor, data: CanvasData, deckName: str
 
     // The snapshot stamp sits centred, clear of the master's footer and number.
     const footerY = ((SLIDE_H - 36 - 21) * IN_PER_SLIDE_W) / SLIDE_W; // same line as the master footer
-    slide.addText(`Data as of ${asOf}`, { x: IN_PER_SLIDE_W / 2 - 1.5, y: footerY, w: 3, h: 0.22, fontSize: 9, color: MUTED, fontFace: FONT, align: "center", margin: 0 });
+    // A cover's own panel may fill the middle: its stamp stands at the right, where a cover writes no number.
+    slide.addText(`Data as of ${asOf}`, { x: frame.meta?.cover ? IN_PER_SLIDE_W - 3.4 : IN_PER_SLIDE_W / 2 - 1.5, y: footerY, w: 3, h: 0.22, fontSize: 9, color: MUTED, fontFace: FONT, align: frame.meta?.cover ? "right" : "center", margin: 0 });
     if (!usesMaster) slide.addText(`${index + 1}`, { x: IN_PER_SLIDE_W - 1, y: footerY, w: 0.6, h: 0.22, fontSize: 9, color: MUTED, align: "right", fontFace: FONT, margin: 0 });
   }
 
@@ -350,7 +351,8 @@ export async function exportPdf(editor: Editor, deckName: string) {
     figure { margin: 0; width: 13.333in; height: 7.5in; position: relative; break-after: page }
     img { width: 100%; height: 100%; object-fit: contain; display: block }
     figcaption { position: absolute; left: 0.4in; bottom: 0.2in; font: 9pt system-ui, sans-serif; color: #${MUTED} }
-    figcaption.middle { left: 0; right: 0; text-align: center }`;
+    figcaption.middle { left: 0; right: 0; text-align: center }
+    figcaption.cover { left: auto; right: 0.4in }`;
   doc.head.appendChild(style);
   const loads = images.map((src, i) => {
     const fig = doc.createElement("figure");
@@ -359,8 +361,9 @@ export async function exportPdf(editor: Editor, deckName: string) {
     const loaded = new Promise((r) => (img.onload = r));
     img.src = src;
     const cap = doc.createElement("figcaption");
-    cap.textContent = `Data as of ${asOf}, slide ${i + 1}`;
-    if (designed[i]) cap.className = "middle";
+    // A slide of elements writes its own page number, which does not count covers: the stamp then names none.
+    cap.textContent = designed[i] ? `Data as of ${asOf}` : `Data as of ${asOf}, slide ${i + 1}`;
+    if (designed[i]) cap.className = frames[i].meta?.cover ? "cover" : "middle";
     fig.append(img, cap);
     doc.body.appendChild(fig);
     return loaded;

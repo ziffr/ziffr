@@ -27,6 +27,8 @@ export type WordsElement = {
   line?: number; tracking?: number; caps?: boolean; align?: SlideAlign; valign?: "top" | "middle" | "bottom"; opacity?: number;
   /** The slide's footer line: it shows the deck's footer after its words, in place of the Theme drawing it. */
   foot?: boolean;
+  /** Shown instead of the words while a Placeholder in them has no value: a question, say, or nothing. */
+  empty?: string;
 };
 /** A rectangle, filled or edged. */
 export type BoxElement = { kind: "box"; fill?: SlideTone; edge?: SlideTone; dashed?: boolean; opacity?: number };
@@ -34,8 +36,9 @@ export type BoxElement = { kind: "box"; fill?: SlideTone; edge?: SlideTone; dash
 export type FigureElement = { kind: "figure"; label?: string; note?: string; /** The note takes the good or bad colour its first {gap} or {change} says. */ signal?: boolean; /** Drawn on the cover colour. */ strong?: boolean };
 /** Columns of one Metric by period; a second Metric may fill part of each, and one more draws a reference line. */
 export type ColumnsElement = { kind: "columns"; title?: string; part?: boolean; reference?: boolean; partLabel?: string; restLabel?: string; referenceLabel?: string; /** How many periods; left out, the periods of the quarter so far. */ periods?: number };
-/** Two Metrics' latest Breakdowns row by row, with the difference as bars either side of zero. */
-export type GapTableElement = { kind: "gap-table"; rowLabel?: string; gapLabel?: string };
+/** Two Metrics' latest Breakdowns row by row, with the difference as bars either side of zero. A headline above the
+ * table and a closing line under it (after a bar, with its lead-in) move with it, however many lines they take. */
+export type GapTableElement = { kind: "gap-table"; rowLabel?: string; gapLabel?: string; headline?: string; lead?: string; note?: string };
 /** One row per Metric: latest value, the one before, the change, a trend and whether it is on target. */
 export type MetricTableElement = { kind: "metric-table"; /** How many periods the trend shows. */ periods?: number };
 /** Numbered rows under a heading, such as an agenda. */
@@ -82,6 +85,7 @@ export function slideElementSchema(text: (max: number) => Schema = slideWords): 
         line: { type: "number", minimum: 0.8, maximum: 2.5 }, tracking: { type: "number", minimum: -0.05, maximum: 0.3, description: "Space between letters, in letter sizes." },
         caps: flag("In capitals."), align: { enum: ["start", "middle", "end"] }, valign: { enum: ["top", "middle", "bottom"] }, opacity: share,
         foot: flag("The slide's footer line: shows the deck's footer after its words."),
+        empty: { ...line, description: "Shown instead of the words while a Placeholder in them has no value." },
       }, ["text"]),
       kind("box", "A rectangle.", { fill: tone, edge: tone, dashed: flag("A dashed edge."), opacity: share }),
       kind("figure", "One large value with its label and a line under it.", { label, note: line, signal: flag("The note takes the good or bad colour."), strong: flag("Drawn on the cover colour.") }),
@@ -89,7 +93,7 @@ export function slideElementSchema(text: (max: number) => Schema = slideWords): 
         title: line, part: flag("The next Metric fills part of each column."), reference: flag("One more Metric draws a reference line."),
         partLabel: label, restLabel: label, referenceLabel: label, periods: { type: "integer", minimum: 1, maximum: L.periods },
       }),
-      kind("gap-table", "Two Metrics' Breakdowns row by row, with the difference.", { rowLabel: label, gapLabel: line }),
+      kind("gap-table", "Two Metrics' Breakdowns row by row, with the difference.", { rowLabel: label, gapLabel: line, headline: line, lead: label, note: line }),
       kind("metric-table", "One row per Metric.", { periods: { type: "integer", minimum: 2, maximum: L.periods } }),
       kind("list", "Numbered rows under a heading.", {
         title: label,

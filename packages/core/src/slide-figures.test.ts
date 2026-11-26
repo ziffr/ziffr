@@ -11,13 +11,15 @@ const commit = metric(1, "Commit");
 const quota = metric(2, "Quota");
 const coverage = metric(3, "Pipeline coverage", { unit: "×", format: "number", decimals: 1 });
 const closed = metric(4, "Closed this quarter");
+// A Metric the viewer sees that has no value yet.
+const empty = metric(6, "No values");
 
 // Weeks 1 to 8 of the fourth quarter of 2026: Mondays from 5 October.
 const weeks = ["2026-10-05", "2026-10-12", "2026-10-19", "2026-10-26", "2026-11-02", "2026-11-09", "2026-11-16", "2026-11-23"];
 const series = (values: number[]) => values.map((value, i) => ({ period: weeks[weeks.length - values.length + i], value }));
 
 const data = {
-  viewer: "o", metrics: [commit, quota, coverage, closed], numberStyle: "1,234.5", yearStart: 1, targets: {}, condensed: {}, projections: {}, pending: {}, locked: {},
+  viewer: "o", metrics: [commit, quota, coverage, closed, empty], numberStyle: "1,234.5", yearStart: 1, targets: {}, condensed: {}, projections: {}, pending: {}, locked: {},
   series: {
     commit: series([2_620_000, 2_700_000, 2_780_000, 2_740_000, 2_860_000, 2_930_000, 2_890_000, 3_010_000]),
     quota: series(Array(8).fill(3_200_000)),
@@ -53,6 +55,13 @@ describe("how a slide writes numbers", () => {
     expect(writeSlideValue(dollars, 3_010_000, scaleOf(3_010_000), data)).toBe("$3.01M");
   });
 
+  it("counts what lies between two percentages in points", () => {
+    const share = metric(8, "Share", { unit: "%", format: "percent" });
+    expect(writeSlideValue(share, 4, scaleOf(94), data, { change: true })).toBe("+4 pts");
+    expect(writeSlideValue(share, 1, scaleOf(94), data, { between: true })).toBe("1 pt");
+    expect(writeSlideValue(share, 94, scaleOf(94), data)).toBe("94 %");
+  });
+
   it("writes a multiple together with its ×, whether it counts × or times", () => {
     expect(writeSlideValue(coverage, 2.3, scaleOf(2.3), data)).toBe("2.3×");
     expect(writeSlideValue({ ...coverage, unit: "times" }, 2.3, scaleOf(2.3), data)).toBe("2.3×");
@@ -76,7 +85,8 @@ describe("an element's words", () => {
   it("fills the quarter, the change and the gap, with the news they bring", () => {
     expect(fillSlideWords("{quarter}, week {quarter week} of {quarter weeks}; {weeks left} left", ctx(commit)).text).toBe("Q4, week 8 of 13; five weeks left");
     expect(fillSlideWords("{change} on last week", ctx(commit)).text).toBe("+0.12 M€ on last week");
-    expect(fillSlideWords("{gap 2 1}", ctx(quota, commit))).toEqual({ text: "0.19 M€ short", signal: "bad" });
+    expect(fillSlideWords("{gap 2 1}", ctx(quota, commit))).toEqual({ text: "0.19 M€ short", signal: "bad", missing: false });
+    expect(fillSlideWords("{left 2 3} left, {left 3 2}", ctx(coverage, quota, closed)).text).toBe("1.35 M€ left, 0 €");
     expect(fillSlideWords("{gap 1 2}", ctx(metric(5, "Nothing yet"), commit)).text).toBe("–");
     expect(fillSlideWords("of the {difference 2 3} still to close", ctx(coverage, quota, closed)).text).toBe("of the 1.35 M€ still to close");
   });
@@ -84,6 +94,14 @@ describe("an element's words", () => {
   it("says nothing of a Metric the viewer may not see", () => {
     expect(fillSlideWords("{metric} {latest} {gap 1 2}|", ctx(null, quota)).text).toBe("  |");
     expect(fillSlideWords("{gap 1 2}|", ctx(commit, null)).text).toBe("|");
+  });
+
+  it("says when something in them has no value, so a line of its own can stand instead", () => {
+    const none = empty;
+    for (const words of ["{latest}", "{change}", "{quarter}", "{weeks left}", "{period}", "{target}"]) expect(fillSlideWords(words, ctx(none)).missing, words).toBe(true);
+    expect(fillSlideWords("{latest}", ctx(null)).missing).toBe(true);
+    expect(fillSlideWords("{metric} on {slide}", { ...ctx(none), slide: 2 }).missing).toBe(false);
+    expect(figureModel({ kind: "figure", note: "{change} on last week" }, ctx(none))).toMatchObject({ value: "–", note: "" });
   });
 
   it("keeps a Placeholder that names no Slot, so the author sees it", () => {

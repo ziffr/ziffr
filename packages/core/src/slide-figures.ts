@@ -46,9 +46,10 @@ export function elementScale(m: Metric, ctx: Pick<SlideContext, "data" | "metric
 }
 
 /** A value as a slide writes it: short in the element's scale ("3.01 M€"), or as the Metric writes it. `bare` leaves
- * the unit and the scale's letter out; `change` writes the sign of a change. A value that is not 0 never reads 0: it is
- * written in its own, smaller scale. */
-export function writeSlideValue(m: Metric, v: number | null | undefined, scale: SlideScale, data: CanvasData, opts: { bare?: boolean; change?: boolean } = {}): string {
+ * the unit and the scale's letter out; `change` writes the sign of a change; `between` says the number is what lies
+ * between two values, which for a percentage is counted in points ("+4 pts"), never in percent. A value that is not 0
+ * never reads 0: it is written in its own, smaller scale. */
+export function writeSlideValue(m: Metric, v: number | null | undefined, scale: SlideScale, data: CanvasData, opts: { bare?: boolean; change?: boolean; between?: boolean } = {}): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return "–";
   let s = scale;
   // Two decimals of a million hide anything under 5,000.
@@ -57,6 +58,10 @@ export function writeSlideValue(m: Metric, v: number | null | undefined, scale: 
   const n = v / s.div;
   if (opts.bare) return writeNumber(n, decimals, data.numberStyle, opts.change ? { change: true } : {});
   const unit = m.unit ?? "";
+  if (unit === "%" && (opts.change || opts.between)) {
+    const words = writeNumber(n, decimals, data.numberStyle, opts.change ? { change: true } : {});
+    return `${words} ${words.replace(/^[+−±]/, "") === "1" ? "pt" : "pts"}`;
+  }
   // A multiple, whether its Metric counts "times" or "×", is written as people write one on a slide: "2.3×".
   if (unit === "×" || unit === "times") return `${writeNumber(n, decimals, data.numberStyle, { suffix: s.suffix, ...(opts.change ? { change: true } : {}) })}×`;
   if (!s.suffix && !opts.change) return formatValue(m, v, data.numberStyle);
@@ -88,14 +93,17 @@ const signalOf = (m: Metric, d: number): "good" | "bad" | null => (d === 0 || m.
 // A Metric's name inside a sentence: "above quota". A name with capitals of its own (an acronym) stays as it is.
 const inSentence = (name: string) => (name.slice(1) === name.slice(1).toLowerCase() ? name.toLowerCase() : name);
 
-const SLIDE_PATTERN = /\{(metrics|metric|period|latest|change yoy|change prev|top row|target|quarter weeks|quarter week|quarter|weeks left|change|scale|slide|difference|gap)(?:\s+(\d))?(?:\s+(\d))?\}/gi;
+const SLIDE_PATTERN = /\{(metrics|metric|period|latest|change yoy|change prev|top row|target|quarter weeks|quarter week|quarter|weeks left|change|scale|slide|difference|gap|left)(?:\s+(\d))?(?:\s+(\d))?\}/gi;
 
-/** An element's words filled from the data, and whether the first change or gap in them is good or bad news. A
- * Placeholder of a Metric the viewer may not see is empty; one without a value reads "–"; one that names a Slot the
- * element does not have stays as written, so the author sees it. */
-export function fillSlideWords(text: string, ctx: SlideContext): { text: string; signal: "good" | "bad" | null } {
+/** An element's words filled from the data, whether the first change or gap in them is good or bad news, and whether
+ * anything in them had no value to show. A Placeholder of a Metric the viewer may not see is empty; one without a value
+ * reads "–"; one that names a Slot the element does not have stays as written, so the author sees it. */
+export function fillSlideWords(text: string, ctx: SlideContext): { text: string; signal: "good" | "bad" | null; missing: boolean } {
   let signal: "good" | "bad" | null = null;
+  let missing = false;
   const note = (s: "good" | "bad" | null) => { signal ??= s; };
+  const none = () => { missing = true; return "–"; };
+  const hidden = () => { missing = true; return ""; };
   const { data } = ctx;
   const out = text.replace(SLIDE_PATTERN, (all, raw: string, a?: string, b?: string) => {
     const key = raw.toLowerCase();
@@ -104,43 +112,48 @@ export function fillSlideWords(text: string, ctx: SlideContext): { text: string;
     if (key === "metrics") return fillWidgetText(all, { metric_ids: ctx.metrics.map((m) => m?.id ?? -1), settings: {} }, data) ?? all;
     if (i < 0 || i >= ctx.metrics.length) return all;
     const m = ctx.metrics[i];
-    if (!m) return "";
+    if (!m) return hidden();
     const last = latest(m, data);
-    if (key === "difference" || key === "gap") {
+    if (key === "difference" || key === "gap" || key === "left") {
       const j = (b ? Number(b) : 2) - 1;
       if (j < 0 || j >= ctx.metrics.length) return all;
       const other = ctx.metrics[j];
-      if (!other) return "";
+      if (!other) return hidden();
       const v = last ? valueAt(other, data, last.period) : null;
-      if (!last || v === null) return "–";
+      if (!last || v === null) return none();
       const d = last.value - v;
-      if (key === "difference") return writeSlideValue(m, d, elementScale(m, ctx), data);
+      // What is left of the first after the second never falls below nothing.
+      // Nothing left reads "0 €", not "0.00 M€".
+      if (key === "left" && d <= 0) return writeSlideValue(m, 0, scaleOf(0), data, { between: true });
+      if (key !== "gap") return writeSlideValue(m, d, elementScale(m, ctx), data, { between: true });
       // A gap reads against the second Metric: at or above it is good, whatever the Metrics' own direction.
       note(d < 0 ? "bad" : "good");
       if (d === 0) return `on ${inSentence(other.name)}`;
-      const size = writeSlideValue(m, Math.abs(d), elementScale(m, ctx), data);
+      const size = writeSlideValue(m, Math.abs(d), elementScale(m, ctx), data, { between: true });
       return d < 0 ? `${size} short` : `${size} above ${inSentence(other.name)}`;
     }
     if (key === "metric") return m.name;
     if (key === "scale") return scaleUnit(m, elementScale(m, ctx));
-    if (key === "latest") return last ? writeSlideValue(m, last.value, elementScale(m, ctx), data) : "–";
+    if (key === "latest") return last ? writeSlideValue(m, last.value, elementScale(m, ctx), data) : none();
     if (key === "change") {
       const before = last ? valueAt(m, data, shiftPeriod(last.period, m.period, -1)) : null;
-      if (!last || before === null) return "–";
+      if (!last || before === null) return none();
       note(signalOf(m, last.value - before));
       return writeSlideValue(m, last.value - before, elementScale(m, ctx), data, { change: true });
     }
     if (key.startsWith("quarter") || key === "weeks left") {
-      if (!last) return "–";
+      if (!last) return none();
       const q = quarterWeeks(last.period, m.period, data.yearStart);
       if (key === "quarter") return q.quarter;
-      if (q.week === null || q.weeks === null) return "–";
+      if (q.week === null || q.weeks === null) return none();
       return key === "quarter week" ? String(q.week) : key === "quarter weeks" ? String(q.weeks) : weeksLeft(Math.max(0, q.weeks - q.week));
     }
-    // The Placeholders every text knows (period, change yoy, top row, target), for the Slot named.
-    return fillWidgetText(`{${key}}`, { metric_ids: [m.id], settings: {} }, data) ?? all;
+    // The Placeholders every text knows (period, change yoy, top row, target), for the Slot named; one they cannot fill
+    // comes back as written.
+    const filled = fillWidgetText(`{${key}}`, { metric_ids: [m.id], settings: {} }, data) ?? `{${key}}`;
+    return filled === `{${key}}` ? none() : filled;
   });
-  return { text: out, signal };
+  return { text: out, signal, missing };
 }
 
 /** What a Slide Element says when it may not show a Metric it reads. */
@@ -154,7 +167,9 @@ export function figureModel(e: FigureElement, ctx: SlideContext): FigureModel {
   const m = ctx.metrics[0];
   if (!m || ctx.metrics.some((x) => !x)) return { denied: true };
   const last = latest(m, ctx.data);
-  const note = e.note ? fillSlideWords(e.note, ctx) : { text: "", signal: null };
+  const filled = e.note ? fillSlideWords(e.note, ctx) : null;
+  // A line that would speak of a missing value is left out.
+  const note = filled && !filled.missing ? filled : { text: "", signal: null };
   return {
     denied: false,
     label: e.label ? fillSlideWords(e.label, ctx).text : m.name,

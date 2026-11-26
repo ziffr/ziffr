@@ -95,7 +95,7 @@ A **Slide Element** is a part of a slide that draws itself in the deck's Theme: 
 | **Box** | A rectangle in a Theme colour, to put behind other things. |
 | **Figure** | A Metric's latest value, large, with a label and a line under it. **Emphasised** puts it on the Theme's cover colour. |
 | **Column chart** | A Metric period by period (a weekly Metric: the weeks of the quarter so far). A second Metric can fill part of each column, such as what is closed of what is committed, and a third can draw a line across, such as the quota. |
-| **Gap table** | The latest breakdowns of two Metrics row by row, such as commit and quota by salesperson, with the difference as bars. Both need a breakdown for the same period with the same lines. |
+| **Gap table** | The latest breakdowns of two Metrics row by row, such as commit and quota by salesperson, with the difference as bars. Both need a breakdown for the same period with the same lines. It can carry a headline above it and a closing line under it, which move with the table however long the headline is. |
 | **Metric table** | One row per Metric: this period, the one before, the change, a small trend, and whether it is on target. |
 | **Numbered list** | A heading with numbered rows, such as an agenda. One row per line; text after \| stands at the right. |
 | **Logo place** | The Theme's logo. While the Theme has none, a dashed box with words such as "Your logo", also when presenting and exporting; delete it if you want neither. |
@@ -110,12 +110,13 @@ Select an element to change its words, colours, size and Metrics in the side pan
 | {latest}, {metric}, {period}, {target}, {change yoy} | As in [Words that fill themselves in](12-dashboards.md#findings). |
 | {change} | The change on the period before, in the Metric's unit, such as +0.12 M€. |
 | {difference 2 3} | The second Metric minus the third, for the second one's latest period. |
+| {left 2 3} | What is left of the second Metric after the third, never below 0, such as what is still to close. |
 | {gap 2 1} | The second Metric against the first: "0.19 M€ short", or "0.18 M€ above quota". |
 | {quarter}, {quarter week}, {quarter weeks}, {weeks left} | The quarter of the latest week ("Q4"), the week's number in it, how many weeks it has, and how many are left ("five weeks"). The number and the weeks are for weekly Metrics. |
 | {scale} | The unit the element writes in, such as M€. |
 | {slide} | The slide's page number. |
 
-Large values are written short: from a million as "3.01 M€", from ten thousand as "640 k€". Whoever may not see one of an element's Metrics gets none of its figures, and no name or value of it.
+While a value is missing, words show their line **While a value is missing** instead, if they have one, and a Figure leaves its line out. Large values are written short: from a million as "3.01 M€", from ten thousand as "640 k€". Whoever may not see one of an element's Metrics gets none of its figures, and no name or value of it.
 
 ### Text, arrows, shapes and images
 

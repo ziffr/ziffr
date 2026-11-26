@@ -19,7 +19,7 @@ export function checkedElement(v: unknown): SlideElement {
 }
 
 // The fields of an element that hold words a person reads; every other string is one of a fixed list.
-const WORD_FIELDS = ["lead", "label", "note", "title", "partLabel", "restLabel", "referenceLabel", "rowLabel", "gapLabel"] as const;
+const WORD_FIELDS = ["lead", "label", "note", "empty", "headline", "title", "partLabel", "restLabel", "referenceLabel", "rowLabel", "gapLabel"] as const;
 
 /** The element with every word a person reads through `change`: paragraphs, labels, titles and list rows. */
 export function mapElementWords(e: SlideElement, change: (text: string) => string): SlideElement {

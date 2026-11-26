@@ -49,7 +49,9 @@ Elements name colours by role, never by value: ink, muted, rule, surface, canvas
 
 ### Words that stay current
 
-An element's words are filled when the slide is drawn, not once. To the existing Placeholders it adds, for slides only: `{quarter}`, `{quarter week}`, `{quarter weeks}`, `{weeks left}`, `{change}` (the change in the Metric's unit), `{difference A B}`, `{gap A B}` ("0.19 M€ short" or "0.18 M€ above quota"), `{scale}` (the unit the element writes in, such as M€) and `{slide}` (the page number). Elements write large values short and in one scale per element: from a million as "3.01 M€", from ten thousand as "640 k€", below that as the Metric writes them.
+An element's words are filled when the slide is drawn, not once. To the existing Placeholders it adds, for slides only: `{quarter}`, `{quarter week}`, `{quarter weeks}`, `{weeks left}`, `{change}` (the change in the Metric's unit), `{difference A B}`, `{left A B}` (the difference, never below 0), `{gap A B}` ("0.19 M€ short" or "0.18 M€ above quota"), `{scale}` (the unit the element writes in, such as M€) and `{slide}` (the page number). Elements write large values short and in one scale per element: from a million as "3.01 M€", from ten thousand as "640 k€", below that as the Metric writes them. What lies between two percentages is written in points ("+4 pts").
+
+A Pack's deck claims nothing its Metrics do not say. Words may carry an `empty` line, such as a question, shown while a Placeholder in them has no value; a figure leaves out the line under it. What only the presenter knows is a question to write over.
 
 A slide may be a **cover**: it shows no logo, footer or number of the Theme and is not counted in the page numbers. A slide with a logo place, a page number or a footer line of its own does not draw the Theme's second copy of it.
 
