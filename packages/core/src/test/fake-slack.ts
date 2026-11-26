@@ -8,7 +8,7 @@ import { randomBytes } from "node:crypto";
 export type FakeCall = { method: string; params: Record<string, string>; token: string | null; answer?: Record<string, unknown> };
 
 /** A Slack user the fake knows. */
-export type FakeUser = { id: string; email: string; deleted?: boolean; is_bot?: boolean; team_id?: string };
+export type FakeUser = { id: string; email: string; deleted?: boolean; is_bot?: boolean; team_id?: string; real_name?: string };
 
 /** The settings that turn Slack on for a test, pointing at the fake. */
 export const SLACK_SETTINGS = {
@@ -27,6 +27,7 @@ export async function fakeSlack() {
   let install = { team: { id: slackId("T"), name: "Acme" }, app_id: slackId("A"), bot_user_id: slackId("U"), access_token: `xoxb-${randomBytes(12).toString("hex")}`, is_enterprise_install: false, token_type: "bot", scope: "chat:write,chat:write.customize,im:write,im:history,users:read,users:read.email" };
   const tokens = new Set<string>();
   let ts = 1_700_000_000;
+  const asSlackSays = (u: FakeUser) => ({ id: u.id, team_id: u.team_id ?? install.team.id, deleted: Boolean(u.deleted), is_bot: Boolean(u.is_bot), profile: { email: u.email, ...(u.real_name ? { real_name: u.real_name } : {}) } });
   const server: Server = createServer((req, res) => {
     let body = "";
     req.on("data", (c) => { body += c; });
@@ -48,7 +49,11 @@ export async function fakeSlack() {
         case "auth.revoke": tokens.delete(token!); return send(200, { ok: true, revoked: true });
         case "users.lookupByEmail": {
           const u = users.find((x) => x.email.toLowerCase() === String(params.email).toLowerCase());
-          return u ? send(200, { ok: true, user: { id: u.id, team_id: u.team_id ?? install.team.id, deleted: Boolean(u.deleted), is_bot: Boolean(u.is_bot), profile: { email: u.email } } }) : send(200, { ok: false, error: "users_not_found" });
+          return u ? send(200, { ok: true, user: asSlackSays(u) }) : send(200, { ok: false, error: "users_not_found" });
+        }
+        case "users.info": {
+          const u = users.find((x) => x.id === params.user);
+          return u ? send(200, { ok: true, user: asSlackSays(u) }) : send(200, { ok: false, error: "user_not_found" });
         }
         case "conversations.open": return send(200, { ok: true, channel: { id: `D${String(params.users).slice(1)}` } });
         case "chat.postMessage": return send(200, { ok: true, channel: params.channel, ts: `${ts++}.000100` });

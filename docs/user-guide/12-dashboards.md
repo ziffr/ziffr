@@ -469,6 +469,8 @@ A dashboard with a Widget of all Metrics tagged X needs its list fixed first: th
 
 A live link shows only what the dashboard held when the link was made: Widgets added later, and Metrics added later, stay out. A Widget that draws a Metric the owner can no longer see is left out whole.
 
+A [Total](10-metrics.md#adding-up-metrics-a-total) goes out with its numbers only while it is open, or where the link also shows every Metric it adds up, frozen links included: closing a Total empties it in links already made. Where a link would show one with no number, the panel names it before you make the link ("Shown with no number: …"). The same holds for a formula that reads a Total.
+
 ### What an outside visitor sees
 
 - A dashboard with an introduction opens in its Read view: the name, the introduction and the Widgets top to bottom.
