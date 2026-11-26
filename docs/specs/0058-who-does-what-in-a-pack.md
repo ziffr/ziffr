@@ -216,7 +216,7 @@ It is worked out per reader and period, at the time of reading.
 - The sales forecast Pack gains a Repeat "Salesperson": Commit, Best case, Closed this quarter and Pipeline value once per line; the team's figures are Totals of them. Each salesperson's quota is the target of their Commit (spec 0062), and the team's quota is either the Total's own or the targets added up.
 - A gap table may take **a Total** instead of two Metrics: one row for each part counting in the latest period, named by its line, with the part's target for that period, its value and the gap, ordered by gap. A part without a value reads "–"; a part without one target number has no gap. At most 30 rows, the rest named as left out.
 - A viewer gets the rows of the parts they see, with one line saying that others are not shown to them. The slide's total appears only where they may see the Total, and no total is ever worked out from the rows shown.
-- The Metric "Quota by salesperson" of spec 0062 then leaves the Pack. Existing set-ups that send Breakdowns keep their two-Metric gap table.
+- The Metric "Quota split" of spec 0062 then leaves the Pack. Existing set-ups that send Breakdowns keep their two-Metric gap table.
 
 #### Format
 
