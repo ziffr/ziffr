@@ -73,6 +73,18 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `saveSeriesRows` (metrics.ts): editing Target Series and Projections in a table (the API has its own)
 - `removeSeriesRows` (metrics.ts): editing Target Series and Projections in a table (the API has its own)
 - `packSetupOptions` (pack-setup.ts): Packs
+- `planPackSetup` (pack-setup-plan.ts): Packs
+- `buildSetup` (pack-setup-build.ts): Packs
+- `startSetupRecord` (pack-setup-record.ts): Packs
+- `resumeSetupRecord` (pack-setup-record.ts): Packs
+- `recordedSetups` (pack-setup-record.ts): Packs
+- `addingTo` (pack-setup-adding.ts): Packs
+- `additionsFor` (pack-setup-adding.ts): Packs
+- `packLineStart` (pack-setup-adding.ts): Packs
+- `setUpStep` (pack-setup.ts): Packs
+- `setSendSnapshot` (workflows.ts): the dashboard a Set up from a Pack gives a Send Snapshot step; a program saves the Workflow
+- `roomFor` (pack-setup-install.ts): Packs
+- `roomNow` (pack-setup-install.ts): Packs
 - `setUpFromPack` (pack-setup.ts): Packs
 - `tagMetricFromEntry` (pack-tags.ts): Packs
 - `tagsLeftOffEntry` (pack-tags.ts): Packs
