@@ -1,12 +1,13 @@
 "use client";
-// The Marketplace on the Packs page (spec 0030, GLOSSARY: Marketplace, Pack): search free Packs, see one drawn with
-// Sample Data before installing it, and take a newer version of an installed one. Every request goes from Ziffr's
-// server; the browser only names a search, a Pack and a version, and the core checks the file and its signature.
-import { useState, useTransition } from "react";
+// The Marketplace on the Packs page (specs 0030 and 0059, GLOSSARY: Marketplace, Pack, New creator): the newest free
+// Packs and a search, From Ziffr and Community, one drawn with Sample Data before installing it, and taking a newer
+// version of an installed one. Every request goes from Ziffr's server; the browser only names a search, a Pack and a
+// version, and the core checks the file and its signature.
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw, Search } from "lucide-react";
+import { Check, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
-import { shown, unwrap } from "@/lib/action-error";
+import { Refused, shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -19,20 +20,35 @@ import { LogoChange } from "./pack-logo";
 import { PackPreviewCard } from "./screen";
 import { useInstalledToast } from "@/components/pack-guide-help";
 
-/** Searching the Marketplace and installing a Pack from it. */
-export function MarketplaceSearch({ viewer, numberStyle }: { viewer: string; numberStyle: NumberStyle }) {
+/** Browsing and searching the Marketplace, and installing a Pack from it. `installed` marks what the Workspace has. */
+export function MarketplaceSearch({ installed, viewer, numberStyle }: { installed: { packId: string; version: string }[]; viewer: string; numberStyle: NumberStyle }) {
   const router = useRouter();
   const installedToast = useInstalledToast();
   const [q, setQ] = useState("");
-  const [found, setFound] = useState<MarketplaceListing[] | null>(null);
+  // What was asked for with what came back; null while the first question is out.
+  const [found, setFound] = useState<{ query: string; packs: MarketplaceListing[] } | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ listing: MarketplaceListing; preview: PackPreview } | null>(null);
   const [okAssistant, setOkAssistant] = useState(false);
   const [pending, start] = useTransition();
+  const shownPreview = useRef<HTMLDivElement>(null);
   const run = (f: () => Promise<void>) => start(async () => { try { await f(); } catch (e) { toast.error("Not done", { description: shown(e) }); } });
-  const search = () => run(async () => setFound(unwrap(await searchPacks(q))));
+  // A search that fails says so in the section: nobody pressed anything when the newest Packs are asked for.
+  const search = useCallback((query: string) => start(async () => {
+    try {
+      setFound({ query: query.trim(), packs: unwrap(await searchPacks(query)) });
+      setProblem(null);
+    } catch (e) {
+      setProblem(shown(e));
+    }
+  }), []);
+  // The newest Packs show before a search.
+  useEffect(() => { search(""); }, [search]);
+  // The Preview opens under a list that can be long: bring it into view.
+  useEffect(() => { shownPreview.current?.scrollIntoView({ block: "start" }); }, [preview]);
   const open = (l: MarketplaceListing) => run(async () => {
     const res = unwrap(await readFromMarketplace(l.id, l.version));
-    if (!res.ok) throw new Error(`The Marketplace's file is not a Pack Ziffr can install: ${res.problems[0]?.message ?? ""}`);
+    if (!res.ok) throw new Refused(`The Marketplace's file is not a Pack Ziffr can install: ${res.problems[0]?.message ?? ""}`);
     setOkAssistant(false);
     setPreview({ listing: l, preview: res.preview });
   });
@@ -42,29 +58,48 @@ export function MarketplaceSearch({ viewer, numberStyle }: { viewer: string; num
     setPreview(null);
     router.refresh();
   });
+  const have = new Map(installed.map((p) => [p.packId, p.version]));
+  const parts = [
+    { id: "from-ziffr", title: "From Ziffr", packs: found?.packs.filter((l) => l.id.startsWith("ziffr/")) ?? [] },
+    { id: "community", title: "Community", packs: found?.packs.filter((l) => !l.id.startsWith("ziffr/")) ?? [] },
+  ].filter((p) => p.packs.length);
   return (
     <section aria-labelledby="marketplace" className="space-y-3">
       <div>
         <h2 id="marketplace" className="text-sm font-medium">From the Marketplace</h2>
-        <p className="text-sm text-muted-foreground">Free Packs others made. Ziffr checks each file&rsquo;s signature and every item before it shows one.</p>
+        <p className="text-sm text-muted-foreground">Free Packs from Ziffr and from others, newest first. Ziffr checks each file&rsquo;s signature and every item before it shows one.</p>
       </div>
-      <form className="flex max-w-md gap-2" onSubmit={(e) => { e.preventDefault(); search(); }}>
+      <form className="flex max-w-md gap-2" onSubmit={(e) => { e.preventDefault(); search(q); }}>
         <Input value={q} onChange={(e) => setQ(e.target.value)} maxLength={100} placeholder="e.g. SaaS, shop, club" aria-label="Search the Marketplace" />
         <Button type="submit" variant="outline" disabled={pending}><Search aria-hidden /> Search</Button>
       </form>
-      {found && (found.length ? (
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {found.map((l) => (
-            <li key={l.id} className="stock rounded-[var(--radius-card)] p-3 text-sm">
-              <p className="font-medium">{l.name} <span className="fig text-xs text-muted-foreground">{l.version}</span></p>
-              <p className="text-muted-foreground">{l.summary}</p>
-              <p className="mt-1 text-xs text-muted-foreground">By {l.author}, {l.license}</p>
-              <Button size="sm" variant="outline" className="mt-2" disabled={pending} onClick={() => open(l)}>See what it adds</Button>
-            </li>
-          ))}
-        </ul>
-      ) : <p className="text-sm text-muted-foreground">No free Pack matches.</p>)}
-      {preview && <PackPreviewCard preview={preview.preview} viewer={viewer} numberStyle={numberStyle} pending={pending} okUnsigned={false} setOkUnsigned={() => {}} okAssistant={okAssistant} setOkAssistant={setOkAssistant} onCancel={() => setPreview(null)} onInstall={install} />}
+      {problem && <p role="alert" className="text-sm font-medium">{problem}</p>}
+      {!problem && !found && <p role="status" className="text-sm text-muted-foreground">Asking the Marketplace for the newest Packs&hellip;</p>}
+      {!problem && found && !parts.length && <p role="status" className="text-sm text-muted-foreground">{found.query ? "No free Pack matches." : "The Marketplace lists no free Pack yet."}</p>}
+      {!problem && parts.map((part) => (
+        <div key={part.id} className="space-y-1.5">
+          <h3 id={`marketplace-${part.id}`} className="text-xs font-medium">{part.title} <span className="fig text-muted-foreground">{part.packs.length}</span></h3>
+          <ul aria-labelledby={`marketplace-${part.id}`} className="grid gap-2 sm:grid-cols-2">
+            {part.packs.map((l) => (
+              <li key={l.id} className="stock flex min-w-0 flex-col items-start rounded-[var(--radius-card)] p-3 text-sm">
+                <p className="font-medium">{l.name} <span className="fig text-xs text-muted-foreground">{l.version}</span></p>
+                <p className="text-muted-foreground">{l.summary}</p>
+                <p className="mt-1 break-words text-xs text-muted-foreground">By {l.author}, {l.license}</p>
+                {(l.newCreator || have.has(l.id)) && (
+                  <p className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                    {l.newCreator && <span className="rounded-full border border-input px-2 py-0.5">New creator</span>}
+                    {have.has(l.id) && <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5"><Check aria-hidden className="size-3" /> Installed, version {have.get(l.id)}</span>}
+                  </p>
+                )}
+                <Button size="sm" variant="outline" className="mt-2" disabled={pending} aria-label={`See what ${l.name} adds`} onClick={() => open(l)}>See what it adds</Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      <div ref={shownPreview} className="scroll-mt-16">
+        {preview && <PackPreviewCard preview={preview.preview} viewer={viewer} numberStyle={numberStyle} pending={pending} okUnsigned={false} setOkUnsigned={() => {}} okAssistant={okAssistant} setOkAssistant={setOkAssistant} onCancel={() => setPreview(null)} onInstall={install} />}
+      </div>
     </section>
   );
 }
@@ -87,7 +122,7 @@ export function PackUpdate({ name, version, button, from, read: readPlan, apply 
   const run = (f: () => Promise<void>) => start(async () => { try { await f(); } catch (e) { toast.error("Not done", { description: shown(e) }); } });
   const read = () => run(async () => {
     const res = unwrap(await readPlan());
-    if (!res.ok) throw new Error(`The file is not a Pack Ziffr can install: ${res.problems[0]?.message ?? ""}`);
+    if (!res.ok) throw new Refused(`The file is not a Pack Ziffr can install: ${res.problems[0]?.message ?? ""}`);
     setOkAssistant(false);
     setPlan(res.plan);
   });
