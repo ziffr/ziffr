@@ -2,8 +2,8 @@
 // slides with their widgets, words and boxes, the Metrics left open as Slots. The schema below is the only definition,
 // checked wherever such a file is read; docs/reference is generated from it.
 // Format /2 (spec 0057) adds Slide Elements and cover slides. Format /3 adds live text boxes: a text or box shape names
-// the Slots its Placeholders count and may use a slide's Placeholders; what a later part of a slide needs goes into /3
-// too, while it is not released. /1 and /2 are read for ever and mean what they always meant, and Ziffr writes the
+// the Slots its Placeholders count and may use a slide's Placeholders. It also takes a gap table of a Total (spec 0058);
+// what a later part of a slide needs goes into /3 too, while it is not released. /1 and /2 are read for ever and mean what they always meant, and Ziffr writes the
 // oldest format that holds a deck, so an older Ziffr reads what it can and refuses the rest in words.
 // Security: a slide holds only widgets, text, simple boxes and Slide Elements: no images, no drawings, no links, and
 // every word is plain text. Widgets are held to exactly what a Dashboard Template's widgets are.
@@ -17,7 +17,8 @@ import { checkTemplateWidget, refusedOutsidePack, TEMPLATE_SLOTS, WIDGET_DEFS, W
 export const DECK_TEMPLATE_FORMAT = "ziffr.deck-template/1";
 /** The format with Slide Elements and cover slides (spec 0057). */
 export const DECK_TEMPLATE_FORMAT_2 = "ziffr.deck-template/2";
-/** The format with live text boxes: words and boxes that name the Slots their Placeholders count. */
+/** The format with live text boxes (words and boxes that name the Slots their Placeholders count) and with a gap table
+ * of a Total. */
 export const DECK_TEMPLATE_FORMAT_3 = "ziffr.deck-template/3";
 /** Every Deck Template file format Ziffr ever published, oldest first. */
 export const DECK_TEMPLATE_FORMATS = [DECK_TEMPLATE_FORMAT, DECK_TEMPLATE_FORMAT_2, DECK_TEMPLATE_FORMAT_3] as const;
@@ -128,8 +129,8 @@ export function deckTemplateSchema2(element: Schema = slideElementSchema(), base
 export const DECK_TEMPLATE_2_SCHEMA: Schema = deckTemplateSchema2();
 
 /** Schema /3 made from schema /2: text and box shapes may name Slots, and their words (`paragraph`) may then hold a
- * slide's Placeholders. A later part of a slide that /3 should take is passed in as `element`. */
-export function deckTemplateSchema3(element: Schema = slideElementSchema(), base: Schema = DECK_TEMPLATE_SCHEMA, paragraph: Schema = slideWords(L.words)): Schema {
+ * slide's Placeholders. A later part of a slide that /3 should take, such as a gap table of a Total, is in `element`. */
+export function deckTemplateSchema3(element: Schema = slideElementSchema(slideWords, { totals: true }), base: Schema = DECK_TEMPLATE_SCHEMA, paragraph: Schema = slideWords(L.words)): Schema {
   const two = deckTemplateSchema2(element, base);
   const slots: Schema = { type: "array", maxItems: L.textSlots, items: { type: "integer", minimum: 0, maximum: 11 }, description: "The Slots whose Metrics the words name, in order, filled each time the slide is shown; {latest 2} is the second." };
   const live = (s: Schema): Schema => {
@@ -142,7 +143,7 @@ export function deckTemplateSchema3(element: Schema = slideElementSchema(), base
     ...two,
     $id: "https://ziffr.net/schemas/ziffr.deck-template-3.json",
     title: "Ziffr Deck Template (ziffr.deck-template/3)",
-    description: "A starting point for a deck, as ziffr.deck-template/2, whose words and boxes may show live values: they name the Slots their Placeholders count. It holds no code, image or link.",
+    description: "A starting point for a deck, as ziffr.deck-template/2, whose words and boxes may show live values (they name the Slots their Placeholders count) and whose gap tables may read a Total. It holds no code, image or link.",
     properties: { ...two.properties, format: { const: DECK_TEMPLATE_FORMAT_3, description: "The format and its version." } },
     $defs: { ...two.$defs, shape: { oneOf: two.$defs!.shape.oneOf!.map(live) } },
   };

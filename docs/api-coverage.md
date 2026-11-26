@@ -180,6 +180,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `setMyPromptWays` (ways-in-and-out.ts): one's own Delivery Preference for Prompts from the Setup Guide's Ways in and out step, only with ways that work here (spec 0052); a program sets its person's preference through the app
 - `waysInAndOut` (ways-in-and-out.ts): the Setup Guide's Ways in and out step for the viewer, in words; for the app's page only (spec 0052)
 - `teamSetup` (team-setup.ts): the Setup Guide's Team step for an Owner or Admin; it carries Business Functions, which no program may read, so for the app's page only (spec 0052)
+- `inviteGate` (invite-gate.ts): the words above a closed invite form in the app, with the asking Owner's own buttons; a program learns of a closed gate from the refusal of the API's invitation (spec 0040)
 - `startSetupGuide` (setup-guide.ts): the Setup Guide is for people in the app (spec 0052); programs never set up a Workspace
 - `setupGuide` (setup-guide.ts): the viewer's own guide steps, for the app
 - `skipSetupStep` (setup-guide.ts): skipping a step of the guide, for the app
@@ -225,6 +226,13 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `claimInstallation` (installation-admins.ts): claiming the Installation's first admin seat
 - `addInstallationAdmin` (installation-admins.ts): Installation administration
 - `removeInstallationAdmin` (installation-admins.ts): Installation administration
+- `practiceWorkspaceState` (practice-workspace.ts): what the Installation Settings page shows of an Installation Admin's own Practice Workspace
+- `makePracticeWorkspace` (practice-workspace.ts): Installation administration at the screen; a key never makes a Workspace
+- `startOverPracticeWorkspace` (practice-workspace.ts): deletes a Workspace, after a confirmation at the screen; a key never does
+- `fillSetUpNumbers` (practice-fill.ts): made-up numbers, asked at the screen by the person of a Practice Workspace; a key never writes them
+- `practiceWays` (practice-ways.ts): what Send to yourself shows its person on the Connectors page of a Practice Workspace
+- `switchPracticeWay` (practice-ways.ts): switching on or off at the screen what a Practice Workspace may send to its own person; a key never does
+- `switchOffPracticeWays` (practice-ways.ts): Start over switching every way off before it deletes
 - `createInstallationAnnouncement` (installation-announcements.ts): Installation administration
 - `updateInstallationAnnouncement` (installation-announcements.ts): Installation administration
 - `setInstallationAnnouncementActive` (installation-announcements.ts): Installation administration
@@ -411,6 +419,7 @@ Ticketed. MCP follows where the ticket says so.
 
 Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 
+- `demoAsRecords` (workspace-export.ts): the demo read inside the core to fill a Practice Workspace; refuses every other Workspace
 - `restoreTotal` (total-changes.ts): the Workspace import turning a Metric of the file into the Total it was, closed; no person or program asks for it
 - `tagSight` (tag-sight.ts): the one reading of who sees which Tag that the app and the API both use; it changes nothing itself
 - `changeMetricTags` (tags.ts): the one change behind setMetricTags, addMetricTags and removeMetricTags; the API reaches it through `tags` on create and update

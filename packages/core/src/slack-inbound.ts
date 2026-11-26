@@ -17,6 +17,7 @@ import { SLACK_BUTTONS } from "./slack-send";
 import type { SubmissionEffects } from "./submissions";
 import { approve } from "./workflow-engine";
 import { trialEnded } from "./trials";
+import { mayAnswer } from "./practice";
 
 /** Largest request taken from Slack, in bytes; its events and button presses are far smaller. */
 export const MAX_SLACK_BYTES = 64 * 1024;
@@ -54,9 +55,11 @@ export function slackText(text: string): string {
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim().slice(0, 5000);
 }
 
-/** Says something in the thread of a message; a lost confirmation is not worth failing the answer for. */
-async function say(bot: SlackBot, channel: string, threadTs: string | null, text: string) {
+/** Says something in the thread of a message to the Slack user who wrote or pressed; a lost confirmation is not worth
+ * failing the answer for. In a Practice Workspace (spec 0063) nobody but its person's recorded account is answered. */
+async function say(bot: SlackBot, channel: string, threadTs: string | null, user: string, text: string) {
   try {
+    if (!(await mayAnswer(bot.workspaceId, "slack", `${bot.teamId}:${user}`))) return;
     // In the Workspace's name and logo like the message it answers, where the connection may.
     const who = await slackIdentityOf(bot.workspaceId, bot.scopes);
     await callSlack("chat.postMessage", { channel, ...(threadTs ? { thread_ts: threadTs } : {}), ...who, text: slackEscape(text).slice(0, 3000), unfurl_links: false, unfurl_media: false }, bot.token);
@@ -115,11 +118,11 @@ async function handle(bot: SlackBot, e: Obj, effects: { submission?: SubmissionE
     if (/\bZIF-[A-Z2-7]{16}\b/i.test(text)) {
       // A code still links when the bot keeps quiet: a flood by others must not stop someone linking.
       const name = await linkSlackByCode(bot, user, text);
-      if (!quiet) await say(bot, channel, null, name ? `Linked: you get Ziffr messages for ${name} here.` : "That code is not known or has run out. Make a new one on the Connectors page in Ziffr.");
+      if (!quiet) await say(bot, channel, null, user, name ? `Linked: you get Ziffr messages for ${name} here.` : "That code is not known or has run out. Make a new one on the Connectors page in Ziffr.");
       return none(name ? "linked" : "refused");
     }
     if (quiet) return none("too_many");
-    await say(bot, channel, null, "To answer, reply in the thread of the message you are answering.");
+    await say(bot, channel, null, user, "To answer, reply in the thread of the message you are answering.");
     return none("hint");
   }
   const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, created_at")
@@ -135,7 +138,7 @@ async function handle(bot: SlackBot, e: Obj, effects: { submission?: SubmissionE
   if (!text) return at("empty");
   const outcome = await routeReply(d as RepliedDelivery, text, {
     source: "slack", sender: `slack:${user}`, provenPersonId: d.recipient_id,
-    answer: (subject, detail) => say(bot, channel, threadTs, `${subject}: ${detail}`),
+    answer: (subject, detail) => say(bot, channel, threadTs, user, `${subject}: ${detail}`),
   }, effects.submission);
   return at(outcome === "unknown_token" ? "unknown_thread" : outcome);
 }
@@ -169,7 +172,8 @@ async function pressed(bot: SlackBot, p: Obj): Promise<SlackOutcome> {
   const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, created_at")
     .eq("id", id).eq("workspace_id", bot.workspaceId).eq("connector", "slack").eq("slack_channel", channel).eq("slack_ts", ts).maybeSingle();
   if (!d) return "unknown_thread";
-  if ((await personOfSlackUser(bot.workspaceId, bot.teamId, str(obj(p.user).id))) !== d.recipient_id) return "wrong_user";
+  const presser = str(obj(p.user).id);
+  if ((await personOfSlackUser(bot.workspaceId, bot.teamId, presser)) !== d.recipient_id) return "wrong_user";
   // An ended trial takes no reply and answers none, as if the message were too old (spec 0021).
   if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000 || (await trialEnded(d.workspace_id))) return "expired";
   if (action.action_id === SLACK_BUTTONS.approve && d.action_id) {
@@ -177,17 +181,17 @@ async function pressed(bot: SlackBot, p: Obj): Promise<SlackOutcome> {
     // Ziffr, which checks the person is this approval's approver and it is still open.
     try {
       await approve(d.workspace_id, d.action_id, d.recipient_id, { type: "slack" });
-      await say(bot, channel, ts, "Approved.");
+      await say(bot, channel, ts, presser, "Approved.");
       return "approved";
     } catch {
-      await say(bot, channel, ts, "This approval is done already.");
+      await say(bot, channel, ts, presser, "This approval is done already.");
       return "refused";
     }
   }
   if (action.action_id === SLACK_BUTTONS.stop && OPT_OUT_KINDS.includes(d.kind)) {
     const { data: added } = await db().from("slack_opt_outs").upsert({ workspace_id: d.workspace_id, person_id: d.recipient_id }, { onConflict: "workspace_id,person_id", ignoreDuplicates: true }).select("person_id");
     if (added?.length) await tellOwnersOfStop(d.workspace_id, d.recipient_id, "on Slack");
-    await say(bot, channel, ts, "Stopped: no more requests for numbers or reminders on Slack from this workspace. Turn them on again on the Connectors page in Ziffr.");
+    await say(bot, channel, ts, presser, "Stopped: no more requests for numbers or reminders on Slack from this workspace. Turn them on again on the Connectors page in Ziffr.");
     return "stopped";
   }
   return "ignored";

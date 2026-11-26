@@ -14,6 +14,7 @@ import { tellConnected, tellDisconnected } from "./connection-notices";
 import { askContactToConfirm, confirmationAddress, TELEGRAM_CONFIRM_MINUTES, tellChat, type TelegramConfirmRequest } from "./telegram-confirm";
 import { telegramBot, telegramOnIn } from "./telegram-connection";
 import { refuseInDemo } from "./demo";
+import { mayAnswer } from "./practice";
 
 /** How long a link code works. */
 export const TELEGRAM_CODE_MINUTES = 10;
@@ -82,7 +83,7 @@ export async function startTelegramLinkByForm(formCode: string): Promise<{ url: 
 /** What became of a /start: linked (with the workspace's name for the bot to say), waiting for a Contact's
  * confirmation by email, or why not. */
 export type TelegramLinkOutcome =
-  | { linked: true; workspace: string; person: string }
+  | { linked: true; workspace: string; person: string; /** Say nothing back to this chat. */ silent?: boolean }
   | { linked: false; why: "unknown_code" | "expired" | "not_private" }
   | TelegramConfirmRequest;
 
@@ -120,8 +121,9 @@ export async function linkTelegramByCode(input: { code: string; userId: unknown;
     db().from("profiles").select("id, name").eq("id", c.person_id).maybeSingle().then(async (r) => ({ data: r.data ? (await openNames(c.workspace_id, [r.data]))[0] : null })),
   ]);
   const name = w?.name ?? "Ziffr";
-  if (before && Number(before.telegram_user_id) !== input.userId) await tellChat(Number(before.chat_id), `Ziffr messages for ${name} now go to another Telegram account. If that was not you, tell an Owner of the workspace.`);
-  return { linked: true, workspace: name, person: p?.name ?? "you" };
+  if (before && Number(before.telegram_user_id) !== input.userId && (await mayAnswer(c.workspace_id, "telegram", String(before.chat_id)))) await tellChat(Number(before.chat_id), `Ziffr messages for ${name} now go to another Telegram account. If that was not you, tell an Owner of the workspace.`);
+  // In a Practice Workspace (spec 0063) an account other than the one recorded is linked but told nothing.
+  return { linked: true, workspace: name, person: p?.name ?? "you", ...((await mayAnswer(c.workspace_id, "telegram", String(input.chatId))) ? {} : { silent: true }) };
 }
 
 /** Forgets a Telegram account everywhere: it sent /stop, or blocked the bot. Returns how many links ended. */

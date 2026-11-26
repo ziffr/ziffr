@@ -435,7 +435,7 @@ A Widget whose Tag you cannot see is left out as well. Free layouts are left out
 
 Only a dashboard's owner shares it. **Share** opens a panel on the right, over the page, listing the people in the Workspace (not Contacts, who have no login) and, under **Groups, including whoever joins later**, every **Group** with its members. For each, choose:
 
-**Invite someone…** at the bottom of the Share panel is for someone who is not in the Workspace yet, such as when you are the only one in it. Owners and Admins enter an email address and choose **Member** or **Guest** (a Guest sees only what is shared with them), and Ziffr invites them the same way as the **Members and Groups** page: it emails the link when mail is set up and shows it to send yourself. A person is shared with once they have joined and appear in the list. Everyone else sees "Ask an Owner or Admin to invite them" (for a dashboard or deck).
+**Invite someone…** at the bottom of the Share panel is for someone who is not in the Workspace yet, such as when you are the only one in it. Owners and Admins enter an email address and choose **Member** or **Guest** (a Guest sees only what is shared with them), and Ziffr invites them the same way as the **Members and Groups** page: it emails the link when mail is set up and shows it to send yourself. A person is shared with once they have joined and appear in the list. Everyone else sees "Ask an Owner or Admin to invite them" (for a dashboard or deck). In a trial that cannot invite yet, or has no free place, the fields are greyed out and a box above them says why and what opens them ([the Team step](07-getting-started.md#team)).
 
 - **No access**.
 - **Viewer**: can look, inspect history and ask questions, but not change the dashboard.
@@ -459,7 +459,7 @@ A **View Link** shows one dashboard to someone outside the team, such as a board
 
 Opening a View Link changes the address in the browser's address bar to one that stands for this link in this browser only. Reloading works for 12 hours; after that, or in another browser, open the link that was sent. To pass a View Link on, pass on that link, not the address bar's. The browser needs to allow cookies.
 
-**View links…** in the **⋯** menu opens a panel on the right, over the page, so the dashboard stays in view. Revoking a link or hiding its names takes effect at once. The panel has:
+**View links…** in the **⋯** menu opens a panel on the right, over the page, so the dashboard stays in view. It says at the top that anyone with a link can read it, without signing in, until it ends. Revoking a link or hiding its names takes effect at once. The panel has:
 
 | Field | What it does |
 | --- | --- |

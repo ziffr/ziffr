@@ -9,7 +9,7 @@ import { checkSchema } from "./json-check";
 export * from "@ziffr/pack/slide-element";
 
 // What a person types in their own deck follows the app's text rules, as a slide's words do.
-const IN_APP = slideElementSchema(appText);
+const IN_APP = slideElementSchema(appText, { totals: true });
 
 /** A slide widget's `element` as it may be stored: refused with an Error that names the first problem. */
 export function checkedElement(v: unknown): SlideElement {

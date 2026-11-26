@@ -8,6 +8,7 @@ import { db } from "./db";
 import { formulaInputs } from "./formula";
 import { allRows, getMetrics, mustRead } from "./workspace-data";
 import { restsOnTotal, totalNote, totalUnapproved, type TotalPart, type TotalsRead, type TotalsReader } from "./totals";
+import { seenList, type SeenList } from "./total-lists";
 import { NOT_FINAL_STATES } from "./value-state";
 import type { Metric, Point } from "./types";
 
@@ -44,6 +45,17 @@ export async function asTotals<R extends Row>(ws: string, rows: R[]): Promise<(R
 /** What working out the Totals among `metrics` needs for one reader: the reader, and each Total's parts. */
 export async function totalParts(ws: string, metrics: readonly Pick<Metric, "total">[], reader: TotalsReader): Promise<TotalsRead> {
   return { ...reader, parts: metrics.some((m) => m.total) ? await readParts(ws) : {} };
+}
+
+/** The list of each Total among `shown` as one reader gets it, by the Total's id: only the Metrics they see, held to
+ * the periods of the series they were sent (`series`, by slug). The caller passes only Totals the reader sees. */
+export async function seenLists(ws: string, metrics: readonly Pick<Metric, "id" | "slug" | "total">[], shown: readonly number[], sees: (metricId: number) => boolean, series: Record<string, readonly Point[]>): Promise<Record<number, SeenList>> {
+  const totals = metrics.filter((m) => m.total && shown.includes(m.id));
+  if (!totals.length) return {};
+  const parts = await readParts(ws);
+  const slugs = new Map(metrics.map((m) => [m.id, m.slug]));
+  const periodsOf = (id: number) => (series[slugs.get(id) ?? ""] ?? []).map((p) => p.period);
+  return Object.fromEntries(totals.map((t) => [t.id, seenList({ parts: parts[t.id] ?? [] }, sees, periodsOf)]));
 }
 
 /** The periods not approved yet of each Total among `shown`, by its id: those among the periods it is shown with in

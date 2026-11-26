@@ -49,6 +49,8 @@ import { MetricActionsHost } from "@/components/metric-actions-panel";
 import { ServiceWorker } from "@/components/service-worker";
 import { APP_COLOURS } from "@/lib/app-colours";
 import { appearanceFor, appearanceForPerson } from "@/lib/appearance";
+import { PracticeBar } from "@/components/practice-bar";
+import { isPracticeWorkspace } from "@ziffr/core/practice";
 
 export const metadata: Metadata = {
   title: "Ziffr",
@@ -116,6 +118,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const { role } = actor;
   // The demo's Viewing as picker offers all its made-up people, also while viewing as its Guest.
   const profiles = demo ? await getPeopleIn(workspaceId) : shown;
+  // A Practice Workspace (spec 0063) says so on every page; nothing of the Setup Guide or feedback is offered there.
+  const practice = demo ? false : await isPracticeWorkspace(workspaceId).catch(() => false);
   // A Trial Workspace (spec 0021): its days left on every page, and once it has ended, only the screen that says so.
   const trial = demo ? null : await trialStatus(workspaceId, actor.role);
   // What the trial has used of its limits (spec 0040): Owners and Admins only, counts of this Workspace alone.
@@ -126,15 +130,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // The Feedback Prompt (ticket #722): only a signed-in member, never the demo; the core decides, the page gets one flag.
   // The Setup Guide's line (spec 0052): only for someone it applies to (never a Guest or the demo: the core says no), and
   // only counts and a step name go to the browser. A trial that has ended shows its own screen instead.
-  const setup = demo || trial?.ended ? { applies: false, shown: false, done: 0, total: 0, next: null } : await setupLine(actor).catch(() => ({ applies: false, shown: false, done: 0, total: 0, next: null }));
-  const feedback = demo ? null : await feedbackPromptFor(actor).catch(() => null);
+  const setup = demo || practice || trial?.ended ? { applies: false, shown: false, done: 0, total: 0, next: null } : await setupLine(actor).catch(() => ({ applies: false, shown: false, done: 0, total: 0, next: null }));
+  const feedback = demo || practice ? null : await feedbackPromptFor(actor).catch(() => null);
   const offersTrials = demo && Boolean((await whatThisZiffrOffers()).trial);
   // Only the real person behind the session, never a demo visitor.
   const installationAdmin = person ? await isInstallationAdmin({ personId: person }) : false;
   const due = await dueValueCount();
   // Pinned dashboards (#509): only those this person may open now, with nothing but id and name.
   const pinned = await pinnedDashboards(await currentActor());
-  const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, guest: role === "guest", demo: await demoEnabled(), sendFeedback: hostedByCloud(await settingsInEffect()) };
+  const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, guest: role === "guest", demo: await demoEnabled(), sendFeedback: !practice && hostedByCloud(await settingsInEffect()) };
   // On a phone the demo bar is this one control; "Leave the demo" and the guided tour are in More.
   const demoControls = demo ? <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} roles={await demoRoles()} /> : undefined;
   // The demo saves and sends nothing (spec 0021, #271): say so on every page, and where to get it for real when this Ziffr offers trials.
@@ -156,6 +160,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   ) : null;
   const banners = (
     <>
+      {practice && <PracticeBar startOver={installationAdmin} />}
       {/* Owners and Admins get the bar with counts and links; everyone else the plain words (spec 0040). */}
       {trial && !trial.ended && (role === "owner" || role === "admin"
         ? <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} isOwner={role === "owner"} keeps={trial.keeps} usage={usage} />

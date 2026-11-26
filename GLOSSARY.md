@@ -429,6 +429,14 @@ _Avoid_: Sandbox, test workspace, free trial
 One of the numbers that bound every Trial Workspace: people, invitation emails a day, Metrics, messages a day, keys, Feeds, assistants, Webhooks, View Links, and the days a trial lasts and its data stays. Ziffr Cloud or an Installation Admin of hosted Ziffr sets them, each within a range, and a change applies to running trials at once. Lowering one never deletes or stops what a trial has: only what is new waits. Not a Workspace Limit, which counts Metrics of an ordinary Workspace, nor a Sending Limit, which is the same for every Workspace.
 _Avoid_: Plan limit, quota, entitlement
 
+**Practice Workspace**:
+A private Workspace an Installation Admin makes for themself to try Ziffr on made-up numbers (spec 0063). They are its Owner and its only real person; the others are Made-up People. Nothing reaches anyone but that person, or an address they entered themselves: messages to them arrive only by a way they switched on under Send to yourself, every other message stays in the Outbox, they may make View Links, Calendar Links and Webhooks, and nobody can be invited or added as a Contact. Which Workspace is one is set when it is made and never changes. It has no Workspace Limit, no usage digest and is never deleted as unused. Not the demo (shared, and visitors look around it), not a Trial Workspace (on hosted Ziffr, to try Ziffr with real numbers and real colleagues).
+_Avoid_: Sandbox, test workspace, playground, demo copy
+
+**Made-up Person**:
+A person of a Practice Workspace who does not exist: a member with a name, a Workspace Role and whatever is shared with them or asked of them, no way to sign in and an address ending in `.invalid`, which can never be routed. They belong to that Workspace alone. Not a Contact (a real person without an account) and not one of the demo's people, though a Practice Workspace's first ones are named after them.
+_Avoid_: Fake user, test user, dummy, bot
+
 **Workspace Export**:
 The file a Workspace's Owner downloads that holds the Workspace as the Owner may see it (its Metrics and their values, dashboards, decks, Workflows, Themes, Groups, Shares and people as invitations, but no secret, key or Connector link), so that another Installation can import it as a new Workspace (a Workspace made by an import is marked importing, and invisible to its Owner, until it is complete: a failed import deletes it with its key). It asks for a sign-in from the last 10 minutes, is made while it downloads and is never stored. What its format cannot carry is left out and said, never cut short. The people in it become invitations on hold, sent only when the new Owner presses Invite everyone. Not an Archived Metric, nor a Pack, which holds no values.
 _Avoid_: Backup, dump, archive
