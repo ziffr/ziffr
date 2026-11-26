@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { gapModel, OTHERS_NOT_SHOWN, type SlideContext } from "./slide-figures";
 import { seenList } from "./total-lists";
 import { shownData } from "./view-links";
+import { checkDeckTemplateFileValue } from "./deck-template-file";
+import { deckFile } from "./pack-export";
 import type { CanvasData, Metric } from "./types";
 
 const metric = (id: number, name: string, extra: Partial<Metric> = {}): Metric => ({
@@ -107,5 +109,23 @@ describe("a Total's list as a reader gets it", () => {
   it("goes out with no Snapshot or other view that does not ask for it", () => {
     const data = canvas([total, ...people]);
     expect(shownData(data, new Set([total.id, anna.id]), null)).not.toHaveProperty("totalLists");
+  });
+});
+
+describe("a gap table of a Total in a Deck Template file", () => {
+  const shape = (element: object, slots: number[]) => ({ shape: "element" as const, x: 64, y: 85, w: 1152, h: 540, slots, element: element as never });
+  const file = (element: object, slots = [0]) => deckFile({ name: "Forecast", slots: [{ label: "Team commit" }, { label: "Quota" }], slides: [{ shapes: [shape(element, slots)] }] });
+
+  it("is written as ziffr.deck-template/3, which takes it with one Slot", () => {
+    const doc = file({ kind: "gap-table", total: true });
+    expect(doc.format).toBe("ziffr.deck-template/3");
+    expect(checkDeckTemplateFileValue(doc).ok).toBe(true);
+    expect(checkDeckTemplateFileValue(file({ kind: "gap-table", total: true }, [0, 1])).ok).toBe(false);
+  });
+
+  it("is refused in an older format, in words, and leaves a table of two Metrics in /2", () => {
+    const old = checkDeckTemplateFileValue({ ...file({ kind: "gap-table", total: true }), format: "ziffr.deck-template/2" });
+    expect(old.ok).toBe(false);
+    expect(file({ kind: "gap-table" }, [0, 1]).format).toBe("ziffr.deck-template/2");
   });
 });

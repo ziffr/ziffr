@@ -148,7 +148,7 @@ Tick **One Total: a row for each Metric it adds up, against its target** and pic
 
 Where the names begin alike up to a comma, as "Commit, Anna" and "Commit, Ben" do, that beginning heads the column and each row shows the rest.
 
-Each person gets the rows of the Metrics they see, with the line "Other Metrics of this Total are not shown to you." where there are more. Nothing is added up from the rows; the Total's own figures elsewhere on the slide follow the [rules for who sees its numbers](10-metrics.md#who-sees-its-numbers). A **View Link** shows rows only for Metrics the deck shows in some other part too, and a slide that keeps a Snapshot's numbers has no rows. A deck with such a table cannot be saved as a Deck Template yet.
+Each person gets the rows of the Metrics they see, with the line "Other Metrics of this Total are not shown to you." where there are more. Nothing is added up from the rows; the Total's own figures elsewhere on the slide follow the [rules for who sees its numbers](10-metrics.md#who-sees-its-numbers). A **View Link** shows rows only for Metrics the deck shows in some other part too, and a slide that keeps a Snapshot's numbers has no rows. Saved as a Deck Template or put in a Pack, the table keeps reading one Total, which its Slot takes.
 
 **Words that stay current.** An element fills its words from the data every time the slide is shown, from the Metrics listed under **Metrics** in the panel. {metric 2} or {latest 2} means the second of them.
 
