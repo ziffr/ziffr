@@ -30,6 +30,7 @@ import { numberStyleOf } from "./workspace-settings";
 import { effectiveLimit } from "./limits";
 import { trialEnded, trialLastDay, trialLimitMessage } from "./trials";
 import type { CanvasData, Widget } from "./types";
+import { restsOnTotal } from "./totals";
 import { withoutUnseenInputs } from "./formula";
 
 /** How long a View Link may live at most, in days: the ceiling; a Workspace may set a shorter life (limits.ts). */
@@ -80,15 +81,18 @@ export function shownData(full: CanvasData, ids: Set<number>, themeId: number | 
   const metrics = full.metrics.filter((m) => ids.has(m.id)).map(insideOnly);
   // Only the shown Metrics' own series: a derived Metric's inputs stay out (its comparisons then do not show).
   const slugs = new Set(metrics.map((m) => m.slug));
+  // Nothing that rests on a Total goes out with a view yet: who is on the other end sees none of its parts (spec 0058).
+  const held = new Set(metrics.filter(restsOnTotal).flatMap((m) => [m.slug, String(m.id)]));
+  const sent = <T>(byKey: Record<string, T>) => Object.fromEntries(Object.entries(byKey).filter(([k]) => !held.has(k)));
   return {
     viewer: "",
     // Nor does its formula name a Metric that is not shown.
     metrics: withoutUnseenInputs(metrics, slugs),
-    series: Object.fromEntries(Object.entries(full.series).filter(([slug]) => slugs.has(slug))),
+    series: sent(Object.fromEntries(Object.entries(full.series).filter(([slug]) => slugs.has(slug)))),
     people: peopleShown(full.people, metrics),
     openActions: {},
     submitters: {},
-    targets: pick(full.targets, ids),
+    targets: sent(pick(full.targets, ids)),
     projections: pick(full.projections, ids),
     // Only the shown Metrics' Condensed Values, like their series.
     condensed: pick(full.condensed ?? {}, ids),
@@ -98,7 +102,7 @@ export function shownData(full: CanvasData, ids: Set<number>, themeId: number | 
     themes: full.themes.filter((t) => t.id === themeId || t.is_default).map((t) => ({ ...t, owner_id: "" })),
     canEditThemes: false,
     groups: [],
-    pending: pick(full.pending, ids),
+    pending: sent(pick(full.pending, ids)),
     locked: pick(full.locked, ids),
     yearStart: full.yearStart,
     numberStyle: full.numberStyle,

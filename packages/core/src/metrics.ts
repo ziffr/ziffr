@@ -254,6 +254,10 @@ export async function deleteMetric(actor: Actor, metricId: number, confirmName: 
   // Names of what blocks it only where the owner may see them: Derived Metrics are named, other things only counted.
   const usedBy = (await openRows("metrics", ws, derived)).filter((d) => formulaInputs(String(d.formula)).includes(m.slug)).map((d) => d.name as string);
   if (usedBy.length) throw new MetricKept(`Other Metrics are computed from it (${usedBy.length}). Change their formulas first.`);
+  // A Total keeps the Metrics it adds up, past ones too: deleting one would change what past totals were.
+  const { count: addedUp, error: unread } = await db().from("total_parts").select("total_id", { count: "exact", head: true }).eq("workspace_id", ws).eq("part_id", m.id);
+  if (unread) throw new Error("The Metric could not be deleted. Try again in a moment.");
+  if (addedUp) throw new MetricKept(`Totals add it up (${addedUp}). Remove it from them first.`);
   const inWidgets = (widgets ?? []).filter((w) => widgetMetricIds(w.metric_ids ?? [], w.settings).includes(metricId)).length;
   const inDecks = (decks ?? []).filter((d) => allDeckMetricIds(d.document).includes(metricId)).length;
   if (inWidgets || inDecks) throw new MetricKept(`It is shown in ${inWidgets} widget${inWidgets === 1 ? "" : "s"} and ${inDecks} deck${inDecks === 1 ? "" : "s"}. Take it out of them first.`);

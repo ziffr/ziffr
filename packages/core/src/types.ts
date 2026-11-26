@@ -43,6 +43,11 @@ export type MetricDescription = {
   /** How it is calculated (GLOSSARY: Calculation Note): what counts, where it comes from, adjustments. Null or missing
    * where nothing is written. */
   calculation_note?: string | null;
+  /** Set for a Total (GLOSSARY: Total): where its target comes from, and whether its owner opened its numbers to people
+   * who do not see every part. Its `formula` then only names its parts, so that it reads as calculated from them. */
+  total?: { targets: "own" | "parts"; open: boolean };
+  /** Set for a formula that reads a Total, so that its numbers are held as the Total's are. */
+  reads_total?: boolean;
   unit: string;
   unit_position: UnitPosition;
   format: Format;

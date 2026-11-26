@@ -15,6 +15,7 @@
   "src/number-style.ts",
   "src/formula.ts",
   "src/series.ts",
+  "src/totals.ts",
   "src/numbers.ts",
   "src/numbers/period-words.ts",
   "src/numbers/languages.ts",

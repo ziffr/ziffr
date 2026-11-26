@@ -11,9 +11,10 @@ import { allRows, getActions, getBreakdowns, getMetrics, getSeriesOf, getSeriesV
 import { Forbidden, type Actor } from "./actor";
 import { peopleIn, peopleToHide } from "./submissions";
 import { nameHider } from "./hide-names";
-import type { Action, CanvasData, Dashboard, Group, Metric, Profile, Share, ShareRole, TeamTemplate, Theme } from "./types";
+import type { Action, CanvasData, Dashboard, Group, Metric, Point, Profile, Share, ShareRole, TeamTemplate, Theme } from "./types";
 import { yearStartOf } from "./fiscal-year";
 import { condensedFor } from "./condensed-values";
+import { unapprovedTotals } from "./total-parts";
 import { attainmentMethodOf, numberStyleOf } from "./workspace-settings";
 import { withoutUnseenInputs } from "./formula";
 
@@ -168,8 +169,12 @@ export async function seriesFor(ws: string, metrics: Metric[], visible: Set<numb
   const wanted = withInputs(metrics, [...ids].filter((id) => visible.has(id))).filter((id) => visible.has(id));
   if (!wanted.length) return { series: {}, breakdowns: {}, targets: {}, projections: {}, condensed: {} };
   // Derived values are computed from all their inputs, also ones the person does not see; only visible series go out.
-  const [series, breakdowns, { targets, projections }, condensed] = await Promise.all([getSeriesOf(ws, metrics, wanted), getBreakdowns(ws, wanted), getSeriesValues(ws, wanted), condensedFor(ws, wanted)]);
+  // A Total is worked out for what this person sees: a period only where they see every part counted, unless it is open.
+  const aims: Record<number, Point[]> = {};
   const byId = new Map(metrics.map((m) => [m.id, m]));
+  const [series, breakdowns, { targets, projections }, condensed] = await Promise.all([getSeriesOf(ws, metrics, wanted, {}, { sees: (id) => visible.has(id), aims }), getBreakdowns(ws, wanted), getSeriesValues(ws, wanted), condensedFor(ws, wanted)]);
+  // A Total whose target is its parts' added up has that one, never a series stored under its own name.
+  for (const id of wanted) if (byId.get(id)!.total?.targets === "parts") targets[id] = aims[id] ?? [];
   return {
     series: Object.fromEntries(wanted.map((id) => byId.get(id)!).map((m) => [m.slug, series[m.slug] ?? []])),
     breakdowns,
@@ -238,6 +243,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
   const named = await peopleFor({ workspaceId: ws, personId: viewer, role: guest ? "guest" : "member" }, people);
   const wanted = opts.seriesOf === undefined ? [...ids] : typeof opts.seriesOf === "function" ? opts.seriesOf(visible) : opts.seriesOf;
   const { series, breakdowns, targets, projections, condensed } = await seriesFor(ws, metrics, ids, wanted);
+  // A Total's period is not approved yet while one of its parts' is not (spec 0058).
+  const unapproved = await unapprovedTotals(ws, visible.map((metric) => ({ metric, points: series[metric.slug] ?? [] })));
   const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
   const canRead = threadReader(viewer, groups, (id) => owners.get(id), ws, ids);
   const openActions: Record<number, number> = {};
@@ -263,7 +270,7 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     // A Guest shares nothing (GLOSSARY: Workspace Role), so of the Groups they get only the ones they are in, and of
     // their members only themselves: never who else is in which (AGENTS.md rule 3).
     groups: guest ? groups.filter((g) => g.members.includes(viewer)).map((g) => ({ ...g, members: [viewer] })) : groups,
-    pending: byMetric(states, "approval", ids),
+    pending: { ...byMetric(states, "approval", ids), ...unapproved },
     locked: byMetric(states, "locked", ids),
     yearStart,
     numberStyle,
