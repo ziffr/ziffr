@@ -32,6 +32,16 @@ Choose **Preview with Sample Data** to see everything the Pack adds, drawn with 
 
 When a newer Ziffr brings a newer version of a Pack you installed, that Pack shows **Version … comes with this Ziffr…**, which shows what an update changes before it is done, as under Updating a Pack. It is never applied by itself.
 
+## Made-up numbers in a Practice Workspace
+
+In a [Practice Workspace](18-installation-settings.md#practice-workspace), a Pack you set up can be filled at once, so its dashboards and slides have something to show. After **Set up** choose **Fill with made-up numbers**; the same button stays on the installed Pack. It fills the Metrics your Set ups made, a few at a time, and says how far it is.
+
+- **Values** for every period from the start of the previous Fiscal Year up to now, and never less than 13 months back (at least 8 quarters and 3 years for quarterly and yearly Metrics), so year on year, year to date against last year and the period before all work. They follow a mild trend and season in the Metric's unit, and are marked as imports.
+- **Targets:** a Metric where higher or lower is better gets a Target Series for the previous and the whole current Fiscal Year, periods still to come included.
+- Calculated Metrics and Totals work themselves out. A Metric with a target range to stay inside keeps it, no Metric gets a Breakdown, and **nothing that is there is replaced**: a period with a value keeps it, and a Metric with a Target Series keeps its own.
+
+The button is offered only to you, only in your Practice Workspace.
+
 ## Whom a Pack is for
 
 Each of Ziffr's own Packs says whom it is for: the industries, the kinds of customers, the Business Functions, the sizes and the countries it was made for. Ziffr uses this only to suggest first the Packs that fit what your Workspace and the people who manage it have told it, with the reason ("your industry", "your function"). It never hides a Pack: every one stays in the list. A Pack from a file or the Marketplace may say it too. What you answered about your Workspace and your function stays in your Workspace; nothing is sent anywhere to rank Packs.

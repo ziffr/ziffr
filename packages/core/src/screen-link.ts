@@ -18,6 +18,7 @@ import { addressIn, mailEnabled } from "./mail";
 import { SCREEN_LINK_SUBJECT, screenLinkLimitWords, screenLinkText } from "./screen-link-words";
 import { settingsInEffect } from "./settings-in-effect";
 import { NO_WAY_HERE } from "./test-message-words";
+import { mayQueue, PRACTICE_HELD } from "./practice";
 
 /** What became of a press: sent, waiting to be sent, kept in the Outbox or stopped by a limit, with the words the person reads. */
 export type ScreenLinkResult = { state: "sent" | "queued" | "kept" | "limited"; words: string };
@@ -36,7 +37,8 @@ export async function sendScreenLink(actor: Actor, path: unknown): Promise<Scree
   const claim = await claimSelfSend(actor.workspaceId, actor.personId, "email", FAILED);
   if (!claim.ok) return { state: "limited", words: screenLinkLimitWords(claim.limit, claim.resetsAt, claim.perDay) };
   const { data: ws } = await db().from("workspaces").select("name").eq("id", actor.workspaceId).maybeSingle();
-  const keep = !mailEnabled(await settingsInEffect()) ? NO_WAY_HERE.mail : (await addressIn(actor.workspaceId, actor.personId)) ? null : NO_WAY_HERE.address;
+  const keep = !(await mayQueue(actor.workspaceId, "email", actor.personId)) ? PRACTICE_HELD
+    : !mailEnabled(await settingsInEffect()) ? NO_WAY_HERE.mail : (await addressIn(actor.workspaceId, actor.personId)) ? null : NO_WAY_HERE.address;
   const id = await deliverScreenLink(actor.workspaceId, { recipientId: actor.personId, subject: SCREEN_LINK_SUBJECT, text: screenLinkText(String(ws?.name ?? ""), screen.name), link: path as string, keep: keep ?? undefined });
   const { state, note } = await selfSendOutcome(actor.workspaceId, actor.personId, id, keep);
   await audit(actor, { kind: "connector.screen_link_sent", details: { screen: screen.name, outcome: state } });

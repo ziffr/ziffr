@@ -12,6 +12,7 @@ import { db } from "./db";
 import { addressIn } from "./mail";
 import { callSlack, SlackError } from "./slack-api";
 import { slackBot, type SlackBot } from "./slack-connection";
+import { isPracticeWorkspace, PRACTICE_HELD } from "./practice";
 
 /** How long a link code works. */
 const CODE_MINUTES = 10;
@@ -33,6 +34,10 @@ export async function slackUserFor(bot: SlackBot, personId: string): Promise<Sla
     addressIn(ws, personId),
   ]);
   const member = await isMember(ws, personId);
+  // A Practice Workspace (spec 0063) looks nobody up: only the account its person linked with a code counts.
+  if (await isPracticeWorkspace(ws)) {
+    return link && link.team_id === bot.teamId && link.matched_by === "code" && member ? { userId: link.slack_user_id, by: "code" } : { userId: null, why: PRACTICE_HELD };
+  }
   if (link && link.team_id === bot.teamId) {
     // A code link is a member's own; a Contact has no login to make one.
     if (link.matched_by === "code" && member) return { userId: link.slack_user_id, by: "code" };

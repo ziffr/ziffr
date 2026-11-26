@@ -3,6 +3,7 @@
 // off (ZIFFR_TRIAL_WEBHOOKS, Installation settings → Trials; the numbers are Trial Limits). One place answers what a Workspace's Webhooks may do, so
 // creating, testing and sending (and Personal Webhooks, spec 0037 ticket 1) all apply the same rules.
 import { operatorPrivateHosts } from "./outbound-request";
+import { heldBack, PRACTICE_REFUSED } from "./practice";
 import { sendingLimit } from "./sending-limit";
 import { settingsInEffectStrict, type Settings } from "./settings-in-effect";
 import { trialEndsAt } from "./trials";
@@ -26,6 +27,8 @@ const TRIAL_ENDED = "This trial has ended: nothing is sent any more.";
 /** The rules for one Workspace by its trial and the settings in effect unless others are given. Never reads a person's
  * data: a Workspace id and the Installation's settings only. */
 export async function webhookRules(workspaceId: string, given?: Settings): Promise<WebhookRules> {
+  // Nothing leaves a Practice Workspace (spec 0063): no Webhook there is made, tested or sent to.
+  if (await heldBack(workspaceId, "webhook")) return { trial: false, allowed: false, why: PRACTICE_REFUSED, maxWebhooks: 0, sendsPerDay: 0, privateHosts: [] };
   // trialEndsAt turns a trial that has ended into an ordinary Workspace first where trials are kept (spec 0029).
   const [ends, perWorkspace, sendsPerDay] = await Promise.all([trialEndsAt(workspaceId), sendingLimit("webhooksPerWorkspace"), sendingLimit("webhookSendsPerWorkspace")]);
   if (!ends) return { trial: false, allowed: true, why: null, maxWebhooks: perWorkspace, sendsPerDay, privateHosts: operatorPrivateHosts() };

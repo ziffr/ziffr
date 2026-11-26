@@ -38,6 +38,8 @@ vi.mock("./db", () => {
 });
 vi.mock("./sealed-columns", async (actual) => ({ ...(await actual<object>()), openRows: async (_t: string, _w: string, rows: unknown[]) => rows, openNames: async (_w: string, rows: unknown[]) => rows }));
 vi.mock("./settings-in-effect", async (actual) => ({ ...(await actual<object>()), settingsInEffect: async () => SETTINGS }));
+// None of these is a Practice Workspace (practice.test.ts and practice.db.test.ts hold that one).
+vi.mock("./practice", async (actual) => ({ ...(await actual<object>()), heldBack: async () => false, assertMayLeave: async () => {}, isPracticeWorkspace: async () => false }));
 vi.mock("./limits", async (actual) => ({ ...(await actual<object>()), effectiveLimit: async () => 50 }));
 vi.mock("./sending-limit", () => ({ sendingLimit: async () => 100 }));
 vi.mock("./trials", async (actual) => ({ ...(await actual<object>()), trialHoldsBack: async () => null, claimTrialSend: async () => "ok", trialEndsAt: async () => null, trialEnded: async () => false }));
@@ -211,7 +213,7 @@ describe("emails that are no Delivery", () => {
   it("a View Link, also with a link in the sender's message", async () => {
     const mail = viewLinkEmail({ sender: "Sara", dashboard: "Board", url: `${SITE}/v/${"v".repeat(120)}`, endsOn: "2026-12-31", message: `Look at ${SITE}/dashboards/1\nand https://evil.example.org/${"x".repeat(90)}` });
     const open = { label: "Open the dashboard", url: `${SITE}/v/${"v".repeat(120)}` };
-    await sendMail({ to: "bo@example.org", subject: mail.subject, text: mail.text, action: open, ...(await brandedParts("w1", { text: mail.text, action: open })) }, transport);
+    await sendMail({ to: "bo@example.org", subject: mail.subject, text: mail.text, action: open, ...(await brandedParts("w1", { text: mail.text, action: open })) }, "w1", transport);
     const m = await wire(sent[0]);
     expect(visible(m.html)).not.toMatch(/https?:\/\//);
     expect(button(m.html)).toEqual([`${SITE}/v/${"v".repeat(120)}`, "Open the dashboard"]);
@@ -321,7 +323,7 @@ describe.each(HOSTILE)("with %s in people's words", (bad) => {
     const open = { label: "Open the dashboard", url: `${SITE}/v/abc` };
     const mail = viewLinkEmail({ sender: name, dashboard: name, url: open.url, endsOn: "2026-12-31", message: comment });
     const by = { name, email: "eve@example.test", did: "shared a dashboard with you from" };
-    await sendMail({ to: "bo@example.org", subject: mail.subject, text: `${mail.text}\n\n${sentByLine(by, name)}`, action: open, ...(await brandedParts("w1", { text: mail.text, action: open }, by)) }, transport);
+    await sendMail({ to: "bo@example.org", subject: mail.subject, text: `${mail.text}\n\n${sentByLine(by, name)}`, action: open, ...(await brandedParts("w1", { text: mail.text, action: open }, by)) }, "w1", transport);
     await harmless(sent[0], [open.url, "Open the dashboard"]);
     // Names are broken, so the only links to their address are the four in the quoted message.
     expect(sent[0].html!.match(/href="[^"]*attacker/g)).toHaveLength(4);
@@ -330,10 +332,10 @@ describe.each(HOSTILE)("with %s in people's words", (bad) => {
     fake.workspace = name;
     await harmless(await answered(), FORM);
     sent = [];
-    await sendMail({ to: "a@example.test", subject: "Recorded", text: comment, ...(await brandedParts("w1", { text: comment })) }, transport);
+    await sendMail({ to: "a@example.test", subject: "Recorded", text: comment, ...(await brandedParts("w1", { text: comment })) }, "w1", transport);
     await harmless(sent[0], null);
     sent = [];
-    await sendMail({ to: "a@example.test", subject: "Recorded", text: comment }, transport);
+    await sendMail({ to: "a@example.test", subject: "Recorded", text: comment }, "w1", transport);
     await harmless(sent[0], null);
   });
 });

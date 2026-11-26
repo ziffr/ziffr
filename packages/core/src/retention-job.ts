@@ -22,6 +22,7 @@ import { keptFrom, ownPeriodsOf, type Retention, type RetentionPlan } from "./re
 import { planRetention, settleRetentions, workspaceToday, type PeriodCount } from "./retention-setting";
 import { storedCap, storedRetention, type RetentionCap } from "./retention-words";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { isPracticeWorkspace } from "./practice";
 import type { CondensedPoint } from "./condensed-parts";
 import type { Metric, Point } from "./types";
 import { allRows, getMetrics } from "./workspace-data";
@@ -319,10 +320,13 @@ async function runMetric(ws: string, metric: Metric, ctx: { today: string; ys: Y
 export async function retentionJob(now = new Date(), only?: { workspaceId: string }): Promise<RetentionJobResult> {
   const settled = await settleRetentions(now, only);
   const out: RetentionJobResult = { started: settled.started, reminded: settled.reminded, metrics: 0, claimedElsewhere: 0, stopped: 0, needConfirmation: 0, condensed: 0, periods: 0, values: 0, mismatches: 0, heldBack: 0, failed: 0 };
-  const rows = await allRows<{ id: number; workspace_id: string }>((from, to) => {
+  const due = await allRows<{ id: number; workspace_id: string }>((from, to) => {
     const q = db().from("metrics").select("id, workspace_id").not("retention", "is", null).neq("workspace_id", DEMO_WORKSPACE_ID);
     return (only ? q.eq("workspace_id", only.workspaceId) : q).order("id").range(from, to);
   });
+  // Never in a Practice Workspace (spec 0063): its made-up history stays whole.
+  const rows: typeof due = [];
+  for (const r of due) if (!(await isPracticeWorkspace(r.workspace_id))) rows.push(r);
   // The Metrics that were looked at longest ago first (never looked at: first), so a day's time spent on a few Metrics of
   // one Workspace cannot keep the others from ever being reached.
   const states = await allRows<{ metric_id: number; last_run_on: string | null }>((from, to) => db().from("retention_state").select("metric_id, last_run_on").order("metric_id").range(from, to));

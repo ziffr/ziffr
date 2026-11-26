@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/page-header";
 import { listIncludedPacks } from "@ziffr/core/included-packs";
 import { PacksScreen } from "./screen";
 import { DesktopOnly } from "@/components/desktop-only";
+import { offersMadeUpNumbers } from "@ziffr/core/practice-fill";
 
 export default async function PacksPage() {
   const actor = await currentActor();
@@ -29,6 +30,8 @@ export default async function PacksPage() {
   const reports = await marketplaceReportLinks(actor);
   // Packs the Marketplace withdrew, as its last answer said: one line for everyone who sees the installed Packs.
   const withdrawn = await marketplaceWithdrawals(actor);
+  // In their own Practice Workspace a Set up's Metrics can be filled with made-up numbers (spec 0063).
+  const practice = manages && (await offersMadeUpNumbers(actor));
   return (
     <>
       <PageHeader title="Packs" sub="Ready-made Metric Catalog entries, templates, View Designs and Themes, each a file with no code. Installing one adds them to the Workspace; it makes no Metric until you use them." />
@@ -50,6 +53,7 @@ export default async function PacksPage() {
         guest={actor.role === "guest"}
         viewer={actor.personId}
         numberStyle={numberStyle}
+        practice={practice}
       />
     </>
   );
