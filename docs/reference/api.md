@@ -92,7 +92,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `submitters` | array of string, at most 64 characters (at most 20) | no | Who submits: ids from GET /people (people, Contacts) and GET /feeds (Feeds), at most 20. Each gets a first Prompt. Needs metrics:edit as well. |
 | `workflow` | integer or string, at most 120 characters or null | no | One of your own Workflows, by id or exact name (GET /workflows), so the Metric is asked for on its schedule at once. Needs metrics:edit as well. A Workflow with an Approve or Tell step only with workflows:people on a program's key. |
 | `tags` | array of string, at most 100 characters (at most 10) | no | Its Tags, the whole set (at most 10 words of at most 32 characters; no comma, markup or control characters): the Metric carries exactly these afterwards. A word that exists is the same Tag Workspace-wide, a new one is made (at most 200 Tags in a Workspace). Renaming, merging and deleting Tags is done in Ziffr, not here. |
-| `formula` | string, at most 500 characters | no | Makes a Derived Metric: computed from other Metrics you own or edit, by their slugs, such as {revenue} / {orders} or ({revenue} - {cost}) / {revenue} * 100. + - * /, brackets and numbers; change({odometer}) is this period's value minus the previous period's and prev({odometer}) the previous period's (a Derived Metric with these is shown by its own period only). Its period is its inputs' own unless given, its unit their unit for sums and differences. It takes no values, so submit, submitters, sources, aggregation, submission_rule and workflow are refused with it. Needs metrics:read as well. |
+| `formula` | string, at most 500 characters | no | Makes a Derived Metric: computed from other Metrics you own or edit, by their slugs, such as {revenue} / {orders} or ({revenue} - {cost}) / {revenue} * 100. + - * /, brackets and numbers; change({odometer}) is this period's value minus the previous period's and prev({odometer}) the previous period's (a Derived Metric with these is shown by its own period only); target({commit}) is that Metric's target for the period (its Target Series value, else its Target Range when it has one bound; otherwise no value). Its period is its inputs' own unless given, its unit their unit for sums and differences. It takes no values, so submit, submitters, sources, aggregation, submission_rule and workflow are refused with it. Needs metrics:read as well. |
 
 **Answer** (201)
 
@@ -119,6 +119,10 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
 | `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
 | `formula` | string or null | yes | A Derived Metric's formula by its inputs' slugs, only when you see all of them; null for other Metrics, and for one made from Metrics you may not see. |
+| `total` | object | no | Only for a Total, a Metric that adds up a list of others (its formula is null). Programs read it; only a person makes, changes or opens one, in the app. |
+| `total.targets` | `"own"`, `"parts"` | yes | Its own target, or its Metrics' targets added up. |
+| `total.open` | boolean | yes | Whether its owner shows it to people who do not see every Metric it adds up. |
+| `total.periods_withheld` | boolean | yes | Whether its values leave out periods for you, because you do not see every Metric counted in them. |
 | `defaults` | array of string | no | Only in the answer to creating a Derived Metric: what was chosen where you left a field out, in plain words. |
 | `tags_left_out` | array of string | no | Only in the answer to creating a Metric with `tags` that the Workspace's limit of 200 Tags refused: the words left out. The Metric was made without them. |
 | `url` | string | yes | Where the Metric is in Ziffr, to give the person a link; needs a sign-in. |
@@ -198,6 +202,10 @@ One Metric's description: period, format, unit, Polarity and target, with its Wo
 | `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
 | `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
 | `formula` | string or null | yes | A Derived Metric's formula by its inputs' slugs, only when you see all of them; null for other Metrics, and for one made from Metrics you may not see. |
+| `total` | object | no | Only for a Total, a Metric that adds up a list of others (its formula is null). Programs read it; only a person makes, changes or opens one, in the app. |
+| `total.targets` | `"own"`, `"parts"` | yes | Its own target, or its Metrics' targets added up. |
+| `total.open` | boolean | yes | Whether its owner shows it to people who do not see every Metric it adds up. |
+| `total.periods_withheld` | boolean | yes | Whether its values leave out periods for you, because you do not see every Metric counted in them. |
 | `defaults` | array of string | no | Only in the answer to creating a Derived Metric: what was chosen where you left a field out, in plain words. |
 | `tags_left_out` | array of string | no | Only in the answer to creating a Metric with `tags` that the Workspace's limit of 200 Tags refused: the words left out. The Metric was made without them. |
 | `url` | string | yes | Where the Metric is in Ziffr, to give the person a link; needs a sign-in. |
@@ -300,6 +308,10 @@ Changes a Metric's name, description, unit, format, period (only while it has no
 | `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
 | `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
 | `formula` | string or null | yes | A Derived Metric's formula by its inputs' slugs, only when you see all of them; null for other Metrics, and for one made from Metrics you may not see. |
+| `total` | object | no | Only for a Total, a Metric that adds up a list of others (its formula is null). Programs read it; only a person makes, changes or opens one, in the app. |
+| `total.targets` | `"own"`, `"parts"` | yes | Its own target, or its Metrics' targets added up. |
+| `total.open` | boolean | yes | Whether its owner shows it to people who do not see every Metric it adds up. |
+| `total.periods_withheld` | boolean | yes | Whether its values leave out periods for you, because you do not see every Metric counted in them. |
 | `defaults` | array of string | no | Only in the answer to creating a Derived Metric: what was chosen where you left a field out, in plain words. |
 | `tags_left_out` | array of string | no | Only in the answer to creating a Metric with `tags` that the Workspace's limit of 200 Tags refused: the words left out. The Metric was made without them. |
 | `url` | string | yes | Where the Metric is in Ziffr, to give the person a link; needs a sign-in. |

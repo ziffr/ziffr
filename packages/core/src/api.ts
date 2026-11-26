@@ -5,6 +5,8 @@ import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, peopleFor, systemTextFor, threadReader, visibleMetricIds } from "./access";
 import { inCondensed, partOfCondensed, valueOfParts, type CondensedPoint } from "./condensed-parts";
 import { condensedFor } from "./condensed-values";
+import { restsOnTotal } from "./totals";
+import { readParts, totalParts, unapprovedTotals } from "./total-parts";
 import { db } from "./db";
 import { formulaInputs } from "./formula";
 import { metricIdsWithTags, metricTagNames, visibleTags } from "./tag-sight";
@@ -14,7 +16,7 @@ import { openRows } from "./sealed-columns";
 import { workflowFacts, type ApiMetricWorkflow, type ApiNextAsked, type ApiNextDue } from "./api-metric-workflow";
 import { linkTo } from "./deliveries";
 import { recordView } from "./usage";
-import { buildSeries, getBreakdowns, getLatestObservations, getMetrics, withInputs } from "./workspace-data";
+import { buildSeries, getBreakdowns, getLatestObservations, getMetrics, withInputs, formulaTargets } from "./workspace-data";
 import { listRows, type ListedRow } from "./breakdown-parts";
 import type { Action, BreakdownRow, Metric } from "./types";
 
@@ -103,25 +105,35 @@ export type ApiMetricDetail = ApiMetric & {
   /** A Derived Metric's formula, by its inputs' slugs, only when the key's creator sees every one of its inputs: else
    * null, so a formula never names a Metric they may not see (ticket #619). */
   formula: string | null;
+  /** Only for a Total (GLOSSARY: Total): where its target comes from, whether its owner opened it, and whether its
+   * values leave out periods for this key's creator. No program makes, changes, opens or closes one. */
+  total?: { targets: "own" | "parts"; open: boolean; periods_withheld: boolean };
   /** On the answer to creating a Derived Metric: what was chosen where the caller left a field out, in plain words. */
   defaults?: string[];
   /** On the answer to creating a Metric with `tags` that the Workspace's limit refused: the words left out. The Metric was made. */
   tags_left_out?: string[];
 };
 
-/** A Derived Metric's formula for someone who sees all the Metrics it is made of, else null. */
-async function formulaSeen(actor: Actor | KeyActor, metric: Metric): Promise<string | null> {
-  if (!metric.formula) return null;
+// What a Derived Metric's description adds: its formula for someone who sees all the Metrics it is made of, else null,
+// and for a Total (whose formula only names its parts for the core's own rules: none anyone wrote) what it is instead.
+async function calculated(actor: Actor | KeyActor, metric: Metric): Promise<Pick<ApiMetricDetail, "formula" | "total">> {
+  if (!metric.formula) return { formula: null };
   const metrics = await getMetrics(actor.workspaceId);
   const seen = await visibleMetricIds(actor.workspaceId, actor.personId, metrics);
+  const loaded = metrics.find((m) => m.id === metric.id);
+  if (loaded?.total) {
+    const parts = (await readParts(actor.workspaceId))[metric.id] ?? [];
+    const withheld = Boolean(loaded.inputs_withheld) || (!loaded.total.open && parts.some((p) => !seen.has(p.part)));
+    return { formula: null, total: { targets: loaded.total.targets, open: loaded.total.open, periods_withheld: withheld } };
+  }
   const bySlug = new Map(metrics.map((m) => [m.slug, m.id] as const));
-  return formulaInputs(metric.formula).every((s) => seen.has(bySlug.get(s) ?? -1)) ? metric.formula : null;
+  return { formula: formulaInputs(metric.formula).every((s) => seen.has(bySlug.get(s) ?? -1)) ? metric.formula : null };
 }
 
 /** A Metric the caller has checked the actor sees, with its Workflow facts. */
 export async function describeMetric(actor: Actor | KeyActor, metric: Metric): Promise<ApiMetricDetail> {
   const [stored, facts, names] = await Promise.all([storedRetentions(actor.workspaceId, [metric.id]), workflowFacts(actor, metric), metricTagNames(creatorOf(actor), [metric.id])]);
-  return { ...toApi(metric, stored.get(metric.id), names.get(metric.id)), url: linkTo(`/metrics/${metric.slug}`), ...facts, formula: await formulaSeen(actor, metric) };
+  return { ...toApi(metric, stored.get(metric.id), names.get(metric.id)), url: linkTo(`/metrics/${metric.slug}`), ...facts, ...(await calculated(actor, metric)) };
 }
 
 /** One Metric's description with its Workflow and next Due Date (scope metrics:read). */
@@ -165,6 +177,9 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   const lower = [range.from, range.after].filter(isDay).sort().at(-1) ?? null;
   const window = { from: lower, to: isDay(range.to) ? range.to : null };
   const observations = await getLatestObservations(ws, { metricIds: withInputs(metrics, [metric.id]), ...window });
+  // A Total, and a formula that reads one, is worked out for what the key's creator sees (spec 0058).
+  const seen = restsOnTotal(metric) ? await visibleMetricIds(ws, actor.personId, metrics) : null;
+  const totals = seen ? await totalParts(ws, metrics, { sees: (id) => seen.has(id) }) : undefined;
   const inRange = (p: { period: string }) => (!range.from || p.period >= range.from) && (!range.to || p.period <= range.to) && (!range.after || p.period > range.after);
   // The Condensed Values of a Metric the key's creator sees stand among its values as the span they were made for.
   const spans = metric.formula ? [] : ((await condensedFor(ws, [metric.id]))[metric.id] ?? []);
@@ -173,7 +188,7 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
     return value === undefined ? [] : [{ period: c.period, value, condensed: c }];
   }).filter(inRange);
   // A period a Condensed Value stands for is listed once, as it, even while its originals are not deleted yet.
-  const points: { period: string; value: number; condensed?: CondensedPoint }[] = [...(buildSeries(metrics, observations)[metric.slug] ?? []).filter((p) => inRange(p) && !inCondensed(spans, p.period)), ...condensed].sort((a, b) => a.period.localeCompare(b.period));
+  const points: { period: string; value: number; condensed?: CondensedPoint }[] = [...(buildSeries(metrics, observations, await formulaTargets(ws, metrics, withInputs(metrics, [metric.id])), totals)[metric.slug] ?? []).filter((p) => inRange(p) && !inCondensed(spans, p.period)), ...condensed].sort((a, b) => a.period.localeCompare(b.period));
   const limit = clampLimit(range.limit);
   const page = points.slice(0, limit);
   if (!page.length) return { items: [], next: null };
@@ -183,6 +198,7 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
     db().from("period_states").select("period_start, state").eq("workspace_id", ws).eq("metric_id", metric.id).in("state", ["approval", "locked"]).in("period_start", page.map((p) => p.period)),
   ]);
   const stateOf = new Map((states ?? []).map((r) => [r.period_start as string, r.state === "locked" ? "locked" : "awaiting_approval"] as const));
+  for (const period of (await unapprovedTotals(ws, [{ metric, points: page }]))[metric.id] ?? []) stateOf.set(period, "awaiting_approval");
   const guest = actor.role === "guest"; // a Guest is told nothing of who entered a value, as of who submitted it
   // A Guest's key names the Guest on their own values (a Filled-in Value counts as theirs, and who entered it stays
   // hidden: entered_by is never read for a Guest) and no one else; everyone else's submitter is null for a Guest.

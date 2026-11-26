@@ -6,7 +6,7 @@ import "tldraw/tldraw.css";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Box, Tldraw, type Editor, type TLEditorSnapshot } from "tldraw";
+import { Box, type Editor, type TLEditorSnapshot } from "tldraw";
 import { ChevronLeft, ChevronRight, Maximize, Minimize, RotateCw, X } from "lucide-react";
 import { ThemeScope } from "@/components/theme-scope";
 import { DeckData, WidgetShapeUtil } from "./widget-shape";
@@ -20,6 +20,7 @@ import { isDark, slideDesign, themeFor } from "@ziffr/core/themes";
 import { tokensForViewer } from "@ziffr/core/theme-dark";
 import { useViewerDark } from "@/lib/use-viewer-dark";
 import { useFullscreen, usePinchZoomed, useStepper } from "@/lib/use-stepper";
+import { SlideCanvas } from "@/decks/slide-canvas";
 import type { CanvasData } from "@ziffr/core/types";
 
 const shapeUtils = [WidgetShapeUtil, SnapshotPartShapeUtil, SlideFrameUtil, ...textShapeUtils];
@@ -29,6 +30,8 @@ export function Slideshow({ deck, data, kept = null, start, publicNote, back = `
   const router = useRouter();
   const [editor, setEditor] = useState<Editor | null>(null);
   const [count, setCount] = useState(0);
+  // tldraw took the canvas away (its license): the click areas would lie over the notice's link.
+  const [refused, setRefused] = useState(false);
   const [snapshot] = useState(() => (deck.document ? ({ document: deck.document } as unknown as TLEditorSnapshot) : undefined));
   const theme = themeFor(data.themes, deck.theme_id);
   // The slides follow the viewer's dark Appearance unless the Theme says "always as designed"; through a View Link they
@@ -73,7 +76,8 @@ export function Slideshow({ deck, data, kept = null, start, publicNote, back = `
             {/* On an upright phone only the slide's own 16:9 band is drawn, so the slides above and below do not show.
                 Text is laid out at its own size: Chrome otherwise keeps chart labels where the last zoom put them. */}
             <div className="absolute inset-0 [text-rendering:geometricPrecision] max-sm:portrait:top-1/2 max-sm:portrait:bottom-auto max-sm:portrait:aspect-video max-sm:portrait:-translate-y-1/2" style={{ pointerEvents: "none" }}>
-              <Tldraw
+              <SlideCanvas
+                onRefused={() => setRefused(true)}
                 shapeUtils={shapeUtils}
                 snapshot={snapshot}
                 hideUi
@@ -95,9 +99,11 @@ export function Slideshow({ deck, data, kept = null, start, publicNote, back = `
               {pub && <p className="text-xs">{publicNote}</p>}
             </div>
             {editor && count === 0 && <p className="absolute inset-0 m-auto h-fit text-center text-sm text-[var(--color-muted)]">This deck has no slides yet. <Link href={back} className="underline">Add slides in the deck</Link>.</p>}
-            {/* Click the right half to go on, the left half to go back. */}
-            <button type="button" aria-label="Previous slide" tabIndex={-1} onClick={step.prev} className="absolute inset-y-0 left-0 w-1/3 cursor-w-resize opacity-0" />
-            <button type="button" aria-label="Next slide" tabIndex={-1} onClick={step.next} className="absolute inset-y-0 right-0 w-2/3 cursor-e-resize opacity-0" />
+            {/* Click the right half to go on, the left half to go back. Not over the notice that stands for a canvas. */}
+            {count > 0 && !refused && <>
+              <button type="button" aria-label="Previous slide" tabIndex={-1} onClick={step.prev} className="absolute inset-y-0 left-0 w-1/3 cursor-w-resize opacity-0" />
+              <button type="button" aria-label="Next slide" tabIndex={-1} onClick={step.next} className="absolute inset-y-0 right-0 w-2/3 cursor-e-resize opacity-0" />
+            </>}
           </div>
           <nav aria-label="Slides" className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--color-muted)]">
             {/* Hidden but still taking its room on an upright phone, where the name stands above the slide. */}

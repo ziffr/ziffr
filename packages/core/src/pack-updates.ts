@@ -9,7 +9,7 @@ import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { checkPack, versionBelow, type Pack } from "./pack";
 import { cleanLogo, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
-import { assertManages, itemHash, packLogoOf, safeLogo, themeHashInput, itemKeys, manifestOf, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
+import { assertManages, itemHash, packLogoOf, safeLogo, themeHashInput, itemKeys, keptManifest, notBuiltYet, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
 import { packLogoAddress } from "./brand-logo";
 import { ensureBaseline, recordVersion } from "./versions";
 import type { ThemeSlides } from "./types";
@@ -30,8 +30,8 @@ function stored(table: Table, r: Record<string, unknown>, ownThemes: ReadonlySet
   if (table === "catalog") {
     const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
     const row = Object.fromEntries(CATALOG_FIELDS.map((f) => [f, f === "target_min" || f === "target_max" ? n(r[f]) : f === "decimals" ? Number(r[f]) : r[f] ?? null]));
-    // As installing hashed it: the field is there only for an entry that brings Tags (packs.ts storedItems).
-    return Array.isArray(r.tags) && r.tags.length ? { ...row, tags: r.tags } : row;
+    // As installing hashed it: these fields are there only for an entry that brings them (packs.ts storedItems).
+    return { ...row, ...(Array.isArray(r.tags) && r.tags.length ? { tags: r.tags } : {}), ...(r.calculation_note ? { calculation_note: r.calculation_note } : {}) };
   }
   if (table === "templates") {
     // A Deck Template's Theme is the installed Theme's id, which the hash leaves out: it was not known when hashed. Any
@@ -57,7 +57,7 @@ async function installOf(actor: Actor, installId: number) {
 /** Every copy still marked as from this install, with its hash as installed and now. */
 async function copiesOf(actor: Actor, installId: number): Promise<Copy[]> {
   const cols: Record<Table, string> = {
-    catalog: `id, pack_key, pack_hash, pack_offer, tags, ${CATALOG_FIELDS.join(", ")}`,
+    catalog: `id, pack_key, pack_hash, pack_offer, tags, calculation_note, ${CATALOG_FIELDS.join(", ")}`,
     templates: "id, pack_key, pack_hash, pack_offer, updated_at, kind, name, description, slots, body",
     designs: "id, pack_key, pack_hash, pack_offer, name, body",
     themes: "id, pack_key, pack_hash, pack_offer, updated_at, name, tokens, slides",
@@ -193,9 +193,9 @@ async function planUpdate(actor: Actor, installId: number, text: string) {
   }
   for (const c of copies) if (!nextKeys.has(c.key)) leave(c, "removed");
   const blocked = pack.id !== install.pack_id ? `This file is the Pack “${pack.id}”, not “${install.pack_id}”.`
-    : !versionBelow(install.version, pack.version) ? `This file is version ${pack.version}; ${install.version} is installed. An update needs a higher version.`
+    : notBuiltYet(pack) ?? (!versionBelow(install.version, pack.version) ? `This file is version ${pack.version}; ${install.version} is installed. An update needs a higher version.`
       : (copies.some((c) => c.table === "themes") || next.themes.length) && actor.role !== "owner" ? "This Pack holds Themes, and only Owners change Themes: an Owner updates it."
-        : await overCaps(actor, ops);
+        : await overCaps(actor, ops));
   const was = oldLogo;
   const now = safeLogo(pack);
   const logo = { before: packLogoAddress(actor.workspaceId, installId, install.manifest.logo), after: now, changed: was !== now };
@@ -229,7 +229,7 @@ export async function updatePack(actor: Actor, installId: number, text: string, 
   const logoChange = was === now ? "same" : !was ? "added" : !now ? "removed" : "changed";
   const { error } = await db().rpc("update_pack", {
     p_workspace: actor.workspaceId, p_install: Number(installId), p_by: actor.personId,
-    p_install_row: { version: res.pack.version, license: res.pack.license, manifest: { ...manifestOf(res.pack), ...(res.pack.logo === undefined ? {} : { logo: packLogoOf(res.pack) }) }, item_keys: itemKeys(res.stored), source: origin.source, signed: origin.signed },
+    p_install_row: { version: res.pack.version, license: res.pack.license, manifest: keptManifest(res.pack, origin, res.stored), item_keys: itemKeys(res.stored), source: origin.source, signed: origin.signed },
     p_ops: res.ops,
   });
   if (error?.code === "40001") throw new Error("Something of this Pack changed meanwhile; choose the file again to see what an update does now.");

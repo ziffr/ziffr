@@ -16,6 +16,7 @@ import { packSetup } from "@/app/pack-setup-actions";
 import { PackPreviewCard } from "@/app/settings/packs/screen";
 import { dashboardNeeds, guideStart } from "@/app/settings/packs/setup-defaults";
 import { chooseExplore, setUpFromPackInGuide, skipStep } from "./actions";
+import { ownRequests, RequestsAfterSetUp, SendFirstRequests } from "@/components/first-requests";
 import { becauseText } from "@ziffr/core/pack-ranking";
 import type { RecommendedPack } from "@ziffr/core/included-packs";
 import type { PackSetupOptions, PackSetupRoom } from "@ziffr/core/pack-setup";
@@ -196,7 +197,7 @@ function PackRow({ pack, p }: { pack: RecommendedPack; p: Props }) {
           {pack.installed && pack.installId !== null && !form && <Button type="button" size="sm" className="h-11 sm:h-8" disabled={pending} onClick={openSetUp}>Set up from this Pack</Button>}
         </div>
       </div>
-      {form && <SetUpHere options={form} viewer={p.viewer} following={p.following} onClose={() => setForm(null)} />}
+      {form && (form.positions ? <SetUpOnPacks name={form.install.name} onClose={() => setForm(null)} /> : <SetUpHere options={form} viewer={p.viewer} following={p.following} onClose={() => setForm(null)} />)}
     </li>
   );
 }
@@ -249,12 +250,24 @@ function EntryBox({ entry, on, forced, onChange }: { entry: PackSetupOptions["en
   );
 }
 
+/** A Pack that asks who does what is set up on the Packs page, which has the pickers and shows who will see what. */
+function SetUpOnPacks({ name, onClose }: { name: string; onClose: () => void }) {
+  return (
+    <div className="mt-3 space-y-2 rounded-[var(--radius-input)] border border-input p-3">
+      <p>{name} asks who does what. <Link href="/settings/packs" className="underline">Set it up on the Packs page</Link>, where you pick the people and see who will see what.</p>
+      <Button type="button" size="sm" variant="ghost" onClick={onClose}>Close</Button>
+    </div>
+  );
+}
+
 /** "Set up from this Pack": the first Metrics ticked, the person asked for them, then made in place. */
 function SetUpHere({ options, viewer, following, onClose }: { options: PackSetupOptions; viewer: string; following: string; onClose: () => void }) {
   const router = useRouter();
   const [begin] = useState(() => guideStart(options, viewer));
   const [picked, setPicked] = useState<Set<string>>(begin.picked);
   const [askMe, setAskMe] = useState(true);
+  // Off until chosen: setting up sends nothing by itself.
+  const [askNow, setAskNow] = useState(false);
   const first = options.dashboards[0];
   const needs = first ? dashboardNeeds(options, first.key) : null;
   const [dashboardOn, setDashboardOn] = useState(begin.dashboard !== "");
@@ -275,6 +288,7 @@ function SetUpHere({ options, viewer, following, onClose }: { options: PackSetup
       const r = await setUpFromPackInGuide(options.install.id, {
         metrics: [...making],
         submitters: askMe ? [viewer] : [],
+        askNow,
         dashboard: dashboardOn && first && needs ? { key: first.key, fills: first.slots.map(() => null) } : null,
         workflow: workflowOn && flow ? { key: flow.key, approvers: flow.approvers === 1 ? [viewer] : [] } : null,
       });
@@ -295,6 +309,7 @@ function SetUpHere({ options, viewer, following, onClose }: { options: PackSetup
           {made.dashboardId !== null && <li><Link href={`/dashboards/${made.dashboardId}`} className="underline">The dashboard</Link></li>}
           {made.workflowId !== null && <li><Link href={`/workflows?id=${made.workflowId}`} className="underline">The Workflow</Link></li>}
         </ul>
+        {made.metrics.length > 0 && <RequestsAfterSetUp made={made} />}
         <div className="flex gap-2">
           <Link href={`/setup?step=${following}`} className={buttonVariants({ size: "sm" })}>Go on</Link>
           <Button type="button" size="sm" variant="ghost" onClick={onClose}>Close</Button>
@@ -310,7 +325,7 @@ function SetUpHere({ options, viewer, following, onClose }: { options: PackSetup
           <EntryBox key={e.key} entry={e} on={making.has(e.key)} forced={!picked.has(e.key) && making.has(e.key)} onChange={(on) => toggle(e.key, on)} />
         ))}
       </fieldset>
-      <label className="flex items-start gap-2"><input type="checkbox" checked={askMe} onChange={(e) => setAskMe(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> Ask me for their values (a first request goes out when you press Make them)</label>
+      <label className="flex items-start gap-2"><input type="checkbox" checked={askMe} onChange={(e) => setAskMe(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> Make me the Submitter of their values</label>
       {first && (
         <label className="flex items-start gap-2">
           <input type="checkbox" checked={dashboardOn} disabled={!needs} onChange={(e) => setDashboardOn(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
@@ -323,6 +338,7 @@ function SetUpHere({ options, viewer, following, onClose }: { options: PackSetup
           <span>Also make the Workflow “{flow.name}”, which asks for these Metrics{flow.approvers === 1 ? " and has you approve them" : ""}</span>
         </label>
       )}
+      <SendFirstRequests to={askMe ? ownRequests(options.entries, making, false) : []} checked={askNow} onChange={setAskNow} followed={Boolean(flow && workflowOn)} />
       {why && <p role="alert" className="font-medium">{why}</p>}
       <p role="alert" className="min-h-5 text-sm text-destructive">{error}</p>
       <div className="flex justify-end gap-2">

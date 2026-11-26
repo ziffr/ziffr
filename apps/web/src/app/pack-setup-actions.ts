@@ -4,18 +4,30 @@
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
-import { packSetupOptions, setUpFromPack, type PackSetupInput } from "@ziffr/core/pack-setup";
+import { packSetupOptions, setUpStep, type PackSetupInput, type SetupRun } from "@ziffr/core/pack-setup";
+import { planPackSetup } from "@ziffr/core/pack-setup-plan";
+import { packLineStart } from "@ziffr/core/pack-setup-adding";
 
 /** What setting up from an installed Pack offers. */
 export async function packSetup(installId: number) {
   return attempt(async () => packSetupOptions(await currentActor(), Number(installId)));
 }
 
-/** Sets up what the person picked from an installed Pack; returns what was made. */
-export async function setUpPack(installId: number, input: PackSetupInput) {
+/** What adding a line to what was set up from an installed Pack starts with. */
+export async function lineStart(installId: number, repeat: string) {
+  return attempt(async () => packLineStart(await currentActor(), Number(installId), String(repeat)));
+}
+
+/** What setting up what the person has picked so far would do; nothing is written. */
+export async function planSetUp(installId: number, input: PackSetupInput) {
+  return attempt(async () => planPackSetup(await currentActor(), Number(installId), input));
+}
+
+/** Takes one step of setting up what the person picked from an installed Pack: the first without `run`, each further
+ * one with the `run` the last answered. Returns how far it is, or what was made. */
+export async function setUpPack(installId: number, input: PackSetupInput, run: SetupRun | null = null) {
   return attempt(async () => {
-    const made = await setUpFromPack(await currentActor(), Number(installId), input);
-    revalidatePath("/", "layout");
-    return made;
+    // A step that stops has made things too: the pages are read again either way.
+    try { return await setUpStep(await currentActor(), Number(installId), input, run); } finally { revalidatePath("/", "layout"); }
   });
 }

@@ -222,7 +222,10 @@
               "stripe",
               "hubspot",
               "bigquery",
-              "snowflake"
+              "snowflake",
+              "hubspot-forecast",
+              "salesforce-forecast",
+              "pipedrive-forecast"
             ],
             "description": "the id of one of the templates Ziffr ships, such as “google-sheets”"
           },
@@ -251,7 +254,7 @@
         "metrics": {
           "type": "array",
           "maxItems": 50,
-          "description": "Metric Catalog entries, each a ziffr.metric/1 document under “metric”.",
+          "description": "Metric Catalog entries, each a ziffr.metric/1 or ziffr.metric/2 document under “metric”.",
           "items": {
             "type": "object",
             "properties": {
@@ -262,7 +265,7 @@
               },
               "metric": {
                 "type": "object",
-                "description": "A ziffr.metric/1 document, checked by its own schema."
+                "description": "A ziffr.metric/1 or ziffr.metric/2 document, checked by its own schema."
               }
             },
             "required": [

@@ -10,10 +10,13 @@ import { visibleMetricIds } from "./access";
 import { tagSight } from "./tag-sight";
 import { normaliseTagName, tagKey, tagNameProblem, TAGS_PER_ENTRY } from "./tag-names";
 import { getMetrics } from "./workspace-data";
-import { checkPack, PACK_FORMAT, PACK_LICENSES, type Pack } from "./pack";
+import { checkPack, PACK_FORMAT, PACK_FORMAT_2, PACK_LICENSES, type Pack } from "./pack";
+import { guideFromText, type PackGuideText } from "./pack-guide-text";
+import { comesFromOf, type ComesFromChoice } from "./pack-export-numbers";
+import { PACK_GUIDE_SECTIONS } from "@ziffr/pack/pack-guide";
 import { checkSchema, type Schema } from "./json-check";
-import { PLAIN, WORDS, KEY } from "./file-text";
-import { checkMetricFileValue, type MetricFile } from "./metric-file";
+import { PLAIN, SAVED_WORDS, WORDS, KEY } from "./file-text";
+import { checkMetricFileValue, METRIC_FILE_LIMITS, type MetricFile } from "./metric-file";
 import { checkDashboardTemplateFileValue, type DashboardTemplateFile, type WidgetSettingsFile } from "./dashboard-template-file";
 import { checkDeckTemplateFileValue, DECK_TEMPLATE_FORMAT, DECK_TEMPLATE_FORMAT_2, DECK_TEMPLATE_FORMAT_3, type DeckTemplateFile } from "./deck-template-file";
 import { elementSlots, mapElementWords, SLIDE_ELEMENT_LIMITS } from "./slide-element";
@@ -43,20 +46,30 @@ export type ExportResult = { text: string; fileName: string; leftOut: { name: st
 
 /** How text is fitted into a file: a Pack keeps the Pack's plain-text rules; a Workspace Export (workspace-export.ts)
  * the app's own. Both say "does not fit" by an empty answer, and the caller says what was left out. */
-export type TextFit = { plain: (s: unknown, max: number) => string | null; words: (s: unknown, max: number) => string | undefined; /** A Slide Element's words, spaces kept; empty when the file may not hold them. */ slide: (s: string) => string };
+export type TextFit = { plain: (s: unknown, max: number) => string | null; words: (s: unknown, max: number) => string | undefined; /** A paragraph of a slide's text or box that names no Slots (formats /1 and /2). */ saved: (s: unknown, max: number) => string | undefined; /** A Slide Element's words, spaces kept; empty when the file may not hold them. */ slide: (s: string) => string };
 
 const plain = (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
   return checkSchema({ type: "string", pattern: PLAIN } as Schema, t).length ? null : t;
 };
-const wordsOk = (s: unknown, max: number) => {
+/** A Calculation Note as a Pack keeps it: on one line and whole. One the format does not take (too long, or holding such
+ * a thing as a web address) is left out and said: half a definition would say something else. */
+function packNote(s: unknown, name: string, leftOut: ExportResult["leftOut"]): string | undefined {
+  const text = String(s ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return undefined;
+  const fits = [...text].length <= METRIC_FILE_LIMITS.calculationNote ? plain(text, METRIC_FILE_LIMITS.calculationNote) : null;
+  if (!fits) leftOut.push({ name, why: `Only how it is calculated was left out: a Pack keeps up to ${METRIC_FILE_LIMITS.calculationNote} characters of plain text, without markup or web addresses.` });
+  return fits ?? undefined;
+}
+const fitting = (pattern: string) => (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
-  return t && !checkSchema({ type: "string", pattern: WORDS } as Schema, t).length ? t : undefined;
+  return t && !checkSchema({ type: "string", pattern } as Schema, t).length ? t : undefined;
 };
+const wordsOk = fitting(WORDS);
 /** A Pack's text rules. */
 // An element's spaces are part of its layout, so nothing is collapsed: a text is kept whole or not at all.
 const slideOk = (s: string) => (checkSchema(slideWords(SLIDE_ELEMENT_LIMITS.words), s).length ? "" : s);
-const PACK_FIT: TextFit = { plain, words: wordsOk, slide: slideOk };
+const PACK_FIT: TextFit = { plain, words: wordsOk, saved: fitting(SAVED_WORDS), slide: slideOk };
 const slug = (name: string) => {
   const s = name.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36);
   return /^[a-z]/.test(s) ? s : `x-${s || "item"}`.slice(0, 40);
@@ -68,7 +81,7 @@ function assertMayExport(actor: Actor) {
 }
 
 /** The Metrics this person sees, by id. */
-async function seenMetrics(actor: Actor): Promise<Map<number, Metric>> {
+export async function seenMetrics(actor: Actor): Promise<Map<number, Metric>> {
   const all = await getMetrics(actor.workspaceId);
   const seen = await visibleMetricIds(actor.workspaceId, actor.personId, all);
   return new Map(all.filter((m) => seen.has(m.id)).map((m) => [m.id, m]));
@@ -89,7 +102,7 @@ export async function exportOptions(actor: Actor): Promise<ExportOptions> {
   const opt = (rows: { id: unknown; name: unknown }[] | null, detail: (r: Record<string, unknown>) => string = () => "") => (rows ?? []).map((r) => ({ id: Number(r.id), name: String(r.name), detail: detail(r as Record<string, unknown>) }));
   const of = (kind: string) => (tpl.data ?? []).filter((r) => r.kind === kind);
   return {
-    metrics: [...metrics.values()].sort((a, b) => a.name.localeCompare(b.name)).map((m) => ({ id: m.id, name: m.name, detail: m.formula ? "Derived Metric" : `by ${m.period}` })),
+    metrics: [...metrics.values()].sort((a, b) => a.name.localeCompare(b.name)).map((m) => ({ id: m.id, name: m.name, detail: m.total ? "Total" : m.formula ? "Derived Metric" : `by ${m.period}` })),
     catalog: opt(cat.data, (r) => String(r.category)),
     dashboards: opt(of("dashboard")), decks: opt(of("deck")), workflows: opt(of("workflow")),
     designs: opt(des.data),
@@ -109,13 +122,37 @@ export async function themeLogoForExport(actor: Actor, themeId: number): Promise
   return cleanLogo((data?.slides as { logo?: unknown } | null)?.logo, PACK_LOGO_MAX_BYTES);
 }
 
-/** What else the person chose about the file: `tags: false` leaves the Tags of Metrics out (they go in by default). */
-export type ExportOptionsChosen = { tags?: boolean };
+/** What else the person chose about the file: `tags: false` leaves the Tags of Metrics out (they go in by default),
+ * `guide` is what they wrote under "Describe your Pack", and `comesFrom` where each number comes from, by what was
+ * picked (a number it does not name is typed by a person; without it the file says nothing of numbers). */
+export type ExportOptionsChosen = { tags?: boolean; guide?: PackGuideText; comesFrom?: ComesFromChoice };
 
 /** Makes a Pack of what the person picked: each item as its format writes it, keyed by its key in the Pack it came
  * from or by its name, in the order of their keys, so exporting what a Pack installed gives the same file again.
+ * A guide the person wrote, and where each number comes from, go in with it and make the file ziffr.pack/2; without
+ * either it stays ziffr.pack/1.
  * Checked as any Pack before it is given out. */
 export async function exportPack(actor: Actor, manifest: ExportManifest, choice: ExportChoice, chosen: ExportOptionsChosen = {}): Promise<ExportResult> {
+  assertMayExport(actor);
+  const { guide, problems } = guideFromText(chosen?.guide);
+  if (problems.length) {
+    const [p] = problems;
+    const where = PACK_GUIDE_SECTIONS.find((s) => s.key === p.section)?.title;
+    throw new Error(`The Pack cannot be made: ${where ? `in “${where}”${p.line ? `, line ${p.line}` : ""}: ` : ""}${p.message}`);
+  }
+  const { pack: made, leftOut } = await gatherPack(actor, manifest, choice, chosen);
+  const said = made.contents.metrics?.some((x) => x.comesFrom) ?? false;
+  const pack: Pack = guide || said ? { ...made, format: PACK_FORMAT_2, ...(guide ? { guide } : {}) } : made;
+  const text = `${JSON.stringify(pack, null, 2)}\n`;
+  const res = checkPack(text);
+  if (!res.ok) throw new Error(`The Pack cannot be made: ${res.problems[0].path ? `${res.problems[0].path} ` : ""}${res.problems[0].message}`);
+  return { text, fileName: `${pack.id.split("/").pop() || "pack"}.pack.json`, leftOut };
+}
+
+/** The Pack of what the person picked, as it would be written and before the whole of it is checked: only what they may
+ * put into a file, what had to stay out, and for each Metric Catalog entry of it, by its key, what was picked for it
+ * (“metric:12” or “catalog:7”). */
+export async function gatherPack(actor: Actor, manifest: ExportManifest, choice: ExportChoice, chosen: ExportOptionsChosen = {}): Promise<{ pack: Pack; leftOut: ExportResult["leftOut"]; picked: Map<string, string> }> {
   assertMayExport(actor);
   const ws = actor.workspaceId;
   const ids = (k: keyof ExportOptions) => [...new Set((Array.isArray(choice?.[k]) ? choice[k]! : []).map(Number).filter(Number.isInteger))].slice(0, 50);
@@ -156,7 +193,7 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
   // Metrics and catalog entries: the entries a Pack holds. A formula names others by their key in this Pack.
   const metricRows = ids("metrics").filter((id) => seen.has(id)).map((id) => seen.get(id)!);
   for (const id of ids("metrics")) if (!seen.has(id)) leftOut.push({ name: `Metric ${id}`, why: "You do not see it." });
-  const catRows = await rows("catalog_metrics", ids("catalog"), "id, category, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, formula, tags, pack_key, pack_install_id");
+  const catRows = await rows("catalog_metrics", ids("catalog"), "id, category, name, description, calculation_note, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, formula, tags, pack_key, pack_install_id");
   const entries = [
     ...metricRows.map((m) => ({ src: "metric" as const, m: m as unknown as Row, key: keyFor(null, m.name), slugOrKey: m.slug })),
     ...catRows.map((r) => ({ src: "catalog" as const, m: r, key: keyFor(r.pack_key, String(r.name)), slugOrKey: String(r.pack_key ?? "") })),
@@ -166,10 +203,12 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
   const seenTags = chosen?.tags === false || !metricRows.length ? new Map<number, string[]>() : (await tagSight(actor)).namesByMetric;
   const keyOfInput = new Map(entries.map((e) => [e.slugOrKey, e.key]));
   const metrics: Pack["contents"]["metrics"] = [];
+  const picked = new Map<string, string>();
   for (const e of entries) {
     const m = e.m;
     const name = plain(m.name, 120);
     if (!name) { leftOut.push({ name: String(m.name), why: "Its name holds something a Pack may not, such as a web address." }); continue; }
+    if (m.total) { leftOut.push({ name, why: "A Total is not in a Pack yet." }); continue; }
     let formula: string | undefined;
     if (m.formula) {
       const inputs = [...String(m.formula).matchAll(/\{([a-z0-9-]+)\}/g)].map((x) => x[1]);
@@ -178,12 +217,15 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
       formula = String(m.formula).replace(/\{([a-z0-9-]+)\}/g, (_x, i: string) => `{${keyOfInput.get(i)}}`);
     }
     const description = plain(m.description, 1000);
+    const note = packNote(m.calculation_note, name, leftOut);
     const unit = plain(m.unit, 20);
     const category = e.src === "catalog" && m.category !== installs.get(Number(m.pack_install_id)) ? plain(m.category, 60) : null;
     const tags = chosen?.tags === false ? [] : packTags(e.src === "metric" ? seenTags.get(Number(m.id)) : m.tags, name, leftOut);
     const file: MetricFile = {
-      format: "ziffr.metric/1", name,
+      // The newer format only for an entry that says how it is calculated, so an older Ziffr reads every other (spec 0060).
+      format: note ? "ziffr.metric/2" : "ziffr.metric/1", name,
       ...(description ? { description } : {}),
+      ...(note ? { calculationNote: note } : {}),
       ...(category ? { category } : {}),
       ...(Array.isArray(m.industries) && m.industries.length ? { industries: m.industries as string[] } : {}),
       ...(Array.isArray(m.segments) && m.segments.length ? { segments: m.segments as string[] } : {}),
@@ -196,7 +238,11 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
       ...(m.attainment_method ? { attainmentMethod: m.attainment_method as MetricFile["attainmentMethod"] } : {}),
       ...(formula ? { formula } : { sources: m.sources as MetricFile["sources"] }),
     };
-    if (keep(file, checkMetricFileValue(file), name, leftOut)) metrics.push({ key: e.key, metric: file });
+    if (!keep(file, checkMetricFileValue(file), name, leftOut)) continue;
+    const ref = `${e.src}:${Number(m.id)}`;
+    picked.set(e.key, ref);
+    // A computed number's origin is its formula; every other one says where it comes from, when the file says it at all.
+    metrics.push({ key: e.key, metric: file, ...(chosen?.comesFrom !== undefined && !formula ? { comesFrom: comesFromOf(chosen.comesFrom, ref, name) } : {}) });
   }
   const entryKeys = new Set(metrics.map((x) => x.key));
   const suggestFor = (s: Slot) => {
@@ -257,10 +303,7 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
     license: (PACK_LICENSES as readonly string[]).includes(String(manifest?.license)) ? (manifest.license as Pack["license"]) : "CC-BY-4.0",
     ...(logo ? { logo } : {}), ziffr: `>=${major}.${minor}`, contents,
   };
-  const text = `${JSON.stringify(pack, null, 2)}\n`;
-  const res = checkPack(text);
-  if (!res.ok) throw new Error(`The Pack cannot be made: ${res.problems[0].path ? `${res.problems[0].path} ` : ""}${res.problems[0].message}`);
-  return { text, fileName: `${pack.id.split("/").pop() || "pack"}.pack.json`, leftOut };
+  return { pack, leftOut, picked };
 }
 
 /** Tags for an entry of a Pack: those that meet the Pack's rules (plain text, the Tag rules), at most 5; what stays out is said. */
@@ -323,7 +366,7 @@ export function deckFile(t: Omit<DeckTemplateFile, "format">): DeckTemplateFile 
  * Slots, which may hold a slide's Placeholders. */
 function paragraphsOf(rich: unknown, fit: TextFit, live: boolean): string[] {
   const doc = rich as { content?: { content?: { text?: string }[] }[] } | undefined;
-  return (doc?.content ?? []).map((p) => (p.content ?? []).map((t) => t.text ?? "").join("")).slice(0, 20).map((t) => (live ? fit.slide(t.slice(0, 300)) : fit.words(t, 300) ?? "")).filter((t, i, all) => t || i < all.length - 1);
+  return (doc?.content ?? []).map((p) => (p.content ?? []).map((t) => t.text ?? "").join("")).slice(0, 20).map((t) => (live ? fit.slide(t.slice(0, 300)) : fit.saved(t, 300) ?? "")).filter((t, i, all) => t || i < all.length - 1);
 }
 
 const COLORS = ["black", "grey", "light-violet", "violet", "blue", "light-blue", "yellow", "orange", "green", "light-green", "light-red", "red", "white"];

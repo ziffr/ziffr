@@ -7,14 +7,16 @@
 // goes to the address that was checked, redirects are not followed, and every answer is held to a size, a time and a
 // shape before it is used. A Pack's file must come with a Signed Statement about exactly that file by a key this Ziffr
 // trusts and has not seen revoked (spec 0059; @ziffr/pack/marketplace), and is then checked in full like any Pack: the
-// signature says where a file came from, the checks are the protection.
-import { checkRevocation, isWholeText, marketplaceKeyId, marketplaceVersionPath, MARKETPLACE_CONTRACT, MARKETPLACE_SCHEMAS, verifyPackStatement, type MarketplaceKeys, type MarketplaceListing, type Revocation, type SignedText, type StatementRefusal } from "@ziffr/pack/marketplace";
+// signature says where a file came from, the checks are the protection. A Pack counts as withdrawn, or as restored,
+// only by such a statement too; of two, the one with the higher sequence, so leaving one out changes nothing. A
+// statement of a key revoked since is not believed.
+import { checkRevocation, checkWithdrawal, isWholeText, marketplaceKeyId, marketplaceReportPath, marketplaceVersionPath, MARKETPLACE_CONTRACT, MARKETPLACE_SCHEMAS, verifyPackStatement, type MarketplaceKeys, type MarketplaceListing, type PackWithdrawal, type Revocation, type SignedText, type StatementRefusal } from "@ziffr/pack/marketplace";
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { settingsInEffect } from "./settings-in-effect";
 import { checkSchema } from "./json-check";
 import { checkPack, PACK_LIMITS, versionBelow } from "./pack";
-import { assertManages, installPack, previewPack, type PackRead } from "./packs";
+import { assertManages, installPack, previewPack, type PackOrigin, type PackRead } from "./packs";
 import { readPackUpdate, updatePack, type UpdatePlan } from "./pack-updates";
 import { ZIFFR_VERSION } from "./ziffr-version";
 import { privateMailHost } from "./mail-hosts";
@@ -124,13 +126,14 @@ export type { MarketplaceListing };
 const listing = (x: unknown): MarketplaceListing | null => {
   if (checkSchema(LISTING, x).length) return null;
   const o = x as MarketplaceListing;
-  return { id: o.id, name: o.name, summary: o.summary, author: o.author, license: o.license, version: o.version };
+  return { id: o.id, name: o.name, summary: o.summary, author: o.author, license: o.license, version: o.version, ...(o.newCreator === true ? { newCreator: true } : {}) };
 };
 
 /** Free Packs only: a paid one needs a purchase this Ziffr cannot make yet. */
 const free = (l: MarketplaceListing) => l.license !== "Ziffr-Pack-1.0";
 
-/** Searches the Marketplace for free Packs (Owners and Admins): the search words are all that is sent. */
+/** Searches the Marketplace for free Packs (Owners and Admins), the newest ones when no word is given, in the order it
+ * answers: the search words are all that is sent. */
 export async function searchMarketplace(actor: Actor, query: string): Promise<MarketplaceListing[]> {
   assertManages(actor);
   const q = String(query ?? "").replace(/\s+/g, " ").trim().slice(0, MARKETPLACE_CONTRACT.query);
@@ -192,10 +195,12 @@ const REFUSED: Record<StatementRefusal, string> = {
 };
 
 /** A version's file from the Marketplace, its Signed Statement checked and the file checked to be the Pack and version
- * asked for. A file whose statement does not hold is refused (specs 0030 and 0059), whatever else it holds. */
-async function signedFile(packId: string, version: string): Promise<string> {
+ * asked for. A file whose statement does not hold is refused (specs 0030 and 0059), whatever else it holds. `origin`
+ * says what the statement proves, and whether a moderator looked. */
+async function signedFile(packId: string, version: string): Promise<{ file: string; origin: PackOrigin }> {
   const path = marketplaceVersionPath(String(packId), String(version));
   if (!path) throw new Forbidden();
+  await assertNotWithdrawn(String(packId));
   const { env } = await connection();
   const answer = await ask(path, { maxBytes: MARKETPLACE_CONTRACT.versionBytes }) as { file?: unknown; statement?: unknown; signature?: unknown; revocations?: unknown } | null;
   const keys = trustedKeys(env);
@@ -211,38 +216,66 @@ async function signedFile(packId: string, version: string): Promise<string> {
   const res = checkPack(file);
   if (res.ok && (res.pack.id !== packId || res.pack.version !== version)) throw new MarketplaceUnavailable(ANOTHER);
   if (res.ok && res.pack.license === "Ziffr-Pack-1.0") throw new MarketplaceUnavailable("Paid Packs cannot be installed yet.");
-  return file;
+  return { file, origin: { source: "marketplace", signed: true, reviewed: held.statement.reviewed } };
 }
 
-const SIGNED = { source: "marketplace", signed: true } as const;
-
-/** A Marketplace Pack's Preview, as for a file, shown as from the Marketplace (Owners and Admins). Nothing is written. */
+/** A Marketplace Pack's Preview, as for a file, shown as from the Marketplace (Owners and Admins), with the address of
+ * its report form. Nothing is written. */
 export async function readMarketplacePack(actor: Actor, packId: string, version: string): Promise<PackRead> {
   assertManages(actor);
-  return previewPack(actor, await signedFile(packId, version), SIGNED);
+  const { file, origin } = await signedFile(packId, version);
+  const read = await previewPack(actor, file, origin);
+  const { url } = await connection();
+  return read.ok ? { ok: true, preview: { ...read.preview, report: reportAddress(url, packId, version) } } : read;
+}
+
+// The report form's address, from the checked address of the Marketplace and an id and version that are ones: a page the
+// person's browser opens. Ziffr's server sends nothing.
+const reportAddress = (base: URL, packId: string, version: string): string | null => {
+  const path = marketplaceReportPath(packId, version);
+  return path ? new URL(path, base).href : null;
+};
+
+/** "Report this Pack" for each of the Workspace's installs from the Marketplace, for whoever sees the installed Packs
+ * (not Guests or keys), and only while the connection is on. Nothing is asked of the Marketplace. */
+export async function marketplaceReportLinks(actor: Actor): Promise<{ installId: number; address: string }[]> {
+  if ((actor as { key?: unknown }).key || actor.role === "guest") return [];
+  const c = marketplaceConfig(await settingsInEffect());
+  if (!c.on || !c.url) return [];
+  const { data } = await db().from("pack_installs").select("id, pack_id, version").eq("workspace_id", actor.workspaceId).eq("source", "marketplace");
+  return (data ?? []).flatMap((i) => {
+    const address = reportAddress(c.url!, String(i.pack_id), String(i.version));
+    return address ? [{ installId: Number(i.id), address }] : [];
+  });
 }
 
 /** Installs a Pack from the Marketplace (Owners and Admins; Owners for one with Themes): its signature checked, then
  * every check of an upload; texts aimed at assistants only after they were read. Audited as from the Marketplace. */
 export async function installFromMarketplace(actor: Actor, packId: string, version: string, confirmed: { assistantTexts: boolean }): Promise<number> {
   assertManages(actor);
-  return installPack(actor, await signedFile(packId, version), SIGNED, { unsigned: false, assistantTexts: confirmed?.assistantTexts === true });
+  const { file, origin } = await signedFile(packId, version);
+  return installPack(actor, file, origin, { unsigned: false, assistantTexts: confirmed?.assistantTexts === true });
+}
+
+/** The Marketplace id of one of this Workspace's installs, or Forbidden. */
+async function installedId(actor: Actor, installId: number): Promise<string> {
+  const { data } = await db().from("pack_installs").select("pack_id").eq("id", Number(installId)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!data) throw new Forbidden();
+  return String(data.pack_id);
 }
 
 /** What updating an installed Pack to a Marketplace version would do (Owners and Admins); nothing is written. */
 export async function readMarketplaceUpdate(actor: Actor, installId: number, version: string) {
   assertManages(actor);
-  const { data } = await db().from("pack_installs").select("pack_id").eq("id", Number(installId)).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (!data) throw new Forbidden();
-  return readPackUpdate(actor, Number(installId), await signedFile(String(data.pack_id), version));
+  const { file } = await signedFile(await installedId(actor, installId), version);
+  return readPackUpdate(actor, Number(installId), file);
 }
 
 /** Updates an installed Pack to a Marketplace version, its signature checked (Owners and Admins). */
 export async function updateFromMarketplace(actor: Actor, installId: number, version: string, confirmed: { assistantTexts: boolean }): Promise<UpdatePlan> {
   assertManages(actor);
-  const { data } = await db().from("pack_installs").select("pack_id").eq("id", Number(installId)).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (!data) throw new Forbidden();
-  return updatePack(actor, Number(installId), await signedFile(String(data.pack_id), version), SIGNED, { unsigned: false, assistantTexts: confirmed?.assistantTexts === true });
+  const { file, origin } = await signedFile(await installedId(actor, installId), version);
+  return updatePack(actor, Number(installId), file, origin, { unsigned: false, assistantTexts: confirmed?.assistantTexts === true });
 }
 
 /** Asks the Marketplace which installed Packs have newer versions, for the whole Installation at once, at most once a
@@ -266,13 +299,89 @@ export async function checkMarketplaceVersions(force = false): Promise<void> {
   const claim = db().from("marketplace_checks").update({ checked_at: now.toISOString() }).eq("only_row", true);
   const { data: claimed } = await (force ? claim : claim.lt("checked_at", new Date(now.getTime() - CHECK_EVERY_MS).toISOString())).select("only_row");
   if (!claimed?.length) return;
-  const answer = await ask("v1/updates", { method: "POST", body: { ziffr: ZIFFR_VERSION, installed: [...oldest].map(([id, version]) => ({ id, version })) } }) as { updates?: unknown; revocations?: unknown } | null;
-  await keepRevocations(answer?.revocations, trustedKeys(await settingsInEffect()));
+  const answer = await ask("v1/updates", { method: "POST", maxBytes: MARKETPLACE_CONTRACT.updatesBytes, body: { ziffr: ZIFFR_VERSION, installed: [...oldest].map(([id, version]) => ({ id, version })) } }) as { updates?: unknown; withdrawals?: unknown; revocations?: unknown } | null;
+  const keys = trustedKeys(await settingsInEffect());
+  // Revocations first: one that comes with this very answer already counts for its statements.
+  await keepRevocations(answer?.revocations, keys);
+  await keepWithdrawals(answer?.withdrawals, [...oldest.keys()], keys);
+  const gone = await withdrawnAmong([...oldest.keys()]);
+  // No update is offered for a withdrawn Pack, whatever this answer or an earlier one says.
+  if (gone.size) await db().from("marketplace_versions").delete().in("pack_id", [...gone]);
   const updates = (Array.isArray(answer?.updates) ? answer.updates : []).slice(0, MARKETPLACE_CONTRACT.updates)
     .filter((u): u is { id: string; version: string } => !checkSchema(NAMED_VERSION, u).length)
     .map((u) => ({ id: u.id, version: u.version }))
-    .filter((u) => oldest.has(u.id));
+    .filter((u) => oldest.has(u.id) && !gone.has(u.id));
   if (updates.length) await db().from("marketplace_versions").upsert(updates.map((u) => ({ pack_id: u.id, version: u.version, seen_at: new Date().toISOString() })));
+}
+
+const NOT_KEPT_WITHDRAWN = "Ziffr could not read or keep what the Marketplace withdrew just now; nothing was shown or installed.";
+
+/** Keeps what the answer's signed statements say about the asked Packs. Only a statement a trusted key signed counts,
+ * and of two about one Pack the one with the higher sequence: an answer that leaves a Pack out, repeats an older
+ * statement or says anything unsigned changes nothing. A kept statement whose key was revoked since is no longer
+ * believed and gives way to any that holds, whatever its sequence. Each write is one conditional statement, so of two
+ * the newer wins. */
+async function keepWithdrawals(entries: unknown, asked: string[], keys: MarketplaceKeys): Promise<void> {
+  if (!Array.isArray(entries)) return;
+  const revoked = await keptRevocations();
+  const wanted = new Set(asked);
+  const newest = new Map<string, { said: PackWithdrawal; entry: SignedText }>();
+  for (const entry of entries.slice(0, MARKETPLACE_CONTRACT.updates) as SignedText[]) {
+    const said = checkWithdrawal(entry, keys, revoked);
+    if (said && wanted.has(said.id) && said.sequence > (newest.get(said.id)?.said.sequence ?? 0)) newest.set(said.id, { said, entry });
+  }
+  const outOfUse = revoked.map((r) => r.key);
+  const now = new Date().toISOString();
+  for (const { said, entry } of newest.values()) {
+    const row = { pack_id: said.id, state: said.state, reason: said.state === "withdrawn" ? said.reason : null, sequence: said.sequence, key_id: said.key, signed_at: said.signed, statement: entry.statement, signature: entry.signature, seen_at: now };
+    const table = () => db().from("marketplace_withdrawals");
+    const writes = [
+      await table().upsert(row, { onConflict: "pack_id", ignoreDuplicates: true }),
+      await table().update(row).eq("pack_id", said.id).lt("sequence", said.sequence),
+      // A row from before statements were signed.
+      await table().update(row).eq("pack_id", said.id).is("sequence", null),
+      ...(outOfUse.length ? [await table().update(row).eq("pack_id", said.id).in("key_id", outOfUse)] : []),
+    ];
+    if (writes.some((w) => w.error)) throw new MarketplaceUnavailable(NOT_KEPT_WITHDRAWN);
+  }
+}
+
+/** The kept withdrawals of these Packs that count: signed, and by no key revoked since. Refuses to go on when they, or
+ * the revocations, cannot be read. */
+async function keptWithdrawals(ids: string[]): Promise<{ packId: string; reason: string }[]> {
+  const { data, error } = await db().from("marketplace_withdrawals").select("pack_id, reason, key_id").eq("state", "withdrawn").in("pack_id", ids);
+  if (error) throw new MarketplaceUnavailable(NOT_KEPT_WITHDRAWN);
+  if (!data?.length) return [];
+  const outOfUse = new Set((await keptRevocations()).map((r) => r.key));
+  return data.filter((r) => !outOfUse.has(String(r.key_id))).map((r) => ({ packId: String(r.pack_id), reason: String(r.reason) }));
+}
+
+/** Which of these Packs are kept as withdrawn. */
+const withdrawnAmong = async (ids: string[]): Promise<Set<string>> => new Set((await keptWithdrawals(ids)).map((w) => w.packId));
+
+/** Refuses a version or update of a Pack this Installation holds a withdrawal for, while it has the Pack installed from
+ * the Marketplace and so still asks about it: that is how taking the withdrawal back arrives. */
+async function assertNotWithdrawn(packId: string): Promise<void> {
+  if (!(await withdrawnAmong([packId])).size) return;
+  const { data, error } = await db().from("pack_installs").select("id").eq("pack_id", packId).eq("source", "marketplace").limit(1);
+  if (error) throw new MarketplaceUnavailable(NOT_KEPT_WITHDRAWN);
+  if (data?.length) throw new MarketplaceUnavailable("The Marketplace withdrew this Pack. What is installed stays as it is.");
+}
+
+/** The Workspace's installs of Packs the Marketplace withdrew, with its reason, for whoever sees the installed Packs
+ * (not Guests or keys). What the last answer said, whether or not the connection is on now; nothing is asked here. */
+export async function marketplaceWithdrawals(actor: Actor): Promise<{ installId: number; reason: string }[]> {
+  if ((actor as { key?: unknown }).key || actor.role === "guest") return [];
+  // Only Packs installed from the Marketplace: an uploaded file under the same id is not the Marketplace's Pack.
+  const { data: installs } = await db().from("pack_installs").select("id, pack_id").eq("workspace_id", actor.workspaceId).eq("source", "marketplace");
+  if (!installs?.length) return [];
+  // A page is shown also when this cannot be read: it then says nothing of withdrawals.
+  const gone = await keptWithdrawals(installs.map((i) => String(i.pack_id))).catch(() => []);
+  const why = new Map(gone.map((g) => [g.packId, g.reason]));
+  return installs.flatMap((i) => {
+    const reason = why.get(String(i.pack_id));
+    return reason ? [{ installId: Number(i.id), reason }] : [];
+  });
 }
 
 /** The newer Marketplace versions of this Workspace's installed Packs, by install, for Owners and Admins: what the Packs

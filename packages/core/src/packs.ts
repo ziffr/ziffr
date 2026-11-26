@@ -12,11 +12,14 @@ import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { canonical } from "./api-submissions";
 import { checkPack, type Pack } from "./pack";
+import { describePlaces, packPlaces, readPlaces, type PackPeople, type PackPlaces } from "./pack-places";
 import { dashboardTemplateFromFile, templateSlots } from "./dashboard-template-file";
 import { deckTemplateFromFile } from "./deck-template-file";
 import { workflowTemplateFromFile } from "./workflow-template-file";
 import { themeFromFile } from "./theme-file";
 import { packLogoAddress } from "./brand-logo";
+import { helpOf, type PackHelp } from "./installed-pack-guides";
+import { keptOverview, type KeptOverview } from "@ziffr/pack/comes-from";
 import { cleanLogo, logoRatio, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import { checkViewDesignValue, type ViewDesign } from "./view-design";
 import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
@@ -27,7 +30,7 @@ import type { DashboardTemplateBody, DeckTemplateBody, Slot, ThemeSlides, ThemeT
 /** One item of a Pack as the Packs page lists it before installing, already in the form it would be stored in, so its
  * Preview draws exactly what installing adds (with Sample Data, never a Workspace's values). */
 export type PackPreviewItem =
-  | { kind: "metric"; key: string; name: string; description: string; period: string; unit: string; derived: boolean }
+  | { kind: "metric"; key: string; name: string; description: string; /** How it is calculated, as the Pack says it. */ calculationNote: string; period: string; unit: string; derived: boolean }
   | { kind: "dashboard"; key: string; name: string; description: string; slots: Slot[]; body: DashboardTemplateBody }
   | { kind: "deck"; key: string; name: string; description: string; slots: Slot[]; slides: number }
   | { kind: "workflow"; key: string; name: string; description: string; body: WorkflowTemplateBody }
@@ -38,6 +41,10 @@ export type PackPreviewItem =
 export type PackPreview = {
   manifest: Omit<Pack, "contents">;
   items: PackPreviewItem[];
+  /** What the Pack brings and where its numbers come from (comes-from.ts), worked out from the checked file. */
+  overview: KeptOverview;
+  /** Its Positions, Repeats and proposed Shares in words (spec 0058), or null when it has none. */
+  people: PackPeople | null;
   /** The Pack's logo, checked again and written out as Ziffr keeps it (a data address), or null. It is drawn only in an
    * `img` in a bordered box (spec 0039); the file is not installed yet, so it has no address of its own. */
   logo: string | null;
@@ -45,6 +52,10 @@ export type PackPreview = {
   unsigned: boolean;
   /** Where the file came from, so the page says who vouches for it. */
   source: PackOrigin["source"];
+  /** The Marketplace's Signed Statement says a moderator looked at this version. */
+  reviewed: boolean;
+  /** The address of the Marketplace's report form for this Pack and version; only a Marketplace Pack's Preview has one. */
+  report?: string | null;
   /** Texts that address an AI assistant, by where they are, for a person to read before installing. */
   assistantTexts: { path: string; text: string }[];
   /** Why this person cannot install it here, or null: a Pack with Themes needs an Owner, an installed Pack is not
@@ -109,6 +120,8 @@ export function storedItems(pack: Pack) {
       aggregation: m.aggregation, industries: m.industries ?? null, segments: m.segments ?? null, formula: m.formula ?? null,
       // Only an entry that brings Tags has the field, so the hash of every entry installed before Tags existed stays what it was.
       ...(m.tags?.length ? { tags: tagNamesOf(m.tags, TAGS_PER_ENTRY) } : {}),
+      // The same for a Calculation Note (spec 0060): only an entry that brings one has the field.
+      ...(m.calculationNote ? { calculation_note: m.calculationNote } : {}),
     };
     return { key, ...row, hash: itemHash(row) };
   });
@@ -133,8 +146,18 @@ export const itemKeys = (stored: ReturnType<typeof storedItems>) => [...stored.c
 /** The most a Workspace holds from Packs: installs, its own Metric Catalog entries, and templates of any kind. */
 export const PACK_CAPS = { installs: 25, entries: 1000, templates: 1000 } as const;
 
+/** Why this Ziffr cannot take this Pack in yet, or null. A Total (spec 0058) is stored as nothing but its Metric, so Set
+ * up would make an ordinary Metric that people type values into: until #1226 builds Totals, a Pack holding one is refused
+ * whole, at installing and at updating, so that no part of it is ever stored. */
+export function notBuiltYet(pack: Pick<Pack, "contents">): string | null {
+  const total = pack.contents.metrics?.find((m) => m.total);
+  return total ? `This Pack holds a Total, “${total.metric.name}”, which this version of Ziffr cannot make yet. Nothing of the Pack is added.` : null;
+}
+
 /** Why this actor cannot install this Pack in their Workspace, or null. */
 async function blockedFor(actor: Actor, pack: Pack): Promise<string | null> {
+  const early = notBuiltYet(pack);
+  if (early) return early;
   if ((pack.contents.themes?.length ?? 0) > 0 && actor.role !== "owner") return "This Pack holds Themes, and only Owners change Themes: an Owner installs it.";
   const { data } = await db().from("pack_installs").select("version").eq("workspace_id", actor.workspaceId).eq("pack_id", pack.id).maybeSingle();
   // A Workspace holds at most so many Packs and so many rows from them, so a taken-over Admin cannot fill the database.
@@ -162,9 +185,37 @@ export const manifestOf = (p: Pack): Omit<Pack, "contents"> => {
   return m;
 };
 
-/** Where a Pack's file came from: an upload (never signed here), the Marketplace with its signature checked, or Ziffr's
- * own Packs that come with this release (`signed`: they are part of Ziffr's code, checked in CI like it). */
-export type PackOrigin = { source: "upload" | "marketplace" | "included"; signed: boolean };
+// The database keeps at most 262,144 bytes of a manifest, counted as it writes JSON, which is longer than here.
+const MANIFEST_ROOM = 240_000;
+
+/** The places of a checked Pack (spec 0058), marked with the Workflow Templates as `storedItems` stores them. */
+function placesOf(pack: Pack, stored: ReturnType<typeof storedItems>["templates"]): PackPlaces | null {
+  const bodies = new Map(stored.filter((t) => t.kind === "workflow").map((t) => [t.key, (t.body as WorkflowTemplateBody).steps]));
+  return packPlaces(pack, (key) => itemHash(bodies.get(key)));
+}
+
+/** The manifest an install keeps, with the logo checked again; as `places`, what Set up and the Packs page read of
+ * its Positions and Repeats; the Pack Guide, which Help shows; and the overview of what the Pack brings and where its
+ * numbers come from, which Help and Set up show (spec 0058). Where all of it would not fit, the overview is left out
+ * first and then the guide, so that the Pack still installs. Credit is left out: nothing reads it from an install yet. */
+export const installManifest = (p: Pack, stored: ReturnType<typeof storedItems> = storedItems(p)): Omit<Pack, "contents" | "positions" | "repeats" | "basedOn"> & { places?: PackPlaces; overview?: KeptOverview } => {
+  const { positions: _p, repeats: _r, basedOn: _b, guide, ...m } = manifestOf(p); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const places = placesOf(p, stored.templates);
+  const bare = { ...m, ...(p.logo === undefined ? {} : { logo: packLogoOf(p)! }), ...(places ? { places } : {}) };
+  const guided = guide === undefined ? bare : { ...bare, guide };
+  const whole = { ...guided, overview: keptOverview(p) };
+  return [whole, guided].find((x) => new TextEncoder().encode(JSON.stringify(x)).length <= MANIFEST_ROOM) ?? bare;
+};
+
+/** Where a Pack's file came from: an upload (never signed here), the Marketplace with its signature checked (`reviewed`
+ * when its statement says a moderator looked), or Ziffr's own Packs that come with this release (`signed`: they are
+ * part of Ziffr's code, checked in CI like it). */
+export type PackOrigin = { source: "upload" | "marketplace" | "included"; signed: boolean; reviewed?: boolean };
+
+/** installManifest, with whether a moderator looked, which only the app adds, from a Signed Statement (a file with a
+ * field of that name is refused by the checks). */
+export const keptManifest = (p: Pack, origin: PackOrigin, stored?: ReturnType<typeof storedItems>) => ({ ...installManifest(p, stored), ...(origin.reviewed === true ? { reviewed: true } : {}) });
+
 const UPLOAD: PackOrigin = { source: "upload", signed: false };
 
 /** Reads an uploaded Pack file for its Preview (Owners and Admins): checked in full here, whatever the browser did.
@@ -183,14 +234,20 @@ export async function previewPack(actor: Actor, text: string, origin: PackOrigin
   const by = <T extends { key: string }>(xs: T[]) => new Map(xs.map((x) => [x.key, x]));
   const [views, templates] = [by(stored.views), by(stored.templates)];
   const items: PackPreviewItem[] = [
-    ...(pack.contents.metrics ?? []).map(({ key, metric: m }): PackPreviewItem => ({ kind: "metric", key, name: m.name, description: m.description ?? "", period: m.period, unit: m.unit ?? "", derived: m.formula !== undefined })),
+    ...(pack.contents.metrics ?? []).map(({ key, metric: m }): PackPreviewItem => ({ kind: "metric", key, name: m.name, description: m.description ?? "", calculationNote: m.calculationNote ?? "", period: m.period, unit: m.unit ?? "", derived: m.formula !== undefined || pack.contents.metrics!.some((x) => x.key === key && x.total) })),
     ...(pack.contents.dashboards ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "dashboard", key, name: t.name, description: t.description, slots: t.slots, body: t.body as DashboardTemplateBody }; }),
     ...(pack.contents.decks ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "deck", key, name: t.name, description: t.description, slots: t.slots, slides: (t.body as DeckTemplateBody).slides.length }; }),
     ...(pack.contents.workflows ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "workflow", key, name: t.name, description: t.description, body: t.body as WorkflowTemplateBody }; }),
     ...[...(pack.contents.views ?? []), ...(pack.contents.analyses ?? [])].map(({ key }): PackPreviewItem => { const v = views.get(key)!; return { kind: "view", key, name: v.name, description: v.body.description ?? "", body: v.body }; }),
     ...stored.themes.map((t): PackPreviewItem => ({ kind: "theme", key: t.key, name: t.name, tokens: t.tokens, logo: Boolean(t.slides.logo) })),
   ];
-  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, logo: safeLogo(pack), unsigned: !origin.signed, source: origin.source, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
+  const places = placesOf(pack, stored.templates);
+  const names = new Map(items.map((i) => [`${i.kind} ${i.key}`, i.name]));
+  const people = places && describePlaces(places, {
+    name: (kind, key) => names.get(`${kind} ${key}`) ?? null,
+    steps: (w) => (templates.get(w.key)?.body as WorkflowTemplateBody | undefined)?.steps ?? null,
+  });
+  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, overview: keptOverview(pack), people, logo: safeLogo(pack), unsigned: !origin.signed, source: origin.source, reviewed: origin.reviewed === true, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
 }
 
 /** Installs an uploaded Pack file (Owners and Admins; Owners for one with Themes; never in the demo), after the person
@@ -215,7 +272,7 @@ export async function installPack(actor: Actor, text: string, origin: PackOrigin
   const { data, error } = await db().rpc("install_pack", {
     p_workspace: actor.workspaceId,
     p_by: actor.personId,
-    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: origin.source, signed: origin.signed, manifest: { ...manifestOf(pack), ...(pack.logo === undefined ? {} : { logo: packLogoOf(pack) }) }, item_keys: itemKeys(stored) },
+    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: origin.source, signed: origin.signed, manifest: keptManifest(pack, origin, stored), item_keys: itemKeys(stored) },
     p_catalog: stored.catalog,
     p_templates: stored.templates,
     p_designs: stored.views,
@@ -236,11 +293,17 @@ export async function installPack(actor: Actor, text: string, origin: PackOrigin
 /** One installed Pack as the Packs page lists it, with what it added that is still marked as from it. */
 export type InstalledPack = {
   id: number; packId: string; name: string; version: string; license: string; author: string; summary: string;
-  source: PackOrigin["source"]; signed: boolean; installedAt: string; installedBy: string | null;
+  source: PackOrigin["source"]; signed: boolean; /** Installed from the Marketplace as a version a moderator looked at. */ reviewed: boolean; installedAt: string; installedBy: string | null;
   listing: { homepage?: string; support?: string };
   /** The address of its logo on this site (signed-in people of the Workspace only), or null. */
   logo: string | null;
+  /** What Help has of it (installed-pack-guides.ts): its guide, only where its numbers come from, or nothing. */
+  help: PackHelp;
   added: { kind: "metric" | "dashboard" | "deck" | "workflow" | "view" | "theme"; name: string }[];
+  /** Its Positions, Repeats and proposed Shares in words (spec 0058), of the items it still has, or null. */
+  people: PackPeople | null;
+  /** The Repeats a line can be added to, as something of them was set up here: for Owners and Admins only. */
+  addable: { repeat: string; name: string }[];
 };
 
 /** The Workspace's installed Packs and what each added, for everyone in it but Guests (spec 0030: Members see them).
@@ -251,11 +314,14 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
   const { data } = await db().from("pack_installs").select("id, pack_id, version, license, source, signed, manifest, installed_by, installed_at").eq("workspace_id", ws).order("installed_at");
   if (!data?.length) return [];
   const ids = data.map((r) => r.id as number);
-  const [cat, tpl, des, thm] = await Promise.all([
-    db().from("catalog_metrics").select("name, pack_install_id").eq("workspace_id", ws).in("pack_install_id", ids),
-    db().from("team_templates").select("kind, name, pack_install_id").eq("workspace_id", ws).in("pack_install_id", ids),
+  // Only an install with Positions needs the steps of its Workflow Templates; other templates' bodies can be large.
+  const withPlaces = data.filter((r) => (r.manifest as { places?: unknown } | null)?.places).map((r) => r.id as number);
+  const [cat, tpl, des, thm, flows] = await Promise.all([
+    db().from("catalog_metrics").select("name, pack_install_id, pack_key").eq("workspace_id", ws).in("pack_install_id", ids),
+    db().from("team_templates").select("kind, name, pack_install_id, pack_key").eq("workspace_id", ws).in("pack_install_id", ids),
     db().from("view_designs").select("name, pack_install_id").eq("workspace_id", ws).in("pack_install_id", ids),
     db().from("themes").select("name, pack_install_id").eq("workspace_id", ws).in("pack_install_id", ids),
+    withPlaces.length ? db().from("team_templates").select("pack_install_id, pack_key, body").eq("workspace_id", ws).eq("kind", "workflow").in("pack_install_id", withPlaces) : Promise.resolve({ data: [] }),
   ]);
   const added = new Map<number, InstalledPack["added"]>(ids.map((i) => [i, []]));
   const add = (rows: { name: unknown; pack_install_id: unknown; kind?: unknown }[] | null, kind: (r: { kind?: unknown }) => InstalledPack["added"][number]["kind"]) => {
@@ -265,12 +331,37 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
   add(tpl.data, (r) => r.kind as "dashboard" | "deck" | "workflow");
   add(des.data, () => "view");
   add(thm.data, () => "theme");
+  // What each install still has, by install, kind and key: its Positions are said of these.
+  const kept = new Map<string, { name: string }>();
+  const bodies = new Map<string, unknown>();
+  const at = (install: unknown, kind: string, key: string) => `${Number(install)} ${kind} ${key}`;
+  for (const c of cat.data ?? []) kept.set(at(c.pack_install_id, "metric", String(c.pack_key)), { name: String(c.name) });
+  for (const t of tpl.data ?? []) kept.set(at(t.pack_install_id, String(t.kind), String(t.pack_key)), { name: String(t.name) });
+  for (const t of flows.data ?? []) bodies.set(at(t.pack_install_id, "workflow", String(t.pack_key)), t.body);
+  const peopleOfInstall = (id: number, raw: unknown) => {
+    const places = readPlaces(raw);
+    return places && describePlaces(places, {
+      name: (kind, key) => kept.get(at(id, kind, key))?.name ?? null,
+      steps: (w) => {
+        const steps = (bodies.get(at(id, "workflow", w.key)) as WorkflowTemplateBody | undefined)?.steps;
+        return steps && itemHash(steps) === w.mark ? steps : null;
+      },
+    });
+  };
+  // Which Repeats have lines recorded: only those who set up are told.
+  const listedRepeats = new Set<string>();
+  if (withPlaces.length && (actor.role === "owner" || actor.role === "admin")) {
+    const { data: lines } = await db().from("pack_setup_lines").select("repeat_key, pack_setups!inner(install_id)").eq("workspace_id", ws).in("pack_setups.install_id", withPlaces);
+    for (const l of (lines ?? []) as unknown as { repeat_key: string; pack_setups: { install_id: number } }[]) listedRepeats.add(`${l.pack_setups.install_id} ${l.repeat_key}`);
+  }
   return data.map((r) => {
-    const m = r.manifest as Omit<Pack, "contents">;
+    const m = r.manifest as Omit<Pack, "contents"> & { places?: unknown; reviewed?: unknown };
     return {
       id: Number(r.id), packId: String(r.pack_id), name: m.name, version: String(r.version), license: String(r.license), author: m.author?.name ?? "", summary: m.summary ?? "",
-      source: r.source as PackOrigin["source"], signed: Boolean(r.signed), installedAt: String(r.installed_at), installedBy: (r.installed_by as string | null) ?? null,
-      listing: m.listing ?? {}, logo: packLogoAddress(ws, Number(r.id), (r.manifest as { logo?: unknown } | null)?.logo), added: added.get(Number(r.id)) ?? [],
+      source: r.source as PackOrigin["source"], signed: Boolean(r.signed), reviewed: r.source === "marketplace" && m.reviewed === true, installedAt: String(r.installed_at), installedBy: (r.installed_by as string | null) ?? null,
+      listing: m.listing ?? {}, logo: packLogoAddress(ws, Number(r.id), (r.manifest as { logo?: unknown } | null)?.logo), help: helpOf(r.manifest), added: added.get(Number(r.id)) ?? [],
+      people: peopleOfInstall(Number(r.id), m.places),
+      addable: (readPlaces(m.places)?.repeats ?? []).filter((x) => listedRepeats.has(`${Number(r.id)} ${x.key}`)).map((x) => ({ repeat: x.key, name: x.name })),
     };
   });
 }

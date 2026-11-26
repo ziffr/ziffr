@@ -41,10 +41,12 @@ import { workflowTemplateFromFile } from "./workflow-template-file";
 import { fromWorkflowTemplate } from "./team-templates";
 import { createDeck, setDeckTheme } from "./decks";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
-import { writeFormula, withSlugs } from "./pack-setup";
+import { writeFormula } from "./pack-setup";
+import { withSlugs } from "./pack-setup-build";
 import { emptyPlan, holdInvitation, type ImportPlan } from "./workspace-import-people";
 import { reserveIds } from "./sealed-columns";
 import { planRows, written } from "./record-value";
+import { restoreTotal } from "./total-changes";
 import type { WorkspaceExportReaderLimits, WorkspaceExportRecord, HeaderRecord, MetricRecord, ValueRecord } from "@ziffr/pack/workspace-export";
 import type { WorkflowConfig } from "./types";
 
@@ -101,7 +103,7 @@ export function importLimits(env: Record<string, string | undefined> = process.e
 export const importOffered = (env: Record<string, string | undefined> = process.env): boolean => !hostedByCloud(env);
 
 /** What an import did, as counts the progress page shows. Never a name or a number from the file. */
-export type ImportCounts = Partial<Record<"groups" | "themes" | "people" | "metrics" | "dashboards" | "decks" | "workflows" | "shares" | "targets" | "projections" | "values", number>> & {
+export type ImportCounts = Partial<Record<"groups" | "themes" | "people" | "metrics" | "totals" | "dashboards" | "decks" | "workflows" | "shares" | "targets" | "projections" | "values", number>> & {
   /** Values of Derived Metrics, which are computed and take none. */
   derivedValuesSkipped?: number;
   /** Tags a limit kept off their Metric. */
@@ -289,7 +291,7 @@ async function runImport(id: string, personId: string, path: string, limits: Wor
     await job.write({ status: "importing", step: "Creating the Workspace", records_done: 0, records_total: checked.records, workspace_name: checked.header.workspace.name });
     workspaceId = await createPlace(personId, checked.header);
     await job.write({ workspace_id: workspaceId });
-    const counts = await writePass(path, limits, personId, workspaceId, checked.header, job);
+    const counts = await writePass(path, limits, personId, workspaceId, checked, job);
     // Done: the Workspace stops being marked and appears in the Owner's list, only while the job is still running (a job
     // that was ended as stopped has its Workspace undone, never opened).
     const { data: still } = await db().from("workspace_imports").select("id").eq("id", id).in("status", ACTIVE).maybeSingle();
@@ -322,17 +324,20 @@ const records = (path: string, limits: WorkspaceExportReaderLimits) => readWorks
 // Pass one: check everything, write nothing.
 
 /** The first pass: every line is checked by the reader (stopping at the first problem), then what only this
- * Installation knows: the time zone by its database too, and the counts against its limits. Returns the header and the number of lines. */
-async function checkPass(path: string, limits: WorkspaceExportReaderLimits, job: ReturnType<typeof progressWriter>): Promise<{ header: HeaderRecord; records: number }> {
+ * Installation knows: the time zone by its database too, and the counts against its limits. Returns the header, the
+ * number of lines and the labels of the Metrics the file makes Totals: their `total` records come after them. */
+async function checkPass(path: string, limits: WorkspaceExportReaderLimits, job: ReturnType<typeof progressWriter>): Promise<{ header: HeaderRecord; records: number; totals: Set<string> }> {
   let header: HeaderRecord | null = null;
   let lines = 0;
   const counts = { persons: 0, metrics: 0, themes: 0 };
+  const totals = new Set<string>();
   for await (const { record, line } of records(path, limits)) {
     lines = line;
     if (record.kind === "header") header = record;
     else if (record.kind === "person") counts.persons++;
     else if (record.kind === "metric") counts.metrics++;
     else if (record.kind === "theme") counts.themes++;
+    else if (record.kind === "total") totals.add(record.metric);
     await job.write({ records_done: line }, true);
   }
   if (!header) throw new ImportProblem("The file has no header.", 1);
@@ -347,7 +352,7 @@ async function checkPass(path: string, limits: WorkspaceExportReaderLimits, job:
   if (counts.themes > MAX_WORKSPACE_THEMES - 1) throw new ImportProblem(`The file holds ${counts.themes} Themes; a Workspace keeps at most ${MAX_WORKSPACE_THEMES - 1} besides its starting Theme.`);
   const most = await sendingLimit("contactsPerWorkspace");
   if (counts.persons > most) throw new ImportProblem(`The file lists ${counts.persons.toLocaleString("en")} people; this Installation holds at most ${most.toLocaleString("en")} for a Workspace.`);
-  return { header, records: lines };
+  return { header, records: lines, totals };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -378,7 +383,8 @@ type MadeMetric = { id: number; slug: string; derived: boolean; polarity: string
 type Person = { self: boolean; role: "admin" | "member" | "guest"; email: string; plan: ImportPlan; groups: string[] };
 
 /** The second pass: writes the records in the order the file lists them. Returns what was made. */
-async function writePass(path: string, limits: WorkspaceExportReaderLimits, personId: string, workspaceId: string, header: HeaderRecord, job: ReturnType<typeof progressWriter>): Promise<ImportCounts> {
+async function writePass(path: string, limits: WorkspaceExportReaderLimits, personId: string, workspaceId: string, checked: { header: HeaderRecord; totals: ReadonlySet<string> }, job: ReturnType<typeof progressWriter>): Promise<ImportCounts> {
+  const { header, totals } = checked;
   const actor: Actor = { personId, workspaceId, role: "owner" };
   const counts: ImportCounts = {};
   const bump = (k: keyof ImportCounts, n = 1) => void (counts[k] = (counts[k] ?? 0) + n);
@@ -428,6 +434,11 @@ async function writePass(path: string, limits: WorkspaceExportReaderLimits, pers
       }
       case "metric":
         return metric(r);
+      case "total": {
+        const total = metrics.need(r.metric);
+        await restoreTotal(actor, total.id, r.targets, r.parts.map((p) => ({ id: metrics.need(p.metric).id, first: p.first, last: p.last ?? null })));
+        return bump("totals");
+      }
       case "dashboard": {
         await writeFormulas();
         const t = dashboardTemplateFromFile(r.dashboard);
@@ -496,17 +507,19 @@ async function writePass(path: string, limits: WorkspaceExportReaderLimits, pers
   const metric = async (r: MetricRecord) => {
     const f = r.metric;
     const derived = f.formula !== undefined;
+    // A Total's record may come later, but from the start it takes no values, so no Source, Submitter or Workflow.
+    const computed = derived || totals.has(r.id);
     if (keys.has(r.key)) throw new ImportProblem(`The Metric key “${r.key}” is listed twice.`);
     const made = await createMetric(actor, {
       name: f.name, description: f.description ?? "", calculationNote: f.calculationNote, unit: f.unit ?? "", unitPosition: f.unitPosition, format: f.valueFormat, decimals: f.decimals, period: f.period,
       submissionRule: f.submissionRule, polarity: f.polarity, aggregation: f.aggregation, targetMin: f.targetMin ?? null, targetMax: f.targetMax ?? null,
       attainmentMethod: f.attainmentMethod ?? null,
       // A Derived Metric takes no values, so no Source.
-      sources: derived ? [] : f.sources,
+      sources: computed ? [] : f.sources,
     }, noEffects);
     keys.set(r.key, made.slug);
     // The Owner owns every Metric: the file's owner is applied when that person joins (never a Guest).
-    metrics.set(r.id, { id: made.id, slug: made.slug, derived, polarity: f.polarity, rule: f.submissionRule ?? "overwrite" });
+    metrics.set(r.id, { id: made.id, slug: made.slug, derived: computed, polarity: f.polarity, rule: f.submissionRule ?? "overwrite" });
     if (derived) formulas.push({ id: made.id, name: f.name, formula: f.formula! });
     if (r.tags?.length) {
       try {
@@ -515,13 +528,14 @@ async function writePass(path: string, limits: WorkspaceExportReaderLimits, pers
         bump("tagsLeftOut", r.tags.length);
       }
     }
+    // Nobody sends values for a computed Metric: no Token now and none in an invitation's plan.
     const submitters: string[] = [];
-    for (const label of r.submitters ?? []) {
+    for (const label of computed ? [] : r.submitters ?? []) {
       const p = people.need(label);
       if (p.self) submitters.push(personId);
       else p.plan.submits.push(made.id);
     }
-    if (submitters.length && !derived) await addSubmitters(actor, made.id, submitters, noEffects);
+    if (submitters.length) await addSubmitters(actor, made.id, submitters, noEffects);
     if (r.owner !== undefined) {
       const o = people.need(r.owner);
       if (!o.self && o.role !== "guest") o.plan.owns.push(made.id);
@@ -531,7 +545,8 @@ async function writePass(path: string, limits: WorkspaceExportReaderLimits, pers
 
   let done = 0;
   for await (const { record, line } of records(path, limits)) {
-    if (record.kind !== "metric") await writeFormulas();
+    // Formulas once every Metric and Total is made: one may name a Metric listed after it.
+    if (record.kind !== "metric" && record.kind !== "total") await writeFormulas();
     await apply(record);
     if (++done % 50 === 0) await job.write({ step: stepOf(record.kind), records_done: line }, true);
   }
@@ -553,7 +568,7 @@ async function writePass(path: string, limits: WorkspaceExportReaderLimits, pers
 
 /** The words of the step a kind of record belongs to, for the progress page. */
 const stepOf = (kind: WorkspaceExportRecord["kind"]): string =>
-  ({ header: "Reading the file", group: "Groups", theme: "Themes", person: "People", metric: "Metrics", dashboard: "Dashboards", deck: "Decks", workflow: "Workflows", share: "Shares", target: "Targets", projection: "Projections", value: "Values", end: "Finishing" })[kind];
+  ({ header: "Reading the file", group: "Groups", theme: "Themes", person: "People", metric: "Metrics", total: "Totals", dashboard: "Dashboards", deck: "Decks", workflow: "Workflows", share: "Shares", target: "Targets", projection: "Projections", value: "Values", end: "Finishing" })[kind];
 
 /** Target Series or Projection points of one Metric, held until a call can take them, in rising order as the file lists them. */
 class SeriesBuffer {

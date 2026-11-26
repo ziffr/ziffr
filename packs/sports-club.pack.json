@@ -2,7 +2,7 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/sports-club",
   "name": "Sports club",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "summary": "Members, joiners and leavers, attendance per training, fees received and volunteer hours, with a season dashboard and a Workflow that asks each coach for attendance after training.",
   "author": {
     "name": "Ziffr"
@@ -22,9 +22,10 @@
       {
         "key": "members",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Members",
           "description": "Members with a paid or exempt membership at month end.",
+          "calculationNote": "People whose membership runs on the last day of the month, paying or exempt from the fee. Former members and trial participants are left out.",
           "category": "Club",
           "period": "month",
           "aggregation": "last",
@@ -46,9 +47,10 @@
       {
         "key": "joiners",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Joiners",
           "description": "People whose membership began in the month.",
+          "calculationNote": "People whose membership began in the month, including former members who came back.",
           "category": "Club",
           "period": "month",
           "aggregation": "sum",
@@ -70,9 +72,10 @@
       {
         "key": "leavers",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Leavers",
           "description": "People whose membership ended in the month.",
+          "calculationNote": "People whose membership ended in the month, counted on the day it ended and not on the day notice was given.",
           "category": "Club",
           "period": "month",
           "aggregation": "sum",
@@ -94,9 +97,10 @@
       {
         "key": "attendance",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Attendance per training",
           "description": "Players at the week's training sessions, counted by the coach after each session.",
+          "calculationNote": "The players present, counted by the coach after each session, added up over the sessions of the week. Coaches and spectators are not counted.",
           "category": "Club",
           "period": "week",
           "aggregation": "sum",
@@ -118,9 +122,10 @@
       {
         "key": "fees",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Fees received",
           "description": "Membership fees received in the month.",
+          "calculationNote": "Membership fees that arrived in the month, whatever period they are for. Donations, sponsoring and event income are left out.",
           "category": "Club",
           "period": "month",
           "aggregation": "sum",
@@ -142,9 +147,10 @@
       {
         "key": "volunteer-hours",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Volunteer hours",
           "description": "Hours volunteers gave the club in the month: coaching, events, the club house and the board.",
+          "calculationNote": "Hours volunteers report for the month, for coaching, events, the club house and the board. Paid hours are left out.",
           "category": "Club",
           "period": "month",
           "aggregation": "sum",

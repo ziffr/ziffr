@@ -24,13 +24,35 @@ const CHARS = "[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–�
 /** The pattern of plain text, as a JSON Schema `pattern` (read with the `u` flag). */
 export const PLAIN = `^${NO_ADDRESS}${CHARS}*$`;
 
+// The text check reads Unicode the way a person does: a web address is also looked for in the text as it reads, with
+// compatibility forms (NFKC) as the plain characters they stand for, and without combining marks and characters that
+// show nothing. An accented letter stays a letter. Long runs of marks are cut first: all of them go anyway, and putting
+// a very long run in Unicode's order takes more time than a text is worth.
+const asRead = (text: string) => text.replace(/(\p{M}{8})\p{M}+/gu, "$1").normalize("NFKC").replace(/[\p{M}\p{Default_Ignorable_Code_Point}]/gu, "");
+const NO_ADDRESS_READ = new RegExp(`^${NO_ADDRESS}`, "u");
+
+/** Whether a text passes a JSON Schema `pattern`; a pattern of plain text, words or slide words, which refuses web
+ * addresses, must also find none in the text as a person reads it. */
+export function textPasses(pattern: string, text: string): boolean {
+  return new RegExp(pattern, "u").test(text) && (!pattern.startsWith(`^${NO_ADDRESS}`) || NO_ADDRESS_READ.test(asRead(text)));
+}
+
+// The Placeholders every text knows. How a Metric is calculated (spec 0060) is added where a format says so: widgets,
+// Slide Elements and, from ziffr.deck-template/3 on, a slide's text and boxes.
+const SHARED_PLACEHOLDERS = "metrics|metric|period|latest|change yoy|change prev|top row|target";
+const withPlaceholders = (names: string) => `^${NO_ADDRESS}(?:${CHARS}|\\{(?:${names})(?: [1-9])?\\})*$`;
+
 /** Plain text that may also hold Placeholders such as {metric} or {latest} (GLOSSARY: Placeholder): only the known
- * ones, each a fixed word, so braces can never read as a template of anything else. */
-export const WORDS = `^${NO_ADDRESS}(?:${CHARS}|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$`;
+ * ones, each a fixed word, so braces can never read as a template of anything else. For words filled each time they
+ * are drawn. */
+export const WORDS = withPlaceholders(`${SHARED_PLACEHOLDERS}|calculation note`);
+
+/** As `WORDS` for a slide's text and boxes in formats /1 and /2: without {calculation note}. */
+export const SAVED_WORDS = withPlaceholders(SHARED_PLACEHOLDERS);
 
 /** Plain text that may hold the Placeholders of a slide's own words (spec 0057): those above, the quarter, the changes
  * and gaps between an element's Metrics ({gap 2 1}, {left 2 3}), the unit they are written in and the page number. */
-export const SLIDE_WORDS = `^${NO_ADDRESS}(?:${CHARS}|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target|quarter weeks|quarter week|quarter|weeks left|change|scale|slide)(?: [1-9])?\\}|\\{(?:difference|gap|left) [1-9] [1-9]\\})*$`;
+export const SLIDE_WORDS = `^${NO_ADDRESS}(?:${CHARS}|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target|calculation note|quarter weeks|quarter week|quarter|weeks left|change|scale|slide)(?: [1-9])?\\}|\\{(?:difference|gap|left) [1-9] [1-9]\\})*$`;
 
 // What a person typed into the app: any text but control characters, line and paragraph separators, characters that
 // reverse the direction of text and invisible ones (zero-width spaces, soft hyphens, tag characters, lone surrogates). Markup and web addresses are data here, never rendered or followed as such.
@@ -45,6 +67,9 @@ export const plainText = (max: number, description = "plain text, without markup
 
 /** Words of a widget or slide, which may hold Placeholders, of at most `max` characters. */
 export const words = (max: number): Schema => ({ type: "string", maxLength: max, pattern: WORDS, description: "plain text, without markup or web addresses; Placeholders such as {metric} are allowed" });
+
+/** Words of a slide's text or box in formats /1 and /2, of at most `max` characters. */
+export const savedWords = (max: number): Schema => ({ type: "string", maxLength: max, pattern: SAVED_WORDS, description: "plain text, without markup or web addresses; Placeholders such as {metric} are allowed, {calculation note} only in widgets and Slide Elements, and in text and boxes from ziffr.deck-template/3 on" });
 
 /** Words of a Slide Element, which may hold a slide's Placeholders, of at most `max` characters. */
 export const slideWords = (max: number): Schema => ({ type: "string", maxLength: max, pattern: SLIDE_WORDS, description: "plain text, without markup or web addresses; Placeholders such as {gap 2 1} are allowed" });

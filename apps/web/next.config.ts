@@ -35,6 +35,11 @@ const nextConfig: NextConfig = {
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       ],
     }, {
+      // An opened View Link answers by the cookie of whoever asks: no cache keeps it or hands it on. No Vary here:
+      // Next writes its own on every page, and what is never stored needs none.
+      source: "/v/open/:path*",
+      headers: [{ key: "Cache-Control", value: "private, no-store" }],
+    }, {
       // The service worker (#143): always asked of the server, so a fixed worker reaches everyone at once.
       source: "/sw.js",
       headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],

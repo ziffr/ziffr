@@ -76,7 +76,7 @@ export const METRIC_FILE_SCHEMA: Schema = {
     targetMax: bound("upper end"),
     attainmentMethod: { enum: [...ATTAINMENT_METHODS], description: "How its Attainment is computed; left out, the Workspace's way." },
     sources: { type: "array", maxItems: 5, items: { enum: ["web_form", "mail", "slack", "telegram", "api"] }, description: "Where its values may arrive from; left out, every Source." },
-    formula: { type: "string", maxLength: FORMULA_LIMITS.length, pattern: "^[a-z0-9{}()+\\-*/. ]*$", description: "a formula of + - * /, brackets, numbers and {key} of another entry, such as “{revenue} / {orders}”" },
+    formula: { type: "string", maxLength: FORMULA_LIMITS.length, pattern: "^[a-z0-9{}()+\\-*/. ]*$", description: "a formula of + - * /, brackets, numbers, {key} of another entry and target({key}) for its target, such as “{revenue} / {orders}”" },
   },
   required: ["format", "name", "period", "aggregation", "polarity"],
   additionalProperties: false,
@@ -140,11 +140,5 @@ export function checkMetricFile(textIn: string): FormatCheck<MetricFile> {
 export function checkMetricFileValue(value: unknown, lines: Map<string, number> = new Map(), schemas: MetricFileSchemas = { v1: METRIC_FILE_SCHEMA, v2: METRIC_FILE_2_SCHEMA }): FormatCheck<MetricFile> {
   const schema = (value as { format?: unknown } | null)?.format === METRIC_FILE_FORMAT_2 ? schemas.v2 : schemas.v1;
   return checkFormat({ ...FORMAT, reads: METRIC_FILE_FORMATS, schema }, value, lines);
-}
-
-/** Checks a Metric file where only ziffr.metric/1 is read: a Pack's Metric Catalog entry, which does not keep a
- * Calculation Note yet, refuses a newer file in words instead of dropping a part of it. */
-export function checkMetricFile1Value(value: unknown, lines: Map<string, number> = new Map()): FormatCheck<MetricFile> {
-  return checkFormat({ ...FORMAT, reads: [METRIC_FILE_FORMAT], schema: METRIC_FILE_SCHEMA }, value, lines);
 }
 

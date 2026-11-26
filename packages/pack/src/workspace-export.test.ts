@@ -62,7 +62,7 @@ describe("a sound Workspace Export", () => {
     expect(checkWorkspaceExport("﻿" + text(RECORDS).replace(/\n/g, "\r\n")).ok).toBe(true);
   });
   it("is held to by the published schema: every kind is a branch", () => {
-    expect(WORKSPACE_EXPORT_SCHEMA.oneOf).toHaveLength(13);
+    expect(WORKSPACE_EXPORT_SCHEMA.oneOf).toHaveLength(14);
   });
   it("names the line of each problem", () => {
     const t = text(edit(at("person"), (r) => ({ ...r, email: "not an address" })));
@@ -112,6 +112,14 @@ describe("the order and the references", () => {
   });
   it("checks a Derived Metric's formula against the Metrics of the file, wherever they are listed", () => {
     expect(messages(text(edit(at("metric", 2), (r) => ({ ...r, metric: { ...(r.metric as object), formula: "{ghost} / {orders}" } })))).join()).toContain("{ghost}");
+  });
+  it("reads target() of another Metric, and refuses what is not one Metric between its brackets", () => {
+    const with_ = (formula: string) => messages(text(edit(at("metric", 2), (r) => ({ ...r, metric: { ...(r.metric as object), formula } })))).join();
+    expect(with_("target({revenue}) - {orders}")).toBe("");
+    expect(with_("{orders} / (target( {revenue} ) - 1)")).toBe("");
+    expect(with_("target({ghost}) - {orders}")).toContain("{ghost}");
+    for (const bad of ["target(1) - {orders}", "target({revenue} - 1)", "prev({orders})"]) expect(with_(bad), bad).toContain("cannot be read");
+    expect(with_("{orders} target({revenue})")).toContain("without an operator");
   });
   it("checks that a Slot is filled by as many Metrics as it takes", () => {
     expect(messages(text(edit(at("dashboard"), (r) => ({ ...r, slots: [["m1", "m2"]] })))).join()).toContain("takes one Metric");
@@ -248,7 +256,7 @@ describe("hostile files", () => {
     expect(problems(withRows([...many, { label: "R200", value: 1, parent: "R0" }]))).not.toHaveLength(0);
   });
   it("refuses a newer format by name, an unknown record and a wrong kind", () => {
-    expect(messages(text(edit(0, (r) => ({ ...r, format: "ziffr.workspace-export/2" }))))[0]).toContain("This file is in format ziffr.workspace-export/2; this Ziffr reads ziffr.workspace-export/1");
+    expect(messages(text(edit(0, (r) => ({ ...r, format: "ziffr.workspace-export/3" }))))[0]).toContain("This file is in format ziffr.workspace-export/3; this Ziffr reads ziffr.workspace-export/1, ziffr.workspace-export/2");
     expect(messages(text(edit(at("group"), (r) => ({ ...r, kind: "alert" }))))[0]).toContain("is not a record this Ziffr reads");
     expect(messages(text([RECORDS[0], "[]"]))[0]).toContain("must be an object");
     expect(messages(text([RECORDS[0], '{"id":"x"}']))[0]).toContain("needs the field “kind”");
@@ -307,5 +315,46 @@ describe("hostile files", () => {
     const started = Date.now();
     expect(problems(text(rs)).length).toBeGreaterThan(0);
     expect(Date.now() - started).toBeLessThan(500);
+  });
+});
+
+describe("a Total", () => {
+  const sum = { kind: "metric", id: "m4", key: "all-orders", metric: { ...metricDoc, name: "All orders" } };
+  const second = { kind: "metric", id: "m5", key: "orders-north", metric: { ...metricDoc, name: "Orders North" } };
+  const total = { kind: "total", metric: "m4", targets: "own", open: true, parts: [{ metric: "m1", first: "2026-01-01" }, { metric: "m5", first: "2026-01-01", last: "2026-03-01" }] };
+  // The file with the two Metrics and a `total` record after the Metrics, written as the version that knows it.
+  const file = (t: Record<string, unknown> = total, format = "ziffr.workspace-export/2", more: Record<string, unknown>[] = []) => {
+    const rs = [...RECORDS];
+    rs.splice(at("dashboard"), 0, sum, second, ...more, t);
+    return text(rs.map((r) => (r.kind === "header" ? { ...r, format } : r.kind === "end" ? { kind: "end", counts: { ...(r.counts as object), metric: 5 + more.length, total: 1 } } : r)));
+  };
+
+  it("travels with its list, in a file of version 2", () => {
+    const r = checkWorkspaceExport(file());
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.counts.total).toBe(1);
+  });
+  it("is refused in a file of version 1, by name", () => {
+    expect(messages(file(total, "ziffr.workspace-export/1")).join()).toContain("is ziffr.workspace-export/2, and its header says so");
+  });
+  it("adds up only Metrics of the file that take values and go with it", () => {
+    const part = (metric: string, over: Record<string, unknown> = {}) => ({ ...total, parts: [{ metric, first: "2026-01-01", ...over }] });
+    const said = (t: Record<string, unknown>, more: Record<string, unknown>[] = []) => messages(file(t, "ziffr.workspace-export/2", more)).join();
+    expect(said(part("m9"))).toContain("no metric listed before");
+    expect(said(part("m3"))).toContain("takes values");
+    expect(said(part("m4"))).toContain("takes values");
+    expect(said(part("m2", {}), [])).toBe("");
+    expect(said(part("m6"), [{ kind: "metric", id: "m6", key: "weekly", metric: { ...metricDoc, name: "Weekly", period: "week" } }])).toContain("does not go with the Total");
+    expect(said(part("m1", { last: "2025-12-01" }))).toContain("before the first period");
+    expect(said(part("m1", { first: "2026-01-15" }))).toContain("does not start a month");
+    expect(said({ ...total, parts: [total.parts[0], total.parts[0]] })).toContain("twice");
+    expect(said({ ...total, metric: "m3", parts: [] })).toContain("has a formula");
+    expect(said({ ...total, metric: "m9", parts: [{ metric: "m1", first: "2026-01-01" }] })).toContain("no metric listed before");
+  });
+  it("is made one once", () => {
+    const rs = file().trimEnd().split("\n");
+    const i = rs.findIndex((l) => l.includes('"kind":"total"'));
+    rs.splice(i, 0, rs[i]);
+    expect(messages(rs.join("\n") + "\n").join()).toContain("is a Total already");
   });
 });

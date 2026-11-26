@@ -12,7 +12,7 @@ const PURE = new Set([
   "approval-question", "demo-words", "sealed-labels", "retention-rules", "retention-words", "alert-rules", "alert-limits", "asking-schedule", "schedule-calendar", "quiet-rules", "prompt-route",
   "connectors/index", "connectors/types", "connectors/email", "connectors/slack", "connectors/tickets", "connectors/whatsapp",
   "feedback-rules", "demo-reset-line", "announcement-rules",
-  "desktop-screens", "calculation-note",
+  "desktop-screens", "calculation-note", "total-rules",
   "canvas-roles", "chart-stretch", "method-picker-names", "polar-marks", "progress-bars", "stacked-marks", "pareto", "slope-chart", "running-total", "bump-marks", "heatmap-grid", "formula-tree", "breakdown-tree",
 ]);
 

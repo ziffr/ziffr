@@ -2,44 +2,58 @@
 // Slot, Workflow Template, Workspace Limit): after a Pack is installed, a person picks which of its Metric Catalog
 // entries become Metrics, which of its Dashboard Templates becomes a dashboard with its Slots filled by them, and
 // which of its Workflow Templates becomes a Workflow, with its people picked. Every function takes the Actor first.
+// What is asked for is checked and laid out by pack-setup-build.ts, which the plan of a Set up reads too.
 // Security: only Owners and Admins, never through a key, and only with an install of their own Workspace; every
-// Feed picked as Submitter must be a live Feed of this Workspace (checked before anything is made, set through
-// addFeedToMetric, which also turns the API Source on). Every Metric is made through createMetric (the Workspace Limit, the trial's cap, the Audit Log), a Derived Metric's
-// formula is checked against the Workspace's Metrics like any other, the dashboard through
-// createDashboardFromTemplate (every Metric must be seen) and the Workflow through createWorkflowFromTemplate
-// (Approvers must be members). Everything asked for is checked before anything is made. Keys from the browser are
-// matched through Maps, never as fields of a plain object.
+// Feed picked as Submitter must be a live Feed of this Workspace. Everything is made through the core operation a
+// person uses by hand, so permissions, limits and the Audit Log apply: createMetric (the Workspace Limit, the trial's
+// cap), addSubmitters and setStandIn, addFeedToMetric (which also turns the API Source on), saveWorkflow (people of
+// this Workspace only), createDashboardFromTemplate (every Metric must be seen) and share (only what the actor owns,
+// only with members). A Share is made only when ticked, and nobody, the actor included, is sent a Prompt unless
+// sending the first requests was chosen. A Derived Metric's formula is checked like any other. Everything asked for is checked before anything is made.
 import { db } from "./db";
-import { refuseInDemo } from "./demo";
-import { assertCan, Forbidden, type Actor } from "./actor";
+import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
-import { liveFeed, feedChoices, addFeedToMetric } from "./feeds";
-import { addSubmitters, createMetric, deleteMetric, MetricKept } from "./metrics";
-import { checkFormula, formulaInputs, type FormulaInput } from "./formula";
+import { feedChoices, addFeedToMetric } from "./feeds";
+import { addSubmitters, createMetric, deleteMetric, metricEffects, MetricKept, SUBMITTERS_PER_CHANGE, type MetricEffects } from "./metrics";
+import { checkFormula, formulaInputs } from "./formula";
 import { createDashboardFromTemplate, metricChoices } from "./dashboard-templates";
+import { editableWidget, updateWidget } from "./dashboards";
 import { feedTemplates, type FeedTemplateInfo } from "./feed-template-download";
-import { createWorkflowFromTemplate } from "./workflow-templates";
-import { fromWorkflowTemplate } from "./team-templates";
+import { saveWorkflow, setSendSnapshot, setStandIn } from "./workflows";
+import { share } from "./sharing";
+import { resumeSetupRecord, startSetupRecord, type MadeThing, type SetupRecord } from "./pack-setup-record";
+import { itemHash } from "./packs";
 import { recordVersion } from "./versions";
 import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
 import { getMetrics } from "./workspace-data";
 import { peopleIn } from "./submissions";
-import { graceNow, LimitReached, limitOf, limitRefusal, limitRule, metricCount, metricsAllowed, nextGraceOn } from "./workspace-limits";
-import { trialLimitsInEffect } from "./trial-limits-in-effect";
+import { LimitReached } from "./workspace-limits";
+import { buildSetup, placeMaps, SETUP_METRICS_MAX, tickedShares, withSlugs, type Blueprint, type BuiltLine, type PackSetupInput, type PlannedMetric, type PlannedWorkflow, type ProposedShare } from "./pack-setup-build";
+import { PACK_POSITION_LIMITS } from "@ziffr/pack/pack-positions";
+import { assertSetsUp, installedForSetup, roomFor, roomNow, type PackSetupRoom } from "./pack-setup-install";
 import type { Slot, WorkflowTemplateBody } from "./types";
+import type { KeptOverview, PackNumber } from "@ziffr/pack/comes-from";
+
+export type { PackSetupInput, PackSetupRoom };
 
 /** An entry of the Pack's part of the Metric Catalog, as the set-up page offers it. `inputs` are the keys a Derived
  * Metric's formula names: picking it makes them too, first. */
-export type SetupEntry = { key: string; name: string; period: string; unit: string; derived: boolean; inputs: string[]; tags: string[] };
+export type SetupEntry = { key: string; name: string; period: string; unit: string; derived: boolean; inputs: string[]; tags: string[]; /** The Repeat that makes it once for each line, or null. */ repeat: string | null; /** Whether a Position says who submits it. */ asksPosition: boolean; /** Where the Pack says its number comes from (comes-from.ts); null for an install that keeps none. */ comesFrom: PackNumber | null };
 /** What setting up from an installed Pack offers: its entries and templates, the members who may approve, and the
  * Metrics this person sees to fill a Slot no entry fills. Names and ids only. */
 export type PackSetupOptions = {
   install: { id: number; name: string; version: string };
   /** The Automation Templates the Pack says fill its entries (spec 0043), by template id and entry key. */
   suggestedFeeds: { template: string; fills: string[] }[];
+  /** What the Pack brings and where its numbers come from, or null for an install that keeps none. */
+  overview: KeptOverview | null;
   entries: SetupEntry[];
-  dashboards: { key: string; name: string; slots: Pick<Slot, "label" | "multiple" | "suggests">[] }[];
-  workflows: { key: string; name: string; approvers: number }[];
+  dashboards: { key: string; name: string; slots: Pick<Slot, "label" | "multiple" | "suggests">[]; repeat: string | null }[];
+  /** `approvers`: how many are picked beside Positions; 0 where the Pack's Positions name them. */
+  workflows: { key: string; name: string; approvers: number; repeat: string | null }[];
+  /** Whether the Pack names Positions or Repeats: the form then asks who fills them and shows the plan. */
+  positions: boolean;
+  repeats: { key: string; name: string; max: number }[];
   people: { id: string; name: string }[];
   /** The Workspace's live Feeds (names and ids), one of which may be the Submitter of every Metric made. */
   feeds: { id: string; name: string }[];
@@ -52,144 +66,46 @@ export type PackSetupOptions = {
   room: PackSetupRoom | null;
 };
 
-/** The Workspace's count of Metrics against its limit, as the set-up form shows it. `left` is what the Size still
- * holds; `allowed` is how many may be made now at all, the room and grace of spec 0029 included. A trial's cap is a
- * limit with no Size name. The core checks again when a set-up is asked for: these numbers are only for reading. */
-export type PackSetupRoom = { count: number; limit: number; label: string | null; left: number; allowed: number; graceDays: number };
-
-/** What a person asks to be set up. Slots an entry made here fills are filled with it; `fills` names Metrics they see
- * for the other Slots, by Slot. */
-export type PackSetupInput = {
-  metrics: string[];
-  submitters?: string[];
-  /** One of the Workspace's Feeds, made the Submitter of every Metric that takes values, with its API Source on. */
-  feed?: string | null;
-  dashboard?: { key: string; name?: string; fills?: (number[] | null)[] } | null;
-  workflow?: { key: string; name?: string; approvers: string[] } | null;
-};
-
-/** What was made. */
-export type PackSetupResult = { metrics: { id: number; slug: string; name: string; /** The Pack's key of the entry it was made from. */ key: string; /** False for a Derived Metric, which a Feed cannot fill. */ takesValues: boolean }[]; dashboardId: number | null; workflowId: number | null;
+/** What was made. `dashboardId` and `workflowId` are the first of each. */
+export type PackSetupResult = { metrics: { id: number; slug: string; name: string; /** The Pack's key of the entry it was made from. */ key: string; /** The name of the Repeat's line it was made for, or null. */ line: string | null; /** False for a Derived Metric, which a Feed cannot fill. */ takesValues: boolean }[]; dashboardId: number | null; workflowId: number | null;
+  dashboards: { id: number; name: string }[]; workflows: { id: number; name: string }[];
+  /** How many Shares were made, and how many requests for values went out at once. */
+  shares: number; messages: number;
+  /** What has a Submitter and was not asked at once: how many Metrics a Workflow asks for at its next run, and those
+   * that follow none, so nothing asks for them by itself. `mine`: the actor submits it, so they can ask themselves. */
+  later: { nextRun: number; noWorkflow: { id: number; slug: string; name: string; mine: boolean }[] };
+  /** Adding a line: how many widgets took its Metrics, and what is left to do by hand. */
+  widgets: number; byHand: string[];
   /** The Tags of an entry that a limit kept off its Metric (the Metric is made either way), by Metric: the page says so. */
   tagsLeftOut: { metric: string; tags: string[] }[] };
 
-/** The most entries one set-up makes: a Pack holds at most 50 of a kind. */
-const MAX_ENTRIES = 50;
-/** The most Submitters one set-up asks (each gets a first Prompt for every Metric): the page asks only the person. */
-const MAX_SUBMITTERS = 5;
-/** The most Approvers a Workflow's Approve step takes. */
-const MAX_APPROVERS = 3;
-/** The longest slug a Metric can get: a name of 120 characters, and a suffix when the slug is taken. */
-const LONGEST_SLUG = 130;
-const KEY = /^[a-z][a-z0-9-]{0,39}$/;
-
-// A person who manages the Workspace, not a program: setting up creates Metrics and sends Prompts.
 /** An error's words when they are Ziffr's own, written for people: a plain Error, a refusal or a limit. */
 const wordsForPeople = (e: unknown): string | null =>
   e instanceof Error && e.message && (Object.getPrototypeOf(e) === Error.prototype || e instanceof Forbidden || e instanceof LimitReached || e instanceof MetricKept) ? e.message : null;
 
-function assertManages(actor: Actor) {
-  if ((actor as { key?: unknown }).key) throw new Forbidden();
-  if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins set up from a Pack.");
-  assertCan(actor, "create");
-  refuseInDemo(actor);
-}
-
-type EntryRow = { id: number; pack_key: string; name: string; description: string; unit: string; unit_position: string; format: string; decimals: number; period: string; submission_rule: string; polarity: string; target_min: number | null; target_max: number | null; sources: string[]; aggregation: string; formula: string | null; tags: string[] | null };
-type TemplateRow = { id: number; kind: "dashboard" | "workflow"; pack_key: string; name: string; slots: Slot[]; body: unknown };
-
-/** The install of the actor's Workspace, with what it added that is still marked as from it. */
-async function installed(actor: Actor, installId: number) {
-  const ws = actor.workspaceId;
-  if (!Number.isSafeInteger(installId) || installId <= 0) throw new Forbidden();
-  const { data: install } = await db().from("pack_installs").select("id, version, manifest").eq("id", installId).eq("workspace_id", ws).maybeSingle();
-  if (!install) throw new Forbidden();
-  const [{ data: entries }, { data: templates }] = await Promise.all([
-    db().from("catalog_metrics").select("id, pack_key, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, formula, tags").eq("workspace_id", ws).eq("pack_install_id", installId).order("id"),
-    db().from("team_templates").select("id, kind, pack_key, name, slots, body").eq("workspace_id", ws).eq("pack_install_id", installId).in("kind", ["dashboard", "workflow"]).order("id"),
-  ]);
-  const byKey = <T extends { pack_key: string }>(rows: T[]) => new Map(rows.filter((r) => typeof r.pack_key === "string").map((r) => [r.pack_key, r]));
-  const tpl = (templates ?? []) as TemplateRow[];
-  return {
-    install: { id: Number(install.id), name: String((install.manifest as { name?: unknown })?.name ?? ""), version: String(install.version) },
-    feeds: feedsOf((install.manifest as { feeds?: unknown })?.feeds),
-    entries: byKey((entries ?? []) as EntryRow[]),
-    dashboards: byKey(tpl.filter((t) => t.kind === "dashboard")),
-    workflows: byKey(tpl.filter((t) => t.kind === "workflow")),
-  };
-}
-
-/** The templates a Pack's manifest names, read defensively: it was checked when installed, but it is a stored document. */
-function feedsOf(raw: unknown): { template: string; fills: string[] }[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.flatMap((f): { template: string; fills: string[] }[] => {
-    const x = f as { template?: unknown; fills?: unknown } | null;
-    return x && typeof x.template === "string" && Array.isArray(x.fills) ? [{ template: x.template, fills: x.fills.filter((k): k is string => typeof k === "string") }] : [];
-  });
-}
-
 const approversWanted = (body: WorkflowTemplateBody) => body.steps.reduce((n, s) => (s.type === "approve" ? n + s.approvers : n), 0);
-
-/** Why `n` more Metrics cannot be made now, in the limit's words, or null: the trial's cap, or the Workspace Limit
- * counted one Metric at a time as the database will. Checked first, so a set-up does not stop half-way. */
-async function roomFor(actor: Actor, n: number): Promise<string | null> {
-  const ws = actor.workspaceId;
-  const [{ data: space }, limit, count] = await Promise.all([db().from("workspaces").select("trial_ends_at, over_limit_since, last_grace_started_at").eq("id", ws).maybeSingle(), limitOf(ws), metricCount(ws)]);
-  if (space?.trial_ends_at) {
-    const { count: all } = await db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", ws);
-    const cap = (await trialLimitsInEffect()).metrics;
-    return (all ?? 0) + n > cap ? `A trial holds at most ${cap} Metrics; it has ${all ?? 0}, and this makes ${n}. Pick fewer.` : null;
-  }
-  if (!limit) return null;
-  let since = space?.over_limit_since ? new Date(space.over_limit_since as string) : null;
-  const last = space?.last_grace_started_at ? new Date(space.last_grace_started_at as string) : null;
-  const now = new Date();
-  const grace = await graceNow();
-  for (let i = 0; i < n; i++) {
-    const rule = limitRule(count + i, limit.metrics, since, now, last, grace);
-    const refusal = () => limitRefusal(count + i, limit, since ? null : nextGraceOn(last, now, grace.every), grace.days);
-    if (rule === "refuse") return n === 1 || i === 0 ? refusal() : `${refusal()} This makes ${n} Metrics, room is left for ${i}.`;
-    if (rule === "over" && !since) since = last && now.getTime() < last.getTime() + grace.days * 86_400_000 ? last : now;
-  }
-  return null;
-}
-
-/** The count, limit, what is left and what may be made now, or null when nothing limits the Workspace. */
-async function roomNow(actor: Actor): Promise<PackSetupRoom | null> {
-  const ws = actor.workspaceId;
-  const [{ data: space }, limit, count, grace] = await Promise.all([
-    db().from("workspaces").select("trial_ends_at, over_limit_since, last_grace_started_at").eq("id", ws).maybeSingle(),
-    limitOf(ws), metricCount(ws), graceNow(),
-  ]);
-  if (space?.trial_ends_at) {
-    const { count: all } = await db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", ws);
-    const cap = (await trialLimitsInEffect()).metrics;
-    const left = Math.max(0, cap - (all ?? 0));
-    return { count: all ?? 0, limit: cap, label: null, left, allowed: left, graceDays: 0 };
-  }
-  if (!limit) return null;
-  const since = space?.over_limit_since ? new Date(space.over_limit_since as string) : null;
-  const last = space?.last_grace_started_at ? new Date(space.last_grace_started_at as string) : null;
-  const allowed = metricsAllowed(count, limit.metrics, since, new Date(), last, grace, MAX_ENTRIES);
-  return { count, limit: limit.metrics, label: limit.label, left: Math.max(0, limit.metrics - count), allowed, graceDays: grace.days };
-}
 
 /** What setting up from one of the Workspace's installed Packs offers (Owners and Admins). */
 export async function packSetupOptions(actor: Actor, installId: number): Promise<PackSetupOptions> {
-  assertManages(actor);
-  const p = await installed(actor, Number(installId));
+  assertSetsUp(actor);
+  const p = await installedForSetup(actor, Number(installId));
   const [{ choices }, people, { data: members }] = await Promise.all([
     metricChoices(actor),
     peopleIn(actor.workspaceId),
     db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId),
   ]);
   const memberIds = new Set((members ?? []).map((m) => m.user_id as string));
+  const places = placeMaps(p.places, p.workflows);
+  const numbers = new Map((p.overview?.numbers ?? []).map((n) => [n.key, n]));
   return {
     install: p.install,
     suggestedFeeds: p.feeds,
-    entries: [...p.entries.values()].map((e) => ({ key: e.pack_key, name: e.name, period: e.period, unit: e.unit, derived: Boolean(e.formula), inputs: e.formula ? formulaInputs(e.formula) : [], tags: tagNamesOf(e.tags, TAGS_PER_ENTRY) })),
-    dashboards: [...p.dashboards.values()].map((t) => ({ key: t.pack_key, name: t.name, slots: (t.slots ?? []).map((s) => ({ label: s.label, multiple: s.multiple, ...(s.suggests ? { suggests: s.suggests } : {}) })) })),
-    workflows: [...p.workflows.values()].map((t) => ({ key: t.pack_key, name: t.name, approvers: approversWanted(t.body as WorkflowTemplateBody) })),
+    overview: p.overview,
+    entries: [...p.entries.values()].map((e) => ({ key: e.pack_key, name: e.name, period: e.period, unit: e.unit, derived: Boolean(e.formula), inputs: e.formula ? formulaInputs(e.formula) : [], tags: tagNamesOf(e.tags, TAGS_PER_ENTRY), repeat: places.metrics.get(e.pack_key)?.per ?? null, asksPosition: Boolean(places.metrics.get(e.pack_key)?.submitters), comesFrom: numbers.get(e.pack_key) ?? null })),
+    dashboards: [...p.dashboards.values()].map((t) => ({ key: t.pack_key, name: t.name, slots: (t.slots ?? []).map((s) => ({ label: s.label, multiple: s.multiple, ...(s.suggests ? { suggests: s.suggests } : {}) })), repeat: places.dashboards.get(t.pack_key)?.per ?? null })),
+    workflows: [...p.workflows.values()].map((t) => ({ key: t.pack_key, name: t.name, approvers: places.workflows.get(t.pack_key)?.steps.some((s) => s.by) ? 0 : approversWanted(t.body as WorkflowTemplateBody), repeat: places.workflows.get(t.pack_key)?.per ?? null })),
+    positions: places.positions.size > 0 || places.repeats.size > 0,
+    repeats: [...places.repeats.values()].map((r) => ({ key: r.key, name: r.name, max: Math.min(r.max ?? PACK_POSITION_LIMITS.lines, PACK_POSITION_LIMITS.lines) })),
     // Members only, by name: Approvers must be members; Submitters may be Contacts too, but the set-up asks the
     // person themselves or their team, and Contacts are added on each Metric's page.
     people: people.filter((x) => memberIds.has(x.id)).map((x) => ({ id: x.id, name: x.name })),
@@ -197,139 +113,200 @@ export async function packSetupOptions(actor: Actor, installId: number): Promise
     templates: feedTemplates(),
     metrics: choices,
     refusal: await roomFor(actor, 1),
-    room: await roomNow(actor),
+    room: await roomNow(actor, SETUP_METRICS_MAX),
   };
 }
 
-/** Sets up from one of the Workspace's installed Packs (Owners and Admins): the picked entries as Metrics, a Derived
- * Metric after its inputs, which are made too; then, if asked, the Workflow (made first, so the Metrics take it) and
- * the dashboard with its Slots filled. Everything is checked before anything is made, the Workspace Limit included.
- * Audited, and each Metric as any new Metric. */
-export async function setUpFromPack(actor: Actor, installId: number, input: PackSetupInput): Promise<PackSetupResult> {
-  assertManages(actor);
-  const p = await installed(actor, Number(installId));
-  const asked = Array.isArray(input?.metrics) ? input.metrics.slice(0, MAX_ENTRIES + 1).map(String) : [];
-  if (asked.length > MAX_ENTRIES || asked.some((k) => !KEY.test(k) || !p.entries.has(k))) throw new Error("Pick entries of this Pack's Metric Catalog.");
+/** What a Set up has made so far, by the numbers that stood for it. */
+type Progress = {
+  workflows: Map<PlannedWorkflow, number>;
+  metrics: Map<number, PackSetupResult["metrics"][number]>;
+  dashboards: Map<number, { id: number; name: string }>;
+  shares: number;
+  widgets: number;
+  messages: number;
+  tagsLeftOut: PackSetupResult["tagsLeftOut"];
+};
 
-  // The entries to make: those picked, and every input of a Derived one; inputs first, in the Pack's order.
-  const wanted = new Set(asked);
-  for (const k of asked) {
-    const f = p.entries.get(k)!.formula;
-    if (!f) continue;
-    for (const i of formulaInputs(f)) {
-      const input = p.entries.get(i);
-      if (!input) throw new Error(`“${p.entries.get(k)!.name}” is computed from an entry this Pack does not have.`);
-      if (input.formula) throw new Error(`“${p.entries.get(k)!.name}” is computed from “${input.name}”, a Derived Metric itself: Ziffr computes from Metrics that take values.`);
-      wanted.add(i);
-    }
+/** Makes the Workflows, so the Metrics can take them. */
+async function makeWorkflows(actor: Actor, b: Blueprint, record: SetupRecord, done: Progress) {
+  for (const w of b.workflows) {
+    const id = await saveWorkflow(actor, null, w.name, w.config, { message: `Made from the Workflow Template “${w.templateName}”` });
+    done.workflows.set(w, id);
+    await record.made({ kind: "workflow", key: w.key, line: w.line, id });
   }
-  const order = [...p.entries.values()].filter((e) => wanted.has(e.pack_key));
-  const plain = order.filter((e) => !e.formula);
-  const derived = order.filter((e) => e.formula);
+}
 
-  // The Workflow: its template and the people its Approve step asks for, checked now.
-  let workflow: { template: TemplateRow; name: string; approvers: string[] } | null = null;
-  if (input?.workflow) {
-    const t = typeof input.workflow.key === "string" ? p.workflows.get(input.workflow.key) : undefined;
-    if (!t) throw new Error("Pick one of this Pack's Workflow Templates.");
-    const approvers = Array.isArray(input.workflow.approvers) ? input.workflow.approvers.slice(0, MAX_APPROVERS + 1).map(String) : [];
-    if (!fromWorkflowTemplate(t.body as WorkflowTemplateBody, approvers)) throw new Error("Pick each Approver the Workflow Template asks for, each person once.");
-    workflow = { template: t, name: String(input.workflow.name ?? "").trim().slice(0, 120) || t.name, approvers };
-  }
-
-  // The dashboard: every Slot filled, by the entry it suggests when that is made here, else by Metrics picked.
-  let dashboard: { template: TemplateRow; name: string; fills: (string | number[])[] } | null = null;
-  if (input?.dashboard) {
-    const t = typeof input.dashboard.key === "string" ? p.dashboards.get(input.dashboard.key) : undefined;
-    if (!t) throw new Error("Pick one of this Pack's Dashboard Templates.");
-    const given = Array.isArray(input.dashboard.fills) ? input.dashboard.fills : [];
-    const fills = (t.slots ?? []).map((s, i): string | number[] => {
-      if (s.suggests && wanted.has(s.suggests)) return s.suggests;
-      const f = given[i];
-      const ids = Array.isArray(f) ? f.map(Number).filter((n) => Number.isSafeInteger(n) && n > 0).slice(0, 50) : [];
-      if (!ids.length) throw new Error(`Fill the Slot “${s.label}” with a Metric, or make the entry it suggests.`);
-      return s.multiple ? ids : ids.slice(0, 1);
+/** Makes some of the Metrics, in the order given: a Derived Metric after its inputs. */
+async function makeMetrics(actor: Actor, b: Blueprint, todo: PlannedMetric[], record: SetupRecord, done: Progress) {
+  for (const planned of todo) {
+    const e = planned.entry;
+    const m = await createMetric(actor, {
+      name: planned.name, description: e.description, calculationNote: e.calculation_note, unit: e.unit, unitPosition: e.unit_position, format: e.format, decimals: e.decimals, period: e.period,
+      submissionRule: e.submission_rule, polarity: e.polarity, aggregation: e.aggregation, targetMin: e.target_min, targetMax: e.target_max,
+      // A Derived Metric takes no values, so no Source and no Workflow.
+      // One that takes values and has no Workflow of this run may join the one ticked of what was set up before.
+      sources: e.formula ? [] : e.sources, fromCatalogId: e.id, workflowId: planned.workflow ? done.workflows.get(planned.workflow)! : e.formula ? null : b.additions.join,
     });
-    dashboard = { template: t, name: String(input.dashboard.name ?? "").trim().slice(0, 120) || t.name, fills };
-  }
-
-  // A Derived Metric's formula, by the Metrics' slugs, checked against the Workspace's Metrics as they will be, with
-  // each slug as long as one can get, so the formula written later cannot be refused as too long.
-  if (derived.length) {
-    const existing = (await getMetrics(actor.workspaceId)).map((m): FormulaInput => m);
-    const longest = (k: string) => `${k}-`.padEnd(LONGEST_SLUG, "x");
-    const planned = plain.map((e): FormulaInput => ({ slug: longest(e.pack_key), name: e.name, period: e.period as FormulaInput["period"], formula: null, aggregation: e.aggregation as FormulaInput["aggregation"] }));
-    for (const e of derived) {
-      const why = checkFormula(withSlugs(e.formula!, longest), [...existing, ...planned], { slug: "-", period: e.period as FormulaInput["period"] });
-      if (why) throw new Error(`“${e.name}” cannot be made: ${why}`);
+    // The entry's Tags were put on it by createMetric, as this person; a limit leaves words out, never the Metric.
+    if (m.tagsLeftOut.length) done.tagsLeftOut.push({ metric: planned.name, tags: m.tagsLeftOut });
+    // Its inputs are made before it, in its own line or outside every Repeat, so the formula names them by their slugs.
+    if (e.formula) {
+      const slug = (key: string) => [...done.metrics.values()].find((x) => x.key === key && (x.line === planned.line?.name || x.line === null))?.slug ?? b.given.get(key)!;
+      await writeFormula(actor, { ...m, name: planned.name }, withSlugs(e.formula, slug));
     }
+    const one = { id: m.id, slug: m.slug, name: planned.name, key: e.pack_key, line: planned.line?.name ?? null, takesValues: !e.formula };
+    done.metrics.set(planned.plan, one);
+    await record.made({ kind: "metric", key: e.pack_key, line: planned.line, id: m.id });
   }
-  // The Metrics that fill the other Slots: ones the person sees and that are not archived, as the page offers.
-  if (dashboard) {
-    const { choices } = await metricChoices(actor);
-    const offered = new Set(choices.map((m) => m.id));
-    if (dashboard.fills.some((f) => typeof f !== "string" && f.some((id) => !offered.has(id)))) throw new Forbidden("Fill a Slot only with Metrics you see.");
-  }
-  // Submitters and Approvers are members of this Workspace: the page offers no one else.
-  const submitters = [...new Set((Array.isArray(input?.submitters) ? input.submitters : []).slice(0, MAX_SUBMITTERS + 1).map(String))];
-  if (submitters.length > MAX_SUBMITTERS) throw new Error(`Ask at most ${MAX_SUBMITTERS} people; add more on each Metric's page.`);
-  await assertMembers(actor, [...submitters, ...(workflow?.approvers ?? [])]);
-  // A Feed from the browser: a string naming a live Feed of this Workspace, or nothing.
-  if (input?.feed != null && typeof input.feed !== "string") throw new Error("Pick one of this Workspace's Feeds.");
-  const feed = input?.feed ? await liveFeed(actor.workspaceId, input.feed).then((f) => f.person_id, () => { throw new Forbidden("Pick one of this Workspace's Feeds."); }) : null;
-  const refusal = order.length ? await roomFor(actor, order.length) : null;
-  if (refusal) throw new Error(refusal);
-  if (!order.length && !dashboard && !workflow) throw new Error("Pick something to set up.");
+}
 
-  // Made in order: the Workflow, the Metrics (inputs first), their Submitters, the dashboard. All of it was checked;
-  // only a Metric made by someone else at the same moment can still meet the limit, and then the words say what was
-  // made before it stopped.
-  const made = new Map<string, PackSetupResult["metrics"][number]>();
-  const tagsLeftOut: PackSetupResult["tagsLeftOut"] = [];
-  let workflowId: number | null = null;
-  let dashboardId: number | null = null;
+/** Puts the people and the Feed on the Metrics just made: Submitters, who are asked at once only when sending the
+ * first requests was chosen (the actor no differently from anyone else), then their Stand-ins. */
+async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | null, askNow: boolean, done: Progress) {
+  const effects: MetricEffects = {
+    ...metricEffects,
+    promptSubmitter: async (metricId, submitter, by) => {
+      if (!askNow) return false;
+      const sent = await metricEffects.promptSubmitter(metricId, submitter, by);
+      if (sent) done.messages++;
+      return sent;
+    },
+  };
+  const taking = todo.filter((m) => !m.entry.formula).map((m) => ({ ...m, id: done.metrics.get(m.plan)!.id }));
+  for (const m of taking) for (let i = 0; i < m.submitters.length; i += SUBMITTERS_PER_CHANGE) await addSubmitters(actor, m.id, m.submitters.slice(i, i + SUBMITTERS_PER_CHANGE), effects);
+  for (const m of taking) if (m.standIn) for (const s of m.submitters) if (s !== m.standIn) await setStandIn(actor, m.id, s, m.standIn);
+  if (feed) for (const m of taking) await addFeedToMetric(actor, m.id, feed);
+}
+
+/** Makes the dashboards, then the Shares ticked, then gives each Send Snapshot step its dashboard, then adds the new
+ * Metrics to the widgets ticked of what was set up before. */
+async function makeDashboards(actor: Actor, b: Blueprint, ticked: ProposedShare[], record: SetupRecord, done: Progress) {
+  for (const d of b.dashboards) {
+    const id = await createDashboardFromTemplate(actor, { template: d.template.id, name: d.name, fills: d.fills.map((f) => f.map((x) => (x < 0 ? done.metrics.get(x)!.id : x))) });
+    done.dashboards.set(d.plan, { id, name: d.name });
+    await record.made({ kind: "dashboard", key: d.key, line: d.line, id });
+  }
+  for (const s of ticked) {
+    await share(actor, s.object, s.object === "metric" ? done.metrics.get(s.plan)!.id : done.dashboards.get(s.plan)!.id, s.person, s.role);
+    done.shares++;
+  }
+  for (const w of b.workflows) if (w.send) await setSendSnapshot(actor, done.workflows.get(w)!, done.dashboards.get(w.send.dashboard)!.id, w.send.people);
+  for (const w of b.additions.widgets) {
+    // Read again as it is now, and changed as by hand: only someone who may edit it gets this far.
+    const now = await editableWidget(actor, w.id);
+    await updateWidget(actor, w.id, { metricIds: [...now.metric_ids, ...w.add.map((plan) => done.metrics.get(plan)!.id)] });
+    done.widgets++;
+  }
+}
+
+/** Whether a recorded thing was made for this line. */
+const forLine = (made: MadeThing, line: BuiltLine | null) => (made.line === null || line === null ? made.line === line : made.line.repeat === line.repeat && made.line.name === line.name);
+
+/** What was given a Submitter and not asked at once, by whether a Workflow will ask for it. */
+function askedLater(actor: Actor, b: Blueprint, askNow: boolean, done: Progress): PackSetupResult["later"] {
+  const waiting = askNow ? [] : b.metrics.filter((m) => m.submitters.length > 0);
+  const follows = (m: PlannedMetric) => Boolean(m.workflow) || b.additions.join !== null;
+  return {
+    nextRun: waiting.filter(follows).length,
+    noWorkflow: waiting.filter((m) => !follows(m)).map((m) => {
+      const { id, slug, name } = done.metrics.get(m.plan)!;
+      return { id, slug, name, mine: m.submitters.includes(actor.personId) };
+    }),
+  };
+}
+
+/** Takes up what earlier steps made, so this one makes only the rest. */
+async function takeUp(actor: Actor, b: Blueprint, made: MadeThing[], done: Progress) {
+  const now = new Map((await getMetrics(actor.workspaceId)).map((m) => [m.id, m]));
+  for (const w of b.workflows) {
+    const was = made.find((x) => x.kind === "workflow" && x.key === w.key && forLine(x, w.line));
+    if (was) done.workflows.set(w, was.id);
+  }
+  for (const m of b.metrics) {
+    const was = made.find((x) => x.kind === "metric" && x.key === m.entry.pack_key && forLine(x, m.line));
+    if (!was) continue;
+    const metric = now.get(was.id);
+    if (!metric) throw new Error(`“${m.name}” was deleted meanwhile.`);
+    done.metrics.set(m.plan, { id: was.id, slug: metric.slug, name: m.name, key: m.entry.pack_key, line: m.line?.name ?? null, takesValues: !m.entry.formula });
+  }
+}
+
+/** What to say when a Set up stops: Ziffr's own words, and what was made before. Only they reach a person; anything
+ * else (a database's or a provider's text) goes to the log. */
+function stoppedWords(e: unknown, done: Progress, earlier: number): Error {
+  const so = [...[...done.metrics.values()].map((m) => m.name), ...[...done.workflows.keys()].map((w) => `the Workflow ${w.name}`), ...[...done.dashboards.values()].map((d) => `the dashboard ${d.name}`)];
+  if (!wordsForPeople(e)) console.error("Set up from a Pack stopped:", e);
+  const why = wordsForPeople(e) ?? "Setting up stopped on something unexpected.";
+  const made = so.length ? so.join(", ") : earlier ? `${earlier} things in earlier steps` : "";
+  return new Error(`${why}${made ? ` Made before it stopped: ${made}.` : ""}`);
+}
+
+/** The most Metrics one step of a Set up makes, so that no request takes long. */
+export const SETUP_STEP_METRICS = 20;
+/** A Set up that is not finished: which record it is and how far it is. Sent back to take the next step. */
+export type SetupRun = { id: number; step: number };
+/** What one step did: the whole Set up, or how far it is. */
+export type PackSetupStep =
+  | { done: false; run: SetupRun; made: number; of: number; tagsLeftOut: PackSetupResult["tagsLeftOut"] }
+  | { done: true; result: PackSetupResult };
+
+/** Takes one step of setting up from one of the Workspace's installed Packs (Owners and Admins): the first, without
+ * `run`, checks everything, the Workspace Limit for the whole set included, makes the Workflows and the first Metrics;
+ * each further one, with the `run` the last answered and the same choices, makes the next Metrics; the last makes the
+ * dashboards and the ticked Shares. A step that stops ends the Set up and says what was made. */
+export async function setUpStep(actor: Actor, installId: number, input: PackSetupInput, run: SetupRun | null = null, size = SETUP_STEP_METRICS): Promise<PackSetupStep> {
+  assertSetsUp(actor);
+  const p = await installedForSetup(actor, Number(installId));
+  const mark = itemHash(input);
+  const resumed = run ? await resumeSetupRecord(actor, p.install.id, run, mark) : null;
+  let record = resumed?.record ?? null;
+  // Made in order: Workflows, then Metric by Metric (inputs first) with their Submitters and Stand-ins, then
+  // dashboards, Shares and the Send Snapshot step. All of it was checked; only what changed meanwhile can still refuse.
+  const done: Progress = { workflows: new Map(), metrics: new Map(), dashboards: new Map(), shares: 0, widgets: 0, messages: resumed?.messages ?? 0, tagsLeftOut: [] };
+  let b: Blueprint;
   try {
-    workflowId = workflow ? await createWorkflowFromTemplate(actor, { template: workflow.template.id, name: workflow.name, approvers: workflow.approvers }) : null;
-    for (const e of [...plain, ...derived]) {
-      const m = await createMetric(actor, {
-        name: e.name, description: e.description, unit: e.unit, unitPosition: e.unit_position, format: e.format, decimals: e.decimals, period: e.period,
-        submissionRule: e.submission_rule, polarity: e.polarity, aggregation: e.aggregation, targetMin: e.target_min, targetMax: e.target_max,
-        // A Derived Metric takes no values, so no Source and no Workflow.
-        sources: e.formula ? [] : e.sources, fromCatalogId: e.id, workflowId: e.formula ? null : workflowId,
-      });
-      // The entry's Tags were put on it by createMetric, as this person; a limit leaves words out, never the Metric.
-      if (m.tagsLeftOut.length) tagsLeftOut.push({ metric: e.name, tags: m.tagsLeftOut });
-      if (e.formula) await writeFormula(actor, { ...m, name: e.name }, withSlugs(e.formula, (k) => made.get(k)!.slug));
-      made.set(e.pack_key, { id: m.id, slug: m.slug, name: e.name, key: e.pack_key, takesValues: !e.formula });
+    b = await buildSetup(actor, p, input, resumed ? { record: resumed.record.id, metrics: resumed.made.filter((x) => x.kind === "metric").length } : undefined);
+    // Taken up first, so a step that is refused still says what was made.
+    if (resumed) await takeUp(actor, b, resumed.made, done);
+    if (b.problems.length) throw new Error(b.problems[0]);
+    if (!resumed) {
+      record = await startSetupRecord(actor, p.install, b.lines, b.fills, mark);
+      await makeWorkflows(actor, b, record, done);
     }
-    if (submitters.length) for (const e of plain) await addSubmitters(actor, made.get(e.pack_key)!.id, submitters);
-    if (feed) for (const e of plain) await addFeedToMetric(actor, made.get(e.pack_key)!.id, feed);
-    dashboardId = dashboard
-      ? await createDashboardFromTemplate(actor, { template: dashboard.template.id, name: dashboard.name, fills: dashboard.fills.map((f) => (typeof f === "string" ? [made.get(f)!.id] : f)) })
-      : null;
+    const todo = b.metrics.filter((m) => !done.metrics.has(m.plan)).slice(0, size);
+    await makeMetrics(actor, b, todo, record!, done);
+    await addPeople(actor, todo, b.feed, input?.askNow === true, done);
+    if (done.metrics.size < b.metrics.length) {
+      await record!.keep(done.messages);
+      return { done: false, run: { id: record!.id, step: record!.step }, made: done.metrics.size, of: b.metrics.length, tagsLeftOut: done.tagsLeftOut };
+    }
+    await makeDashboards(actor, b, tickedShares(b, input?.shares), record!, done);
+    await record!.finish(done.messages);
   } catch (e) {
-    const so = [...[...made.values()].map((m) => m.name), ...(workflowId !== null ? ["the Workflow"] : [])];
-    // Only Ziffr's own words reach a person; anything else (a database's or a provider's text) goes to the log.
-    if (!wordsForPeople(e)) console.error("Set up from a Pack stopped:", e);
-    const why = wordsForPeople(e) ?? "Setting up stopped on something unexpected.";
-    throw new Error(`${why}${so.length ? ` Made before it stopped: ${so.join(", ")}.` : ""}`);
+    // Nothing made leaves no record; else it is ended, and what was made stays.
+    const nothing = !resumed && !done.metrics.size && !done.workflows.size && !done.dashboards.size;
+    if (record) await (nothing ? record.drop() : record.finish(done.messages));
+    throw resumed || record ? stoppedWords(e, done, resumed?.made.length ?? 0) : e;
   }
-  await audit(actor, { kind: "pack.set_up", object: { type: "pack", id: p.install.id, name: p.install.name }, details: { version: p.install.version, metrics: made.size, dashboard: dashboardId !== null, workflow: workflowId !== null, feed: feed !== null } });
-  return { metrics: [...made.values()], dashboardId, workflowId, tagsLeftOut };
+  const workflows = [...done.workflows].map(([w, id]) => ({ id, name: w.name }));
+  const dashboards = [...done.dashboards.values()];
+  // Counts only: who was put where is in each change's own record.
+  const positions = [b.fills, ...b.lines.map((l) => l.fills)].flatMap((f) => [...f.values()].filter((ids) => ids.length)).length;
+  await audit(actor, { kind: "pack.set_up", object: { type: "pack", id: p.install.id, name: p.install.name }, details: { version: p.install.version, metrics: done.metrics.size, dashboard: dashboards.length > 0, workflow: workflows.length > 0, feed: b.feed !== null, positions, lines: b.lines.length, shares: done.shares, messages: done.messages, ...(input.adding ? { added_line: true, widgets: done.widgets, joined_workflow: b.additions.join !== null } : {}) } });
+  const metrics = [...done.metrics.values()];
+  return { done: true, result: { metrics, dashboardId: dashboards[0]?.id ?? null, workflowId: workflows[0]?.id ?? null, dashboards, workflows, shares: done.shares, messages: done.messages, later: askedLater(actor, b, input?.askNow === true, done), widgets: done.widgets, byHand: b.additions.byHand, tagsLeftOut: done.tagsLeftOut } };
 }
 
-/** A formula of a Pack's entries ({key}) with each key replaced by a Metric's slug. */
-export function withSlugs(formula: string, slug: (key: string) => string): string {
-  return formula.replace(/\{([a-z0-9-]+)\}/g, (_all, k: string) => `{${slug(k)}}`);
-}
-
-// Refuses anyone who is not a member of the actor's Workspace.
-async function assertMembers(actor: Actor, ids: string[]) {
-  const wanted = [...new Set(ids)];
-  if (!wanted.length) return;
-  const { data } = await db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId).in("user_id", wanted);
-  const found = new Set((data ?? []).map((m) => m.user_id as string));
-  if (!wanted.every((id) => found.has(id))) throw new Forbidden("Pick members of this Workspace.");
+/** Sets up from one of the Workspace's installed Packs (Owners and Admins) in one go: the picked entries as Metrics, a
+ * Derived Metric after its inputs, which are made too; the Workflows (made first, so the Metrics take them) and the
+ * dashboards with their Slots filled; the people of each Position written into the ordinary places, and the Shares
+ * ticked, no others. Everything is checked before anything is made, the Workspace Limit included. A record keeps what
+ * was made. Audited with counts, and each thing as any other. */
+export async function setUpFromPack(actor: Actor, installId: number, input: PackSetupInput): Promise<PackSetupResult> {
+  const step = await setUpStep(actor, installId, input, null, Number.POSITIVE_INFINITY);
+  if (!step.done) throw new Error("Setting up stopped on something unexpected.");
+  return step.result;
 }
 
 /** Sets the formula of a Derived Metric just made, checked again against the Workspace's Metrics as they are now. Refused,

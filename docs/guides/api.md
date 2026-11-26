@@ -267,6 +267,13 @@ The database and the core refuse some changes with a code of their own (ZFnnn), 
 | `ZF462` | A Breakdown with parents has at most 200 rows. |
 | `ZF463` | (in the core only) |
 | `ZF464` | (in the core only) |
+| `ZF470` | Only a Total has parts |
+| `ZF471` | A part is a Metric of the same Workspace that takes values; A part is a Metric of the same Workspace that takes values, counted like its Total; Not a part of this Total |
+| `ZF472` | A Total is calculated and takes no values |
+| `ZF473` | A Total keeps its period, unit, format and Aggregation |
+| `ZF474` | A Total adds this Metric up |
+| `ZF475` | A Total adds up at most 50 Metrics |
+| `ZF476` | Only the owner changes what an open Total adds up; Only the owner opens a Total |
 | `ZF4A1` | installation_announcements_cap |
 | `ZF4A2` | workspace_announcements_cap |
 | `ZF4A3` | workspace_announcements_move |

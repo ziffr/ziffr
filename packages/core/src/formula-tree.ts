@@ -16,10 +16,10 @@
 // names one is refused whole. It is never drawn as an "other parts" box either: when one part is hidden, the whole minus
 // the parts shown IS the hidden Metric's value (with several hidden, their sum), so any remainder would hand it over.
 import { bitLength, fractionOf, fractionOfText, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
-import { formulaInputs, FORMULA_MAX_BITS, inputsProblem, readFormula, usesPrevious, type FormulaNode } from "./formula";
+import { formulaInputs, FORMULA_MAX_BITS, inputsProblem, readFormula, targetInputs, usesPrevious, type FormulaNode } from "./formula";
 import { formatNumber, formatPercent, formatValue, type ValueUnit } from "./format";
 import type { NumberStyle } from "./number-style";
-import { dayAfter, periodCount, resolverFrom, shownSeries, valueOver, type DisplayPeriod } from "./display-periods";
+import { dayAfter, periodCount, resolverFrom, shownSeries, targetOver, valueOver, type DisplayPeriod } from "./display-periods";
 import { pointNote } from "./polar-marks";
 import { periodLabel } from "./periods";
 import type { CanvasData, Metric, WidgetSettings } from "./types";
@@ -33,7 +33,7 @@ const CONDENSED = "Some of these values are Condensed Values, each standing for 
 /** One input of the formula as the widget has it: the Metric's name and unit, its value in the period, and why that is not a whole period. `value` null is no value. */
 export type TreeLeaf = { name: string; value: number | null; note?: string; unit: ValueUnit };
 /** What a formula tree is made from: the Derived Metric, its formula, and its inputs by slug (`undefined` is an input that is not shared here). */
-export type TreeSource = { name: string; unit: ValueUnit; formula: string; period: string; note?: string; leaves: Record<string, TreeLeaf | undefined> };
+export type TreeSource = { name: string; unit: ValueUnit; formula: string; period: string; note?: string; leaves: Record<string, TreeLeaf | undefined>; /** What target() gives, by the slug it names (spec 0062). */ targets?: Record<string, TreeLeaf> };
 
 /** One box of the tree, in tree order (a box, then its parts left to right). */
 export type TreeBox = {
@@ -87,7 +87,7 @@ type Built = {
   decimals: number;
   kids: Built[];
 };
-type Ctx = { leaves: Record<string, TreeLeaf | undefined>; count: number };
+type Ctx = Pick<TreeSource, "leaves" | "targets"> & { count: number };
 
 // Stryker disable next-line EqualityOperator: the bound is a safety limit, not a rule of results: no number a formula within its bounds comes to works out to exactly 8,192 bits, so `<` gives the same
 const within = (n: bigint) => bitLength(n) <= FORMULA_MAX_BITS;
@@ -141,8 +141,12 @@ function make(n: FormulaNode, level: number, how: Built["how"], taken: boolean, 
   // A formula that is a single value is a box with that one part: `alone` makes the root a sum of one.
   if (n.k === "num" && !alone) return { ...base, name: "Number", expr: n.v, exact: fractionOfText(n.v), unit: null, decimals: decimalsOfText(n.v) };
   if (!alone && "slug" in n) {
-    // The nodes with a slug are a Metric and `back` (prev, change), which is refused before a tree is built: what is left is a Metric of the formula.
-    const leaf = ctx.leaves[n.slug]!;
+    // The nodes with a slug are a Metric, its target and `back` (prev, change), which is refused before a tree is built.
+    // A target that was not given has no value, under the name of its Metric.
+    const input = ctx.leaves[n.slug]!;
+    // It stands only where that Metric has a value too, as in the result itself (spec 0062).
+    const aim = n.k === "target" ? (ctx.targets?.[n.slug] ?? { name: `Target of ${input.name}`, value: null, unit: input.unit }) : null;
+    const leaf = aim ? { ...aim, value: Number.isFinite(input.value) ? aim.value : null } : input;
     const known = Number.isFinite(leaf.value);
     return { ...base, name: plain(leaf.name), expr: plain(leaf.name), notes: leaf.note ? [leaf.note] : [], exact: known ? fractionOf(leaf.value as number) : null, unit: leaf.unit, decimals: leaf.unit.decimals };
   }
@@ -200,7 +204,7 @@ export function formulaTree(source: TreeSource, style: NumberStyle): TreeModel {
   if (!read.ok) return no(`Not drawn: the formula of ${plain(source.name)} cannot be read. ${read.reason}`);
   let top: Built;
   try {
-    top = make(read.node, 0, "root", false, { leaves: source.leaves, count: 0 }, !("a" in read.node));
+    top = make(read.node, 0, "root", false, { leaves: source.leaves, targets: source.targets, count: 0 }, !("a" in read.node));
   } catch (e) {
     // Only `make` throws, and only to refuse a formula that is too big.
     return no((e as Refused).message);
@@ -265,6 +269,7 @@ export function treeFromData(metric: Metric | undefined, data: Pick<CanvasData, 
   const no = (refusal: string): TreeModel => ({ ok: false, refusal });
   if (!metric) return no("There is no Metric to draw a tree of.");
   if (!metric.formula) return no(`Not drawn: ${plain(metric.name)} is not calculated from other Metrics, so it has no formula to draw.`);
+  if (metric.total) return no(`Not drawn: ${plain(metric.name)} is a Total, which adds up a list of Metrics and has no formula to draw.`);
   const bySlug = new Map(data.metrics.map((m) => [m.slug, m]));
   const slugs = formulaInputs(metric.formula);
   // Not named: the words are the same whichever input is missing, and for one that is withheld by its owner.
@@ -290,7 +295,7 @@ export function treeFromData(metric: Metric | undefined, data: Pick<CanvasData, 
   if (period === undefined) return no("There are no values to draw yet.");
   const at = (points: typeof own.points) => points.find((p) => p.period === period);
   if ([at(own.points), ...parts.map((p) => at(p.shown.points))].some((p) => p?.condensed)) return no(CONDENSED);
-  const resolve = resolverFrom(data.metrics, data.series);
+  const resolve = resolverFrom(data.metrics, data.series, data);
   const leaves: Record<string, TreeLeaf> = Object.fromEntries(parts.map(({ m, shown: s }) => {
     // Over the Metric's own span, as the Metric itself is combined: a part with a value later than the Metric's own latest does not add it to a running span.
     const value = ownLatest ? valueOver(m.slug, ownLatest.period, ownLatest.through, resolve, periodCount(metric.period, ownLatest.period, ownLatest.through, data.yearStart)) : at(s.points)?.value;
@@ -298,5 +303,12 @@ export function treeFromData(metric: Metric | undefined, data: Pick<CanvasData, 
     return [m.slug, { name: m.name, value: value ?? null, note: p ? pointNote(p, m.period) : undefined, unit: unitOf(m) }];
   }));
   const root = at(own.points);
-  return formulaTree({ name: metric.name, unit: unitOf(metric), formula: metric.formula, period: periodLabel(period, own.by, data.yearStart), note: root ? pointNote(root, metric.period) : undefined, leaves }, data.numberStyle);
+  // What target() gives for the span, under the name "Target of …" (spec 0062).
+  const read = targetInputs(metric.formula);
+  const targets: Record<string, TreeLeaf> = Object.fromEntries(parts.filter(({ m }) => read.includes(m.slug)).map(({ m, shown: s }) => {
+    const span = ownLatest ?? at(s.points);
+    const goal = span ? targetOver(m, resolve(m.slug)?.aim, span.period, span.through) : undefined;
+    return [m.slug, { ...leaves[m.slug], name: `Target of ${m.name}`, value: goal ?? null }];
+  }));
+  return formulaTree({ name: metric.name, unit: unitOf(metric), formula: metric.formula, period: periodLabel(period, own.by, data.yearStart), note: root ? pointNote(root, metric.period) : undefined, leaves, targets }, data.numberStyle);
 }

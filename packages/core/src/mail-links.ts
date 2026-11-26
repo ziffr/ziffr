@@ -68,6 +68,8 @@ const BUTTONS: [RegExp, string][] = [
   [/^\/invite\//, "Accept the invitation"],
   [/^\/api\/confirm-reply\//, "Check your reply"],
   [/^\/api\/confirm-telegram\//, "Check the request"],
+  [/^\/api\/disconnect-chat\//, "Not you? Disconnect it"],
+  [/^\/connectors/, "Open Connectors"],
   [/^\/v\//, "Open the dashboard"],
   [/^\/dashboards\/\d+\/snapshots\//, "Open the Snapshot"],
   [/^\/dashboards\//, "Open the dashboard"],
