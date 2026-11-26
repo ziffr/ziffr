@@ -137,7 +137,7 @@ export async function usageDigestJob(now = new Date()): Promise<{ sent: number; 
   const month = monthOf(now);
   // The shortest a Workspace may set (30 days); each Workspace's own days are checked by its report, which lists nothing before they have been counted.
   const since = new Date(now.getTime() - 30 * DAY).toISOString().slice(0, 10);
-  const { data: workspaces, error } = await db().from("workspaces").select("id, name").neq("id", DEMO_WORKSPACE_ID).is("trial_ends_at", null).not("usage_since", "is", null).lte("usage_since", since).order("id");
+  const { data: workspaces, error } = await db().from("workspaces").select("id, name").neq("id", DEMO_WORKSPACE_ID).is("trial_ends_at", null).is("practice_for", null).not("usage_since", "is", null).lte("usage_since", since).order("id");
   if (error) throw new Error("The Workspaces could not be read.");
   const started = Date.now();
   const result = { ...none };

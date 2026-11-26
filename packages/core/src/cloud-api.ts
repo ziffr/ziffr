@@ -17,6 +17,7 @@ import { forgetStoredSettings, settingSources, settingsInEffectStrict } from "./
 import { TRIAL_LIMITS, trialLimitNumberProblem, trialLimitOf, trialLimitProblem, trialLimitsFrom, type TrialLimitKey } from "./trial-limits";
 import { trialLimitEnvironment } from "./trial-limits-in-effect";
 import { LABEL_MAX, LIMIT_MAX, limitLabel, limitOf, metricCount, roomOf, syncDefaultLimit } from "./workspace-limits";
+import { assertMayLeave, isPracticeWorkspace } from "./practice";
 
 /** The header a call carries: `t=<unix time>, v1=<hex HMAC-SHA256>`. */
 export const CLOUD_SIGNATURE_HEADER = "ziffr-cloud-signature";
@@ -125,7 +126,8 @@ export async function cloudWorkspace(_caller: CloudCaller, workspaceId: string):
     db().from("workspaces").select("id, over_limit_since, trial_ends_at").eq("id", id).maybeSingle(),
     db().from("workspace_limits").select("set_by, next_label, next_on").eq("workspace_id", id).maybeSingle(),
   ]);
-  if (!w) return none;
+  // Ziffr Cloud is told of no Practice Workspace (spec 0063).
+  if (!w || (await isPracticeWorkspace(id))) return none;
   const [metrics, limit] = await Promise.all([metricCount(id), limitOf(id)]);
   return {
     id, exists: true, metrics, limit: limit?.metrics ?? null, label: limit?.label ?? null, room: limit ? roomOf(limit.metrics) : null,
@@ -224,6 +226,7 @@ export async function handover(actor: Actor, purpose: HandoverPurpose, env: Env 
   if (!url || !key) throw new Forbidden();
   if (actor.key || actor.workspaceId === DEMO_WORKSPACE_ID || actor.role !== "owner") throw new Forbidden("Only Owners change the Size.");
   if (purpose !== "size" && purpose !== "billing") throw new Forbidden();
+  await assertMayLeave(actor.workspaceId, "billing");
   const [{ data: m }, { data: w }, { data: p }] = await Promise.all([
     db().from("memberships").select("role").eq("workspace_id", actor.workspaceId).eq("user_id", actor.personId).maybeSingle(),
     db().from("workspaces").select("id, name").eq("id", actor.workspaceId).maybeSingle(),

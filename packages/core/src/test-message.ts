@@ -22,6 +22,7 @@ import { telegramEnabled } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
 import { CONNECTORS } from "./connectors/index";
 import { limitWords, NO_WAY_HERE, TEST_SUBJECT, TEST_WAYS, testText, type TestWay } from "./test-message-words";
+import { mayQueue, PRACTICE_HELD } from "./practice";
 
 /** What became of a press: sent, waiting to be sent, kept in the Outbox (with why), or stopped by a limit (with when it resets). */
 export type TestMessageResult = {
@@ -65,7 +66,7 @@ export async function sendTestMessage(actor: Actor, way: unknown): Promise<TestM
   const claim = await claimSelfSend(actor.workspaceId, actor.personId, way, "The test message could not be sent. Try again in a moment.");
   if (!claim.ok) return { way, label, state: "limited", note: limitWords(claim.limit, claim.resetsAt, Date.now(), claim.perDay), resetsAt: claim.resetsAt };
   const { data: ws } = await db().from("workspaces").select("name").eq("id", actor.workspaceId).maybeSingle();
-  const keep = await missing(actor.workspaceId, actor.personId, way);
+  const keep = !(await mayQueue(actor.workspaceId, way, actor.personId)) ? PRACTICE_HELD : await missing(actor.workspaceId, actor.personId, way);
   const id = await deliverTest(actor.workspaceId, { recipientId: actor.personId, subject: TEST_SUBJECT, text: testText(String(ws?.name ?? ""), way), via: way, keep: keep ?? undefined });
   const { state, note } = await selfSendOutcome(actor.workspaceId, actor.personId, id, keep);
   await audit(actor, { kind: "connector.test_sent", details: { way, outcome: state } });

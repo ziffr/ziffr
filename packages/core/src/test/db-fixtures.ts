@@ -9,14 +9,24 @@ import type { Actor } from "../actor";
 import { openVersionSnapshot, type VersionType } from "../versions";
 
 /** A workspace with an owner, made for one test; `cleanup` deletes everything in it and its people. */
-export async function workspace(name = "Test") {
+export async function workspace(name = "Test", options: { practice?: boolean } = {}) {
   const id = randomUUID();
   const people: string[] = [];
-  await must(db().from("workspaces").insert({ id, name }));
-  const person = async (role: "owner" | "admin" | "member" | "guest", over: { email?: string; slack_handle?: string } = {}) => {
-    const pid = `t-${randomUUID()}`;
+  // A Practice Workspace (spec 0063) is made for one person, who is its Owner: `practiceFor`, made with person("owner", { id }).
+  const practiceFor = options.practice ? `t-${randomUUID()}` : null;
+  await must(db().from("workspaces").insert({ id, name, ...(practiceFor ? { practice_for: practiceFor } : {}) }));
+  const person = async (role: "owner" | "admin" | "member" | "guest", over: { id?: string; email?: string; slack_handle?: string } = {}) => {
+    const pid = over.id ?? `t-${randomUUID()}`;
     people.push(pid);
     await must(db().from("profiles").insert({ id: pid, name: `${role} ${pid.slice(2, 6)}`, role: "", color: "#000", email: over.email ?? null, slack_handle: over.slack_handle ?? null }));
+    await must(db().from("memberships").insert({ workspace_id: id, user_id: pid, role }));
+    return pid;
+  };
+  /** A made-up person of a Practice Workspace: no sign-in, and an address that can never be routed. */
+  const madeUp = async (role: "admin" | "member" | "guest") => {
+    const pid = `t-${randomUUID()}`;
+    people.push(pid);
+    await must(db().from("profiles").insert({ id: pid, name: `${role} ${pid.slice(2, 6)}`, role: "", color: "#000", email: `${pid}@practice.invalid`, made_up_in: id }));
     await must(db().from("memberships").insert({ workspace_id: id, user_id: pid, role }));
     return pid;
   };
@@ -80,7 +90,7 @@ export async function workspace(name = "Test") {
   const patchMetric = async (metricId: number, patch: Record<string, unknown>) => { await must(db().from("metrics").update(patch).eq("id", metricId)); };
   /** How many values a Metric holds, whoever put them there. */
   const valueCount = async (metricId: number) => (await must(db().from("observations").select("id", { count: "exact", head: true }).eq("metric_id", metricId))).count ?? 0;
-  return { id, person, contact, metric, token, action, value, lock, trial, limit, setRole, share, unshare, dropMember, actor, patchMetric, valueCount, cleanup };
+  return { id, practiceFor, madeUp, person, contact, metric, token, action, value, lock, trial, limit, setRole, share, unshare, dropMember, actor, patchMetric, valueCount, cleanup };
 }
 
 /** Whether the person switched the usage digest off, as stored: for tests of the setting and of the unsubscribe link. */

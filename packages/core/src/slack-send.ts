@@ -5,6 +5,7 @@
 import { db } from "./db";
 import { archivedMetricHolds, failForGood, withFormLink } from "./internal/delivery-send";
 import { openRows } from "./sealed-columns";
+import { heldBack, mayQueue, PRACTICE_HELD } from "./practice";
 import { giveUpAfter, OPT_OUT_KINDS, type SendResult } from "./mail";
 import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
@@ -61,6 +62,8 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
   // Nothing goes out for an Archived Metric, also when it was archived after this was queued.
   const archived = await archivedMetricHolds(d);
   if (archived) return never(archived);
+  // From a Practice Workspace (spec 0063) only to its own person; which account it goes to is compared below.
+  if (!(await mayQueue(d.workspace_id, "slack", d.recipient_id))) return keepInOutbox(id, PRACTICE_HELD);
   // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015).
   const held = await trialHoldsBack(d.workspace_id, d.recipient_id);
   if (held) return keepInOutbox(id, held);
@@ -80,6 +83,7 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
   } catch (e) {
     return trouble(e, bot, id, Number(d.attempts), false);
   }
+  if (await heldBack(d.workspace_id, "slack", { recipientId: d.recipient_id, destination: `${bot.teamId}:${user}` })) return keepInOutbox(id, PRACTICE_HELD);
   // Claimed in the database within the limits, so neither parallel sends nor many Deliveries pass them.
   const trial = await claimTrialSend(id);
   if (trial === "wait") return "waiting";
