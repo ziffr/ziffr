@@ -3,17 +3,22 @@
 import { isValidElement, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { Metric } from "@ziffr/core/types";
+import MetricPage from "./page";
 
-const base = { owner_id: "o", formula: null, from_catalog_id: null, created_at: "2026-01-01", description: "", unit: "", unit_position: "after", format: "number", decimals: 0, period: "month", submission_rule: "overwrite", polarity: "higher", target_min: null, target_max: null, sources: ["web_form"], aggregation: "sum", attainment_method: null };
-const metric = (over: Partial<Metric>) => ({ ...base, ...over }) as Metric;
-const SEEN = metric({ id: 1, slug: "seen-input", name: "Orders" });
-const UNSEEN = metric({ id: 2, slug: "unseen-input", name: "Payroll", aggregation: "none", target_min: 5 });
-const DERIVED = metric({ id: 3, slug: "result", name: "Result", formula: "target({unseen-input}) * 1234 - {seen-input}", aggregation: "none", sources: [] });
-const points = [{ period: "2026-01-01", value: 1 }, { period: "2026-02-01", value: 2 }, { period: "2026-03-01", value: 3 }];
+const { SEEN, UNSEEN, DERIVED, points } = vi.hoisted(() => {
+  const base = { owner_id: "o", formula: null, from_catalog_id: null, created_at: "2026-01-01", description: "", unit: "", unit_position: "after", format: "number", decimals: 0, period: "month", submission_rule: "overwrite", polarity: "higher", target_min: null, target_max: null, sources: ["web_form"], aggregation: "sum", attainment_method: null };
+  const metric = (over: Partial<Metric>) => ({ ...base, ...over }) as Metric;
+  const SEEN = metric({ id: 1, slug: "seen-input", name: "Orders" });
+  const UNSEEN = metric({ id: 2, slug: "unseen-input", name: "Payroll", aggregation: "none", target_min: 5 });
+  const DERIVED = metric({ id: 3, slug: "result", name: "Result", formula: "target({unseen-input}) * 1234 - {seen-input}", aggregation: "none", sources: [] });
+  const points = [{ period: "2026-01-01", value: 1 }, { period: "2026-02-01", value: 2 }, { period: "2026-03-01", value: 3 }];
+  return { SEEN, UNSEEN, DERIVED, points };
+});
 
 // The page and its parts run on the server.
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/db", () => ({ db: {} }));
+// Modules the page's parts import make their database client as they load: an address nothing listens on, never called.
+vi.hoisted(() => Object.assign(process.env, { SUPABASE_URL: "http://localhost:1", SUPABASE_SERVICE_ROLE_KEY: "none" }));
 vi.mock("@/lib/data", () => ({
   getAllSeries: async () => ({ metrics: [SEEN, UNSEEN, DERIVED], series: { "seen-input": points, "unseen-input": points, result: points }, targets: {}, condensed: {} }),
   getProfiles: async () => [], getYearStart: async () => 1, getNumberStyle: async () => "1,234.5", getAttainmentMethod: async () => "ratio",
@@ -61,7 +66,6 @@ function given(node: unknown, out: string[] = [], met = new Set<unknown>()): str
 
 describe("the Metric page of a Derived Metric with an input the viewer does not see", () => {
   it.each(["overview", "analysis", "targets", "history", "settings"])("hands its parts nothing that names it (%s tab)", async (tab) => {
-    const { default: MetricPage } = await import("./page");
     const page: ReactNode = await MetricPage({ params: Promise.resolve({ slug: "result" }), searchParams: Promise.resolve({ tab }) });
     const words = given(page).join("\n");
     // The page was drawn, with the Metric itself in it.
