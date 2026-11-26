@@ -10,7 +10,7 @@ Open the Workflows page from the sidebar: **Workspace → Workflows**. Owners, A
 
 The page has three parts: the list of Workflows on the left, the steps of the chosen Workflow in the middle, with what happened in each period under them, and on the right the Metrics that use it and when it runs.
 
-On a phone the page shows one thing at a time: first the list of Workflows, and when you choose one, its steps on a screen of their own, with **All workflows** at the top to go back.
+On a phone the page shows one thing at a time: first the list of Workflows, and when you choose one, its steps on a screen of their own, with **All workflows** at the top to go back. A note at the top says the page is easier on a larger screen; **Look at it** goes to the steps (see [Screens made for a larger screen](07-getting-started.md#screens-made-for-a-larger-screen)).
 
 ### What happened, period by period
 

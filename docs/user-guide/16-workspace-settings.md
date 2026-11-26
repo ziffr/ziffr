@@ -55,6 +55,8 @@ You can start another Workspace at any time from the Workspace switcher at the t
 
 ### From a Workspace Export
 
+On a phone these pages say that the import is easier on a larger screen, as the file is usually on a computer; see [Screens made for a larger screen](07-getting-started.md#screens-made-for-a-larger-screen).
+
 On a Ziffr that you or your company run (not on hosted Ziffr, where a new Workspace is a trial), **Start a workspace** also says "Coming from another Ziffr?" with a link, **Start from a Workspace Export**. Choose the file the Owner of the other Workspace downloaded and select **Import**. The file becomes a **new** Workspace and you are its Owner; nothing is merged into a Workspace you already have.
 
 Ziffr first checks the whole file and writes nothing. If anything is wrong, such as a line that is not allowed, a number that is too large, a name the file never listed, a time zone this Ziffr does not know, or more Metrics than this Ziffr's Workspace Limit allows, the page says which line and why, and no Workspace is made. Only when the file is sound does it create the Workspace and fill it, with a progress bar that you can leave and come back to. If the import stops half-way, for any reason, the half-made Workspace is deleted together with its key. You can only run one import at a time.
@@ -348,7 +350,7 @@ In the demo, adding a Contact says "The demo can't be changed."
 
 ## Connectors
 
-**Workspace → Connectors** shows how Ziffr reaches people and how their answers come back. Everyone sees it. See [Connecting Ziffr](04-connecting.md) for the bigger picture. It has five tabs, each its own page: **Channels** (below, from Slack to Connected systems), **Sources**, **Send values**, **Outbox** and **Who gets what**. The old address `/sources` leads to the **Sources** tab. Claude and other AI assistants are not set up here but under **Connected assistants** in your own menu; **Channels** says so in one line.
+**Workspace → Connectors** shows how Ziffr reaches people and how their answers come back. Everyone sees it. See [Connecting Ziffr](04-connecting.md) for the bigger picture. On a phone every tab but the **Outbox** says at the top that it is easier on a larger screen (see [Screens made for a larger screen](07-getting-started.md#screens-made-for-a-larger-screen)). It has five tabs, each its own page: **Channels** (below, from Slack to Connected systems), **Sources**, **Send values**, **Outbox** and **Who gets what**. The old address `/sources` leads to the **Sources** tab. Claude and other AI assistants are not set up here but under **Connected assistants** in your own menu; **Channels** says so in one line.
 
 ### Send values
 
@@ -456,7 +458,7 @@ In the demo, a **Demo controls** box shows two pretend inboxes, one for Slack an
 
 ## Library
 
-**Workspace → Library** keeps what people build with: **View Designs** (the Workspace's own, and the built-in ones drawn with Sample Data), **Analysis Recipes** (the built-in ones) and the **Playground** where a design or recipe is written and checked. Everyone but Guests sees the designs and recipes they may see. Owners and Admins add and remove designs, and only they are shown **Open the Playground** (and **Write your own method** at the end of **Choose a method** on Analyze). Placing a design on a dashboard is still done in the widget picker, under **The Workspace's View Designs**. The page also points on to Themes and Packs. The chapter [Analyze](13-analyze.md#view-designs) describes it in full.
+**Workspace → Library** keeps what people build with: **View Designs** (the Workspace's own, and the built-in ones drawn with Sample Data), **Analysis Recipes** (the built-in ones) and the **Playground** where a design or recipe is written and checked. Everyone but Guests sees the designs and recipes they may see. Owners and Admins add and remove designs, and only they are shown **Open the Playground** (and **Write your own method** at the end of **Choose a method** on Analyze). Placing a design on a dashboard is still done in the widget picker, under **The Workspace's View Designs**. The page also points on to Themes and Packs. On a phone the Playground says at the top that it is easier on a larger screen. The chapter [Analyze](13-analyze.md#view-designs) describes it in full.
 
 ## Packs
 

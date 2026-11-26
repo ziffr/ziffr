@@ -19,7 +19,7 @@ If you follow a link to a deck that is not shared with you, Ziffr says "This dec
 
 ## The deck editor
 
-The editor is made for a larger screen. On a phone a note at the top says "This is easier on a larger screen." and offers **Present**, so you can read and show the deck there; the editor stays below it, fits the width and can still be used, with a shorter canvas so the page scrolls around it.
+The editor is made for a larger screen. On a phone a note at the top says "This is easier on a larger screen." and offers **Send me the link** and **Look at it**, which presents the deck (see [Screens made for a larger screen](07-getting-started.md#screens-made-for-a-larger-screen)); the editor stays below it, fits the width and can still be used, with a shorter canvas so the page scrolls around it.
 
 A deck that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) starts empty. The first time you open it, the editor lays out its slides from today's values, as for a deck made from a Deck Template, and saves them.
 
@@ -34,7 +34,7 @@ The panel of colours, sizes and fonts opens at the top right of the canvas only 
 | Option | What it does |
 |---|---|
 | **+ Slide** | Adds a new slide at the end. Pick a layout (see below) or one of your team's layouts. |
-| **Present** | Shows the deck one slide at a time, filling the screen. On a phone this button is in the note at the top. |
+| **Present** | Shows the deck one slide at a time, filling the screen. On a phone **Look at it** in the note at the top does the same. |
 | **Share** | Opens a panel on the right to share the deck with people or Groups. Only the deck's owner sees this button. |
 | **Export** | Opens a menu: **PowerPoint** downloads the deck as a PowerPoint file, **PDF** prepares a PDF to print or save. |
 | **⋯** (More for this deck) | Opens a menu with the rarer things, below. |

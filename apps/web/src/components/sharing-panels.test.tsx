@@ -70,6 +70,7 @@ describe("Share in the side panel", () => {
     await act(async () => button("Share").click()); await tick();
     expect(panel()!.textContent).toContain("Share “Board”");
     expect(panel()!.textContent).toContain("Vera Viewer");
+    expect(panel()!.dataset.short).toBe("true");
     expect(new URL(window.location.href).searchParams.get("panel")).toBe("share");
   });
 
@@ -77,6 +78,11 @@ describe("Share in the side panel", () => {
     window.history.replaceState(null, "", "/dashboards/1?panel=share");
     await mount(); await tick();
     expect(panel()!.textContent).toContain("Vera Viewer");
+    // The address keeps naming the open panel, so a reload or a copied link shows the same, and closing removes it.
+    expect(new URL(window.location.href).searchParams.get("panel")).toBe("share");
+    await act(async () => button("Close").click()); await tick();
+    expect(panel()).toBeNull();
+    expect(new URL(window.location.href).searchParams.has("panel")).toBe(false);
   });
 
   it("takes ?panel=share out of the address when it closes", async () => {
@@ -92,10 +98,13 @@ describe("Share in the side panel", () => {
     await act(async () => button("Who can see this").click()); await tick();
     expect(panel()!.textContent).toContain("Who can see this");
     expect(panel()!.textContent).toContain("Shared as Viewer");
+    // All three are short panels: a bottom sheet on a phone (spec 0055), so the panel does not change shape between them.
+    expect(panel()!.dataset.short).toBe("true");
     await act(async () => button("Back").click()); await tick();
     expect(panel()!.textContent).toContain("Share “Board”");
     await act(async () => button("View links for outsiders").click()); await tick();
     expect(panel()!.textContent).toContain("Advisory board");
     expect(panel()!.textContent).toContain("Make link and copy it");
+    expect(panel()!.dataset.short).toBe("true");
   });
 });

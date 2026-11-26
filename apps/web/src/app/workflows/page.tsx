@@ -13,6 +13,7 @@ import { snapshotDashboardChoices } from "@ziffr/core/send-snapshot";
 import { isDemo } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { WorkflowsScreen } from "./screen";
+import { DesktopOnly } from "@/components/desktop-only";
 import type { PeriodState, Workflow } from "@ziffr/core/types";
 
 export default async function WorkflowsPage({ searchParams }: { searchParams: Promise<{ id?: string; asOf?: string }> }) {
@@ -34,6 +35,8 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
   return (
     <>
       <PageHeader title="Workflows" sub="Who is asked for a value, when they are reminded, and who approves it, each period." />
+      {/* "Look at it" opens the Workflow's steps: the one picked, else the first. */}
+      <DesktopOnly path={current && sp.id ? `/workflows?id=${current.id}` : "/workflows"} look={current ? `/workflows?id=${current.id}#workflow-steps` : undefined} />
       <WorkflowsScreen
         key={current ? `${current.id}-${current.updated_at}` : "new"}
         viewer={viewer}
