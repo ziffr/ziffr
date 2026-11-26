@@ -263,6 +263,15 @@ export async function deliverScreenLink(ws: string, input: { recipientId: string
   return deliverPlain(ws, "notice", { ...input, senderId: null, via: "email" });
 }
 
+/** The words of a plain message and its link, which comes last: a path in Ziffr, or FORM_LINK for a Contact, whose own
+ * personal form link is put in only as it is sent and so is never stored. */
+export function plainBody(via: ConnectorId, text: string, link: string): string {
+  // A message holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
+  if (link === FORM_LINK) return `${via === "slack" ? slackEscape(text) : text}\nOpen your form: ${FORM_LINK}`;
+  if (via === "slack") return `${slackEscape(text)}\n<${linkTo(link)}|Open in Ziffr>`;
+  return `${text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(link)}`;
+}
+
 /** One plain message of a kind that is not about an Action: a notice, an Alert, a Heads-up, a Checklist Item, a Filled-in Value or a Test Message. */
 async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | "checklist" | "filled_in" | "test", input: { keep?: string; recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; quiet?: boolean; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; snapshotDashboardId?: number; queue?: boolean; headsUpMetrics?: readonly number[]; headsUpKey?: string; headsUpToldId?: number; formTokenId?: number | null; filledInObservationId?: number }): Promise<number | null> {
   const via = input.via ?? await connectorFor(ws, input.recipientId, "reply", null);
@@ -277,9 +286,7 @@ async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | 
   const d = await insertDelivery(ws, {
     last_error: input.keep ?? null,
     connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind,
-    // A message holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
-    // A Contact's link is their own personal form link, put in only as it is sent (FORM_LINK), never stored.
-    subject: input.subject, body: input.link === FORM_LINK ? `${via === "slack" ? slackEscape(input.text) : input.text}\n${FORM_LINK}` : via === "slack" ? `${slackEscape(input.text)}\n<${linkTo(input.link)}|Open in Ziffr>` : `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state, form_token_id: input.formTokenId ?? null, filled_in_observation_id: input.filledInObservationId ?? null, alert_metric_id: input.alertMetricId ?? null, alert_id: input.alertId ?? null, tell_workflow_id: input.tellWorkflowId ?? null, snapshot_dashboard_id: input.snapshotDashboardId ?? null,
+    subject: input.subject, body: plainBody(via, input.text, input.link), mail_state, form_token_id: input.formTokenId ?? null, filled_in_observation_id: input.filledInObservationId ?? null, alert_metric_id: input.alertMetricId ?? null, alert_id: input.alertId ?? null, tell_workflow_id: input.tellWorkflowId ?? null, snapshot_dashboard_id: input.snapshotDashboardId ?? null,
     heads_up_metric_a: input.headsUpMetrics?.[0] ?? null, heads_up_metric_b: input.headsUpMetrics?.[1] ?? null, heads_up_key: input.headsUpKey ?? null, heads_up_told_id: input.headsUpToldId ?? null,
   }, input.quiet ? "reminder" : kind);
   // An Alert is only queued, for the deliveries job to send: the value that caused it must not wait on the mail server.

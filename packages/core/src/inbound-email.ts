@@ -6,7 +6,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import PostalMime from "postal-mime";
 import { db } from "./db";
-import { addressIn, headerSafe, isAddress, mailOn, sendMail, type MailTransport } from "./mail";
+import { addressIn, brandedParts, headerSafe, isAddress, mailOn, sendMail, type MailTransport } from "./mail";
 import { settingsInEffect } from "./settings-in-effect";
 import { REPLY_DAYS, routeReply } from "./reply-routing";
 import type { SubmissionEffects } from "./submissions";
@@ -195,7 +195,7 @@ export async function receiveEmail(email: InboundEmail, effects: { submission?: 
   const { data: claim, error } = await db().from("inbound_emails").insert({ message_id: email.messageId, delivery_id: d.id, workspace_id: d.workspace_id, outcome: "taken" }).select("id").single();
   if (error?.code === "23505") return "duplicate";
   if (error || !claim) throw new Error("The email could not be recorded.");
-  const say = (subject: string, text: string) => answer(address, subject, text, effects.transport);
+  const say = (subject: string, text: string) => answer(d.workspace_id, address, subject, text, effects.transport);
   if (email.verified) {
     const outcome = await routeReply(d, email.text, { source: "mail", sender: address, answer: say }, effects.submission);
     await db().from("inbound_emails").update({ outcome }).eq("id", claim.id);
@@ -226,11 +226,12 @@ async function log(d: DeliveryRow, outcome: InboundOutcome): Promise<InboundOutc
   return outcome;
 }
 
-/** A short answer to the person who wrote, from Ziffr's own address (no reply address: it needs no answer). */
-async function answer(to: string, subject: string, text: string, transport?: MailTransport) {
+/** A short answer to the person who wrote, from Ziffr's own address (no reply address: it needs no answer), in the
+ * look of the Workspace whose message they answered. */
+async function answer(workspaceId: string, to: string, subject: string, text: string, transport?: MailTransport) {
   if (!(await mailOn())) return;
   try {
-    await sendMail({ to, subject, text }, transport);
+    await sendMail({ to, subject, text, ...(await brandedParts(workspaceId, { text })) }, transport);
   } catch {
     // The reply itself was taken; a lost confirmation is not worth failing it for.
   }

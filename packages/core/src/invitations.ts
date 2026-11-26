@@ -102,7 +102,7 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
   const by = { name: inviter, email: inviterRow?.email, did: "invited you to" };
   const until = new Date(inv.expires_at).toISOString().slice(0, 10);
   const stopUrl = stopToken ? linkTo(`/api/unsubscribe/invitations/${stopToken}`) : undefined;
-  const stop = stopUrl ? { label: "Do not invite me again (from any workspace on this Ziffr)", url: stopUrl } : undefined;
+  const stop = stopUrl ? { label: "Do not invite me again (from any workspace on this Ziffr)", link: "Do not invite me again from any workspace on this Ziffr", url: stopUrl } : undefined;
   try {
     const words = [
         "Hi,", "",
@@ -113,7 +113,7 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
         "The names above were chosen by the people in that workspace. If you did not expect this, you can ignore it.",
       "", sentByLine(by, workspace),
       ].join("\n");
-    // The HTML shows the stop link as its own line (brandedParts), so the words it is made from do not hold it twice.
+    // The HTML shows the stop link in its footer (brandedParts), so the words it is made from do not hold it twice.
     const text = stop ? `${words}\n\n${stop.label}: ${stop.url}` : words;
     await sendMail({ to: inv.email, subject: trialEnds ? "You are invited to a trial of Ziffr" : "You are invited to a workspace on Ziffr", text, ...(stopUrl ? { unsubscribe: stopUrl } : {}), ...(await brandedParts(inv.workspace_id, { text: words, ...(stop ? { stop } : {}) }, by)) }, transport);
     return true;

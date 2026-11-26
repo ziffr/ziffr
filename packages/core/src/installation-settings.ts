@@ -10,7 +10,7 @@ import { demoChangesInEffect } from "./demo-reset-decision";
 import { trialSettings } from "./trials";
 import { TRIAL_LIMITS, trialLimitProblem } from "./trial-limits";
 import { trialLimitEnvironment } from "./trial-limits-in-effect";
-import { headerSafe, inboundEnabled, isAddress, mailEnabled, smtpOptions, smtpTransportWith, type MailTransport } from "./mail";
+import { composed, headerSafe, inboundEnabled, isAddress, mailEnabled, smtpOptions, smtpTransportWith, type MailTransport } from "./mail";
 import { checkedMailHost, MailHostError, privateMailHost, privateMailHostsAllowed } from "./mail-hosts";
 import { secretsKey, sealSecret } from "./secrets";
 import { botUsername, forgetTelegramBot, registerTelegramWebhook, TELEGRAM_NEEDS_HTTPS, telegramBot, telegramWebhookUrl } from "./telegram-connection";
@@ -467,10 +467,10 @@ export async function sendTestEmail(actor: InstallationActor, transport?: MailTr
   const { data: claimed, error } = await db().rpc("claim_installation_test_email", { p_person: actor.personId, p_actor_name: String(me?.name ?? "Someone"), p_limit: TEST_EMAILS_PER_HOUR });
   if (error || claimed !== true) throw new Error(`At most ${TEST_EMAILS_PER_HOUR} test emails an hour. Try again later.`);
   try {
-    await (transport ?? smtpTransportWith(settings))({
+    await (transport ?? smtpTransportWith(settings))(composed({
       to, subject: "Ziffr: test email",
-      text: `This is a test email from Ziffr at ${settings.ZIFFR_SITE_URL}.\n\nIf you can read it, Ziffr can send email.`,
-    });
+      text: `This is a test email from Ziffr.\n\nIf you can read it, Ziffr can send email.\n\nOpen this Ziffr: ${settings.ZIFFR_SITE_URL}`,
+    }, settings));
   } catch (e) {
     throw new Error(testEmailError(e));
   }
