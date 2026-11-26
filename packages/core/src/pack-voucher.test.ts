@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import { packVoucher } from "./pack-voucher";
 
 describe("packVoucher", () => {
-  it("says only what the signature proves about a signed Pack: the handle, never a review", () => {
+  it("says what was done with a signed Pack: the handle, the program's checks, and that no person reviewed it", () => {
     const v = packVoucher({ id: "northwind/saas", signed: true, fromMarketplace: true, hasLogo: true });
     expect(v.vouched).toBe(true);
-    expect(v.lines).toEqual(["Published through the Marketplace as @northwind."]);
+    expect(v.lines).toEqual(["Published through the Marketplace as @northwind. Checked by program. No person reviewed it."]);
+  });
+  it("drops the last sentence only for a version the statement says a moderator looked at", () => {
+    expect(packVoucher({ id: "northwind/saas", signed: true, fromMarketplace: true, hasLogo: false, reviewed: true }).lines).toEqual(["Published through the Marketplace as @northwind. Checked by program."]);
+    expect(packVoucher({ id: "northwind/saas", signed: false, fromMarketplace: false, hasLogo: false, reviewed: true }).lines.join(" ")).not.toContain("Checked by program");
   });
   it("says an uploaded file is self-declared, and shows its id as written", () => {
     const v = packVoucher({ id: "northwind/saas", signed: false, fromMarketplace: false, hasLogo: true });
