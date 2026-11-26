@@ -7,14 +7,14 @@ import { tokenValid } from "./tokens";
 import { widgetMetricIds } from "./widget-metrics";
 import { canReadThread, deckMetricIds, expandGroupShares, objectRoles, visibleMetricIdsFrom, withEveryone } from "./visibility";
 import { cleanLogo } from "./theme-look";
-import { allRows, getActions, getBreakdowns, getMetrics, getSeriesOf, getSeriesValues, withInputs } from "./workspace-data";
+import { allRows, getActions, getAllSeries, getBreakdowns, getMetrics, getSeriesOf, getSeriesValues, withInputs } from "./workspace-data";
 import { Forbidden, type Actor } from "./actor";
 import { peopleIn, peopleToHide } from "./submissions";
 import { nameHider } from "./hide-names";
 import type { Action, CanvasData, Dashboard, Group, Metric, Point, Profile, Share, ShareRole, TeamTemplate, Theme } from "./types";
 import { yearStartOf } from "./fiscal-year";
 import { condensedFor } from "./condensed-values";
-import { unapprovedTotals } from "./total-parts";
+import { unapprovedTotals, withTotalNotes } from "./total-parts";
 import { attainmentMethodOf, numberStyleOf } from "./workspace-settings";
 import { withoutUnseenInputs } from "./formula";
 
@@ -252,7 +252,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
   return {
     viewer,
     // A formula goes to the browser only to someone who sees every Metric it names.
-    metrics: withoutUnseenInputs(visible, new Set(visible.map((m) => m.slug))),
+    // A Total that shows this person no number says why.
+    metrics: await withTotalNotes(ws, withoutUnseenInputs(visible, new Set(visible.map((m) => m.slug))), (id) => ids.has(id)),
     series,
     people: named,
     openActions,
@@ -278,6 +279,19 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     // Who submits, only for the Metrics the viewer sees: another Metric's id and its people are not theirs to know, and a Guest sees only themselves.
     submitters: (tokens ?? []).filter((t) => ids.has(t.metric_id) && (!guest || t.submitter_id === viewer)).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
   };
+}
+
+/** The Workspace's Metrics and series (getAllSeries) as one person reads them: each Total worked out for what they see,
+ * with its added-up targets where it takes them, and why it shows them no number. */
+export async function allSeriesFor(actor: Actor, opts: { points?: number } = {}) {
+  const ws = actor.workspaceId;
+  const metrics = await getMetrics(ws);
+  if (!metrics.some((m) => m.total)) return getAllSeries(ws, opts);
+  const seen = await visibleMetricIds(ws, actor.personId, metrics);
+  const sees = (id: number) => seen.has(id);
+  const aims: Record<number, Point[]> = {};
+  const out = await getAllSeries(ws, { ...opts, reader: { sees, aims } });
+  return { ...out, metrics: await withTotalNotes(ws, out.metrics, sees), targets: { ...out.targets, ...aims } };
 }
 
 /** What sharing these metrics would show each person or Group that they cannot see on their own: they don't

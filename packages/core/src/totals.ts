@@ -4,6 +4,7 @@
 // unless the Total's owner opened it, so a part is never given away by subtraction. Pure.
 import { exactTotal } from "./exact";
 import { targetReader } from "./formula";
+import { NOT_ALL_IN, NOT_SHOWN, OWNER_CANNOT_SHARE } from "./total-rules";
 import type { Metric, Point } from "./types";
 
 /** One part of a Total: the Metric, the first day of the first period it counts in and, once it has left, of the last. */
@@ -62,4 +63,27 @@ export function totalUnapproved(parts: readonly TotalPart[], open: Record<number
 /** The Metrics whose numbers rest on a Total: the Totals themselves and the formulas that read one (`reads_total`). */
 export function restsOnTotal(metric: Pick<Metric, "total" | "reads_total">): boolean {
   return Boolean(metric.total) || Boolean(metric.reads_total);
+}
+
+/** What a Total says where it has no number to show a reader: nobody's, not theirs, or not all in yet. "Not theirs" is
+ * said where it is closed and they do not see every Metric it adds up from now on. */
+export function totalNote(parts: readonly TotalPart[], total: { open: boolean }, withheld: boolean, sees: TotalsReader["sees"]): string {
+  if (withheld) return OWNER_CANNOT_SHARE;
+  return !total.open && parts.some((p) => p.last === null && !sees(p.part)) ? NOT_SHOWN : NOT_ALL_IN;
+}
+
+/** How one period of a Total stands for one reader. `in` of `of` is said only to someone who sees every part counted in
+ * it: anyone else is never told how many there are. */
+export type TotalStanding = { period: string; state: "shown" | "waiting" | "withheld"; in?: number; of?: number };
+
+/** How each of these periods stands, newest first; a period in which no part counts is left out. */
+export function totalStanding(parts: readonly TotalPart[], has: (part: number, period: string) => boolean, periods: Iterable<string>, open: boolean, sees: TotalsReader["sees"]): TotalStanding[] {
+  return [...new Set(periods)].sort().reverse().flatMap((period): TotalStanding[] => {
+    const counted = countedParts(parts, period);
+    if (!counted.length) return [];
+    if (!mayShow(open, counted, sees)) return [{ period, state: "withheld" }];
+    const there = counted.filter((part) => has(part, period)).length;
+    if (there === counted.length) return [{ period, state: "shown" }];
+    return [counted.every(sees) ? { period, state: "waiting", in: there, of: counted.length } : { period, state: "waiting" }];
+  });
 }

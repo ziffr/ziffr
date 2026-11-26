@@ -256,6 +256,7 @@ async function metricRecords(c: Ctx): Promise<void> {
     const note = fit.plain(m.calculation_note, WORKSPACE_EXPORT_LIMITS.metricCalculationNote);
     const unit = fit.plain(m.unit, 20);
     if (!name || description === null || note === null || unit === null) { skip("Metric", m.name || "(unnamed)", `Left out: ${over[0] ?? "it has no name"}.`); continue; }
+    if (m.total) { skip("Metric", name, "Left out: a Total is not in the export yet."); continue; }
     let formula: string | undefined;
     if (m.formula) formula = m.formula.replace(/\{([a-z0-9-]+)\}/g, (all, slug: string) => (bySlug.has(slug) ? `{${keyOf.get(bySlug.get(slug)!.id)}}` : all));
     const file: MetricFile = {

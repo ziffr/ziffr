@@ -31,6 +31,7 @@ import { effectiveLimit } from "./limits";
 import { trialEnded, trialLastDay, trialLimitMessage } from "./trials";
 import type { CanvasData, Widget } from "./types";
 import { restsOnTotal } from "./totals";
+import { NOT_IN_VIEWS } from "./total-rules";
 import { withoutUnseenInputs } from "./formula";
 
 /** How long a View Link may live at most, in days: the ceiling; a Workspace may set a shorter life (limits.ts). */
@@ -78,7 +79,7 @@ function peopleShown(people: CanvasData["people"], metrics: { owner_id: string }
  * own series, people's names without contact details, the theme in use and the default, and nothing to act on. */
 export function shownData(full: CanvasData, ids: Set<number>, themeId: number | null): CanvasData {
   // A description and a Calculation Note are for people inside the Workspace, so neither goes out with a view (rule 3).
-  const metrics = full.metrics.filter((m) => ids.has(m.id)).map(insideOnly);
+  const metrics = full.metrics.filter((m) => ids.has(m.id)).map(insideOnly).map((m) => (m.total ? { ...m, total: { ...m.total, note: NOT_IN_VIEWS } } : m));
   // Only the shown Metrics' own series: a derived Metric's inputs stay out (its comparisons then do not show).
   const slugs = new Set(metrics.map((m) => m.slug));
   // Nothing that rests on a Total goes out with a view yet: who is on the other end sees none of its parts (spec 0058).

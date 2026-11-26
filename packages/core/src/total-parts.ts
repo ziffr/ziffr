@@ -1,16 +1,17 @@
 // The parts of Totals as stored (GLOSSARY: Total; spec 0058), and what the Metric loader makes of them. Every loader
 // takes the workspace and reads nothing outside it; who is shown a Total's numbers is decided where they are worked out
 // (totals.ts), from what the reader sees.
+import { Refused } from "./actor";
 import { db } from "./db";
 import { formulaInputs } from "./formula";
 import { allRows, mustRead } from "./workspace-data";
-import { totalUnapproved, type TotalPart, type TotalsRead, type TotalsReader } from "./totals";
+import { totalNote, totalUnapproved, type TotalPart, type TotalsRead, type TotalsReader } from "./totals";
 import { NOT_FINAL_STATES } from "./value-state";
 import type { Metric, Point } from "./types";
 
-// The parts of every Total of a Workspace, by the Total's id. The read must be whole: with a part missing, a Total
-// would show a smaller sum, and to people who do not see that part.
-async function readParts(ws: string): Promise<Record<number, TotalPart[]>> {
+/** The parts of every Total of a Workspace, by the Total's id. The read must be whole: with a part missing, a Total
+ * would show a smaller sum, and to people who do not see that part. */
+export async function readParts(ws: string): Promise<Record<number, TotalPart[]>> {
   const rows = await allRows<{ total_id: number; part_id: number; first_period: string; last_period: string | null }>((from, to) =>
     mustRead(db().from("total_parts").select("total_id, part_id, first_period, last_period").eq("workspace_id", ws).order("total_id").order("part_id").range(from, to), "Totals could not be read. Try again in a moment."),
   );
@@ -56,4 +57,30 @@ export async function unapprovedTotals(ws: string, shown: readonly { metric: Pic
   const open: Record<number, string[]> = {};
   for (const r of rows) (open[r.metric_id] ??= []).push(r.period_start);
   return Object.fromEntries(totals.map((t) => [t.metric.id, totalUnapproved(parts[t.metric.id] ?? [], open, t.points)] as const).filter(([, periods]) => periods.length));
+}
+
+/** The Metrics as one reader is handed them: each Total says why it shows them no number, where it shows none. */
+export async function withTotalNotes(ws: string, metrics: Metric[], sees: TotalsReader["sees"]): Promise<Metric[]> {
+  if (!metrics.some((m) => m.total)) return metrics;
+  const parts = await readParts(ws);
+  return metrics.map((m) => (m.total ? { ...m, total: { ...m.total, note: totalNote(parts[m.id] ?? [], m.total, Boolean(m.inputs_withheld), sees) } } : m));
+}
+
+// What a Total shares with the Metrics it adds up, so neither side may change it alone.
+const SHARED = ["period", "unit", "format", "aggregation"] as const;
+
+/** Refuses a change of a Metric's description that would make a Total add up unlike numbers: its period, unit, number
+ * format or Aggregation, on a Total or on a Metric one adds up, and a target of its own on a Total that takes its parts'.
+ * The database holds the same. `now` is the stored row, `change` what would be written. */
+export async function assertKeepsTotals(ws: string, now: Record<string, unknown>, change: Record<string, unknown>): Promise<void> {
+  const changed = SHARED.some((k) => k in change && change[k] !== now[k]);
+  if (now.total_targets) {
+    if (changed) throw new Refused("A Total takes its period, unit, number format and Aggregation from the Metrics it adds up, so they stay.");
+    if (now.total_targets === "parts" && (change.target_min ?? change.target_max) != null) throw new Refused("Its target is the targets of the Metrics it adds up. Choose its own target first.");
+    return;
+  }
+  if (!changed) return;
+  const { count, error } = await db().from("total_parts").select("total_id", { count: "exact", head: true }).eq("workspace_id", ws).eq("part_id", now.id as number);
+  if (error) throw new Error("The change could not be saved.");
+  if (count) throw new Refused("A Total adds this Metric up, so its period, unit, number format and Aggregation stay. Remove it from the Total first.");
 }

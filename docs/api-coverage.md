@@ -19,6 +19,17 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `sendableMetrics` (send-values-options.ts): the picker on Connectors → Send values in the app; a program lists the Metrics it sees, and the ones it may submit to, through the API
 - `pasteTemplate` (paste-template.ts): the template file on the Paste values page in the app; a program reads its Metrics through the API and sends values through a Feed or its own key
 - `saveLayout` (dashboards.ts): the dashboard canvas
+- `createTotal` (total-changes.ts): a Total is made on the new-Metric page in the app (spec 0058); a program reads its values through the API
+- `addTotalPart` (total-changes.ts): what a Total adds up is changed on its page in the app, where a person confirms what others learn (spec 0058)
+- `setTotalPartPeriods` (total-changes.ts): ending a Metric's counting in a Total, on its page or when it is archived in the app (spec 0058)
+- `removeTotalPart` (total-changes.ts): taking a Metric out of a Total changes past totals; a person does it at the screen (spec 0058)
+- `setTotalTargets` (total-changes.ts): where a Total's target comes from, chosen on its page in the app (spec 0058)
+- `totalOpening` (total-opening.ts): the lists its owner confirms before opening a Total; no program opens or closes one (spec 0058)
+- `openTotal` (total-opening.ts): only a Total's owner opens it, in the app, never an Access Key or an assistant (spec 0058)
+- `closeTotal` (total-opening.ts): only a Total's owner closes it, in the app, never an Access Key or an assistant (spec 0058)
+- `totalChoices` (total-page.ts): the list in the "Add up Metrics" form; a program lists Metrics through the API
+- `totalPage` (total-page.ts): what a Total's page draws besides its values; a program reads those through the API
+- `totalsCounting` (total-page.ts): what the archive dialog in the app asks about a Metric that Totals add up
 - `listPicker` (analysis-picker.ts): the list of Methods on the Analysis Canvas in the app, fitted to the Metrics on the canvas; analyses are not in the API yet
 - `runPicker` (analysis-picker.ts): runs the Method picked on the Analysis Canvas in the app; analyses are not in the API yet (the core takes the Actor first, so adding them later is a small step)
 - `createDashboardFromBody` (dashboard-templates.ts): the same as making a dashboard from a template, for a template that is not stored; only a Workspace import uses it
@@ -282,6 +293,7 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 
 Reads for a screen that also note that something was seen or logged; the API has its own reads.
 
+- `allSeriesFor` (access.ts): the Metrics list and a Metric's page read every series as the person sees it, Totals worked out for them; a program reads one Metric's values through the API, which applies the same rule
 - `myHeadsUps` (heads-up-state.ts): the Heads-ups list of the Analyze page (spec 0041, ticket 14); the API for it is not built yet
 - `listHeadsUpsWith` (heads-ups.ts): the same list with the Metrics' names, for the page; the plain `listHeadsUps` carries the same rules
 - `auditLog` (audit-log.ts): the Audit Log page and its export

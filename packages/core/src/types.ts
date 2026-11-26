@@ -45,7 +45,7 @@ export type MetricDescription = {
   calculation_note?: string | null;
   /** Set for a Total (GLOSSARY: Total): where its target comes from, and whether its owner opened its numbers to people
    * who do not see every part. Its `formula` then only names its parts, so that it reads as calculated from them. */
-  total?: { targets: "own" | "parts"; open: boolean };
+  total?: { targets: "own" | "parts"; open: boolean; /** Why it shows this reader no number, where it shows none. */ note?: string };
   /** Set for a formula that reads a Total, so that its numbers are held as the Total's are. */
   reads_total?: boolean;
   unit: string;

@@ -4,6 +4,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { shownSeries, resolverFrom, valueOver } from "./display-periods";
+import { targetText } from "./format";
 import { checkFormula, inputsProblem } from "./formula";
 import { treeFromData } from "./formula-tree";
 import { buildSeries } from "./series";
@@ -13,7 +14,8 @@ import { runs, valueText } from "./test/reference/check";
 import { isNearestDouble } from "./test/reference/exact";
 import { referenceTotal, referenceTotalTargets, type ReferencePart } from "./test/reference/totals";
 import { whatIfRecipe } from "./takeaways/what-if-takeaway";
-import { countedParts, mayShow, restsOnTotal, totalUnapproved, type TotalPart, type TotalsRead } from "./totals";
+import { countedParts, mayShow, restsOnTotal, totalNote, totalStanding, totalUnapproved, type TotalPart, type TotalsRead } from "./totals";
+import { NOT_ALL_IN, noValuesWords, NOT_SHOWN, OWNER_CANNOT_SHARE, partsProblem, READS_UNSHOWN_TOTAL, TOTAL_MAX_PARTS } from "./total-rules";
 import type { Metric, Observation, Point } from "./types";
 
 const { numRuns, seed } = runs();
@@ -158,5 +160,42 @@ describe("a Total worked by hand", () => {
     expect(Object.keys(sent.series)).toEqual(["ana"]);
     expect(Object.keys(sent.targets)).toEqual(["1"]);
     expect(sent.pending).toEqual({});
+  });
+});
+
+describe("how a Total stands, and what may go into one", () => {
+  const has = (part: number, period: string) => VALUES.some((o) => o.metric_id === part && o.period_start === period);
+  const PERIODS_ASKED = ["2025-12-01", "2026-04-01", "2026-05-01", "2026-04-01"];
+
+  it("counts what is in only for someone who sees every Metric counted", () => {
+    // Newest first, each once; December, in which nothing counts, is left out.
+    expect(totalStanding(PARTS, has, PERIODS_ASKED, false, () => true)).toEqual([{ period: "2026-05-01", state: "waiting", in: 1, of: 2 }, { period: "2026-04-01", state: "shown" }]);
+    expect(totalStanding(PARTS, has, PERIODS_ASKED, false, (id) => id === 1)).toEqual([{ period: "2026-05-01", state: "withheld" }, { period: "2026-04-01", state: "withheld" }]);
+    // Open, without seeing every one: never how many there are.
+    expect(totalStanding(PARTS, has, PERIODS_ASKED, true, (id) => id === 1)).toEqual([{ period: "2026-05-01", state: "waiting" }, { period: "2026-04-01", state: "shown" }]);
+  });
+  it("names a target that is its Metrics' added up, and its own as a Metric's", () => {
+    expect(targetText(total({}, "parts"), "1,234.5")).toBe("Its Metrics’ targets added up");
+    expect(targetText(total({ target_min: 5, unit: "km" }), "1,234.5")).toBe("≥ 5 km");
+  });
+  it("says why it shows nothing", () => {
+    expect(totalNote(PARTS, { open: false }, true, () => true)).toBe(OWNER_CANNOT_SHARE);
+    expect(totalNote(PARTS, { open: false }, false, (id) => id === 1)).toBe(NOT_SHOWN);
+    // Ben counts no longer: not seeing him alone does not hide what counts from now on.
+    expect(totalNote(PARTS, { open: false }, false, (id) => id !== 2)).toBe(NOT_ALL_IN);
+    expect(totalNote(PARTS, { open: true }, false, () => false)).toBe(NOT_ALL_IN);
+    expect([noValuesWords(total()), noValuesWords({ ...total(), total: { targets: "own", open: false, note: NOT_SHOWN } }), noValuesWords({ reads_total: true }), noValuesWords(ana)])
+      .toEqual([NOT_ALL_IN, NOT_SHOWN, READS_UNSHOWN_TOTAL, "No values yet"]);
+  });
+  it("takes Metrics that take values and are counted alike, at most so many, never a rate", () => {
+    const like = { ...ana, formula: null };
+    expect(partsProblem([like, { ...ben, formula: null }])).toBeNull();
+    expect(partsProblem([])).toBe("Pick at least one Metric to add up.");
+    expect(partsProblem(Array.from({ length: TOTAL_MAX_PARTS + 1 }, () => like))).toContain("at most 50");
+    expect(partsProblem([like, { ...like, formula: "{ana}" }])).toContain("is calculated");
+    expect(partsProblem([{ ...like, aggregation: "none" }])).toContain("Aggregation none");
+    for (const [change, word] of [[{ period: "week" }, "period"], [{ unit: "km" }, "unit"], [{ format: "percent" }, "number format"], [{ aggregation: "sum" }, "Aggregation"]] as const) {
+      expect(partsProblem([like, { ...like, name: "Other", ...change }])).toBe(`Other and Commit, Ana differ in ${word}. A Total adds up Metrics that share it.`);
+    }
   });
 });
