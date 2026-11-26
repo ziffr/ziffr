@@ -45,7 +45,35 @@ async function setUp() {
 }
 const row = async (table: string, workspaceId: string, key: string) => (await db().from(table).select("*").eq("workspace_id", workspaceId).eq("pack_key", key).maybeSingle()).data;
 
+/** A /2 version of the Pack that adds a Total over a repeated entry. */
+const WITH_TOTAL: Pack = {
+  ...NEXT,
+  format: "ziffr.pack/2",
+  repeats: [{ key: "team", name: "Team" }],
+  contents: {
+    ...NEXT.contents,
+    metrics: [
+      ...NEXT.contents.metrics!,
+      { key: "commit", per: "team", metric: { format: "ziffr.metric/1", name: "Commit", period: "week", aggregation: "last", polarity: "higher" } },
+      { key: "team-commit", total: { of: "commit", targets: "parts" }, metric: { format: "ziffr.metric/1", name: "Team commit", period: "week", aggregation: "last", polarity: "higher" } },
+    ],
+  },
+};
+
 describe("updating a Pack", () => {
+  // Until #1226 builds Totals (spec 0058): refused whole, so no Total ever becomes a Metric that takes values.
+  it("refuses a Pack with a Total, installed or as a new version, and stores nothing of it", async () => {
+    const { w, actor, id } = await setUp();
+    const before = await count("catalog_metrics", w.id);
+    const res = await readPackUpdate(actor, id, file(WITH_TOTAL));
+    expect(res.ok && res.plan.blocked).toContain("holds a Total");
+    await expect(updatePackFile(actor, id, file(WITH_TOTAL), yes)).rejects.toThrow("holds a Total");
+    await expect(installPackFile(actor, file({ ...WITH_TOTAL, id: "ziffr/team-commit" }), yes)).rejects.toThrow("holds a Total");
+    expect(await count("catalog_metrics", w.id)).toBe(before);
+    expect(await count("pack_installs", w.id)).toBe(1);
+    expect((await db().from("pack_installs").select("version").eq("id", id).single()).data!.version).toBe("1.2.0");
+  });
+
   it("sees every copy as installed as unchanged", async () => {
     const { actor, id } = await setUp();
     const res = await readPackUpdate(actor, id, file({ ...PACK, version: "1.2.1" }));
