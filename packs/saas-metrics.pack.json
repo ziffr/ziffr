@@ -53,8 +53,8 @@
         "items": [
           "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
           "Keep the Metrics ticked, with the dashboard **Monthly management report**, pick the Workflow **Monthly close** and its **Approver**, and choose **Set up**.",
-          "To have someone else send a figure, open its Metric and add them under **Who submits**. Only a Submitter sees **Record a value** there.",
-          "Send the first figures: open a Metric and choose **Record a value**, or answer the request Ziffr sends.",
+          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
+          "Send the first figures: answer the request Ziffr sends, or open a Metric you submit and choose **Record a value**.",
           "Open **Decks**, choose **From a Deck Template**, pick **Monthly management report** or **Quarterly board meeting** and a Metric for each Slot."
         ]
       }
@@ -82,7 +82,7 @@
         "type": "list",
         "items": [
           "The dashboard **Monthly management report**, and the decks **Monthly management report** and **Quarterly board meeting**.",
-          "The Workflows **Monthly close**, due on the third working day, and **Quarter close**, due on the fifth, where every value is approved. Both lock the period. A figure that is still missing after its Due Date is asked from the Submitter's Stand-in. Choose a Stand-in for each Submitter on the Metric's page.",
+          "The Workflows **Monthly close**, due on the third working day, and **Quarter close**, due on the fifth, where every value is approved. Both lock the period. A figure that is still missing after its Due Date is asked from the Submitter's Stand-in. Choose a Stand-in for each Submitter in the Workflow box on the Metric's **Description** tab.",
           "**Growth, smoothed**: a View Design that draws a Metric's growth and its three-month average.",
           "The **SaaS metrics** Theme, which shows the Pack's logo."
         ]

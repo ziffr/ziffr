@@ -45,7 +45,7 @@
           "Decide who sends the figures and who approves them. Often one person gathers them and the sales lead approves. Nobody approves their own value while someone else can.",
           "The approver needs to be a member of the Workspace, and is picked during Set up.",
           "Room for **8 Metrics** in your Workspace's size.",
-          "The money figures are in euro. If yours differ, change the **Unit** under **Edit details…** on each Metric."
+          "The money figures are in euro. If yours differ, change the **Unit** with **Edit details…** on each Metric's **Description** tab."
         ]
       }
     ],
@@ -65,10 +65,10 @@
           "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
           "Keep all eight Metrics ticked, with the dashboard and the Workflow **Weekly sales forecast**. Tick **Ask me for their values** only if you send the figures yourself.",
           "Pick the **Approver**, usually the sales lead, and choose **Set up**.",
-          "If someone else sends the figures, open each of the five Metrics they send and add them under **Who submits**: Commit, Best case, Closed this quarter, Pipeline value and Quota.",
-          "Send this week's five figures: answer the request, or open each Metric and choose **Record a value**. The Approver then approves them.",
+          "If someone else sends the figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick that person and press **Ask** for Commit, Best case, Closed this quarter, Pipeline value and Quota.",
+          "Send this week's five figures: whoever submits answers the request, or opens each Metric and chooses **Record a value**. The Approver then approves them.",
           "Open **Decks**, choose **From a Deck Template**, pick **Weekly forecast meeting** and a Metric for each Slot. Each Slot is named like the Metric it takes.",
-          "Open the Workflow **Weekly sales forecast**. In its **Send Snapshot** step pick the dashboard **Weekly forecast meeting** and the people who get it.",
+          "Open the Workflow **Weekly sales forecast**. In its **Send Snapshot** step pick the dashboard **Weekly forecast meeting** and the people who get it, then choose **Save workflow**.",
           "Share that dashboard with those people. Someone who cannot open it is not sent the link."
         ]
       },
@@ -167,7 +167,7 @@
       },
       {
         "type": "text",
-        "text": "Yes. **Fill from n8n**, under a Metric's **Who submits**, offers the Google Sheets and Microsoft Excel templates. Figures of earlier weeks can be brought in with **Paste values**."
+        "text": "Yes. On a Metric's **Description** tab, **Fill from n8n** under **Who submits** offers the Google Sheets and Microsoft Excel templates. Figures of earlier weeks can be brought in with **Paste values**."
       },
       {
         "type": "heading",

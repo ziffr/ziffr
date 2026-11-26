@@ -45,8 +45,8 @@
         "items": [
           "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
           "Keep the Metrics you want ticked, up to all 8, with the dashboard **People monthly** and the Workflow **Monthly people figures**. Tick **Ask me for their values** if you send the figures yourself, then choose **Set up**.",
-          "To have someone else send a figure, open its Metric and add them under **Who submits**. Only a Submitter sees **Record a value** there.",
-          "Send the first figures: open a Metric and choose **Record a value**, or answer the request Ziffr sends.",
+          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
+          "Send the first figures: answer the request Ziffr sends, or open a Metric you submit and choose **Record a value**.",
           "Open **Dashboards** and then **People monthly**. It fills as values come in."
         ]
       }
