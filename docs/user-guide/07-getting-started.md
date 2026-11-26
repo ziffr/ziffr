@@ -1,5 +1,5 @@
 <!-- part: Understanding Ziffr -->
-<!-- screens: apps/web/src/app/setup/**, apps/web/src/components/privacy-statement.tsx, apps/web/src/components/setup-line.tsx, apps/web/src/components/setup-panel.tsx -->
+<!-- screens: apps/web/src/app/setup/**, apps/web/src/components/privacy-statement.tsx, apps/web/src/components/setup-line.tsx, apps/web/src/components/setup-panel.tsx, apps/web/src/components/home-screen-hint.tsx -->
 # Getting started
 
 This chapter takes you from nothing to a team that sees its numbers each month. The Setup Guide, which opens by itself when you first join, walks you through the first steps; the routine then runs by itself.
@@ -204,7 +204,9 @@ Ziffr installs as an app from the browser: it then opens from your home screen o
 - **Android (Chrome):** open Ziffr, choose the menu (⋮), then **Add to Home screen** or **Install app**.
 - **Computer (Chrome or Edge):** open Ziffr and choose the install icon at the right of the address bar, or **Install Ziffr** in the browser's menu. On a Mac, Safari offers **File → Add to Dock**.
 
-The installed app is the same Ziffr as in the browser and needs a connection: your numbers stay on the server, never on the device. Without a connection it shows a page saying so. Signing out in the app signs you out there, as in the browser.
+The installed app is the same Ziffr as in the browser and needs a connection: your numbers stay on the server, never on the device. Without a connection it shows a page saying so. Signing out in the app signs you out there, as in the browser. The phone's status bar takes the colour of your [Appearance](17-your-settings.md).
+
+After you sign in on a phone, a short hint titled **Add Ziffr to your home screen** says this once, on your home dashboard, Dashboards, Metrics or Schedule. **Got it** closes it, and so does opening another page. It does not come back in that browser. While the Setup Guide or its line at the top is there, the hint waits until a later time you open Ziffr. It never shows in the installed app, on a larger screen or in the demo.
 
 ## What to do next
 
