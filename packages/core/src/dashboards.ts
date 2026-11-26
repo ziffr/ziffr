@@ -20,6 +20,7 @@ import { demoData } from "./demo-query";
 import { DEMO_STORE_MAX } from "./demo-limits";
 import { refuseSeeded } from "./demo-seeded-rows";
 import { assertNoOutsideContent } from "./deck-content";
+import { holdsSnapshotPart } from "./snapshot-parts";
 import { firstFreePlace } from "./free-place";
 import { isDisplayPeriod, SHOWN_BY } from "./display-periods";
 import { checkTagSource } from "./tag-widgets";
@@ -51,6 +52,8 @@ function settings(s: unknown): WidgetSettings {
   if (v.slope !== undefined && !(SLOPE_CHOICES as readonly unknown[]).includes(v.slope)) throw new Error("A slope chart compares rows against the period before or a year earlier, or several Metrics.");
   // A free layout keeps a tldraw document: nothing in it may load from another site (spec 0009).
   assertNoOutsideContent((v as { canvas?: { document?: unknown } | null }).canvas?.document, "layout");
+  // A Snapshot Part is shown to who may open its Snapshot, which only a deck's slides ask (spec 0061).
+  if (holdsSnapshotPart((v as { canvas?: { document?: unknown } | null }).canvas?.document)) throw new Refused("A Snapshot Part stands on a deck's slides only.");
   // A View Design in a widget, in the widget a Free layout starts from, or in a widget on its artboard, is checked like
   // a file brought in (spec 0024), at every depth.
   if (v.design !== undefined) v.design = checkedDesignSetting(v.design);

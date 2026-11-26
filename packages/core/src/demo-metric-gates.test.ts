@@ -2,7 +2,7 @@
 // spec 0051, ticket 11): the text rules, the formula's and series' bounds, the made-up people only, the seed's own things refused.
 // Without a database the paths are read from the source: each function that writes must name its gate, and the gate must come before
 // the first write, so a refusal never leaves a change half done. A new writer is added here, or it fails to be opened.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -67,9 +67,41 @@ describe("every writer of what the demo opens in this ticket", () => {
   it("checks a restored dashboard or widget before it writes, and names no writer of a deck's Metrics until the decks are open", () => {
     const s = src("version-history.ts");
     expect(s.match(/visitorSharedStaysSeen\(/g)?.length).toBe(3);
-    expect(s.indexOf('visitorSharedStaysSeen(actor, "dashboard", id')).toBeLessThan(s.indexOf('await db().from("widgets").delete()'));
+    const restore = body("version-history.ts", "restoreVersion");
+    /** Where these words stand in restoreVersion; they must be there. */
+    const at = (words: string) => {
+      expect(restore, words).toContain(words);
+      return restore.indexOf(words);
+    };
+    const WRITE = /\.(insert|update|upsert|delete|rpc)\(|insertSealed\(|replaceDashboard\(|saveWorkflow\(|restoreWorkflow\(|restoreMetricTags\(/;
+    // Who may restore, the seed's own things and the Metrics the restorer sees are asked before the switch, and nothing
+    // is written until then.
+    const writes = at("switch (v.object_type");
+    for (const gate of ["restorable(actor, versionId)", "refuseSeededRestore(", "throw new Error(HIDDEN)"]) expect(at(gate), gate).toBeLessThan(writes);
+    expect(restore.slice(0, writes)).not.toMatch(WRITE);
+    // A dashboard: its checks stand before its one write, which is replaceDashboard's.
+    const dashboard = restore.slice(at('case "dashboard":'), at('case "deck":'));
+    const replace = dashboard.indexOf("await replaceDashboard(");
+    expect(replace).toBeGreaterThan(-1);
+    for (const gate of ['visitorSharedStaysSeen(actor, "dashboard", id', "assertSettingsDesigns(w.settings)"]) {
+      expect(dashboard, gate).toContain(gate);
+      expect(dashboard.indexOf(gate), gate).toBeLessThan(replace);
+    }
+    expect(dashboard.slice(0, replace)).not.toMatch(WRITE);
+    expect(dashboard.slice(replace + "await replaceDashboard(".length)).not.toMatch(WRITE);
+    // No other function may reach that write, so none can go round the checks.
+    const callers = readdirSync(__dirname, { recursive: true, encoding: "utf8" })
+      .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts") && src(f).includes("replaceDashboard("));
+    expect(callers.sort()).toEqual(["dashboard-restore.ts", "version-history.ts"]);
+    expect(s.match(/replaceDashboard\(/g)?.length).toBe(1);
+    // A widget: the same sharing check before its write.
+    const widget = restore.slice(at('case "widget":'), at('case "dashboard":'));
+    expect(widget.indexOf('visitorSharedStaysSeen(actor, "dashboard"')).toBeGreaterThan(-1);
+    expect(widget.indexOf('visitorSharedStaysSeen(actor, "dashboard"')).toBeLessThan(widget.search(WRITE));
     // A deck's Metrics change by saving it or restoring a Version of it (templates and slide layouts make new, unshared decks).
-    expect(s.indexOf('visitorSharedStaysSeen(actor, "deck", id')).toBeLessThan(s.indexOf('await db().from("decks").update({ name: s.name'));
+    const deck = restore.slice(at('case "deck":'), at('case "snapshot":'));
+    expect(deck.indexOf('visitorSharedStaysSeen(actor, "deck", id')).toBeGreaterThan(-1);
+    expect(deck.indexOf('visitorSharedStaysSeen(actor, "deck", id')).toBeLessThan(deck.search(WRITE));
   });
 
   it("leaves no bare refusal of the demo in the Tags, which a visit's server action would meet", () => {
