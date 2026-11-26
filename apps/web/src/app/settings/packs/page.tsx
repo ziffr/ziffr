@@ -3,7 +3,7 @@
 import { currentActor } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { listInstalledPacks } from "@ziffr/core/packs";
-import { marketplaceOn, marketplaceUpdates } from "@ziffr/core/marketplace";
+import { marketplaceOn, marketplaceReportLinks, marketplaceUpdates } from "@ziffr/core/marketplace";
 import { exportOptions } from "@ziffr/core/pack-export";
 import { can } from "@ziffr/core/actor";
 import { offeredItems } from "@ziffr/core/pack-updates";
@@ -25,6 +25,8 @@ export default async function PacksPage() {
   // The Marketplace only for those who install, and only when the Installation turned the connection on.
   const market = manages && (await marketplaceOn());
   const updates = market ? await marketplaceUpdates(actor) : [];
+  // "Report this Pack" on installed Marketplace Packs, for everyone who sees them, while the connection is on.
+  const reports = await marketplaceReportLinks(actor);
   return (
     <>
       <PageHeader title="Packs" sub="Ready-made Metric Catalog entries, templates, View Designs and Themes, each a file with no code. Installing one adds them to the Workspace; it makes no Metric until you use them." />
@@ -40,6 +42,7 @@ export default async function PacksPage() {
         included={included}
         marketplace={market}
         updates={updates}
+        reports={reports}
         demo={demo}
         guest={actor.role === "guest"}
         viewer={actor.personId}

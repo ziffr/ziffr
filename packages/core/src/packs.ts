@@ -47,6 +47,8 @@ export type PackPreview = {
   source: PackOrigin["source"];
   /** The Marketplace's Signed Statement says a moderator looked at this version. */
   reviewed: boolean;
+  /** The address of the Marketplace's report form for this Pack and version; only a Marketplace Pack's Preview has one. */
+  report?: string | null;
   /** Texts that address an AI assistant, by where they are, for a person to read before installing. */
   assistantTexts: { path: string; text: string }[];
   /** Why this person cannot install it here, or null: a Pack with Themes needs an Owner, an installed Pack is not

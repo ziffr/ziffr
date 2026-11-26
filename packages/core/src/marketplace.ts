@@ -8,7 +8,7 @@
 // shape before it is used. A Pack's file must come with a Signed Statement about exactly that file by a key this Ziffr
 // trusts and has not seen revoked (spec 0059; @ziffr/pack/marketplace), and is then checked in full like any Pack: the
 // signature says where a file came from, the checks are the protection.
-import { checkRevocation, isWholeText, marketplaceKeyId, marketplaceVersionPath, MARKETPLACE_CONTRACT, MARKETPLACE_SCHEMAS, verifyPackStatement, type MarketplaceKeys, type MarketplaceListing, type Revocation, type SignedText, type StatementRefusal } from "@ziffr/pack/marketplace";
+import { checkRevocation, isWholeText, marketplaceKeyId, marketplaceReportPath, marketplaceVersionPath, MARKETPLACE_CONTRACT, MARKETPLACE_SCHEMAS, verifyPackStatement, type MarketplaceKeys, type MarketplaceListing, type Revocation, type SignedText, type StatementRefusal } from "@ziffr/pack/marketplace";
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { settingsInEffect } from "./settings-in-effect";
@@ -216,11 +216,34 @@ async function signedFile(packId: string, version: string): Promise<{ file: stri
   return { file, origin: { source: "marketplace", signed: true, reviewed: held.statement.reviewed } };
 }
 
-/** A Marketplace Pack's Preview, as for a file, shown as from the Marketplace (Owners and Admins). Nothing is written. */
+/** A Marketplace Pack's Preview, as for a file, shown as from the Marketplace (Owners and Admins), with the address of
+ * its report form. Nothing is written. */
 export async function readMarketplacePack(actor: Actor, packId: string, version: string): Promise<PackRead> {
   assertManages(actor);
   const { file, origin } = await signedFile(packId, version);
-  return previewPack(actor, file, origin);
+  const read = await previewPack(actor, file, origin);
+  const { url } = await connection();
+  return read.ok ? { ok: true, preview: { ...read.preview, report: reportAddress(url, packId, version) } } : read;
+}
+
+// The report form's address, from the checked address of the Marketplace and an id and version that are ones: a page the
+// person's browser opens. Ziffr's server sends nothing.
+const reportAddress = (base: URL, packId: string, version: string): string | null => {
+  const path = marketplaceReportPath(packId, version);
+  return path ? new URL(path, base).href : null;
+};
+
+/** "Report this Pack" for each of the Workspace's installs from the Marketplace, for whoever sees the installed Packs
+ * (not Guests or keys), and only while the connection is on. Nothing is asked of the Marketplace. */
+export async function marketplaceReportLinks(actor: Actor): Promise<{ installId: number; address: string }[]> {
+  if ((actor as { key?: unknown }).key || actor.role === "guest") return [];
+  const c = marketplaceConfig(await settingsInEffect());
+  if (!c.on || !c.url) return [];
+  const { data } = await db().from("pack_installs").select("id, pack_id, version").eq("workspace_id", actor.workspaceId).eq("source", "marketplace");
+  return (data ?? []).flatMap((i) => {
+    const address = reportAddress(c.url!, String(i.pack_id), String(i.version));
+    return address ? [{ installId: Number(i.id), address }] : [];
+  });
 }
 
 /** Installs a Pack from the Marketplace (Owners and Admins; Owners for one with Themes): its signature checked, then
