@@ -1,6 +1,6 @@
 # The side panel: when to use it, and when a modal
 
-The **side panel** is the Glossary's **Slide-over**: a panel on the right that opens over the page (the full width on a phone) so the page stays in view. This guide is the rule for choosing between it and a modal window, and how to build one. It comes from spec 0050 (`docs/specs/0050-side-panel-and-help.md`); a pull request that adds a window checks itself against it.
+The **side panel** is the Glossary's **Slide-over**: a panel on the right that opens over the page so the page stays in view. On a phone it covers the screen, or, for a short panel, rises from the bottom (see [On a phone](#on-a-phone)). This guide is the rule for choosing between it and a modal window, and how to build one. It comes from spec 0050 (`docs/specs/0050-side-panel-and-help.md`); a pull request that adds a window checks itself against it.
 
 ## The rule
 
@@ -19,10 +19,19 @@ const panel = useSlideOver();
 ```
 
 - `open` shows the panel in place of what is open and keeps what was open one step back; the panel then shows a **Back** button. `replace` swaps the content without a step back. `back` and `close` do what they say. Going to another page closes the panel.
-- The host sets the width (the full width on a phone, 26 rem on a desktop; a reading panel such as Help sets `widthToggle: true` and gets a "Wider" / "Narrower" button, about 48 rem, kept for the session), moves focus into the panel when it opens and gives it back to the button that opened it when it closes. Escape and the close button close it. The title names the panel for screen readers, so every panel has one.
+- The host sets the shape (on a phone see below; 26 rem on a desktop; a reading panel such as Help sets `widthToggle: true` and gets a "Wider" / "Narrower" button, about 48 rem, kept for the session), moves focus into the panel when it opens and gives it back to the button that opened it when it closes. Escape and the close button close it. The title names the panel for screen readers, so every panel has one.
 - The panel is a window for keyboard use like any other: Tab stays inside it while it is open, and Escape always leaves. Every control inside needs a name.
 - `content` is what the page already may show. Anything that depends on who is asking is read on the server with the person as the actor and passed in; the host holds no data and never fetches.
 - A panel that should have its own address (a Metric's quick look, shared by link) uses `?panel=…` through `usePanel` in `apps/web/src/lib/panel-param.ts`, as the panels below do today.
+
+## On a phone
+
+Below 640 px a panel takes one of two shapes (spec 0055). The panel says which; the CSS in `components/ui/sheet.tsx` does the rest, so the address (`?panel=…`), focus, Tab, Escape, the locked page behind and the desktop panel are the same for both.
+
+- **Work panel** (the default): covers the screen. For reading or working for a while: a Metric's quick look, Help, Version history, browsing templates, the Setup Guide.
+- **Short panel** (`short: true` in `panel.open`, `short` on `SlideOverWindow` or `SheetContent`): a bottom sheet as high as its content, at most 85 % of the screen, with a grab bar; it scrolls inside, and its close button or a tap above it closes it. For one quick job: Share, Who can see this, View links, Alert me, Add to deck. The grab bar is a look only; there is no swipe.
+
+`<SheetContent side="bottom">` (the phone's "More" menus) is the same bottom sheet with the same grab bar. Do not build another.
 
 ## What is a panel and what is a modal today
 

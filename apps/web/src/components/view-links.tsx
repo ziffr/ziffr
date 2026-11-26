@@ -19,6 +19,7 @@ const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().
 export function useShowViewLinks() {
   const panel = useSlideOver();
   return (type: "dashboard" | "deck", id: number, snapshot?: { id: number; label: string }) => panel.open({
+    short: true,
     title: "View links",
     description: `For someone outside the team, such as a board member or an investor. They see this ${type} and nothing else, cannot change or ask anything, and no login is needed.`,
     content: <ViewLinksBody type={type} id={id} snapshot={snapshot} />,
