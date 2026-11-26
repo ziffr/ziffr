@@ -37,8 +37,13 @@ export function ShareSheet({ objectType, objectId, name, ownerId, people, shares
   };
   // A link with `?panel=share` opens the panel once the page is up.
   useEffect(() => { if (urlOpen && !mine.current) show(); }, [urlOpen]); // eslint-disable-line react-hooks/exhaustive-deps -- only when the address changes
-  // The panel was closed (Escape, Close, another page): the address stops naming it.
-  useEffect(() => { if (!panel.isOpen && mine.current) { mine.current = false; setUrlOpen(false); } }, [panel.isOpen]); // eslint-disable-line react-hooks/exhaustive-deps -- only when it closes
+  // The panel was closed (Escape, Close, another page): the address stops naming it. Only a change from open counts:
+  // opened from a link, this runs once more before the host has the panel, and must not take the address away then.
+  const wasOpen = useRef(panel.isOpen);
+  useEffect(() => {
+    if (wasOpen.current && !panel.isOpen && mine.current) { mine.current = false; setUrlOpen(false); }
+    wasOpen.current = panel.isOpen;
+  }, [panel.isOpen]); // eslint-disable-line react-hooks/exhaustive-deps -- only when it closes
   return (
     <button type="button" onClick={show} className={buttonVariants({ variant: primary ? "default" : "outline" })}>
       <Share2 aria-hidden /> Share{n ? <span className={cn("fig", primary ? "opacity-80" : "text-muted-foreground")}>{n}</span> : null}

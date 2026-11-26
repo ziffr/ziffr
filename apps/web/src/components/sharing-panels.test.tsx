@@ -78,6 +78,11 @@ describe("Share in the side panel", () => {
     window.history.replaceState(null, "", "/dashboards/1?panel=share");
     await mount(); await tick();
     expect(panel()!.textContent).toContain("Vera Viewer");
+    // The address keeps naming the open panel, so a reload or a copied link shows the same, and closing removes it.
+    expect(new URL(window.location.href).searchParams.get("panel")).toBe("share");
+    await act(async () => button("Close").click()); await tick();
+    expect(panel()).toBeNull();
+    expect(new URL(window.location.href).searchParams.has("panel")).toBe(false);
   });
 
   it("takes ?panel=share out of the address when it closes", async () => {
