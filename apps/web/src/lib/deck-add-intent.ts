@@ -11,23 +11,26 @@ export const DECK_ADD_COOKIE = "ziffr-deck-add";
 /** How long the person has from choosing Add to the deck opening, in seconds. */
 export const DECK_ADD_SECONDS = 120;
 
+/** What was asked for: a copy of a widget on a slide (null: a new one), or a Snapshot's slides (spec 0061). */
+export type DeckAddIntent = { widgetId: number; slide: string | null } | { snapshotId: number };
+
 /** What the cookie holds, and the random value the address must repeat. */
-export function newIntent(personId: string, deckId: number, widgetId: number, slide: string | null): { cookie: string; nonce: string } {
+export function newIntent(personId: string, deckId: number, what: DeckAddIntent): { cookie: string; nonce: string } {
   const nonce = randomBytes(16).toString("base64url");
-  return { cookie: JSON.stringify({ personId, deckId, widgetId, slide, nonce }), nonce };
+  return { cookie: JSON.stringify({ personId, deckId, ...what, nonce }), nonce };
 }
 
-/** The widget and slide to add to deck `deckId`, if the cookie asks for it for `personId` and the address repeats
- * its value. */
-export function readIntent(cookie: string | undefined, personId: string, deckId: number, nonce: string | undefined): { widgetId: number; slide: string | null } | null {
+/** What to add to deck `deckId`, if the cookie asks for it for `personId` and the address repeats its value. */
+export function readIntent(cookie: string | undefined, personId: string, deckId: number, nonce: string | undefined): DeckAddIntent | null {
   if (!cookie || !nonce || nonce.length > 64) return null;
   try {
-    const v = JSON.parse(cookie) as { personId?: unknown; deckId?: unknown; widgetId?: unknown; slide?: unknown; nonce?: unknown };
-    if (v.personId !== personId || v.deckId !== deckId || typeof v.nonce !== "string" || !Number.isSafeInteger(v.widgetId)) return null;
+    const v = JSON.parse(cookie) as { personId?: unknown; deckId?: unknown; widgetId?: unknown; slide?: unknown; snapshotId?: unknown; nonce?: unknown };
+    if (v.personId !== personId || v.deckId !== deckId || typeof v.nonce !== "string") return null;
     const a = Buffer.from(v.nonce);
     const b = Buffer.from(nonce);
     if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-    return { widgetId: v.widgetId as number, slide: typeof v.slide === "string" ? v.slide : null };
+    if (Number.isSafeInteger(v.snapshotId)) return { snapshotId: v.snapshotId as number };
+    return Number.isSafeInteger(v.widgetId) ? { widgetId: v.widgetId as number, slide: typeof v.slide === "string" ? v.slide : null } : null;
   } catch {
     return null;
   }

@@ -26,6 +26,7 @@ vi.mock("@/app/view-link-actions", () => ({
 }));
 vi.mock("@/app/canvas-actions", () => ({ setShare: async () => ({}), setGroupShare: async () => ({}) }));
 vi.mock("@/app/team-actions", () => ({ inviteMember: async () => ({}) }));
+vi.mock("@/app/deck-actions", () => ({ deckShareLeftOut: async () => ({ who: { p2: [{ from: "Sales, Q3 2026", count: 3 }] }, unnamed: 1 }) }));
 import { SlideOverProvider } from "./slide-over-host";
 import { ShareSheet } from "./share-sheet";
 import { useShowWhoCanSee } from "./who-can-see";
@@ -90,6 +91,14 @@ describe("Share in the side panel", () => {
     await act(async () => button("Share").click()); await tick();
     await act(async () => button("Close").click()); await tick();
     expect(new URL(window.location.href).searchParams.has("panel")).toBe(false);
+  });
+
+  it("says on a deck, before anything is shared, who will not see which Snapshot Parts", async () => {
+    await act(async () => { root.render(<SlideOverProvider><ShareSheet objectType="deck" objectId={2} name="Review" ownerId="p1" people={people} shares={[]} /></SlideOverProvider>); });
+    await act(async () => button("Share").click()); await tick();
+    expect(panel()!.textContent).toContain("Cannot see 3 Snapshot Parts (Sales, Q3 2026). Ask the dashboard's owner to share it.");
+    expect(panel()!.textContent).toContain("does not show anyone the numbers its slides keep from a Snapshot");
+    expect(panel()!.textContent).toContain("One part shows nothing to you");
   });
 
   it("opens Who can see this and View links on top, with Back to Share", async () => {

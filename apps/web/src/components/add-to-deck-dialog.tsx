@@ -1,33 +1,39 @@
 "use client";
-// "Add to deck…" from a widget's menu (ticket #1; GLOSSARY: Widget, Deck): pick a deck the person may change, or a
-// new one, and a slide or a new slide; the deck opens with an independent copy of the widget there. The decks are
-// asked for when the panel opens (spec 0050), so a dashboard full of widgets loads none of them.
+// "Add to deck…" from a widget's menu (ticket #1) and "Add to a deck…" on a shown Snapshot (spec 0061; GLOSSARY:
+// Widget, Snapshot, Deck): pick a deck the person may change, or a new one; for a widget also a slide or a new one.
+// The deck opens with an independent copy of the widget there, or with the Snapshot's slides at its end. The decks
+// are asked for when the panel opens (spec 0050), so a dashboard full of widgets loads none of them.
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
-import { addToDeck, deckChoices } from "@/app/convert-actions";
+import { addSnapshotToDeck, addToDeck, deckChoices } from "@/app/convert-actions";
 import type { DeckTarget } from "@ziffr/core/deck-additions";
 import { SlideOverWindow } from "./slide-over-window";
 
 const NEW = "new";
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-transparent px-2 text-sm";
 
-/** The window behind "Add to deck…" for one widget, in the side panel while `open`. */
-export function AddToDeckDialog({ widgetId, open, onOpenChange }: { widgetId: number; open: boolean; onOpenChange: (open: boolean) => void }) {
+/** What is added: a copy of one widget, or a Snapshot's slides. */
+type Source = { widgetId: number } | { snapshotId: number };
+
+/** The window behind "Add to deck…", in the side panel while `open`. */
+export function AddToDeckDialog({ open, onOpenChange, ...source }: Source & { open: boolean; onOpenChange: (open: boolean) => void }) {
   if (!open) return null;
+  const widget = "widgetId" in source;
   return (
-    <SlideOverWindow short title="Add to deck" description="A copy of this widget goes on the slide you pick. The deck opens there; the widget here stays as it is." onClose={() => onOpenChange(false)}>
-      <AddToDeckForm widgetId={widgetId} onClose={() => onOpenChange(false)} />
+    <SlideOverWindow short title={widget ? "Add to deck" : "Add to a deck"} description={widget ? "A copy of this widget goes on the slide you pick. The deck opens there; the widget here stays as it is." : "A slide for each part of this Snapshot goes at the end of the deck you pick. The numbers never change, and each person sees them only if they may open the Snapshot."} onClose={() => onOpenChange(false)}>
+      <AddToDeckForm source={source} onClose={() => onOpenChange(false)} />
     </SlideOverWindow>
   );
 }
 
-function AddToDeckForm({ widgetId, onClose }: { widgetId: number; onClose: () => void }) {
+function AddToDeckForm({ source, onClose }: { source: Source; onClose: () => void }) {
   const [decks, setDecks] = useState<DeckTarget[] | null>(null);
   const [deck, setDeck] = useState<string>(NEW);
   const [slide, setSlide] = useState<string>(NEW);
   const [pending, start] = useTransition();
+  const widget = "widgetId" in source;
 
   useEffect(() => {
     if (decks) return;
@@ -46,8 +52,10 @@ function AddToDeckForm({ widgetId, onClose }: { widgetId: number; onClose: () =>
   const add = () => start(async () => {
     try {
       // On success the server opens the deck; only a refusal comes back.
-      unwrap(await addToDeck(widgetId, chosen ? chosen.id : null, chosen && slide !== NEW ? slide : null));
+      const into = chosen ? chosen.id : null;
+      unwrap(await ("widgetId" in source ? addToDeck(source.widgetId, into, chosen && slide !== NEW ? slide : null) : addSnapshotToDeck(source.snapshotId, into)));
     } catch (e) {
+      if ((e as { digest?: string }).digest?.startsWith("NEXT_REDIRECT")) throw e;
       toast.error("Not added", { description: shown(e) });
     }
   });
@@ -63,8 +71,8 @@ function AddToDeckForm({ widgetId, onClose }: { widgetId: number; onClose: () =>
                 <option value={NEW}>New deck</option>
               </select>
             </label>
-            {!decks.length && <p className="text-xs text-muted-foreground">You may change no deck yet: a new one is made, named after the widget.</p>}
-            {chosen && (
+            {!decks.length && <p className="text-xs text-muted-foreground">You may change no deck yet: a new one is made, named after the {widget ? "widget" : "Snapshot"}.</p>}
+            {chosen && widget && (
               <label className="block space-y-1">
                 <span className="text-xs font-medium">Slide</span>
                 <select className={field} value={slide} onChange={(e) => setSlide(e.target.value)} aria-label="Slide">

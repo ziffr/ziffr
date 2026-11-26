@@ -1,6 +1,6 @@
 "use client";
 import "tldraw/tldraw.css";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ThemeScope } from "@/components/theme-scope";
 import { ThemePicker } from "@/components/theme-picker";
 import { setDeckTheme } from "@/app/theme-actions";
@@ -10,12 +10,12 @@ import { useViewerDark } from "@/lib/use-viewer-dark";
 import { toast } from "sonner";
 import { isActionError } from "@/lib/action-error";
 import { ChevronDown, Eye, FileDown, Group as GroupIcon, History, LayoutTemplate, Link2, MonitorPlay, MoreHorizontal, Palette, Plus, Presentation, Printer, Trash2, Ungroup } from "lucide-react";
-import { createShapeId, DefaultDashStyle, DefaultFontStyle, DefaultStylePanel, getSnapshot, Tldraw, useEditor, useValue, type Editor, type TLComponents, type TLEditorSnapshot, type TLUiStylePanelProps } from "tldraw";
+import { createShapeId, DefaultDashStyle, DefaultFontStyle, DefaultStylePanel, getSnapshot, Tldraw, useEditor, useValue, type Editor, type TLComponents, type TLEditorSnapshot, type TLShapeId, type TLUiStylePanelProps } from "tldraw";
 import { Pool } from "@/components/pool";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { noteDeckExport, renameDeck, saveDeck, setDeckFooter } from "@/app/deck-actions";
+import { noteDeckExport, readDeckNumbers, renameDeck, saveDeck, setDeckFooter } from "@/app/deck-actions";
 import { doneAddingToDeck } from "@/app/convert-actions";
 import { DeleteDeckDialog } from "./delete-deck";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,12 @@ import { SaveDeckDialog, SaveSlideDialog } from "@/components/save-template-dial
 import { fromDeckTemplate, fromSlideLayout } from "@ziffr/core/team-templates";
 import type { DeckTemplateSummary } from "@ziffr/core/deck-templates";
 import type { DeckAddition } from "@ziffr/core/deck-additions";
+import type { SnapshotSlides } from "@ziffr/core/deck-snapshots";
+import { SNAPSHOT_PART_SHAPE, withoutKeptNumbers } from "@ziffr/core/snapshot-parts";
+import { SnapshotPartShapeUtil } from "@/decks/kept/part-shape";
+import { KeptNumbers, keptOf, setDeckExportKept, useDeckKept } from "@/decks/kept/kept-store";
+import { onSlide, type Kept } from "@/decks/kept/kept-drawing";
+import { LiveNumbersNote } from "@/decks/kept/live-note";
 import { fillText } from "@ziffr/core/placeholders";
 import type { SlideBody, SlideShape, SlideTemplate } from "@ziffr/core/types";
 import { DEFAULT_TEMPLATE, TEMPLATES, templatesFor } from "@/views/templates";
@@ -38,9 +44,9 @@ import { ElementPanel } from "@/decks/elements/element-panel";
 import { ElementMenu } from "@/decks/elements/element-menu";
 import Link from "next/link";
 import { DeckData, setDeckExportData, WIDGET_SHAPE, WidgetShapeUtil, type WidgetShape } from "@/decks/widget-shape";
-import { type DeckSeed, LAYOUTS, type LayoutId, MARGIN, SLIDE_H, SLIDE_W, addSlide, contentAreas, orderedSlides, placeShapes, seedSlides, slideShapes, templateSlides } from "@/decks/layouts";
+import { type DeckSeed, LAYOUTS, type LayoutId, MARGIN, SLIDE_H, SLIDE_W, addSlide, contentAreas, orderedSlides, placeShapes, seedSlides, slideShapes, snapshotSlides, templateSlides } from "@/decks/layouts";
 import { freeSpot } from "@/decks/placement";
-import { exportPdf, exportPptx } from "@/decks/export";
+import { exportPdf, exportPptx, exportSeriesIds } from "@/decks/export";
 import { SeriesProvider, useCanvasSeries, useEnsure } from "@/canvas/series-store";
 import { keepContentLocal, LOCAL_ONLY_OVERRIDES } from "@/canvas/keep-local";
 import { useOpenVersions, VersionsSheetOpen } from "@/components/versions-sheet";
@@ -48,7 +54,7 @@ import { ShareSheet } from "@/components/share-sheet";
 import { useShowWhoCanSee } from "@/components/who-can-see";
 import { useShowViewLinks } from "@/components/view-links";
 
-const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
+const shapeUtils = [WidgetShapeUtil, SnapshotPartShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
 const DECK_TEMPLATE: TemplateId = "line";
 
@@ -58,7 +64,11 @@ type Props = { deck: { id: number; name: string; document: unknown; theme_id: nu
   /** The viewer's own Deck Templates, which saving the deck as one may replace. */
   deckTemplates?: Pick<DeckTemplateSummary, "id" | "name" | "description" | "slots">[];
   /** A widget added from its menu (ticket #1), checked by the core: placed once on its slide or a new one. */
-  addition?: DeckAddition | null };
+  addition?: DeckAddition | null;
+  /** A Snapshot being added (spec 0061), checked by the core: its slides are placed once at the end. */
+  snapshot?: SnapshotSlides | null;
+  /** The Snapshot numbers the person gets for what the slides keep. */
+  kept: Kept };
 
 /** The deck editor. The page sends the series of the deck's widgets; a widget placed since fetches its own
  * (ticket #125). */
@@ -67,12 +77,13 @@ export function DeckEditor(props: Props) {
   return <SeriesProvider ensure={ensure}><DeckCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTemplates = [], addition = null }: Props) {
+function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTemplates = [], addition = null, snapshot: adding = null, kept: sent }: Props) {
   const ensure = useEnsure();
   // The newest data, for an export that first fetched what it lacked.
   const latest = useRef(data);
   latest.current = data;
   const [editor, setEditor] = useState<Editor | null>(null);
+  const { kept, refresh } = useDeckKept(editor, sent, readDeckNumbers);
   const [name, setName] = useState(deck.name);
   const [footer, setFooter] = useState<string | null>(deck.footer);
   const [themeId, setThemeId] = useState<number | null>(deck.theme_id);
@@ -99,8 +110,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
   masterRef.current = master;
   // What onMount lays out a new deck from, read through a ref: onMount sets the editor up once, and a dependency on
   // them would set it up again (and listen twice) whenever the metrics change (#3).
-  const firstLayout = useRef({ seed, templateSeed, data, addition });
-  firstLayout.current = { seed, templateSeed, data, addition };
+  const firstLayout = useRef({ seed, templateSeed, data, addition, adding });
+  firstLayout.current = { seed, templateSeed, data, addition, adding };
 
   // A widget added from its menu is placed once, even if the editor mounts twice.
   const placed = useRef(false);
@@ -117,7 +128,9 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
       ed.setStyleForNextShapes(DefaultFontStyle, "sans");
       ed.setStyleForNextShapes(DefaultDashStyle, "solid");
       let seeded = false;
-      if (!orderedSlides(ed).length) {
+      // A new deck for a Snapshot's numbers starts with the Snapshot's own slides, not a title slide of its own.
+      const fromSnapshot = firstLayout.current.adding && !placed.current;
+      if (!orderedSlides(ed).length && !fromSnapshot) {
         // A new deck made from a dashboard or a Deck Template gets its slides laid out; any other starts with a title slide.
         const { seed, templateSeed, data: first } = firstLayout.current;
         const byId = (ids: number[]) => ids.map((mid) => first.metrics.find((m) => m.id === mid)!).filter(Boolean);
@@ -128,7 +141,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
             : addSlide(ed, "title", masterRef.current);
         seeded = Boolean(templateSeed);
         ed.zoomToBounds(ed.getShapePageBounds(id)!, { inset: 48 });
-      } else {
+      } else if (orderedSlides(ed).length) {
         ed.zoomToBounds(ed.getShapePageBounds(orderedSlides(ed)[0].id)!, { inset: 48 });
       }
       const save = () => {
@@ -144,20 +157,23 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
             .catch(() => setStatus("unsaved"));
         }, 800);
       };
-      // A widget added from its menu goes on its slide, or a new one at the end, and the deck opens there.
-      const added = firstLayout.current.addition;
-      if (added && !placed.current) {
+      // A widget added from its menu goes on its slide, or a new one at the end; a Snapshot's slides go at the end. The
+      // deck opens there.
+      const { addition: added, adding: fromMenu } = firstLayout.current;
+      if ((added || fromMenu) && !placed.current) {
         placed.current = true;
-        const slide = placeAddition(ed, masterRef.current, added, firstLayout.current.data);
-        ed.select(slide);
-        ed.zoomToBounds(ed.getShapePageBounds(slide)!, { inset: 48 });
+        const slide = added ? placeAddition(ed, masterRef.current, added, firstLayout.current.data) : snapshotSlides(ed, masterRef.current, fromMenu!);
+        if (slide) {
+          ed.select(slide);
+          ed.zoomToBounds(ed.getShapePageBounds(slide)!, { inset: 48 });
+        }
         seeded = true;
         // Placed once: the address no longer asks for it, so reloading adds nothing more. Back still leads where it
         // came from.
         window.history.replaceState(null, "", `/decks/${deck.id}`);
         // Used once: the request is cleared, so opening the same address again adds nothing.
         doneAddingToDeck().catch(() => {});
-        toast.success("Added to the deck", { description: "It is a copy: changes here leave the original as it is.", action: { label: "Go back", onClick: () => window.history.back() } });
+        toast.success("Added to the deck", { description: addedWords(fromMenu), action: { label: "Go back", onClick: () => window.history.back() } });
       }
       // Slides laid out from a Deck Template, or a widget added, are the deck now: kept at once.
       if (seeded) save();
@@ -190,6 +206,13 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
       setDeckExportData(null);
     };
   }, [data]);
+
+  useEffect(() => {
+    setDeckExportKept(kept);
+    return () => {
+      setDeckExportKept(null);
+    };
+  }, [kept]);
 
   /** Turn a Pool item into widget props. */
   const slotFill = useSlotFill(data);
@@ -240,8 +263,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
     });
   };
 
-  const [layoutShapes, setLayoutShapes] = useState<SlideShape[] | null>(null);
-  const [deckSlides, setDeckSlides] = useState<SlideShape[][] | null>(null);
+  const [layout, setLayout] = useState<{ shapes: SlideShape[]; note?: string } | null>(null);
+  const [deckSlides, setDeckSlides] = useState<{ slides: SlideShape[][]; note?: string } | null>(null);
   /** A team slide layout: its slots filled, its words filled in from today's data, as a new slide at the end. */
   const newSlideFrom = async (t: SlideTemplate) => {
     if (!editor) return;
@@ -265,16 +288,18 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
     if (!editor) return;
     setBusy(kind);
     try {
+      // Asked again for the file: what the person may see now, not when the page opened.
+      const numbers = await refresh();
+      setDeckExportKept(numbers);
       if (kind === "pptx") {
         // Slides not on screen were never drawn, so a widget there may still lack its series: fetch them first.
-        const ids = editor.store.allRecords().flatMap((r) => (r.typeName === "shape" && r.type === WIDGET_SHAPE ? (r as WidgetShape).props.metricIds : []));
-        if (ensure) { await ensure([...new Set(ids)]); await new Promise((r) => setTimeout(r, 0)); }
-        await exportPptx(editor, latest.current, name, designedMaster, theme);
+        if (ensure) { await ensure(exportSeriesIds(editor)); await new Promise((r) => setTimeout(r, 0)); }
+        await exportPptx(editor, latest.current, name, designedMaster, theme, numbers);
       }
-      else await exportPdf(editor, name);
+      else await exportPdf(editor, name, latest.current, numbers);
       // For the Audit Log; a failure to note it never spoils the export the person already has.
       noteDeckExport(deck.id, kind).catch(() => {});
-      toast.success(kind === "pptx" ? "PowerPoint downloaded" : "PDF ready to print", { description: "Values are a snapshot of today. The deck in Ziffr stays live." });
+      toast.success(kind === "pptx" ? "PowerPoint downloaded" : "PDF ready to print", { description: numbers.asked.length ? "Slides that keep numbers show their Snapshot's; other values are today's." : "Values are a snapshot of today. The deck in Ziffr stays live." });
     } catch (e) {
       console.error(e);
       toast.error("Export failed", { description: "One slide could not be rendered. Try again, or remove the last thing you added." });
@@ -285,6 +310,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
 
   return (
     <DeckData.Provider value={data}>
+      <KeptNumbers.Provider value={kept}>
       <DeckMaster.Provider value={master}>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Presentation aria-hidden className="size-5 text-muted-foreground max-sm:hidden" />
@@ -345,10 +371,10 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem onClick={show("theme")}><Palette aria-hidden /> Theme…</DropdownMenuItem>
             <DropdownMenuItem onClick={() => setTimeout(() => showWho("deck", deck.id), 0)}><Eye aria-hidden /> Who can see this</DropdownMenuItem>
-            {sharing && <DropdownMenuItem onClick={() => setTimeout(() => showLinks("deck", deck.id), 0)}><Link2 aria-hidden /> View links…</DropdownMenuItem>}
+            {sharing && <DropdownMenuItem onClick={() => setTimeout(() => showLinks("deck", deck.id, undefined, editor ? withoutKeptNumbers(getSnapshot(editor.store).document).left : 0), 0)}><Link2 aria-hidden /> View links…</DropdownMenuItem>}
             <DropdownMenuItem onClick={() => setTimeout(() => openVersions(true), 0)}><History aria-hidden /> Versions</DropdownMenuItem>
             {sharing && (
-              <DropdownMenuItem disabled={!editor || status !== "saved"} title={status === "saved" ? undefined : "Wait until the deck is saved"} onClick={() => editor && setDeckSlides(orderedSlides(editor).map((sl) => slideShapes(editor, sl.id)))}><LayoutTemplate aria-hidden /> Save as Deck Template…</DropdownMenuItem>
+              <DropdownMenuItem disabled={!editor || status !== "saved"} title={status === "saved" ? undefined : "Wait until the deck is saved"} onClick={() => editor && setDeckSlides({ slides: orderedSlides(editor).map((sl) => slideShapes(editor, sl.id)), note: partsNote(editor) })}><LayoutTemplate aria-hidden /> Save as Deck Template…</DropdownMenuItem>
             )}
             {sharing && (
               <>
@@ -371,6 +397,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
         <VersionsSheetOpen type="deck" id={deck.id} people={data.people} reload="page" />
       </div>
 
+      {editor && <LiveNumbersNote editor={editor} />}
+
       {/* The one column may shrink on a phone: without the minimum of 0 the Pool and the canvas set the page's width. */}
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
         <div className="order-2 space-y-4 lg:order-1">
@@ -378,7 +406,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
           {editor && <ElementPanel editor={editor} data={data} />}
           <Pool data={data} saved={saved} onAdd={(s) => place(s)} hint="Drag onto a slide, or click + to add to the slide in view." />
           {slotFill.dialog}
-          {editor && <SelectionPanel editor={editor} data={data} onSaveLayout={setLayoutShapes} />}
+          {editor && <SelectionPanel editor={editor} data={data} onSaveLayout={(slide) => setLayout({ shapes: slideShapes(editor, slide), note: partsNote(editor, slide) })} />}
           {editor && <GroupPanel editor={editor} />}
           <label className="stock block rounded-[var(--radius-card)] p-3 text-sm">
             <span className="mb-1 block text-xs font-medium">Footer on every slide</span>
@@ -389,8 +417,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
             />
             <span className="mt-1 block text-xs text-muted-foreground">Empty uses the theme&rsquo;s footer. Logo, slide numbers and type come from the theme.</span>
           </label>
-          {layoutShapes && <SaveSlideDialog deckId={deck.id} shapes={layoutShapes} data={data} onClose={() => setLayoutShapes(null)} />}
-          {deckSlides && <SaveDeckDialog deckId={deck.id} slides={deckSlides} data={data} existing={deckTemplates} onClose={() => setDeckSlides(null)} />}
+          {layout && <SaveSlideDialog deckId={deck.id} {...layout} data={data} onClose={() => setLayout(null)} />}
+          {deckSlides && <SaveDeckDialog deckId={deck.id} {...deckSlides} data={data} existing={deckTemplates} onClose={() => setDeckSlides(null)} />}
         </div>
         <div
           // Shorter on a phone: a finger on the canvas moves the slides, so the page needs room around it to scroll.
@@ -422,6 +450,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
         Slides export in reading order, left to right and top to bottom. Line and bar widgets become editable PowerPoint charts; gauges and analyses go in as images.
       </p>
       </DeckMaster.Provider>
+      </KeptNumbers.Provider>
     </DeckData.Provider>
   );
 }
@@ -462,7 +491,7 @@ function GroupPanel({ editor }: { editor: Editor }) {
 }
 
 /** Restyle the selected widget, the same templates as on a dashboard. */
-function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: CanvasData; onSaveLayout: (shapes: SlideShape[]) => void }) {
+function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: CanvasData; onSaveLayout: (slide: TLShapeId) => void }) {
   const slide = useValue("selected slide", () => {
     const s = editor.getOnlySelectedShape();
     return s && s.type === "frame" ? s : null;
@@ -471,6 +500,13 @@ function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: 
     const s = editor.getOnlySelectedShape();
     return s && s.type === WIDGET_SHAPE ? (s as WidgetShape) : null;
   }, [editor]);
+  const ensure = useEnsure();
+  // Read from the editor prop: this panel stands outside the canvas, where tldraw's own hooks have no editor.
+  const keeps = useValue("selected kept shape", () => (shape ? keptOf(editor).get(shape.id) : undefined), [editor, shape]);
+  const numbers = useContext(KeptNumbers);
+  // On a slide that keeps numbers the panel reads the Snapshot's too, never the live ones.
+  const on = onSlide(keeps, numbers, data, {});
+  const shownData = "words" in on ? null : on.data;
   if (slide) {
     return (
       <div className="stock rounded-[var(--radius-card)] p-3">
@@ -497,9 +533,7 @@ function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: 
         <Button
           variant="outline"
           className="mt-3 w-full"
-          onClick={() => {
-            onSaveLayout(slideShapes(editor, slide.id));
-          }}
+          onClick={() => onSaveLayout(slide.id)}
         >
           <LayoutTemplate aria-hidden /> Save slide as layout…
         </Button>
@@ -508,8 +542,8 @@ function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: 
   }
   const kind = shape ? TEMPLATES[shape.props.template as TemplateId]?.kind : null;
   if (!shape || (kind !== "metric" && kind !== "story")) return null;
-  const metric = data.metrics.find((x) => x.id === shape.props.metricIds[0]);
-  const hasBreakdown = !!metric && Object.keys(data.breakdowns[metric.id] ?? {}).length > 0;
+  const metric = shownData?.metrics.find((x) => x.id === shape.props.metricIds[0]);
+  const hasBreakdown = !!metric && Object.keys(shownData!.breakdowns[metric.id] ?? {}).length > 0;
   return (
     <div className="stock rounded-[var(--radius-card)] p-3">
       <label className="text-sm font-medium" htmlFor="deck-template">Visualization</label>
@@ -527,19 +561,35 @@ function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: 
       <p className="mt-1.5 text-xs text-muted-foreground">Line, bars and ranked-bar Findings export as native, editable charts.</p>
       {kind === "story" && metric && (
         <div className="-mx-3 mt-3 border-t border-border">
-          <StoryEditor
-            key={shape.id}
-            widget={widgetFromShape(shape)}
-            data={data}
-            m={metric}
-            onSave={(settings) => editor.updateShape<WidgetShape>({ id: shape.id, type: WIDGET_SHAPE, props: { settings: JSON.stringify(settings) } })}
-          />
+          {/* Nothing fetches live series beside a Snapshot's numbers. */}
+          <SeriesProvider ensure={keeps ? null : ensure}>
+            <StoryEditor
+              key={shape.id}
+              widget={widgetFromShape(shape)}
+              data={shownData!}
+              m={metric}
+              onSave={(settings) => editor.updateShape<WidgetShape>({ id: shape.id, type: WIDGET_SHAPE, props: { settings: JSON.stringify(settings) } })}
+            />
+          </SeriesProvider>
         </div>
       )}
     </div>
   );
 }
 
+
+/** What a layout or a Deck Template of the deck (or of one slide) leaves behind: it keeps no numbers (spec 0061). */
+function partsNote(editor: Editor, slide?: TLShapeId) {
+  const parts = editor.getCurrentPageShapes().filter((s) => s.type === SNAPSHOT_PART_SHAPE && (!slide || editor.getShapeAncestors(s.id).some((a) => a.id === slide)));
+  return parts.length ? "Snapshot Parts are left out: a template keeps no numbers. Its widgets draw live ones." : undefined;
+}
+
+/** What is said once something was added to the deck from a menu elsewhere. */
+function addedWords(snapshot: SnapshotSlides | null) {
+  if (!snapshot) return "It is a copy: changes here leave the original as it is.";
+  const left = snapshot.leftOut === 0 ? "" : snapshot.leftOut === 1 ? " One part is left out: you may not see it." : ` ${snapshot.leftOut} parts are left out: you may not see them.`;
+  return `Its numbers never change, and each person sees them only if they may open the Snapshot.${left}`;
+}
 
 /** Places a widget added from its menu (ticket #1): on its slide at the first free spot, never on top of what is
  * there, or on a new slide at the end titled after it. Answers the slide. */
