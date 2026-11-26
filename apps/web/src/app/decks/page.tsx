@@ -26,10 +26,10 @@ export default async function DecksPage() {
   return (
     <>
       <PageHeader title="Decks" sub="Lay out widgets, text and arrows on 16:9 slides, then export a PowerPoint or a PDF with today’s values.">
-        {can(actor, "create") && <Link href="/themes" className="text-sm underline">Themes</Link>}
+        {can(actor, "create") && <Link href="/themes" className="text-sm underline max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">Themes</Link>}
         {can(actor, "create") && (
-          <AnsweredForm action={createDeck} className="flex gap-2">
-            <Input name="name" placeholder="Name of the new deck" aria-label="Name of the new deck" className="w-56" />
+          <AnsweredForm action={createDeck} className="flex gap-2 max-sm:flex-wrap">
+            <Input name="name" placeholder="Name of the new deck" aria-label="Name of the new deck" className="w-56 max-sm:w-auto max-sm:min-w-40 max-sm:flex-1" />
             <Button type="submit">New deck</Button>
           </AnsweredForm>
         )}

@@ -16,6 +16,10 @@ import { ReadOnlyFrame, type FrameWidget } from "./read-only-frame";
 const COL = 84;
 const ROW = 36;
 const GAP = 16;
+// A Preview laid out narrower than on a desktop: the room added for footer lines that wrap, and the width a view
+// that is a table needs before its last column is cut off (an inert Preview cannot be scrolled).
+const REFLOW_ROOM = 40;
+const REFLOW_MIN_WIDTH: Partial<Record<TemplateId, number>> = { scoreboard: 420 };
 
 /** The size in pixels a widget of `w` × `h` grid cells has on a dashboard. */
 function cellsToPixels(size: { w: number; h: number }) {
@@ -32,14 +36,20 @@ type Props = {
   /** Says "Sample data" on it. */
   sample?: boolean;
   className?: string;
+  /** Lay the widget out at the width given, with its words at their usual size, instead of scaling it down: how a
+   * phone's dashboard shows it. */
+  reflow?: boolean;
 };
 
 /** A widget drawn small and inert at its own proportions. */
-export function Preview({ widget, data, size, width = 280, sample, className }: Props) {
-  const natural = cellsToPixels(size);
+export function Preview({ widget, data, size, width = 280, sample, className, reflow = false }: Props) {
+  const cells = cellsToPixels(size);
+  const narrow = Math.max(width, REFLOW_MIN_WIDTH[widget.template] ?? 0);
+  const natural = reflow && cells.width > narrow ? { width: narrow, height: cells.height + REFLOW_ROOM } : cells;
   const scale = Math.min(1, width / natural.width);
   const free = TEMPLATES[widget.template]?.kind === "layout" && !widget.settings.canvas?.document;
-  return (
+  const badge = (place: string) => <span className={cn("rounded-[var(--radius-input)] bg-[var(--color-cotton)] px-1.5 py-0.5 text-xs text-muted-foreground shadow-[var(--edge-stock)]", place)}>Sample data</span>;
+  const frame = (
     <div
       aria-hidden
       inert
@@ -51,21 +61,21 @@ export function Preview({ widget, data, size, width = 280, sample, className }: 
         {/* A free layout's Preview is a sketch of one: drawing a real one loads tldraw, too heavy for a list. */}
         {free ? <LayoutSketch /> : <ReadOnlyFrame widget={widget} data={data} />}
       </div>
-      {sample && (
-        <span className="absolute top-1.5 right-1.5 rounded-[var(--radius-input)] bg-[var(--color-cotton)] px-1.5 py-0.5 text-xs text-muted-foreground shadow-[var(--edge-stock)]">Sample data</span>
-      )}
+      {sample && !reflow && badge("absolute top-1.5 right-1.5")}
     </div>
   );
+  // Laid out narrow, a widget's words reach its corners: the badge stands above it instead of over them.
+  return sample && reflow ? <div className="flex flex-col items-end gap-1">{badge("mr-1.5")}{frame}</div> : frame;
 }
 
 /** A built-in or team Widget Template's Preview, drawn with Sample Data. */
-export function TemplatePreview({ template, viewer, numberStyle, width, className }: { template: TemplateId | Pick<WidgetTemplate, "view" | "body" | "slots" | "w" | "h">; viewer: string; numberStyle: NumberStyle; width?: number; className?: string }) {
+export function TemplatePreview({ template, viewer, numberStyle, width, className, reflow }: { template: TemplateId | Pick<WidgetTemplate, "view" | "body" | "slots" | "w" | "h">; viewer: string; numberStyle: NumberStyle; width?: number; className?: string; reflow?: boolean }) {
   const data = useMemo(() => sampleCanvasData(viewer, numberStyle), [viewer, numberStyle]);
   const { widget, size } = useMemo((): { widget: SampleWidget; size: { w: number; h: number } } => {
     if (typeof template === "string") return { widget: sampleWidget(template), size: TEMPLATES[template].size };
     return { widget: sampleTeamWidget(template), size: { w: template.w, h: template.h } };
   }, [template]);
-  return <Preview widget={widget} data={data} size={size} width={width} sample className={className} />;
+  return <Preview widget={widget} data={data} size={size} width={width} sample className={className} reflow={reflow} />;
 }
 
 /** A Dashboard Template's Preview (spec 0014, #191): its widgets where they sit on the 12-column grid, drawn with

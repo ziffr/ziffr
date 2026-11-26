@@ -17,5 +17,7 @@ export default async function DeckPresentPage({ params, searchParams }: { params
   void countView(actor, { kind: "deck", id });
   // A slideshow draws only the deck's widgets: only their series go to the browser.
   const data = await getCanvasData(viewer, deckMetricIds(deck.document));
-  return <SlideshowLoader deck={{ id: deck.id, name: deck.name, document: deck.document, theme_id: deck.theme_id, footer: deck.footer }} data={data} start={Number((await searchParams).at) || 0} />;
+  // Someone who may only present has no deck page to go back to (it sends them here again): they go to the list.
+  const back = view.role === "viewer" ? "/decks" : `/decks/${id}`;
+  return <SlideshowLoader back={back} deck={{ id: deck.id, name: deck.name, document: deck.document, theme_id: deck.theme_id, footer: deck.footer }} data={data} start={Number((await searchParams).at) || 0} />;
 }
