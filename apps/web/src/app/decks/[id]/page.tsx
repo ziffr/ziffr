@@ -8,7 +8,9 @@ import { getCanvasData } from "@/lib/access";
 import { DeckEditorLoader } from "./loader";
 import { countView } from "@/lib/count-view";
 import { deckSeed } from "@ziffr/core/conversions";
-import { snapshotDeckSeed } from "@ziffr/core/snapshots";
+import { readKeptNumbers, snapshotAddition } from "@ziffr/core/deck-snapshots";
+import { keptRequests } from "@ziffr/core/snapshot-parts";
+import { withParts } from "@/decks/kept/kept-drawing";
 import { deckTemplateSeed, importSeedOf, listDeckTemplates, readFills } from "@ziffr/core/deck-templates";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { deckAddition } from "@ziffr/core/deck-additions";
@@ -17,11 +19,10 @@ import { followDemoSuccessor } from "@/lib/demo-follow";
 import { DECK_ADD_COOKIE, readIntent } from "@/lib/deck-add-intent";
 import { DesktopOnly } from "@/components/desktop-only";
 
-export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; snapshot?: string; template?: string; fills?: string; add?: string }> }) {
+export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; template?: string; fills?: string; add?: string }> }) {
   const id = Number((await params).id);
   const sp = await searchParams;
   const from = Number(sp.from);
-  const fromSnapshot = Number(sp.snapshot);
   const viewer = await viewerId();
   const actor = await currentActor();
   // Only decks of this workspace exist here; another workspace's deck ids and owners stay unknown.
@@ -41,27 +42,29 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
   // A new, empty deck made from a dashboard (spec 0010) gets that one's widgets as its first slides; the
   // core checks the person may open it. Any other deck, or one that has slides, starts as it is.
   const empty = !Object.values((deck.document as { store?: Record<string, { type?: string }> } | null)?.store ?? {}).some((r) => r.type === "frame");
-  // Made from a Snapshot (spec 0013): its widgets with its words, drawing the values of its period only.
-  const seed = !empty ? null
-    : Number.isInteger(fromSnapshot) && fromSnapshot > 0 ? await snapshotDeckSeed(actor, fromSnapshot).catch(() => null)
-    : Number.isInteger(from) && from > 0 ? await deckSeed(actor, from).catch(() => null) : null;
+  const seed = empty && Number.isInteger(from) && from > 0 ? await deckSeed(actor, from).catch(() => null) : null;
   // Made from a Deck Template (spec 0030): its slides with its Slots filled; the core checks every Metric again.
   const fromTemplate = Number(sp.template);
   // A deck imported from a Workspace Export (spec 0040) waits with its template and fills in its document: laid out now.
   const waiting = empty ? importSeedOf(deck.document) : null;
   const templateSeed = empty && !seed && Number.isInteger(fromTemplate) && fromTemplate > 0 ? await deckTemplateSeed(actor, fromTemplate, readFills(sp.fills)).catch(() => null)
     : empty && !seed && waiting ? await deckTemplateSeed(actor, waiting.template, waiting.fills).catch(() => null) : null;
-  // A widget added from its menu (ticket #1), only when the person's own menu asked for it (deck-add-intent.ts): the
-  // core checks again that they may change the deck, open the widget and see its Metrics; the editor places the
-  // copy on that slide or a new one and saves.
+  // A widget added from its menu (ticket #1) or a Snapshot's slides (spec 0061), only when the person's own menu asked
+  // for it (deck-add-intent.ts): the core checks again that they may change the deck and may open what is added; the
+  // editor places it and saves.
   const intent = readIntent((await cookies()).get(DECK_ADD_COOKIE)?.value, actor.personId, id, sp.add);
-  const addition = intent ? await deckAddition(actor, id, intent.widgetId, intent.slide).catch(() => null) : null;
-  const [data, saved, shares, groups] = await Promise.all([
+  const snapshot = intent && "snapshotId" in intent ? await snapshotAddition(actor, id, intent.snapshotId).catch(() => null) : null;
+  const addition = intent && "widgetId" in intent ? await deckAddition(actor, id, intent.widgetId, intent.slide).catch(() => null) : null;
+  // What the slides keep of Snapshots, with what is about to be added: each as this person may see it.
+  const kept = keptRequests(deck.document);
+  const asked = snapshot ? withParts(kept, snapshot.snapshotId, snapshot.parts) : kept;
+  const [data, saved, shares, groups, numbers] = await Promise.all([
     // The deck's own widgets' series; one placed in the editor fetches its own.
     getCanvasData(viewer, [...deckMetricIds(deck.document), ...(seed?.widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)) ?? []), ...(templateSeed?.fills.flat() ?? []), ...(addition ? widgetMetricIds(addition.widget.metric_ids, addition.widget.settings) : [])]),
     savedWidgets(actor),
     getRawShares(),
     getGroups(),
+    readKeptNumbers(actor, asked),
   ]);
   return (
     <>
@@ -73,6 +76,8 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
         seed={seed}
         templateSeed={templateSeed}
         addition={addition}
+        snapshot={snapshot}
+        kept={{ asked, read: numbers }}
         deckTemplates={(await listDeckTemplates(actor)).filter((t) => t.owner_id === actor.personId).map(({ id, name, description, slots }) => ({ id, name, description, slots }))}
         sharing={role === "owner" ? { shares, groups, ownerId: deck.owner_id, canInvite: can(actor, "manage-members"), reveals: await revealedBy(deckMetricIds(deck.document), deck.owner_id) } : null}
       />

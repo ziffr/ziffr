@@ -78,8 +78,9 @@ export function useCanvasSeries(data: CanvasData): { data: CanvasData; ensure: E
   return { data: merged, ensure };
 }
 
-/** Lets the widgets and editors below fetch the series they need. */
-export function SeriesProvider({ ensure, children }: { ensure: Ensure; children: ReactNode }) {
+/** Lets the widgets and editors below fetch the series they need; null where what they draw is all there is, as on a
+ * slide that keeps a Snapshot's numbers, which must never be filled with live ones. */
+export function SeriesProvider({ ensure, children }: { ensure: Ensure | null; children: ReactNode }) {
   return <EnsureContext.Provider value={ensure}>{children}</EnsureContext.Provider>;
 }
 

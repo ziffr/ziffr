@@ -313,11 +313,11 @@ async function readWords(ws: string, row: { id: number; words?: unknown }): Prom
   return openObject(await workspaceCipher(ws), { table: "dashboard_snapshots", column: "words", row: row.id }, row.words) as SnapshotWords;
 }
 
-/** A Snapshot's widgets carrying the words written about them; `extra` settings are added to each (such as asOf). */
-function withWords(widgets: Widget[], words: SnapshotWords, extra: WidgetSettings = {}): Widget[] {
+/** A Snapshot's widgets carrying the words written about them. */
+function withWords(widgets: Widget[], words: SnapshotWords): Widget[] {
   return widgets.map((w) => {
     const own = words.widgets?.[String(w.id)] ?? {};
-    const settings: WidgetSettings = { ...(w.settings ?? {}), ...extra };
+    const settings: WidgetSettings = { ...(w.settings ?? {}) };
     for (const k of WORD_KEYS) if (k !== "title") (settings as Record<string, unknown>)[k] = own[k] || undefined;
     return { ...w, title: own.title || null, settings };
   });
@@ -402,22 +402,6 @@ export async function shownForReader(actor: Actor, snapshotId: number): Promise<
 
 /** Widgets top to bottom, then left to right: the order a Snapshot is read in. */
 const inReadingOrder = (widgets: Widget[]) => [...widgets].sort((a, b) => a.y - b.y || a.x - b.x || a.id - b.id);
-
-/** What a new deck made from a Snapshot starts with (#178): the dashboard's name and the period, the Snapshot's
- * introduction, and its widgets in reading order with the words written about them, each drawing only the Metric
- * periods complete by the period's last day. Only the widgets the person may see now (decided on #193); placing the
- * slides checks again that they see every Metric. */
-export async function snapshotDeckSeed(actor: Actor, snapshotId: number): Promise<{ name: string; intro: string; widgets: Pick<Widget, "template" | "metric_ids" | "settings" | "title">[] }> {
-  const { row } = await readable(actor, snapshotId, `${SUMMARY}, frozen, words`);
-  const frozen = row.frozen as Frozen;
-  const words = await readWords(actor.workspaceId, row);
-  const seen = await forReader(actor, withWords(inReadingOrder(frozen.widgets), words, { asOf: row.period_end }), frozen.data, frozen.themeId);
-  return {
-    name: `${frozen.name}, ${row.label}`.slice(0, 120),
-    intro: String(words.intro ?? ""),
-    widgets: seen.widgets.map((w) => ({ template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title })),
-  };
-}
 
 /** What is recorded now for some Metrics, as the reader sees it: the other side of `correctedSince`. Only the series
  * of Metrics the reader sees come back: getCanvasData leaves the others out. */
