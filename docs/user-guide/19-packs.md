@@ -12,9 +12,9 @@ Each Pack shows "by" its author, with its logo when it has one, in a bordered bo
 
 ## Ziffr's own Packs
 
-**Ziffr's own Packs** lists the twelve Packs that come with this version of Ziffr, for Owners and Admins. Each shows its name, version and summary and what it brings as counts (for example "13 Metrics, 2 dashboards, 2 Workflows"). It works on any Installation, also a self-hosted one with no Marketplace: nothing is downloaded and nothing leaves your server.
+**Ziffr's own Packs** lists the thirteen Packs that come with this version of Ziffr, for Owners and Admins. Each shows its name, version and summary and what it brings as counts (for example "13 Metrics, 2 dashboards, 2 Workflows"). It works on any Installation, also a self-hosted one with no Marketplace: nothing is downloaded and nothing leaves your server.
 
-Choose **Preview with Sample Data** to see everything the Pack adds, drawn with Sample Data and never your own values. Under each Metric it shows its description and, where the Pack has one, **How it is calculated**: what counts, where the figure comes from and which adjustments are made. A Metric you set up from the Pack gets that text, and it is yours to change. These Packs need no confirmation about where they came from; texts aimed at assistants, if one ever had any, would still be listed and need a tick. Choose **Install** to add it. Nothing installs until you do, and the Audit log records it as installed from Ziffr's own Packs. A Pack that holds a Theme, such as SaaS metrics and Board meeting, needs an Owner. A Pack that is installed already shows its version instead of a Preview.
+Choose **Preview with Sample Data** to see everything the Pack adds, drawn with Sample Data and never your own values. Under each Metric it shows its description and, where the Pack has one, **How it is calculated**: what counts, where the figure comes from and which adjustments are made. A Metric you set up from the Pack gets that text, and it is yours to change. These Packs need no confirmation about where they came from; texts aimed at assistants, if one ever had any, would still be listed and need a tick. Choose **Install** to add it. Nothing installs until you do, and the Audit log records it as installed from Ziffr's own Packs. A Pack that holds a Theme, such as SaaS metrics, Board meeting and Sales forecast, needs an Owner. A Pack that is installed already shows its version instead of a Preview.
 
 When a newer Ziffr brings a newer version of a Pack you installed, that Pack shows **Version … comes with this Ziffr…**, which shows what an update changes before it is done, as under Updating a Pack. It is never applied by itself.
 
@@ -26,7 +26,7 @@ Each of Ziffr's own Packs says whom it is for: the industries, the kinds of cust
 
 On a phone the Packs page says at the top that it is easier on a larger screen; see [Screens made for a larger screen](07-getting-started.md#screens-made-for-a-larger-screen).
 
-Ziffr makes twelve starting Packs: SaaS metrics, Online shop, Agency or freelancer, Sports club and a Board meeting deck; five for the functions of a business that any company can use (Sales, Finance, People and HR, Customer support, and Operations and fulfilment); and two for Ziffr's own figures (Workspace usage and Ziffr operations). Each brings its Metrics, a dashboard and a Workflow, and names the ready n8n templates that can fill them. They come with Ziffr: install one from **Ziffr's own Packs**, above, with no download. Their files are also in the `packs` folder of Ziffr's repository, to read or to install as a file.
+Ziffr makes thirteen starting Packs: SaaS metrics, Online shop, Agency or freelancer, Sports club and a Board meeting deck; five for the functions of a business that any company can use (Sales, Finance, People and HR, Customer support, and Operations and fulfilment); [Sales forecast](#the-sales-forecast-pack), for the weekly forecast meeting; and two for Ziffr's own figures (Workspace usage and Ziffr operations). Each brings its Metrics, a dashboard and a Workflow, and names the ready n8n templates that can fill them. They come with Ziffr: install one from **Ziffr's own Packs**, above, with no download. Their files are also in the `packs` folder of Ziffr's repository, to read or to install as a file.
 
 **SaaS metrics** is the fullest: 13 Metrics with Tags, a monthly management report (a dashboard and a deck), a quarterly board deck, Workflows for the monthly and the quarterly close, an Analysis Recipe with its View Design, and a Theme that shows the Pack's logo. It holds a Theme, so an Owner installs it. **Set up from this Pack** makes its Metrics, the monthly dashboard and a close Workflow in one go; the decks start from **From a Deck Template** on the Decks page, with the Pack's Theme already chosen.
 
@@ -41,6 +41,53 @@ Ziffr makes twelve starting Packs: SaaS metrics, Online shop, Agency or freelanc
 Installing makes no Metric, Workflow, dashboard or deck, sends nothing and changes nothing already in the Workspace. Its Metric Catalog entries appear under **New metric** (a Derived Metric's entry only through **Set up from this Pack**, below), its templates where you start a dashboard, deck or Workflow, its View Designs under **Workspace → Library** (an Analysis Recipe as a View Design that draws it), and its Themes on the Themes page. Two Packs may describe the same Metric, such as Revenue: the Metric Catalog then lists both, each under its Pack. A Pack that is installed already is not installed again: update it instead.
 
 The [Setup Guide](07-getting-started.md#the-setup-guide) offers the same Packs in its **Starting point** step, ranked for your Workspace, with the same Preview, Install and **Set up from this Pack**; there the form starts with only the first three Metrics ticked, so your first Metrics exist quickly, and a second press makes nothing twice.
+
+## The Sales forecast Pack
+
+**Sales forecast** is for a team that calls its quarter every week. It is a Pack of its own: the monthly **Sales** Pack stays as it is, and you can have both. **Set up from this Pack** makes:
+
+| What | What it does |
+| --- | --- |
+| **Commit** and **Best case** | The week's two forecast calls for the quarter, deals already won included. |
+| **Closed this quarter**, **Pipeline value** | What was won since the quarter began, and the open deals that can still close in it. |
+| **Quota** | The team's quota for the whole quarter. |
+| **Commit gap to quota**, **Commit as share of quota** | Commit minus Quota, and Commit as a percentage of Quota. 0 or more, and 100 % or more, cover the quota. |
+| **Pipeline coverage** | Pipeline value divided by what is still missing (Quota minus Closed this quarter). 3 times means the open deals are worth three times what is missing. |
+| The dashboard **Weekly forecast meeting** | This week's call against quota and the change on last week, then the last 13 weeks, and the latest commit by salesperson. On a phone the call against quota comes first. |
+| The Workflow **Weekly sales forecast** | Asks on Monday for the week just ended. The values are due on Tuesday, with a reminder that day; the Metric Owner is told on Wednesday about a value still missing. A change of more than 25 % is marked unusual. The sales lead you pick as Approver approves every value, which is then published and locked. Once the week is finished it sends a dashboard's Snapshot to the people you pick. |
+
+All eight Metrics are weekly. The five that people send have the **Aggregation** last value, so a widget shown by quarter shows each quarter's latest figure, never the weeks added up.
+
+The Pack also has a Deck Template, **Weekly forecast meeting**, drawn from [Slide Elements](14-decks-and-themes.md#slide-elements), so every colour and font follows the deck's Theme and the words fill themselves in each week:
+
+| Slide | What it shows |
+| --- | --- |
+| Cover | The deck's title, the week of the quarter and the agenda. |
+| The call | "The commit covers … of quota with … left", Commit, Quota, Best case and Pipeline coverage as figures, and the weeks of the quarter as columns against the quota. |
+| Where the gap sits | Quota and commit by salesperson with the gap as bars. It needs the latest breakdown of both **Commit** and **Quota**, with the same names. Write what you ask the meeting for in the line below. |
+| Change since last week | Every figure with last week's, the change and an 8-week trend. |
+| The weeks of the quarter | Best case and commit by week against the quota. |
+| Pipeline coverage | Coverage by week, with **What happened**, **Why** and **Decision needed** beside it. |
+| Risks, and what we need | **Deals at risk** and **Could still move in** as numbered rows, and **What we need** under them, to write in. |
+
+Three Themes come with the Pack, **Forecast Navy** (the deck starts with it), **Forecast Coral** and **Forecast Forest**: switch the deck's Theme under **⋯ → Theme…**. Each shows a dashed **Your logo** box until you add your logo to the Theme on the Themes page, or delete the box from the slides. A footer you type for the deck, such as "Confidential", follows each slide's source line. Start the deck on the Decks page with **From a Deck Template** and pick the Metric for each Slot. The slides claim only what your figures say: a headline asks a question while a figure it needs is missing, and what only you know, such as why the pipeline moved or what you ask for, is a question to write over. Headlines that make a judgement are yours to write.
+
+**Which week a figure belongs to.** Each week holds the figures as they stood at the end of that week. A reply to Monday's request counts for the week just ended. The form link in it starts at that week while the request is unanswered, and you can pick the running week under **For** instead (see [While a request waits](10-metrics.md#while-a-request-waits)). Once a value is in for the week, the link no longer offers it: to change that figure, also one sent back at **Approval**, sign in, choose **Record a value** and pick the week. In a week that spans two quarters, send the figures of the quarter the week starts in, as Ziffr counts that week to it. Earlier weeks can be brought in with [Paste values](10-metrics.md#paste-values-from-a-spreadsheet).
+
+**The quota** is sent every week, the same figure until it changes: the gap, the share and the coverage are worked out week by week, and a week without a Quota has none of them.
+
+**Empty or below 0.** A calculated Metric has no value while one of its figures is missing. Pipeline coverage also has none when exactly the quota is closed, and is below 0 when more is closed: then nothing is left to cover. The Pack sets no Target Range for coverage; set your own on the Metric's page with **Edit details...**.
+
+**In a Workspace of one**, nobody else can approve, so every value waits for your own check. Change the Approve step to **Unusual values only** if that is more than you want.
+
+**By salesperson.** The simplest way is a **Breakdown**: one person, such as the sales lead, sends the team's figure with one line for each salesperson, such as `Ana 205,000`, and leaves the value empty so the lines are added up. The dashboard shows the latest commit by salesperson. A newer value replaces the earlier one with its lines, so send all lines together. When each salesperson sends their own figure instead:
+
+1. On **Commit**, choose **⋯** → **Duplicate**, name it after the person, such as "Commit Ana", and make that person its only Submitter. Keep the **Workflow** ticked.
+2. Do the same for each salesperson.
+3. Choose **New metric**, then [Calculated from other Metrics](10-metrics.md#calculated-from-other-metrics), and add them up into "Commit, sum of salespeople". It has a value in a week once all of them have one.
+4. The team's **Commit** stays the sales lead's call. Add the sum to the dashboard to see both side by side.
+
+**Sending the Snapshot.** The Workflow has a **Send Snapshot** step; **Set up from this Pack** leaves the dashboard and the people open. Open the Workflow, pick **Weekly forecast meeting** and the people in the step (see [The steps](11-workflows.md#the-steps)), and share the dashboard with them, or the link is not sent to them.
 
 ## Set up from this Pack
 

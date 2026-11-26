@@ -21,6 +21,7 @@ import { recordView } from "./usage";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { forReader, snapshotForLink, type SnapshotWords } from "./snapshots";
 import { dataAsOfEach } from "./snapshot-periods";
+import { withoutKeptNumbers } from "./snapshot-parts";
 import { yearStartOf } from "./fiscal-year";
 import { keptUnit } from "./units";
 import { keptMethod } from "./attainment-method";
@@ -112,6 +113,9 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
   const obj = type === "dashboard" ? await openOne("dashboards", String(stored?.workspace_id), stored) : stored;
   if (!obj) return null;
   const ws = obj.workspace_id as string;
+  // A link shows no Snapshot Part and nothing of a slide that keeps numbers (spec 0061): who sees those is decided
+  // per person, and someone with a link is nobody Ziffr knows. They are left out before anything else is read.
+  const slides = type === "deck" ? withoutKeptNumbers(obj.document as unknown).document : undefined;
   let widgets: Widget[] | undefined;
   let metricIds: number[];
   if (type === "dashboard") {
@@ -119,7 +123,7 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
     // Nothing in a free layout may load from another site when shown through the link (spec 0009).
     widgets = ((await openRows("widgets", ws, data)) as Widget[]).map(widgetWithoutOutside);
     metricIds = [...new Set(widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))];
-  } else metricIds = deckMetricIds(obj.document);
+  } else metricIds = deckMetricIds(slides);
   // Only the series this link can show are read; it filters them further below.
   const full = await getCanvasData(ws, obj.owner_id, { seriesOf: metricIds });
   // Only Metrics the owner sees and, for a live link, agreed to when making it; added ones stay out.
@@ -136,7 +140,7 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
       .map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget);
   }
   // The deck as this link shows it: only the records it had when the link was made, nothing from other sites.
-  const document = type === "deck" ? deckForLink(withoutNestedTagSources(stripOutsideContent(obj.document)), ids, allowedShapes ?? null) : undefined;
+  const document = type === "deck" ? deckForLink(withoutNestedTagSources(stripOutsideContent(slides)), ids, allowedShapes ?? null) : undefined;
   // A deck made from a Snapshot draws its Metrics as of the period's end: then only that much goes out (spec 0013).
   // Read from the deck this link shows, so a widget added since cannot make a Metric go out whole again.
   const data = type === "deck" ? dataAsOfEach(shownData(full, ids, obj.theme_id ?? null), deckAsOf(document)) : shownData(full, ids, obj.theme_id ?? null);

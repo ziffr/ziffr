@@ -1,6 +1,6 @@
 # 0057 Slides that look designed: a slide format with brand colours everywhere and more layout elements
 
-**Status:** in progress. **Ticket:** tracking issue #1158, tickets #1159, #1160, #1161, #1162, #1163 (the owner's approval, 2026-11-26).
+**Status:** done. **Ticket:** tracking issue #1158, tickets #1159, #1160, #1161, #1162, #1163 (the owner's approval, 2026-11-26).
 
 ## Problem Statement
 

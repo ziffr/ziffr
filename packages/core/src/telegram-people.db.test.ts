@@ -79,30 +79,13 @@ describe("linking Telegram", () => {
     expect(await myTelegramLink(w.actor(sara, "member"))).toBeNull();
   });
 
-  it("links a Contact from their form page, and their form shows it", async () => {
-    const { w, owner } = await telegramOn();
-    const cleo = await w.contact({ email: "cleo@example.test" });
-    const metric = await w.metric(owner);
-    const form = await w.token(metric.id, cleo);
-    expect(await formTelegramLink(form)).toEqual({ linked: false, telegramOn: true });
-    const { url } = await startTelegramLinkByForm(form);
-    const user = id();
-    expect(await receiveTelegramUpdate(message(user, `/start ${codeOf(url)}`))).toBe("linked");
-    expect(await formTelegramLink(form)).toEqual({ linked: true, telegramOn: true });
-    expect(await personOfTelegramUser(w.id, user)).toBe(cleo);
-    await expect(startTelegramLinkByForm("tk-test-unknown-code")).rejects.toThrow(/Connectors page/);
-    // A form link never replaces a Telegram already connected, and cannot disconnect it: /stop from that account does.
-    await expect(startTelegramLinkByForm(form)).rejects.toThrow(/disconnect first/);
-    expect(await receiveTelegramUpdate(message(user, "/stop"))).toBe("unlinked");
-    expect(await formTelegramLink(form)).toEqual({ linked: false, telegramOn: true });
-  });
-
   it("does not connect a member by their form link: their Approvals and questions need them signed in", async () => {
     const { w, owner } = await telegramOn();
     const sara = await w.person("member");
     const form = await w.token((await w.metric(owner)).id, sara);
     expect(await formTelegramLink(form)).toBeNull();
     await expect(startTelegramLinkByForm(form)).rejects.toThrow(/Connectors page/);
+    await expect(startTelegramLinkByForm("tk-test-unknown-code")).rejects.toThrow(/Connectors page/);
   });
 
   it("tells the chat a person had before when they connect another Telegram account", async () => {

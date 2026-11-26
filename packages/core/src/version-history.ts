@@ -7,12 +7,15 @@ import { can, Forbidden, Refused, type Actor } from "./actor";
 import { checkedFormula } from "./derived-metrics";
 import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { cleanSlides, cleanTokens } from "./theme-tokens";
-import { deckMetricIds } from "./visibility";
+import { deckMetricIds, deckMetricIdsAdded } from "./visibility";
+import { snapshotPartProblem } from "./snapshot-parts";
 import { widgetMetricIds } from "./widget-metrics";
 import { isDashboardView, isView } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import { diffSummary, openVersionSnapshot, recordVersion, VERSION_TYPES, type VersionType } from "./versions";
-import { insertSealed, sealedPatch } from "./sealed-columns";
+import { sealedPatch } from "./sealed-columns";
+import { replaceDashboard } from "./dashboard-restore";
+import { ServerFault } from "./server-fault";
 import type { Format, ThemeSlides, ThemeTokens, WidgetSettings, WorkflowConfig } from "./types";
 import { keptUnit } from "./units";
 import { calculationNoteFrom } from "./calculation-note";
@@ -140,6 +143,11 @@ export async function saveNamedVersion(actor: Actor, type: VersionType, id: numb
   await recordVersion(type, id, actor.personId, { name: String(visitorOptionalText(actor, String(name ?? ""), "name")).trim().slice(0, 80) || "Named version" });
 }
 
+/** A restore the database did not take is a failure, never recorded as a restored version. */
+function mustRestore({ error }: { error: unknown }) {
+  if (error) throw new ServerFault("The version could not be restored.");
+}
+
 const HIDDEN = "This version shows metrics that are not shared with you, so it cannot be restored by you. Ask the owner.";
 
 /** Writes an old state back and records it as a new version: history only ever grows. A restore places widgets
@@ -162,9 +170,11 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
   // A deck restore may only bring back Metrics the restorer sees, as saving a deck does.
   if (v.object_type === "deck") {
     const { data: cur } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", ws).single();
-    const had = new Set(deckMetricIds(cur?.document).filter(Number.isFinite));
+    // Its Snapshot Parts are checked as a save's are (spec 0061): a Version keeps what was stored.
+    const problem = snapshotPartProblem(s.document);
+    if (problem) throw new Refused(problem);
     const seen = await visible();
-    if (deckMetricIds(s.document).some((m) => !had.has(m) && !seen.has(m))) throw new Error(HIDDEN);
+    if (deckMetricIdsAdded(cur?.document, s.document).some((m) => !seen.has(m))) throw new Error(HIDDEN);
   }
   // A Theme picked back then may be gone since; the dashboard or deck then follows the default.
   if ((v.object_type === "dashboard" || v.object_type === "deck") && s.theme_id) {
@@ -179,49 +189,46 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
     case "theme": {
       const tokens = cleanTokens(s.tokens as ThemeTokens);
       if (!tokens) throw new Forbidden();
-      await db().from("themes").update({ name: String(s.name ?? "").slice(0, 60), tokens, ...(s.slides ? { slides: cleanSlides(s.slides as ThemeSlides) } : {}), updated_at: at }).eq("id", id).eq("workspace_id", ws);
+      mustRestore(await db().from("themes").update({ name: String(s.name ?? "").slice(0, 60), tokens, ...(s.slides ? { slides: cleanSlides(s.slides as ThemeSlides) } : {}), updated_at: at }).eq("id", id).eq("workspace_id", ws));
       break;
     }
     case "template":
       // A template's widget, and a slide layout's widgets, keep their View Designs: checked again before they are stored.
       assertSettingsDesigns((s.body as { settings?: unknown } | undefined)?.settings);
       assertWidgetDesigns(s.body);
-      await db().from("team_templates").update({ kind: s.kind, name: s.name, description: s.description, view: s.view, slots: s.slots, body: s.body, w: s.w, h: s.h, updated_at: at }).eq("id", id).eq("workspace_id", ws);
+      mustRestore(await db().from("team_templates").update({ kind: s.kind, name: s.name, description: s.description, view: s.view, slots: s.slots, body: s.body, w: s.w, h: s.h, updated_at: at }).eq("id", id).eq("workspace_id", ws));
       break;
     case "widget":
       // A Version keeps what was stored; its View Designs are checked again before they are stored once more.
       assertSettingsDesigns(s.settings);
       // A widget of a shared dashboard comes back showing only Metrics the dashboard's recipients see (spec 0051, ticket 11).
       await visitorSharedStaysSeen(actor, "dashboard", demoData(await db().from("widgets").select("dashboard_id").eq("id", id).eq("workspace_id", ws).maybeSingle())?.dashboard_id as number | null | undefined, widgetMetricIds((s.metric_ids as number[] | undefined) ?? [], s.settings as Parameters<typeof widgetMetricIds>[1]));
-      await db().from("widgets").update(await sealedPatch("widgets", ws, id, { template: s.template, metric_ids: s.metric_ids, settings: s.settings, title: s.title })).eq("id", id).eq("workspace_id", ws);
+      mustRestore(await db().from("widgets").update(await sealedPatch("widgets", ws, id, { template: s.template, metric_ids: s.metric_ids, settings: s.settings, title: s.title })).eq("id", id).eq("workspace_id", ws));
       break;
     case "dashboard": {
       const { data: d } = await db().from("dashboards").select("owner_id").eq("id", id).eq("workspace_id", ws).single();
       await visitorSharedStaysSeen(actor, "dashboard", id, ((s.widgets as Record<string, unknown>[]) ?? []).flatMap((w) => widgetMetricIds((w.metric_ids as number[] | undefined) ?? [], w.settings as Parameters<typeof widgetMetricIds>[1])));
-      // Versions from before introductions were kept have none: the introduction then stays as it is.
-      await db().from("dashboards").update(await sealedPatch("dashboards", ws, id, { name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(typeof s.intro === "string" ? { intro: s.intro } : {}) })).eq("id", id).eq("workspace_id", ws);
-      await db().from("widgets").delete().eq("dashboard_id", id).eq("workspace_id", ws);
       const widgets = (s.widgets as Record<string, unknown>[]) ?? [];
+      // Everything that can refuse is asked before anything is written.
       for (const w of widgets) assertSettingsDesigns(w.settings);
-      if (widgets.length) {
-        await insertSealed("widgets", ws, widgets.map((w) => ({
-          template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h,
-          owner_id: d?.owner_id ?? actor.personId, dashboard_id: id, saved: false,
-        })));
-      }
+      // Versions from before introductions were kept have none: the introduction then stays as it is.
+      await replaceDashboard(ws, id, { name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(typeof s.intro === "string" ? { intro: s.intro } : {}) }, widgets.map((w) => ({
+        template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h,
+        owner_id: d?.owner_id ?? actor.personId, dashboard_id: id, saved: false,
+      })));
       break;
     }
     case "deck":
       assertWidgetDesigns(s.document);
       await visitorSharedStaysSeen(actor, "deck", id, deckMetricIds(s.document));
-      await db().from("decks").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(s.footer !== undefined ? { footer: s.footer } : {}), document: s.document, updated_at: at }).eq("id", id).eq("workspace_id", ws);
+      mustRestore(await db().from("decks").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(s.footer !== undefined ? { footer: s.footer } : {}), document: s.document, updated_at: at }).eq("id", id).eq("workspace_id", ws));
       break;
     case "snapshot": {
       // Only the words come back; the numbers never changed. Once shown, it says its words changed since.
       const { data: cur } = await db().from("dashboard_snapshots").select("shown_at").eq("id", id).eq("workspace_id", ws).is("deleted_at", null).single();
       // A widget drawing a Metric the restorer does not see keeps its words as they are now (#193).
       const words = await restorableWords(actor, id, s.words);
-      await db().from("dashboard_snapshots").update({ words: await sealedWords(ws, id, words), ...(cur?.shown_at ? { words_changed_at: at } : {}) }).eq("id", id).eq("workspace_id", ws).is("deleted_at", null);
+      mustRestore(await db().from("dashboard_snapshots").update({ words: await sealedWords(ws, id, words), ...(cur?.shown_at ? { words_changed_at: at } : {}) }).eq("id", id).eq("workspace_id", ws).is("deleted_at", null));
       break;
     }
     case "metric": {
@@ -245,7 +252,7 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
         delete patch.formula;
         if (s.formula) { delete patch.sources; delete patch.period; delete patch.aggregation; }
       }
-      await db().from("metrics").update(await sealedPatch("metrics", ws, id, patch)).eq("id", id).eq("workspace_id", ws);
+      mustRestore(await db().from("metrics").update(await sealedPatch("metrics", ws, id, patch)).eq("id", id).eq("workspace_id", ws));
       // Versions from before Tags were kept have none: the Tags then stay as they are.
       if (Array.isArray(s.tags)) await restoreMetricTags(actor, id, s.tags);
       break;

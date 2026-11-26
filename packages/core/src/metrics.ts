@@ -16,7 +16,7 @@ import { deliverPrompt, type PromptOutcome } from "./deliveries";
 import { audit } from "./audit-log";
 import { formulaInputs } from "./formula";
 import { widgetMetricIds } from "./widget-metrics";
-import { deckMetricIds } from "./visibility";
+import { allDeckMetricIds } from "./visibility";
 import { allRows } from "./workspace-data";
 import { getShares } from "./access";
 import { feedIdsAmong } from "./feed-people";
@@ -255,7 +255,7 @@ export async function deleteMetric(actor: Actor, metricId: number, confirmName: 
   const usedBy = (await openRows("metrics", ws, derived)).filter((d) => formulaInputs(String(d.formula)).includes(m.slug)).map((d) => d.name as string);
   if (usedBy.length) throw new MetricKept(`Other Metrics are computed from it (${usedBy.length}). Change their formulas first.`);
   const inWidgets = (widgets ?? []).filter((w) => widgetMetricIds(w.metric_ids ?? [], w.settings).includes(metricId)).length;
-  const inDecks = (decks ?? []).filter((d) => deckMetricIds(d.document).includes(metricId)).length;
+  const inDecks = (decks ?? []).filter((d) => allDeckMetricIds(d.document).includes(metricId)).length;
   if (inWidgets || inDecks) throw new MetricKept(`It is shown in ${inWidgets} widget${inWidgets === 1 ? "" : "s"} and ${inDecks} deck${inDecks === 1 ? "" : "s"}. Take it out of them first.`);
   if ((links ?? []).some((l) => (l.metric_ids ?? []).map(Number).includes(metricId))) throw new MetricKept("A View Link that still works shows it. Revoke the link first.");
   const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("metric_id", metricId);

@@ -9,7 +9,7 @@ import { db } from "./db";
 import type { InboundEmail } from "./inbound-email";
 import { assertInstallationAdmin, isInstallationAdmin, recordInstallationEvent, type InstallationActor } from "./installation-admins";
 import { saveInstallationSettings } from "./installation-settings";
-import { inboundEnabled, isAddress, replyAddress, smtpTransportWith, type MailTransport } from "./mail";
+import { composed, inboundEnabled, isAddress, replyAddress, smtpTransportWith, type MailTransport } from "./mail";
 import { settingSources, settingsInEffect } from "./settings-in-effect";
 
 /** Tests one Installation Admin may start in an hour. */
@@ -71,10 +71,11 @@ export async function startReplyTest(actor: InstallationActor, transport?: MailT
   // Any failure to count is a refusal.
   if (error || typeof id !== "number") throw new Error(`At most ${REPLY_TESTS_PER_HOUR} reply tests an hour. Try again later.`);
   try {
-    await (transport ?? smtpTransportWith(settings))({
+    await (transport ?? smtpTransportWith(settings))(composed({
       to, subject: "Ziffr: test of replies by email", replyTo: replyAddress(token, settings),
-      text: `This is a test from Ziffr at ${settings.ZIFFR_SITE_URL}.\n\nReply to this email with anything, such as "test". When your reply arrives, the Installation settings page says so.\n\nThe reply address works once, for ${REPLY_TEST_MINUTES} minutes.`,
-    });
+      text: `This is a test from Ziffr.\n\nReply to this email with anything, such as "test". When your reply arrives, the Installation settings page says so.\n\nThe reply address works once, for ${REPLY_TEST_MINUTES} minutes.\n\nOpen this Ziffr: ${settings.ZIFFR_SITE_URL}`,
+      action: { label: "Open Ziffr", url: String(settings.ZIFFR_SITE_URL) },
+    }));
   } catch {
     await db().from("installation_reply_tests").update({ token_hash: null }).eq("id", id);
     throw new Error("The test email could not be sent. Try Send a test email in the Mail section first.");
