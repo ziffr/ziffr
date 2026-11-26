@@ -41,6 +41,8 @@ const READS: readonly string[] = [
   "observation-actions:observationDetailsAction",
   "pack-actions:exportAsPack",
   "pack-actions:themeLogoPreview",
+  "pack-guide-actions:checkPackGuide",
+  "pack-guide-actions:describePack",
   "pack-guide-actions:readPackGuide",
   "pack-guide-actions:readPackGuides",
   "paste-actions:pasteTemplateFile",

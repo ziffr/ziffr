@@ -1,14 +1,17 @@
 "use client";
 // Export as Pack (spec 0030, GLOSSARY: Pack): pick Metrics, catalog entries, templates, View Designs and Themes of the
-// Workspace, name the Pack, and download its file. The core makes and checks the file; it holds no value and no person.
+// Workspace, name the Pack, describe it (the Pack Guide, spec 0058) and download its file. The core makes and checks the
+// file; it holds no value and no person.
 import { useState, useTransition } from "react";
-import { FileDown, PackagePlus } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileDown, PackagePlus } from "lucide-react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { exportAsPack, themeLogoPreview } from "@/app/pack-actions";
+import { checkPackGuide, describePack } from "@/app/pack-guide-actions";
+import { DescribeStep, useDescription } from "./describe";
 import { PACK_LICENSES } from "@ziffr/core/pack";
 import type { ExportChoice, ExportOptions } from "@ziffr/core/pack-export";
 
@@ -40,11 +43,28 @@ export function ExportPack({ options, defaultAuthor = "" }: { options: ExportOpt
     r.readAsDataURL(f);
   };
   const [pending, start] = useTransition();
+  // The dialog's two steps: what goes in and the Pack's name, then "Describe your Pack".
+  const [describing, setDescribing] = useState(false);
+  const description = useDescription();
   const count = Object.values(picked).reduce((n, xs) => n + (xs?.length ?? 0), 0);
   const toggle = (k: keyof ExportOptions, id: number) => setPicked({ ...picked, [k]: (picked[k] ?? []).includes(id) ? picked[k]!.filter((x) => x !== id) : [...(picked[k] ?? []), id] });
+  const next = () => start(async () => {
+    try {
+      description.drafted(unwrap(await describePack(m.id, picked)));
+      setDescribing(true);
+    } catch (e) {
+      toast.error("The next step could not be opened", { description: shown(e) });
+    }
+  });
   const make = () => start(async () => {
     try {
-      const res = unwrap(await exportAsPack({ ...m, ...(upload ? { logo: { data: upload } } : logoTheme !== null ? { logo: { themeId: logoTheme } } : {}) }, picked, withTags));
+      if (description.guide) {
+        const problems = unwrap(await checkPackGuide(description.guide));
+        description.refused(problems);
+        // The first field with a problem takes the focus, so it is seen on a small screen too.
+        if (problems.length) { document.querySelector<HTMLElement>(`[data-guide-field="${problems[0].section ?? "whatItsFor"}"]`)?.focus(); return; }
+      }
+      const res = unwrap(await exportAsPack({ ...m, ...(upload ? { logo: { data: upload } } : logoTheme !== null ? { logo: { themeId: logoTheme } } : {}) }, picked, withTags, description.guide));
       const url = URL.createObjectURL(new Blob([res.text], { type: "application/json" }));
       const a = Object.assign(document.createElement("a"), { href: url, download: res.fileName });
       a.click();
@@ -62,12 +82,13 @@ export function ExportPack({ options, defaultAuthor = "" }: { options: ExportOpt
     <section aria-labelledby="export-pack">
       <h2 id="export-pack" className="text-sm font-medium">Export as Pack</h2>
       <p className="mb-2 text-sm text-muted-foreground">Make a Pack of things in this Workspace to share or publish. It holds their descriptions and layouts, never a value or a person.</p>
-      <Button variant="outline" onClick={() => setOpen(true)}><PackagePlus aria-hidden /> Export as Pack…</Button>
+      <Button variant="outline" onClick={() => { setDescribing(false); setOpen(true); }}><PackagePlus aria-hidden /> Export as Pack…</Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col">
-          <DialogTitle>Export as Pack</DialogTitle>
-          <DialogDescription>Pick what goes in and name the Pack. Words you wrote in templates go in as written; words with web addresses or markup, images and drawings stay out, and so does every logo but the one you choose below, and Ziffr says so.</DialogDescription>
-          <div className="-mx-1 min-h-0 flex-1 space-y-4 overflow-y-auto px-1 text-sm">
+          <DialogTitle>{describing ? "Describe your Pack" : "Export as Pack"}</DialogTitle>
+          <DialogDescription>{describing ? "Optional: tell whoever gets the Pack what it is for and how to start. They read it before installing and in Help." : "Pick what goes in and name the Pack. Words you wrote in templates go in as written; words with web addresses or markup, images and drawings stay out, and so does every logo but the one you choose below, and Ziffr says so."}</DialogDescription>
+          <div key={describing ? "describe" : "pick"} className="-mx-1 min-h-0 flex-1 space-y-4 overflow-y-auto px-1 text-sm">
+            {describing ? <DescribeStep state={description.state} setState={description.setState} /> : <>
             <div className="grid gap-3 sm:grid-cols-2">
               {field("name", "Name", "e.g. SaaS metrics")}
               {field("id", "Id: your handle and a slug", "e.g. northwind/saas-metrics")}
@@ -115,6 +136,7 @@ export function ExportPack({ options, defaultAuthor = "" }: { options: ExportOpt
             {options.metrics.length > 0 && (
               <label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={withTags} onChange={(e) => setWithTags(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /><span>Carry the Tags of the Metrics you pick<span className="block text-muted-foreground">Up to 5 per entry, only Tags you see on those Metrics. Untick to leave them out.</span></span></label>
             )}
+            </>}
             {leftOut.length > 0 && (
               <div role="status" className="rounded-[var(--radius-input)] bg-muted p-2.5 text-xs">
                 <p className="font-medium">Stayed out of the last file</p>
@@ -123,8 +145,15 @@ export function ExportPack({ options, defaultAuthor = "" }: { options: ExportOpt
             )}
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>Close</Button>
-            <Button disabled={!count || !m.name.trim() || !m.id.trim() || pending} onClick={make}><FileDown aria-hidden /> Download Pack</Button>
+            {describing
+              ? <>
+                  <Button variant="outline" onClick={() => setDescribing(false)} autoFocus><ArrowLeft aria-hidden /> Back</Button>
+                  <Button disabled={pending} onClick={make}><FileDown aria-hidden /> Download Pack</Button>
+                </>
+              : <>
+                  <Button variant="outline" onClick={() => setOpen(false)}>Close</Button>
+                  <Button disabled={!count || !m.name.trim() || !m.id.trim() || pending} onClick={next}>Next: describe it <ArrowRight aria-hidden /></Button>
+                </>}
           </div>
         </DialogContent>
       </Dialog>

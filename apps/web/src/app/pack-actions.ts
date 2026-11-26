@@ -7,6 +7,7 @@ import { attempt } from "@/lib/action-result";
 import { installPackFile, readPackFile } from "@ziffr/core/packs";
 import { installFromMarketplace, readMarketplacePack, readMarketplaceUpdate, searchMarketplace, updateFromMarketplace } from "@ziffr/core/marketplace";
 import { exportPack, themeLogoForExport, type ExportChoice, type ExportManifest } from "@ziffr/core/pack-export";
+import type { PackGuideText } from "@ziffr/core/pack-guide-text";
 import { installIncludedPack, readIncludedPack, readIncludedUpdate, updateIncludedPack } from "@ziffr/core/included-packs";
 import { readPackUpdate, readUninstall, takeNewVersion, uninstallPack, updatePackFile } from "@ziffr/core/pack-updates";
 
@@ -25,8 +26,8 @@ export async function installPack(text: string, confirmed: { unsigned: boolean; 
 }
 
 /** A Pack of what the viewer picked in their Workspace, as its file's text, and what had to stay out. */
-export async function exportAsPack(manifest: ExportManifest, choice: ExportChoice, withTags = true) {
-  return attempt(async () => exportPack(await currentActor(), manifest, choice, { tags: withTags !== false }));
+export async function exportAsPack(manifest: ExportManifest, choice: ExportChoice, withTags = true, guide?: PackGuideText) {
+  return attempt(async () => exportPack(await currentActor(), manifest, choice, { tags: withTags !== false, guide }));
 }
 
 /** The logo of one of the viewer's Themes, as the Export dialog previews it. */
