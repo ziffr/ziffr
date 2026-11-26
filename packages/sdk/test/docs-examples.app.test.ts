@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
+import { addFeedToMetric, createFeed, createFeedKey } from "@ziffr/core/feeds";
 import { workspace } from "@ziffr/core/test/db-fixtures";
 import { allBlocks } from "./docs-blocks";
 
@@ -19,6 +20,7 @@ const blocks = allBlocks().filter((b) => b.mode === "run");
 
 let cleanup: () => Promise<void>;
 let secret = "";
+let feedSecret = "";
 let bin = "";
 
 beforeAll(async () => {
@@ -29,6 +31,12 @@ beforeAll(async () => {
   const orders = await w.metric(ben, { name: "Orders", slug: "orders", submission_rule: "add" }); await w.token(orders.id, ben);
   await w.metric(ben, { name: "Revenue", slug: "revenue" });
   secret = (await createAccessKey(w.actor(ben, "member"), { name: "Docs examples", scopes: ["metrics:read", "values:submit", "metrics:write", "metrics:edit"], expiresOn: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10) })).secret;
+  // A Feed, "CRM", that submits to Pipeline value (weekly), for the examples that send as a system does.
+  const sara = await w.person("owner");
+  const pipeline = await w.metric(sara, { name: "Pipeline value", slug: "pipeline-value", period: "week", sources: ["api"], submission_rule: "overwrite" });
+  const { id: feedId } = await createFeed(w.actor(sara), "CRM");
+  await addFeedToMetric(w.actor(sara), pipeline.id, feedId);
+  feedSecret = (await createFeedKey(w.actor(sara), feedId, { name: "Docs examples", expiresOn: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10) })).secret;
   // A `curl` that fails on an HTTP error, so an example the API refuses fails the test (the docs' lines have no -f).
   bin = mkdtempSync(join(tmpdir(), "docs-examples-"));
   const real = execFileSync("sh", ["-c", "command -v curl"]).toString().trim();
@@ -40,7 +48,7 @@ afterAll(async () => { rmSync(bin, { recursive: true, force: true }); await clea
 describe("the examples in the docs against the app", () => {
   it("there are examples to run", () => { expect(blocks.length).toBeGreaterThanOrEqual(5); });
   it.each(blocks.map((b) => [`${b.file}:${b.line}`, b] as const))("%s runs", async (_name, b) => {
-    const env = { ...process.env, ZIFFR_ACCESS_KEY: secret, PATH: `${bin}:${process.env.PATH}` };
+    const env = { ...process.env, ZIFFR_ACCESS_KEY: secret, ZIFFR_FEED_KEY: feedSecret, PATH: `${bin}:${process.env.PATH}` };
     if (b.lang === "sh") {
       execFileSync("sh", ["-ec", inTest(b.code)], { env, stdio: "pipe" });
       return;
