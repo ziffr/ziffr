@@ -15,6 +15,8 @@ import { elementOf, slideNumber, standIns } from "./elements/slide-page";
 import { orderedSlides, SLIDE_W, SLIDE_H } from "./layouts";
 import { WIDGET_SHAPE, widgetFromShape, type WidgetShape } from "./widget-shape";
 import { SNAPSHOT_PART_SHAPE } from "@ziffr/core/snapshot-parts";
+import { textMetricIds } from "@ziffr/core/slide-text";
+import { exported } from "./text/live-text";
 import { KEPT_WORDS, keptDrawing, keptLine, liveMetricIds, onSlide, type Kept, type KeptDrawing } from "./kept/kept-drawing";
 import { keptOf } from "./kept/kept-store";
 import { slideLines } from "./kept/slide-lines";
@@ -82,11 +84,11 @@ async function shapeImage(editor: Editor, ids: TLShape["id"][]) {
   return url;
 }
 
-/** The Metrics of the deck's live Widgets, whose series an export asks for first: slides not on screen were never
- * drawn. What keeps a Snapshot's numbers is not among them (spec 0061). */
+/** The Metrics of the deck's live Widgets and text boxes, whose series an export asks for first: slides not on screen
+ * were never drawn. What keeps a Snapshot's numbers is not among them (spec 0061). */
 export function exportSeriesIds(editor: Editor): number[] {
-  const widgets = editor.getCurrentPageShapes().flatMap((s) => (s.type === WIDGET_SHAPE ? [{ id: s.id, metricIds: (s as WidgetShape).props.metricIds }] : []));
-  return liveMetricIds(widgets, keptOf(editor));
+  const drawing = editor.getCurrentPageShapes().map((s) => ({ id: s.id, metricIds: s.type === WIDGET_SHAPE ? (s as WidgetShape).props.metricIds : textMetricIds(s) }));
+  return liveMetricIds(drawing, keptOf(editor));
 }
 
 /** Whether a slide draws numbers it keeps from a Snapshot (spec 0061): it then carries their line and no "Data as of". */
@@ -150,7 +152,9 @@ export async function exportPptx(editor: Editor, data: CanvasData, deckName: str
       slide.addText(`${page}`, { x: g.number.x * k0, y: g.number.y * k0, w: g.number.w * k0, h: g.number.h * k0, fontSize: Math.round(g.number.size * k0 * 72), color: hex(master.text_color), fontFace: FONT, align: "right", margin: 0 });
     }
 
-    for (const shape of descendants(editor, frame.id)) {
+    for (const stored of descendants(editor, frame.id)) {
+      // A text box goes in as the person exporting reads it now, its Placeholders filled.
+      const shape = exported(editor, stored);
       const box = frameBox(editor, frame, shape);
       const p = shape.props as Record<string, unknown>;
       try {

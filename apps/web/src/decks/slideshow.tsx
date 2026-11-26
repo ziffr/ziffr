@@ -11,6 +11,7 @@ import { ChevronLeft, ChevronRight, Maximize, Minimize, RotateCw, X } from "luci
 import { ThemeScope } from "@/components/theme-scope";
 import { DeckData, WidgetShapeUtil } from "./widget-shape";
 import { SnapshotPartShapeUtil } from "./kept/part-shape";
+import { setTextFill, textShapeUtils } from "./text/live-text";
 import { KeptNumbers } from "./kept/kept-store";
 import type { Kept } from "./kept/kept-drawing";
 import { DeckMaster, SlideFrameUtil } from "./master";
@@ -22,7 +23,7 @@ import { useFullscreen, usePinchZoomed, useStepper } from "@/lib/use-stepper";
 import { SlideCanvas } from "@/decks/slide-canvas";
 import type { CanvasData } from "@ziffr/core/types";
 
-const shapeUtils = [WidgetShapeUtil, SnapshotPartShapeUtil, SlideFrameUtil];
+const shapeUtils = [WidgetShapeUtil, SnapshotPartShapeUtil, SlideFrameUtil, ...textShapeUtils];
 
 export function Slideshow({ deck, data, kept = null, start, publicNote, back = `/decks/${deck.id}` }: { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; /** The Snapshot numbers the presenting person gets; a View Link gets none. */ kept?: Kept | null; start: number; publicNote?: string; /** Where leaving the presentation goes. */ back?: string }) {
   const pub = publicNote !== undefined;
@@ -40,6 +41,7 @@ export function Slideshow({ deck, data, kept = null, start, publicNote, back = `
   const master = useMemo(() => slideDesign(shown, deck.footer), [shown, deck.footer]);
   const step = useStepper(count, start, pub ? undefined : () => router.push(back));
   const { go } = step;
+  useEffect(() => { if (editor) setTextFill(editor, { data, kept }); }, [editor, data, kept]);
   // The slides are known only once tldraw has loaded the deck: jump to the requested one then.
   useEffect(() => { if (count) go(start); }, [count, start, go]);
   const full = useFullscreen();
@@ -83,6 +85,8 @@ export function Slideshow({ deck, data, kept = null, start, publicNote, back = `
                   ed.updateInstanceState({ isReadonly: true });
                   ed.user.updateUserPreferences({ colorScheme: shown && isDark(shown.tokens) ? "dark" : "light", locale: "en" });
                   ed.selectNone();
+                  // At once, so no slide is drawn with its values still empty.
+                  setTextFill(ed, { data, kept });
                   setCount(orderedSlides(ed).length);
                   setEditor(ed);
                 }}

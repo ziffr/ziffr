@@ -47,7 +47,7 @@ The Metric's page shows **How it is calculated** under the description, closed u
 
 ### Slides
 
-The Placeholder `{calculation note}` (with a number for another Slot) is filled where a widget's, a Finding's or a Slide Element's words are drawn for the person looking. It is never filled into words that are saved: a slide's own text and boxes, made from a Deck Template or a layout, keep it as written, and a file may not hold it there. A **Definitions** Slide Element lists up to 12 Metrics with their description and Calculation Note for an appendix. Both show nothing of a Metric the viewer may not see. A View Link carries no Calculation Note: the Placeholder is empty there and the element shows only the names.
+The Placeholder `{calculation note}` (with a number for another Slot) is filled where a widget's, a Finding's or a Slide Element's words are drawn for the person looking. It is never filled into words that are saved: a slide's own text and boxes keep it as written and show it only when drawn, as their other values (spec 0057, ticket #1172), and a Deck Template file may hold it there from `ziffr.deck-template/3` on. A **Definitions** Slide Element lists up to 12 Metrics with their description and Calculation Note for an appendix. Both show nothing of a Metric the viewer may not see. A View Link carries no Calculation Note: the Placeholder is empty there and the element shows only the names.
 
 ### Content
 

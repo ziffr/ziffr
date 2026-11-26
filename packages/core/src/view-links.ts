@@ -22,6 +22,7 @@ import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { forReader, snapshotForLink, type SnapshotWords } from "./snapshots";
 import { dataAsOfEach } from "./snapshot-periods";
 import { withoutKeptNumbers } from "./snapshot-parts";
+import { textBoxMetricIds, textList, textMetricIds } from "./slide-text";
 import { yearStartOf } from "./fiscal-year";
 import { keptUnit } from "./units";
 import { keptMethod } from "./attainment-method";
@@ -164,25 +165,38 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
 }
 
 /** A deck's slides as a View Link may show them: only the records the deck had when the link was made (for a live
- * link: shapes, pages, assets, bindings alike), and no widget that draws a left-out Metric. */
-function deckForLink(document: unknown, shown: Set<number>, records: string[] | null): unknown {
-  const doc = document as { store?: Record<string, { type?: string; props?: { metricIds?: unknown; settings?: unknown } }> } | null;
+ * link: shapes, pages, assets, bindings alike), and no widget or text box that names a left-out Metric. Exported for its
+ * test. */
+export function deckForLink(document: unknown, shown: Set<number>, records: string[] | null): unknown {
+  type Rec = { type?: string; typeName?: string; props?: { metricIds?: unknown; settings?: unknown }; meta?: Record<string, unknown>; fromId?: string; toId?: string };
+  const doc = document as { store?: Record<string, Rec> } | null;
   if (!doc?.store) return document;
+  const gone = new Set<string>();
   const keep = Object.entries(doc.store).filter(([key, r]) => {
     if (records && !records.includes(key)) return false;
-    if (r?.type !== "ziffr-widget") return true;
-    const ids = Array.isArray(r.props?.metricIds) ? (r.props!.metricIds as unknown[]).map(Number) : [];
-    return deckMetricIds({ store: { x: r } }).concat(ids).every((m) => shown.has(m));
+    let ids: number[];
+    if (r?.type === "ziffr-widget") ids = deckMetricIds({ store: { x: r } }).concat(Array.isArray(r.props?.metricIds) ? (r.props!.metricIds as unknown[]).map(Number) : []);
+    // A text box stays out whole, as a widget does: its words are written around the values.
+    else ids = r ? textMetricIds(r) : [];
+    const stays = ids.every((m) => shown.has(m));
+    if (!stays) gone.add(key);
+    return stays;
+  }).filter(([, r]) => r?.typeName !== "binding" || !(gone.has(String(r.fromId)) || gone.has(String(r.toId))));
+  // A box's list may still hold a Metric no word asks for: the link carries no id of one it does not show.
+  const sent = keep.map(([key, r]) => {
+    const list = r ? textList(r) : undefined;
+    return [key, Array.isArray(list) ? { ...r, meta: { ...r.meta, metrics: list.map((id) => (shown.has(id as number) ? id : 0)) } } : r];
   });
-  return { ...doc, store: Object.fromEntries(keep) };
+  return { ...doc, store: Object.fromEntries(sent) };
 }
 
 /** For each Metric of a deck that every widget drawing it draws as of a day (`asOf`), the latest such day. A Metric
- * drawn anywhere without one, or inside a free layout, is left out: it is sent whole, as before. */
+ * drawn anywhere without one, in a text box or inside a free layout, is left out: it is sent whole, as before. */
 export function deckAsOf(document: unknown): Map<number, string> {
   const store = (document as { store?: Record<string, { type?: string; props?: { metricIds?: unknown; settings?: unknown } }> } | null)?.store ?? {};
   const ends = new Map<number, string>();
-  const whole = new Set<number>();
+  // A text box has no day of its own: its words read the latest values.
+  const whole = new Set<number>(textBoxMetricIds(document));
   for (const r of Object.values(store)) {
     if (r?.type !== "ziffr-widget") continue;
     let settings: Record<string, unknown> = {};

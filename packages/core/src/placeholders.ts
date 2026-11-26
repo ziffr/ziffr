@@ -21,11 +21,6 @@ export const PLACEHOLDERS = [
 
 const PATTERN = /\{(metrics|metric|period|latest|change yoy|change prev|top row|target|calculation note)(?:\s+(\d+))?\}/gi;
 
-/** The Placeholders filled only while words are drawn for the person looking (a widget's and a Finding's words, a Slide
- * Element), never into words that are saved. Security: how a Metric is calculated is for those who see it now; written
- * into a slide's text it would stay for a View Link, for someone who lost the Metric and for readers of a template. */
-const DRAWN_ONLY: ReadonlySet<string> = new Set(["calculation note"]);
-
 /** The widget's metrics in slot order: its own metrics first, then each panel's. {metric 2} is the second. */
 export function metricsInOrder(widget: Pick<Widget, "metric_ids" | "settings">, metrics: Pick<Metric, "id">[]) {
   const ids = [...widget.metric_ids, ...(widget.settings.panels ?? []).flatMap((p) => p.metricIds)];
@@ -67,9 +62,8 @@ export const listOf = (names: string[]) => (names.length < 2 ? names.join("") : 
 /** One text filled in from the widget's Metric slots. A slot that is `null` is a Metric the viewer may not see: its Placeholders
  * become empty words, never its name and never the next Metric's value (rule 3). Any other Placeholder one cannot fill stays
  * visible, so the author sees what is missing. */
-function fill(text: string, slots: (Metric | null)[], data: CanvasData, kept?: ReadonlySet<string>): string {
+function fill(text: string, slots: (Metric | null)[], data: CanvasData): string {
   return text.replace(PATTERN, (all, key: string, n?: string) => {
-    if (kept?.has(key.toLowerCase())) return all;
     const seen = slots.filter((m): m is Metric => !!m);
     if (key.toLowerCase() === "metrics") return seen.length ? listOf(seen.map((m) => m.name)) : all;
     const i = (n ? Number(n) : 1) - 1;
@@ -77,13 +71,6 @@ function fill(text: string, slots: (Metric | null)[], data: CanvasData, kept?: R
     const m = slots[i];
     return (m && value(key.toLowerCase(), m, data)) ?? all;
   });
-}
-
-/** Fills a text once, into words that are then saved (a slide's text boxes made from a Deck Template or a layout). A
- * Placeholder it cannot fill, or may not write down (DRAWN_ONLY), stays as written, so the author sees it. */
-export function fillText(text: string | undefined, metrics: Metric[], data: CanvasData): string | undefined {
-  if (!text || !text.includes("{")) return text;
-  return fill(text, metrics, data, DRAWN_ONLY);
 }
 
 /** A widget's title (or any text of its own) filled in from the data this viewer gets for it: {metric 2} is the widget's second

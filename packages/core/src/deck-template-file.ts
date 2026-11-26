@@ -10,6 +10,9 @@ export * from "@ziffr/pack/deck-template-file";
 /** Rich text as the deck editor keeps it, from paragraphs of plain words. */
 const richText = (paragraphsIn: string[]) => ({ type: "doc", content: paragraphsIn.map((p) => (p ? { type: "paragraph", content: [{ type: "text", text: p }] } : { type: "paragraph" })) });
 
+/** The Slots a text box's words name, as a template's shape keeps them. */
+const textSlots = (slots: number[] | undefined) => (slots ? { textSlots: slots } : {});
+
 /** A checked Deck Template file as the body a Deck Template stores: shapes as the deck editor makes them, a widget's
  * View Design from `designs` when the file names one by key, and the Theme as `themeId`. Every prop the editor needs
  * and the file leaves out takes the editor's default. */
@@ -21,8 +24,8 @@ export function deckTemplateFromFile(t: DeckTemplateFile, designs: ReadonlyMap<s
       ...(s.cover ? { cover: true } : {}),
       shapes: s.shapes.flatMap((sh): SlideShape[] => {
         if (sh.shape === "element") return [{ type: "ziffr-widget", ...base(sh.x, sh.y), props: { w: sh.w, h: sh.h, template: "slide" }, widget: { metricSlots: sh.slots ?? [], title: null, settings: { element: sh.element } } }];
-        if (sh.shape === "text") return [{ type: "text", ...base(sh.x, sh.y), props: { richText: richText(sh.text), w: sh.w, autoSize: false, size: sh.size ?? "m", scale: sh.scale ?? 1, textAlign: sh.align ?? "start", color: sh.color ?? "black", font: "sans" } }];
-        if (sh.shape === "box") return [{ type: "geo", ...base(sh.x, sh.y), props: { geo: sh.geo ?? "rectangle", w: sh.w, h: sh.h, fill: sh.fill ?? "none", color: sh.color ?? "black", dash: "solid", font: "sans", ...(sh.text ? { richText: richText(sh.text) } : {}) } }];
+        if (sh.shape === "text") return [{ type: "text", ...base(sh.x, sh.y), props: { richText: richText(sh.text), w: sh.w, autoSize: false, size: sh.size ?? "m", scale: sh.scale ?? 1, textAlign: sh.align ?? "start", color: sh.color ?? "black", font: "sans" }, ...textSlots(sh.slots) }];
+        if (sh.shape === "box") return [{ type: "geo", ...base(sh.x, sh.y), props: { geo: sh.geo ?? "rectangle", w: sh.w, h: sh.h, fill: sh.fill ?? "none", color: sh.color ?? "black", dash: "solid", font: "sans", ...(sh.text ? { richText: richText(sh.text) } : {}) }, ...textSlots(sh.slots) }];
         const settings = templateWidgetSettings(sh.settings, designs);
         // A widget whose View Design is not among `designs` is left out, never drawn with another.
         return settings ? [{ type: "ziffr-widget", ...base(sh.x, sh.y), props: { w: sh.w, h: sh.h, template: sh.view }, widget: { metricSlots: sh.slots, title: sh.title ?? null, settings } }] : [];
