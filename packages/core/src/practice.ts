@@ -1,6 +1,6 @@
 // Practice Workspaces (spec 0063; GLOSSARY: Practice Workspace, Made-up Person): nothing leaves one. Every place that
 // sends, or that would let somebody else in, asks `heldBack` here first. It fails closed: a question that cannot be
-// answered sends nothing. The database refuses the same things again (migration 20270207090000), so a place that
+// answered sends nothing. The database refuses the same things again (migration 20270208090000), so a place that
 // forgets to ask still cannot queue a message or keep a connection to the outside.
 import { Forbidden } from "./actor";
 import { db } from "./db";
