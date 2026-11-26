@@ -148,6 +148,55 @@ describe("a form link's reply about the Workflow", () => {
   });
 });
 
+describe("a period picked on the form link", () => {
+  const pick = (formPeriod: string, code: string, text = "5") => submitValue({ source: "web_form", sender: code, text, formPeriod }, quiet());
+
+  it.each(["reject", "overwrite", "add", "keep_both"])("that was not asked for gets the one refusal and records nothing under '%s'", async (rule) => {
+    const { w, sara, m, code, stored, proposals } = await setup({ rule });
+    await w.value(m.id, ago(2), 4711, sara);
+    await w.lock(m.id, ago(2));
+    // With a value and locked, without one, still to come, and nonsense: the same answer, also beside words.
+    for (const p of [ago(2), ago(3), shiftPeriod(thisMonth(), "month", 2), "x"]) {
+      for (const text of ["5", `${words(ago(2))}: 5`]) expect(await pick(p, code, text)).toEqual(refused(m.slug));
+    }
+    expect(await proposals()).toEqual([]);
+    expect(await stored(ago(2))).toEqual([4711]);
+    expect(await stored(ago(3))).toEqual([]);
+  });
+
+  it("holds against words that name another period, asked for or not", async () => {
+    const { w, sara, m, code, ask, stored } = await setup();
+    await w.value(m.id, ago(2), 4711, sara);
+    await ask(ago(1));
+    for (const p of [ago(1), thisMonth()]) {
+      const r = await pick(p, code, `${words(ago(2))}: 5`);
+      expect(r).toMatchObject({ ok: false, outcome: "rejected_other_period" });
+      expect(r.detail).not.toMatch(/4,?711/);
+    }
+    expect(await stored(ago(2))).toEqual([4711]);
+    expect(await stored(ago(1))).toEqual([]);
+  });
+
+  it.each(["reject", "overwrite", "add", "keep_both"])("treats a request answered in the meantime as done, under '%s'", async (rule) => {
+    const { w, sara, m, code, stored } = await setup({ rule });
+    await w.value(m.id, ago(2), 4711, sara);
+    stale.asked = [ago(2)];
+    expect(await pick(ago(2), code)).toEqual(refused(m.slug));
+    expect(await stored(ago(2))).toEqual([4711]);
+  });
+
+  it("gets the short words about the Workflow", async () => {
+    const { w, ben, sara, m, code, ask } = await setup();
+    await w.value(m.id, ago(2), 100, sara);
+    const steps: WorkflowStep[] = [{ type: "check", changePct: 50, outsideTarget: false }, { type: "approve", approvers: [ben], values: "unusual" }, { type: "publish", lock: false }];
+    await setMetricWorkflow(w.actor(ben), m.id, await saveWorkflow(w.actor(ben), null, "Check", { dueWorkingDays: 2, steps }));
+    await ask(ago(1));
+    const r = await pick(ago(1), code, "900");
+    expect(r).toMatchObject({ ok: true, outcome: "recorded" });
+    expect(r.detail).toMatch(/\(via personal form link\)\. Workflow: unusual, approval asked\.$/);
+  });
+});
+
 describe("the other ways record an earlier period as before", () => {
   it("Record a value, a paste and a Filled-in Value", async () => {
     const { w, ben, sara, m, stored, due } = await setup();

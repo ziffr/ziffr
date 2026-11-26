@@ -36,10 +36,10 @@ async function setup() {
 }
 
 describe("the extras of a form link", () => {
-  it("gives the Token's own person the last value and the next value due, with no code in it", async () => {
+  it("gives the Token's own person the earlier values and the next value due, with no code in it", async () => {
     const { w, ann, asked, code } = await setup();
     const extras = await formLinkExtras(w.actor(ann, "member"), code);
-    expect(extras).toMatchObject({ metricId: asked.id, named: null, last: { value: "7" } });
+    expect(extras).toMatchObject({ metricId: asked.id, named: null, running: false, recent: [{ start: ago(2), value: "7" }] });
     expect(["Signups", "Visits"]).toContain(extras!.next!.name);
     expect(extras!.next!.period < thisMonth()).toBe(true);
     expect(Object.keys(extras!.next!).sort()).toEqual(["name", "period", "periodLabel", "slug"]);
@@ -60,8 +60,10 @@ describe("the extras of a form link", () => {
     const actor = w.actor(ann, "member");
     expect((await formLinkExtras(actor, code, ago(2)))!.named).toMatchObject({ start: ago(2), has: "7" });
     expect((await formLinkExtras(actor, code, ago(1)))!.named).toMatchObject({ start: ago(1), has: null });
-    // The current period is what the link records anyway; too old, to come and nonsense are ignored.
-    for (const p of [thisMonth(), ago(RECORDABLE_PERIODS), shiftPeriod(thisMonth(), "month", 1), "2026-11-15", "x", ["2026-10-01"]]) expect((await formLinkExtras(actor, code, p))!.named).toBeNull();
+    // The running period is no named one, but the page hears that the address asks for it.
+    expect(await formLinkExtras(actor, code, thisMonth())).toMatchObject({ named: null, running: true });
+    // Too old, to come and nonsense are ignored.
+    for (const p of [ago(RECORDABLE_PERIODS), shiftPeriod(thisMonth(), "month", 1), "2026-11-15", "x", ["2026-10-01"]]) expect(await formLinkExtras(actor, code, p)).toMatchObject({ named: null, running: false });
   });
 
   it("relies on one Token per person and Metric: a Stand-in for one person cannot get a second for another", async () => {

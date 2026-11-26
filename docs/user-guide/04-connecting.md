@@ -42,7 +42,7 @@ Ziffr records nothing and asks back when it cannot be sure:
 - **A different period than the Prompt asked for**, such as "this week 3" in reply to last week's Prompt. Reply with the value alone for the Prompt's period, or send the other one as a new message.
 - **A period the Metric does not count in**, such as "Q3" for a monthly Metric, or one that has not begun yet.
 
-Without a Prompt, for example in a new message, a period you name is used instead of the current one. The personal form link is narrower: it records the current period or one you were asked for (see below). Ziffr's reply always names the value and the period as it read them, such as "2 recorded for Sign-ups, week of 9 Nov 2026", so you see a misreading at once.
+Without a Prompt, for example in a new message, a period you name is used instead of the current one. The personal form link is narrower: it records the current period or one you were asked for, and while it lists periods under **For**, what you type may not name a different one (see [While a request waits](10-metrics.md#while-a-request-waits)). Ziffr's reply always names the value and the period as it read them, such as "2 recorded for Sign-ups, week of 9 Nov 2026", so you see a misreading at once.
 
 ### The personal form link
 
