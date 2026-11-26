@@ -529,9 +529,9 @@
                     0
                   ],
                   "x": 64,
-                  "y": 200,
-                  "w": 282,
-                  "h": 250,
+                  "y": 180,
+                  "w": 568,
+                  "h": 200,
                   "settings": {
                     "compare": [
                       "prev"
@@ -544,10 +544,10 @@
                   "slots": [
                     1
                   ],
-                  "x": 354,
-                  "y": 200,
-                  "w": 282,
-                  "h": 250,
+                  "x": 648,
+                  "y": 180,
+                  "w": 568,
+                  "h": 200,
                   "settings": {
                     "compare": [
                       "prev"
@@ -560,10 +560,10 @@
                   "slots": [
                     2
                   ],
-                  "x": 644,
-                  "y": 200,
-                  "w": 282,
-                  "h": 250,
+                  "x": 64,
+                  "y": 396,
+                  "w": 568,
+                  "h": 200,
                   "title": "Gap to quota",
                   "settings": {
                     "compare": []
@@ -575,10 +575,10 @@
                   "slots": [
                     7
                   ],
-                  "x": 934,
-                  "y": 200,
-                  "w": 282,
-                  "h": 250,
+                  "x": 648,
+                  "y": 396,
+                  "w": 568,
+                  "h": 200,
                   "settings": {
                     "compare": [
                       "prev"
@@ -588,7 +588,7 @@
                 {
                   "shape": "text",
                   "x": 64,
-                  "y": 500,
+                  "y": 624,
                   "w": 1152,
                   "text": [
                     "The commit is {latest 1}, against a quota of {latest 2}."
@@ -626,9 +626,9 @@
                     0
                   ],
                   "x": 64,
-                  "y": 200,
-                  "w": 282,
-                  "h": 250,
+                  "y": 180,
+                  "w": 568,
+                  "h": 200,
                   "settings": {
                     "compare": [
                       "prev"
@@ -641,10 +641,10 @@
                   "slots": [
                     4
                   ],
-                  "x": 354,
-                  "y": 200,
-                  "w": 282,
-                  "h": 250,
+                  "x": 648,
+                  "y": 180,
+                  "w": 568,
+                  "h": 200,
                   "settings": {
                     "compare": [
                       "prev"
@@ -657,10 +657,10 @@
                   "slots": [
                     5
                   ],
-                  "x": 644,
-                  "y": 200,
-                  "w": 282,
-                  "h": 250,
+                  "x": 64,
+                  "y": 396,
+                  "w": 568,
+                  "h": 200,
                   "settings": {
                     "compare": [
                       "prev"
@@ -673,10 +673,10 @@
                   "slots": [
                     6
                   ],
-                  "x": 934,
-                  "y": 200,
-                  "w": 282,
-                  "h": 250,
+                  "x": 648,
+                  "y": 396,
+                  "w": 568,
+                  "h": 200,
                   "settings": {
                     "compare": [
                       "prev"
@@ -686,13 +686,13 @@
                 {
                   "shape": "text",
                   "x": 64,
-                  "y": 500,
+                  "y": 618,
                   "w": 1152,
                   "text": [
                     "Commit {change prev 1}, best case {change prev 2}.",
                     "Closed this quarter {change prev 3}, pipeline {change prev 4}."
                   ],
-                  "size": "l"
+                  "size": "m"
                 }
               ]
             },
@@ -776,7 +776,7 @@
                   ],
                   "x": 64,
                   "y": 200,
-                  "w": 320,
+                  "w": 440,
                   "h": 218,
                   "settings": {
                     "compare": [
@@ -792,7 +792,7 @@
                   ],
                   "x": 64,
                   "y": 434,
-                  "w": 320,
+                  "w": 440,
                   "h": 218,
                   "settings": {
                     "compare": [
@@ -806,9 +806,9 @@
                   "slots": [
                     3
                   ],
-                  "x": 400,
+                  "x": 520,
                   "y": 200,
-                  "w": 816,
+                  "w": 696,
                   "h": 452,
                   "title": "Pipeline coverage, week by week",
                   "settings": {
