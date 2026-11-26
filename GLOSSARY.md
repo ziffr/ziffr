@@ -505,6 +505,9 @@ _Avoid_: Tenant key, encryption key, data key, customer key
 Ziffr added to a phone's home screen or a computer's dock from the browser, so it opens in a window of its own. It is the same Ziffr as in the browser, needs a connection and keeps no Workspace data on the device; there is no native app. Not an Installation, which is a running Ziffr on a server.
 _Avoid_: PWA, native app, mobile app, offline mode
 
+**Route Tier**:
+How much a phone has to do well on one page of Ziffr. *Phone-first* pages are made for a thumb and checked at phone widths with every change, *Phone-OK* pages let everything be read and the common change be made, and *Desktop-first* pages are made for a pointer and a large screen. A tier never hides a page or changes who may see it.
+
 **Workspace Profile**:
 What kind of business a Workspace belongs to: its industry, who it sells to (B2B, B2C, B2B2C, public sector, non-profit), its country and currency, and how many people and how much revenue it has, each picked from a fixed list. Ziffr uses it to suggest Metrics; teams within a workspace are Groups, not part of it. It is asked in the Setup Guide's About you step; it stays in the Workspace and is sent nowhere.
 _Avoid_: Classification, company profile, firmographics, tenant settings

@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:db": "vitest run --config vitest.db.config.ts",
+    "test:phone": "playwright test",
     "api:reference": "UPDATE_REFERENCE=1 vitest run src/app/api/v1/openapi.test.ts",
     "help:index": "node scripts/help-index.mjs",
     "postinstall": "node scripts/help-index.mjs",
@@ -62,6 +63,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "1.65.0",
     "@seriousme/openapi-schema-validator": "^2.12.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
