@@ -247,6 +247,7 @@ const CASES: Record<string, Case> = {
   "pack-actions:takeOffer": { nothing: "the demo has no new version of a Pack's item waiting", blocked: () => ["templates", 1] },
   "pack-setup-actions:packSetup": { blocked: () => [1] },
   "pack-setup-actions:planSetUp": { blocked: () => [1, { metrics: ["orders"] }] },
+  "pack-setup-actions:lineStart": { blocked: () => [1, "site"] },
   "pack-setup-actions:setUpPack": { nothing: "the demo has no installed Pack to set up from", blocked: () => [1, { metrics: ["orders"] }] },
   "retention-actions:previewRetention": { blocked: (i) => [i.ownMetric, { keep_months: 25, then: "delete" }] },
   "retention-actions:setMetricRetention": { blocked: (i) => [i.ownMetric, { keep_months: 25, then: "delete" }, "shown"] },
