@@ -37,7 +37,7 @@ export const DEMO_WORDS_COLUMNS: Readonly<Record<string, DemoTableWords>> = {
   metrics: {
     words: ["name", "description", "calculation_note", "unit"],
     kept: ["slug", "archived_at", "archived_by"],
-    other: ["format", "period", "submission_rule", "polarity", "sources", "owner_id", "formula", "aggregation", "unit_position", "attainment_method", "retention", "retention_pending", "retention_cap", "target_min_sealed", "target_max_sealed", "owner_taken_by"],
+    other: ["format", "period", "submission_rule", "polarity", "sources", "owner_id", "formula", "aggregation", "unit_position", "attainment_method", "retention", "retention_pending", "retention_cap", "target_min_sealed", "target_max_sealed", "owner_taken_by", "total_targets", "total_opened_at", "total_opened_by"],
     keepRows: true,
   },
   // The config holds the text of Checklist Items (sealed-workflow.ts), so the whole of it is a seeded Workflow's words.

@@ -20,7 +20,7 @@ export async function handOverMetric(actor: Actor, metricId: number, toId: strin
   if (actor.key || actor.role === "guest" || !Number.isInteger(metricId) || typeof toId !== "string") throw new Forbidden();
   refuseInDemo(actor);
   const ws = actor.workspaceId;
-  const m = await openOne("metrics", ws, (await db().from("metrics").select("id, slug, name, owner_id, formula, inputs_checked, owner_taken_by").eq("id", metricId).eq("workspace_id", ws).maybeSingle()).data);
+  const m = await openOne("metrics", ws, (await db().from("metrics").select("id, slug, name, owner_id, formula, inputs_checked, owner_taken_by, total_opened_at").eq("id", metricId).eq("workspace_id", ws).maybeSingle()).data);
   const mayAny = actor.role === "owner" || actor.role === "admin";
   if (!m || (m.owner_id !== actor.personId && !mayAny)) throw new Forbidden("Only the Metric's owner, an Owner or an Admin hands it over.");
   const from = m.owner_id as string;
@@ -49,6 +49,8 @@ export async function handOverMetric(actor: Actor, metricId: number, toId: strin
   // Recorded once the Metric has moved, so a hand-over the database refuses leaves no event; the Audit Log is add-only,
   // so an event cannot be taken back. As everywhere, a failure to record is logged and never undoes the action (spec 0008).
   await audit(actor, { kind: "metric.handed_over", object: { type: "metric", id: m.id as number, name: m.name as string }, details: { from_id: from, from_name: fromName, to_id: toId, to_name: toName } });
+  // The database closed an open Total in the same write; its new owner opens it anew.
+  if (m.total_opened_at) await audit(actor, { kind: "metric.total_closed", object: { type: "metric", id: m.id as number, name: m.name as string }, details: { reason: "handed over" } });
   await recordVersion("metric", m.id as number, actor.personId, { message: `Handed over from ${fromName} to ${toName}`, always: true });
   // Told like a reminder: by their own way, and not during their Quiet Hours; the old owner too, when someone else did it.
   const link = `/metrics/${m.slug}`;

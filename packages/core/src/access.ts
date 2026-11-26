@@ -7,13 +7,14 @@ import { tokenValid } from "./tokens";
 import { widgetMetricIds } from "./widget-metrics";
 import { canReadThread, deckMetricIds, expandGroupShares, objectRoles, visibleMetricIdsFrom, withEveryone } from "./visibility";
 import { cleanLogo } from "./theme-look";
-import { allRows, getActions, getBreakdowns, getMetrics, getSeriesOf, getSeriesValues, withInputs } from "./workspace-data";
+import { allRows, getActions, getAllSeries, getBreakdowns, getMetrics, getSeriesOf, getSeriesValues, withInputs } from "./workspace-data";
 import { Forbidden, type Actor } from "./actor";
 import { peopleIn, peopleToHide } from "./submissions";
 import { nameHider } from "./hide-names";
-import type { Action, CanvasData, Dashboard, Group, Metric, Profile, Share, ShareRole, TeamTemplate, Theme, WidgetSettings } from "./types";
+import type { Action, CanvasData, Dashboard, Group, Metric, Point, Profile, Share, ShareRole, TeamTemplate, Theme, WidgetSettings } from "./types";
 import { yearStartOf } from "./fiscal-year";
 import { condensedFor } from "./condensed-values";
+import { unapprovedTotals, withTotalNotes } from "./total-parts";
 import { attainmentMethodOf, numberStyleOf } from "./workspace-settings";
 import { withoutUnseenInputs } from "./formula";
 
@@ -184,8 +185,12 @@ export async function seriesFor(ws: string, metrics: Metric[], visible: Set<numb
   const wanted = withInputs(metrics, [...ids].filter((id) => visible.has(id))).filter((id) => visible.has(id));
   if (!wanted.length) return { series: {}, breakdowns: {}, targets: {}, projections: {}, condensed: {} };
   // Derived values are computed from all their inputs, also ones the person does not see; only visible series go out.
-  const [series, breakdowns, { targets, projections }, condensed] = await Promise.all([getSeriesOf(ws, metrics, wanted), getBreakdowns(ws, wanted), getSeriesValues(ws, wanted), condensedFor(ws, wanted)]);
+  // A Total is worked out for what this person sees: a period only where they see every part counted, unless it is open.
+  const aims: Record<number, Point[]> = {};
   const byId = new Map(metrics.map((m) => [m.id, m]));
+  const [series, breakdowns, { targets, projections }, condensed] = await Promise.all([getSeriesOf(ws, metrics, wanted, {}, { sees: (id) => visible.has(id), aims }), getBreakdowns(ws, wanted), getSeriesValues(ws, wanted), condensedFor(ws, wanted)]);
+  // A Total whose target is its parts' added up has that one, never a series stored under its own name.
+  for (const id of wanted) if (byId.get(id)!.total?.targets === "parts") targets[id] = aims[id] ?? [];
   return {
     series: Object.fromEntries(wanted.map((id) => byId.get(id)!).map((m) => [m.slug, series[m.slug] ?? []])),
     breakdowns,
@@ -254,6 +259,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
   const named = await peopleFor({ workspaceId: ws, personId: viewer, role: guest ? "guest" : "member" }, people);
   const wanted = opts.seriesOf === undefined ? [...ids] : typeof opts.seriesOf === "function" ? opts.seriesOf(visible) : opts.seriesOf;
   const { series, breakdowns, targets, projections, condensed } = await seriesFor(ws, metrics, ids, wanted);
+  // A Total's period is not approved yet while one of its parts' is not (spec 0058).
+  const unapproved = await unapprovedTotals(ws, visible.map((metric) => ({ metric, points: series[metric.slug] ?? [] })));
   const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
   const canRead = threadReader(viewer, groups, (id) => owners.get(id), ws, ids);
   const openActions: Record<number, number> = {};
@@ -261,7 +268,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
   return {
     viewer,
     // A formula goes to the browser only to someone who sees every Metric it names.
-    metrics: withoutUnseenInputs(visible, new Set(visible.map((m) => m.slug))),
+    // A Total that shows this person no number says why.
+    metrics: await withTotalNotes(ws, withoutUnseenInputs(visible, new Set(visible.map((m) => m.slug))), (id) => ids.has(id)),
     series,
     people: named,
     openActions,
@@ -279,7 +287,7 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     // A Guest shares nothing (GLOSSARY: Workspace Role), so of the Groups they get only the ones they are in, and of
     // their members only themselves: never who else is in which (AGENTS.md rule 3).
     groups: guest ? groups.filter((g) => g.members.includes(viewer)).map((g) => ({ ...g, members: [viewer] })) : groups,
-    pending: byMetric(states, "approval", ids),
+    pending: { ...byMetric(states, "approval", ids), ...unapproved },
     locked: byMetric(states, "locked", ids),
     yearStart,
     numberStyle,
@@ -287,6 +295,23 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     // Who submits, only for the Metrics the viewer sees: another Metric's id and its people are not theirs to know, and a Guest sees only themselves.
     submitters: (tokens ?? []).filter((t) => ids.has(t.metric_id) && (!guest || t.submitter_id === viewer)).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
   };
+}
+
+/** The Workspace's Metrics and series (getAllSeries) as one person reads them: each Total worked out for what they see,
+ * with its added-up targets where it takes them, and why it shows them no number. A Total's list names only the Metrics
+ * they see. */
+export async function allSeriesFor(actor: Actor, opts: { points?: number } = {}) {
+  const ws = actor.workspaceId;
+  const metrics = await getMetrics(ws);
+  if (!metrics.some((m) => m.total)) return getAllSeries(ws, opts);
+  const seen = await visibleMetricIds(ws, actor.personId, metrics);
+  const sees = (id: number) => seen.has(id);
+  const aims: Record<number, Point[]> = {};
+  const out = await getAllSeries(ws, { ...opts, reader: { sees, aims } });
+  // A Total's formula only names its Metrics for the core's rules: those the person does not see leave it here.
+  const slugs = new Set(out.metrics.filter((m) => sees(m.id)).map((m) => m.slug));
+  const named = out.metrics.map((m) => (m.total ? withoutUnseenInputs([m], slugs)[0] : m));
+  return { ...out, metrics: await withTotalNotes(ws, named, sees), targets: { ...out.targets, ...aims } };
 }
 
 /** What sharing these metrics would show each person or Group that they cannot see on their own: they don't

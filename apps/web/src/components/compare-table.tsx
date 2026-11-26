@@ -6,11 +6,12 @@ import { attainmentMethodNote, type AttainmentMethod } from "@ziffr/core/attainm
 import type { Metric, Point } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { periodLabel, type YearStart } from "@ziffr/core/periods";
+import { noValuesWords } from "@ziffr/core/total-rules";
 
 /** A metric's latest value, its target and attainment, and every comparison that fits its period. */
 export function CompareTable({ metric, resolve, targets, full, compact, yearStart, numberStyle: style, attainmentMethod }: { metric: Metric; resolve: Resolver; targets?: Point[]; full?: boolean; compact?: boolean; yearStart: YearStart; numberStyle: NumberStyle; attainmentMethod: AttainmentMethod }) {
   const s = summary(metric, resolve, targets, { keys: comparisonsFor(metric.period), full, yearStart, attainmentMethod });
-  if (s.value === undefined) return <p className="text-sm text-muted-foreground">No values yet.</p>;
+  if (s.value === undefined) return <p className="text-sm text-muted-foreground">{metric.total || metric.reads_total ? noValuesWords(metric) : "No values yet."}</p>;
   // Changes carry a sign, not a colour: colour is kept for on or off target (see target-chip).
   const sign = (n: number) => (n > 0 ? "+" : "");
   return (
