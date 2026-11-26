@@ -3,8 +3,11 @@
 // make it again. Pure.
 import { listOf, metricsInOrder } from "./placeholders";
 import { mapElementWords, type SlideElement } from "./slide-element";
+import { holdsPlaceholder, mapRichText, namedSlots, placeholder, renumberSlots, richRuns, TEXT_METRICS_MAX, textMetricIds } from "./slide-text";
+import { breakdownRowNames, outsideBraces, typedWords, wholeName, LEFT_OUT } from "./typed-words";
+import { widgetMetricIds } from "./widget-metrics";
 import { tagSourceId, takesTagSource } from "./tag-source";
-import type { AnchorRule, DashboardTemplateBody, DeckTemplateBody, WorkflowConfig, WorkflowStep, WorkflowTemplateBody, WorkflowTemplateStep, DashboardTemplateWidget, Metric, Slot, SlideBody, SlideShape, TemplateId, WidgetTemplate, Widget, WidgetSettings } from "./types";
+import type { AnchorRule, CanvasData, DashboardTemplateBody, DeckTemplateBody, WorkflowConfig, WorkflowStep, WorkflowTemplateBody, WorkflowTemplateStep, DashboardTemplateWidget, Metric, Slot, SlideBody, SlideShape, TemplateId, WidgetTemplate, Widget, WidgetSettings } from "./types";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings" | "title">;
 
@@ -101,8 +104,9 @@ function nameSlots(ctx: SlotCtx, labels: string[]) {
   return ctx.slots;
 }
 
-/** One widget with its metrics turned into slots of ctx. Keys of choices carry the prefix of this widget. */
-function templatize(widget: W, metrics: Metric[], choices: Choices, ctx: SlotCtx, prefix = "") {
+/** One widget with its metrics turned into slots of ctx. Keys of choices carry the prefix of this widget; the words
+ * the template keeps are added to `kept`. */
+function templatize(widget: W, metrics: Metric[], choices: Choices, ctx: SlotCtx, prefix = "", kept: string[] = []) {
   const s = widget.settings;
   const ms = metricsInOrder(widget, metrics);
   const notices: string[] = [];
@@ -147,6 +151,7 @@ function templatize(widget: W, metrics: Metric[], choices: Choices, ctx: SlotCtx
   const dropped = specifics(widget).filter((x) => (choices[prefix + x.key] ?? "drop") === "drop");
   const words = [s.kicker, s.headline, s.subline, s.footnote, s.source, widget.title, ...(s.callouts ?? []).map((c) => c.text), ...(s.panels ?? []).flatMap((x) => [x.title, ...(x.annotations ?? []).map((a) => a.text)]), ...(element?.words ?? [])];
   if (words.some((t) => t && /\d/.test(t.replace(/\{[^}]*\}/g, "")))) notices.push("Some words still contain numbers. They will read the same for every metric; use {latest} or {change yoy} to have them filled in.");
+  kept.push(...words.filter((t): t is string => Boolean(t)));
   if (dropped.length) notices.push(`${dropped.length} note${dropped.length > 1 ? "s" : ""} tied to one period or row will be left out.`);
 
   // Only what a template means to carry: no free-layout documents, no comparison choices of the original.
@@ -203,8 +208,8 @@ export function tagFillable(slots: Slot[], body: DashboardTemplateBody): boolean
   });
 }
 
-// Slide layouts: a whole slide saved as a template. Widgets on it share one set of slots; words in its
-// text boxes become placeholders and are filled in once, when a slide is made from the layout.
+// Slide layouts: a whole slide saved as a template. Widgets on it share one set of slots; the Metrics its text boxes
+// name become Slots too, and their words are filled each time a slide is shown (slide-text.ts).
 
 
 /** Shapes a layout may hold: text, drawing and widgets. Images point at files the deck owns, so they stay behind. */
@@ -222,41 +227,121 @@ export function slideSpecifics(shapes: SlideShape[]): Specific[] {
   return shapes.flatMap((sh, i) => (sh.type === "ziffr-widget" ? specifics(widgetOf(sh)).map((x) => ({ ...x, key: `s${i}:${x.key}` })) : []));
 }
 
-/** Rich text is a tree of nodes; only its text leaves change. */
-type RichNode = { text?: string; content?: RichNode[]; [k: string]: unknown };
-function mapRich(node: unknown, f: (t: string) => string): unknown {
-  if (!node || typeof node !== "object") return node;
-  const n = node as RichNode;
-  return { ...n, ...(typeof n.text === "string" ? { text: f(n.text) } : {}), ...(Array.isArray(n.content) ? { content: n.content.map((c) => mapRich(c, f)) } : {}) };
+/** What saving a template does with numbers and Breakdown rows typed into text boxes: `rows` are the row names to
+ * look for, and they are left out with the numbers unless `keep`. */
+export type Typed = { rows?: readonly string[]; keep?: boolean };
+
+/** The Placeholders a Deck Template file in format /1 may hold, which are filled from the slide's own Metrics. */
+const BASIC = /^\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\}$/i;
+
+/** A text box as a template keeps it. The Metrics its words name, by Placeholder or by typed name, become Slot numbers:
+ * the template holds no Metric id and no Metric name. A box that names only what a slide fills by itself (the first of
+ * its Metrics, or all of them) keeps no Slots of its own. `slide` are the slide's Metrics in the order a template
+ * fills them, `deck` the others the deck names. What was typed and found goes to `found`. */
+function templatizeText(sh: SlideShape, slide: Metric[], deck: Metric[], ctx: SlotCtx, typed: Typed, found: string[]): SlideShape {
+  const { meta, textSlots: _t, ...rest } = sh; // eslint-disable-line @typescript-eslint/no-unused-vars
+  const runs = richRuns(sh.props.richText);
+  const own = Array.isArray(meta?.metrics) ? meta.metrics : null;
+  const all = [...slide, ...deck];
+  const list: Metric[] = [];
+  const placeOf = (m: Metric) => {
+    let at = list.findIndex((x) => x.id === m.id);
+    if (at < 0 && list.length < TEXT_METRICS_MAX) at = list.push(m) - 1;
+    return at < 0 ? null : at;
+  };
+  // The list the words count in: the Metrics the box names itself, else the slide's, as a template fills them.
+  const before = own ? own.map((id) => all.find((m) => m.id === id)) : slide.slice(0, TEXT_METRICS_MAX);
+  const asked = own ? namedSlots(runs, before.length) : new Set(before.keys());
+  for (const i of [...asked].sort((a, b) => a - b)) if (before[i]) placeOf(before[i]);
+  const named = [...new Set(all)].sort((a, b) => b.name.length - a.name.length);
+  const lists = own || slide.length < 2 ? [] : [listOf(slide.map((m) => m.name)), slide.map((m) => m.name).join(", "), slide.map((m) => m.name).join(" and ")];
+  const rich = mapRichText(sh.props.richText, (run) => {
+    const moved = own ? renumberSlots(run, before.length, (i) => (before[i] ? placeOf(before[i]) : null)) : run;
+    const listed = outsideBraces(moved, (part) => lists.reduce((t, l) => t.replace(new RegExp(escape(l), "gi"), "{metrics}"), part));
+    const slotted = outsideBraces(listed, (part) =>
+      named.reduce((t, m) => outsideBraces(t, (plain) => plain.replace(wholeName(m.name), () => { const at = placeOf(m); return at === null ? LEFT_OUT : placeholder("metric", at); })), part));
+    const words = typedWords(slotted, typed.rows ?? []);
+    found.push(...words.found);
+    return typed.keep ? slotted : words.text;
+  });
+  const after = richRuns(rich);
+  const body = { ...rest, props: { ...sh.props, richText: rich } };
+  if (!holdsPlaceholder(after)) return body;
+  const used = [...namedSlots(after, list.length)].sort((a, b) => a - b);
+  const basic = after.every((t) => (t.match(/\{[^{}]*\}/g) ?? []).every((x) => BASIC.test(x)));
+  // A box needs no Slots of its own (and the file stays in format /1) when the slide fills it right by itself: it counts
+  // the slide's Metrics as they are and, naming its own, asks only for the first of them or for all of them.
+  const first = (i: number) => i === 0 && list[0].id === slide[0]?.id;
+  const every = after.some((t) => /\{metrics\}/i.test(t)) && list.length === slide.length && list.every((m, i) => m.id === slide[i].id);
+  const asSlide = own ? every || used.every(first) : list.length <= slide.length;
+  if (basic && asSlide) return body;
+  const richSlotted = mapRichText(rich, (run) => renumberSlots(run, list.length, (i) => used.indexOf(i)));
+  return { ...rest, props: { ...sh.props, richText: richSlotted }, textSlots: used.map((i) => slotFor(ctx, [list[i].id])) };
 }
 
-/** One slide's shapes with its widgets' Metrics turned into Slots of `ctx`; keys of `choices` carry `prefix`. */
-function templatizeSlide(shapes: SlideShape[], metrics: Metric[], choices: Choices, ctx: SlotCtx, prefix = "") {
+/** The row names of the Breakdowns of every Metric some slides' shapes name, as far as `data` holds them. */
+export function slideRowNames(shapes: SlideShape[], data: Pick<CanvasData, "breakdowns">): string[] {
+  const ids = shapes.flatMap((sh) => (sh.type === "ziffr-widget" ? widgetMetricIds(widgetOf(sh).metric_ids, widgetOf(sh).settings) : textMetricIds(sh)));
+  return breakdownRowNames(data.breakdowns, [...new Set(ids)]);
+}
+
+/** Whether words name one of these Breakdown rows outside their Placeholders. */
+const namesRow = (words: string, rows: readonly string[]) => words.split(/\{[^{}]*\}/).some((part) => rows.some((row) => part.search(wholeName(row)) >= 0));
+
+/** The Metrics of a slide's widgets, in the order a template fills them: {metric} in a text box is the first. */
+const widgetMetricsOf = (shapes: SlideShape[], metrics: Metric[]) =>
+  [...new Set(shapes.flatMap((sh) => (sh.type === "ziffr-widget" ? metricsInOrder(widgetOf(sh), metrics).map((m) => m.id) : [])))].flatMap((id) => metrics.find((m) => m.id === id) ?? []);
+
+/** One slide's shapes with its widgets' and text boxes' Metrics turned into Slots of `ctx`; keys of `choices` carry
+ * `prefix`. `deck` are the Metrics the whole deck names. */
+function templatizeSlide(shapes: SlideShape[], metrics: Metric[], choices: Choices, ctx: SlotCtx, deck: Metric[], typed: Typed, found: string[], prefix = "") {
   const notices: string[] = [];
-  // {metric} on the slide is the first metric of its first widget, {metric 2} the next new one, and so on.
-  const slideIds = [...new Set(shapes.flatMap((sh) => (sh.type === "ziffr-widget" ? metricsInOrder(widgetOf(sh), metrics).map((m) => m.id) : [])))];
-  const slideMetrics = slideIds.map((id) => metrics.find((m) => m.id === id)!).filter(Boolean);
-  const out = shapes.map((sh, i): SlideShape => {
-    if (sh.type === "ziffr-widget") {
-      const { notices: n, ...widget } = templatize(widgetOf(sh), metrics, choices, ctx, `${prefix}s${i}:`);
-      notices.push(...n);
-      const { metricIds: _m, settings: _s, title: _t, ...props } = sh.props; // eslint-disable-line @typescript-eslint/no-unused-vars
-      return { ...sh, props, widget };
-    }
-    return sh.props.richText ? { ...sh, props: { ...sh.props, richText: mapRich(sh.props.richText, (t) => placeholderize(t, slideMetrics) ?? t) } } : sh;
+  const slideMetrics = widgetMetricsOf(shapes, metrics);
+  // Widgets first: their Slots come first, as the slide fills its text boxes from them.
+  const widgets = shapes.map((sh, i): SlideShape | null => {
+    if (sh.type !== "ziffr-widget") return null;
+    const words: string[] = [];
+    const { notices: n, ...widget } = templatize(widgetOf(sh), metrics, choices, ctx, `${prefix}s${i}:`, words);
+    notices.push(...n);
+    if (words.some((w) => namesRow(w, typed.rows ?? []))) notices.push("Some words of widgets or Slide Elements name a Breakdown row. Everyone on the team reads them as typed.");
+    const { metricIds: _m, settings: _s, title: _t, ...props } = sh.props; // eslint-disable-line @typescript-eslint/no-unused-vars
+    const { meta: _meta, ...shape } = sh; // eslint-disable-line @typescript-eslint/no-unused-vars
+    return { ...shape, props, widget };
   });
-  const texts: string[] = [];
-  for (const sh of out) if (sh.props.richText) mapRich(sh.props.richText, (t) => (texts.push(t), t));
-  if (texts.some((t) => /\d/.test(t.replace(/\{[^}]*\}/g, "")))) notices.push("Some words still contain numbers. They will read the same for every metric; use {latest} or {change yoy} to have them filled in.");
+  const out = shapes.map((sh, i): SlideShape => {
+    const widget = widgets[i];
+    if (widget) return widget;
+    if (sh.props.richText) return templatizeText(sh, slideMetrics, deck, ctx, typed, found);
+    const { meta: _meta, ...shape } = sh; // eslint-disable-line @typescript-eslint/no-unused-vars
+    return shape;
+  });
   return { body: { shapes: out } as SlideBody, notices };
 }
 
-/** The slide layout a slide makes: shared slots for its widgets, placeholders in its words, and what changed on the way. */
-export function toSlideLayout(shapes: SlideShape[], metrics: Metric[], choices: Choices, labels: string[] = []) {
-  const ctx = newCtx();
-  const { body, notices } = templatizeSlide(shapes, metrics, choices, ctx);
-  return { slots: nameSlots(ctx, labels), body, notices: [...new Set(notices)] };
+/** What a template says about the numbers and rows found typed into its text boxes. */
+function typedNotice(found: string[], keep: boolean | undefined): string[] {
+  if (!found.length) return [];
+  const some = found.slice(0, 8).map((f) => `“${f}”`).join(", ") + (found.length > 8 ? ` and ${found.length - 8} more` : "");
+  return [keep
+    ? `Typed into text boxes and kept, for everyone on the team to read: ${some}.`
+    : `Left out of the text boxes: ${some}. A template is read by the whole team. Use Insert value for numbers that fill themselves in.`];
 }
+
+/** The slide layout a slide makes: shared slots for its widgets and text boxes, placeholders in its words, and what
+ * changed on the way. `typed` are the numbers and rows found typed into text boxes. */
+export function toSlideLayout(shapes: SlideShape[], metrics: Metric[], choices: Choices, labels: string[] = [], typed: Typed = {}) {
+  const ctx = newCtx();
+  const found: string[] = [];
+  const { body, notices } = templatizeSlide(shapes, metrics, choices, ctx, deckMetricsOf([shapes], metrics), typed, found);
+  return { slots: nameSlots(ctx, labels), body, notices: [...new Set([...notices, ...typedNotice(found, typed.keep)])], typed: found };
+}
+
+/** Every Metric some slides name, in a widget or in a text box's words. Only these are matched against typed names:
+ * the person saving was checked to see them, and an id a box lists without asking for it was not (rule 3). */
+const deckMetricsOf = (slides: SlideShape[][], metrics: Metric[]) => {
+  const ids = new Set(slides.flatMap((shapes) => [...widgetMetricsOf(shapes, metrics).map((m) => m.id), ...shapes.flatMap(textMetricIds)]));
+  return metrics.filter((m) => ids.has(m.id));
+};
 
 // Deck Templates (GLOSSARY: Deck Template): every slide of a deck, sharing one set of Slots, so a Metric shown on
 // three slides is picked once. Each slide keeps its own words, with its own {metric}.
@@ -268,18 +353,20 @@ export function deckSpecifics(slides: SlideShape[][]): Specific[] {
 
 /** The Deck Template a deck's slides make: shared Slots, each slide's shapes with Slot numbers instead of Metrics.
  * `covers` says which slides are covers. */
-export function toDeckTemplate(slides: SlideShape[][], metrics: Metric[], choices: Choices, labels: string[] = [], covers: boolean[] = []) {
+export function toDeckTemplate(slides: SlideShape[][], metrics: Metric[], choices: Choices, labels: string[] = [], covers: boolean[] = [], typed: Typed = {}) {
   const ctx = newCtx();
+  const found: string[] = [];
+  const deck = deckMetricsOf(slides, metrics);
   const made = slides.map((shapes, j) => {
-    const slide = templatizeSlide(shapes, metrics, choices, ctx, `d${j}:`);
+    const slide = templatizeSlide(shapes, metrics, choices, ctx, deck, typed, found, `d${j}:`);
     return covers[j] ? { ...slide, body: { ...slide.body, cover: true } } : slide;
   });
-  return { slots: nameSlots(ctx, labels), body: { slides: made.map((m) => m.body) } as DeckTemplateBody, notices: [...new Set(made.flatMap((m) => m.notices))] };
+  return { slots: nameSlots(ctx, labels), body: { slides: made.map((m) => m.body) } as DeckTemplateBody, notices: [...new Set([...made.flatMap((m) => m.notices), ...typedNotice(found, typed.keep)])], typed: found };
 }
 
-/** The slides of a new deck from a Deck Template, once each Slot has its Metrics; words filled by `fillWords`. */
-export function fromDeckTemplate(body: DeckTemplateBody, fills: number[][], fillWords: (t: string, metricIds: number[]) => string): SlideShape[][] {
-  return body.slides.map((slide) => fromSlideLayout(slide, fills, fillWords));
+/** The slides of a new deck from a Deck Template, once each Slot has its Metrics. */
+export function fromDeckTemplate(body: DeckTemplateBody, fills: number[][]): SlideShape[][] {
+  return body.slides.map((slide) => fromSlideLayout(slide, fills));
 }
 
 // Dashboard Templates (spec 0014): a whole dashboard saved as a template. Its widgets share one set of slots, so a
@@ -315,14 +402,18 @@ export function fromDashboardTemplate(body: DashboardTemplateBody, fills: number
   return body.widgets.map((tw) => ({ ...fromTemplate({ view: tw.view, body: tw }, fills, tagFills), x: tw.x, y: tw.y, w: tw.w, h: tw.h }));
 }
 
-/** The shapes of a new slide from a layout, with slots filled and its words filled in from today's data. */
-export function fromSlideLayout(body: SlideBody, fills: number[][], fillWords: (t: string, metricIds: number[]) => string): SlideShape[] {
+/** The shapes of a new slide from a layout, with slots filled. A text box keeps its Placeholders and gets the Metrics
+ * they count: those of its own Slots, else the slide's widgets' in order. Nothing is written into its words. */
+export function fromSlideLayout(body: SlideBody, fills: number[][]): SlideShape[] {
   const made = body.shapes.map((sh) => (sh.widget ? { sh, w: fromTemplate({ view: sh.props.template as TemplateId, body: sh.widget }, fills) } : { sh, w: null }));
   const ids = [...new Set(made.flatMap((x) => (x.w ? [...x.w.metric_ids, ...(x.w.settings.panels ?? []).flatMap((p) => p.metricIds)] : [])))];
   return made.map(({ sh, w }) => {
-    const { widget: _w, ...rest } = sh; // eslint-disable-line @typescript-eslint/no-unused-vars
+    // A template holds no Metric id: whatever a shape says of its own is dropped.
+    const { widget: _w, meta: _m, textSlots, ...rest } = sh; // eslint-disable-line @typescript-eslint/no-unused-vars
     if (w) return { ...rest, props: { ...sh.props, metricIds: w.metric_ids, settings: JSON.stringify(w.settings), title: w.title ?? "" } };
-    return sh.props.richText ? { ...rest, props: { ...sh.props, richText: mapRich(sh.props.richText, (t) => fillWords(t, ids)) } } : rest;
+    if (!sh.props.richText || !(textSlots || holdsPlaceholder(richRuns(sh.props.richText)))) return rest;
+    const metrics = textSlots ? textSlots.flatMap((i) => fills[i] ?? []) : ids;
+    return { ...rest, meta: { metrics: metrics.slice(0, TEXT_METRICS_MAX) } };
   });
 }
 

@@ -14,7 +14,7 @@ The page lists every deck you made and every deck someone shared with you. Each 
 
 - **Open a deck** by choosing its card. If you may change it, the deck opens in the editor. If you may only present it, it opens for presenting.
 - **Make a new deck**: type a name in **Name of the new deck** and choose **New deck**. The deck opens in the editor and starts with one title slide.
-- **Make a deck from a Deck Template**: choose **From a Deck Template**, pick a template, and pick a Metric for each of its Slots, once even when several slides show it. The button shows when your team has saved a Deck Template. The new deck is yours: it starts with the template's slides, its words filled in from today's data, and the template's Theme if the Workspace still has it. Changing the deck never changes the template.
+- **Make a deck from a Deck Template**: choose **From a Deck Template**, pick a template, and pick a Metric for each of its Slots, once even when several slides show it. The button shows when your team has saved a Deck Template. The new deck is yours: it starts with the template's slides, whose values are [filled each time a slide is shown](#live-values-in-text-boxes), and the template's Theme if the Workspace still has it. Changing the deck never changes the template.
 - **Make a deck from a dashboard or a Snapshot**: on a dashboard, open the **⋯** menu and choose **Make a deck…**; on a Snapshot, choose **Make a deck…**. A panel asks which numbers the deck shows (see [Live numbers or a Snapshot's](#live-numbers-or-a-snapshots)).
 
 If you follow a link to a deck that is not shared with you, Ziffr says "This deck isn't shared with you" and lets you ask its owner for access.
@@ -40,7 +40,7 @@ Each of these slides holds a **Snapshot Part**: one part of the Snapshot. A line
 
 - **The numbers stay.** Values, Targets, comparisons, Breakdowns, Projections and figures computed from them are what the Snapshot kept. A value corrected or recorded later, a changed target or a new start of the Fiscal Year changes nothing on the slide. How numbers are written follows the Workspace's Number Style, and colours and fonts follow the deck's Theme. If a value was corrected since, the line adds "Corrected since: see the Snapshot".
 - **The words follow the Snapshot.** Titles, headlines and the introduction are the Snapshot's words as they are now. Change them on the Snapshot, not on the deck; you can move, resize and delete a part.
-- **Everything on such a slide keeps numbers.** A Widget or Slide Element you add to it draws the Snapshot's numbers too, never live ones. For a live number, use another slide. Moving a Widget off the slide, or deleting what keeps it there, makes it live again; you can only save that when you see its Metrics.
+- **Everything on such a slide keeps numbers.** A Widget or Slide Element you add to it, and the [live values of a text box](#live-values-in-text-boxes), draw the Snapshot's numbers too, never live ones; a text box whose Snapshot does not give you all its Metrics leaves its values empty. For a live number, use another slide. Moving a Widget or text box off the slide, or deleting what keeps it there, makes it live again; you can only save that when you see its Metrics.
 - **Each person sees only what the Snapshot would show them.** Sharing the deck opens none of it: someone sees a part only if they may open that dashboard, the Snapshot is shown, and they may see every Metric the part draws. Otherwise the slide says "This part is not available to you." (or, for a Widget or element beside a part, "These numbers are not shown to you: this slide keeps a Snapshot's numbers."). To let an audience see the parts, ask each dashboard's owner to share it with them.
 - **A deleted Snapshot takes its numbers with it.** Its parts say "This Snapshot was deleted." to whoever may open the dashboard. To change a number, the dashboard's owner deletes the Snapshot and takes it again; then add the new one.
 - **Not carried elsewhere.** View Links leave these parts and numbers out; send an exported file to someone outside. Slide layouts, Deck Templates, Packs and the Workspace Export keep no parts, and a part cannot be placed on a dashboard or in a free layout.
@@ -53,7 +53,7 @@ If two people edit a deck at the same time, the last save wins. Let one person a
 
 The editor is made for a larger screen. On a phone a note at the top says "This is easier on a larger screen." and offers **Send me the link** and **Look at it**, which presents the deck (see [Screens made for a larger screen](07-getting-started.md#screens-made-for-a-larger-screen)); the editor stays below it, fits the width and can still be used, with a shorter canvas so the page scrolls around it.
 
-A deck that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) starts empty. The first time you open it, the editor lays out its slides from today's values, as for a deck made from a Deck Template, and saves them.
+A deck that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) starts empty. The first time you open it, the editor lays out its slides, as for a deck made from a Deck Template, and saves them.
 
 The editor has three parts: a row of buttons at the top, a side panel on the left, and the deck canvas, where your slides sit.
 
@@ -97,7 +97,7 @@ The **⋯** menu holds:
 | **Section header** | One large line that opens a section. |
 | **Blank** | Nothing but the slide. |
 
-Below them, under **Team layouts**, you find slides that people in your team saved (see [Saving a slide as a layout](#saving-a-slide-as-a-layout)). Each shows who made it. If a team layout has Slots, Ziffr first asks which Metrics should fill them. Its words are then filled in from today's data.
+Below them, under **Team layouts**, you find slides that people in your team saved (see [Saving a slide as a layout](#saving-a-slide-as-a-layout)). Each shows who made it. If a team layout has Slots, Ziffr first asks which Metrics should fill them. Its values are then [filled each time the slide is shown](#live-values-in-text-boxes).
 
 ### Slides and their order
 
@@ -113,7 +113,7 @@ The **Pool** on the left holds the Metrics you can see, your saved Widgets and t
 - A Widget Template asks for its Metrics first.
 - A Widget shows live numbers: whenever a new value arrives, the slide shows it (except on a [slide that keeps numbers](#slides-that-keep-numbers)). A Widget's title may use Placeholders such as {latest} and {change yoy}, which fill in from the same numbers, on the slide and in the PowerPoint export.
 
-You can only place Metrics you may see. Everyone you share the deck with can see the Metrics its slides draw live; what a slide keeps from a Snapshot is not opened by the share.
+You can only place Metrics you may see. Everyone you share the deck with can see the Metrics its slides draw live, in Widgets, Slide Elements and the values of text boxes; what a slide keeps from a Snapshot is not opened by the share.
 
 From a dashboard or a story, without opening the deck first: open a Widget's or a Finding's **⋯** menu and choose **Add to…** → **Deck…**. A panel opens beside the page: pick a deck you own or may edit (or **New deck**), then a slide, or **New slide at the end**, which gets the Widget's name as its title. The deck opens on that slide with the copy in the first free space, and is saved. A deck you may only view is not offered. Only your own choice in the menu adds it, once: opening the deck again, or a link someone sends you, adds nothing.
 
@@ -159,6 +159,24 @@ The toolbar at the bottom of the canvas has the tools for text, arrows, lines, s
 
 You can paste or drop an image file onto a slide. Links cannot go on a slide: Ziffr shows "Links can't go on a slide", because a link would load from another site every time the slide is shown. Paste or drop the image itself instead.
 
+### Live values in text boxes
+
+Text typed with the toolbar, the words in a box or a note and an arrow's label can show live values, filled each time the slide is shown: in the editor, when presenting, on a View Link and in PDF and PowerPoint.
+
+Choose **Insert value** at the top. With one text box selected, the value goes to the end of its words (or to the cursor while you are typing in it); with none, a new text box appears on the slide you are looking at. A panel opens beside the slide:
+
+| Field | What it does |
+|---|---|
+| **Metric** | Which Metric. Ziffr never chooses one for you: whoever the deck is shared with, and whoever opens its View Link, sees it. |
+| **What to show** | **Value** (the latest), **Name**, **Period**, **Target**, **Change** (since the period before, in the Metric's unit), **Change in %** (such as "up 4.0 %"), **Change on a year before**, or **Difference** to a second Metric. |
+| **Compared with** | The second Metric of a **Difference**. |
+
+While the box is selected it shows its words with the **Placeholders** in braces that stand for the values, such as {latest} or {change prev 2}; click elsewhere to read the values. The panel on the left shows what the box **Reads now** and which Metrics it takes them from. Delete a Placeholder and its value is gone, with the Metric if nothing else in the box asks for it. You may also type the words in braces from the [table above](#slide-elements) into a box that already holds a value; a number names the box's Metrics in the order you inserted them. One text box names 9 Metrics at most. Words in braces in a box without an inserted value stay as written.
+
+- **Each person reads only what they may see.** Someone who may not see one of a box's Metrics gets no name and no value of it: its place stays empty. A View Link leaves out a whole text box that names a Metric the link does not show.
+- **Saving checks them.** You can only add a Metric you may see.
+- **Older decks keep their words.** Words that were filled in when a slide was made from a template or layout stay as they are. Replace them with **Insert value** to keep them current.
+
 ### The side panel
 
 What the side panel shows depends on what you have selected.
@@ -179,11 +197,13 @@ A slide with a **Logo place**, a page number ({slide}) or a **Footer line** of i
 
 ### Saving a slide as a layout
 
-Select a slide and choose **Save slide as layout…**; a panel opens beside the slide. Snapshot Parts are left out, and the panel says so. Give it a name and, if you like, a description. The Metrics on the slide become Slots, so others can fill the layout with their own Metrics. Everyone in the team can use the layout from **+ Slide**, under **Team layouts**. Only you can change it.
+Select a slide and choose **Save slide as layout…**; a panel opens beside the slide. Snapshot Parts are left out, and the panel says so. Give it a name and, if you like, a description. The Metrics on the slide, those of its text boxes' values too, become Slots, so others can fill the layout with their own Metrics. Everyone in the team can use the layout from **+ Slide**, under **Team layouts**. Only you can change it.
+
+A layout is read by the whole team, so numbers and Breakdown rows typed into its text boxes are left out and written as "…". The panel lists them; tick **Keep the numbers and row names typed into text boxes** to keep them as typed. Values you added with **Insert value** are not typed words and stay live.
 
 ### Saving a deck as a Deck Template
 
-A **Deck Template** keeps a whole deck: every slide with its Widgets, words and boxes, with the Metrics left open as Slots. Choose **Save as Deck Template…** at the top; a panel opens beside the deck. A Metric shown on several slides becomes one Slot, which you can name, such as "Revenue". Its name in the words becomes {metric}; in the words of a [Slide Element](#slide-elements) this happens for the Metrics listed on that element, and any other name stays as you typed it. Notes tied to one period or row can follow a rule instead, or are left out, as for a layout. Images and links stay behind. You can do this for a deck of your own once it is saved, when you see every Metric on it. Everyone in the team can then start a deck from it on the Decks page; only you can change or replace it.
+A **Deck Template** keeps a whole deck: every slide with its Widgets, words and boxes, with the Metrics left open as Slots. Choose **Save as Deck Template…** at the top; a panel opens beside the deck. A Metric shown on several slides becomes one Slot, which you can name, such as "Revenue". The Metrics of text boxes' values become Slots too, and numbers and Breakdown rows typed into text boxes are left out unless you keep them, as for a [layout](#saving-a-slide-as-a-layout). Its name in the words becomes {metric}; in the words of a [Slide Element](#slide-elements) this happens for the Metrics listed on that element, and any other name stays as you typed it. Notes tied to one period or row can follow a rule instead, or are left out, as for a layout. Images and links stay behind. You can do this for a deck of your own once it is saved, when you see every Metric on it. Everyone in the team can then start a deck from it on the Decks page; only you can change or replace it.
 
 ## Presenting
 

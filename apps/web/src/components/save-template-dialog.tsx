@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { saveSlideLayout, saveTemplate } from "@/app/template-actions";
 import { saveAsDeckTemplate } from "@/app/deck-workflow-template-actions";
-import { deckSpecifics, RULES_FOR, slideSpecifics, specifics, toDeckTemplate, toSlideLayout, toTemplate, type Choices, type Specific } from "@ziffr/core/team-templates";
+import { deckSpecifics, RULES_FOR, slideRowNames, slideSpecifics, specifics, toDeckTemplate, toSlideLayout, toTemplate, type Choices, type Specific } from "@ziffr/core/team-templates";
 import type { CanvasData, Period, Slot, SlideShape, Widget } from "@ziffr/core/types";
 import { periodLabel } from "@ziffr/core/periods";
 import { SlideOverWindow } from "./slide-over-window";
 
-type Submit = { name: string; description: string; labels: string[]; choices: Choices; replaceId: number | null };
+type Submit = { name: string; description: string; labels: string[]; choices: Choices; replaceId: number | null; keepTyped?: boolean };
 
 export function SaveTemplateDialog({ widget, data, onClose }: { widget: Widget; data: CanvasData; onClose: () => void }) {
   const items = useMemo(() => specifics(widget), [widget]);
@@ -35,6 +35,7 @@ export function SaveTemplateDialog({ widget, data, onClose }: { widget: Widget; 
 /** "Save slide as layout…": every widget, text box and arrow on the slide. */
 export function SaveSlideDialog({ deckId, shapes, data, note, onClose }: { deckId: number; shapes: SlideShape[]; data: CanvasData; /** What of the slide stays behind. */ note?: string; onClose: () => void }) {
   const items = useMemo(() => slideSpecifics(shapes), [shapes]);
+  const rows = useMemo(() => slideRowNames(shapes, data), [shapes, data]);
   return (
     <TemplateSaveDialog
       kind="slide"
@@ -44,7 +45,7 @@ export function SaveSlideDialog({ deckId, shapes, data, note, onClose }: { deckI
       items={items}
       grain="month"
       defaultName=""
-      preview={(choices) => toSlideLayout(shapes, data.metrics, choices)}
+      preview={(choices, keep) => toSlideLayout(shapes, data.metrics, choices, [], { rows, keep })}
       submit={(x) => saveSlideLayout({ deckId, shapes, ...x })}
       onClose={onClose}
     />
@@ -55,6 +56,7 @@ export function SaveSlideDialog({ deckId, shapes, data, note, onClose }: { deckI
  * slides in the editor; the core saves the deck as stored. */
 export function SaveDeckDialog({ deckId, slides, data, existing, note, onClose }: { deckId: number; slides: SlideShape[][]; data: CanvasData; existing: Mine[]; /** What of the deck stays behind. */ note?: string; onClose: () => void }) {
   const items = useMemo(() => deckSpecifics(slides), [slides]);
+  const rows = useMemo(() => slideRowNames(slides.flat(), data), [slides, data]);
   return (
     <TemplateSaveDialog
       kind="deck"
@@ -65,7 +67,7 @@ export function SaveDeckDialog({ deckId, slides, data, existing, note, onClose }
       grain="month"
       defaultName=""
       existing={existing}
-      preview={(choices) => toDeckTemplate(slides, data.metrics, choices)}
+      preview={(choices, keep) => toDeckTemplate(slides, data.metrics, choices, [], [], { rows, keep })}
       submit={(x) => saveAsDeckTemplate({ deckId, ...x })}
       onClose={onClose}
     />
@@ -88,7 +90,8 @@ type SaveProps = {
   items: Specific[];
   grain: Period;
   defaultName: string;
-  preview: (choices: Choices) => { slots: Slot[]; notices: string[] };
+  /** `keepTyped`: numbers and Breakdown rows typed into text boxes stay in the template. `typed` are those found. */
+  preview: (choices: Choices, keepTyped: boolean) => { slots: Slot[]; notices: string[]; typed?: string[] };
   submit: (x: Submit) => Promise<unknown>;
   onClose: () => void;
 };
@@ -108,7 +111,9 @@ function TemplateSaveForm({ kind, data, items, grain, defaultName, existing, not
   const [name, setName] = useState(defaultName);
   const [description, setDescription] = useState("");
   const [replaceId, setReplaceId] = useState<number | null>(null);
-  const preview = useMemo(() => make(choices), [make, choices]);
+  // Left out unless the person says to keep them.
+  const [keepTyped, setKeepTyped] = useState(false);
+  const preview = useMemo(() => make(choices, keepTyped), [make, choices, keepTyped]);
   const [labels, setLabels] = useState<string[]>(() => preview.slots.map((s) => s.label));
   const [pending, start] = useTransition();
   const noun = NOUN[kind];
@@ -121,7 +126,7 @@ function TemplateSaveForm({ kind, data, items, grain, defaultName, existing, not
             e.preventDefault();
             start(async () => {
               try {
-                unwrap(await submit({ name, description, labels, choices, replaceId }));
+                unwrap(await submit({ name, description, labels, choices, replaceId, keepTyped }));
                 toast.success(replaceId ? `${Noun} replaced` : `${Noun} saved`, { description: WHERE[kind] });
                 onClose();
               } catch (err) {
@@ -185,6 +190,12 @@ function TemplateSaveForm({ kind, data, items, grain, defaultName, existing, not
             <ul className="space-y-0.5 rounded-[var(--radius-input)] bg-muted p-2.5 text-xs text-muted-foreground">
               {preview.notices.map((n, i) => <li key={i}>{n}</li>)}
             </ul>
+          )}
+          {Boolean(preview.typed?.length) && (
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={keepTyped} onChange={(e) => setKeepTyped(e.target.checked)} className="mt-0.5 size-4 accent-[var(--color-ink)]" />
+              Keep the numbers and row names typed into text boxes
+            </label>
           )}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
