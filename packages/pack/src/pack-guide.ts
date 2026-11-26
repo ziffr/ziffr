@@ -5,7 +5,7 @@
 // draws as text. Every text is plain (no link, web address, HTML, brace, bracket or backtick), also as it reads with the
 // bold marks taken away, so marks cannot hide an address or an order to an assistant. Its size is bounded.
 import type { Schema } from "./json-check.js";
-import { PLAIN, plainText } from "./file-text.js";
+import { PLAIN, plainText, textPasses } from "./file-text.js";
 
 /** The sections of a Pack Guide, in the order they are shown, with the titles Ziffr writes over them. */
 export const PACK_GUIDE_SECTIONS = [
@@ -78,12 +78,11 @@ export function checkGuide(guide: PackGuide, at: (path: string, message: string)
   const size = new TextEncoder().encode(JSON.stringify(guide)).length;
   if (size > L.bytes) return at("guide", `is ${size.toLocaleString("en")} bytes; at most ${L.bytes.toLocaleString("en")} are allowed.`);
   if (!Object.keys(guide).length) at("guide", "says nothing: fill at least one section, or leave the guide out.");
-  const plain = new RegExp(PLAIN, "u");
   const marked = (path: string, text: string) => {
     const parts = text.split(MARK);
     if (parts.length % 2 === 0) return at(path, "has a ** without its pair: put ** before and after the words to show bold.");
     if (parts.some((p, i) => i % 2 === 1 && !p.trim())) return at(path, "has bold marks with no words between them.");
-    if (!plain.test(shown(text))) at(path, "reads as a web address once its bold marks are taken away; a guide holds no link.");
+    if (!textPasses(PLAIN, shown(text))) at(path, "reads as a web address once its bold marks are taken away; a guide holds no link.");
   };
   for (const { key } of PACK_GUIDE_SECTIONS)
     (guide[key] ?? []).forEach((b, i) => {

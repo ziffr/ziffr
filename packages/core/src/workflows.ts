@@ -27,7 +27,7 @@ import { validCondition } from "./alert-rules";
 import { CHECKLIST_DAYS_MAX, TELL_GROUPS_PER_STEP, CHECKLIST_ITEMS_PER_WORKFLOW, TELL_PEOPLE_PER_STEP, CHECKLIST_TEXT_MAX, TELL_STEPS_PER_WORKFLOW, TELL_WEBHOOKS_PER_STEP } from "./alert-limits";
 import { mayManageWebhooks } from "./webhooks";
 import { mayTakeSnapshot } from "./snapshots";
-import { PLAIN } from "./file-text";
+import { PLAIN, textPasses } from "./file-text";
 import { randomUUID } from "node:crypto";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -95,8 +95,8 @@ function cleanItem(s: ChecklistItem, idOk: (id: unknown) => id is string, known:
   const text = (typeof s.text === "string" ? s.text : "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/g, "").trim();
   if (!text) throw new Error("A checklist item needs its words.");
   // The words must be what a Pack and a Workspace Export carry (one rule for plain text, file-text.ts), so no Workflow is ever left out of an export for them.
-  if (!new RegExp(PLAIN, "u").test(text)) throw new Error("A checklist item holds plain words only: no line breaks, web addresses, markup or brackets. Letters, digits and everyday punctuation are fine.");
   if ([...text].length > CHECKLIST_TEXT_MAX) throw new Error(`A checklist item holds at most ${CHECKLIST_TEXT_MAX} characters.`);
+  if (!textPasses(PLAIN, text)) throw new Error("A checklist item holds plain words only: no line breaks, web addresses, markup or brackets. Letters, digits and everyday punctuation are fine.");
   const id = idOk(s.id) ? s.id : randomUUID();
   // The Workspace's day it was first saved: kept from the stored item, never taken from what was sent.
   const addedOn = (known.stored?.steps ?? []).find((x): x is ChecklistItem => x.type === "checklist" && x.id === id)?.addedOn ?? known.today;

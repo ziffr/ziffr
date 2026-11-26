@@ -10,6 +10,7 @@ import { guideRuns, PACK_GUIDE_LIMITS, type PackGuide } from "@ziffr/pack/pack-g
 import { run } from "@ziffr/pack/run";
 import { checkPack, checkPackValue, PACK_2_SCHEMA, PACK_FORMAT, PACK_SCHEMA, type Pack } from "./pack";
 import { installManifest, installPackFile, notBuiltYet, readPackFile, storedItems } from "./packs";
+import { PLAIN, textPasses } from "./file-text";
 import { Forbidden, type Actor } from "./actor";
 import { checkWorkflowTemplateFile, checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_SCHEMA, workflowTemplateFromFile, type WorkflowTemplateFile } from "./workflow-template-file";
 import { fromWorkflowTemplate } from "./team-templates";
@@ -420,6 +421,52 @@ describe("a Pack with a Total", () => {
   it("alone is what refuses: the same Pack without one is not", () => {
     const res = checkPack(changed((p) => p.contents.metrics.pop()));
     expect(res.ok && notBuiltYet(res.pack)).toBeNull();
+  });
+});
+
+describe("the text check reads Unicode the way a person does", () => {
+  // Each shows as a web address: a mark or a character that shows nothing beside the dot, or letters in another width.
+  const addresses = [
+    "See evil̶.com today",
+    "See evil.̶com today",
+    "See evil.co̶m today",
+    "See evil͏.com today",
+    "See evil️.com today",
+    "See evil.ㅤcom today",
+    "See evil.ｃｏｍ today",
+    "See ww̶w.evil today",
+    "See evil̶.example/login today",
+  ];
+  // Ordinary words with accents, written as one character or as a letter and its mark, and other scripts.
+  const ordinary = [
+    "Umsatz in Zürich, Köln.Über uns",
+    "Café crème, naïve façade: señor",
+    "Số đơn hàng mỗi tháng",
+    "Straße Nr.5, ½ price… Nº 1",
+    "मासिक बिक्री",
+    "ยอดขายรายเดือน",
+    "月次の売上",
+  ];
+  const inMetric = (text: string) => checkPack(changed((p) => (metric(p, "hours").metric.description = text)));
+  const inGuide = (text: string) => checkPack(changed(words(text)));
+
+  it.each(addresses)("refuses %j in a Pack's text and in its guide", (text) => {
+    for (const res of [inMetric(text), inGuide(text), checkPack(changed((p) => (p.positions[0].name = text)))]) expect(!res.ok && res.problems[0].message).toContain("web addresses");
+  });
+
+  it("reads a guide without its bold marks in the same way", () => {
+    const res = inGuide("See evil̶.**com** today");
+    expect(!res.ok && res.problems[0].message).toContain("once its bold marks are taken away");
+  });
+
+  it.each(ordinary.flatMap((t) => [t, t.normalize("NFD")]))("lets %j pass", (text) => {
+    for (const res of [inMetric(text), inGuide(text)]) expect(res.ok ? [] : res.problems).toEqual([]);
+  });
+
+  it("reads a very long run of marks quickly", () => {
+    const started = performance.now();
+    textPasses(PLAIN, `a${"̖́".repeat(250_000)}`);
+    expect(performance.now() - started).toBeLessThan(2_000);
   });
 });
 

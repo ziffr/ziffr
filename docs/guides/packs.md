@@ -257,7 +257,7 @@ Ziffr checks a Pack in full on its server before it shows or installs anything:
 - a file over 1 MiB, more than 200 items, or more than 50 of one kind;
 - an `audience` with a key outside Ziffr's lists, a key twice, an empty part, a part Ziffr does not know or no `ziffr` minimum beside it;
 - a field Ziffr does not know, or one given twice. A field called `__proto__` is read as an unknown field, never as anything else;
-- a web address, HTML, a script, a template in braces or a line break in any text of `contents`. Words of widgets may hold the Placeholders Ziffr knows, such as `{metric}` or `{change yoy}`;
+- a web address, HTML, a script, a template in braces or a line break in any text of `contents`. Words of widgets may hold the Placeholders Ziffr knows, such as `{metric}` or `{change yoy}`. The text check reads Unicode the way a person does: an address with an accent mark, an invisible character or letters of another width in it is an address too, while ordinary accented words pass;
 - images and fonts, except the Pack's one `logo`: a Theme uses only fonts Ziffr ships, and its background image is set in Ziffr after installing;
 - a `logo` that is not a PNG, JPEG or plain SVG as a base64 data address, weighs over 128,000 bytes, measures over 512 pixels on a side, or whose bytes are not the type it says; an SVG with a script, a handler, foreign content, a link, a style, an entity or a `<!DOCTYPE>`. These are the checks a Theme's logo has, the very same code. `npx @ziffr/pack check` reports them with the line of `logo`;
 - a Dashboard Template with a Free Layout, a Slot it does not have, or widgets that overlap;
