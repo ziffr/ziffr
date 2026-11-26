@@ -5,15 +5,15 @@
 // installed Packs (never by Workspace) and Ziffr's version; never a Workspace's name, id or data, nor a person. The
 // address is https, never inside this server's own network (unless ZIFFR_ALLOW_PRIVATE_MARKETPLACE=1), the connection
 // goes to the address that was checked, redirects are not followed, and every answer is held to a size, a time and a
-// shape before it is used. A Pack's file must carry a valid Ed25519 signature of a key this Ziffr trusts, and is then
-// checked in full like any Pack: the signature says where a file came from, the checks are the protection.
-import { createPublicKey, verify, type KeyObject } from "node:crypto";
+// shape before it is used. A Pack's file must come with a Signed Statement about exactly that file by a key this Ziffr
+// trusts and has not seen revoked (spec 0059; @ziffr/pack/marketplace), and is then checked in full like any Pack: the
+// signature says where a file came from, the checks are the protection.
+import { checkRevocation, isWholeText, marketplaceKeyId, marketplaceVersionPath, MARKETPLACE_CONTRACT, MARKETPLACE_SCHEMAS, verifyPackStatement, type MarketplaceKeys, type MarketplaceListing, type Revocation, type SignedText, type StatementRefusal } from "@ziffr/pack/marketplace";
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { settingsInEffect } from "./settings-in-effect";
-import { checkSchema, type Schema } from "./json-check";
-import { PLAIN } from "./file-text";
-import { checkPack, PACK_LICENSES, PACK_LIMITS, versionBelow } from "./pack";
+import { checkSchema } from "./json-check";
+import { checkPack, PACK_LIMITS, versionBelow } from "./pack";
 import { assertManages, installPack, previewPack, type PackRead } from "./packs";
 import { readPackUpdate, updatePack, type UpdatePlan } from "./pack-updates";
 import { ZIFFR_VERSION } from "./ziffr-version";
@@ -23,13 +23,16 @@ import { outboundRequest, outboundTls, type OutboundAnswer } from "./outbound-re
 /** Ziffr's own Marketplace, where the connection goes unless the Installation names another. */
 export const MARKETPLACE_DEFAULT_URL = "https://marketplace.ziffr.net";
 
-/** The Marketplace's public keys this Ziffr trusts, as base64 of the raw 32-byte Ed25519 key. PROTOTYPE: empty until
- * Ziffr Cloud's Marketplace signs its first Pack (spec 0030, the Marketplace service); the server may add its own
- * with ZIFFR_MARKETPLACE_PUBLIC_KEY, a self-hoster running their own Marketplace. Never set from a page. */
-export const MARKETPLACE_PUBLIC_KEYS: readonly string[] = [];
+/** A Marketplace Key's part (GLOSSARY: Marketplace Key): the signing key signs statements; the reserve key revokes it. */
+export type MarketplaceKeyPart = "signing" | "reserve";
 
-/** The longest an answer of the Marketplace may be, in bytes, and how long it may take. */
-export const MARKETPLACE_LIMITS = { listBytes: 262_144, fileBytes: PACK_LIMITS.bytes + 4_096, timeoutMs: 10_000, results: 50, versions: 50, query: 100 } as const;
+/** The Marketplace's public keys this Ziffr ships, each as base64 of the raw 32-byte Ed25519 key with its part.
+ * PROTOTYPE: empty until Ziffr's Marketplace has keys (spec 0059, a later ticket ships them); the server may add its
+ * own with ZIFFR_MARKETPLACE_PUBLIC_KEY, a self-hoster running their own Marketplace. Never set from a page. */
+export const MARKETPLACE_PUBLIC_KEYS: readonly { part: MarketplaceKeyPart; key: string }[] = [];
+
+/** How long one request to the Marketplace may take; every other limit is the contract's (MARKETPLACE_CONTRACT). */
+export const MARKETPLACE_TIMEOUT_MS = 10_000;
 
 /** How often the Installation asks for newer versions. */
 const CHECK_EVERY_MS = 24 * 60 * 60 * 1000;
@@ -65,10 +68,10 @@ export const marketplaceTls = outboundTls;
 /** How a request is made; tests put a stub in, which records what would go out. */
 export const marketplaceTransport = {
   /** Sends one request to an https address the core checked, and reads at most `maxBytes` of the answer. No redirect is
-   * followed and the whole request ends within MARKETPLACE_LIMITS.timeoutMs (the shared rules: outbound-request.ts). */
+   * followed and the whole request ends within MARKETPLACE_TIMEOUT_MS (the shared rules: outbound-request.ts). */
   request: (url: URL, init: { method: "GET" | "POST"; body?: string; maxBytes: number; env: Record<string, string | undefined>; deadlineMs?: number }): Promise<Answer> =>
     outboundRequest(url, {
-      method: init.method, body: init.body, maxBytes: init.maxBytes, deadlineMs: Math.min(init.deadlineMs ?? MARKETPLACE_LIMITS.timeoutMs, MARKETPLACE_LIMITS.timeoutMs),
+      method: init.method, body: init.body, maxBytes: init.maxBytes, deadlineMs: Math.min(init.deadlineMs ?? MARKETPLACE_TIMEOUT_MS, MARKETPLACE_TIMEOUT_MS),
       headers: { accept: "application/json", ...(init.body ? { "content-type": "application/json" } : {}) },
       allowPrivate: init.env.ZIFFR_ALLOW_PRIVATE_MARKETPLACE === "1",
     }),
@@ -97,7 +100,7 @@ async function ask(path: string, init: { method?: "GET" | "POST"; body?: unknown
   const target = new URL(path, url);
   let answer: Answer;
   try {
-    answer = await marketplaceTransport.request(target, { method: init.method ?? "GET", body: init.body === undefined ? undefined : JSON.stringify(init.body), maxBytes: init.maxBytes ?? MARKETPLACE_LIMITS.listBytes, env });
+    answer = await marketplaceTransport.request(target, { method: init.method ?? "GET", body: init.body === undefined ? undefined : JSON.stringify(init.body), maxBytes: init.maxBytes ?? MARKETPLACE_CONTRACT.listBytes, env });
   } catch {
     throw new MarketplaceUnavailable();
   }
@@ -111,20 +114,11 @@ async function ask(path: string, init: { method?: "GET" | "POST"; body?: unknown
   }
 }
 
-const ID = "^[a-z0-9][a-z0-9-]{0,38}/[a-z0-9][a-z0-9-]{0,59}$";
-const VERSION = "^(?:0|[1-9][0-9]{0,5})\\.(?:0|[1-9][0-9]{0,5})\\.(?:0|[1-9][0-9]{0,5})$";
-const text = (max: number): Schema => ({ type: "string", maxLength: max, pattern: PLAIN });
-const LISTING: Schema = {
-  type: "object",
-  properties: {
-    id: { type: "string", pattern: ID }, name: { ...text(80), minLength: 1 }, summary: text(300), author: { ...text(80), minLength: 1 },
-    license: { enum: [...PACK_LICENSES] }, version: { type: "string", pattern: VERSION },
-  },
-  required: ["id", "name", "summary", "author", "license", "version"],
-};
+// The contract's own schemas, so Ziffr holds an answer to exactly what a service is checked against.
+const LISTING = MARKETPLACE_SCHEMAS.packs.properties!.packs.items!;
+const NAMED_VERSION = MARKETPLACE_SCHEMAS.updates.properties!.updates.items!;
 
-/** A Pack as the Marketplace lists it, after Ziffr checked every field. */
-export type MarketplaceListing = { id: string; name: string; summary: string; author: string; license: string; version: string };
+export type { MarketplaceListing };
 
 /** A listing kept only when every field passes, and only its known fields: the Marketplace's words are untrusted. */
 const listing = (x: unknown): MarketplaceListing | null => {
@@ -139,49 +133,83 @@ const free = (l: MarketplaceListing) => l.license !== "Ziffr-Pack-1.0";
 /** Searches the Marketplace for free Packs (Owners and Admins): the search words are all that is sent. */
 export async function searchMarketplace(actor: Actor, query: string): Promise<MarketplaceListing[]> {
   assertManages(actor);
-  const q = String(query ?? "").replace(/\s+/g, " ").trim().slice(0, MARKETPLACE_LIMITS.query);
+  const q = String(query ?? "").replace(/\s+/g, " ").trim().slice(0, MARKETPLACE_CONTRACT.query);
   const answer = await ask(`v1/packs?q=${encodeURIComponent(q)}`) as { packs?: unknown };
-  const packs = Array.isArray(answer?.packs) ? answer.packs.slice(0, MARKETPLACE_LIMITS.results) : [];
+  const packs = Array.isArray(answer?.packs) ? answer.packs.slice(0, MARKETPLACE_CONTRACT.results) : [];
   return packs.map(listing).filter((l): l is MarketplaceListing => !!l && free(l));
 }
 
-/** The keys this Ziffr trusts: the ones it ships, and the server's own (ZIFFR_MARKETPLACE_PUBLIC_KEY), never a page's. */
-function trustedKeys(env: Record<string, string | undefined>): KeyObject[] {
-  const raw = [...MARKETPLACE_PUBLIC_KEYS, ...String(env.ZIFFR_MARKETPLACE_PUBLIC_KEY ?? "").split(",").map((k) => k.trim()).filter(Boolean)];
-  return raw.flatMap((b64) => {
-    try {
-      const key = Buffer.from(b64, "base64");
-      if (key.length !== 32) return [];
-      // The raw key wrapped as SubjectPublicKeyInfo: the fixed Ed25519 prefix, then the 32 bytes.
-      return [createPublicKey({ key: Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), key]), format: "der", type: "spki" })];
-    } catch {
-      return [];
-    }
+/** The keys this Ziffr trusts, by part: the ones it ships, and the server's own (ZIFFR_MARKETPLACE_PUBLIC_KEY,
+ * comma-separated: a key alone or after `signing:` is a signing key, after `reserve:` a reserve key), never a page's. */
+export function trustedKeys(env: Record<string, string | undefined>): MarketplaceKeys {
+  const own = String(env.ZIFFR_MARKETPLACE_PUBLIC_KEY ?? "").split(",").map((k) => k.trim()).filter(Boolean).map((entry) => {
+    const [, part, key] = /^(?:(signing|reserve):)?([\s\S]*)$/.exec(entry)!;
+    return { part: (part ?? "signing") as MarketplaceKeyPart, key: key.trim() };
   });
+  const all = [...MARKETPLACE_PUBLIC_KEYS, ...own];
+  const of = (part: MarketplaceKeyPart) => all.filter((k) => k.part === part).map((k) => k.key);
+  return { signing: of("signing"), reserve: of("reserve") };
 }
 
-/** Whether `signature` (base64) is a valid Ed25519 signature of `file`'s exact bytes by a key this Ziffr trusts. */
-export function signedByMarketplace(file: string, signature: string, env: Record<string, string | undefined> = process.env): boolean {
-  if (typeof file !== "string" || typeof signature !== "string" || !/^[A-Za-z0-9+/]{86}==$/.test(signature)) return false;
-  const sig = Buffer.from(signature, "base64");
-  return trustedKeys(env).some((k) => {
-    try { return verify(null, Buffer.from(file, "utf8"), k, sig); } catch { return false; }
-  });
+/** What is wrong with the trusted keys as set, or null; said in the server's log at start. A key named as both signing
+ * and reserve cannot be taken out of use, and whoever steals it holds both parts. */
+export function marketplaceKeyProblem(env: Record<string, string | undefined>): string | null {
+  const { signing, reserve } = trustedKeys(env);
+  const reserves = new Set(reserve.map(marketplaceKeyId));
+  const both = signing.map(marketplaceKeyId).filter((id) => id !== null && reserves.has(id));
+  return both.length ? `ZIFFR_MARKETPLACE_PUBLIC_KEY: the key ${both[0]} is listed as both signing and reserve. It cannot be taken out of use; make the reserve key a different one and keep it offline.` : null;
 }
 
-/** A version's file from the Marketplace, its signature checked and the file checked to be the Pack and version asked
- * for. A file whose signature fails is refused (spec 0030), whatever else it holds. */
+const NOT_KEPT = "Ziffr could not check the Marketplace's keys just now; nothing was shown or installed.";
+
+/** Keeps every revocation of an answer that a reserve key signed, for the whole Installation and for good. Anything else
+ * in the list is ignored, so neither a thief of the signing key nor whoever answers at the address revokes anything. */
+async function keepRevocations(entries: unknown, keys: MarketplaceKeys): Promise<void> {
+  if (!Array.isArray(entries)) return;
+  const held = entries.slice(0, MARKETPLACE_CONTRACT.revocations).flatMap((e) => checkRevocation(e as SignedText, keys) ?? []);
+  if (!held.length) return;
+  const { error } = await db().from("marketplace_revoked_keys").upsert(held.map((r) => ({ key_id: r.key, revoked_by: r.by, signed_at: r.signed })), { onConflict: "key_id", ignoreDuplicates: true });
+  if (error) throw new MarketplaceUnavailable(NOT_KEPT);
+}
+
+/** Every revocation kept; refuses to go on when they cannot be read, so a revoked key is never trusted by mistake. */
+async function keptRevocations(): Promise<Pick<Revocation, "key" | "by">[]> {
+  const { data, error } = await db().from("marketplace_revoked_keys").select("key_id, revoked_by");
+  if (error) throw new MarketplaceUnavailable(NOT_KEPT);
+  return (data ?? []).map((r) => ({ key: String(r.key_id), by: String(r.revoked_by) }));
+}
+
+const NOT_ITS = "The file's signature does not hold: it is not the Marketplace's. Nothing was shown or installed.";
+const ANOTHER = "The Marketplace answered with another Pack than the one asked for, or a file other than the one it signed. Nothing was shown or installed.";
+const NOT_A_FILE = "The Marketplace answered with a file Ziffr does not take.";
+const REFUSED: Record<StatementRefusal, string> = {
+  file: NOT_A_FILE,
+  signature: NOT_ITS,
+  statement: NOT_ITS,
+  reserve: NOT_ITS,
+  revoked: "The file is signed with a key the Marketplace took out of use. Nothing was shown or installed.",
+  "other-file": ANOTHER,
+};
+
+/** A version's file from the Marketplace, its Signed Statement checked and the file checked to be the Pack and version
+ * asked for. A file whose statement does not hold is refused (specs 0030 and 0059), whatever else it holds. */
 async function signedFile(packId: string, version: string): Promise<string> {
-  if (!new RegExp(ID).test(String(packId)) || !new RegExp(VERSION).test(String(version))) throw new Forbidden();
+  const path = marketplaceVersionPath(String(packId), String(version));
+  if (!path) throw new Forbidden();
   const { env } = await connection();
-  const answer = await ask(`v1/packs/${packId}/versions/${version}`, { maxBytes: MARKETPLACE_LIMITS.fileBytes * 2 }) as { file?: unknown; signature?: unknown };
+  const answer = await ask(path, { maxBytes: MARKETPLACE_CONTRACT.versionBytes }) as { file?: unknown; statement?: unknown; signature?: unknown; revocations?: unknown } | null;
+  const keys = trustedKeys(env);
+  // Revocations first: one that comes with this very answer already counts for it.
+  await keepRevocations(answer?.revocations, keys);
   const file = typeof answer?.file === "string" ? answer.file : "";
-  if (!file || Buffer.byteLength(file) > PACK_LIMITS.bytes) throw new MarketplaceUnavailable("The Marketplace answered with a file Ziffr does not take.");
-  if (!signedByMarketplace(file, String(answer.signature ?? ""), env)) throw new MarketplaceUnavailable("The file's signature does not hold: it is not the Marketplace's. Nothing was shown or installed.");
+  // Refused before anything is hashed: a text with a lone surrogate would share its SHA-256 with another file.
+  if (!file || !isWholeText(file) || Buffer.byteLength(file) > PACK_LIMITS.bytes) throw new MarketplaceUnavailable(NOT_A_FILE);
+  const held = verifyPackStatement({ file, statement: String(answer!.statement ?? ""), signature: String(answer!.signature ?? "") }, { id: packId, version }, keys, await keptRevocations());
+  if (!held.ok) throw new MarketplaceUnavailable(REFUSED[held.refusal]);
   // A file that fails the checks is returned as it is: preview and install check it again and refuse it with its
   // problems, which is where a person reads them. Never skip that second check.
   const res = checkPack(file);
-  if (res.ok && (res.pack.id !== packId || res.pack.version !== version)) throw new MarketplaceUnavailable("The Marketplace answered with another Pack than the one asked for.");
+  if (res.ok && (res.pack.id !== packId || res.pack.version !== version)) throw new MarketplaceUnavailable(ANOTHER);
   if (res.ok && res.pack.license === "Ziffr-Pack-1.0") throw new MarketplaceUnavailable("Paid Packs cannot be installed yet.");
   return file;
 }
@@ -238,9 +266,11 @@ export async function checkMarketplaceVersions(force = false): Promise<void> {
   const claim = db().from("marketplace_checks").update({ checked_at: now.toISOString() }).eq("only_row", true);
   const { data: claimed } = await (force ? claim : claim.lt("checked_at", new Date(now.getTime() - CHECK_EVERY_MS).toISOString())).select("only_row");
   if (!claimed?.length) return;
-  const answer = await ask("v1/updates", { method: "POST", body: { ziffr: ZIFFR_VERSION, installed: [...oldest].map(([id, version]) => ({ id, version })) } }) as { updates?: unknown };
-  const updates = (Array.isArray(answer?.updates) ? answer.updates : []).slice(0, 500)
-    .filter((u): u is { id: string; version: string } => !!u && typeof u === "object" && new RegExp(ID).test(String((u as { id?: unknown }).id)) && new RegExp(VERSION).test(String((u as { version?: unknown }).version)))
+  const answer = await ask("v1/updates", { method: "POST", body: { ziffr: ZIFFR_VERSION, installed: [...oldest].map(([id, version]) => ({ id, version })) } }) as { updates?: unknown; revocations?: unknown } | null;
+  await keepRevocations(answer?.revocations, trustedKeys(await settingsInEffect()));
+  const updates = (Array.isArray(answer?.updates) ? answer.updates : []).slice(0, MARKETPLACE_CONTRACT.updates)
+    .filter((u): u is { id: string; version: string } => !checkSchema(NAMED_VERSION, u).length)
+    .map((u) => ({ id: u.id, version: u.version }))
     .filter((u) => oldest.has(u.id));
   if (updates.length) await db().from("marketplace_versions").upsert(updates.map((u) => ({ pack_id: u.id, version: u.version, seen_at: new Date().toISOString() })));
 }
