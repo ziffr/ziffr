@@ -19,6 +19,7 @@ import { forgetTelegramUser, isTelegramId, linkTelegramByCode, personOfTelegramU
 import { isTelegramTestCode, takeTelegramTestAnswer, takeTelegramTestStart } from "./installation-telegram-test";
 import { trialEnded } from "./trials";
 import { mayAnswer } from "./practice";
+import { personBlocked } from "./user-block";
 
 /** Largest update taken, in bytes; real ones are far smaller. */
 export const MAX_TELEGRAM_BYTES = 64 * 1024;
@@ -234,6 +235,8 @@ async function pressed(cq: Obj, userId: number): Promise<Handled> {
   // An ended trial takes no reply and answers none, as if the message were too old (spec 0021).
   if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000 || (await trialEnded(d.workspace_id))) return at("expired", "This message is too old to act on.");
   if (m[1] === TELEGRAM_BUTTONS.approve && d.action_id) {
+    // A Blocked User decides nothing (spec 0066).
+    if (await personBlocked(d.recipient_id)) return at("refused");
     // The same path as in Ziffr, which checks the person is this approval's approver and it is still open.
     try {
       await approve(d.workspace_id, d.action_id, d.recipient_id, { type: "telegram" });

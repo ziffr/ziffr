@@ -21,7 +21,8 @@ import { emailHtml, emailLogo, LOGO_CID, type EmailContent } from "./branded-ema
 import { appendedLink, buttonTo, plainWords, unlinked, type MailAction } from "./mail-links";
 import { themeLook } from "./theme-look";
 import { workspaceLook } from "./workspace-look";
-import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
+import { claimTrialSend, keepInOutbox } from "./trials";
+import { sendingHeldBack } from "./user-block";
 
 /** How often a message is tried before it counts as failed, unless ZIFFR_LIMIT_SEND_ATTEMPTS says otherwise (the default). */
 export const MAX_ATTEMPTS = sendingLimitDefault("sendAttempts");
@@ -247,8 +248,8 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   const archived = await archivedMetricHolds(claimed);
   if (archived) return never(archived);
   // Settings may have gone, or the Delivery may be the demo's: nothing leaves then, and it does not try again.
-  // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015).
-  const held = await trialHoldsBack(claimed.workspace_id, claimed.recipient_id);
+  // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015); nothing reaches a Blocked User.
+  const held = await sendingHeldBack(claimed.workspace_id, claimed.recipient_id);
   if (held) return keepInOutbox(id, held);
   // One reading of the settings for the whole send, so it cannot change half way.
   const settings = await settingsInEffect();

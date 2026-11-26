@@ -15,7 +15,8 @@ import { telegramOnIn } from "./telegram-connection";
 import { forgetTelegramUser, telegramChatOf } from "./telegram-people";
 import { tellIfAnswered } from "./prompt-ways";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
+import { claimTrialSend, keepInOutbox } from "./trials";
+import { sendingHeldBack } from "./user-block";
 
 /** Telegram messages one workspace may send in 24 hours, unless ZIFFR_LIMIT_CHAT_MESSAGES_PER_WORKSPACE_PER_DAY says otherwise (the default); the rest wait in the queue. */
 export const TELEGRAM_PER_WORKSPACE_PER_DAY = sendingLimitDefault("chatPerWorkspace");
@@ -64,8 +65,8 @@ export async function sendTelegramDelivery(id: number): Promise<SendResult> {
   if (archived) return never(archived);
   // From a Practice Workspace (spec 0063) only to its own person; which chat it goes to is compared below.
   if (!(await mayQueue(d.workspace_id, "telegram", d.recipient_id))) return keepInOutbox(id, PRACTICE_HELD);
-  // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015).
-  const held = await trialHoldsBack(d.workspace_id, d.recipient_id);
+  // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015); nothing reaches a Blocked User.
+  const held = await sendingHeldBack(d.workspace_id, d.recipient_id);
   if (held) return keepInOutbox(id, held);
   if (d.workspace_id === DEMO_WORKSPACE_ID || !(await telegramOnIn(d.workspace_id))) return never("Telegram is off in this workspace.");
   // Someone who stopped Prompts and reminders on Telegram gets none, also ones queued before they stopped.

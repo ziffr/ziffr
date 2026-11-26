@@ -16,7 +16,8 @@ import { slackUserFor } from "./slack-people";
 import { tellIfAnswered } from "./prompt-ways";
 import { workspaceLook } from "./workspace-look";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
+import { claimTrialSend, keepInOutbox } from "./trials";
+import { sendingHeldBack } from "./user-block";
 
 /** Slack messages one workspace may send in 24 hours, unless ZIFFR_LIMIT_CHAT_MESSAGES_PER_WORKSPACE_PER_DAY says otherwise (the default); the rest wait in the queue. */
 export const SLACK_PER_WORKSPACE_PER_DAY = sendingLimitDefault("chatPerWorkspace");
@@ -64,8 +65,8 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
   if (archived) return never(archived);
   // From a Practice Workspace (spec 0063) only to its own person; which account it goes to is compared below.
   if (!(await mayQueue(d.workspace_id, "slack", d.recipient_id))) return keepInOutbox(id, PRACTICE_HELD);
-  // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015).
-  const held = await trialHoldsBack(d.workspace_id, d.recipient_id);
+  // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015); nothing reaches a Blocked User.
+  const held = await sendingHeldBack(d.workspace_id, d.recipient_id);
   if (held) return keepInOutbox(id, held);
   if (d.workspace_id === DEMO_WORKSPACE_ID || !(await slackOn())) return never("Slack is not set up.");
   const bot = await slackBot(d.workspace_id);

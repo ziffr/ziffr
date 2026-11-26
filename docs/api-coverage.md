@@ -295,6 +295,8 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `setWorkspaceQuietHours` (quiet-hours.ts): Workspace settings
 - `workspaceLimitRows` (workspace-limits-admin.ts): Installation limits
 - `setWorkspaceLimit` (workspace-limits-admin.ts): Installation limits
+- `installationWorkspaces` (installation-workspaces.ts): the Workspaces page of the Installation settings, for Installation Admins at the screen (spec 0066)
+- `extendTrial` (installation-workspaces.ts): Installation administration at the screen; a key never changes a trial (spec 0066)
 - `changeWorkspaceKey` (workspace-key-change.ts): Installation encryption (#250)
 - `renameWorkspace` (workspace-settings.ts): Workspace settings
 - `setWorkspaceProfile` (workspace-settings.ts): Workspace settings
