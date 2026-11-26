@@ -157,7 +157,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
               <div className="mt-4 flex flex-wrap gap-2 pl-12">
                 <DropdownMenu>
                   <DropdownMenuTrigger className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-input)] border border-input bg-card px-3 text-sm"><Plus aria-hidden className="size-4" /> Add step</DropdownMenuTrigger>
-                  <DropdownMenuContent>
+                  <DropdownMenuContent className="max-sm:min-w-48">
                     {(["remind", "escalate", "check", "approve", "tell", "checklist", "send_snapshot"] as const).filter((t) => t === "tell" ? steps.filter((x) => x.type === "tell").length < TELL_STEPS_PER_WORKFLOW : t === "checklist" ? steps.filter((x) => x.type === "checklist").length < CHECKLIST_ITEMS_PER_WORKFLOW : (t !== "check" && t !== "approve" && t !== "send_snapshot") || !steps.some((x) => x.type === t)).map((t) => {
                       const Icon = ICON[t];
                       // Send Snapshot goes when the period is finished, which needs a locking Publish step: adding it ticks the lock.
@@ -305,7 +305,7 @@ function StepFields({ s, people, submitters, tellFacts, dashboards, lockHeld, on
       {s.type === "tell" && <TellFields s={s} people={people} tellFacts={tellFacts} onChange={onChange} field={field} />}
       {s.type === "checklist" && <ChecklistFields s={s} people={people} tellFacts={tellFacts} onChange={onChange} field={field} />}
       {s.type === "send_snapshot" && <SnapshotFields s={s} people={people} dashboards={dashboards} tellFacts={tellFacts} onChange={onChange} field={field} />}
-      {s.type === "publish" && <label className="flex items-center gap-1.5 max-sm:min-h-11"><input type="checkbox" checked={s.lock} disabled={lockHeld} onChange={(e) => onChange({ ...s, lock: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> lock the period once published{lockHeld && <span>(kept on: the Send Snapshot step waits for the lock)</span>}</label>}
+      {s.type === "publish" && <label className="flex items-center gap-1.5 max-sm:min-h-11 max-sm:flex-wrap"><input type="checkbox" checked={s.lock} disabled={lockHeld} onChange={(e) => onChange({ ...s, lock: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> lock the period once published{lockHeld && <span className="max-sm:basis-full">(kept on: the Send Snapshot step waits for the lock)</span>}</label>}
     </div>
   );
 }
