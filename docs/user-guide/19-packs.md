@@ -93,6 +93,8 @@ Three Themes come with the Pack, **Forecast Navy** (the deck starts with it), **
 
 A Pack may carry a **Pack Guide**: what its creator tells you about it. The preview shows it above the list of what the Pack adds, for a file, one of Ziffr's own Packs and a Pack from the Marketplace, also in the Setup Guide.
 
+Each of Ziffr's own Packs has one; read **First steps**, which begins with **Start here**. A Pack of one of them installed from an earlier version of Ziffr gets its guide when you update it.
+
 It has up to five sections, always under these titles: **What it's for**, **Before you start**, **First steps**, **Each part** and **Questions**. A guide shows only the sections its creator filled. **What it's for** and **First steps** are open when the guide appears (when it has neither, its first section is); choose a title to open or close a section.
 
 The words are the creator's, not Ziffr's. They are headings, paragraphs, lists and bold words only: a guide holds no link, picture or code, and Ziffr refuses a file whose guide has one, before it shows anything. Words in a guide that read like instructions to an AI assistant are listed with the others. A Pack without a guide shows none.

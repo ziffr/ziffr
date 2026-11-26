@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/1",
+  "format": "ziffr.pack/2",
   "id": "ziffr/ziffr-operations",
   "name": "Ziffr operations",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "The figures of the Usage Feed as Metrics, with a dashboard: people, Workspaces, signups, trials, values by Source, calls and views. For whoever runs a Ziffr Installation.",
   "author": {
     "name": "Ziffr"
@@ -11,6 +11,61 @@
   "ziffr": ">=0.11",
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For whoever runs a Ziffr Installation: its people and Workspaces, signups and trials, values by the way they arrive, calls and views, day by day. Counts only."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "An Installation Admin makes the Usage Key and puts both keys into the Installation's settings.",
+          "A **Feed** with a Feed Key in the Workspace that holds these figures.",
+          "Room for **36 Metrics**."
+        ]
+      }
+    ],
+    "firstSteps": [
+      {
+        "type": "heading",
+        "text": "Start here"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Make a Feed, with a Feed Key, on the **Feeds** page.",
+          "Open **Workspace**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Keep the Metrics ticked, pick **Values come from the Feed** and your Feed, pick the dashboard **Ziffr operations**, and choose **Set up**.",
+          "On the Installation Settings page, choose **Make a Usage Key**, and leave this Workspace out of the figures.",
+          "Put the Usage Key and the Feed Key into the settings, as the usage guide in Ziffr's repository says. The figures then arrive once a day."
+        ]
+      }
+    ],
+    "eachPart": [
+      {
+        "type": "list",
+        "items": [
+          "Workspaces, people, Metrics, dashboards, decks, Workflows, Feeds and installed Packs at the end of each day.",
+          "Signups, trials and sizes booked, values by the way they arrived, calls, emails and views in each period.",
+          "The dashboard **Ziffr operations**."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "Why is a figure empty or always 0?"
+      },
+      {
+        "type": "text",
+        "text": "Splits are held back while the Installation has fewer than three Workspaces. A few figures are not recorded yet and read 0 or stay empty; the usage guide lists them."
+      }
+    ]
   },
   "contents": {
     "metrics": [

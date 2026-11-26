@@ -26,6 +26,19 @@ describe("the starting Packs", () => {
     expect(res.assistantTexts).toEqual([]);
   });
 
+  it.each(STARTING_PACKS)("%s has a guide in all five sections, with a numbered “Start here” that names its dashboards, decks and Workflows", (file) => {
+    const res = checkPack(startingPack(file));
+    if (!res.ok) throw new Error("does not pass");
+    const { format, guide, contents } = res.pack;
+    expect(format).toBe("ziffr.pack/2");
+    for (const section of ["whatItsFor", "beforeYouStart", "firstSteps", "eachPart", "questions"] as const) expect(guide?.[section], section).toBeTruthy();
+    expect(guide!.firstSteps!.slice(0, 1)).toEqual([{ type: "heading", text: "Start here" }]);
+    expect(guide!.firstSteps!.some((b) => b.type === "list" && b.numbered === true && b.items.length >= 4)).toBe(true);
+    // Spelled as the Pack spells them, so the person finds them on the screens the guide sends them to.
+    const said = JSON.stringify(guide);
+    for (const item of [...(contents.dashboards ?? []), ...(contents.decks ?? []), ...(contents.workflows ?? [])]) expect(said).toContain(`**${item.template.name}**`);
+  });
+
   it("Sales forecast works out the gap, the share of quota and the coverage, with no value where an input is missing or a division is by 0", () => {
     const res = checkPack(startingPack("sales-forecast.pack.json"));
     if (!res.ok) throw new Error("does not pass");
@@ -51,7 +64,7 @@ describe("the starting Packs", () => {
     const res = checkPack(startingPack("saas-metrics.pack.json"));
     if (!res.ok) throw new Error("does not pass");
     const c = res.pack.contents;
-    expect(res.pack.version).toBe("2.1.0");
+    expect(res.pack.version).toBe("2.2.0");
     expect(res.pack.logo).toMatch(/^data:image\/svg\+xml;base64,/);
     expect(c.metrics!.every((e) => (e.metric.tags ?? []).length > 0)).toBe(true);
     expect(c.decks!.map((d) => d.key)).toEqual(["monthly-report", "quarterly-board"]);

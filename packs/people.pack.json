@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/1",
+  "format": "ziffr.pack/2",
   "id": "ziffr/people",
   "name": "People and HR",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "summary": "Headcount, hires, leavers, open roles, time to hire, absence and engagement, with attrition worked out, a monthly dashboard and a Workflow that asks HR for the month's figures.",
   "author": {
     "name": "Ziffr"
@@ -16,6 +16,63 @@
   },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For whoever looks after people and HR: the size of the team, who joined and left, open roles, time to hire, absence and engagement."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "The month's figures: headcount, hires, leavers, open roles, time to hire and absence rate. Engagement comes once a quarter.",
+          "Figures about people are sensitive: share these Metrics only with those who may see them.",
+          "Free room for the Metrics in your Workspace's size: the Set up form says how many it makes and how many fit."
+        ]
+      }
+    ],
+    "firstSteps": [
+      {
+        "type": "heading",
+        "text": "Start here"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Open **Workspace**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Keep the Metrics you want ticked, up to all 8, with the dashboard **People monthly** and the Workflow **Monthly people figures**. Tick **Ask me for their values** if you send the figures yourself, then choose **Set up**.",
+          "To have someone else send a figure, open its Metric and add them under **Who submits**. Only a Submitter sees **Record a value** there.",
+          "Send the first figures: open a Metric and choose **Record a value**, or answer the request Ziffr sends.",
+          "Open **Dashboards** and then **People monthly**. It fills as values come in."
+        ]
+      }
+    ],
+    "eachPart": [
+      {
+        "type": "list",
+        "items": [
+          "**Headcount**, **Hires**, **Leavers** and **Open roles**.",
+          "**Attrition rate**, which Ziffr works out as leavers as a share of headcount.",
+          "**Time to hire** in days, **Absence rate** and the quarterly **Engagement score**.",
+          "The dashboard **People monthly**.",
+          "The Workflow **Monthly people figures** asks on the third working day after the month and publishes. A figure that is still missing after its Due Date is raised with the Metric's owner."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "Who sees the figures?"
+      },
+      {
+        "type": "text",
+        "text": "A Metric is seen by its owner, its Submitters and those it is shared with, directly or through a dashboard."
+      }
+    ]
   },
   "contents": {
     "metrics": [

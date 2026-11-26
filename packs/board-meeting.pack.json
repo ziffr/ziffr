@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/1",
+  "format": "ziffr.pack/2",
   "id": "ziffr/board-meeting",
   "name": "Board meeting deck",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "summary": "A Deck Template for a quarterly board meeting, a Theme for it, and the Workflow for the quarter's close.",
   "author": {
     "name": "Ziffr"
@@ -17,6 +17,62 @@
   },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For a quarterly board meeting of any kind of business: key figures, revenue against its target, cash and runway, headcount, highlights and risks."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "An **Owner** installs the Pack, because it holds a Theme. An Owner or Admin sets it up.",
+          "The person who approves the figures.",
+          "Revenue, cash, months of runway and headcount."
+        ]
+      }
+    ],
+    "firstSteps": [
+      {
+        "type": "heading",
+        "text": "Start here"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Open **Workspace**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Keep the four Metrics and the Workflow **Quarter close** ticked, pick the **Approver**, and choose **Set up**.",
+          "To have someone else send a figure, open its Metric and add them under **Who submits**. Only a Submitter sees **Record a value** there.",
+          "Send the first figures: open a Metric and choose **Record a value**, or answer the request Ziffr sends.",
+          "Open **Decks**, choose **From a Deck Template**, pick **Quarterly board meeting** and a Metric for each Slot.",
+          "Set a target on **Revenue** so the deck can show revenue against it, and write your highlights and risks on their slide."
+        ]
+      }
+    ],
+    "eachPart": [
+      {
+        "type": "list",
+        "items": [
+          "**Revenue** by month, **Cash balance** and **Cash runway** at month end, and **Headcount** by quarter.",
+          "The deck **Quarterly board meeting**: six slides, with the **Board** Theme.",
+          "The Workflow **Quarter close**: values due on the fifth working day, checked, every value approved by one person, then locked. A figure that is still missing after its Due Date is asked from the Submitter's Stand-in. Choose a Stand-in for each Submitter on the Metric's page."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "Is there a dashboard?"
+      },
+      {
+        "type": "text",
+        "text": "No. This Pack is made for the deck. Add a dashboard of your own if you want one."
+      }
+    ]
   },
   "contents": {
     "metrics": [

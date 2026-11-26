@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/1",
+  "format": "ziffr.pack/2",
   "id": "ziffr/sports-club",
   "name": "Sports club",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "summary": "Members, joiners and leavers, attendance per training, fees received and volunteer hours, with a season dashboard and a Workflow that asks each coach for attendance after training.",
   "author": {
     "name": "Ziffr"
@@ -16,6 +16,63 @@
   },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For a sports club: members coming and going, attendance at training, fees received and the hours volunteers give."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "The coaches who report attendance, as members or Contacts of the Workspace.",
+          "Membership figures and fees, and the volunteers' hours.",
+          "Free room for the Metrics in your Workspace's size: the Set up form says how many it makes and how many fit."
+        ]
+      }
+    ],
+    "firstSteps": [
+      {
+        "type": "heading",
+        "text": "Start here"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Open **Workspace**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Keep the Metrics you want ticked, up to all 6, with the dashboard **Season overview** and the Workflow **After training**. Tick **Ask me for their values** if you send the figures yourself, then choose **Set up**.",
+          "To have someone else send a figure, open its Metric and add them under **Who submits**. Only a Submitter sees **Record a value** there.",
+          "Send the first figures: open a Metric and choose **Record a value**, or answer the request Ziffr sends.",
+          "Open **Dashboards** and then **Season overview**. It fills as values come in."
+        ]
+      }
+    ],
+    "eachPart": [
+      {
+        "type": "list",
+        "items": [
+          "**Members**, **Joiners** and **Leavers** by month.",
+          "**Attendance per training** by week, counted by the coach.",
+          "**Fees received** and **Volunteer hours** by month.",
+          "The dashboard **Season overview**.",
+          "The Workflow **After training**: due on the next working day, then published. A figure that is still missing after its Due Date is asked from the Submitter's Stand-in. Choose a Stand-in for each Submitter on the Metric's page."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "Does a coach need an account?"
+      },
+      {
+        "type": "text",
+        "text": "No. Add the coach as a Contact and as a Submitter of the attendance. A Contact answers by a personal form link, email or chat."
+      }
+    ]
   },
   "contents": {
     "metrics": [

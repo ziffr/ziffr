@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/1",
+  "format": "ziffr.pack/2",
   "id": "ziffr/workspace-usage",
   "name": "Workspace usage",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "Your own Workspace's usage as Metrics, with a dashboard: views of dashboards, decks and Metrics, values by Source, and what goes unused. Counts only, never who looked. For Owners and Admins.",
   "author": {
     "name": "Ziffr"
@@ -11,6 +11,62 @@
   "ziffr": ">=0.11",
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For Owners and Admins who want to see how their own Workspace is used: what is looked at, how values arrive and what goes unused. Counts only, never who looked."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "A program fills these figures: the Usage Feed, which someone who runs scheduled jobs sets up.",
+          "A **Feed** with a Feed Key, and an **Access Key** with **Read usage figures**.",
+          "Room for **18 Metrics**. Tick fewer in Set up if you want fewer."
+        ]
+      }
+    ],
+    "firstSteps": [
+      {
+        "type": "heading",
+        "text": "Start here"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Make a Feed, with a Feed Key, on the **Feeds** page.",
+          "Open **Workspace**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Keep the Metrics ticked, pick **Values come from the Feed** and your Feed, pick the dashboard **Workspace usage**, and choose **Set up**.",
+          "Make an Access Key with **Read usage figures** on the **Access Keys** page.",
+          "Have the Usage Feed run once a day with both keys, as its guide in Ziffr's repository says."
+        ]
+      }
+    ],
+    "eachPart": [
+      {
+        "type": "list",
+        "items": [
+          "How many Metrics there are, and how many have no value, are not opened or could be archived.",
+          "Values of the day, in all and by the way they arrived.",
+          "Opens of dashboards, decks and Metrics, and Submitters without a value.",
+          "The dashboard **Workspace usage**."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "Why are some figures empty?"
+      },
+      {
+        "type": "text",
+        "text": "Some are held back while fewer than three people are in the Workspace. What is not opened is held back until Ziffr has counted for 90 days. A figure held back is empty, never 0."
+      }
+    ]
   },
   "contents": {
     "metrics": [
