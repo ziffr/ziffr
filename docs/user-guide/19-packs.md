@@ -134,6 +134,15 @@ An empty Position leaves the place open: no Submitter, "nobody yet" on a Task, n
 
 Afterwards everything is ordinary: change who does what on each Metric, Workflow and dashboard. Ziffr keeps a record of what was made; it decides nothing, uninstalling the Pack deletes it, and a Workspace Export leaves it out. **Large sets.** One Set up makes at most 200 Metrics. The whole set is checked against the Workspace's limit before anything is made. It then makes the Metrics a few at a time and says how far it is; keep the page open. The dashboards and Shares come last. If it stops on the way, it says what was made, keeps that, and does not go on: archive or delete what you do not want, or set up the missing lines again.
 
+### Add a line
+
+Once something of a Repeat was set up, the installed Pack offers **Add a …** in the Repeat's own word, such as **Add a Salesperson** or **Add a Site**. It makes only that one line: give it a name no other line has and pick its people. What each line got so far is chosen, and the people of the other Positions are those of your last Set up; change any of it. The check is the same as for Set up, and also lists:
+
+- **Add to what is set up**, each ticked: the new Metrics joining the Workflow made for the whole set, when it is yours, and the widgets of several Metrics that show most lines' Metrics, on dashboards you may change. Whoever such a dashboard is shared with sees the new Metrics; **Who will see what** names them.
+- **Left to do by hand:** what Ziffr does not change, such as a Workflow or dashboard of someone else, a Workflow step that names the new person's Position, or a Share the Pack proposes of something made before.
+
+Nothing else made before changes. Removing a line is not automated: archive its Metrics.
+
 When Set up has made Metrics that take values, its result page offers **Fill from n8n** for them: the same download as under a Metric's **Who submits**, for all those Metrics at once, with a starter sheet naming each Metric's slug. When the Pack says which template fills which of its entries, the page reads "HR Pack says Google Sheets can fill Headcount, Attrition" with the template already chosen, one button per template. Metrics computed from others are left out, since they take no values.
 
 What it makes are ordinary Metrics, a dashboard and a Workflow, as if you made them by hand: each counts towards the limit, is in the Audit Log, and stays as it is whatever happens to the Pack later. A Metric remembers the Pack's entry it came from. The same holds for a Metric you start from a Pack's entry under **New metric**: it gets the entry's Tags, and the Metric's page says if a limit kept some off.

@@ -11,9 +11,10 @@ import type { PackSetupPlan } from "@ziffr/core/pack-setup-plan";
 
 const field = "h-8 w-full min-w-0 rounded-[var(--radius-input)] border border-input bg-transparent px-2 text-sm";
 
-/** The lines of one Repeat, with a way to add one, paste several and take one away. */
-export function RepeatLines({ repeat, rows, onChange, plan, chosen }: {
-  repeat: { key: string; name: string; max: number }; rows: LineRow[]; onChange: (rows: LineRow[]) => void;
+/** The lines of one Repeat, with a way to add one, paste several and take one away; `one` asks for exactly one line,
+ * as when adding to what was set up. */
+export function RepeatLines({ repeat, rows, onChange, plan, chosen, one = false }: {
+  one?: boolean; repeat: { key: string; name: string; max: number }; rows: LineRow[]; onChange: (rows: LineRow[]) => void;
   plan: PackSetupPlan | null; chosen: (row: LineRow, position: string) => string[];
 }) {
   const [pasted, setPasted] = useState("");
@@ -22,8 +23,8 @@ export function RepeatLines({ repeat, rows, onChange, plan, chosen }: {
   const full = rows.length >= repeat.max;
   return (
     <fieldset className="space-y-2">
-      <legend className="text-xs font-medium">List each {repeat.name}</legend>
-      <p className="text-xs text-muted-foreground">Each line gets its own Metrics. Its name appears in their names, read by everyone who sees them, Guests included. At most {repeat.max} lines.</p>
+      <legend className="text-xs font-medium">{one ? `The new ${repeat.name}` : `List each ${repeat.name}`}</legend>
+      <p className="text-xs text-muted-foreground">{one ? "It gets" : "Each line gets"} its own Metrics. Its name appears in their names, read by everyone who sees them, Guests included.{one ? "" : ` At most ${repeat.max} lines.`}</p>
       <ol className="space-y-2">
         {rows.map((row, i) => {
           const called = row.name.trim() || `line ${i + 1}`;
@@ -34,12 +35,12 @@ export function RepeatLines({ repeat, rows, onChange, plan, chosen }: {
                   onChange={(e) => set(row.id, { name: e.target.value })}
                   onPaste={(e) => {
                     const text = e.clipboardData.getData("text");
-                    if (!text.includes("\n")) return;
+                    if (one || !text.includes("\n")) return;
                     // A column pasted into a name becomes its own lines.
                     e.preventDefault();
                     onChange(addedLines(rows.filter((r) => r.id !== row.id || r.name.trim()), text, repeat.max));
                   }} />
-                <Button type="button" variant="ghost" size="sm" aria-label={`Remove ${called}`} onClick={() => onChange(rows.filter((r) => r.id !== row.id))}><Trash2 aria-hidden /></Button>
+                {!one && <Button type="button" variant="ghost" size="sm" aria-label={`Remove ${called}`} onClick={() => onChange(rows.filter((r) => r.id !== row.id))}><Trash2 aria-hidden /></Button>}
               </div>
               {plan && positions.map((p) => (
                 <PositionField key={p.key} position={p} people={plan.people} of={called} chosen={chosen(row, p.key)} onChange={(ids) => set(row.id, { fills: { ...row.fills, [p.key]: ids } })} />
@@ -48,14 +49,18 @@ export function RepeatLines({ repeat, rows, onChange, plan, chosen }: {
           );
         })}
       </ol>
-      <Button type="button" variant="outline" size="sm" disabled={full} onClick={() => onChange([...rows, { id: Math.max(0, ...rows.map((r) => r.id)) + 1, name: "", fills: {} }])}><Plus aria-hidden /> Add a line</Button>
-      <details className="text-xs">
-        <summary className="cursor-pointer">Paste a list of names</summary>
-        <div className="mt-1 space-y-1.5">
-          <textarea className="min-h-24 w-full rounded-[var(--radius-input)] border border-input bg-transparent p-2 text-sm" value={pasted} onChange={(e) => setPasted(e.target.value)} aria-label={`Names of several ${repeat.name} lines, one on each line`} placeholder="One name on each line" />
-          <Button type="button" variant="outline" size="sm" disabled={!pasted.trim() || full} onClick={() => { onChange(addedLines(rows.filter((r) => r.name.trim() || Object.values(r.fills).some((x) => x.length)), pasted, repeat.max)); setPasted(""); }}>Add these lines</Button>
-        </div>
-      </details>
+      {!one && (
+        <>
+          <Button type="button" variant="outline" size="sm" disabled={full} onClick={() => onChange([...rows, { id: Math.max(0, ...rows.map((r) => r.id)) + 1, name: "", fills: {} }])}><Plus aria-hidden /> Add a line</Button>
+          <details className="text-xs">
+            <summary className="cursor-pointer">Paste a list of names</summary>
+            <div className="mt-1 space-y-1.5">
+              <textarea className="min-h-24 w-full rounded-[var(--radius-input)] border border-input bg-transparent p-2 text-sm" value={pasted} onChange={(e) => setPasted(e.target.value)} aria-label={`Names of several ${repeat.name} lines, one on each line`} placeholder="One name on each line" />
+              <Button type="button" variant="outline" size="sm" disabled={!pasted.trim() || full} onClick={() => { onChange(addedLines(rows.filter((r) => r.name.trim() || Object.values(r.fills).some((x) => x.length)), pasted, repeat.max)); setPasted(""); }}>Add these lines</Button>
+            </div>
+          </details>
+        </>
+      )}
     </fieldset>
   );
 }

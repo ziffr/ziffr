@@ -2,22 +2,24 @@
 // Set up from this Pack (spec 0030, ticket 277, spec 0058; GLOSSARY: Pack, Metric Catalog, Derived Metric, Slot,
 // Workflow Template, Position, Repeat, Workspace Limit): an installed Pack's entries made into Metrics, its Dashboard
 // Templates into dashboards and its Workflow Templates into Workflows, as the person picks, with the lines of its
-// Repeats and the people of its Positions. A large set is made in steps. The core checks everything again, the
-// Workspace Limit included, and makes nothing when anything is refused.
+// Repeats and the people of its Positions. A large set is made in steps. The same form adds one line to what was set
+// up before. The core checks everything again, the Workspace Limit included, and makes nothing when anything is
+// refused.
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Wand2 } from "lucide-react";
+import { Plus, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
-import { approversStart, openSlots, setupStart, type LineRow } from "./setup-defaults";
+import { approversStart, lineSetupStart, openSlots, setupStart, type LineRow } from "./setup-defaults";
 import { DashboardPick, WorkflowPick } from "./setup-templates";
 import { RepeatLines } from "./setup-lines";
 import { FillFromN8n } from "@/components/fill-from-n8n";
-import { packSetup, setUpPack } from "@/app/pack-setup-actions";
-import { PlanCheck, PositionField, usePlan } from "./setup-positions";
+import { lineStart, packSetup, setUpPack } from "@/app/pack-setup-actions";
+import { ByHand, PlanCheck, PositionField, usePlan } from "./setup-positions";
 import type { PackSetupInput, PackSetupOptions, PackSetupResult, PackSetupRoom, PackSetupStep, SetupRun } from "@ziffr/core/pack-setup";
+import type { LineStart } from "@ziffr/core/pack-setup-adding";
 
 const field = "h-8 rounded-[var(--radius-input)] border border-input bg-transparent px-2 text-sm";
 
@@ -30,6 +32,25 @@ export function SetUpFromPack({ installId, viewer }: { installId: number; viewer
   });
   if (!options) return <Button variant="outline" size="sm" className="mt-3" disabled={pending} onClick={open}><Wand2 aria-hidden /> Set up from this Pack</Button>;
   return <SetUpForm options={options} viewer={viewer} onClose={() => setOptions(null)} />;
+}
+
+/** The one line being added, and what it starts with. */
+type Adding = { repeat: PackSetupOptions["repeats"][number]; start: LineStart };
+
+/** The button on a Pack's page that adds one line to what was set up from it, in the Repeat's own word, and the form it
+ * opens. */
+export function AddLine({ installId, repeat, name, viewer }: { installId: number; repeat: string; name: string; viewer: string }) {
+  const [form, setForm] = useState<{ options: PackSetupOptions; adding: Adding } | null>(null);
+  const [pending, start] = useTransition();
+  const open = () => start(async () => {
+    try {
+      const [options, begin] = await Promise.all([packSetup(installId), lineStart(installId, repeat)]);
+      const found = unwrap(options);
+      setForm({ options: found, adding: { repeat: found.repeats.find((r) => r.key === repeat)!, start: unwrap(begin) } });
+    } catch (e) { toast.error("Not opened", { description: shown(e) }); }
+  });
+  if (!form) return <Button variant="outline" size="sm" className="mt-3" disabled={pending} onClick={open}><Plus aria-hidden /> Add a {name}</Button>;
+  return <SetUpForm options={form.options} viewer={viewer} adding={form.adding} onClose={() => setForm(null)} />;
 }
 
 /** What making `n` Metrics does to the Workspace's limit, said before the button is pressed: it fits, it goes over the
@@ -79,9 +100,9 @@ function FillAfterSetUp({ options, made }: { options: PackSetupOptions; made: Pa
   );
 }
 
-function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; viewer: string; onClose: () => void }) {
+function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOptions; viewer: string; adding?: Adding; onClose: () => void }) {
   const router = useRouter();
-  const [start0] = useState(() => setupStart(options, viewer));
+  const [start0] = useState(() => (adding ? lineSetupStart(adding.repeat.key, adding.start) : setupStart(options, viewer)));
   const [picked, setPicked] = useState<Set<string>>(start0.picked);
   const [askMe, setAskMe] = useState(true);
   // The dashboard and the Workflow picked, by scope: "" for the whole set, else the Repeat's key.
@@ -90,11 +111,13 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
   const [fills, setFills] = useState<Record<string, number>>({});
   const [feed, setFeed] = useState<string>("");
   const [approversBy, setApproversBy] = useState<Record<string, string[]>>(start0.workflow ? { [start0.workflow]: start0.approvers } : {});
+  const repeats = adding ? [adding.repeat] : options.repeats;
   const [lines, setLines] = useState<Record<string, LineRow[]>>(() => Object.fromEntries(options.repeats.map((r) => [r.key, [{ id: 1, name: "", fills: {} }]])));
   const [made, setMade] = useState<PackSetupResult | null>(null);
   const [progress, setProgress] = useState("");
   const [pending, start] = useTransition();
-  const [positionFills, setPeople] = useState<Record<string, string[]>>({});
+  const [positionFills, setPeople] = useState<Record<string, string[]>>(adding?.start.people ?? {});
+  const [offerTicks, setOfferTicks] = useState<Record<string, boolean>>({});
   const [ticks, setTicks] = useState<Record<string, boolean>>({});
   const [askNow, setAskNow] = useState(false);
   const byKey = useMemo(() => new Map(options.entries.map((e) => [e.key, e])), [options.entries]);
@@ -105,7 +128,8 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
     for (const k of picked) for (const i of byKey.get(k)?.inputs ?? []) all.add(i);
     return all;
   }, [picked, byKey]);
-  const scopes = [null, ...options.repeats];
+  // Adding a line makes nothing for the whole set.
+  const scopes = adding ? repeats : [null, ...repeats];
   const templates = scopes.flatMap((r) => options.dashboards.find((d) => d.key === boards[r?.key ?? ""]) ?? []);
   const workflows = scopes.flatMap((r) => options.workflows.find((w) => w.key === flows[r?.key ?? ""]) ?? []);
   const approversOf = (w: PackSetupOptions["workflows"][number]) => approversBy[w.key] ?? approversStart(options, viewer, w.approvers);
@@ -114,8 +138,11 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
   const pickOf = (d: PackSetupOptions["dashboards"][number]) => ({ key: d.key, fills: d.slots.map((_s, i) => (fills[`${d.key} ${i}`] ? [fills[`${d.key} ${i}`]!] : null)) });
   const flowOf = (w: PackSetupOptions["workflows"][number]) => ({ key: w.key, approvers: approversOf(w) });
   const [shared, sharedFlow] = [templates.find((d) => !d.repeat), workflows.find((w) => !w.repeat)];
+  // The entries offered here, and those asked for: adding a line asks only for what each line gets, and the core finds
+  // what it is computed from among what was made before.
+  const entries = adding ? options.entries.filter((e) => e.repeat === adding.repeat.key) : options.entries;
   const asked: PackSetupInput = {
-    metrics: [...making],
+    metrics: adding ? [...making].filter((k) => byKey.get(k)?.repeat === adding.repeat.key) : [...making],
     submitters: askMe && uncovered ? [viewer] : [],
     feed: feed || null,
     dashboard: shared ? pickOf(shared) : null,
@@ -133,13 +160,16 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
     const fillsFor = (repeat: string | null, from: Record<string, string[]>) => (plan?.positions ?? []).filter((p) => p.repeat === repeat).map((p) => ({ position: p.key, people: chosen(plan, from, p.key) }));
     return {
       ...asked, askNow, people: fillsFor(null, positionFills),
-      lines: options.repeats.flatMap((r) => (lines[r.key] ?? []).filter((l) => l.name.trim()).map((l) => ({ repeat: r.key, name: l.name.trim(), people: fillsFor(r.key, l.fills) }))),
+      // Every offer is ticked until the person unticks it.
+      ...(adding ? { adding: { ticked: (plan?.offers ?? []).filter((o) => offerTicks[o.id] ?? true).map((o) => o.id) } } : {}),
+      lines: repeats.flatMap((r) => (lines[r.key] ?? []).filter((l) => l.name.trim()).map((l) => ({ repeat: r.key, name: l.name.trim(), people: fillsFor(r.key, l.fills) }))),
     };
   }, ticks);
   const count = options.positions ? planned.plan?.makes.metrics.length ?? 0 : making.size;
   // A line with people but no name would be left out without a word.
   const unnamed = Object.values(lines).some((rows) => rows.some((l) => !l.name.trim() && Object.values(l.fills).some((x) => x.length)));
-  const ready = (making.size > 0 || templates.length > 0 || workflows.length > 0)
+  const lineName = adding ? (lines[adding.repeat.key]?.[0]?.name.trim() ?? "") : "";
+  const ready = (making.size > 0 || templates.length > 0 || workflows.length > 0) && (!adding || lineName !== "")
     && templates.every((d) => openSlots(options, d, making).every(({ index }) => fills[`${d.key} ${index}`]))
     && workflows.every((w) => { const a = approversOf(w); return a.length === w.approvers && a.every(Boolean) && new Set(a).size === a.length; })
     && (!options.positions || (planned.current && !planned.plan?.problems.length && !unnamed));
@@ -148,7 +178,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
   const submit = () => start(async () => {
     try {
       setMade(await setUpInSteps(options.install.id, options.positions ? planned.input! : asked, setProgress));
-      toast.success(`Set up from ${options.install.name}`);
+      toast.success(adding ? `Added ${lineName}` : `Set up from ${options.install.name}`);
       router.refresh();
     } catch (e) {
       toast.error("Set up did not finish", { description: shown(e), duration: Infinity, closeButton: true });
@@ -161,13 +191,14 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
   if (made) {
     return (
       <div className="mt-3 rounded-[var(--radius-input)] border border-input p-3 text-sm" aria-live="polite">
-        <p className="font-medium">Set up from {options.install.name}</p>
+        <p className="font-medium">{adding ? `Added ${lineName}` : `Set up from ${options.install.name}`}</p>
         <ul className="mt-1 list-disc space-y-0.5 pl-5">
           {made.metrics.map((m) => <li key={m.id}><Link href={`/metrics/${m.slug}`} className="underline">{m.name}</Link></li>)}
           {made.dashboards.map((d) => <li key={d.id}>The dashboard <Link href={`/dashboards/${d.id}`} className="underline">{d.name}</Link></li>)}
           {made.workflows.map((w) => <li key={w.id}>The Workflow <Link href={`/workflows?id=${w.id}`} className="underline">{w.name}</Link></li>)}
         </ul>
-        {options.positions && <p className="mt-2 text-xs">{made.shares} Share{made.shares === 1 ? "" : "s"} made, {made.messages} request{made.messages === 1 ? "" : "s"} for values sent now. Change who does what on each Metric, Workflow and dashboard.</p>}
+        {options.positions && <p className="mt-2 text-xs">{made.shares} Share{made.shares === 1 ? "" : "s"} made, {made.messages} request{made.messages === 1 ? "" : "s"} for values sent now.{adding ? ` ${made.widgets} widget${made.widgets === 1 ? "" : "s"} changed.` : ""} Change who does what on each Metric, Workflow and dashboard.</p>}
+        {made.byHand.length > 0 && <ByHand items={made.byHand} />}
         {made.tagsLeftOut.length > 0 && (
           <p role="status" className="mt-2 text-xs">Some Tags stayed off their Metrics because of the Tag limits (10 per Metric, 200 in the Workspace): {made.tagsLeftOut.map((l) => `${l.metric}: ${l.tags.join(", ")}`).join("; ")}. Merge or delete Tags that are not needed, then add these by hand.</p>
         )}
@@ -179,8 +210,8 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
   return (
     <div className="mt-3 space-y-4 rounded-[var(--radius-input)] border border-input p-3 text-sm">
       <div>
-        <p className="font-medium">Set up from {options.install.name}</p>
-        <p className="text-xs text-muted-foreground">Makes ordinary Metrics, dashboards and Workflows, as if you made them by hand. Each Metric counts towards the Workspace&rsquo;s limit.</p>
+        <p className="font-medium">{adding ? `Add a ${adding.repeat.name} to what was set up from ${options.install.name}` : `Set up from ${options.install.name}`}</p>
+        <p className="text-xs text-muted-foreground">{adding ? <>Makes only the new {adding.repeat.name}. There already: {adding.start.lines.join(", ")}.</> : <>Makes ordinary Metrics, dashboards and Workflows, as if you made them by hand.</>} Each Metric counts towards the Workspace&rsquo;s limit.</p>
       </div>
       {options.refusal && <p role="alert" className="font-medium">{options.refusal}</p>}
       {options.room && !options.refusal && <Fit room={options.room} n={count} />}
@@ -188,7 +219,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
 
       <fieldset className="space-y-1">
         <legend className="mb-1 text-xs font-medium">Metrics to make</legend>
-        {options.entries.map((e) => {
+        {entries.map((e) => {
           const needed = !picked.has(e.key) && making.has(e.key);
           return (
             <label key={e.key} className="flex items-start gap-2">
@@ -212,8 +243,8 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
         )}
       </fieldset>
 
-      {options.repeats.map((r) => (
-        <RepeatLines key={r.key} repeat={r} rows={lines[r.key] ?? []} onChange={(rows) => setLines((x) => ({ ...x, [r.key]: rows }))} plan={planned.plan} chosen={(row, position) => chosen(planned.plan, row.fills, position)} />
+      {repeats.map((r) => (
+        <RepeatLines key={r.key} one={Boolean(adding)} repeat={r} rows={lines[r.key] ?? []} onChange={(rows) => setLines((x) => ({ ...x, [r.key]: rows }))} plan={planned.plan} chosen={(row, position) => chosen(planned.plan, row.fills, position)} />
       ))}
 
       {scopes.map((r) => (
@@ -222,7 +253,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
       {scopes.map((r) => (
         <WorkflowPick key={r?.key ?? ""} options={options} of={r} value={flows[r?.key ?? ""] ?? ""} onChange={(key) => setFlows((x) => ({ ...x, [r?.key ?? ""]: key }))} approvers={approversOf} onApprovers={(flow, ids) => setApproversBy((x) => ({ ...x, [flow]: ids }))} />
       ))}
-      {workflows.length > 0 && making.size > 0 && <p className="text-xs text-muted-foreground">The Metrics that take values follow {options.repeats.length ? "their line\u2019s Workflow, else the one for the whole set" : "this Workflow"}.</p>}
+      {workflows.length > 0 && making.size > 0 && <p className="text-xs text-muted-foreground">The Metrics that take values follow {repeats.length ? "their line\u2019s Workflow, else the one for the whole set" : "this Workflow"}.</p>}
 
       {options.positions && (
         <>
@@ -238,14 +269,14 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
           <p role="status" className="text-xs text-muted-foreground">{planned.error ? "" : planned.current ? "" : "Working out who will see what\u2026"}</p>
           {planned.error && <p role="alert" className="text-xs font-medium">{planned.error}</p>}
           {unnamed && <p role="alert" className="text-xs font-medium">Give every line with people a name.</p>}
-          {planned.plan && <PlanCheck plan={planned.plan} ticks={ticks} onTick={(c) => setTicks((x) => ({ ...x, ...c }))} askNow={askNow} onAskNow={setAskNow} />}
+          {planned.plan && <PlanCheck plan={planned.plan} ticks={ticks} onTick={(c) => setTicks((x) => ({ ...x, ...c }))} askNow={askNow} onAskNow={setAskNow} offerTicks={offerTicks} onOffer={(id, on) => setOfferTicks((x) => ({ ...x, [id]: on }))} />}
         </>
       )}
 
       <p role="status" className="text-xs">{pending ? progress || "Setting up\u2026" : ""}</p>
       <div className="flex justify-end gap-2">
         <Button variant="outline" disabled={pending} onClick={onClose}>Cancel</Button>
-        <Button disabled={!ready || pending || (!!options.refusal && count > 0) || (!!options.room && count > options.room.allowed)} onClick={submit}>Set up{count ? ` ${count} Metric${count === 1 ? "" : "s"}` : ""}</Button>
+        <Button disabled={!ready || pending || (!!options.refusal && count > 0) || (!!options.room && count > options.room.allowed)} onClick={submit}>{adding ? `Add ${lineName || `the ${adding.repeat.name}`}` : `Set up${count ? ` ${count} Metric${count === 1 ? "" : "s"}` : ""}`}</Button>
       </div>
     </div>
   );

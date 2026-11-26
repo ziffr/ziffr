@@ -23,7 +23,7 @@ import type { ExportOptions } from "@ziffr/core/pack-export";
 import { Publisher } from "./pack-logo";
 import { PackPeopleList } from "./pack-people";
 import { ExportPack } from "./export";
-import { SetUpFromPack } from "./setup";
+import { AddLine, SetUpFromPack } from "./setup";
 import type { Problem } from "@ziffr/core/json-check";
 import type { IncludedPackListing } from "@ziffr/core/included-packs";
 
@@ -78,7 +78,12 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
                     {manages && <PackActions installId={p.id} name={p.name} />}
                     {manages && included.filter((i) => i.installed?.installId === p.id && i.update).map((i) => <div key={i.update} className="mt-2"><IncludedUpdate installId={p.id} name={p.name} version={i.update!} /></div>)}
                     {updates.filter((u) => u.installId === p.id).map((u) => <div key={u.version} className="mt-2"><MarketplaceUpdate installId={p.id} name={p.name} version={u.version} /></div>)}
-                    {manages && <SetUpFromPack installId={p.id} viewer={viewer} />}
+                    {manages && (
+                      <div className="flex flex-wrap items-start gap-x-2">
+                        <div className="max-w-full has-[>div]:w-full"><SetUpFromPack installId={p.id} viewer={viewer} /></div>
+                        {p.addable.map((r) => <div key={r.repeat} className="max-w-full has-[>div]:w-full"><AddLine installId={p.id} repeat={r.repeat} name={r.name} viewer={viewer} /></div>)}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

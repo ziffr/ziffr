@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PackSetupOptions } from "@ziffr/core/pack-setup";
-import { addedLines, dashboardNeeds, guideStart, openSlots, setupStart } from "./setup-defaults";
+import { addedLines, dashboardNeeds, guideStart, lineSetupStart, openSlots, setupStart } from "./setup-defaults";
 
 const options = (over: Partial<PackSetupOptions> = {}) => ({
   entries: [{ key: "a" }, { key: "b" }],
@@ -52,6 +52,13 @@ describe("the lines of a Repeat", () => {
     expect(open(null)).toEqual(["one", "?"]);
     expect(open("rep")).toEqual(["?"]);
     expect(openSlots(o, { key: "d", name: "d", slots, repeat: null }, new Set()).length).toBe(4);
+  });
+});
+
+describe("adding a line", () => {
+  it("starts with what the lines so far got, and nothing for the whole set", () => {
+    const s = lineSetupStart("rep", { metrics: ["commit"], dashboard: "mine", workflow: "" });
+    expect([[...s.picked], s.dashboard, s.workflow, s.lineDashboards, s.lineWorkflows]).toEqual([["commit"], "", "", { rep: "mine" }, { rep: "" }]);
   });
 });
 

@@ -47,6 +47,16 @@ function recordOf(ws: string, id: number, step: number, lineId: (line: BuiltLine
   };
 }
 
+/** Recorded lines by their row's id, their names opened. */
+async function openedLines(ws: string, rows: unknown): Promise<Map<number, { repeat: string; name: string }>> {
+  const opened = await openRows("pack_setup_lines", ws, rows as Record<string, unknown>[] | null);
+  return new Map(opened.map((l) => [Number(l.id), { repeat: String(l.repeat_key), name: String(l.name) }]));
+}
+
+/** Recorded items as the things they name. */
+const madeThings = (rows: unknown, lines: ReadonlyMap<number, { repeat: string; name: string }>): MadeThing[] =>
+  ((rows ?? []) as { kind: MadeThing["kind"]; pack_key: string; line_id: number | null; object_id: number }[]).map((i) => ({ kind: i.kind, key: i.pack_key, line: i.line_id === null ? null : lines.get(Number(i.line_id)) ?? null, id: Number(i.object_id) }));
+
 /** Starts the record of a Set up, with its lines and the people of each Position, before anything is made. `mark`
  * names the choices it is made from: only the same ones may take its further steps. */
 export async function startSetupRecord(actor: Actor, install: { id: number; version: string }, lines: BuiltLine[], people: Map<string, string[]>, mark: string): Promise<SetupRecord> {
@@ -76,6 +86,26 @@ export async function startSetupRecord(actor: Actor, install: { id: number; vers
   return recordOf(ws, id, 0, (line) => lineIds.get(line)!);
 }
 
+/** Everything recorded of an install's Set ups, oldest first: the lines with their names, what was made, and who was
+ * put into the Positions outside every Repeat. `except` leaves one Set up out: the one that is still in its steps. For
+ * an Owner or Admin, whom the caller checks; it decides nothing. */
+export async function recordedSetups(actor: Actor, installId: number, except?: number): Promise<{ lines: { repeat: string; name: string }[]; made: MadeThing[]; people: { setup: number; position: string; person: string }[] }> {
+  const ws = actor.workspaceId;
+  const { data: setups } = await db().from("pack_setups").select("id").eq("workspace_id", ws).eq("install_id", installId).order("id");
+  const ids = (setups ?? []).map((x) => Number(x.id)).filter((id) => id !== except);
+  if (!ids.length) return { lines: [], made: [], people: [] };
+  const of = (table: string, columns: string) => db().from(table).select(columns).eq("workspace_id", ws).in("setup_id", ids).order("id");
+  const [{ data: lineRows }, { data: items }, { data: people }] = await Promise.all([
+    of("pack_setup_lines", "id, repeat_key, name"), of("pack_setup_items", "kind, pack_key, line_id, object_id"), of("pack_setup_people", "setup_id, position_key, person_id, line_id"),
+  ]);
+  const byId = await openedLines(ws, lineRows);
+  return {
+    lines: [...byId.values()],
+    made: madeThings(items, byId),
+    people: ((people ?? []) as unknown as { setup_id: number; position_key: string; person_id: string; line_id: number | null }[]).filter((x) => x.line_id === null).map((x) => ({ setup: x.setup_id, position: x.position_key, person: x.person_id })),
+  };
+}
+
 /** Takes up the next step of a Set up in steps: only the person who started it, only with the same choices, only while
  * it is not finished, and each step once. Answers the record, what it made so far and how many requests went out. */
 export async function resumeSetupRecord(actor: Actor, installId: number, run: { id: number; step: number }, mark: string): Promise<{ record: SetupRecord; made: MadeThing[]; messages: number }> {
@@ -90,9 +120,8 @@ export async function resumeSetupRecord(actor: Actor, installId: number, run: { 
     db().from("pack_setup_lines").select("id, repeat_key, name").eq("setup_id", run.id).eq("workspace_id", ws),
     db().from("pack_setup_items").select("kind, pack_key, line_id, object_id").eq("setup_id", run.id).eq("workspace_id", ws).order("id"),
   ]);
-  const opened = await openRows("pack_setup_lines", ws, lineRows);
-  const byId = new Map(opened.map((l) => [Number(l.id), { repeat: String(l.repeat_key), name: String(l.name) }]));
-  const made = (items ?? []).map((i): MadeThing => ({ kind: i.kind as MadeThing["kind"], key: String(i.pack_key), line: i.line_id === null ? null : byId.get(Number(i.line_id)) ?? null, id: Number(i.object_id) }));
+  const byId = await openedLines(ws, lineRows);
+  const made = madeThings(items, byId);
   const lineId = (line: BuiltLine) => [...byId].find(([, l]) => l.repeat === line.repeat && l.name === line.name)![0];
   return { record: recordOf(ws, run.id, run.step + 1, lineId), made, messages: Number(taken[0].messages) };
 }

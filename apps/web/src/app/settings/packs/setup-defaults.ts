@@ -52,6 +52,11 @@ export function setupStart(options: PackSetupOptions, viewer: string): SetupStar
   };
 }
 
+/** What adding a line starts with: what the lines so far got. */
+export function lineSetupStart(repeat: string, start: { metrics: string[]; dashboard: string; workflow: string }): SetupStart {
+  return { picked: new Set(start.metrics), dashboard: "", workflow: "", approvers: [], lineDashboards: { [repeat]: start.dashboard }, lineWorkflows: { [repeat]: start.workflow } };
+}
+
 /** How many Metrics the Setup Guide ticks to begin with: a few, so the first Metric exists quickly and the rest is a choice. */
 const GUIDE_METRICS = 3;
 
