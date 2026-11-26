@@ -17,6 +17,7 @@ import { attemptAsVisitor } from "@/lib/demo-write";
 import { inDemoVisit } from "@/lib/demo-visit-action";
 import { demoTextForVisit } from "@ziffr/core/demo-text";
 import * as questions from "@ziffr/core/questions";
+import * as screenLink from "@ziffr/core/screen-link";
 import * as demo from "@ziffr/core/demo-channels";
 import type { ConnectorId, PreferenceKind } from "@ziffr/core/connectors/index";
 
@@ -98,6 +99,12 @@ export async function sendTestMessage(way: string) {
     done();
     return result;
   });
+}
+
+/** "Send me the link" on a phone (spec 0055): the address of a screen made for a larger screen, emailed to the person
+ * themself. The path is the only input; the core checks it against its list, decides the recipient and holds the limits. */
+export async function sendScreenLink(path: string) {
+  return attempt(async () => screenLink.sendScreenLink(await currentActor(), path));
 }
 
 /** A one-time code the person sends the Ziffr app on Slack to link their Slack account. Only the code goes back. */

@@ -15,6 +15,7 @@ import { Pool } from "@/components/pool";
 import { WidgetFrame } from "@/components/widget-frame";
 import { frameTitle } from "@/components/read-only-frame";
 import { OpenLarge } from "@/components/open-large";
+import { LargerScreenNote } from "@/components/larger-screen-note";
 import { widgetMetrics } from "@/views/widget-body";
 import { largeHref } from "@/lib/open-large";
 import { SeriesProvider, useCanvasSeries } from "@/canvas/series-store";
@@ -69,6 +70,8 @@ type Props = {
   canInvite?: boolean;
   /** Shows the Read view (spec 0013): the introduction, then the widgets top to bottom. Else the grid. */
   reading?: boolean;
+  /** Whether the desktop-only message of Edit mode offers "Send me the link" (not in the demo or to a Guest). */
+  sendLink?: boolean;
   /** The current dashboard's Snapshots the viewer may open (spec 0013). */
   snapshots?: SnapshotSummary[];
 };
@@ -94,7 +97,7 @@ export function DashboardScreen(props: Props) {
   return <SeriesProvider ensure={ensure}><DashboardCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, homeId, pinned, demo = false, canCreate, canInvite, dashboardTemplates, reading = false, snapshots = [] }: Props) {
+function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, homeId, pinned, demo = false, canCreate, canInvite, dashboardTemplates, reading = false, snapshots = [], sendLink = false }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   // A refusal says why in a toast; anything unforeseen says only that it went wrong (lib/action-error.ts).
@@ -181,6 +184,8 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
           </div>
         ) : (
           <>
+            {/* Only while editing: looking at a dashboard is what a phone is good for. "Look at it" leaves Edit mode. */}
+            {changing && <LargerScreenNote key={current.id} path={`/dashboards/${current.id}`} send={sendLink} look={{ onLook: () => setEditing(false) }} />}
             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
               <div className="min-w-0">
                 <DashboardSwitcher current={current} dashboards={dashboards} homeId={homeShown} ownerName={(id) => people[id]?.name ?? ""} onNew={canCreate ? newDashboard : undefined} />

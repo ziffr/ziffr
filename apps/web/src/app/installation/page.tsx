@@ -14,6 +14,7 @@ import { installationActor, ziffrVersion } from "@/lib/installation";
 import { ClaimForm } from "./claim";
 import { feedbackPromptWords } from "@ziffr/core/feedback-prompt";
 import { InstallationScreen } from "./screen";
+import { DesktopOnly } from "@/components/desktop-only";
 
 export default async function InstallationPage() {
   const actor = await installationActor();
@@ -26,6 +27,7 @@ export default async function InstallationPage() {
     return (
       <>
         <PageHeader title="Installation settings" sub={`What this Ziffr talks to, set up here instead of in the server's settings file. Only Installation Admins see this page.${version ? ` This is Ziffr ${version}.` : ""}`} />
+        <DesktopOnly path="/installation" />
         <InstallationScreen view={view} admins={admins} events={events} limits={limits} replies={{ mx, test: replyTest }} usage={{ key: usageKey, days: usageDays, leaveOut }} encryption={encryption} feedback={feedback} announcements={announcements} />
       </>
     );

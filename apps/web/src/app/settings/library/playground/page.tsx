@@ -8,6 +8,7 @@ import { getCanvasData } from "@/lib/access";
 import { PageHeader } from "@/components/page-header";
 import { ViewDesignGuideLink } from "@/components/view-design-guide-link";
 import { PlaygroundScreen } from "./screen";
+import { DesktopOnly } from "@/components/desktop-only";
 
 export default async function PlaygroundPage() {
   const actor = await currentActor();
@@ -18,6 +19,7 @@ export default async function PlaygroundPage() {
       <PageHeader title="Playground" sub="Paste or upload a View Design and see it drawn as you type, with Sample Data or your own Metrics. Every mistake is named with its line.">
         <div className="flex flex-wrap gap-4"><Link href="/settings/library" className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Back to the Library</Link><ViewDesignGuideLink /></div>
       </PageHeader>
+      <DesktopOnly path="/settings/library/playground" />
       <PlaygroundScreen data={data} manages={manages} />
     </>
   );
