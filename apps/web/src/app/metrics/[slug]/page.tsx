@@ -9,7 +9,7 @@ import { getAllSeries, getAttainmentMethod, getBreakdowns, getLastValues, getNum
 import { ATTAINMENT_METHOD_LABEL, methodFor } from "@ziffr/core/attainment-method";
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
-import { formulaInputs, inputsProblem, targetProblem } from "@ziffr/core/formula";
+import { formulaInputs, inputsProblem, targetProblem, withoutUnseenInputs } from "@ziffr/core/formula";
 import { TargetsEditor } from "./series-form";
 import { MetricTabs } from "./metric-tabs";
 import { ArchivedNote } from "./archived-note";
@@ -143,14 +143,21 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   // Show the numbers: `?basis=values` keeps the older comparison on the values as they are (spec 0041).
   const byValue = sp.basis === "values";
   const [basisChoice, keepBasis] = basisOf(byValue);
+  // What the page works from where words come out of it: a Metric this person does not see has no name there.
+  const named = metrics.map((m) => (visible.has(m.id) ? m : { ...m, name: "a Metric not shared with you" }));
+  const seenMetrics = metrics.filter((m) => visible.has(m.id));
+  // What is handed to the parts of the page: a formula names only Metrics this person sees (rule 3).
+  const sent = new Map(withoutUnseenInputs(metrics, new Set(seenMetrics.map((m) => m.slug))).map((m) => [m.id, m]));
+  const shown = sent.get(metric.id)!;
   // Metrics of every period, each on its common period with this one (spec 0019); those kept to their own period say why.
-  const resolve = resolverFrom(metrics, series, { targets: aimedTargets, condensed, yearStart });
-  const { ranked: correlations, leftOut } = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), resolve, { yearStart, basis: basisChoice });
+  const resolve = resolverFrom(named, series, { targets: aimedTargets, condensed, yearStart });
+  const { ranked, leftOut } = rankCorrelations(metric, seenMetrics, resolve, { yearStart, basis: basisChoice });
   const notCombined = [...new Set(leftOut.filter((l) => l.why === "not-combined" || l.why === "too-much").map((l) => l.reason))];
+  const correlations = ranked.map((c) => ({ ...c, metric: sent.get(c.metric.id)! }));
   const partner = correlations.find((c) => c.metric.slug === sp.vs) ?? correlations[0];
   // The analyses ready for this Metric are worked out only for its Analysis tab.
 
-  if (!visible.has(metric.id)) return <NotShared metric={metric} owner={peopleById[metric.owner_id]} />;
+  if (!visible.has(metric.id)) return <NotShared metric={{ id: metric.id, name: metric.name }} owner={peopleById[metric.owner_id]} />;
   const actor = await currentActor();
   const ready = tab === "analysis" ? await readyFor(actor, metric.id) : [];
   // Only a Metric this person sees is counted (the refusal above returns first); a number, never a person.
@@ -196,9 +203,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   // Which target counts for the latest period: its own Target Series value if there is one, else the Target Range.
   const periodTarget = last ? tSeries.find((t) => t.period === last.period) : undefined;
   // Says nothing of the inputs but that their periods differ: it may be read by someone who cannot see them.
-  const derivedProblem = inputsProblem(metric, metrics);
-  // Only the inputs this person sees are named, and the formula is written out only when they see all of them (rule 3).
-  const seenMetrics = metrics.filter((m) => visible.has(m.id));
+  const derivedProblem = inputsProblem(metric, named);
+  // The formula is written out only for someone who sees every input (rule 3).
   const formulaShown = metric.formula && formulaInputs(metric.formula).every((s) => seenMetrics.some((m) => m.slug === s)) ? metric.formula.replace(/\{([a-z0-9-]+)\}/g, (all, s) => seenMetrics.find((m) => m.slug === s)?.name ?? all) : null;
   // The first requests as the Outbox recorded them (owner and Editors); the entry Tags it lacks are recomputed, never read from the address.
   const createdNote = await createdNoteFor(sp.created, canEdit, actor, metric.id);
@@ -229,7 +235,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
         <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, yearStart)}` : "Latest"}>
-          <span className="flex flex-wrap items-center gap-2">{last ? formatValue(metric, last.value, numberStyle) : "–"}{last && pending.includes(last.period) && <NotApprovedMark />}<TargetChip numberStyle={numberStyle} metric={periodTarget && metric.polarity !== "target" ? { ...metric, target_min: metric.polarity === "lower" ? null : periodTarget.value, target_max: metric.polarity === "lower" ? periodTarget.value : null } : metric} value={last?.value} /></span>
+          <span className="flex flex-wrap items-center gap-2">{last ? formatValue(metric, last.value, numberStyle) : "–"}{last && pending.includes(last.period) && <NotApprovedMark />}<TargetChip numberStyle={numberStyle} metric={periodTarget && metric.polarity !== "target" ? { ...shown, target_min: metric.polarity === "lower" ? null : periodTarget.value, target_max: metric.polarity === "lower" ? periodTarget.value : null } : shown} value={last?.value} /></span>
         </Stat>
         <Stat label="Change vs. previous period">
           <Change numberStyle={numberStyle} pct={change} size="size-5" />
@@ -255,7 +261,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               No values yet. They arrive by {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="?tab=settings" className="underline">See who submits</Link>.
             </div>
           ) : (
-            <MetricWorkspace numberStyle={numberStyle} metric={metric} points={points} forecast={fcBand} forecastNote={!fc && points.length > 0 ? (forecastTooWide(points) ? NO_FORECAST_WIDE : `Forecast once there are ${FORECAST_MIN_POINTS} ${metric.period}s of values`) : null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
+            <MetricWorkspace numberStyle={numberStyle} metric={shown} points={points} forecast={fcBand} forecastNote={!fc && points.length > 0 ? (forecastTooWide(points) ? NO_FORECAST_WIDE : `Forecast once there are ${FORECAST_MIN_POINTS} ${metric.period}s of values`) : null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
           )}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <section className="stock rounded-[var(--radius-card)] p-5">
@@ -266,6 +272,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <Link href={at({ full: "1" })} scroll={false} aria-current={sp.full ? "true" : undefined} className={cn("inline-flex min-h-11 items-center rounded-[var(--radius-input)] px-3 no-underline sm:min-h-0 sm:px-2 sm:py-1", sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Full periods</Link>
                 </nav>
               </div>
+              {/* Worked out on the server (it takes a function), from the formula as it is. */}
               <CompareTable numberStyle={numberStyle} attainmentMethod={attainmentMethod} metric={metric} resolve={resolve} targets={tSeries} full={Boolean(sp.full)} yearStart={yearStart} />
             </section>
 
@@ -322,7 +329,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       )}
 
       {tab === "analysis" && (
-        <AnalysisTab metric={metric} ready={ready} points={points} forecast={fcBand} numberStyle={numberStyle} yearStart={yearStart} correlations={correlations} partner={partner} notCombined={notCombined} byValue={byValue} at={at} keepBasis={keepBasis} />
+        <AnalysisTab metric={shown} ready={ready} points={points} forecast={fcBand} numberStyle={numberStyle} yearStart={yearStart} correlations={correlations} partner={partner} notCombined={notCombined} byValue={byValue} at={at} keepBasis={keepBasis} />
       )}
 
       {tab === "targets" && (
@@ -332,7 +339,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             The target range ({targetText(metric, numberStyle).toLowerCase()}, {POLARITY_LABEL[metric.polarity].toLowerCase()}) applies to every period. A period with its own target here, such as a monthly budget, uses that one instead. Projections are values expected for future periods; they never count as real values.
           </p>
           {metric.formula ? <p className="text-sm text-muted-foreground">A derived metric takes its targets from its formula&rsquo;s metrics.</p> : (
-            <TargetsEditor metric={metric} targets={tSeries} projections={pSeries} canEdit={canEdit} yearStart={yearStart} numberStyle={numberStyle} />
+            <TargetsEditor metric={shown} targets={tSeries} projections={pSeries} canEdit={canEdit} yearStart={yearStart} numberStyle={numberStyle} />
           )}
           {!canEdit && !metric.formula && <p className="mt-3 text-xs text-muted-foreground">Only {peopleById[metric.owner_id]?.name ?? "the owner"} and people it is shared with as Editor change them.</p>}
         </section>
@@ -392,7 +399,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="font-medium">Description</h2>
-              {canEdit && <EditDetails metric={metric} money={moneyUnit(profile.currency)} numberStyle={numberStyle} attainmentMethod={attainmentMethod} fixed={obs.length > 0 ? "values" : tSeries.length + pSeries.length > 0 ? "series" : null} />}
+              {canEdit && <EditDetails metric={shown} money={moneyUnit(profile.currency)} numberStyle={numberStyle} attainmentMethod={attainmentMethod} fixed={obs.length > 0 ? "values" : tSeries.length + pSeries.length > 0 ? "series" : null} />}
             </div>
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
               <Row k="Owner"><span className="flex flex-wrap items-center gap-2"><Person p={peopleById[metric.owner_id]} />{!demo && <HandOver metricId={metric.id} name={metric.name} choices={await handOverChoices(actor, metric.id)} />}</span></Row>

@@ -58,6 +58,21 @@ export function targetProblem(metric: Pick<Metric, "formula">, inputs: readonly 
   return without.length ? `It reads the target of ${without.join(" and ")}, which has no number to read: set a Target Range with one bound, such as “at least 500”, or Target Series values.` : null;
 }
 
+// Stands for the inputs someone does not see: no Metric's slug is "-" (a slug never starts or ends with one).
+const NOT_SEEN = "-";
+
+/** Metrics as they are sent to someone who sees only the Metrics `seen` (by slug): a formula that names any other is
+ * left out. What stands in its place names the inputs they do see and nothing more, with no sign or number, so the
+ * Metric still reads as calculated, it cannot be worked out from it, and what it is built from is still known as far
+ * as it is theirs to know (AGENTS.md rule 3). */
+export function withoutUnseenInputs<M extends Pick<Metric, "formula">>(metrics: readonly M[], seen: ReadonlySet<string>): M[] {
+  return metrics.map((m) => {
+    const inputs = m.formula ? formulaInputs(m.formula) : [];
+    if (inputs.every((s) => seen.has(s))) return m;
+    return { ...m, formula: [...inputs.filter((s) => seen.has(s)), NOT_SEEN].map((s) => `{${s}}`).join(" ") };
+  });
+}
+
 /** The longest formula read, in characters: a formula is a short expression, and these bounds keep the exact
  * arithmetic below from growing without limit on one written to burn time (#126). */
 export const FORMULA_MAX_LENGTH = 500;

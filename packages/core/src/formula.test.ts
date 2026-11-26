@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkFormula, evaluate, evaluateRange, formulaInputs, inputsNotCombined, inputsProblem, rangeNumber, readFormula, targetInputs, targetProblem, targetReader, usesPrevious, usesTarget, type FormulaInput } from "./formula";
+import { checkFormula, evaluate, evaluateRange, formulaInputs, inputsNotCombined, inputsProblem, rangeNumber, readFormula, targetInputs, targetProblem, targetReader, usesPrevious, usesTarget, withoutUnseenInputs, type FormulaInput } from "./formula";
 import { referenceReads } from "./test/reference/formula";
 
 describe("formula", () => {
@@ -186,5 +186,23 @@ describe("a formula that reads a target (spec 0062)", () => {
     // An input the viewer was not given is not named.
     expect(targetProblem({ formula: "target({commit})" }, [], {})).toBeNull();
     expect(targetProblem({ formula: null }, [commit], {})).toBeNull();
+  });
+});
+
+describe("a formula as it is sent to someone", () => {
+  const sent = (formula: string | null, seen: string[]) => withoutUnseenInputs([{ formula }], new Set(seen))[0].formula;
+  it("is whole where they see every Metric it names, and a Metric without one is as it was", () => {
+    const metrics = [{ formula: "target({a}) - {b}" }, { formula: null }];
+    const out = withoutUnseenInputs(metrics, new Set(["a", "b"]));
+    expect(out[0]).toBe(metrics[0]);
+    expect(out[1]).toBe(metrics[1]);
+  });
+  it("otherwise names only what they see, with no sign or number, and can no longer be worked out", () => {
+    expect(sent("({a} - {hidden}) * 12.5 + target({other})", ["a"])).toBe("{a} {-}");
+    expect(sent("change({hidden})", [])).toBe("{-}");
+    for (const formula of [sent("{a} + {hidden}", ["a"])!, sent("{hidden}", [])!]) {
+      expect(formulaInputs(formula)).toContain("-");
+      expect(evaluate(formula, { a: 1, hidden: 2 })).toBeNull();
+    }
   });
 });

@@ -6,6 +6,7 @@ import { Forbidden } from "./actor";
 import { share } from "./sharing";
 import { db } from "./db";
 import { workspace } from "./test/db-fixtures";
+import { shownData } from "./view-links";
 import { getMetrics } from "./workspace-data";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -54,6 +55,25 @@ describe("visibility facts", () => {
     expect(revealed[zoe].sort()).toEqual(["Direct", "Submitted"]);
     expect(revealed[`g${ops}`].sort()).toEqual(["Direct", "Submitted"]);
     expect(revealed[sara]).toBeUndefined();
+  });
+});
+
+describe("a formula on a canvas", () => {
+  it("names a Metric only to someone who sees it: on the canvas and through a View Link of the Derived Metric alone", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
+    const seen = await w.metric(sara, { name: "Orders" }); const hidden = await w.metric(sara, { name: "Payroll" });
+    const derived = await w.metric(sara, { name: "Result", formula: `{${hidden.slug}} * 3 - {${seen.slug}}` });
+    await w.value(seen.id, "2026-10-01", 1); await w.value(hidden.id, "2026-10-01", 5);
+    for (const m of [seen, derived]) await share(w.actor(sara), "metric", m.id, ben, "viewer");
+    const page = await getCanvasData(w.id, ben);
+    expect(page.metrics.find((m) => m.id === derived.id)!.formula).toBe(`{${seen.slug}} {-}`);
+    expect(JSON.stringify(page)).not.toContain(hidden.slug);
+    expect(page.series[derived.slug]).toEqual([{ period: "2026-10-01", value: 14 }]);
+    // Its owner sees every input, so the formula is whole.
+    expect((await getCanvasData(w.id, sara)).metrics.find((m) => m.id === derived.id)!.formula).toBe(`{${hidden.slug}} * 3 - {${seen.slug}}`);
+    // What leaves for a link that shows the Derived Metric alone names neither input.
+    const sent = shownData(await getCanvasData(w.id, sara, { seriesOf: [derived.id] }), new Set([derived.id]), null);
+    expect(sent.metrics.map((m) => m.formula)).toEqual(["{-}"]);
   });
 });
 
