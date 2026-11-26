@@ -36,6 +36,10 @@ import type { PracticeWorkspaceState } from "@ziffr/core/practice-workspace";
 
 /** The words the page uses for each kind of event of the Installation's audit. */
 const EVENT_WORDS: Record<string, string> = {
+  "user.blocked": "blocked the User",
+  "user.unblocked": "unblocked the User",
+  "user.signed_out": "signed out everywhere the User",
+  "workspace.trial_extended": "gave more days to the trial of a Workspace:",
   "installation.claimed": "claimed the Installation with the setup code",
   "installation_admin.added": "made an Installation Admin:",
   "installation_admin.removed": "removed the Installation Admin",
@@ -121,14 +125,14 @@ function SectionNav({ items }: { items: { id: string; label: string }[] }) {
 /** What the Replies section shows beside its form: the replies domain's MX records now, and the latest test. */
 type RepliesView = { mx: MxView | null; test: ReplyTestStatus };
 
-export function InstallationScreen({ practice, announcements, view, admins, events, limits, replies, usage, encryption, feedback }: { practice: PracticeWorkspaceState; announcements: InstallationAnnouncementRow[]; feedback: { at: string; words: string }[]; encryption: KeyProgress; view: InstallationSettingsView; admins: InstallationAdminRow[]; events: InstallationEvent[]; limits: WorkspaceLimitRow[]; replies: RepliesView; usage: { key: UsageKeyInfo | null; days: UsageDay[]; leaveOut: { workspaceId: string; name: string }[] } }) {
+export function InstallationScreen({ app, practice, announcements, view, admins, events, limits, replies, usage, encryption, feedback }: { app: string | null; practice: PracticeWorkspaceState; announcements: InstallationAnnouncementRow[]; feedback: { at: string; words: string }[]; encryption: KeyProgress; view: InstallationSettingsView; admins: InstallationAdminRow[]; events: InstallationEvent[]; limits: WorkspaceLimitRow[]; replies: RepliesView; usage: { key: UsageKeyInfo | null; days: UsageDay[]; leaveOut: { workspaceId: string; name: string }[] } }) {
   const items = [{ id: "admins", label: "Installation Admins" }, { id: "practice", label: "Practice Workspace" }, ...view.sections.map((s) => ({ id: s.id, label: s.title })), { id: "announcements", label: "Announcements" }, { id: "encryption", label: "Encryption" }, { id: "changes", label: "Changes" }];
   return (
     <div className="space-y-8 md:grid md:grid-cols-[12rem_minmax(0,1fr)] md:gap-8 md:space-y-0">
       <SectionNav items={items} />
       <div className="phone-fields min-w-0 space-y-12">
         <AdminsSection admins={admins} />
-        <PracticeWorkspaceSection state={practice} />
+        <PracticeWorkspaceSection state={practice} app={app} />
         {view.sections.map((s) => <Section key={s.id} feedback={s.id === "feedback" ? feedback : undefined} section={s} canSeal={view.canSeal} slack={s.id === "slack" ? view.slack : undefined} siteUrl={view.siteUrl} limits={s.id === "limits" ? limits : undefined} replies={s.id === "replies" ? replies : undefined} usage={s.id === "usage" ? { key: usage.key, days: usage.days, workspaces: usage.leaveOut } : undefined} />)}
         <AnnouncementsSection rows={announcements} kind={INSTALLATION_ANNOUNCEMENTS} />
         <EncryptionSection progress={encryption} />
@@ -141,7 +145,7 @@ export function InstallationScreen({ practice, announcements, view, admins, even
                 <li key={i} className="flex flex-wrap gap-x-2 py-2">
                   <span className="font-medium">{e.actorName}</span>
                   <span>{EVENT_WORDS[e.kind] ?? e.kind}</span>
-                  {e.subject && <span className={e.kind.startsWith("setting.") || e.kind.startsWith("practice_workspace.") || e.kind === "workspace.key_destroyed" || e.kind === "workspace.key_changed" ? "min-w-0 break-all font-mono text-xs leading-5" : ""}>{e.subject}</span>}
+                  {e.subject && <span className={e.kind.startsWith("setting.") || e.kind.startsWith("practice_workspace.") || e.kind === "workspace.key_destroyed" || e.kind === "workspace.key_changed" || e.kind === "workspace.trial_extended" ? "min-w-0 break-all font-mono text-xs leading-5" : ""}>{e.subject}</span>}
                   <RelativeTime at={e.at} className="ml-auto text-muted-foreground" />
                 </li>
               ))}
@@ -163,7 +167,7 @@ function AdminsSection({ admins }: { admins: InstallationAdminRow[] }) {
   return (
     <section id="admins" aria-labelledby="admins-heading" className="scroll-mt-20 space-y-3">
       <h2 id="admins-heading" className="text-lg font-medium">Installation Admins</h2>
-      <p className="max-w-[62ch] text-sm text-muted-foreground">They run this Ziffr: they see this page and change what it talks to. Being one shows no Workspace&apos;s data; Owners of Workspaces are not Installation Admins by being Owners.</p>
+      <p className="max-w-[62ch] text-sm text-muted-foreground">They run this Ziffr: they see these pages and change what it talks to. They see Users and, of each Workspace, its name, Owners, kind and counts, never what a Workspace holds. Owners of Workspaces are not Installation Admins by being Owners.</p>
       <ul className="divide-y divide-border rounded-[var(--radius-card,0.5rem)] border border-border text-sm">
         {admins.map((a) => (
           <li key={`${a.from}-${a.personId ?? a.email}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
