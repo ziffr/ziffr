@@ -53,7 +53,7 @@ The [Setup Guide](07-getting-started.md#the-setup-guide) offers the same Packs i
 | **Quota** | Worked out, not sent: [the target](10-metrics.md#reading-a-target) of **Commit** for the week. |
 | **Commit gap to quota**, **Commit as share of quota** | Commit minus its target, and Commit as a percentage of it. 0 or more, and 100 % or more, cover the quota. |
 | **Pipeline coverage** | Pipeline value divided by what is still missing (the quota minus Closed this quarter). 3 times means the open deals are worth three times what is missing. |
-| **Quota by salesperson** | Optional: each salesperson's quota as a breakdown, only for the deck's gap by salesperson slide. Untick it if you do not want that table. |
+| **Quota split** | Optional: the quota split by salesperson, as a breakdown, only for the deck's gap by salesperson slide. Untick it if you do not want that table. |
 | The dashboard **Weekly forecast meeting** | This week's call against quota and the change on last week, then the last 13 weeks, and the latest commit by salesperson. On a phone the call against quota comes first. |
 | The Workflow **Weekly sales forecast** | Asks on Monday for the week just ended. The values are due on Tuesday, with a reminder that day; the Metric Owner is told on Wednesday about a value still missing. A change of more than 25 % is marked unusual. The sales lead you pick as Approver approves every value, which is then published and locked. Once the week is finished it sends a dashboard's Snapshot to the people you pick. |
 
@@ -65,7 +65,7 @@ The Pack also has a Deck Template, **Weekly forecast meeting**, drawn from [Slid
 | --- | --- |
 | Cover | The deck's title, the week of the quarter and the agenda. |
 | The call | "The commit covers … of quota with … left", Commit, Quota, Best case and Pipeline coverage as figures, and the weeks of the quarter as columns against the quota. |
-| Where the gap sits | Quota and commit by salesperson with the gap as bars. It needs the latest breakdown of both **Commit** and **Quota by salesperson**, with the same names. Write what you ask the meeting for in the line below. |
+| Where the gap sits | Quota and commit by salesperson with the gap as bars. It needs the latest breakdown of both **Commit** and **Quota split**, with the same names. Write what you ask the meeting for in the line below. |
 | Change since last week | Every figure with last week's, the change and an 8-week trend. |
 | The weeks of the quarter | Best case and commit by week against the quota. |
 | Pipeline coverage | Coverage by week, with **What happened**, **Why** and **Decision needed** beside it. |

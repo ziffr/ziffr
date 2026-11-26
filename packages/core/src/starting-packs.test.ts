@@ -48,7 +48,7 @@ describe("the starting Packs", () => {
     expect(of("coverage", { ...week, "closed-quarter": 800000 })).toBe(-3);
     // Every figure a person sends is a weekly last value, so a quarter shows the latest call, not a sum of calls. The quota is not one of them.
     const sent = res.pack.contents.metrics!.filter((e) => !e.metric.formula);
-    expect(sent.map((e) => [e.key, e.metric.period, e.metric.aggregation])).toEqual(["commit", "best-case", "closed-quarter", "pipeline", "quota-by-salesperson"].map((k) => [k, "week", "last"]));
+    expect(sent.map((e) => [e.key, e.metric.period, e.metric.aggregation])).toEqual(["commit", "best-case", "closed-quarter", "pipeline", "quota-split"].map((k) => [k, "week", "last"]));
   });
 
   it("Sales forecast's slides show the quota and what follows from it, with nothing but a target on Commit and the week's figures", () => {

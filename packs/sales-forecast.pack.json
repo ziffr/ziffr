@@ -132,11 +132,11 @@
         }
       },
       {
-        "key": "quota-by-salesperson",
+        "key": "quota-split",
         "metric": {
           "format": "ziffr.metric/1",
-          "name": "Quota by salesperson",
-          "description": "Only for the gap by salesperson slide: each salesperson's quota for the quarter, sent as a breakdown with the same names as Commit's, in every week you want that table. The team's quota everywhere else is the target of Commit. Leave it out at Set up if you do not want the table. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered.",
+          "name": "Quota split",
+          "description": "The quota split by salesperson, only for the deck's gap by salesperson slide: each one's quota for the quarter, sent as a breakdown with the same names as Commit's, in every week you want that table. The team's quota everywhere else is the target of Commit. Leave it out at Set up if you do not want the table. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -520,8 +520,8 @@
               "suggests": "commit-share"
             },
             {
-              "label": "Quota by salesperson",
-              "suggests": "quota-by-salesperson"
+              "label": "Quota split",
+              "suggests": "quota-split"
             }
           ],
           "theme": "forecast-navy",
