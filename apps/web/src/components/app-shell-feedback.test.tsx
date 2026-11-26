@@ -9,6 +9,8 @@ const url = vi.hoisted(() => ({ search: "" }));
 // The Setup Guide's server actions reach the core, which a component test never loads (spec 0052).
 vi.mock("@/app/setup/actions", () => ({ hideSetup: vi.fn(), reopenSetup: vi.fn(), skipStep: vi.fn(), readSetupSteps: vi.fn() }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/dashboards", useRouter: () => ({ push() {}, refresh() {} }), useSearchParams: () => new URLSearchParams(url.search) }));
+// Help lists the installed Packs' guides through actions that reach the core (spec 0058).
+vi.mock("@/app/pack-guide-actions", () => ({ readPackGuides: async () => [], readPackGuide: async () => null }));
 vi.mock("@/app/feedback-actions", () => ({ sendFeedback: async () => ({}), myFeedback: async () => [] }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/viewer", () => ({}));

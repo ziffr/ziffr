@@ -9,6 +9,8 @@ import { readPlaces, type PackPlaces } from "./pack-places";
 import { graceNow, limitOf, limitRefusal, limitRule, metricCount, metricsAllowed, nextGraceOn } from "./workspace-limits";
 import { trialLimitsInEffect } from "./trial-limits-in-effect";
 import type { Slot } from "./types";
+import { safeOverview } from "./installed-pack-guides";
+import type { KeptOverview } from "@ziffr/pack/comes-from";
 
 /** A Metric Catalog entry of an install, as stored. */
 export type EntryRow = { id: number; pack_key: string; name: string; description: string; unit: string; unit_position: string; format: string; decimals: number; period: string; submission_rule: string; polarity: string; target_min: number | null; target_max: number | null; sources: string[]; aggregation: string; formula: string | null; tags: string[] | null };
@@ -21,6 +23,8 @@ export type InstalledForSetup = {
   feeds: { template: string; fills: string[] }[];
   /** Its Positions and Repeats, or null for a Pack without them. */
   places: PackPlaces | null;
+  /** What it brings and where its numbers come from, or null for an install that keeps none. */
+  overview: KeptOverview | null;
   entries: Map<string, EntryRow>;
   dashboards: Map<string, TemplateRow>;
   workflows: Map<string, TemplateRow>;
@@ -57,6 +61,7 @@ export async function installedForSetup(actor: Actor, installId: number): Promis
     install: { id: Number(install.id), name: String(manifest?.name ?? ""), version: String(install.version) },
     feeds: feedsOf(manifest?.feeds),
     places: readPlaces(manifest?.places),
+    overview: safeOverview(manifest),
     entries: byKey((entries ?? []) as EntryRow[]),
     dashboards: byKey(tpl.filter((t) => t.kind === "dashboard")),
     workflows: byKey(tpl.filter((t) => t.kind === "workflow")),

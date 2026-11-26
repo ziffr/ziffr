@@ -10,6 +10,7 @@ import { guideRuns, PACK_GUIDE_LIMITS, type PackGuide } from "@ziffr/pack/pack-g
 import { run } from "@ziffr/pack/run";
 import { checkPack, checkPackValue, PACK_2_SCHEMA, PACK_FORMAT, PACK_SCHEMA, type Pack } from "./pack";
 import { installManifest, installPackFile, itemHash, notBuiltYet, readPackFile, storedItems } from "./packs";
+import { listInstalledGuides, readInstalledGuide, safeGuide } from "./installed-pack-guides";
 import { withSlugs } from "./pack-setup-build";
 import { formulaInputs } from "./formula";
 import { PLAIN, textPasses } from "./file-text";
@@ -395,14 +396,36 @@ describe("what the server stores of a /2 Pack", () => {
 
   it("stores the items as for the same Pack without Positions", () => {
     const stored = storedItems(checked());
-    expect(JSON.stringify(stored)).not.toMatch(/area-lead|site-manager|someone\/safety|"per"|"total"|submitters/);
+    expect(JSON.stringify(stored)).not.toMatch(/area-lead|site-manager|someone\/safety|"per"|"total"|submitters|comesFrom/);
     expect(stored.catalog.map((c) => c.key)).toEqual(["incidents", "hours", "rate", "target", "all-hours"]);
   });
 
-  it("keeps a manifest without what nothing reads yet, however long the guide", () => {
+  it("keeps a manifest with the guide, whole however long, and without what nothing reads yet", () => {
     const guide: PackGuide = { questions: many(50, () => ({ type: "text" as const, text: "x".repeat(600) })) };
     const manifest = installManifest({ ...checked(), guide });
-    expect(Object.keys(manifest).sort()).toEqual(["author", "format", "id", "license", "name", "places", "summary", "version"]);
+    expect(Object.keys(manifest).sort()).toEqual(["author", "format", "guide", "id", "license", "name", "overview", "places", "summary", "version"]);
+    expect(manifest.guide).toEqual(guide);
+    expect(safeGuide(manifest)).toEqual(guide);
+  });
+
+  // Refused before the database is asked, so none is needed; installed-pack-guides.db.test.ts holds the rest.
+  it("shows no installed guide to a Guest, an Access Key or for an id that is none", async () => {
+    const as = (over: object) => ({ personId: "p", workspaceId: "w", role: "owner", ...over }) as Actor;
+    for (const actor of [as({ role: "guest" }), as({ key: { id: 1 } })]) {
+      expect(await listInstalledGuides(actor)).toEqual([]);
+      expect(await readInstalledGuide(actor, 1)).toBeNull();
+    }
+    for (const id of [0, -1, 1.5, Number.NaN, Number.MAX_VALUE, "1" as unknown as number]) expect(await readInstalledGuide(as({}), id), String(id)).toBeNull();
+  });
+
+  it("shows a stored guide only when it still passes the format's checks", () => {
+    expect(safeGuide(installManifest(checked()))).toEqual(GUIDE);
+    // jsonb keeps no order of keys: the same guide read back passes.
+    expect(safeGuide({ guide: { whatItsFor: [{ text: "A word.", type: "text" }] } })).not.toBeNull();
+    const bad: unknown[] = [undefined, null, {}, { guide: null }, { guide: {} }, { guide: "# Hello" }, { guide: { whatItsFor: [{ type: "html", text: "<b>x</b>" }] } },
+      { guide: { whatItsFor: [{ type: "text", text: "<img src=x onerror=alert(1)>" }] } }, { guide: { whatItsFor: [{ type: "text", text: "Open evil.**com** now." }] } },
+      { guide: { questions: many(60, () => ({ type: "text", text: "x".repeat(600) })) } }, { guide: JSON.parse('{"__proto__":[{"type":"text","text":"x"}]}') }];
+    for (const manifest of bad) expect(safeGuide(manifest), JSON.stringify(manifest)?.slice(0, 80)).toBeNull();
   });
 });
 

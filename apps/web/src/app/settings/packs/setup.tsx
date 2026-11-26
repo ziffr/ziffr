@@ -16,6 +16,8 @@ import { approversStart, lineSetupStart, openSlots, setupStart, type LineRow } f
 import { DashboardPick, WorkflowPick } from "./setup-templates";
 import { RepeatLines } from "./setup-lines";
 import { FillFromN8n } from "@/components/fill-from-n8n";
+import { PackNeeds } from "@/components/pack-numbers";
+import { comesFromWords } from "@ziffr/pack/comes-from";
 import { lineStart, packSetup, setUpPack } from "@/app/pack-setup-actions";
 import { ByHand, PlanCheck, PositionField, usePlan } from "./setup-positions";
 import type { PackSetupInput, PackSetupOptions, PackSetupResult, PackSetupRoom, PackSetupStep, SetupRun } from "@ziffr/core/pack-setup";
@@ -105,6 +107,8 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
   const [start0] = useState(() => (adding ? lineSetupStart(adding.repeat.key, adding.start) : setupStart(options, viewer)));
   const [picked, setPicked] = useState<Set<string>>(start0.picked);
   const [askMe, setAskMe] = useState(true);
+  // Off by default: nobody is asked for a number the Pack says another system sends or is set as a target.
+  const [askElsewhere, setAskElsewhere] = useState(false);
   // The dashboard and the Workflow picked, by scope: "" for the whole set, else the Repeat's key.
   const [boards, setBoards] = useState<Record<string, string>>({ ...start0.lineDashboards, "": start0.dashboard });
   const [flows, setFlows] = useState<Record<string, string>>({ ...start0.lineWorkflows, "": start0.workflow });
@@ -141,9 +145,13 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
   // The entries offered here, and those asked for: adding a line asks only for what each line gets, and the core finds
   // what it is computed from among what was made before.
   const entries = adding ? options.entries.filter((e) => e.repeat === adding.repeat.key) : options.entries;
+  // The numbers being made that the Pack says nobody types. Those a Position covers are asked of whoever the person puts
+  // into it.
+  const elsewhere = entries.filter((e) => making.has(e.key) && !e.derived && !e.asksPosition && (e.comesFrom?.by === "system" || e.comesFrom?.by === "target"));
   const asked: PackSetupInput = {
     metrics: adding ? [...making].filter((k) => byKey.get(k)?.repeat === adding.repeat.key) : [...making],
     submitters: askMe && uncovered ? [viewer] : [],
+    askElsewhere: askMe && askElsewhere,
     feed: feed || null,
     dashboard: shared ? pickOf(shared) : null,
     workflow: sharedFlow ? flowOf(sharedFlow) : null,
@@ -217,6 +225,8 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
       {options.room && !options.refusal && <Fit room={options.room} n={count} />}
       {options.room && options.refusal && <p className="text-xs"><Link href="/settings/workspace#size" className="underline">Size and usage</Link></p>}
 
+      {options.overview && <div className="@container text-xs"><PackNeeds overview={options.overview} included={false} /></div>}
+
       <fieldset className="space-y-1">
         <legend className="mb-1 text-xs font-medium">Metrics to make</legend>
         {entries.map((e) => {
@@ -224,12 +234,15 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
           return (
             <label key={e.key} className="flex items-start gap-2">
               <input type="checkbox" checked={making.has(e.key)} disabled={needed} onChange={(ev) => toggle(e.key, ev.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
-              <span>{e.name} <span className="text-xs text-muted-foreground">by {e.period}{e.unit ? `, in ${e.unit}` : ""}{e.repeat ? `, one for each ${options.repeats.find((r) => r.key === e.repeat)?.name ?? e.repeat}` : ""}{e.derived ? `, a Derived Metric computed from ${e.inputs.map((i) => byKey.get(i)?.name ?? i).join(" and ")}, made too` : ""}{needed ? ", made for a Derived Metric" : ""}</span>{e.tags.length > 0 && <span className="mt-0.5 flex flex-wrap gap-1">{e.tags.map((t) => <span key={t} className="rounded-full bg-muted px-1.5 py-0.5 text-[11px]">{t}</span>)}</span>}</span>
+              <span>{e.name} <span className="text-xs text-muted-foreground">by {e.period}{e.unit ? `, in ${e.unit}` : ""}{e.repeat ? `, one for each ${options.repeats.find((r) => r.key === e.repeat)?.name ?? e.repeat}` : ""}{e.derived ? `, a Derived Metric computed from ${e.inputs.map((i) => byKey.get(i)?.name ?? i).join(" and ")}, made too` : ""}{needed ? ", made for a Derived Metric" : ""}</span>{e.comesFrom && !e.derived && <span className="block text-xs text-muted-foreground">{comesFromWords(e.comesFrom).from}</span>}{e.tags.length > 0 && <span className="mt-0.5 flex flex-wrap gap-1">{e.tags.map((t) => <span key={t} className="rounded-full bg-muted px-1.5 py-0.5 text-[11px]">{t}</span>)}</span>}</span>
             </label>
           );
         })}
         {uncovered && (
           <label className="mt-2 flex items-start gap-2"><input type="checkbox" checked={askMe} onChange={(e) => setAskMe(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> Ask me for {options.positions ? "the values no Position covers" : "their values"} (a first request goes out now)</label>
+        )}
+        {askMe && elsewhere.length > 0 && (
+          <label className="ml-6 flex items-start gap-2"><input type="checkbox" checked={askElsewhere} onChange={(e) => setAskElsewhere(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /><span>Ask me also for {elsewhere.map((e) => e.name).join(", ")}<span className="block text-xs text-muted-foreground">The Pack says another system sends {elsewhere.length === 1 ? "it" : "them"} or that {elsewhere.length === 1 ? "it is" : "they are"} set as a target, so nobody is asked unless you tick this.</span></span></label>
         )}
         {making.size > 0 && options.feeds.length > 0 && (
           <label className="mt-2 flex flex-wrap items-center gap-2">

@@ -18,6 +18,8 @@ import { deckTemplateFromFile } from "./deck-template-file";
 import { workflowTemplateFromFile } from "./workflow-template-file";
 import { themeFromFile } from "./theme-file";
 import { packLogoAddress } from "./brand-logo";
+import { helpOf, type PackHelp } from "./installed-pack-guides";
+import { keptOverview, type KeptOverview } from "@ziffr/pack/comes-from";
 import { cleanLogo, logoRatio, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import { checkViewDesignValue, type ViewDesign } from "./view-design";
 import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
@@ -39,6 +41,8 @@ export type PackPreviewItem =
 export type PackPreview = {
   manifest: Omit<Pack, "contents">;
   items: PackPreviewItem[];
+  /** What the Pack brings and where its numbers come from (comes-from.ts), worked out from the checked file. */
+  overview: KeptOverview;
   /** Its Positions, Repeats and proposed Shares in words (spec 0058), or null when it has none. */
   people: PackPeople | null;
   /** The Pack's logo, checked again and written out as Ziffr keeps it (a data address), or null. It is drawn only in an
@@ -179,19 +183,26 @@ export const manifestOf = (p: Pack): Omit<Pack, "contents"> => {
   return m;
 };
 
+// The database keeps at most 262,144 bytes of a manifest, counted as it writes JSON, which is longer than here.
+const MANIFEST_ROOM = 240_000;
+
 /** The places of a checked Pack (spec 0058), marked with the Workflow Templates as `storedItems` stores them. */
 function placesOf(pack: Pack, stored: ReturnType<typeof storedItems>["templates"]): PackPlaces | null {
   const bodies = new Map(stored.filter((t) => t.kind === "workflow").map((t) => [t.key, (t.body as WorkflowTemplateBody).steps]));
   return packPlaces(pack, (key) => itemHash(bodies.get(key)));
 }
 
-/** The manifest an install keeps, with the logo checked again and, as `places`, what Set up and the Packs page read of
- * its Positions and Repeats (spec 0058). Credit and the Pack Guide are left out: nothing reads them from an install yet,
- * and with a guide the manifest would not fit what the database keeps of it, so the whole Pack would be refused. */
-export const installManifest = (p: Pack, stored: ReturnType<typeof storedItems> = storedItems(p)): Omit<Pack, "contents" | "positions" | "repeats" | "basedOn" | "guide"> & { places?: PackPlaces } => {
-  const { positions: _p, repeats: _r, basedOn: _b, guide: _g, ...m } = manifestOf(p); // eslint-disable-line @typescript-eslint/no-unused-vars
+/** The manifest an install keeps, with the logo checked again; as `places`, what Set up and the Packs page read of
+ * its Positions and Repeats; the Pack Guide, which Help shows; and the overview of what the Pack brings and where its
+ * numbers come from, which Help and Set up show (spec 0058). Where all of it would not fit, the overview is left out
+ * first and then the guide, so that the Pack still installs. Credit is left out: nothing reads it from an install yet. */
+export const installManifest = (p: Pack, stored: ReturnType<typeof storedItems> = storedItems(p)): Omit<Pack, "contents" | "positions" | "repeats" | "basedOn"> & { places?: PackPlaces; overview?: KeptOverview } => {
+  const { positions: _p, repeats: _r, basedOn: _b, guide, ...m } = manifestOf(p); // eslint-disable-line @typescript-eslint/no-unused-vars
   const places = placesOf(p, stored.templates);
-  return { ...m, ...(p.logo === undefined ? {} : { logo: packLogoOf(p)! }), ...(places ? { places } : {}) };
+  const bare = { ...m, ...(p.logo === undefined ? {} : { logo: packLogoOf(p)! }), ...(places ? { places } : {}) };
+  const guided = guide === undefined ? bare : { ...bare, guide };
+  const whole = { ...guided, overview: keptOverview(p) };
+  return [whole, guided].find((x) => new TextEncoder().encode(JSON.stringify(x)).length <= MANIFEST_ROOM) ?? bare;
 };
 
 /** Where a Pack's file came from: an upload (never signed here), the Marketplace with its signature checked (`reviewed`
@@ -234,7 +245,7 @@ export async function previewPack(actor: Actor, text: string, origin: PackOrigin
     name: (kind, key) => names.get(`${kind} ${key}`) ?? null,
     steps: (w) => (templates.get(w.key)?.body as WorkflowTemplateBody | undefined)?.steps ?? null,
   });
-  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, people, logo: safeLogo(pack), unsigned: !origin.signed, source: origin.source, reviewed: origin.reviewed === true, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
+  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, overview: keptOverview(pack), people, logo: safeLogo(pack), unsigned: !origin.signed, source: origin.source, reviewed: origin.reviewed === true, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
 }
 
 /** Installs an uploaded Pack file (Owners and Admins; Owners for one with Themes; never in the demo), after the person
@@ -284,6 +295,8 @@ export type InstalledPack = {
   listing: { homepage?: string; support?: string };
   /** The address of its logo on this site (signed-in people of the Workspace only), or null. */
   logo: string | null;
+  /** What Help has of it (installed-pack-guides.ts): its guide, only where its numbers come from, or nothing. */
+  help: PackHelp;
   added: { kind: "metric" | "dashboard" | "deck" | "workflow" | "view" | "theme"; name: string }[];
   /** Its Positions, Repeats and proposed Shares in words (spec 0058), of the items it still has, or null. */
   people: PackPeople | null;
@@ -344,7 +357,7 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
     return {
       id: Number(r.id), packId: String(r.pack_id), name: m.name, version: String(r.version), license: String(r.license), author: m.author?.name ?? "", summary: m.summary ?? "",
       source: r.source as PackOrigin["source"], signed: Boolean(r.signed), reviewed: r.source === "marketplace" && m.reviewed === true, installedAt: String(r.installed_at), installedBy: (r.installed_by as string | null) ?? null,
-      listing: m.listing ?? {}, logo: packLogoAddress(ws, Number(r.id), (r.manifest as { logo?: unknown } | null)?.logo), added: added.get(Number(r.id)) ?? [],
+      listing: m.listing ?? {}, logo: packLogoAddress(ws, Number(r.id), (r.manifest as { logo?: unknown } | null)?.logo), help: helpOf(r.manifest), added: added.get(Number(r.id)) ?? [],
       people: peopleOfInstall(Number(r.id), m.places),
       addable: (readPlaces(m.places)?.repeats ?? []).filter((x) => listedRepeats.has(`${Number(r.id)} ${x.key}`)).map((x) => ({ repeat: x.key, name: x.name })),
     };
