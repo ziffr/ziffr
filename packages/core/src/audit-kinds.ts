@@ -118,6 +118,7 @@ export const AUDIT_KINDS = {
   "workspace.closed_cancelled": "closed the Workspace because its Size was cancelled",
   "workspace.reopened": "opened the Workspace again after its Size was cancelled",
   "workspace.key_changed": "changed the Workspace Key",
+  "workspace.practice_filled": "filled Metrics of their Practice Workspace with made-up numbers in",
   "workspace.practice_way_on": "switched on, in their Practice Workspace, sending to themself by",
   "workspace.practice_way_off": "switched off, in their Practice Workspace, sending to themself by",
   "workspace.profile_changed": "changed the Workspace Profile",

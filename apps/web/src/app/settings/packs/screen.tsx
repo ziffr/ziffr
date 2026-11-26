@@ -27,6 +27,7 @@ import { Publisher } from "./pack-logo";
 import { PackPeopleList } from "./pack-people";
 import { ExportPack } from "./export";
 import { AddLine, SetUpFromPack } from "./setup";
+import { FillMadeUp } from "./fill-made-up";
 import type { Problem } from "@ziffr/core/json-check";
 import type { IncludedPackListing } from "@ziffr/core/included-packs";
 
@@ -57,7 +58,7 @@ function ListingLink({ href, children, unsigned = false }: { href?: string; chil
   );
 }
 
-export function PacksScreen({ installed, manages, exportable = null, authorName = "", offers = [], included = [], marketplace = false, updates = [], reports = [], withdrawn = [], demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; authorName?: string; offers?: OfferedItem[]; included?: IncludedPackListing[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; reports?: { installId: number; address: string }[]; withdrawn?: { installId: number; reason: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
+export function PacksScreen({ installed, manages, exportable = null, authorName = "", offers = [], included = [], marketplace = false, updates = [], reports = [], withdrawn = [], demo, guest, viewer, numberStyle, practice = false }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; authorName?: string; offers?: OfferedItem[]; included?: IncludedPackListing[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; reports?: { installId: number; address: string }[]; withdrawn?: { installId: number; reason: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle; /** The viewer's own Practice Workspace (spec 0063). */ practice?: boolean }) {
   return (
     <div className="space-y-8">
       {manages && <Offers offers={offers} />}
@@ -97,10 +98,11 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
                     {updates.filter((u) => u.installId === p.id).map((u) => <div key={u.version} className="mt-2"><MarketplaceUpdate installId={p.id} name={p.name} version={u.version} /></div>)}
                     {manages && (
                       <div className="flex flex-wrap items-start gap-x-2">
-                        <div className="max-w-full has-[>div]:w-full"><SetUpFromPack installId={p.id} viewer={viewer} /></div>
-                        {p.addable.map((r) => <div key={r.repeat} className="max-w-full has-[>div]:w-full"><AddLine installId={p.id} repeat={r.repeat} name={r.name} viewer={viewer} /></div>)}
+                        <div className="max-w-full has-[>div]:w-full"><SetUpFromPack installId={p.id} viewer={viewer} practice={practice} /></div>
+                        {p.addable.map((r) => <div key={r.repeat} className="max-w-full has-[>div]:w-full"><AddLine installId={p.id} repeat={r.repeat} name={r.name} viewer={viewer} practice={practice} /></div>)}
                       </div>
                     )}
+                    {practice && <FillMadeUp installId={p.id} />}
                     {reports.filter((r) => r.installId === p.id).map((r) => <p key={r.installId} className="mt-2"><ReportLink href={r.address} name={p.name} /></p>)}
                   </li>
                 ))}

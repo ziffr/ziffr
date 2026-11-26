@@ -1,6 +1,6 @@
 # 0063 Practice Workspace: try everything on made-up numbers, reaching nobody but yourself
 
-**Status:** in progress. **Tracking issue:** #1264 (label `tracking`); tickets #1265 (nothing leaves it), #1266 (make one, Start over), #1271 (reach yourself, links and Webhooks) and #1267 (made-up numbers). **Approved** by the owner on 2026-11-26 (a private test space with demo data; made-up figures after a Pack's Set up; later the same day: what may reach the Admin themself and the addresses they type). The decisions at the end were taken while writing it and may be changed.
+**Status:** done. **Tracking issue:** #1264 (label `tracking`); tickets #1265 (nothing leaves it), #1266 (make one, Start over), #1271 (reach yourself, links and Webhooks) and #1267 (made-up numbers). **Approved** by the owner on 2026-11-26 (a private test space with demo data; made-up figures after a Pack's Set up; later the same day: what may reach the Admin themself and the addresses they type). The decisions at the end were taken while writing it and may be changed.
 
 ## Problem Statement
 

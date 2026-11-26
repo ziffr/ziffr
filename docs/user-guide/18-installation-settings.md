@@ -40,6 +40,8 @@ Everything works as in any Workspace, with these differences:
 - Only you see it. It does not count towards any limit, is never deleted for being unused, and Retention does not run in it.
 - You can take its Workspace Export; the file holds only made-up people and you.
 
+Where the demo has no numbers from the start of the previous Fiscal Year, or a Metric where a target makes sense has no Target Series, the copy gets made-up ones, so progress over the year and the year before can be looked at; the demo itself is not changed. After setting up a Pack there you can [fill its Metrics with made-up numbers](19-packs.md#made-up-numbers-in-a-practice-workspace).
+
 What the copy does not carry: images in Themes and decks, Questions, Tasks and Findings, and pinned dashboards. The dashboards, decks and Workflows are yours; the Metrics belong to whom they belong to in the demo. The numbers reach up to today as the demo's do. Where the demo is switched off here, nothing refreshes it, and the page says on which day its numbers end.
 
 **Start over** deletes your Practice Workspace with everything you made or changed in it, destroys its Workspace Key and makes a fresh copy. It asks you to confirm, and it can delete nothing else.

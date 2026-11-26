@@ -255,6 +255,7 @@ const CASES: Record<string, Case> = {
   "pack-setup-actions:packSetup": { blocked: () => [1] },
   "pack-setup-actions:planSetUp": { blocked: () => [1, { metrics: ["orders"] }] },
   "pack-setup-actions:lineStart": { blocked: () => [1, "site"] },
+  "pack-setup-actions:fillMadeUpNumbers": { blocked: () => [1, 0] },
   "pack-setup-actions:setUpPack": { nothing: "the demo has no installed Pack to set up from", blocked: () => [1, { metrics: ["orders"] }] },
   "total-actions:createTotal": { blocked: (i) => [{ name: "All", parts: [i.ownMetric] }] },
   "total-actions:addTotalPart": { blocked: (i) => [i.ownMetric, i.ownMetric, "2026-01-01"] },

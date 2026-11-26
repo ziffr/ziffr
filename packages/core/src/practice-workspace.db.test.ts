@@ -6,6 +6,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { Forbidden } from "./actor";
 import { db } from "./db";
 import { PRACTICE_HELD } from "./practice";
+import { madeUpPeriods } from "./practice-numbers";
+import { JANUARY } from "./periods";
+import { workspaceToday } from "./retention-setting";
+import { getMetrics } from "./workspace-data";
 import { makePracticeWorkspace, practiceWorkspaceState, startOverPracticeWorkspace } from "./practice-workspace";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
@@ -74,6 +78,16 @@ describe("making a Practice Workspace", () => {
     expect(counts.observations).toBeGreaterThan(demo.observations * 0.9);
     for (const t of ["dashboards", "decks", "workflows", "memberships"]) expect([t, counts[t]]).toEqual([t, demo[t]]);
     expect(counts.shares).toBeGreaterThan(0);
+
+    // Annual progress works in the copy: from the start of the previous fiscal year, with targets to the end of this one.
+    const today = await workspaceToday(made);
+    const copied = await getMetrics(made);
+    for (const m of copied.filter((x) => !x.formula)) {
+      const first = async (table: string, ascending: boolean) => (await db().from(table).select("period_start").eq("metric_id", m.id).order("period_start", { ascending }).limit(1)).data?.[0]?.period_start as string | undefined;
+      const span = madeUpPeriods(m.period, today, JANUARY);
+      if (await first("observations", true)) expect([m.name, (await first("observations", true))! <= span[0]]).toEqual([m.name, true]);
+      if (m.polarity !== "target") expect([m.name, (await first("series_values", false))! >= madeUpPeriods(m.period, today, JANUARY, true).at(-1)!]).toEqual([m.name, true]);
+    }
 
     // Everyone but the maker is made up, with an address that cannot be routed and no sign-in; nobody is a demo person.
     const { data: members } = await db().from("memberships").select("user_id, role, profiles(email, auth_user_id, made_up_in)").eq("workspace_id", made);

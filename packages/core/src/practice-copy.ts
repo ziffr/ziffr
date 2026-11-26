@@ -17,6 +17,7 @@ import type { WorkflowConfig, WorkflowStep } from "./types";
 import { saveWorkflow } from "./workflows";
 import { openWorkflowRows } from "./workflow-rows";
 import { demoAsRecords, type ExportLabels } from "./workspace-export";
+import { fillCopiedNumbers } from "./practice-fill";
 import { createPlace, writeInto, type Written, type WrittenPerson } from "./workspace-import";
 import { applyImportPlan } from "./workspace-import-people";
 import { setDefaultTheme } from "./workspace-themes";
@@ -219,6 +220,8 @@ export async function makeFromDemo(personId: string, made: (workspaceId: string)
   await extra("Stand-ins", () => copyStandIns(actor, maps));
   await extra("Workflows' people", () => copyWorkflowPeople(actor, maps));
   await extra("introductions and Theme", () => copyWords(actor, maps));
+  // What the demo lacks for year on year and annual progress, in the copy only: made up before the Snapshots keep it.
+  await extra("made-up numbers", () => fillCopiedNumbers(workspaceId));
   await extra("Snapshots", () => copySnapshots(actor, maps));
   // What the day would send, so the Outbox has something to read: held there, as everything of this Workspace is.
   await extra("the day's messages", async () => { await askForMissingValues(actor); await sendDueReminders(actor); });

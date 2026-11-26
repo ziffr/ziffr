@@ -624,7 +624,7 @@ class SeriesBuffer {
 }
 
 /** Values written in batches, each sealed for its row under the Workspace's key as every value is, as Imports. */
-class ValueWriter {
+export class ValueWriter {
   private rows: { metric: number; r: ValueRecord }[] = [];
   constructor(private readonly workspaceId: string) {}
   async add(metric: number, r: ValueRecord): Promise<void> {
