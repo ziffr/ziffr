@@ -70,7 +70,7 @@ Ziffr's own starting Packs, in [`packs/`](../../packs/README.md), are complete e
 - **`id`** is your Marketplace handle and a slug. It stays the same for every version.
 - **`version`** is three numbers: major, minor and patch. Each new version is higher than the last.
 - **`license`** is `CC-BY-4.0` or `MIT` for a free Pack, `Ziffr-Pack-1.0` for a paid one. Nothing else is accepted.
-- **`ziffr`** is the oldest Ziffr that can install the Pack. An older Ziffr says "needs Ziffr 0.12 or later" and installs nothing.
+- **`ziffr`** is the oldest Ziffr that can install the Pack. An older Ziffr says "needs Ziffr 0.12 or later" and installs nothing. A build that is not a release (the development app, the image of `main`, one you built yourself) takes any minimum of its major version, since it is newer than the releases.
 - **`listing`** holds the only web addresses a Pack may have, `https` only: a homepage and a support page.
 - **Every item** has a `key`, unique in the Pack and kept across versions. Updating and uninstalling match items by it.
 
@@ -263,6 +263,8 @@ Do not write it on a Derived Metric or a [Total](#totals): Ziffr calculates thos
 ### The Pack Guide
 
 `guide` is where you explain your Pack, read before installing (in the preview) and afterwards in Help, with the installed Pack. It has five sections, each optional, in this order and under Ziffr's own titles: `whatItsFor` (What it's for), `beforeYouStart` (Before you start), `firstSteps` (First steps), `eachPart` (Each part) and `questions` (Questions).
+
+For a whole guide to learn from, read the one of Ziffr's [Sales forecast Pack](../../packs/sales-forecast.pack.json): what the Pack is for, what to have ready, a numbered **Start here**, each part and the questions people ask.
 
 A section is a list of blocks:
 

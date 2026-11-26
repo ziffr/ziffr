@@ -106,7 +106,7 @@ For a first try, a Target Range is quicker: under **Edit details…** on Commit,
 3. Choose **New metric**, then [Calculated from other Metrics](10-metrics.md#calculated-from-other-metrics), and add them up into "Commit, sum of salespeople". It has a value in a week once all of them have one.
 4. The team's **Commit** stays the sales lead's call. Add the sum to the dashboard to see both side by side.
 
-**From your CRM.** Instead of asking people, n8n can send **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, and from the first two also **Commit** and **Best case** if you like, for the team and for salespeople with Metrics of their own. Choose **Fill from n8n** on one of these Metrics and a forecast template ([what they send and when](../automations/crm-forecast-feeds.md)). A figure that came from the CRM is approved like any other, but its first value is not checked for being unusual.
+**From your CRM.** Instead of asking people, n8n can send **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, and from the first two also **Commit** and **Best case** if you like, for the team and for salespeople with Metrics of their own. Choose **Fill from n8n** on one of these Metrics and a forecast template ([what they send and when](../automations/crm-forecast-feeds.md)). A figure that came from the CRM is approved like any other, but its first value is not checked for being unusual. The Pack marks **Closed this quarter** and **Pipeline value** as sent by a CRM, so **Set up from this Pack** does not make you their Submitter; to type them yourself, tick **Ask me also for …** there.
 
 **Sending the Snapshot.** The Workflow has a **Send Snapshot** step; **Set up from this Pack** leaves the dashboard and the people open. Open the Workflow, pick **Weekly forecast meeting** and the people in the step (see [The steps](11-workflows.md#the-steps)), and share the dashboard with them, or the link is not sent to them.
 
@@ -132,6 +132,8 @@ Both are in Help with an installed Pack, also one without a guide (the Pack then
 ## A Pack's guide
 
 A Pack may carry a **Pack Guide**: what its creator tells you about it. The preview shows it above the list of what the Pack adds, for a file, one of Ziffr's own Packs and a Pack from the Marketplace, also in the Setup Guide.
+
+Each of Ziffr's own Packs has one; read **First steps**, which begins with **Start here**. A Pack of one of them installed from an earlier version of Ziffr gets its guide when you update it.
 
 It has up to five sections, always under these titles: **What it's for**, **Before you start**, **First steps**, **Each part** and **Questions**. A guide shows only the sections its creator filled. **What it's for** and **First steps** are open when the guide appears (when it has neither, its first section is); choose a title to open or close a section.
 
