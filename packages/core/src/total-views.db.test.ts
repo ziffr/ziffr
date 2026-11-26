@@ -4,7 +4,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey, actorForKey } from "./access-keys";
 import { getMetric } from "./api";
+import { canvasSeries } from "./access";
 import { createDashboard, placeWidget } from "./dashboards";
+import { createDeck, saveDeck } from "./decks";
 import { createDerivedMetric } from "./derived-metrics";
 import { db } from "./db";
 import { share } from "./sharing";
@@ -40,6 +42,39 @@ async function setup() {
   return { w, owner, sara, ben, ana, eva, total, board, open };
 }
 const sums = (data: { series: Record<string, { value: number }[]> }, slug: string) => (data.series[slug] ?? []).map((p) => p.value);
+
+describe("a gap table of a Total", () => {
+  it("gets the rows' Metrics each reader sees, and on a View Link only those the deck shows anyway", async () => {
+    const { w, owner, sara, ben, ana, eva, total } = await setup();
+    await share(owner, "metric", total.id, ben, "viewer");
+    await share(owner, "metric", ana.id, ben, "viewer");
+    const listed = async (actor: Parameters<typeof canvasSeries>[0]) => (await canvasSeries(actor, [total.id])).totalLists?.[total.id];
+    expect(await listed(owner)).toMatchObject({ parts: [{ part: ana.id }, { part: eva.id }], others: [], hidden: false });
+    const bens = await canvasSeries(w.actor(ben, "member"), [total.id]);
+    expect(bens.totalLists![total.id]).toEqual({ parts: [{ part: ana.id, first: "2026-01-01", last: null }], others: ["2026-01-01"], hidden: true });
+    expect(JSON.stringify(bens)).not.toContain(eva.slug);
+    // A person who does not see the Total gets no list of it.
+    const cleo = await w.person("member");
+    expect((await canvasSeries(w.actor(cleo, "member"), [total.id, ana.id])).totalLists).toBeUndefined();
+
+    const shape = (metricId: number, element: object) => ({ type: "ziffr-widget", props: { template: "slide", metricIds: [metricId], settings: JSON.stringify({ element }) } });
+    const deck = await createDeck(w.actor(sara), "Forecast");
+    const table = { "shape:1": shape(total.id, { kind: "gap-table", total: true }) };
+    await saveDeck(w.actor(sara), deck, { store: table });
+    const view = async (frozen: boolean) => (await openViewLink(await createViewLink(owner, "deck", deck, { label: "x", expires: inDays(7), frozen }), { count: false }))!;
+    for (const frozen of [false, true]) {
+      const alone = await view(frozen);
+      expect(alone.data.totalLists![total.id]).toMatchObject({ parts: [], hidden: true });
+      expect(JSON.stringify(alone)).not.toMatch(new RegExp(`Commit (Ana|Eva)|${ana.slug}|${eva.slug}`));
+    }
+    await saveDeck(w.actor(sara), deck, { store: { ...table, "shape:2": shape(ana.id, { kind: "figure" }) } });
+    for (const frozen of [false, true]) {
+      const both = await view(frozen);
+      expect(both.data.totalLists![total.id]).toEqual({ parts: [{ part: ana.id, first: "2026-01-01", last: null }], others: ["2026-01-01"], hidden: true });
+      expect(JSON.stringify(both)).not.toMatch(new RegExp(`Commit Eva|${eva.slug}`));
+    }
+  });
+});
 
 describe("a Total in a Snapshot", () => {
   it("is given to who sees every Metric it counted, to others only while it is open", async () => {
