@@ -125,6 +125,32 @@ export async function visibleMetricIds(ws: string, viewer: string, metrics: Metr
   });
 }
 
+/** What each of many people sees, with the facts read once: the dashboards they may open (as `visibleDashboards`)
+ * and the Metrics (as `visibleMetricIds`). For saying who will not see something; decided by the same rules. */
+export async function visibilityOfMany(ws: string, metrics: Metric[]): Promise<(person: string) => { dashboards: Set<number>; metrics: Set<number> }> {
+  const [tokens, shares, { data: dashboards }, { data: decks }] = await Promise.all([
+    tokenFacts(ws), getShares(ws),
+    db().from("dashboards").select("id, owner_id, workspace_id").eq("workspace_id", ws),
+    db().from("decks").select("id, owner_id, workspace_id").eq("workspace_id", ws),
+  ]);
+  const shared = (type: "dashboard" | "deck") => [...new Set(shares.filter((s) => s.object_type === type).map((s) => s.object_id))];
+  const [sharedDash, sharedDecks] = [shared("dashboard"), shared("deck")];
+  const [{ data: widgets }, { data: docs }] = await Promise.all([
+    sharedDash.length ? db().from("widgets").select("dashboard_id, metric_ids, settings, workspace_id").eq("workspace_id", ws).in("dashboard_id", sharedDash) : Promise.resolve({ data: [] }),
+    sharedDecks.length ? db().from("decks").select("id, document, workspace_id").eq("workspace_id", ws).in("id", sharedDecks) : Promise.resolve({ data: [] }),
+  ]);
+  const facts = { metrics: metrics.map((m) => ({ ...m, workspace_id: (m as Metric & { workspace_id?: string }).workspace_id ?? "" })), tokens, shares };
+  return (person) => {
+    const dash = objectRoles(ws, person, "dashboard", dashboards ?? [], shares);
+    const deck = objectRoles(ws, person, "deck", decks ?? [], shares);
+    const sharedWith = (roles: ReadonlyMap<number, string>, id: number) => (roles.get(id) ?? "owner") !== "owner";
+    return {
+      dashboards: new Set(dash.keys()),
+      metrics: visibleMetricIdsFrom(ws, person, { ...facts, sharedDashboardWidgets: (widgets ?? []).filter((w) => sharedWith(dash, w.dashboard_id)), sharedDeckDocuments: (docs ?? []).filter((d) => sharedWith(deck, d.id)) }),
+    };
+  };
+}
+
 /** The parts of CanvasData that are per Metric and can be large: values, Breakdowns, Target Series, Projections. */
 export type CanvasSeries = Pick<CanvasData, "series" | "breakdowns" | "targets" | "projections" | "condensed">;
 

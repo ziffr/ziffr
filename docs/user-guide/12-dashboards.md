@@ -549,7 +549,7 @@ If you may change the thing (its owner and Editors), you also see:
 
 - **Name this state** and **Save**: names the current state, such as "Board pack Q3, final", so you can find it again.
 - **Name** / **Rename** on each Version.
-- **Restore** on each earlier Version. Restoring writes the old state back as a new Version, so nothing is lost.
+- **Restore** on each earlier Version. Restoring writes the old state back as a new Version, so nothing is lost. If a restore cannot be saved, the dashboard stays as it was and keeps its widgets.
 
 Viewers see the list but cannot restore or name.
 

@@ -14,6 +14,7 @@ import { db } from "./db";
 import { audit } from "./audit-log";
 import { workspaceLook } from "./workspace-look";
 import { brandedParts, headerSafe, sentByLine, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
+import { unlinked } from "./mail-links";
 import { linkTo } from "./deliveries";
 import { refuseInDemo } from "./demo";
 import { assertNotTrial } from "./trials";
@@ -263,7 +264,7 @@ async function connectionName(row: Row): Promise<string | null> {
 }
 
 /** Names people chose go in the body inside quotes after fixed text, on one line, never in the subject. */
-const named = (s: string) => headerSafe(s).replace(/[“”"«»„]/g, "'").slice(0, 80);
+const named = (s: string) => unlinked(headerSafe(s)).replace(/[“”"«»„]/g, "'").slice(0, 80);
 
 /** The email a recipient gets with the link. The sender's words are quoted and said to be theirs. */
 export function viewLinkEmail(o: { sender: string; dashboard: string; url: string; endsOn: string; message: string | null }): { subject: string; text: string } {
@@ -319,10 +320,11 @@ export async function confirmShareProposal(actor: Actor, id: number, seen: strin
     let emailState: "sent" | "failed" = "sent";
     try {
       const by = { name: named(sender ?? "someone"), email: (who as { email?: string | null } | null)?.email, did: "shared a dashboard with you from" };
-      const mail = viewLinkEmail({ sender: sender ?? "someone", dashboard: dashboard.name, url: linkTo(`/v/${token}`), endsOn: String(row.ends_on), message: row.message });
+      const action = { label: "Open the dashboard", url: linkTo(`/v/${token}`) };
+      const mail = viewLinkEmail({ sender: sender ?? "someone", dashboard: dashboard.name, url: action.url, endsOn: String(row.ends_on), message: row.message });
       // Ziffr's own line about who is behind it, in the plain text and the HTML alike.
       const text = `${mail.text}\n\n${sentByLine(by, (await workspaceLook(actor.workspaceId)).name)}`;
-      await sendMail({ to: String(row.recipient_email), subject: mail.subject, text, ...(await brandedParts(actor.workspaceId, { text: mail.text }, by)) }, transport);
+      await sendMail({ to: String(row.recipient_email), subject: mail.subject, text, action, ...(await brandedParts(actor.workspaceId, { text: mail.text, action }, by)) }, transport);
     } catch {
       emailState = "failed";
     }

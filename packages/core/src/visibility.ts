@@ -3,6 +3,7 @@
 // so a fact from another workspace can never grant anything.
 import { tokenValid, type TokenRow } from "./tokens";
 import { widgetMetricIds } from "./widget-metrics";
+import { liveDocument } from "./snapshot-parts";
 import type { Action, Group, Metric, Share, ShareRole, WidgetSettings } from "./types";
 
 /** A row that belongs to a Workspace. */
@@ -72,12 +73,31 @@ export function objectRoles(ws: string, person: string, type: "dashboard" | "dec
   return out;
 }
 
-/** Every metric drawn by the widgets on a deck's slides. */
+/** Every metric a deck draws live, which is what its Share opens. Snapshot Parts name no Metric, and what stands on a
+ * slide that keeps a Snapshot's numbers opens none (spec 0061): each reader needs the Snapshot's own dashboard. */
 export function deckMetricIds(document: unknown): number[] {
+  return allDeckMetricIds(liveDocument(document));
+}
+
+/** Every metric named by any widget on a deck's slides, slides that keep numbers included: for knowing whether a
+ * Metric is still on a deck, never for who may see it. */
+export function allDeckMetricIds(document: unknown): number[] {
   // A deck's slides are read like a free layout, with the same rule: nested widgets count, and a malformed Metric
   // list yields an id no visibility check accepts, so such a deck cannot be saved, shared or restored.
   if (!document || typeof document !== "object") return [];
   return widgetMetricIds([], { canvas: { document } } as unknown as WidgetSettings);
+}
+
+/** The Metrics a changed deck names that whoever stores it must see: those it newly draws live, and those newly named
+ * by any widget at all. So none can be put on a slide that keeps numbers by someone who does not see it, to be drawn
+ * live under another's save later, or to stand in the way of its owner deleting it. */
+export function deckMetricIdsAdded(before: unknown, after: unknown): number[] {
+  const added = [deckMetricIds, allDeckMetricIds].flatMap((ids) => {
+    // A malformed marker (NaN) never counts as "already there": only real ids are.
+    const had = new Set(ids(before).filter(Number.isFinite));
+    return ids(after).filter((m) => !had.has(m));
+  });
+  return [...new Set(added)];
 }
 
 /** What decides which metrics someone sees, loaded by the caller for one workspace. */

@@ -43,7 +43,7 @@ for _ in $(seq 1 30); do
   id=$(curl -fsS "$MAILPIT/api/v1/search?query=to%3A$(printf %s "$address" | sed 's/@/%40/')" 2> /dev/null | sed -n 's/.*"ID":"\([^"]*\)".*/\1/p' | head -n 1)
   if [ -n "$id" ]; then
     # shellcheck disable=SC1003
-    link=$(curl -fsS "$MAILPIT/api/v1/message/$id" | tr -d '\\' | grep -o "$SITE/auth/v1/verify[^\" <]*" | head -n 1 | sed 's/u0026/\&/g; s/&amp;/\&/g')
+    link=$(curl -fsS "$MAILPIT/api/v1/message/$id" | tr -d '\\' | grep -o "$SITE/auth/v1/verify[^\" <]*" | head -n 1 | sed 's/u003e.*//; s/u0026/\&/g; s/&amp;/\&/g')
     break
   fi
   sleep 1

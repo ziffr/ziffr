@@ -131,7 +131,7 @@ The 14 days come at most once in 90 days. If the Workspace goes over its limit a
 
 Near the limit, from 90 % on, everyone who opens **New metric** sees how many Metrics the Workspace holds of how many, such as "48 of 50 Metrics". When new Metrics wait, the page says so before the form is filled in.
 
-**Download the values** saves the values of every Metric you see as a CSV file, written as the trial's download is (with the columns `period_end` and `condensed_from`, empty except on a Condensed Value, which is one line for its span, and `state`, which says **final** or **not approved yet**); the warning before an unused Workspace is deleted links to it.
+**Download the values** saves the values of every Metric you see as a CSV file (UTF-8 with a byte-order mark, so Excel shows umlauts rightly), written as the trial's download is (with the columns `period_end` and `condensed_from`, empty except on a Condensed Value, which is one line for its span, and `state`, which says **final** or **not approved yet**); the warning before an unused Workspace is deleted links to it.
 On hosted Ziffr, Owners also see **Change Size** and **Billing and invoices**. Both take you to Ziffr Cloud, where you book, change or cancel the Size and see invoices; Ziffr hands you over with a token that works for five minutes and knows only the Workspace, its name and your address. Admins see the section without these buttons, and Ziffr never holds payment details.
 **Make room** opens when a smaller Size needs fewer Metrics than the Workspace holds, such as when an Owner moves to a smaller Size on hosted Ziffr. It says how many Metrics the smaller Size allows, how many the Workspace holds and how many to archive, and lists the Metrics you see with the month of their latest value. The ones whose latest value is oldest, or that have none, are ticked first, as many as needed; change the ticks as you like, and the line below says how many more are needed. **Archive** archives the ticked ones and takes you back here. Metrics not shared with you are only counted: their owners archive them. Owners and Admins only.
 
@@ -664,6 +664,6 @@ Click a person's name in the list to see only their events. Click what an event 
 
 ### Download CSV
 
-**Download CSV** saves the events of the current filter as a spreadsheet file, at most 50,000 at a time; pick dates for more. Each download is itself recorded in the Audit Log, and a Workspace can download it at most ten times an hour.
+**Download CSV** saves the events of the current filter as a spreadsheet file (UTF-8 with a byte-order mark, so Excel shows umlauts rightly), at most 50,000 at a time; pick dates for more. Each download is itself recorded in the Audit Log, and a Workspace can download it at most ten times an hour.
 
 In the demo, where visitors may change it, the pins in the sidebar are your own, kept in your browser.

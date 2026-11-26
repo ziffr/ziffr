@@ -1,4 +1,4 @@
-// The twelve starting Packs installed (spec 0030, #279): all of them into one Workspace, by upload, as a self-hoster
+// The thirteen starting Packs installed (spec 0030, #279): all of them into one Workspace, by upload, as a self-hoster
 // without the Marketplace would. They add catalog entries, templates, designs and a Theme, and make no Metric.
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
@@ -12,12 +12,12 @@ const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 
 describe("installing the starting Packs", () => {
-  it("installs all twelve into one Workspace, shared names and all, and makes no Metric", async () => {
+  it("installs all thirteen into one Workspace, shared names and all, and makes no Metric", async () => {
     const w = await workspace(); cleanups.push(w.cleanup);
     const ann = await w.person("owner");
     for (const file of STARTING_PACKS) await installPackFile(w.actor(ann), startingPack(file), { unsigned: true, assistantTexts: true });
     const installed = await listInstalledPacks(w.actor(ann));
-    expect(installed.map((p) => p.packId).sort()).toEqual(STARTING_PACKS.map((f) => `ziffr/${f.replace(".pack.json", "")}`));
+    expect(installed.map((p) => p.packId).sort()).toEqual(STARTING_PACKS.map((f) => `ziffr/${f.replace(".pack.json", "")}`).sort());
     // Several describe Revenue; the catalog has each, under its Pack.
     const parsed = STARTING_PACKS.map((f) => JSON.parse(startingPack(f)) as { contents: { metrics?: { metric: { name: string } }[]; dashboards?: unknown[]; decks?: unknown[]; workflows?: unknown[] } });
     const own = (await metricCatalog(w.actor(ann))).filter((c) => c.pack_install_id);
@@ -41,7 +41,7 @@ describe("installing the starting Packs", () => {
     expect(made.workflowId).not.toBeNull();
   });
 
-  it.each(["sales", "finance", "people", "customer-support", "fulfilment"])("sets up the %s Pack whole: every Metric, its dashboard with all its widgets and its Workflow", async (id) => {
+  it.each(["sales", "sales-forecast", "finance", "people", "customer-support", "fulfilment"])("sets up the %s Pack whole: every Metric, its dashboard with all its widgets and its Workflow", async (id) => {
     const w = await workspace(); cleanups.push(w.cleanup);
     const ann = await w.person("owner");
     const file = `${id}.pack.json`;
