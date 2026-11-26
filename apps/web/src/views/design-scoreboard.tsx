@@ -28,7 +28,7 @@ function rowOf(m: Metric, v: DesignValues): Row {
   const trend = shown.points.slice(-v.win).map((p) => ({ period: p.period, value: p.value }));
   if (!last) return { m, last, trend, by: shown.by, change: null, why: null };
   // The comparison the strip under a number Widget calls "vs prev.": the same engine, so the two never disagree.
-  const c = compare(m, resolverFrom(data.metrics, data.series), { keys: ["prev"], yearStart: data.yearStart })[0];
+  const c = compare(m, resolverFrom(data.metrics, data.series, data), { keys: ["prev"], yearStart: data.yearStart })[0];
   const ns = data.numberStyle;
   if (!c?.available) return { m, last, trend, by: shown.by, change: null, why: c?.reason ?? null };
   const delta = c.pct ?? c.abs ?? 0;

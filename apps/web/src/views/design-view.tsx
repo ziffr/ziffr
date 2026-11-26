@@ -71,7 +71,7 @@ export type DesignValues = ReturnType<typeof designValues> & {
 function correlationWork(design: ViewDesign, metrics: Metric[], data: CanvasData, basis: BasisChoice, page: RecipeBudget) {
   const uses = usage(design);
   const m = metrics[0];
-  const resolve = resolverFrom(data.metrics, data.series);
+  const resolve = resolverFrom(data.metrics, data.series, data);
   const opts = { yearStart: data.yearStart, basis };
   const tooMuch = (a: Metric, b: Metric): Correlation => ({ ok: false, period: commonPeriod(a.period, b.period), n: 0, why: "too-much", reason: sayIn("recipe-page-too-much", {}, { style: data.numberStyle, yearStart: data.yearStart }) });
   const one = (a: Metric, b: Metric) => onPage(page, RANK_BUDGET, () => correlate(a, b, resolve, opts)) ?? tooMuch(a, b);

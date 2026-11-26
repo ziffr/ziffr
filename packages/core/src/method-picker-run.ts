@@ -5,7 +5,8 @@
 // person may see. Settings come from a browser, so they are read here with their limits and refused in words.
 import { basisFor, changes, type Basis } from "./basis";
 import { commonPeriod, correlate } from "./correlation";
-import { latestOfEach, seriesBy, type Resolver } from "./display-periods";
+import { latestOfEach, resolverFrom, seriesBy } from "./display-periods";
+import type { CondensedPoint } from "./condensed-parts";
 import { ENTRIES, type EntryId, type PickerEntry, type SettingDef } from "./method-picker";
 import { afterDateTakeaway } from "./methods/before-after";
 import { bridgeTakeaway, type Part } from "./methods/bridge";
@@ -33,18 +34,15 @@ export type PickWorld = {
   breakdowns: Record<number, Record<string, BreakdownRow[]>>;
   ctx: TakeawayContext;
   yearStart: YearStart;
+  /** The Target Series and Condensed Values by Metric id, for formulas that read a target (spec 0062). */
+  targets?: Record<number, Point[]>;
+  condensed?: Record<number, CondensedPoint[]>;
   /** The day it is (yyyy-mm-dd), for the period that is still running; left out, the current day. */
   today?: string;
 };
 
 /** The Metrics for each Slot, and the settings, as a run reads them. */
 export type Picked = { slots: Record<string, Metric[]>; settings: Record<string, number | string> };
-
-const resolverOf = (w: PickWorld): Resolver => (slug) => {
-  const metric = w.metrics.find((m) => m.slug === slug);
-  // Stryker disable next-line ArrayDeclaration: a Metric whose values were not read has none; a single made-up element is one value, far below every minimum, and is refused in the same words
-  return metric && { metric, points: w.series[slug] ?? [] };
-};
 
 // A Metric's own values by its own period, whole periods only.
 // Stryker disable next-line ArrayDeclaration: a Metric whose values were not read has none; a single made-up element is one value, far below every minimum, and is refused in the same words
@@ -58,7 +56,7 @@ function onCommon(w: PickWorld, metrics: Metric[]): { span: Span; series: Point[
   const span = metrics.map((m) => m.period as Span).reduce(commonPeriod);
   const series: Point[][] = [];
   for (const m of metrics) {
-    const s = seriesBy(m, resolverOf(w), span, { yearStart: w.yearStart, today: w.today });
+    const s = seriesBy(m, resolverFrom(w.metrics, w.series, w), span, { yearStart: w.yearStart, today: w.today });
     if (!s.ok) return s.reason;
     series.push(s.points.filter((p) => !p.toDate).map((p) => ({ period: p.period, value: p.value })));
   }
@@ -133,10 +131,10 @@ export const RUNNERS: Record<EntryId, Runner> = {
   /** Does A move with B?: Pearson's r on the basis the rule gives. */
   correlation: (w, p) => {
     const [a, b] = [one(p, "first"), one(p, "second")];
-    return correlationTakeaway(a, b, correlate(a, b, resolverOf(w), { yearStart: w.yearStart, today: w.today }), w.ctx);
+    return correlationTakeaway(a, b, correlate(a, b, resolverFrom(w.metrics, w.series, w), { yearStart: w.yearStart, today: w.today }), w.ctx);
   },
   /** How do these Metrics move together?: every pair, worded as the Correlation is. */
-  matrix: (w, p) => matrixTakeaway(p.slots.metrics, resolverOf(w), { yearStart: w.yearStart, today: w.today }, w.ctx),
+  matrix: (w, p) => matrixTakeaway(p.slots.metrics, resolverFrom(w.metrics, w.series, w), { yearStart: w.yearStart, today: w.today }, w.ctx),
   /** Rank correlation, for skewed values. */
   rank: (w, p) => compared("numbers-method-spearman", w, [one(p, "first"), one(p, "second")], (span, [a, b]) => {
     const pair = pairOn(a, b, span);
@@ -151,11 +149,11 @@ export const RUNNERS: Record<EntryId, Runner> = {
     return laggedTakeaway(one(p, "first").name, one(p, "second").name, pair.a, pair.b, span, pair.basis, w.ctx);
   }),
   /** What moves B?: the multiple fit, as its Recipe. */
-  moves: (w, p) => whatMoves(one(p, "metric"), driversOf(p), resolverOf(w), { yearStart: w.yearStart, ctx: w.ctx }),
+  moves: (w, p) => whatMoves(one(p, "metric"), driversOf(p), resolverFrom(w.metrics, w.series, w), { yearStart: w.yearStart, ctx: w.ctx }),
   /** What if A changes?: the what-if chain over the Metrics chosen, as its Recipe. */
-  "what-if": (w, p) => whatIfRecipe(one(p, "metric"), "by" in p.settings ? { by: p.settings.by as number } : { percent: p.settings.percent as number }, p.slots.others, resolverOf(w), { yearStart: w.yearStart, ctx: w.ctx }),
+  "what-if": (w, p) => whatIfRecipe(one(p, "metric"), "by" in p.settings ? { by: p.settings.by as number } : { percent: p.settings.percent as number }, p.slots.others, resolverFrom(w.metrics, w.series, w), { yearStart: w.yearStart, ctx: w.ctx }),
   /** What does B need?: the fit turned round, as its Recipe. */
-  needs: (w, p) => whatNeeds(one(p, "metric"), driversOf(p), p.settings.goal as number, resolverOf(w), { yearStart: w.yearStart, ctx: w.ctx }),
+  needs: (w, p) => whatNeeds(one(p, "metric"), driversOf(p), p.settings.goal as number, resolverFrom(w.metrics, w.series, w), { yearStart: w.yearStart, ctx: w.ctx }),
   /** Did it work?: the periods after a day against the earlier trend. */
   "after-date": (w, p) => {
     const m = one(p, "metric");

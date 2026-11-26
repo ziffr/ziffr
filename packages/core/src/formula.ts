@@ -1,10 +1,10 @@
 // Formulas of Derived Metrics (GLOSSARY: Derived Metric), like "({revenue} - {cost}) / {revenue} * 100": + - * /,
 // brackets, numbers such as 12 or 0.5, and {slug} for another Metric. Two functions reach back one period:
 // prev({odometer}) is the input's value in the period before, change({odometer}) this period's minus the previous
-// one's (ticket #619). A formula is read whole or refused (spec 0022): anything it cannot read gives no value, never
-// a number from the part it could read.
+// one's (ticket #619). target({commit}) reads a Metric's target for the period (spec 0062). A formula is read
+// whole or refused (spec 0022): anything it cannot read gives no value, never a number from the part it could read.
 import { bitLength, fractionOf, fractionOfText, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
-import type { Metric } from "./types";
+import type { Metric, Point } from "./types";
 import { spendOn, widthOf } from "./work-bound";
 
 /** The slugs of the metrics a Derived Metric's formula reads, each once. */
@@ -18,6 +18,61 @@ export function usesPrevious(formula: string): boolean {
   return /\b(?:prev|change)\s*\(/.test(formula);
 }
 
+/** The slugs of the Metrics whose target a formula reads with target(), each once. Each is an input too (formulaInputs). */
+export function targetInputs(formula: string): string[] {
+  return [...new Set([...formula.matchAll(/\btarget\s*\(\s*\{([a-z0-9-]+)\}\s*\)/g)].map((m) => m[1]))];
+}
+
+/** Whether a formula reads a target. */
+export function usesTarget(formula: string): boolean {
+  return targetInputs(formula).length > 0;
+}
+
+/** The one number of a Target Range: its only bound, or the number both bounds are; none for a band between two numbers
+ * or no range. Never one end of a band and never its middle (spec 0062): which one a person meant would be a guess. */
+export function rangeNumber(metric: Pick<Metric, "target_min" | "target_max">): number | undefined {
+  const ends = [metric.target_min, metric.target_max].filter((v) => v !== null && v !== undefined).map(Number);
+  const [first] = ends;
+  return Number.isFinite(first) && ends.every((v) => v === first) ? first : undefined;
+}
+
+/** What target() gives for each of a Metric's periods: the period's Target Series value (the one given last), else the
+ * Target Range's number. A series value that is not a number gives none, never the range instead. */
+export function targetReader(metric: Pick<Metric, "target_min" | "target_max">, series: readonly Point[]): (period: string) => number | undefined {
+  const own = new Map(series.map((p) => [p.period, p.value]));
+  const range = rangeNumber(metric);
+  return (period) => {
+    if (!own.has(period)) return range;
+    const v = own.get(period);
+    return Number.isFinite(v) ? v : undefined;
+  };
+}
+
+/** Why a Derived Metric that reads a target may have no value at all, or null: an input has neither a Target Series nor
+ * a Target Range with one number. `inputs` are the Metrics the viewer was given; `targets` their Target Series. */
+export function targetProblem(metric: Pick<Metric, "formula">, inputs: readonly Pick<Metric, "id" | "slug" | "name" | "target_min" | "target_max">[], targets: Record<number, readonly Point[]>): string | null {
+  const without = targetInputs(metric.formula ?? "")
+    .flatMap((s) => inputs.find((m) => m.slug === s) ?? [])
+    .filter((m) => !targets[m.id]?.length && rangeNumber(m) === undefined)
+    .map((m) => m.name);
+  return without.length ? `It reads the target of ${without.join(" and ")}, which has no number to read: set a Target Range with one bound, such as “at least 500”, or Target Series values.` : null;
+}
+
+// Stands for the inputs someone does not see: no Metric's slug is "-" (a slug never starts or ends with one).
+const NOT_SEEN = "-";
+
+/** Metrics as they are sent to someone who sees only the Metrics `seen` (by slug): a formula that names any other is
+ * left out. What stands in its place names the inputs they do see and nothing more, with no sign or number, so the
+ * Metric still reads as calculated, it cannot be worked out from it, and what it is built from is still known as far
+ * as it is theirs to know (AGENTS.md rule 3). */
+export function withoutUnseenInputs<M extends Pick<Metric, "formula">>(metrics: readonly M[], seen: ReadonlySet<string>): M[] {
+  return metrics.map((m) => {
+    const inputs = m.formula ? formulaInputs(m.formula) : [];
+    if (inputs.every((s) => seen.has(s))) return m;
+    return { ...m, formula: [...inputs.filter((s) => seen.has(s)), NOT_SEEN].map((s) => `{${s}}`).join(" ") };
+  });
+}
+
 /** The longest formula read, in characters: a formula is a short expression, and these bounds keep the exact
  * arithmetic below from growing without limit on one written to burn time (#126). */
 export const FORMULA_MAX_LENGTH = 500;
@@ -29,9 +84,9 @@ export const FORMULA_MAX_DIGITS = 20;
  * the bounds above and values of at most 10^15 with six decimals, as values are kept, no formula comes near it. */
 export const FORMULA_MAX_BITS = 8192;
 
-/** A formula read into a tree: a number, a Metric, a Metric's value one period back, a minus sign in front of a value, or two values with an operator between them. */
+/** A formula read into a tree: a number, a Metric, a Metric's value one period back, a Metric's target, a minus sign in front of a value, or two values with an operator between them. */
 export type FormulaNode = Node;
-type Node = { k: "num"; v: string } | { k: "ref"; slug: string } | { k: "back"; slug: string; change: boolean } | { k: "neg"; a: Node } | { k: "op"; op: "+" | "-" | "*" | "/"; a: Node; b: Node };
+type Node = { k: "num"; v: string } | { k: "ref"; slug: string } | { k: "back"; slug: string; change: boolean } | { k: "target"; slug: string } | { k: "neg"; a: Node } | { k: "op"; op: "+" | "-" | "*" | "/"; a: Node; b: Node };
 type Token = { t: string; at: number };
 
 /** A formula read into a tree, or why it cannot be read, in words for the person writing it. */
@@ -39,14 +94,14 @@ function parse(formula: string): { ok: true; node: Node } | { ok: false; reason:
   if (formula.length > FORMULA_MAX_LENGTH) return { ok: false, reason: `The formula is longer than ${FORMULA_MAX_LENGTH} characters.` };
   const tokens: Token[] = [];
   // Stryker disable next-line Regex: white space is read one character or a run at a time, and left out either way
-  const re = /\s+|(?:prev|change)\s*\(\s*\{[a-z0-9-]+\}\s*\)|\{[a-z0-9-]+\}|\d+(?:\.\d+)?|[()+\-*/]/y;
+  const re = /\s+|(?:prev|change|target)\s*\(\s*\{[a-z0-9-]+\}\s*\)|\{[a-z0-9-]+\}|\d+(?:\.\d+)?|[()+\-*/]/y;
   for (let at = 0; at < formula.length; ) {
     re.lastIndex = at;
     const m = re.exec(formula);
     if (!m) {
       const ch = formula[at];
-      const fn = /^(prev|change)\b/.exec(formula.slice(at));
-      if (fn) return { ok: false, reason: `${fn[1]} takes one Metric: write ${fn[1]}({odometer}), with the Metric's slug in lower case.` };
+      const fn = /^(prev|change|target)\b/.exec(formula.slice(at));
+      if (fn) return { ok: false, reason: `${fn[1]} takes one Metric: write ${fn[1]}(${fn[1] === "target" ? "{commit}" : "{odometer}"}), with the Metric's slug in lower case.` };
       if (ch === "{") return { ok: false, reason: `"${formula.slice(at, formula.indexOf("}", at) + 1 || undefined)}" does not name a Metric: write its slug in lower case, such as {revenue}.` };
       // Right after a digit, or a point: written as part of a number.
       if (/\d$/.test(formula.slice(0, at)) || ch === ".") return { ok: false, reason: `"${ch}" is not part of a number here: write numbers such as 12 or 0.5.` };
@@ -73,7 +128,10 @@ function parse(formula: string): { ok: true; node: Node } | { ok: false; reason:
     }
     if (tok.t === "-") return { k: "neg", a: primary() };
     if (tok.t.startsWith("{")) return { k: "ref", slug: tok.t.slice(1, -1) };
-    if (/^[a-z]/.test(tok.t)) return { k: "back", change: tok.t.startsWith("change"), slug: tok.t.slice(tok.t.indexOf("{") + 1, tok.t.indexOf("}")) };
+    if (/^[a-z]/.test(tok.t)) {
+      const slug = tok.t.slice(tok.t.indexOf("{") + 1, tok.t.indexOf("}"));
+      return tok.t.startsWith("target") ? { k: "target", slug } : { k: "back", change: tok.t.startsWith("change"), slug };
+    }
     if (tok.t === ")") return fail("A bracket is closed that was not opened.");
     if (OPERATORS.has(tok.t)) return fail(`"${tok.t}" stands where a value is missing.`);
     // What is left is a number.
@@ -121,7 +179,7 @@ const OPERATORS = new Set(["+", "-", "*", "/"]);
 // Worked out exactly on the inputs' text and the formula's numbers (exact.ts), so {a} - {b} for 0.3 and 0.1 is 0.2 and
 // a margin is the double nearest to the exact one. Null for no value: an input that is missing or not a number, a
 // division by zero, or a result past FORMULA_MAX_BITS.
-function run(n: Node, vars: Record<string, number>, before: Record<string, number>): Fraction | null {
+function run(n: Node, vars: Record<string, number>, before: Record<string, number>, targets: Record<string, number>): Fraction | null {
   switch (n.k) {
     case "num": return fractionOfText(n.v);
     case "ref": {
@@ -136,12 +194,18 @@ function run(n: Node, vars: Record<string, number>, before: Record<string, numbe
       if (!Number.isFinite(was) || !Number.isFinite(now)) return null;
       return n.change ? minus(fractionOf(now), fractionOf(was)) : fractionOf(was);
     }
+    case "target": {
+      // The Metric needs a value in the period too, as every input does: a period without one has no result, so one
+      // whose values and targets a Retention removed is never worked out from today's Target Range (spec 0062).
+      const goal = targets[n.slug];
+      return Number.isFinite(goal) && Number.isFinite(vars[n.slug]) ? fractionOf(goal) : null;
+    }
     case "neg": {
-      const a = run(n.a, vars, before);
+      const a = run(n.a, vars, before, targets);
       return a && { num: -a.num, den: a.den };
     }
     case "op": {
-      const a = run(n.a, vars, before), b = run(n.b, vars, before);
+      const a = run(n.a, vars, before, targets), b = run(n.b, vars, before, targets);
       if (!a || !b || (n.op === "/" && b.num === BigInt(0))) return null;
       // Kept in lowest terms after every step, and stopped past FORMULA_MAX_BITS, so nothing grows without limit.
       const r = lowestTerms(n.op === "+" ? plus(a, b) : n.op === "-" ? minus(a, b) : n.op === "*" ? times(a, b) : over(a, b));
@@ -155,11 +219,12 @@ function run(n: Node, vars: Record<string, number>, before: Record<string, numbe
 
 /** A formula's value for the given inputs; null when the formula cannot be read whole, an input is missing, or the
  * result is not a finite number (a division by zero). `before` holds the inputs' values one period earlier, for prev
- * and change; left out, a formula that uses them has no value. */
-export function evaluate(formula: string, vars: Record<string, number>, before: Record<string, number> = {}): number | null {
+ * and change; left out, a formula that uses them has no value. `targets` holds what target() gives for each Metric it
+ * names (targetReader); left out, a formula that reads a target has no value. */
+export function evaluate(formula: string, vars: Record<string, number>, before: Record<string, number> = {}, targets: Record<string, number> = {}): number | null {
   const p = parse(formula);
   if (!p.ok) return null;
-  const v = run(p.node, vars, before);
+  const v = run(p.node, vars, before, targets);
   if (!v) return null;
   const x = nearest(v);
   // −0 is 0; a result beyond the doubles (a division by a tiny value) is none.
@@ -171,7 +236,7 @@ export type Bounds = { lo: Fraction; hi: Fraction };
 
 // A formula worked out on ranges of values (interval arithmetic) on exact fractions: every operation returns the range that
 // holds the result for any values within the ranges, and for a formula that names each Metric once it is the range itself. Null
-// where a range holds 0 under a division, where a Metric is not given or the formula reaches back (prev, change), and past the bits bound.
+// where a range holds 0 under a division, where a Metric is not given or the formula reaches back (prev, change) or reads a target, and past the bits bound.
 function runBounds(n: Node, vars: Record<string, Bounds>): Bounds | null {
   switch (n.k) {
     case "num": {
@@ -179,7 +244,7 @@ function runBounds(n: Node, vars: Record<string, Bounds>): Bounds | null {
       return { lo: v, hi: v };
     }
     case "ref": return Object.prototype.hasOwnProperty.call(vars, n.slug) ? vars[n.slug] : null;
-    case "back": return null;
+    case "back": case "target": return null;
     case "neg": {
       const a = runBounds(n.a, vars);
       return a && { lo: { num: -a.hi.num, den: a.hi.den }, hi: { num: -a.lo.num, den: a.lo.den } };
@@ -215,7 +280,7 @@ function runBounds(n: Node, vars: Record<string, Bounds>): Bounds | null {
 
 /** A formula's range of values for ranges of its inputs ({slug}: lo and hi), exact: where each Metric is named once it is the range
  * the result takes; where a Metric is named more than once it holds every result the formula can give (never less). Null where it
- * cannot be given: the formula cannot be read whole, an input has no range, a division is by a range that holds 0, or it reaches back. */
+ * cannot be given: the formula cannot be read whole, an input has no range, a division is by a range that holds 0, it reaches back or it reads a target. */
 export function evaluateRange(formula: string, vars: Record<string, Bounds>): Bounds | null {
   const p = parse(formula);
   return p.ok ? runBounds(p.node, vars) : null;

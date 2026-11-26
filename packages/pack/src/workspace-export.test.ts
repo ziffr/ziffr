@@ -113,6 +113,14 @@ describe("the order and the references", () => {
   it("checks a Derived Metric's formula against the Metrics of the file, wherever they are listed", () => {
     expect(messages(text(edit(at("metric", 2), (r) => ({ ...r, metric: { ...(r.metric as object), formula: "{ghost} / {orders}" } })))).join()).toContain("{ghost}");
   });
+  it("reads target() of another Metric, and refuses what is not one Metric between its brackets", () => {
+    const with_ = (formula: string) => messages(text(edit(at("metric", 2), (r) => ({ ...r, metric: { ...(r.metric as object), formula } })))).join();
+    expect(with_("target({revenue}) - {orders}")).toBe("");
+    expect(with_("{orders} / (target( {revenue} ) - 1)")).toBe("");
+    expect(with_("target({ghost}) - {orders}")).toContain("{ghost}");
+    for (const bad of ["target(1) - {orders}", "target({revenue} - 1)", "prev({orders})"]) expect(with_(bad), bad).toContain("cannot be read");
+    expect(with_("{orders} target({revenue})")).toContain("without an operator");
+  });
   it("checks that a Slot is filled by as many Metrics as it takes", () => {
     expect(messages(text(edit(at("dashboard"), (r) => ({ ...r, slots: [["m1", "m2"]] })))).join()).toContain("takes one Metric");
     expect(messages(text(edit(at("dashboard"), (r) => ({ ...r, slots: [["m1"], ["m1"]] })))).join()).toContain("has 2 entries");

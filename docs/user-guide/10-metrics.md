@@ -313,7 +313,7 @@ For more, use **Analyze** at the top (see [Analyze](13-analyze.md)).
 
 The Target Range applies to every period. On this tab you give single periods a target of their own, such as a monthly budget: the Metric's **Target Series**. You also enter **Projections**, values expected for future periods. Projections are always shown as projections and never count as real values.
 
-The Metric Owner and the Metric's **Editors** change this tab. Everyone else sees a plain table of periods, targets and projections. A Derived Metric has no Target Series of its own: it takes its targets from the Metrics in its formula.
+The Metric Owner and the Metric's **Editors** change this tab. Everyone else sees a plain table of periods, targets and projections. A Derived Metric has no Target Series of its own. A formula can read the targets set here: see [Reading a target](#reading-a-target).
 
 | Option | What it does |
 | --- | --- |
@@ -356,7 +356,7 @@ The Description tab has four boxes: the Metric Description, the Retention, the W
 
 ### Description
 
-The box lists the **Metric Description**: owner, Tags, **How it is calculated** (the formula of a Derived Metric, written with the names of the Metrics it uses, and the **Calculation Note**; "Not written down yet." when there is neither), period, format and decimals, which way is good and target. For other than Derived Metrics it also shows how values arrive and what happens to a second value.
+The box lists the **Metric Description**: owner, Tags, **How it is calculated** (the formula of a Derived Metric, written with the names of the Metrics it uses, and the **Calculation Note**; if the formula reads a Metric that is not shared with you, a line says so instead of naming it; "Not written down yet." when there is neither), period, format and decimals, which way is good and target. For other than Derived Metrics it also shows how values arrive and what happens to a second value.
 
 **Values arrive by** can be changed right here by the owner and Editors: tick or untick **Web form**, **Mail**, **Slack**, **Telegram** and **API and Feeds**, then **Save**. At least one must stay ticked. From then on, values arriving another way are refused. The note under it says it is about the ways an answer is accepted: a request for a value goes only by one of them, and which of them a person gets is their own choice under **Who gets what, where**.
 
@@ -388,7 +388,7 @@ A **Derived Metric** is a number worked out from other Metrics, such as a margin
 To make one, choose **New metric**, then **Calculated from other Metrics**:
 
 1. Give it a **Name**, and if you like a **Description**.
-2. Build the **Formula**: click a Metric in the list to put it into the formula (it is written as its slug in curly brackets, such as `{revenue}`), and type `+ - * /`, brackets and numbers between them. For example `({revenue} - {cost}) / {revenue} * 100`.
+2. Build the **Formula**: click a Metric in the list to put it into the formula (it is written as its slug in curly brackets, such as `{revenue}`), and type `+ - * /`, brackets and numbers between them. The buttons **change( )**, **prev( )** and **target( )** are explained below. For example `({revenue} - {cost}) / {revenue} * 100`.
    Below the formula, **In words (optional)** takes what the formula cannot say, such as what its inputs leave out: the Metric's **Calculation Note**.
 3. Under **How is it shown?**, set a **Unit**, **Decimals**, **Period** or **Which way is good**, or leave them empty: Ziffr takes the period of the Metrics it is calculated from, their unit where a sum or difference keeps it, and two decimals where the formula divides. The page of the new Metric says nothing of this; the Description box shows what was chosen, and **Edit details...** changes it.
 4. **Create metric**.
@@ -404,7 +404,27 @@ You can only pick Metrics you own or edit. Someone who is only shown a Metric ca
 
 Press **change( )** or **prev( )** in the form, then pick the Metric to put it inside. The previous period is the one right before, counted by the Metric's own period. If the previous period has no value, there is no value for this one either: Ziffr never works out a change across a gap. The first period has no change yet. A Derived Metric that uses `change` or `prev` is shown by its own period only: by month, quarter or year it says "Shown by its own period" and why, because "the previous quarter" of a monthly Metric would be a different number than the one you asked for. It also has no Comparison to date (MoM, QoQ) but the previous period and the year before work.
 
-A formula is read whole or not at all. It may hold `+ - * /`, brackets, numbers such as `12` or `0.5`, other Metrics, and `change( )` and `prev( )` of one Metric. Ziffr refuses a formula with anything else, such as `^`, `%`, `1e3`, `.5` or two values without a sign between them, rather than compute a number from the part it could read. It also refuses inputs counted by different periods, or by another period than the Derived Metric, and inputs set to Aggregation none. If a Derived Metric's inputs are changed later so that they no longer fit, its page and its Widgets say why ("Its inputs are counted by different periods") instead of showing an empty chart.
+#### Reading a target
+
+`target({commit})` is the target of another Metric for the period, so a number you have set once need not be sent in again. For example `target({commit}) - {commit}` is what is still missing, and `{commit} / target({commit}) * 100` the share reached. Press **target( )** in the form, then pick the Metric.
+
+| The Metric has, for the period | `target( )` gives |
+|---|---|
+| a value in its **Target Series** | that value |
+| no value there, and a Target Range with one bound ("at least 500" or "at most 40") | that number |
+| no value there, and a range whose two ends are the same number | that number |
+| no value there, and a range with two different ends | nothing: Ziffr picks neither end and no middle |
+| neither | nothing |
+
+Where `target( )` gives nothing, the period stays empty, never 0. A Metric page and its Widgets say so when no period at all can be worked out. The Metric needs a **value** in the period too, as every Metric in a formula does: a week without a Commit has no gap, even though its target is known.
+
+**Keep a target that changes in the Target Series.** A Derived Metric is worked out afresh each time it is shown, so changing a Target Range changes the results of **past** periods as well: a new quarter's quota typed into the range rewrites last quarter's gap. Give each period its own value on [the Targets tab](#the-targets-tab) (paste a column for the whole quarter), and every period keeps the target that was true for it. A Lock holds values, not targets. A Snapshot keeps what it showed.
+
+**By month, quarter or year** the target is the one the chart shows for that span: the Target Series combined by the Metric's Aggregation when every period counted has a value. If only some of them have one, there is nothing for that span. If none has, the Target Range's number counts for an average or a last value, and not for a sum, since "at least 100 a month" is not a number for a quarter. A span that holds [values condensed](#retention) by a Retention has none.
+
+The same rights apply as for values: you can read only the target of a Metric you own or edit, and a Derived Metric shows what it works out to whoever it is shared with. The Metric you read a target of cannot be deleted while the formula names it. **What if** does not follow a formula that reads a target.
+
+A formula is read whole or not at all. It may hold `+ - * /`, brackets, numbers such as `12` or `0.5`, other Metrics, and `change( )`, `prev( )` and `target( )` of one Metric. Ziffr refuses a formula with anything else, such as `^`, `%`, `1e3`, `.5` or two values without a sign between them, rather than compute a number from the part it could read. It also refuses inputs counted by different periods, or by another period than the Derived Metric, and inputs set to Aggregation none. If a Derived Metric's inputs are changed later so that they no longer fit, its page and its Widgets say why ("Its inputs are counted by different periods") instead of showing an empty chart.
 
 ### Retention
 
