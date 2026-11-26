@@ -93,7 +93,7 @@ const signalOf = (m: Metric, d: number): "good" | "bad" | null => (d === 0 || m.
 // A Metric's name inside a sentence: "above quota". A name with capitals of its own (an acronym) stays as it is.
 const inSentence = (name: string) => (name.slice(1) === name.slice(1).toLowerCase() ? name.toLowerCase() : name);
 
-const SLIDE_PATTERN = /\{(metrics|metric|period|latest|change yoy|change prev|top row|target|quarter weeks|quarter week|quarter|weeks left|change|scale|slide|difference|gap|left)(?:\s+(\d))?(?:\s+(\d))?\}/gi;
+const SLIDE_PATTERN = /\{(metrics|metric|period|latest|change yoy|change prev|top row|target|calculation note|quarter weeks|quarter week|quarter|weeks left|change|scale|slide|difference|gap|left)(?:\s+(\d))?(?:\s+(\d))?\}/gi;
 
 /** An element's words filled from the data, whether the first change or gap in them is good or bad news, and whether
  * anything in them had no value to show. A Placeholder of a Metric the viewer may not see is empty; one without a value
@@ -303,4 +303,61 @@ export function metricTableModel(e: MetricTableElement, ctx: SlideContext): Metr
     head: { metric: "Metric", latest: today ? "Today" : `This ${word}`, previous: today ? "The day before" : `Last ${word}`, change: "Change", trend: `${periods} ${word}s`, status: "Target" },
     rows,
   };
+}
+
+/** One Metric of a Definitions element: what it is and how it is calculated, each empty where nothing is written. */
+export type DefinitionRow = { name: string; description: string; note: string };
+
+/** One entry per Metric the viewer may see, in Slot order; one they may not is left out whole. What goes out with a View
+ * Link or a Snapshot carries neither text (view-links.ts), so only the names stand there. */
+export function definitionsModel(ctx: Pick<SlideContext, "metrics">): { rows: DefinitionRow[] } {
+  return { rows: ctx.metrics.flatMap((m) => (m ? [{ name: m.name, description: (m.description ?? "").trim(), note: m.calculation_note ?? "" }] : [])) };
+}
+
+/** The letter sizes a Definitions element tries, largest first, in slide pixels. */
+const DEFINITION_SIZES = [17, 16, 15, 14, 13, 12, 11, 10] as const;
+/** The space between two columns and between two entries, in slide pixels. */
+export const DEFINITION_GAPS = { column: 40, row: 14 } as const;
+
+/** How a Definitions element fits its box: its letter size, its entries by column, and how many do not fit. */
+export type DefinitionsLayout = { size: number; columns: DefinitionRow[][]; more: number };
+
+// About how tall an entry stands: a letter is about 0.53 of its size wide, a line 1.35 of its size high, and a line the
+// writer broke starts a new one.
+function entryHeight(r: DefinitionRow, size: number, width: number): number {
+  const lines = (text: string, letter: number) => (text ? text.split("\n").reduce((n, part) => n + Math.max(1, Math.ceil(part.length / Math.floor(width / (letter * 0.53)))), 0) : 0);
+  return (lines(r.name, size + 1) * (size + 1) + (lines(r.description, size) + lines(r.note, size)) * size) * 1.35;
+}
+
+/** The largest letters at which every entry fits the box, in one column or two (two from four entries on a wide box),
+ * entries kept whole and in order. Where even the smallest do not hold them all, those that fit are shown and the rest
+ * counted, never cut in the middle; the first is always shown. */
+export function definitionsLayout(rows: readonly DefinitionRow[], w: number, h: number): DefinitionsLayout {
+  const count = rows.length > 3 && w >= 700 ? 2 : 1;
+  const width = Math.max(80, (w - (count - 1) * DEFINITION_GAPS.column) / count);
+  const fill = (size: number, room: number) => {
+    const columns: DefinitionRow[][] = [[]];
+    let used = 0;
+    let placed = 0;
+    for (const r of rows) {
+      const tall = entryHeight(r, size, width);
+      const column = columns.at(-1)!;
+      if (column.length && used + DEFINITION_GAPS.row + tall > room) {
+        if (columns.length === count) break;
+        columns.push([r]);
+        used = tall;
+      } else {
+        used += (column.length ? DEFINITION_GAPS.row : 0) + tall;
+        column.push(r);
+      }
+      placed += 1;
+    }
+    return { size, columns, more: rows.length - placed };
+  };
+  for (const size of DEFINITION_SIZES) {
+    const tried = fill(size, h);
+    if (!tried.more) return tried;
+  }
+  // The line that counts the rest takes room of its own.
+  return fill(DEFINITION_SIZES.at(-1)!, h - 24);
 }

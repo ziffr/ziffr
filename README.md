@@ -65,7 +65,7 @@ docker compose up -d                       # http://localhost; set ZIFFR_DOMAIN 
 
 - WhatsApp and ticket systems are simulated Connectors: the Connectors and Sources pages let you play the other side. Email and Slack are real.
 - Analyses, Views and Sources are built in; the seams for plugging in others are marked in `apps/web/src/analyses`, `views` and `sources`.
-- The slide editor uses tldraw, which needs a license from tldraw for production use.
+- The slide editor uses tldraw, which has a license of its own: on an `https://` address decks and free layouts show only with a [license key from tldraw](https://tldraw.dev/pricing), entered on the Installation settings page ([how](docs/guides/self-hosting.md#the-slide-editors-license)).
 
 ## Working on Ziffr
 

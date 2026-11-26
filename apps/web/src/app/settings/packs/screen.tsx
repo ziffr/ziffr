@@ -2,6 +2,7 @@
 // The Packs page (spec 0030, GLOSSARY: Pack, Preview, Sample Data): installed Packs with what each added, and for
 // Owners and Admins installing one from a file. Everything in a Pack is shown as text or drawn by Ziffr's own
 // renderer with Sample Data; its only links are its listing's, shown as plain links that tell the site nothing.
+import { CALCULATION_NOTE_LABEL } from "@ziffr/core/calculation-note";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Flag, Package, TriangleAlert, Upload } from "lucide-react";
@@ -255,6 +256,7 @@ function PackItems({ items, viewer, numberStyle }: { items: PackPreviewItem[]; v
                   {i.kind === "theme" && <div className="mb-2 flex gap-1" aria-hidden>{[i.tokens.canvas, i.tokens.surface, i.tokens.ink, i.tokens.accent, ...i.tokens.data].map((c, k) => <span key={k} className="size-5 rounded-sm border border-input" style={{ background: /^#[0-9a-fA-F]{6}$/.test(c) ? c : "transparent" }} />)}</div>}
                   <p className="font-medium">{i.name}</p>
                   {"description" in i && i.description && <p className="text-xs text-muted-foreground">{i.description}</p>}
+                  {i.kind === "metric" && i.calculationNote && <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]"><span className="font-medium">{CALCULATION_NOTE_LABEL}:</span> {i.calculationNote}</p>}
                   <p className="text-xs text-muted-foreground">{detail(i)}</p>
                 </li>
               ))}

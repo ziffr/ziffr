@@ -106,6 +106,16 @@ Slack cannot check the Client ID and Client Secret until a Slack workspace is co
 
 To connect Slack workspaces other than the one that owns the app, turn on **Manage Distribution** for the app in Slack. The Client Secret and the Signing Secret are secrets: once saved, the page shows only that they are saved and their last four characters. Saving a new Signing Secret means asking Slack to verify the events address again.
 
+## Slide editor
+
+Decks and free layouts are drawn with a program called **tldraw**, which has a license of its own. On an `https://` address they show only with a license key from tldraw. Without one, a notice stands where the slide or free layout would be, with **Add the license key** for Installation Admins.
+
+1. Get a key at <https://tldraw.dev/pricing> (a free trial of 100 days, commercial licenses, a hobby license for non-commercial use). Name the domain people reach this Ziffr at.
+2. Paste the whole key into **tldraw license key** and choose **Save**.
+3. Open a deck and look for more than five seconds. Ziffr checks only the shape of the key; "Working" next to the title means a key is set. If tldraw does not accept it, the notice says so and offers **Check the license key**.
+
+Everyone who sees a deck or a free layout gets the key in their browser, people with a View Link included.
+
 ## Workspace Limits
 
 A **Workspace Limit** is the most Metrics a Workspace may hold. Archived Metrics do not count; Derived Metrics do. Without a default and without a limit of its own, a Workspace has no limit, which is how most Installations run.

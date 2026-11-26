@@ -355,7 +355,7 @@ function Field({ setting: s, value, disabled, onChange, onRemove }: { setting: S
               <option value="">{s.source === "default" ? "The Installation's default" : "Choose"}</option>
               {s.choices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
-          ) : <Input id={id} type={s.secret ? "password" : "text"} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} maxLength={1000}
+          ) : <Input id={id} type={s.secret ? "password" : "text"} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} maxLength={s.maxLength ?? 1000}
             autoComplete={s.secret ? "new-password" : "off"} spellCheck={false} placeholder={s.secret && s.source === "page" ? "Saved: leave empty to keep it" : s.placeholder} />}
           {s.source === "page" && <Button type="button" variant="outline" disabled={disabled} onClick={onRemove}>Remove</Button>}
         </div>

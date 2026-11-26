@@ -53,7 +53,15 @@ describe("planning a Set up with Positions and Repeats", () => {
     expect(plan.messages.now).toEqual([]);
     expect(plan.messages.nextRun.map((m) => m.count)).toEqual([1, 1, 1]);
     expect(plan.messages.unasked).toEqual([]);
-    expect((await planPackSetup(t.w.actor(t.sara), t.install, { ...t.input, askNow: true })).messages.now).toHaveLength(3);
+    // What sending the first requests would send is said before it is chosen.
+    expect(plan.messages.ifSent.map((m) => [m.count, m.you])).toEqual([[1, false], [1, false], [1, false]]);
+    const sending = await planPackSetup(t.w.actor(t.sara), t.install, { ...t.input, askNow: true });
+    expect(sending.messages.now).toEqual(plan.messages.ifSent);
+    expect(sending.messages.nextRun).toEqual([]);
+    // The person setting up waits like anyone else until sending is chosen.
+    const mine = await planPackSetup(t.w.actor(t.sara), t.install, { ...t.input, people: [{ position: "lead", people: [t.sara] }] });
+    expect(mine.messages.now).toEqual([]);
+    expect(mine.messages.ifSent.filter((m) => m.you).map((m) => m.count)).toEqual([1]);
     for (const table of ["metrics", "workflows", "dashboards", "shares", "deliveries"]) expect(await count(table, t.w.id)).toBe(0);
   });
 

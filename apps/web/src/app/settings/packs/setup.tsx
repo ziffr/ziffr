@@ -17,6 +17,7 @@ import { DashboardPick, WorkflowPick } from "./setup-templates";
 import { RepeatLines } from "./setup-lines";
 import { FillFromN8n } from "@/components/fill-from-n8n";
 import { PackNeeds } from "@/components/pack-numbers";
+import { ownRequests, RequestsAfterSetUp, SendFirstRequests } from "@/components/first-requests";
 import { comesFromWords } from "@ziffr/pack/comes-from";
 import { lineStart, packSetup, setUpPack } from "@/app/pack-setup-actions";
 import { ByHand, PlanCheck, PositionField, usePlan } from "./setup-positions";
@@ -153,6 +154,7 @@ function SetUpForm({ options, viewer, adding, practice = false, onClose }: { opt
     metrics: adding ? [...making].filter((k) => byKey.get(k)?.repeat === adding.repeat.key) : [...making],
     submitters: askMe && uncovered ? [viewer] : [],
     askElsewhere,
+    askNow,
     feed: feed || null,
     dashboard: shared ? pickOf(shared) : null,
     workflow: sharedFlow ? flowOf(sharedFlow) : null,
@@ -168,7 +170,7 @@ function SetUpForm({ options, viewer, adding, practice = false, onClose }: { opt
     if (!options.positions || made) return null;
     const fillsFor = (repeat: string | null, from: Record<string, string[]>) => (plan?.positions ?? []).filter((p) => p.repeat === repeat).map((p) => ({ position: p.key, people: chosen(plan, from, p.key) }));
     return {
-      ...asked, askNow, people: fillsFor(null, positionFills),
+      ...asked, people: fillsFor(null, positionFills),
       // An offer is ticked as the person ticked it, else as the plan suggests.
       ...(adding ? { adding: { ticked: (plan?.offers ?? []).filter((o) => offerTicks[o.id] ?? o.suggested).map((o) => o.id) } } : {}),
       lines: repeats.flatMap((r) => (lines[r.key] ?? []).filter((l) => l.name.trim()).map((l) => ({ repeat: r.key, name: l.name.trim(), people: fillsFor(r.key, l.fills) }))),
@@ -208,7 +210,8 @@ function SetUpForm({ options, viewer, adding, practice = false, onClose }: { opt
           {made.dashboards.map((d) => <li key={d.id}>The dashboard <Link href={`/dashboards/${d.id}`} className="underline">{d.name}</Link></li>)}
           {made.workflows.map((w) => <li key={w.id}>The Workflow <Link href={`/workflows?id=${w.id}`} className="underline">{w.name}</Link></li>)}
         </ul>
-        {options.positions && <p className="mt-2 text-xs">{made.shares} Share{made.shares === 1 ? "" : "s"} made, {made.messages} request{made.messages === 1 ? "" : "s"} for values sent now.{adding ? ` ${made.widgets} widget${made.widgets === 1 ? "" : "s"} changed.` : ""} Change who does what on each Metric, Workflow and dashboard.</p>}
+        {options.positions && <p className="mt-2 text-xs">{made.shares} Share{made.shares === 1 ? "" : "s"} made.{adding ? ` ${made.widgets} widget${made.widgets === 1 ? "" : "s"} changed.` : ""} Change who does what on each Metric, Workflow and dashboard.</p>}
+        <div className="mt-2"><RequestsAfterSetUp made={made} /></div>
         {made.byHand.length > 0 && <ByHand items={made.byHand} />}
         {made.tagsLeftOut.length > 0 && (
           <p role="status" className="mt-2 text-xs">Some Tags stayed off their Metrics because of the Tag limits (10 per Metric, 200 in the Workspace): {made.tagsLeftOut.map((l) => `${l.metric}: ${l.tags.join(", ")}`).join("; ")}. Merge or delete Tags that are not needed, then add these by hand.</p>
@@ -243,7 +246,7 @@ function SetUpForm({ options, viewer, adding, practice = false, onClose }: { opt
           );
         })}
         {uncovered && (
-          <label className="mt-2 flex items-start gap-2"><input type="checkbox" checked={askMe} onChange={(e) => setAskMe(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> Ask me for {options.positions ? "the values no Position covers" : "their values"} (a first request goes out now)</label>
+          <label className="mt-2 flex items-start gap-2"><input type="checkbox" checked={askMe} onChange={(e) => setAskMe(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> Make me the Submitter of {options.positions ? "the values no Position covers" : "their values"}</label>
         )}
         {alsoAsk.length > 0 && (
           <label className={`${uncovered ? "ml-6" : "mt-2"} flex items-start gap-2`}><input type="checkbox" checked={askElsewhere} onChange={(e) => setAskElsewhere(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /><span>Ask me also for {alsoAsk.join(", ")}<span className="block text-xs text-muted-foreground">The Pack says another system sends {alsoAsk.length === 1 ? "it" : "them"} or that {alsoAsk.length === 1 ? "it is" : "they are"} set as a target, so nobody is asked unless you tick this{options.positions ? ", and nobody else is asked either way" : ""}.</span></span></label>
@@ -289,6 +292,8 @@ function SetUpForm({ options, viewer, adding, practice = false, onClose }: { opt
           {planned.plan && <PlanCheck plan={planned.plan} ticks={ticks} onTick={(c) => setTicks((x) => ({ ...x, ...c }))} askNow={askNow} onAskNow={setAskNow} offerTicks={offerTicks} onOffer={(id, on) => setOfferTicks((x) => ({ ...x, [id]: on }))} />}
         </>
       )}
+
+      {!options.positions && <SendFirstRequests to={askMe && uncovered ? ownRequests(entries, making, askElsewhere) : []} checked={askNow} onChange={setAskNow} followed={Boolean(asked.workflow)} />}
 
       <p role="status" className="text-xs">{pending ? progress || "Setting up\u2026" : ""}</p>
       <div className="flex justify-end gap-2">

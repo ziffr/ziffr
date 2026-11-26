@@ -345,6 +345,7 @@ What each Finding needs:
 | {change prev} | The change on the period before, in % |
 | {top row} | The largest row of the latest Breakdown |
 | {target} | The target for the latest period |
+| {calculation note} | How the Metric is calculated, its **Calculation Note**. It is filled each time the words are drawn, in a widget's or Finding's words and in a Slide Element, and never in a slide's own text boxes, where it stays as written. Where none is written the braces stay; a View Link or a Snapshot shows nothing in their place |
 
 Add a number for another Metric of the Finding, such as {metric 2}. A headline such as "{metric} rose {change yoy} on last year" stays right when the values move on, and when someone uses the Finding as a template with another Metric.
 
@@ -385,6 +386,8 @@ An Annotation stays with what it is about, not with a place in the chart. "The h
 A **Free layout** is a Widget you arrange freely, like a slide: other Widgets, text, arrows and shapes on one artboard the size of the Widget. Place it from the **Layout** group in the Pool, then choose **Edit layout…** in its menu (in edit mode).
 
 The layout editor fills the screen. On the left is a Pool ("Drag widgets onto the artboard; use the toolbar for text, arrows and shapes."). Drag Metrics, saved Widgets and Widget Templates onto the artboard, and use the drawing toolbar for text, arrows and shapes. Links and pages from other sites cannot be placed on it; paste or drop an image file itself instead. Press **Save layout** to keep it, or **Cancel**.
+
+If the notice **Slides and free layouts cannot be shown here** stands in place of a Free layout, this Ziffr has no license key that the slide editor accepts. The person who runs it can [add one](18-installation-settings.md#slide-editor).
 
 A Free layout cannot be saved as a Widget Template, and is left out when a dashboard is saved as a Dashboard Template.
 
@@ -451,6 +454,8 @@ When someone asked for access, the owner sees them first, under **Asking for acc
 ## View Links
 
 A **View Link** shows one dashboard to someone outside the team, such as a board member or an investor, without a login. They see this dashboard and nothing else, and cannot change or ask anything. Only the dashboard's owner makes View Links, Guests make none, and the demo makes none.
+
+Opening a View Link changes the address in the browser's address bar to one that stands for this link in this browser only. Reloading works for 12 hours; after that, or in another browser, open the link that was sent. To pass a View Link on, pass on that link, not the address bar's. The browser needs to allow cookies.
 
 **View links…** in the **⋯** menu opens a panel on the right, over the page, so the dashboard stays in view. It says at the top that anyone with a link can read it, without signing in, until it ends. Revoking a link or hiding its names takes effect at once. The panel has:
 

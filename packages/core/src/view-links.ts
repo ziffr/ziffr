@@ -66,8 +66,8 @@ const pick = <T extends Record<string, unknown>>(o: T, keep: Set<number>) => Obj
 const table = (type: "dashboard" | "deck") => (type === "deck" ? "decks" : "dashboards");
 
 /** A Metric as it may leave the Workspace: without the words that are for people inside it (its description and, spec
- * 0060, its Calculation Note). */
-const insideOnly = <M extends { description: string; calculation_note?: string | null }>(m: M): M => ({ ...m, description: "", calculation_note: null });
+ * 0060, its Calculation Note). Both are left empty, which a {calculation note} Placeholder fills in as nothing. */
+const insideOnly = <M extends { description: string; calculation_note?: string | null }>(m: M): M => ({ ...m, description: "", calculation_note: "" });
 
 /** The people a shown view refers to, as the page may draw them: only the owners of the shown Metrics (the one place a
  * view names a person), by id, name and colour. No role, no contact details, and no one else of the Workspace, Guests
