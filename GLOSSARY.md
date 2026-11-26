@@ -396,7 +396,7 @@ One 16:9 page of a deck. Its order follows its position on the deck canvas, left
 _Avoid_: Page, frame, board
 
 **Slide Element**:
-A part of a slide that draws itself in the deck's Theme and fills its words from today's data: words, a box, a figure, a column chart, a gap table, a metric table, a numbered list, a logo place or cover art. It may read Metrics, and shows nothing of one the viewer may not see. It is for slides only; on a dashboard stand Widgets.
+A part of a slide that draws itself in the deck's Theme and fills its words from today's data: words, a box, a figure, a column chart, a gap table, a metric table, definitions (Metrics with their description and Calculation Note), a numbered list, a logo place or cover art. It may read Metrics, and shows nothing of one the viewer may not see. It is for slides only; on a dashboard stand Widgets.
 _Avoid_: Block, component, shape (for this)
 
 **Snapshot Part**:

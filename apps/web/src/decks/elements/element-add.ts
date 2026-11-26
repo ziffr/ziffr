@@ -12,6 +12,7 @@ export const ELEMENT_CHOICES: { kind: SlideElementKind; label: string; blurb: st
   { kind: "columns", label: "Column chart", blurb: "A Metric period by period", element: { kind: "columns" }, w: 1152, h: 316 },
   { kind: "gap-table", label: "Gap table", blurb: "Two Breakdowns row by row, with the difference", element: { kind: "gap-table" }, w: 1152, h: 365 },
   { kind: "metric-table", label: "Metric table", blurb: "A row per Metric with its change and trend", element: { kind: "metric-table" }, w: 1152, h: 380 },
+  { kind: "definitions", label: "Definitions", blurb: "Metrics with what they are and how they are calculated", element: { kind: "definitions" }, w: 1152, h: 520 },
   { kind: "list", label: "Numbered list", blurb: "An agenda or a list of points", element: { kind: "list", title: "Agenda", items: [{ text: "First point" }, { text: "Second point" }] }, w: 420, h: 400 },
   { kind: "logo", label: "Logo place", blurb: "The Theme's logo", element: { kind: "logo" }, w: 180, h: 32 },
   { kind: "art", label: "Cover art", blurb: "Rings and a rising line", element: { kind: "art", art: "rings-trend" }, w: 780, h: 720 },

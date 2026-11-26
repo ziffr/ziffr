@@ -109,10 +109,28 @@ describe("setting up with Positions", () => {
     expect(made.messages).toBe(3);
   });
 
-  it("asks the person setting up at once, as ever", async () => {
+  it("sends the person setting up nothing either, unless sending was chosen", async () => {
     const t = await team();
-    await setUpFromPack(t.w.actor(t.sara), t.install, { ...t.input, people: [{ position: "lead", people: [t.sara] }] });
-    expect(await askedFor(t)).toEqual([t.sara]);
+    const made = await setUpFromPack(t.w.actor(t.sara), t.install, { ...t.input, people: [{ position: "lead", people: [t.sara] }] });
+    expect(await askedFor(t)).toEqual([]);
+    expect(await count("deliveries", t.w.id)).toBe(0);
+    // Each Metric with a Submitter follows the Workflow made with it, which asks at its next run.
+    expect(made).toMatchObject({ messages: 0, later: { nextRun: 3, noWorkflow: [] } });
+  });
+
+  it("asks the person setting up at once when sending is chosen", async () => {
+    const t = await team();
+    const made = await setUpFromPack(t.w.actor(t.sara), t.install, { ...t.input, askNow: true, people: [{ position: "lead", people: [t.sara] }] });
+    expect(await askedFor(t)).toEqual([t.anna, t.ben, t.sara].sort());
+    expect(made.later).toEqual({ nextRun: 0, noWorkflow: [] });
+  });
+
+  it("names what nothing will ask for when no Workflow is made, and which of it the person submits", async () => {
+    const t = await team();
+    const made = await setUpFromPack(t.w.actor(t.sara), t.install, { ...t.input, workflow: null, people: [{ position: "lead", people: [t.sara] }] });
+    expect(await askedFor(t)).toEqual([]);
+    expect(made.later.nextRun).toBe(0);
+    expect(made.later.noWorkflow.map((m) => [m.name, m.mine])).toEqual([["Team quota", true], ["Commit, Anna", false], ["Commit, Ben", false]]);
   });
 
   it("leaves an empty Position's places open", async () => {

@@ -30,7 +30,7 @@ import type { DashboardTemplateBody, DeckTemplateBody, Slot, ThemeSlides, ThemeT
 /** One item of a Pack as the Packs page lists it before installing, already in the form it would be stored in, so its
  * Preview draws exactly what installing adds (with Sample Data, never a Workspace's values). */
 export type PackPreviewItem =
-  | { kind: "metric"; key: string; name: string; description: string; period: string; unit: string; derived: boolean; /** A Total, which is a Derived Metric that adds up one entry of every line of a Repeat. */ total?: boolean }
+  | { kind: "metric"; key: string; name: string; description: string; /** How it is calculated, as the Pack says it. */ calculationNote: string; period: string; unit: string; derived: boolean; /** A Total, which is a Derived Metric that adds up one entry of every line of a Repeat. */ total?: boolean }
   | { kind: "dashboard"; key: string; name: string; description: string; slots: Slot[]; body: DashboardTemplateBody }
   | { kind: "deck"; key: string; name: string; description: string; slots: Slot[]; slides: number }
   | { kind: "workflow"; key: string; name: string; description: string; body: WorkflowTemplateBody }
@@ -122,6 +122,8 @@ export function storedItems(pack: Pack) {
       ...(m.tags?.length ? { tags: tagNamesOf(m.tags, TAGS_PER_ENTRY) } : {}),
       // Likewise only a Total has this one. It takes no values, so it has no Sources either.
       ...(total ? { total: { of: total.of, targets: total.targets }, sources: [] } : {}),
+      // The same for a Calculation Note (spec 0060): only an entry that brings one has the field.
+      ...(m.calculationNote ? { calculation_note: m.calculationNote } : {}),
     };
     return { key, ...row, hash: itemHash(row) };
   });
@@ -237,7 +239,7 @@ export async function previewPack(actor: Actor, text: string, origin: PackOrigin
   const by = <T extends { key: string }>(xs: T[]) => new Map(xs.map((x) => [x.key, x]));
   const [views, templates] = [by(stored.views), by(stored.templates)];
   const items: PackPreviewItem[] = [
-    ...(pack.contents.metrics ?? []).map(({ key, metric: m, total }): PackPreviewItem => ({ kind: "metric", key, name: m.name, description: m.description ?? "", period: m.period, unit: m.unit ?? "", derived: m.formula !== undefined || Boolean(total), ...(total ? { total: true } : {}) })),
+    ...(pack.contents.metrics ?? []).map(({ key, metric: m, total }): PackPreviewItem => ({ kind: "metric", key, name: m.name, description: m.description ?? "", calculationNote: m.calculationNote ?? "", period: m.period, unit: m.unit ?? "", derived: m.formula !== undefined || Boolean(total), ...(total ? { total: true } : {}) })),
     ...(pack.contents.dashboards ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "dashboard", key, name: t.name, description: t.description, slots: t.slots, body: t.body as DashboardTemplateBody }; }),
     ...(pack.contents.decks ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "deck", key, name: t.name, description: t.description, slots: t.slots, slides: (t.body as DeckTemplateBody).slides.length }; }),
     ...(pack.contents.workflows ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "workflow", key, name: t.name, description: t.description, body: t.body as WorkflowTemplateBody }; }),

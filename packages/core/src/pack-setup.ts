@@ -8,9 +8,9 @@
 // person uses by hand, so permissions, limits and the Audit Log apply: createMetric (the Workspace Limit, the trial's
 // cap), addSubmitters and setStandIn, addFeedToMetric (which also turns the API Source on), saveWorkflow (people of
 // this Workspace only), createDashboardFromTemplate (every Metric must be seen) and share (only what the actor owns,
-// only with members). A Share is made only when ticked, and nobody but the actor is messaged unless asked. A Derived
-// Metric's formula is checked like any other. A Total is made and added to as by hand, never opened. Everything asked
-// for is checked before anything is made.
+// only with members). A Share is made only when ticked, and nobody, the actor included, is sent a Prompt unless
+// sending the first requests was chosen. A Derived Metric's formula is checked like any other. A Total is made and
+// added to as by hand, never opened. Everything asked for is checked before anything is made.
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
@@ -74,6 +74,9 @@ export type PackSetupResult = { metrics: { id: number; slug: string; name: strin
   dashboards: { id: number; name: string }[]; workflows: { id: number; name: string }[];
   /** How many Shares were made, and how many requests for values went out at once. */
   shares: number; messages: number;
+  /** What has a Submitter and was not asked at once: how many Metrics a Workflow asks for at its next run, and those
+   * that follow none, so nothing asks for them by itself. `mine`: the actor submits it, so they can ask themselves. */
+  later: { nextRun: number; noWorkflow: { id: number; slug: string; name: string; mine: boolean }[] };
   /** Adding a line: how many widgets took its Metrics, how many Totals count them, and what is left to do by hand. */
   widgets: number; totals: number; byHand: string[];
   /** The Tags of an entry that a limit kept off its Metric (the Metric is made either way), by Metric: the page says so. */
@@ -144,7 +147,7 @@ async function makeMetrics(actor: Actor, b: Blueprint, todo: PlannedMetric[], re
     const e = planned.entry;
     // A Total counts the Metrics of the lines, all made before it.
     const m = entryTotal(e) ? await makeTotal(actor, planned, planned.parts!.map((x) => done.metrics.get(x)!.id)) : await createMetric(actor, {
-      name: planned.name, description: e.description, unit: e.unit, unitPosition: e.unit_position, format: e.format, decimals: e.decimals, period: e.period,
+      name: planned.name, description: e.description, calculationNote: e.calculation_note, unit: e.unit, unitPosition: e.unit_position, format: e.format, decimals: e.decimals, period: e.period,
       submissionRule: e.submission_rule, polarity: e.polarity, aggregation: e.aggregation, targetMin: e.target_min, targetMax: e.target_max,
       // A Derived Metric takes no values, so no Source and no Workflow.
       // One that takes values and has no Workflow of this run may join the one ticked of what was set up before.
@@ -163,13 +166,13 @@ async function makeMetrics(actor: Actor, b: Blueprint, todo: PlannedMetric[], re
   }
 }
 
-/** Puts the people and the Feed on the Metrics just made: Submitters, who are asked at once only when they set up
- * themselves or asking now was ticked, then their Stand-ins. */
+/** Puts the people and the Feed on the Metrics just made: Submitters, who are asked at once only when sending the
+ * first requests was chosen (the actor no differently from anyone else), then their Stand-ins. */
 async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | null, askNow: boolean, done: Progress) {
   const effects: MetricEffects = {
     ...metricEffects,
     promptSubmitter: async (metricId, submitter, by) => {
-      if (submitter !== actor.personId && !askNow) return false;
+      if (!askNow) return false;
       const sent = await metricEffects.promptSubmitter(metricId, submitter, by);
       if (sent) done.messages++;
       return sent;
@@ -209,6 +212,19 @@ async function makeDashboards(actor: Actor, b: Blueprint, ticked: ProposedShare[
 
 /** Whether a recorded thing was made for this line. */
 const forLine = (made: MadeThing, line: BuiltLine | null) => (made.line === null || line === null ? made.line === line : made.line.repeat === line.repeat && made.line.name === line.name);
+
+/** What was given a Submitter and not asked at once, by whether a Workflow will ask for it. */
+function askedLater(actor: Actor, b: Blueprint, askNow: boolean, done: Progress): PackSetupResult["later"] {
+  const waiting = askNow ? [] : b.metrics.filter((m) => m.submitters.length > 0);
+  const follows = (m: PlannedMetric) => Boolean(m.workflow) || b.additions.join !== null;
+  return {
+    nextRun: waiting.filter(follows).length,
+    noWorkflow: waiting.filter((m) => !follows(m)).map((m) => {
+      const { id, slug, name } = done.metrics.get(m.plan)!;
+      return { id, slug, name, mine: m.submitters.includes(actor.personId) };
+    }),
+  };
+}
 
 /** Takes up what earlier steps made, so this one makes only the rest. */
 async function takeUp(actor: Actor, b: Blueprint, made: MadeThing[], done: Progress) {
@@ -289,7 +305,7 @@ export async function setUpStep(actor: Actor, installId: number, input: PackSetu
   const positions = [b.fills, ...b.lines.map((l) => l.fills)].flatMap((f) => [...f.values()].filter((ids) => ids.length)).length;
   await audit(actor, { kind: "pack.set_up", object: { type: "pack", id: p.install.id, name: p.install.name }, details: { version: p.install.version, metrics: done.metrics.size, dashboard: dashboards.length > 0, workflow: workflows.length > 0, feed: b.feed !== null, positions, lines: b.lines.length, shares: done.shares, messages: done.messages, ...(input.adding ? { added_line: true, widgets: done.widgets, totals: done.totals, joined_workflow: b.additions.join !== null } : {}) } });
   const metrics = [...done.metrics.values()];
-  return { done: true, result: { metrics, dashboardId: dashboards[0]?.id ?? null, workflowId: workflows[0]?.id ?? null, dashboards, workflows, shares: done.shares, messages: done.messages, widgets: done.widgets, totals: done.totals, byHand: b.additions.byHand, tagsLeftOut: done.tagsLeftOut } };
+  return { done: true, result: { metrics, dashboardId: dashboards[0]?.id ?? null, workflowId: workflows[0]?.id ?? null, dashboards, workflows, shares: done.shares, messages: done.messages, later: askedLater(actor, b, input?.askNow === true, done), widgets: done.widgets, totals: done.totals, byHand: b.additions.byHand, tagsLeftOut: done.tagsLeftOut } };
 }
 
 /** Sets up from one of the Workspace's installed Packs (Owners and Admins) in one go: the picked entries as Metrics, a

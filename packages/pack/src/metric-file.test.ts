@@ -1,7 +1,7 @@
 // The Metric file's two formats (spec 0060; GLOSSARY: Calculation Note, Metric Description): /1 means what it always
 // meant, /2 adds the Calculation Note under the same text rules, and what reads only /1 refuses /2 in words.
 import { describe, expect, it } from "vitest";
-import { checkMetricFile1Value, checkMetricFileValue, METRIC_FILE_LIMITS } from "./metric-file.js";
+import { checkMetricFileValue, METRIC_FILE_LIMITS } from "./metric-file.js";
 import { checkPackValue } from "./pack.js";
 import { textsAimedAtAssistants } from "./assistant-words.js";
 
@@ -29,9 +29,8 @@ describe("ziffr.metric/1 and /2", () => {
     expect(aimed.map((t) => t.path)).toEqual(["contents.metrics[0].metric.calculationNote"]);
   });
 
-  it("is refused in words where only /1 is read, such as a Pack for now", () => {
-    expect(problems(checkMetricFile1Value(two))).toMatch(/This file is in format ziffr\.metric\/2; this Ziffr reads ziffr\.metric\/1\./);
-    const pack = { format: "ziffr.pack/1", id: "acme/arr", name: "ARR", version: "1.0.0", summary: "ARR", author: { name: "Acme" }, license: "MIT", contents: { metrics: [{ key: "arr", metric: two }] } };
-    expect(problems(checkPackValue(pack))).toMatch(/this Ziffr reads ziffr\.metric\/1/);
+  it("is read in a Pack, next to entries in /1", () => {
+    const pack = { format: "ziffr.pack/1", id: "acme/arr", name: "ARR", version: "1.0.0", summary: "ARR", author: { name: "Acme" }, license: "MIT", contents: { metrics: [{ key: "arr", metric: two }, { key: "mrr", metric: { ...one, name: "MRR" } }] } };
+    expect(problems(checkPackValue(pack))).toBe("");
   });
 });

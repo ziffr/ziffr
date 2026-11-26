@@ -2,7 +2,7 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/online-shop",
   "name": "Online shop",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "summary": "Orders, revenue by channel, average order value, conversion, returns and sessions, with a weekly dashboard and a Workflow that asks for the week's numbers on Monday.",
   "author": {
     "name": "Ziffr"
@@ -26,9 +26,10 @@
       {
         "key": "orders",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Orders",
           "description": "Orders placed in the week, including those later cancelled or returned.",
+          "calculationNote": "Orders placed from Monday to Sunday, counted on the day of the order, including those later cancelled or returned. Test orders are left out.",
           "category": "E-commerce",
           "industries": [
             "ecommerce",
@@ -54,9 +55,10 @@
       {
         "key": "revenue",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Online revenue",
           "description": "Revenue from online orders in the week, excluding VAT and shipping fees, before returns. Record it with a Breakdown by channel to see where it comes from.",
+          "calculationNote": "What customers ordered from Monday to Sunday, after discounts and vouchers. VAT and shipping fees are left out, and later returns are not taken off.",
           "category": "E-commerce",
           "industries": [
             "ecommerce",
@@ -82,9 +84,10 @@
       {
         "key": "aov",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Average order value",
           "description": "Online revenue divided by the number of orders, in the week.",
+          "calculationNote": "Online revenue of the week divided by its number of orders. VAT and shipping fees are not in it, because they are not in the revenue.",
           "category": "E-commerce",
           "period": "week",
           "aggregation": "none",
@@ -100,9 +103,10 @@
       {
         "key": "conversion",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Conversion rate",
           "description": "Share of website visitors who placed an order.",
+          "calculationNote": "Orders placed in the week divided by visits to the shop in the same week, in percent. A person who visits twice counts as two visits.",
           "category": "E-commerce",
           "industries": [
             "ecommerce"
@@ -128,9 +132,10 @@
       {
         "key": "return-rate",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Return rate",
           "description": "Items returned as a share of items sold, by the week of sale.",
+          "calculationNote": "Items sent back divided by items sold, in percent, counted in the week the item was sold. The figure of a recent week can still rise.",
           "category": "E-commerce",
           "industries": [
             "ecommerce",
@@ -156,9 +161,10 @@
       {
         "key": "sessions",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Sessions",
           "description": "Visits to the online shop in the week; one person can have several.",
+          "calculationNote": "Visits counted by your web analytics from Monday to Sunday. One person visiting twice counts twice, and known bots are left out.",
           "category": "E-commerce",
           "industries": [
             "ecommerce"

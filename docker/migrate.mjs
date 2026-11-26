@@ -50,6 +50,8 @@ if (env.ZIFFR_DEMO !== "0" && demoNeedsFilling(marker, seed)) {
   const pins = res.ok ? await seedFunction("prototype_seed_pins") : null;
   const close = res.ok ? await seedFunction("prototype_seed_close") : null;
   const filledIn = res.ok ? await seedFunction("prototype_seed_fill_in") : null;
+  // How each of the demo's Metrics is calculated (spec 0060), after the Metrics the history adds.
+  const notes = res.ok ? await seedFunction("prototype_seed_calculation_notes") : null;
   // Last, so it sees everything seeded above (spec 0051).
   const showcase = res.ok ? await seedFunction("prototype_seed_showcase") : null;
   if (res.ok && !showcase?.ok) console.error("Ziffr: the demo's showcase could not be seeded.");
@@ -57,6 +59,7 @@ if (env.ZIFFR_DEMO !== "0" && demoNeedsFilling(marker, seed)) {
   if (res.ok && !pins?.ok) console.error("Ziffr: the demo's pinned dashboards could not be seeded.");
   if (res.ok && !close?.ok) console.error("Ziffr: the demo's finished period could not be seeded.");
   if (res.ok && !filledIn?.ok) console.error("Ziffr: the demo's Filled-in Values could not be seeded.");
+  if (res.ok && !notes?.ok) console.error("Ziffr: how the demo's Metrics are calculated could not be seeded.");
   if (!res.ok) {
     // The demo is not worth stopping the Installation for; the next start tries again, as does the nightly job.
     console.error(`Ziffr: the demo could not be filled in (${res.status}): ${(await res.text()).slice(0, 300)}`);

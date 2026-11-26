@@ -4,7 +4,7 @@
 import "tldraw/tldraw.css";
 import { keepContentLocal, LOCAL_ONLY_OVERRIDES } from "./keep-local";
 import { useState } from "react";
-import { createShapeId, DefaultDashStyle, DefaultFontStyle, getSnapshot, Tldraw, type Editor, type TLEditorSnapshot } from "tldraw";
+import { createShapeId, DefaultDashStyle, DefaultFontStyle, getSnapshot, type Editor, type TLEditorSnapshot } from "tldraw";
 import { Pool } from "@/components/pool";
 import { Button } from "@/components/ui/button";
 import { DeckData, WIDGET_SHAPE, WidgetShapeUtil, type WidgetShape } from "@/decks/widget-shape";
@@ -12,6 +12,7 @@ import { getDrag, setDrag } from "@/lib/drag";
 import { dropSpec } from "@/lib/drop-spec";
 import { useSlotFill } from "@/components/slot-dialog";
 import type { DropSource } from "@/app/canvas-actions";
+import { SlideCanvas } from "@/decks/slide-canvas";
 import type { CanvasData, Widget, WidgetSettings } from "@ziffr/core/types";
 import { ARTBOARD_UNIT, artboard, stampOf } from "./artboard";
 
@@ -47,7 +48,7 @@ export default function LayoutEditor({ widget, data, saved, onSave, onCancel }: 
             onDragOverCapture={(e) => { if (getDrag()) { e.preventDefault(); e.stopPropagation(); } }}
             onDropCapture={(e) => { const s = getDrag(); if (!s || !editor) return; e.preventDefault(); e.stopPropagation(); setDrag(null); place(s, editor.screenToPage({ x: e.clientX, y: e.clientY })); }}
           >
-            <Tldraw
+            <SlideCanvas
               shapeUtils={shapeUtils}
               snapshot={snapshot}
               overrides={LOCAL_ONLY_OVERRIDES}

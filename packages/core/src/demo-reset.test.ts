@@ -55,6 +55,7 @@ describe("resetDemoWorkspace", () => {
     expect(await resetDemoWorkspace()).toBe(true);
     expect(h.rpc).toHaveBeenCalledWith("prototype_seed_pins");
     expect(h.rpc).toHaveBeenCalledWith("prototype_seed_fill_in");
+    expect(h.rpc).toHaveBeenCalledWith("prototype_seed_calculation_notes");
     expect(h.rpc).toHaveBeenCalledWith("prototype_seed_showcase");
     expect(log).toHaveBeenCalledWith("Demo: visit counts not emptied", "boom");
     expect(seedDone()).toHaveLength(0);
