@@ -3,10 +3,11 @@
 // make it again. Pure.
 import { listOf, metricsInOrder } from "./placeholders";
 import { mapElementWords, type SlideElement } from "./slide-element";
-import { holdsPlaceholder, mapRichText, namedSlots, placeholder, renumberSlots, richRuns, TEXT_METRICS_MAX } from "./slide-text";
-import { outsideBraces, typedWords, wholeName, LEFT_OUT } from "./typed-words";
+import { holdsPlaceholder, mapRichText, namedSlots, placeholder, renumberSlots, richRuns, TEXT_METRICS_MAX, textMetricIds } from "./slide-text";
+import { breakdownRowNames, outsideBraces, typedWords, wholeName, LEFT_OUT } from "./typed-words";
+import { widgetMetricIds } from "./widget-metrics";
 import { tagSourceId, takesTagSource } from "./tag-source";
-import type { AnchorRule, DashboardTemplateBody, DeckTemplateBody, WorkflowConfig, WorkflowStep, WorkflowTemplateBody, WorkflowTemplateStep, DashboardTemplateWidget, Metric, Slot, SlideBody, SlideShape, TemplateId, WidgetTemplate, Widget, WidgetSettings } from "./types";
+import type { AnchorRule, CanvasData, DashboardTemplateBody, DeckTemplateBody, WorkflowConfig, WorkflowStep, WorkflowTemplateBody, WorkflowTemplateStep, DashboardTemplateWidget, Metric, Slot, SlideBody, SlideShape, TemplateId, WidgetTemplate, Widget, WidgetSettings } from "./types";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings" | "title">;
 
@@ -276,6 +277,12 @@ function templatizeText(sh: SlideShape, slide: Metric[], deck: Metric[], ctx: Sl
   if (basic && asSlide) return body;
   const richSlotted = mapRichText(rich, (run) => renumberSlots(run, list.length, (i) => used.indexOf(i)));
   return { ...rest, props: { ...sh.props, richText: richSlotted }, textSlots: used.map((i) => slotFor(ctx, [list[i].id])) };
+}
+
+/** The row names of the Breakdowns of every Metric some slides' shapes name, as far as `data` holds them. */
+export function slideRowNames(shapes: SlideShape[], data: Pick<CanvasData, "breakdowns">): string[] {
+  const ids = shapes.flatMap((sh) => (sh.type === "ziffr-widget" ? widgetMetricIds(widgetOf(sh).metric_ids, widgetOf(sh).settings) : textMetricIds(sh)));
+  return breakdownRowNames(data.breakdowns, [...new Set(ids)]);
 }
 
 /** Whether words name one of these Breakdown rows outside their Placeholders. */

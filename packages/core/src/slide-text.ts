@@ -118,6 +118,17 @@ export function filledRichText(shape: TextShapeLike, data: CanvasData, slide?: n
   return mapRichText(rich, (t) => fillSlideWords(t, { data, metrics, slide }).text);
 }
 
+/** A rich text with words added at its end: after a space in its last paragraph, else in a paragraph of their own. */
+export function appendWords(rich: unknown, words: string): unknown {
+  const doc = (rich ?? {}) as RichNode & { type?: unknown };
+  const blocks = Array.isArray(doc.content) ? (doc.content as (RichNode & { type?: unknown })[]) : [];
+  const last = blocks.at(-1);
+  const runs = last?.type === "paragraph" ? (Array.isArray(last.content) ? (last.content as RichNode[]) : []) : null;
+  const space = runs?.length && !/\s$/.test(String(runs.at(-1)!.text ?? "")) ? " " : "";
+  const paragraph = { ...(runs ? last : { type: "paragraph" }), content: [...(runs ?? []), { type: "text", text: `${space}${words}` }] };
+  return { ...doc, type: "doc", content: [...(runs ? blocks.slice(0, -1) : blocks), paragraph] };
+}
+
 /** What a text box can show of a Metric, as "Insert value" offers it. */
 export const TEXT_VALUES = [
   { key: "latest", label: "Value", hint: "the latest value" },
@@ -133,7 +144,8 @@ export const TEXT_VALUES = [
 export type TextValueKey = (typeof TEXT_VALUES)[number]["key"];
 
 /** The Placeholder for one more value in a text box, and the box's list with the Metrics it needs. A Metric already
- * listed keeps its place; a place no word asks for any more is used again. Null when the box can name no more. */
+ * listed keeps its place; a new one takes a place no word asks for any more, so no Metric stays behind that the words
+ * dropped. Null when the box can name no more. */
 export function addTextValue(runs: readonly string[], list: readonly number[], key: TextValueKey, metricIds: readonly number[]): { list: number[]; words: string } | null {
   const next = [...list].slice(0, TEXT_METRICS_MAX);
   const used = namedSlots(runs, next.length);
@@ -142,8 +154,8 @@ export function addTextValue(runs: readonly string[], list: readonly number[], k
     let at = next.indexOf(id);
     if (at < 0) {
       const free = next.findIndex((_, i) => !used.has(i));
-      if (next.length < TEXT_METRICS_MAX) at = next.push(id) - 1;
-      else if (free >= 0) next[(at = free)] = id;
+      if (free >= 0) next[(at = free)] = id;
+      else if (next.length < TEXT_METRICS_MAX) at = next.push(id) - 1;
       else return null;
     }
     used.add(at);

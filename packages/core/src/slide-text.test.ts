@@ -84,7 +84,8 @@ describe("Insert value", () => {
     expect(addTextValue(["{latest}"], [1], "difference", [1, 2])).toEqual({ list: [1, 2], words: "{difference 1 2}" });
   });
 
-  it("uses a place nothing asks for once the list is full, and refuses when all are asked for", () => {
+  it("takes a place no word asks for, and refuses when all are asked for", () => {
+    expect(addTextValue(["Up to"], [1], "latest", [2])).toEqual({ list: [2], words: "{latest}" });
     const full = [1, 2, 3, 4, 5, 6, 7, 8, 9];
     expect(addTextValue(["{latest}"], full, "latest", [10])).toEqual({ list: [1, 10, 3, 4, 5, 6, 7, 8, 9], words: "{latest 2}" });
     expect(addTextValue(["{metrics}"], full, "latest", [10])).toBeNull();
