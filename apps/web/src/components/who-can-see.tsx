@@ -15,7 +15,7 @@ type Data = Awaited<ReturnType<typeof whoCanSee>>;
 /** Opens "Who can see this" in the side panel (a Slide-over); the panel loads the list when it opens, so it is current. Returns the function a menu entry calls. */
 export function useShowWhoCanSee(people: Profile[]) {
   const panel = useSlideOver();
-  return (type: ObjectType, id: number) => panel.open({ title: "Who can see this", description: "Everyone with access, and why.", content: <WhoCanSeeBody type={type} id={id} people={people} /> });
+  return (type: ObjectType, id: number) => panel.open({ short: true, title: "Who can see this", description: "Everyone with access, and why.", content: <WhoCanSeeBody type={type} id={id} people={people} /> });
 }
 
 /** The panel's content: nothing here is sent that the person may not see, `whoCanSee` decides it on the server. */
