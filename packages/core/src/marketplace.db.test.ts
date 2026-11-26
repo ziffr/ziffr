@@ -76,42 +76,86 @@ describe("the Marketplace connection", () => {
     expect(sent).toEqual([{ method: "GET", url: "https://market.example.com/v1/packs?q=saas%20metrics", body: undefined }]);
   });
 
-  it("keeps what the updates answer says was withdrawn, tells the Workspaces that installed it, and removes nothing", async () => {
+  const PACK_ID = "ziffr/saas-metrics";
+  /** One daily question, answered with this. */
+  const ask = async (answer: object) => { answers["POST /v1/updates"] = () => ({ status: 200, body: JSON.stringify({ updates: [], ...answer }) }); await checkMarketplaceVersions(true); };
+
+  it("keeps what a signed statement says was withdrawn, tells the Workspaces that installed it, and removes nothing", async () => {
     const w = await ws(); const ann = await w.person("owner"); const mia = await w.person("member"); const gus = await w.person("guest");
     const other = await ws(); const zoe = await other.person("owner");
-    const id = await installFromMarketplace(w.actor(ann), "ziffr/saas-metrics", "1.2.0", { assistantTexts: true });
-    const ask = async (answer: object) => { answers["POST /v1/updates"] = () => ({ status: 200, body: JSON.stringify(answer) }); await checkMarketplaceVersions(true); };
+    const id = await installFromMarketplace(w.actor(ann), PACK_ID, "1.2.0", { assistantTexts: true });
     const told = () => marketplaceWithdrawals(w.actor(ann));
-    await ask({ updates: [{ id: "ziffr/saas-metrics", version: "1.3.0" }] });
+    const update = { updates: [{ id: PACK_ID, version: "1.3.0" }] };
+    await ask(update);
     expect(await told()).toEqual([]);
     expect(await marketplaceUpdates(w.actor(ann))).toHaveLength(1);
-    const withdrawn = { id: "ziffr/saas-metrics", reason: "It copied another Pack." };
-    // Hostile entries: a Pack that was not asked about, a reason with a link, a reason too long, nonsense.
-    await ask({ updates: [], withdrawn: [{ id: "someone/not-asked", reason: "x" }, { ...withdrawn, reason: "See https://evil.example now." }, { ...withdrawn, reason: "x".repeat(201) }, null, "no"] });
+    // Nothing unsigned, no stranger's or untimely key, no other Pack, no changed or malformed statement.
+    const good = keys.withdraws(PACK_ID, 10);
+    await ask({
+      withdrawn: [{ id: PACK_ID, reason: "Unsigned, as before." }],
+      withdrawals: [
+        { id: PACK_ID, reason: "Unsigned." }, testKeys().withdraws(PACK_ID, 11), reserve.withdraws(PACK_ID, 12), keys.withdraws("someone/not-asked", 13),
+        { ...good, statement: good.statement.replace("copied", "stole") }, keys.withdraws(PACK_ID, 14, { reason: "See https://evil.example now." }), keys.withdraws(PACK_ID, 15, { reason: "x".repeat(201) }), null, "no",
+      ],
+    });
     expect(await told()).toEqual([]);
-    await ask({ updates: [], withdrawn: [withdrawn] });
+    await ask({ ...update, withdrawals: [good] });
     expect(await told()).toEqual([{ installId: id, reason: "It copied another Pack." }]);
+    // No update is offered for it, though the answer names one, and none can be taken.
     expect(await marketplaceUpdates(w.actor(ann))).toEqual([]);
+    await expect(updateFromMarketplace(w.actor(ann), id, "1.3.0", { assistantTexts: true })).rejects.toThrow("withdrew this Pack");
+    await expect(installFromMarketplace(other.actor(zoe), PACK_ID, "1.3.0", { assistantTexts: true })).rejects.toThrow("withdrew this Pack");
     expect(await marketplaceWithdrawals(w.actor(mia, "member"))).toHaveLength(1);
     expect(await marketplaceWithdrawals(w.actor(gus, "guest"))).toEqual([]);
     expect(await marketplaceWithdrawals(other.actor(zoe))).toEqual([]);
     // The installed copy stays as it is.
     expect((await listInstalledPacks(w.actor(ann)))[0]).toMatchObject({ version: "1.2.0", source: "marketplace" });
-    expect((await db().from("marketplace_withdrawals").select("pack_id")).data).toEqual([{ pack_id: "ziffr/saas-metrics" }]);
-    // An answer without the field, from a Marketplace that does not send it, changes nothing; so does a bad reason now.
-    await ask({ updates: [] });
-    await ask({ updates: [], withdrawn: [{ ...withdrawn, reason: "<b>bold</b>" }] });
-    expect(await told()).toHaveLength(1);
+    expect((await db().from("marketplace_withdrawals").select("pack_id, state, sequence")).data).toEqual([{ pack_id: PACK_ID, state: "withdrawn", sequence: 10 }]);
     // Still said with the connection off.
     process.env.ZIFFR_MARKETPLACE = "off";
     expect(await told()).toHaveLength(1);
     process.env.ZIFFR_MARKETPLACE = "on";
     // Updated from a file, it is no longer the Marketplace's Pack.
-    await ask({ updates: [], withdrawn: [] });
-    expect(await told()).toEqual([]);
-    await ask({ updates: [], withdrawn: [withdrawn] });
     await updatePackFile(w.actor(ann), id, JSON.stringify({ ...NO_THEMES, version: "1.4.0" }), { unsigned: true, assistantTexts: true });
     expect(await told()).toEqual([]);
+  });
+
+  it("lets only a newer signed statement change a withdrawal: leaving it out or repeating an older one does nothing", async () => {
+    const w = await ws(); const ann = await w.person("owner");
+    const id = await installFromMarketplace(w.actor(ann), PACK_ID, "1.2.0", { assistantTexts: true });
+    const told = async () => (await marketplaceWithdrawals(w.actor(ann))).map((x) => x.installId);
+    await ask({ withdrawals: [keys.withdraws(PACK_ID, 10)] });
+    for (const answer of [{}, { withdrawals: [] }, { withdrawn: [] }, { withdrawals: [keys.withdraws(PACK_ID, 9, { state: "restored" })] }, { withdrawals: [keys.withdraws(PACK_ID, 10, { state: "restored" })] }, { withdrawals: [{ id: PACK_ID, state: "restored", sequence: 99 }] }]) {
+      await ask(answer);
+      expect(await told(), JSON.stringify(answer)).toEqual([id]);
+    }
+    // Of several in one answer, the highest counts.
+    await ask({ updates: [{ id: PACK_ID, version: "1.3.0" }], withdrawals: [keys.withdraws(PACK_ID, 11, { state: "restored" }), keys.withdraws(PACK_ID, 10)] });
+    expect(await told()).toEqual([]);
+    expect(await marketplaceUpdates(w.actor(ann))).toHaveLength(1);
+    await ask({ withdrawals: [keys.withdraws(PACK_ID, 10)] });
+    expect(await told()).toEqual([]);
+    await ask({ withdrawals: [keys.withdraws(PACK_ID, 12)] });
+    expect(await told()).toEqual([id]);
+    await ask({ withdrawals: [keys.withdraws(PACK_ID, 13, { state: "restored" })] });
+    await updateFromMarketplace(w.actor(ann), id, "1.3.0", { assistantTexts: true });
+  });
+
+  it("keeps a withdrawal whose key was revoked until a trusted key says otherwise, and takes nothing more from that key", async () => {
+    const w = await ws(); const ann = await w.person("owner");
+    const id = await installFromMarketplace(w.actor(ann), PACK_ID, "1.2.0", { assistantTexts: true });
+    const told = async () => (await marketplaceWithdrawals(w.actor(ann))).map((x) => x.installId);
+    await ask({ withdrawals: [keys.withdraws(PACK_ID, 50)] });
+    // The revocation alone hides nothing; nor does the revoked key taking it back in the same answer.
+    await ask({ revocations: [reserve.revokes(keys.id)], withdrawals: [keys.withdraws(PACK_ID, 60, { state: "restored" })] });
+    expect(await told()).toEqual([id]);
+    // The reserve key's word counts now, whatever number the revoked key had reached.
+    await ask({ withdrawals: [reserve.withdraws(PACK_ID, 20, { state: "restored" })] });
+    expect(await told()).toEqual([]);
+    await ask({ withdrawals: [keys.withdraws(PACK_ID, 70)] });
+    expect(await told()).toEqual([]);
+    await ask({ withdrawals: [reserve.withdraws(PACK_ID, 21)] });
+    expect(await told()).toEqual([id]);
   });
 
   it("links to the report form on a Preview and for installed Marketplace Packs, only while the connection is on", async () => {

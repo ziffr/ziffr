@@ -518,7 +518,7 @@ Ziffr's catalogue of Packs, checked before they are listed, and of programs outs
 _Avoid_: Store, app store, gallery, hub
 
 **Signed Statement**:
-What a Marketplace signs about one file of one version of a Pack: its id, its version, a fingerprint of the file (SHA-256), the key used, the time and whether a moderator looked. Ziffr takes a file from a Marketplace only when the statement of a trusted Marketplace Key holds for it. It says where a file came from, not that the Pack is safe.
+What a Marketplace signs about one file of one version of a Pack: its id, its version, a fingerprint of the file (SHA-256), the key used, the time and whether a moderator looked. Ziffr takes a file from a Marketplace only when the statement of a trusted Marketplace Key holds for it. It says where a file came from, not that the Pack is safe. A Marketplace signs a statement too when it withdraws a Pack or takes that back, numbered so that an older one never replaces a newer one.
 _Avoid_: Certificate, stamp, seal
 
 **Marketplace Key**:
@@ -530,7 +530,7 @@ A Marketplace creator in the first days after their first publish, or after a re
 _Avoid_: Unverified, rookie, untrusted
 
 **Withdrawn Pack**:
-A Pack its Marketplace no longer offers: no new installs and no updates. Workspaces that installed it are told why in one line and keep everything they installed.
+A Pack its Marketplace no longer offers: no new installs and no updates. Workspaces that installed it are told why in one line and keep everything they installed. A Marketplace withdraws a Pack, and takes that back, only with a Signed Statement; Ziffr believes the newest it has seen.
 _Avoid_: Banned, removed, recalled, deleted Pack
 
 **Webhook**:
