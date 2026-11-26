@@ -1,5 +1,5 @@
 // What the form link's page adds for its own person once they are signed in (spec 0055, ticket #1134; GLOSSARY: Token,
-// Submitter, Schedule): the last value, the period an address may name, and the next value due. It only reads, and adds
+// Submitter, Schedule): earlier values, the period an address may name, and the next value due. It only reads, and adds
 // no right: everything comes from the Record a value offer and the person's own Schedule. A link holder who is not that
 // signed-in person gets nothing from here.
 import type { Actor } from "./actor";
@@ -13,10 +13,12 @@ export type NextValueDue = { slug: string; name: string; period: string; periodL
 /** What the page may show the signed-in person whose form link it is. */
 export type FormLinkExtras = {
   metricId: number;
-  /** An earlier period the address names and the person may record, with the value it holds; null records the current one. */
+  /** An earlier period the address names and the person may record, with the value it holds; null when it names none. */
   named: { start: string; label: string; has: string | null } | null;
-  /** The newest value before the period shown, among those the Record a value form offers. */
-  last: { value: string; periodLabel: string } | null;
+  /** True when the address names the running period, which the form then shows even while an earlier one waits. */
+  running: boolean;
+  /** The values held by the periods the Record a value form offers, newest first: the page picks the last one before the period on screen. */
+  recent: { start: string; value: string; periodLabel: string }[];
   next: NextValueDue | null;
 };
 
@@ -46,7 +48,6 @@ export async function formLinkExtras(actor: Actor, code: unknown, period?: unkno
   // Security: a named period is saved by Record a value, which looks the Token up itself. A person holds one Token per
   // Metric (unique in the database), so that is this link's, and the value goes in for whom the page says.
   const named = offer.periods.find((p) => p.start === period && p.start !== current.start) ?? null;
-  const shown = (named ?? current).start;
-  const last = offer.periods.find((p) => p.start < shown && p.has !== null);
-  return { metricId, named, last: last?.has ? { value: last.has, periodLabel: last.label } : null, next: await nextValueDue(actor, metricId, shown) };
+  const recent = offer.periods.flatMap((p) => (p.has === null ? [] : [{ start: p.start, value: p.has, periodLabel: p.label }]));
+  return { metricId, named, running: period === current.start, recent, next: await nextValueDue(actor, metricId, (named ?? current).start) };
 }

@@ -94,8 +94,9 @@ export async function recordSimulatedMessage(input: { source: SourceId; sender: 
 /** What the form shows after a submission: the core's own words, handed back by the action, never through the URL. */
 export type WebFormResult = { ok: boolean; detail: string } | null;
 
-/** A personal form link submits a value (or a Breakdown). The result comes back to the form itself rather than in a
- * redirect's query string, so the page only ever shows text Ziffr wrote (ticket 183). */
+/** A personal form link submits a value (or a Breakdown), with the period picked when the form offered a list; the core
+ * takes only the running period or one that still waits for this link. The result comes back to the form itself rather
+ * than in a redirect's query string, so the page only ever shows text Ziffr wrote (ticket 183). */
 export async function submitWebForm(code: string, _previous: WebFormResult, form: FormData): Promise<WebFormResult> {
   try {
     return await inDemoVisit("actions:submitWebForm", async (visiting) => {
@@ -105,7 +106,8 @@ export async function submitWebForm(code: string, _previous: WebFormResult, form
       const value = demoTextForVisit(visiting, String(form.get("value") ?? "").trim(), "name");
       const breakdown = demoTextForVisit(visiting, String(form.get("breakdown") ?? "").trim(), "message");
       const text = breakdown ? `${breakdown}${value ? `\nTotal ${value}` : ""}` : value;
-      const r = await submitValue({ source: "web_form", sender: String(code), text: text.slice(0, 5000) });
+      const period = form.get("period");
+      const r = await submitValue({ source: "web_form", sender: String(code), text: text.slice(0, 5000), ...(period === null ? {} : { formPeriod: String(period) }) });
       revalidatePath("/", "layout");
       return { ok: !r.outcome.startsWith("rejected"), detail: r.detail };
     });
