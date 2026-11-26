@@ -526,18 +526,20 @@ People are chosen as Submitters when the Metric is created or duplicated, and th
 
 - A member or Guest will see the Metric, with its values and history, and can send in its values. You do not have to share it with them as well. A Contact does not sign in: their personal form link shows the Metric's name and description and the current value, and takes theirs.
 - Ziffr makes them a personal form link for this Metric (usable when it takes values by **Web form**).
-- **Ask them for the current value now** is ticked: a **Prompt** goes out at once, by a way that reaches them. Untick it to send nothing now. They are then asked when the Metric's Workflow next asks or reminds; a Metric without a Workflow asks nobody by itself. A Contact receives their form link only with a request. An archived Metric asks nobody.
+- **Ask them for the current value now** is ticked: a **Prompt** goes out at once, by a way that reaches them. Ziffr makes at most one such first request a day for a person and a Metric: someone asked for it in the last day, for instance removed and added again, is added without a new one, and the message says so. Untick it to send nothing now. They are then asked when the Metric's Workflow next asks or reminds; a Metric without a Workflow asks nobody by itself. A Contact receives their form link only with a request. An archived Metric asks nobody.
 
 Choose **Add as Submitter**. The message that follows says what was sent, or that the request waits in the **Outbox** and why.
 
 **Remove** is next to each person. After you confirm:
 
-- Their own form link for this Metric stops working, and a request still waiting to go out to it is not sent. The values they sent stay.
+- Their own form link for this Metric stops working. Requests to it that wait to go out or are kept in the **Outbox** are not sent. The values they sent stay.
 - Their **Stand-in** for this Metric ends, and the Stand-in's form link for them stops working too. If the person removed stands in for someone else here, they stay that person's Stand-in until the Metric's owner chooses another.
 - Unless they own the Metric, it is shared with them, or it reaches them another way (such as a dashboard shared with them, or as a Stand-in), they no longer see it.
 - If nobody else submits it, nobody is asked for its values any more.
 
-Questions and Tasks already open stay as they are.
+Questions and Tasks already open stay as they are: a removed person goes on reading the Threads they are on, and Tasks and the **Approver** steps of a Workflow that name them stay until somebody changes them.
+
+Each person added or removed later, here or through the API, is written in the [Audit Log](16-workspace-settings.md#audit-log), with whether a first request was made for them.
 
 #### Fill from a data warehouse
 

@@ -3,9 +3,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { REMOVED_BEFORE_SENT } from "./asked-message";
-import { removeSubmitters, type MetricEffects } from "./metrics";
+import { addSubmitters, removeSubmitters, type MetricEffects } from "./metrics";
 import { addSubmitterWithAnswer, submitterChoices } from "./who-submits";
-import { insertRow, rowsOf, workspace } from "./test/db-fixtures";
+import { auditRowsOf, insertRow, rowsOf, workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -64,21 +64,57 @@ describe("adding a person", () => {
   });
 });
 
+describe("asking once, and the Audit Log", () => {
+  it("makes one first request a day for a person and a Metric, and says so", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
+    const m = await w.metric(sara); const second = await w.metric(sara);
+    const { effects, promptSubmitter } = noSending();
+    await addSubmitterWithAnswer(w.actor(sara), m.id, ben, true, effects);
+    await removeSubmitters(w.actor(sara), m.id, [ben]);
+    expect(await addSubmitterWithAnswer(w.actor(sara), m.id, ben, true, effects)).toBe("They were asked for this Metric in the last day, so no new request was made.");
+    expect(promptSubmitter).toHaveBeenCalledTimes(1);
+    // Added all the same; another Metric of theirs is asked for.
+    expect(await rowsOf("tokens", { metric_id: m.id })).toHaveLength(1);
+    await addSubmitterWithAnswer(w.actor(sara), second.id, ben, true, effects);
+    expect(promptSubmitter).toHaveBeenCalledTimes(2);
+  });
+
+  it("writes who was added, whether they were asked, and who was removed", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const ana = await w.person("member");
+    const m = await w.metric(sara);
+    const { effects } = noSending();
+    await addSubmitterWithAnswer(w.actor(sara), m.id, ben, true, effects);
+    await addSubmitterWithAnswer(w.actor(sara), m.id, ana, false, effects);
+    await removeSubmitters(w.actor(sara), m.id, [ben]);
+    // Neither adding someone who submits nor removing someone who does not is an event.
+    await addSubmitters(w.actor(sara), m.id, [ana], effects);
+    await removeSubmitters(w.actor(sara), m.id, [ben]);
+    const rows = await auditRowsOf(w.id, "metric.submitter");
+    expect(rows.map((r) => [r.kind, (r.details as { person_id: string }).person_id, (r.details as { ask_now?: boolean }).ask_now])).toEqual([
+      ["metric.submitter_added", ben, true], ["metric.submitter_added", ana, false], ["metric.submitter_removed", ben, undefined],
+    ]);
+  });
+});
+
 describe("removing a person", () => {
-  it("holds the Prompts waiting for their Tokens and their Stand-in's, and leaves others to go", async () => {
+  it("holds the Prompts waiting or kept for their Tokens and their Stand-in's, and leaves others to go", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const ana = await w.person("member"); const max = await w.person("member");
     const m = await w.metric(sara);
     await w.token(m.id, ben, { stand_in_id: ana }); await w.token(m.id, max);
     await w.token(m.id, ana, { stands_in_for: ben });
     const tokens = await rowsOf("tokens", { metric_id: m.id });
-    const waiting = async (recipient: string, token: number) => (await insertRow("deliveries", { workspace_id: w.id, connector: "email", recipient_id: recipient, kind: "prompt", subject: "A request", body: "What is it?", mail_state: "queued", form_token_id: token })).id;
+    const waiting = async (recipient: string, token: number, state = "queued") => (await insertRow("deliveries", { workspace_id: w.id, connector: "email", recipient_id: recipient, kind: "prompt", subject: "A request", body: "What is it?", mail_state: state, form_token_id: token })).id;
     const id = (person: string, standsFor: string | null = null) => Number(tokens.find((t) => t.submitter_id === person && (t.stands_in_for ?? null) === standsFor)!.id);
     const toBen = await waiting(ben, id(ben)); const toAna = await waiting(ana, id(ana, ben)); const toMax = await waiting(max, id(max));
+    // One kept in the Outbox, and one made while the Token was going, which names its Prompt and no Token.
+    const kept = await waiting(ben, id(ben), "outbox");
+    const prompt = await insertRow("prompts", { workspace_id: w.id, metric_id: m.id, submitter_id: ben, source: "web_form", text: "What is it?", period_start: "2026-11-01" });
+    const late = (await insertRow("deliveries", { workspace_id: w.id, connector: "email", recipient_id: ben, kind: "prompt", subject: "A request", body: "What is it?", mail_state: "queued", prompt_id: prompt.id })).id;
 
     expect(await removeSubmitters(w.actor(sara), m.id, [ben])).toEqual([ben]);
 
     const state = async (delivery: number) => (await rowsOf("deliveries", { id: delivery }))[0];
-    for (const held of [toBen, toAna]) expect(await state(held)).toMatchObject({ mail_state: "failed", last_error: REMOVED_BEFORE_SENT });
+    for (const held of [toBen, toAna, kept, late]) expect(await state(held)).toMatchObject({ mail_state: "failed", last_error: REMOVED_BEFORE_SENT });
     expect(await state(toMax)).toMatchObject({ mail_state: "queued" });
     expect((await rowsOf("tokens", { metric_id: m.id })).map((t) => t.submitter_id)).toEqual([max]);
   });

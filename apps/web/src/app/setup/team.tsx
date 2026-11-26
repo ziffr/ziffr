@@ -38,6 +38,8 @@ export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: 
     setError(isActionError(r) ? r.error : null);
     if (!isActionError(r)) { done?.(r); router.refresh(); }
   });
+  // What was sent to the person asked, which may be nothing new.
+  const ask = (metricId: number, personId: string, done?: () => void) => run(() => askForMetric(metricId, personId), (r) => { toast.success("Added", { description: String(r) }); done?.(); });
   const candidates = data.people;
   return (
     <div className="space-y-8">
@@ -125,14 +127,14 @@ export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: 
                   <p className="font-medium">{a.name}</p>
                   <p className="text-muted-foreground">{a.submitters.length ? `Asked: ${a.submitters.map((s) => s.name).join(", ")}` : "Nobody is asked yet."}</p>
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                    {a.suggested.map((s) => <Button key={s.id} size="sm" variant="outline" className={`${PHONE_BUTTON_SM} h-auto min-h-11 whitespace-normal py-2 sm:h-auto sm:min-h-8 sm:py-1`} disabled={pending} onClick={() => run(() => askForMetric(a.metricId, s.id))} aria-label={`Ask ${s.name} for ${a.name}`}>Suggested: {s.name} ({s.function})</Button>)}
+                    {a.suggested.map((s) => <Button key={s.id} size="sm" variant="outline" className={`${PHONE_BUTTON_SM} h-auto min-h-11 whitespace-normal py-2 sm:h-auto sm:min-h-8 sm:py-1`} disabled={pending} onClick={() => ask(a.metricId, s.id)} aria-label={`Ask ${s.name} for ${a.name}`}>Suggested: {s.name} ({s.function})</Button>)}
                     {free.length > 0 && (
                       <>
                         <select aria-label={`Ask someone else for ${a.name}`} value={other[a.metricId] ?? ""} onChange={(e) => setOther({ ...other, [a.metricId]: e.target.value })} className={PHONE_FIELD}>
                           <option value="">Ask someone else…</option>
                           {free.map((p) => <option key={p.id} value={p.id}>{p.name}{p.kind === "contact" ? " (Contact)" : ""}</option>)}
                         </select>
-                        <Button size="sm" variant="outline" className={PHONE_BUTTON_SM} disabled={pending || !other[a.metricId]} onClick={() => run(() => askForMetric(a.metricId, other[a.metricId]), () => setOther({ ...other, [a.metricId]: "" }))}>Ask</Button>
+                        <Button size="sm" variant="outline" className={PHONE_BUTTON_SM} disabled={pending || !other[a.metricId]} onClick={() => ask(a.metricId, other[a.metricId], () => setOther({ ...other, [a.metricId]: "" }))}>Ask</Button>
                       </>
                     )}
                   </div>

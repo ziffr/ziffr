@@ -83,6 +83,8 @@ export const AUDIT_KINDS = {
   "retention.mismatch": "left a span alone, as its check did not match, in the Retention of",
   "retention.needs_confirmation": "held back the Retention of, as it would take more than was confirmed,",
   "retention.stopped": "stopped the Retention of, after three failed runs,",
+  "metric.submitter_added": "added a Submitter to",
+  "metric.submitter_removed": "removed a Submitter from",
   "metric.workflow_set": "chose the Workflow of",
   "metric.details_changed": "changed the description of",
   "metric.total_changed": "changed what is added up by",

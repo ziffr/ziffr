@@ -4,13 +4,16 @@
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { peopleFor } from "./access";
-import { addSubmitters, editableMetric, metricEffects, type MetricEffects } from "./metrics";
+import { addSubmitters, claimFirstPrompt, editableMetric, metricEffects, type MetricEffects } from "./metrics";
 import { firstAsksMessage } from "./asked-message";
 import { CONNECTORS } from "./connectors/index";
 import type { PromptOutcome } from "./deliveries";
 
 /** Someone who may be added as a Submitter: their name and whether they are a Member, a Guest or a Contact. */
 export type SubmitterChoice = { id: string; name: string; kind: "member" | "guest" | "contact" };
+
+/** No count a person reaches: from the app, only the same person and Metric within a day holds a first Prompt back. */
+const NO_DAILY_COUNT = 1_000_000;
 
 /** The people the actor may add to a Metric's Submitters, by name: those who do not submit it yet. Only the Metric's
  * owner and its Editors get any, and only for a Metric that takes values. */
@@ -36,19 +39,25 @@ export async function submitterChoices(actor: Actor, metricId: number): Promise<
 }
 
 /** Adds one person as a Submitter from the Metric's page and answers, in one sentence, what was sent to them. With
- * `askNow` false they get their Token and no first Prompt. `personId` is untrusted: addSubmitters checks it. */
+ * `askNow` false they get their Token and no first Prompt, and so does someone asked for this Metric in the last day.
+ * `personId` is untrusted: addSubmitters checks it. */
 export async function addSubmitterWithAnswer(actor: Actor, metricId: number, personId: string, askNow: boolean, effects: MetricEffects = metricEffects): Promise<string> {
   const asks: PromptOutcome[] = [];
+  let heldBack = false;
   const added = await addSubmitters(actor, metricId, [personId], {
     ...effects,
     promptSubmitter: async (metric, submitter, by) => {
-      const sent = askNow ? await effects.promptSubmitter(metric, submitter, by) : false;
+      if (!askNow) return false;
+      heldBack = !(await claimFirstPrompt(actor.workspaceId, metric, submitter, NO_DAILY_COUNT));
+      if (heldBack) return false;
+      const sent = await effects.promptSubmitter(metric, submitter, by);
       if (sent) asks.push(sent);
       return sent;
     },
   });
   if (!added.length) return "They submit it already.";
   if (!askNow) return "Nothing was sent to them now.";
+  if (heldBack) return "They were asked for this Metric in the last day, so no new request was made.";
   const [ask] = asks;
   if (!ask) return "No request was sent to them.";
   const name = (await peopleFor(actor)).find((p) => p.id === added[0])?.name ?? "They";
