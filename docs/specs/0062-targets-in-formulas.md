@@ -44,7 +44,7 @@ No value is no value: the period stays empty, never 0. A Metric page says why wh
 The Metric inside `target()` is an input of the formula in every respect:
 
 - **Who may use it:** only a Metric the maker owns or edits; the Derived Metric's owner must keep that right, or it shows no values. A Metric the person may not see answers as one that does not exist.
-- **Who sees it:** a result reveals the target to whoever the Derived Metric is shared with, as it reveals values. The formula's text is shown only to those who see every input.
+- **Who sees it:** a result reveals the target to whoever the Derived Metric is shared with, as it reveals values. The formula's text is shown, and sent whole, only to those who see every input; what others are sent names the inputs they see and nothing else.
 - **What it may be:** the same period as the Derived Metric, with an Aggregation other than none (unless the formula uses `prev` or `change`), never a Derived Metric and never the Metric itself. So a formula still cannot reach itself, however far round, and no new cycle is possible.
 - **Deleting and Retention:** the Metric cannot be deleted while a formula reads it, its values cannot be deleted by a Retention, and they cannot be condensed into longer periods than the Derived Metric's.
 
@@ -90,7 +90,7 @@ Derived values are not stored. They are worked out when they are shown.
 - **Quota** becomes a calculated Metric, `target({commit})`: nobody sends it, and every dashboard widget and slide that shows Quota follows Commit's target.
 - **Gap** `{commit} - target({commit})`, **share** `{commit} / target({commit}) * 100`, **coverage** `{pipeline} / (target({commit}) - {closed-quarter})`.
 - **Set the quota as Commit's Target Series,** one value for each week of the quarter, entered or pasted in one go. This is what the Pack and the guide recommend: each week then keeps the quota that was true for it. A Target Range "at least <quota>" is quicker for a first try, but it has no history: changing it rewrites the gap, share and coverage of every past week that has no series value.
-- **The gap by salesperson** needs a quota per person, which one target cannot hold. An optional Metric **Quota by salesperson**, sent with a Breakdown, fills that slide and nothing else, until each salesperson has Metrics of their own (spec 0058, team totals).
+- **The gap by salesperson** needs a quota per person, which one target cannot hold. An optional Metric **Quota split**, sent with a Breakdown, fills that slide and nothing else, until each salesperson has Metrics of their own (spec 0058, team totals).
 - **Existing set-ups** with a Quota Metric keep working: their formulas and decks are their own copies. The guide says how to switch: set Commit's target and change the three formulas.
 
 ## Testing Decisions
@@ -121,5 +121,5 @@ Derived values are not stored. They are worked out when they are shown.
 2. `target({x})` needs x's value for the period too: coverage is empty in a week without a Commit.
 3. Over a longer span, a Target Series that covers only some periods gives no value, although the chart then falls back to the range.
 4. A Lock does not freeze targets, and a changed Target Range rewrites past periods' results.
-5. The Pack keeps an optional "Quota by salesperson" for the gap slide until Repeats are built.
+5. The Pack keeps an optional "Quota split" for the gap slide until Repeats are built.
 6. A quota is kept as a Target Series per period; the guide and the Pack recommend it and say why.
