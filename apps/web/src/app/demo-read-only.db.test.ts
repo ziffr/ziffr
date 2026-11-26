@@ -111,6 +111,7 @@ const CASES: Record<string, Case> = {
   "canvas-actions:assignInPlace": { open: (i) => [{ metricId: i.metric, period: i.period, assigneeId: "ben", kind: "task", text: "Check this" }] },
   "canvas-actions:markTaskDone": { nothing: "Sara has no open task in the demo", open: (i) => [i.task] },
   "connector-actions:sendTestMessage": { blocked: () => ["email"] },
+  "connector-actions:sendScreenLink": { blocked: () => ["/analyze"] },
   "connector-actions:setTelegram": { blocked: () => [true] },
   "connector-actions:telegramLinkStart": { blocked: () => [] },
   "connector-actions:telegramFormLinkStart": { nothing: "Telegram is off in the demo", blocked: (i) => [i.formCode] },
