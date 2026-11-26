@@ -42,6 +42,9 @@ export type Metric = {
 export type MetricDetail = Metric & {
   /** A Derived Metric's formula by its inputs' slugs, only when the key's creator sees all of them; otherwise null. */
   formula: string | null;
+  /** Only for a Total, a Metric that adds up a list of others: where its target comes from, whether its owner shows it to
+   * people who do not see every Metric it adds up, and whether its values leave out periods for the key's creator. */
+  total?: { targets: "own" | "parts"; open: boolean; periods_withheld: boolean };
   /** Only in the answer to creating a Derived Metric: what was chosen where a field was left out, in plain words. */
   defaults?: string[];
   /** Only in the answer to creating a Metric with `tags` that the Workspace's limit of 200 Tags refused: the words left out. The Metric was made without them. */

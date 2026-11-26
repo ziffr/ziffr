@@ -32,6 +32,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `totalChoices` (total-page.ts): the list in the "Add up Metrics" form; a program lists Metrics through the API
 - `totalPage` (total-page.ts): what a Total's page draws besides its values; a program reads those through the API
 - `totalsCounting` (total-page.ts): what the archive dialog in the app asks about a Metric that Totals add up
+- `emptyInLink` (view-links.ts): the note in the View links panel before a link is made; a program's preview of a Share Proposal carries the data itself
 - `listPicker` (analysis-picker.ts): the list of Methods on the Analysis Canvas in the app, fitted to the Metrics on the canvas; analyses are not in the API yet
 - `runPicker` (analysis-picker.ts): runs the Method picked on the Analysis Canvas in the app; analyses are not in the API yet (the core takes the Actor first, so adding them later is a small step)
 - `createDashboardFromBody` (dashboard-templates.ts): the same as making a dashboard from a template, for a template that is not stored; only a Workspace import uses it
@@ -403,6 +404,7 @@ Ticketed. MCP follows where the ticket says so.
 
 Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 
+- `restoreTotal` (total-changes.ts): the Workspace import turning a Metric of the file into the Total it was, closed; no person or program asks for it
 - `tagSight` (tag-sight.ts): the one reading of who sees which Tag that the app and the API both use; it changes nothing itself
 - `changeMetricTags` (tags.ts): the one change behind setMetricTags, addMetricTags and removeMetricTags; the API reaches it through `tags` on create and update
 - `resolveTagWidgets` (tag-widgets.ts): works out the Metrics of a widget of all Metrics tagged X for one viewer when a dashboard is drawn; read by the pages

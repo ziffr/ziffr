@@ -14,9 +14,6 @@ export const NOT_ALL_IN = "Not all in yet.";
 /** Why a Total shows nobody a number. */
 export const OWNER_CANNOT_SHARE = "Its owner can no longer share one of the Metrics it adds up, so it shows no values.";
 
-/** What a Total says in a View Link and a Snapshot, which carry none of its numbers yet. */
-export const NOT_IN_VIEWS = "A Total's numbers are not shown here yet.";
-
 /** What a formula that reads a Total says where it has no value. */
 export const READS_UNSHOWN_TOTAL = "No values to show: it reads a Total that has none for you.";
 

@@ -106,6 +106,8 @@ For a first try, a Target Range is quicker: under **Edit details…** on Commit,
 3. Choose **New metric**, then [Calculated from other Metrics](10-metrics.md#calculated-from-other-metrics), and add them up into "Commit, sum of salespeople". It has a value in a week once all of them have one.
 4. The team's **Commit** stays the sales lead's call. Add the sum to the dashboard to see both side by side.
 
+**From your CRM.** Instead of asking people, n8n can send **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, and from the first two also **Commit** and **Best case** if you like, for the team and for salespeople with Metrics of their own. Choose **Fill from n8n** on one of these Metrics and a forecast template ([what they send and when](../automations/crm-forecast-feeds.md)). A figure that came from the CRM is approved like any other, but its first value is not checked for being unusual.
+
 **Sending the Snapshot.** The Workflow has a **Send Snapshot** step; **Set up from this Pack** leaves the dashboard and the people open. Open the Workflow, pick **Weekly forecast meeting** and the people in the step (see [The steps](11-workflows.md#the-steps)), and share the dashboard with them, or the link is not sent to them.
 
 ## Where a Pack's numbers come from
