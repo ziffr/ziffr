@@ -2,8 +2,10 @@
 // what Ziffr takes, as JSON Schemas, with the one check of an answer that a service and Ziffr share. Node only (it
 // hashes and verifies), so it is `@ziffr/pack/marketplace` and never part of the package's index.
 // Security: every answer is untrusted. Each is held to a size, a depth and a shape before it is read; a signature is an
-// Ed25519 signature of a statement's exact bytes; the statement names the file by id, version and SHA-256; only a
-// reserve key revokes a signing key; web addresses are built here from checked parts and from nothing else.
+// Ed25519 signature of a statement's exact bytes; the statement names the file by id, version and SHA-256; a Pack is
+// withdrawn, or a withdrawal taken back, only by a signed statement with a sequence number, so an older one never
+// replaces a newer one; only a reserve key revokes a signing key; web addresses are built here from checked parts and
+// from nothing else.
 import { createHash, createPublicKey, verify, type KeyObject } from "node:crypto";
 import { plainText } from "./file-text.js";
 import { checkSchema, parseJson, under, type FormatCheck, type Problem, type Schema } from "./json-check.js";
@@ -11,12 +13,16 @@ import { checkPack, PACK_LICENSES, PACK_LIMITS, PACK_SCHEMA } from "./pack.js";
 
 /** The format of the statement a Marketplace signs about one file. */
 export const STATEMENT_FORMAT = "ziffr.pack-signature/1";
+/** The format of the statement that withdraws a Pack, or takes a withdrawal back. */
+export const WITHDRAWAL_FORMAT = "ziffr.pack-withdrawal/1";
 /** The format of the statement that takes a signing key out of use. */
 export const REVOCATION_FORMAT = "ziffr.key-revocation/1";
 
 /** The limits of the contract: bytes of an answer, entries of a list, and characters of a text. */
 export const MARKETPLACE_CONTRACT = {
   listBytes: 262_144,
+  /** The updates answer carries a signed statement for each withdrawn Pack asked about. */
+  updatesBytes: 1_048_576,
   /** A version answer carries the file as a JSON text, where escaping can double its bytes, beside a few short fields. */
   versionBytes: (PACK_LIMITS.bytes + 4_096) * 2,
   statementBytes: 4_096,
@@ -44,8 +50,8 @@ const STATEMENT_TEXT: Schema = { type: "string", maxLength: MARKETPLACE_CONTRACT
 const object = (properties: Record<string, Schema>, required: string[], extra: Partial<Schema> = {}): Schema => ({ type: "object", properties, required, ...extra });
 const list = (items: Schema, maxItems: number, description: string): Schema => ({ type: "array", maxItems, items, description });
 const NAMED_VERSION = object({ id: ID_RULE, version: VERSION_RULE }, ["id", "version"]);
-const REVOCATION_ENTRY = object({ statement: STATEMENT_TEXT, signature: SIGNATURE }, ["statement", "signature"]);
-const REVOCATIONS = list(REVOCATION_ENTRY, MARKETPLACE_CONTRACT.revocations, `Keys taken out of use, each a ${REVOCATION_FORMAT} statement signed by the reserve key.`);
+const SIGNED_ENTRY = object({ statement: STATEMENT_TEXT, signature: SIGNATURE }, ["statement", "signature"]);
+const REVOCATIONS = list(SIGNED_ENTRY, MARKETPLACE_CONTRACT.revocations, `Keys taken out of use, each a ${REVOCATION_FORMAT} statement signed by the reserve key.`);
 
 const LISTING = object(
   {
@@ -62,8 +68,23 @@ const LISTING = object(
 
 const titled = (title: string, description: string, s: Schema): Schema => ({ title, description, ...s });
 
+// One of the two things a withdrawal statement says; only a withdrawal gives a reason.
+const withdrawalSchema = (state: "withdrawn" | "restored"): Schema => {
+  const reason: Record<string, Schema> = state === "withdrawn" ? { reason: { ...plainText(MARKETPLACE_CONTRACT.reason), minLength: 1, description: "Why, in plain words with no web address." } } : {};
+  // `state` stands first: it is what tells the two apart.
+  return object({
+    state: { const: state },
+    format: { const: WITHDRAWAL_FORMAT },
+    id: ID_RULE,
+    ...reason,
+    sequence: { type: "integer", minimum: 1, maximum: Number.MAX_SAFE_INTEGER, description: "Higher in every later statement about the same Pack." },
+    key: KEY_ID,
+    signed: MOMENT,
+  }, ["state", "format", "id", ...Object.keys(reason), "sequence", "key", "signed"], { additionalProperties: false });
+};
+
 /** The JSON Schemas of the contract, by name: the one definition the checks run and docs/reference is generated from.
- * Answers may hold fields a reader does not know (it ignores them); the two signed statements may not. */
+ * Answers may hold fields a reader does not know (it ignores them); the signed statements may not. */
 export const MARKETPLACE_SCHEMAS = {
   packs: titled("Marketplace: GET v1/packs", "The Packs that match a search, newest first; with an empty search, the newest of all.", object({ packs: list(LISTING, MARKETPLACE_CONTRACT.results, "Listings; Ziffr reads the first of them and drops one that does not pass.") }, ["packs"])),
   version: titled("Marketplace: GET v1/packs/{handle}/{slug}/versions/{version}", "One published version: the Pack's text, the statement about it and the statement's signature.", object({
@@ -78,7 +99,7 @@ export const MARKETPLACE_SCHEMAS = {
   }, ["ziffr", "installed"], { additionalProperties: false })),
   updates: titled("Marketplace: POST v1/updates (answer)", "Which of the asked Packs have a newer version, and which were withdrawn.", object({
     updates: list(NAMED_VERSION, MARKETPLACE_CONTRACT.updates, "The newest version of each asked Pack that has a newer one."),
-    withdrawn: list(object({ id: ID_RULE, reason: { ...plainText(MARKETPLACE_CONTRACT.reason), minLength: 1 } }, ["id", "reason"]), MARKETPLACE_CONTRACT.updates, "Every asked Pack that is withdrawn, with the reason. When the field is there it is the whole list: an asked Pack it does not name is not withdrawn."),
+    withdrawals: list(SIGNED_ENTRY, MARKETPLACE_CONTRACT.updates, `For each asked Pack that was ever withdrawn, its newest ${WITHDRAWAL_FORMAT} statement, signed: withdrawn, or restored. A Pack left out says nothing about it.`),
     revocations: REVOCATIONS,
   }, ["updates"])),
   statement: titled(`Marketplace: the signed statement (${STATEMENT_FORMAT})`, "What a Marketplace signs about one file. Ed25519 signs the statement's exact bytes.", object({
@@ -90,6 +111,7 @@ export const MARKETPLACE_SCHEMAS = {
     signed: MOMENT,
     reviewed: { type: "boolean", description: "true only when a moderator looked at this version" },
   }, ["format", "id", "version", "sha256", "key", "signed", "reviewed"], { additionalProperties: false })),
+  withdrawal: titled(`Marketplace: a withdrawal (${WITHDRAWAL_FORMAT})`, "That a Pack is withdrawn, or that its withdrawal is taken back. Ed25519 signs the statement's exact bytes. Of two about one Pack, the one with the higher sequence counts.", { oneOf: [withdrawalSchema("withdrawn"), withdrawalSchema("restored")] }),
   revocation: titled(`Marketplace: a key revocation (${REVOCATION_FORMAT})`, "Takes a signing key out of use. Only the reserve key's signature counts.", object({
     format: { const: REVOCATION_FORMAT },
     key: KEY_ID,
@@ -114,10 +136,10 @@ export type PackStatement = { format: typeof STATEMENT_FORMAT; id: string; versi
 export type SignedText = { statement: string; signature: string };
 /** The answer for one version of a Pack. */
 export type VersionAnswer = { file: string; revocations?: SignedText[] } & SignedText;
-/** A withdrawn Pack, with the reason in plain words. */
-export type Withdrawal = { id: string; reason: string };
+/** A withdrawal statement, as read from its text: a Pack withdrawn with its reason, or a withdrawal taken back. */
+export type PackWithdrawal = { format: typeof WITHDRAWAL_FORMAT; id: string; sequence: number; key: string; signed: string } & ({ state: "withdrawn"; reason: string } | { state: "restored" });
 /** The answer to the updates question. */
-export type UpdatesAnswer = { updates: { id: string; version: string }[]; withdrawn?: Withdrawal[]; revocations?: SignedText[] };
+export type UpdatesAnswer = { updates: { id: string; version: string }[]; withdrawals?: SignedText[]; revocations?: SignedText[] };
 /** A revocation that holds: the key it takes out of use, and the reserve key that signed it. */
 export type Revocation = { key: string; by: string; signed: string };
 /** The public keys a reader trusts, each base64 of the raw 32 bytes, by its part. */
@@ -176,6 +198,20 @@ export function checkRevocation(entry: SignedText, keys: MarketplaceKeys): Revoc
   return { key: read.value.key, by, signed: read.value.signed };
 }
 
+// Whether a key may sign statements about Packs now: a signing key not revoked, or a reserve key that has revoked one.
+const maySign = (by: string, keys: MarketplaceKeys, revoked: readonly Pick<Revocation, "key" | "by">[]) =>
+  !revoked.some((r) => r.key === by) && (keys.signing.some((k) => marketplaceKeyId(k) === by) || revoked.some((r) => r.by === by));
+
+/** A withdrawal statement that holds: signed by a trusted key that may sign, naming that key, and well formed. Null for
+ * any other. Whether it is newer than one seen before is the reader's to compare, by its sequence. */
+export function checkWithdrawal(entry: SignedText, keys: MarketplaceKeys, revoked: readonly Pick<Revocation, "key" | "by">[]): PackWithdrawal | null {
+  if (typeof entry?.statement !== "string" || !isWholeText(entry.statement)) return null;
+  const by = signer(entry.statement, entry.signature, [...keys.signing, ...keys.reserve]);
+  if (!by || !maySign(by, keys, revoked)) return null;
+  const read = readSigned<PackWithdrawal>(entry.statement, MARKETPLACE_SCHEMAS.withdrawal);
+  return read.ok && read.value.key === by ? read.value : null;
+}
+
 /** Why a signed file is not taken: the file is not whole text; no trusted key signed the statement; the key is revoked;
  * a reserve key signed before it took any key out of use; the statement is not one this reader knows; or it is about
  * another file. */
@@ -190,7 +226,7 @@ export function verifyPackStatement(answer: { file: string } & SignedText, asked
   const by = signer(answer.statement, answer.signature, [...keys.signing, ...keys.reserve]);
   if (!by) return refused("signature");
   if (revoked.some((r) => r.key === by)) return refused("revoked");
-  if (!keys.signing.some((k) => marketplaceKeyId(k) === by) && !revoked.some((r) => r.by === by)) return refused("reserve");
+  if (!maySign(by, keys, revoked)) return refused("reserve");
   const read = readSigned<PackStatement>(answer.statement, MARKETPLACE_SCHEMAS.statement);
   if (!read.ok || read.value.key !== by) return refused("statement");
   const s = read.value;
@@ -232,10 +268,27 @@ function versionProblems(v: VersionAnswer, keys: MarketplaceKeys | undefined, at
   if (!held.ok && held.refusal !== "other-file") at("signature", `does not hold (${held.refusal}).`);
 }
 
+/** The problems of an updates answer's withdrawal statements: each reads as one, one for a Pack, no update offered for
+ * a withdrawn Pack; with trusted keys, also that each holds, counting the answer's own revocations. */
+function withdrawalProblems(v: UpdatesAnswer, keys: MarketplaceKeys | undefined, at: (path: string, message: string) => void): void {
+  const revoked = keys ? (v.revocations ?? []).flatMap((r) => checkRevocation(r, keys) ?? []) : [];
+  const seen = new Set<string>();
+  for (const [n, entry] of (v.withdrawals ?? []).entries()) {
+    const path = `withdrawals[${n}]`;
+    const read = readSigned<PackWithdrawal>(entry.statement, MARKETPLACE_SCHEMAS.withdrawal);
+    if (!read.ok) { read.problems.forEach((p) => at(under(`${path}.statement`, p).path, p.message)); continue; }
+    const { id, state } = read.value;
+    if (seen.has(id)) at(`${path}.statement.id`, `“${id}” is listed twice.`);
+    seen.add(id);
+    if (state === "withdrawn" && v.updates.some((u) => u.id === id)) at(`${path}.statement.id`, "is offered an update too; a withdrawn Pack has none.");
+    if (keys && !checkWithdrawal(entry, keys, revoked)) at(path, "is not a statement signed by a key that may sign.");
+  }
+}
+
 /** Holds one answer, or the updates request, to the contract: what a service runs on what it sends, so Ziffr takes it.
  * With `keys`, signatures and revocations are verified too. */
 export function checkMarketplaceAnswer<T = unknown>(kind: MarketplaceAnswerKind, text: string, keys?: MarketplaceKeys): FormatCheck<T> {
-  const maxBytes = kind === "version" ? MARKETPLACE_CONTRACT.versionBytes : MARKETPLACE_CONTRACT.listBytes;
+  const maxBytes = kind === "version" ? MARKETPLACE_CONTRACT.versionBytes : kind === "updates" ? MARKETPLACE_CONTRACT.updatesBytes : MARKETPLACE_CONTRACT.listBytes;
   const parsed = parseJson(text, { maxBytes, maxDepth: 6 });
   if (!parsed.ok) return parsed;
   const problems: Problem[] = checkSchema(MARKETPLACE_SCHEMAS[kind], parsed.value, parsed.lines);
@@ -250,8 +303,7 @@ export function checkMarketplaceAnswer<T = unknown>(kind: MarketplaceAnswerKind,
     versionProblems(parsed.value as VersionAnswer, keys, at);
   } else if (kind === "updates") {
     once("updates", value.updates!.map((p) => p.id));
-    once("withdrawn", (value.withdrawn ?? []).map((p) => p.id));
-    for (const [n, w] of (value.withdrawn ?? []).entries()) if (value.updates!.some((u) => u.id === w.id)) at(`withdrawn[${n}].id`, "is offered an update too; a withdrawn Pack has none.");
+    withdrawalProblems(value as UpdatesAnswer, keys, at);
     if (keys) for (const [n, r] of (value.revocations ?? []).entries()) if (!checkRevocation(r, keys)) at(`revocations[${n}]`, "is not a revocation signed by a reserve key.");
   } else {
     once("installed", value.installed!.map((p) => p.id));

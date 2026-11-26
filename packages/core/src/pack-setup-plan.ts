@@ -14,6 +14,7 @@ import { listed } from "./pack-places";
 import { buildSetup, SETUP_METRICS_MAX, tickedShares, type Blueprint, type PackSetupInput, type PlannedDashboard, type ProposedShare } from "./pack-setup-build";
 import { installedForSetup, assertSetsUp, roomNow, type PackSetupRoom } from "./pack-setup-install";
 import { PLACE_WORDS, whyNot, type PersonKind } from "./pack-setup-who";
+import { isComputed, plannedSums } from "./pack-setup-totals";
 import type { DashboardTemplateBody, Metric, WorkflowStep } from "./types";
 
 /** How many requests for values a person gets. `you`: the person setting up. */
@@ -59,7 +60,7 @@ function plannedRows(actor: Actor, b: Blueprint, shares: ProposedShare[], added:
   return {
     // All are the actor's, who sees what they own whatever it is computed from, so no formula is needed.
     metrics: b.metrics.map((m) => ({ id: m.plan, name: m.name, slug: `planned-${-m.plan}`, owner_id: actor.personId, formula: null }) as unknown as Metric),
-    tokens: b.metrics.flatMap((m) => [...m.submitters, ...(b.feed && !m.entry.formula ? [b.feed] : [])].map((s) => ({ metric_id: m.plan, submitter_id: s }))),
+    tokens: b.metrics.flatMap((m) => [...m.submitters, ...(b.feed && !isComputed(m.entry) ? [b.feed] : [])].map((s) => ({ metric_id: m.plan, submitter_id: s }))),
     shares: shares.map((s) => ({ object_type: s.object, object_id: s.plan, user_id: s.person, role: s.role })),
     dashboards: b.dashboards.map((d) => ({ id: d.plan, owner_id: actor.personId })),
     widgets: [
@@ -140,7 +141,8 @@ async function offersOf(actor: Actor, b: Blueprint, without: (person: string) =>
   const shares = expandGroupShares(ws, raw, groups);
   return b.additions.offers.map((o) => {
     const widget = b.additions.offered.find((w) => w.offer === o.id);
-    if (!widget) return { ...o, suggested: true };
+    // A Total’s offer says itself whether it starts ticked.
+    if (!widget) return { ...o, suggested: o.suggested ?? true };
     const here = (s: { object_type: string; object_id: number }) => s.object_type === "dashboard" && s.object_id === widget.dashboard.id;
     const theirs = [...new Set(shares.filter(here).map((s) => String(s.user_id)))].filter((id) => id !== actor.personId);
     const newly = theirs.filter((id) => widget.add.some((m) => !without(id).has(m))).map((id) => b.people.get(id)?.name ?? "Someone");
@@ -185,7 +187,9 @@ export async function planPackSetup(actor: Actor, installId: number, input: Pack
       ...b.dashboards.filter((d) => onBoards.get(d.plan)!.includes(metric) && ticked.some((s) => s.object === "dashboard" && s.plan === d.plan && s.person === person)).map((d) => `on the dashboard ${d.name}`),
       ...new Set(joins(person, metric)),
     ];
-    return reasons.length ? reasons : ["sees it already"];
+    // A Total's sums, and what is computed from them, are shown only to who sees every Metric it adds up.
+    const sums = planned ? plannedSums(b.metrics, planned, after(person).metrics) : null;
+    return [...(reasons.length ? reasons : ["sees it already"]), ...(sums ? [sums] : [])];
   };
   const everyone = involved(actor, b, through.map((s) => s.user_id));
   const sees = everyone.map((id) => {

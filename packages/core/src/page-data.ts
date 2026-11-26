@@ -232,13 +232,13 @@ export async function workflowsView(actor: Actor) {
 }
 
 /** The Metric Catalog as this Workspace has it: the entries every Workspace has, and its own part, from the Packs it
- * installed (spec 0030). A Derived Metric's entry is left out: its formula names other entries of its Pack, which
- * only setting the Pack up (#277) turns into Metrics. Never another Workspace's entries. */
+ * installed (spec 0030). The entry of a Derived Metric or a Total is left out: it names other entries of its Pack,
+ * which only setting the Pack up (#277) turns into Metrics. Never another Workspace's entries. */
 export async function metricCatalog(actor: Pick<Actor, "workspaceId">) {
   const cols = "id, category, name, description, calculation_note, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, tags, pack_install_id";
   const [shared, own] = await Promise.all([
     db().from("catalog_metrics").select(cols).is("workspace_id", null).order("category").order("id"),
-    db().from("catalog_metrics").select(cols).eq("workspace_id", actor.workspaceId).is("formula", null).order("category").order("id"),
+    db().from("catalog_metrics").select(cols).eq("workspace_id", actor.workspaceId).is("formula", null).is("total", null).order("category").order("id"),
   ]);
   return [...(shared.data ?? []), ...(own.data ?? [])];
 }
