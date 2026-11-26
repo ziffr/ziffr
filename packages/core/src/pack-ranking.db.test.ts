@@ -25,7 +25,7 @@ const IDS = [...bundledPacks().keys()];
 const top = (r: { id: string; suggested: boolean }[]) => r.filter((p) => p.suggested).map((p) => p.id);
 
 describe("recommendedPacks", () => {
-  it("lists all twelve Packs in the fixed order for a Workspace that answered nothing, with none suggested", async () => {
+  it("lists all thirteen Packs in the fixed order for a Workspace that answered nothing, with none suggested", async () => {
     const { owner } = await fresh();
     const r = await recommendedPacks(owner);
     expect(r.map((p) => p.id)).toEqual(IDS);
@@ -87,7 +87,7 @@ describe("recommendedPacks", () => {
     const { owner } = await fresh();
     await installIncludedPack(owner, "ziffr/sales");
     const r = await recommendedPacks(owner);
-    expect(r).toHaveLength(12);
+    expect(r).toHaveLength(13);
     expect(r.find((p) => p.id === "ziffr/sales")?.installed).toBe(true);
     expect(r.filter((p) => p.installed)).toHaveLength(1);
   });
