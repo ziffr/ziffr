@@ -110,7 +110,7 @@ describe("the web app's actions that run these writers", () => {
   it("run each opened one in attemptAsVisitor, and take a Snapshot only through the turn", () => {
     for (const [file, op] of [
       ["deck-actions.ts", "deck-actions:createDeck"], ["deck-actions.ts", "deck-actions:saveDeck"], ["deck-actions.ts", "deck-actions:renameDeck"], ["deck-actions.ts", "deck-actions:setDeckFooter"], ["deck-actions.ts", "deck-actions:deleteDeck"],
-      ["convert-actions.ts", "convert-actions:makeDeck"], ["convert-actions.ts", "convert-actions:makeDeckFromSnapshot"], ["convert-actions.ts", "convert-actions:addToDeck"],
+      ["convert-actions.ts", "convert-actions:makeDeck"], ["convert-actions.ts", "convert-actions:makeDeckFromSnapshot"], ["convert-actions.ts", "convert-actions:addToDeck"], ["convert-actions.ts", "convert-actions:addSnapshotToDeck"],
       ["deck-workflow-template-actions.ts", "deck-workflow-template-actions:createDeckFromTemplate"], ["deck-workflow-template-actions.ts", "deck-workflow-template-actions:saveAsDeckTemplate"],
       ["template-actions.ts", "template-actions:saveSlideLayout"], ["theme-actions.ts", "theme-actions:setDeckTheme"],
       ["snapshot-actions.ts", "snapshot-actions:takeSnapshot"], ["snapshot-actions.ts", "snapshot-actions:editSnapshotWords"], ["snapshot-actions.ts", "snapshot-actions:showSnapshot"], ["snapshot-actions.ts", "snapshot-actions:deleteSnapshot"],

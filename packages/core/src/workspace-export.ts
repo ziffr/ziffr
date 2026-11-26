@@ -253,12 +253,14 @@ async function metricRecords(c: Ctx): Promise<void> {
     over.length = 0;
     const name = fit.plain(m.name, 120);
     const description = fit.plain(m.description, WORKSPACE_EXPORT_LIMITS.metricDescription);
+    const note = fit.plain(m.calculation_note, WORKSPACE_EXPORT_LIMITS.metricCalculationNote);
     const unit = fit.plain(m.unit, 20);
-    if (!name || description === null || unit === null) { skip("Metric", m.name || "(unnamed)", `Left out: ${over[0] ?? "it has no name"}.`); continue; }
+    if (!name || description === null || note === null || unit === null) { skip("Metric", m.name || "(unnamed)", `Left out: ${over[0] ?? "it has no name"}.`); continue; }
     let formula: string | undefined;
     if (m.formula) formula = m.formula.replace(/\{([a-z0-9-]+)\}/g, (all, slug: string) => (bySlug.has(slug) ? `{${keyOf.get(bySlug.get(slug)!.id)}}` : all));
     const file: MetricFile = {
-      format: "ziffr.metric/1", name, ...(description ? { description } : {}), period: m.period, aggregation: m.aggregation, polarity: m.polarity,
+      // The newer format only for a Metric that has a Calculation Note, so an older Ziffr reads every other (spec 0060).
+      format: note ? "ziffr.metric/2" : "ziffr.metric/1", name, ...(description ? { description } : {}), ...(note ? { calculationNote: note } : {}), period: m.period, aggregation: m.aggregation, polarity: m.polarity,
       ...(unit ? { unit } : {}), unitPosition: m.unit_position, valueFormat: m.format, decimals: m.decimals, submissionRule: m.submission_rule,
       ...(m.target_min !== null && m.target_min !== undefined ? { targetMin: Number(m.target_min) } : {}), ...(m.target_max !== null && m.target_max !== undefined ? { targetMax: Number(m.target_max) } : {}),
       ...(m.attainment_method ? { attainmentMethod: m.attainment_method } : {}),

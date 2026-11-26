@@ -10,6 +10,8 @@ export type Metric = {
   slug: string;
   name: string;
   description: string;
+  /** How it is calculated (a Calculation Note): what counts and what does not, where the figure comes from, adjustments; "" where nothing is written. */
+  calculation_note: string;
   period: Period;
   format: "number" | "currency" | "percent";
   unit: string;
@@ -123,6 +125,8 @@ export type Page<T> = { items: T[]; next: string | null };
 export type NewMetric = {
   name: string;
   description?: string;
+  /** How it is calculated (a Calculation Note), at most 2000 characters; "" takes it away. */
+  calculation_note?: string;
   unit?: string;
   unit_position?: Metric["unit_position"];
   format?: Metric["format"];
@@ -154,6 +158,8 @@ export type NewMetric = {
 export type MetricPatch = {
   name?: string;
   description?: string;
+  /** How it is calculated (a Calculation Note), at most 2000 characters; "" takes it away. */
+  calculation_note?: string;
   unit?: string;
   format?: Metric["format"];
   /** Only while the Metric has no values and no targets or projections by period. */

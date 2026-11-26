@@ -11,8 +11,12 @@ A named, fully described number tracked over time. It must be defined before any
 _Avoid_: Number, KPI, measure, series
 
 **Metric Description**:
-Everything that defines a metric: name, description, unit and which side of the number it stands on, format, period, submission rule, sources, target range, polarity, how its Attainment is computed (or the Workspace's way), owner, its Tags and, for a derived metric, its formula.
+Everything that defines a metric: name, description, Calculation Note, unit and which side of the number it stands on, format, period, submission rule, sources, target range, polarity, how its Attainment is computed (or the Workspace's way), owner, its Tags and, for a derived metric, its formula.
 _Avoid_: Settings, config, schema
+
+**Calculation Note**:
+How a Metric is calculated, in words; screens call it **How it is calculated**: exactly what counts and what does not, where the figure comes from and which adjustments are made (for annual recurring revenue: one-off fees, discounts, contracts not yet started), while the Metric's description says what the number is and why it matters. It is part of the Metric Description: its owner and Editors change it, each change is a Version that says so, it is sealed with the Workspace Key, and it is shown to nobody who may not see the Metric, never on a View Link, a Snapshot shown outside the Workspace or the form link. A Derived Metric's formula stands beside it and is not it.
+_Avoid_: Methodology, counting rules, business logic
 
 **Period**:
 How often a Metric has a value: a day, week, month, quarter or year. Weeks run Monday to Sunday; quarters and years are those of the Fiscal Year. A period is named by its first day ("Week of 9 Nov 2026", "October 2026", "Q3 2026", "FY 2026/27").
@@ -496,6 +500,14 @@ _Avoid_: Target group, persona, category
 **Marketplace**:
 Ziffr's catalogue of Packs, checked before they are listed, and of programs outside Ziffr that work with it, such as Feeds. Packs are installed from it into a Workspace; programs outside Ziffr are only listed, and their creators bill for them themselves.
 _Avoid_: Store, app store, gallery, hub
+
+**Signed Statement**:
+What a Marketplace signs about one file of one version of a Pack: its id, its version, a fingerprint of the file (SHA-256), the key used, the time and whether a moderator looked. Ziffr takes a file from a Marketplace only when the statement of a trusted Marketplace Key holds for it. It says where a file came from, not that the Pack is safe.
+_Avoid_: Certificate, stamp, seal
+
+**Marketplace Key**:
+A public key whose Signed Statements Ziffr trusts, with its part: the signing key signs them; the reserve key stays unused until it takes the signing key out of use with a revocation, which Ziffr keeps.
+_Avoid_: Publisher key, master key, certificate
 
 **Webhook**:
 An address that a Workspace's Owner or Admin sets so that Ziffr sends it signed messages about what happens there, such as a task given, a task done or a value recorded, for a program to pass on to another system. It belongs to the Workspace, like a Feed, and sees only what every Member sees; other things reach it with their words left out. It can mark a task done, reply to a thread or answer a question, as the Webhook, but only for tasks that were sent to it, and it can say which task in the other system an Action is (an _external id_, kept per Webhook, with an optional link shown on the Action as "Also in"). Not a Connector, which reaches a person. The app heads these **Workspace Webhooks** where it also lists Personal Webhooks; "Webhook" alone means this kind.

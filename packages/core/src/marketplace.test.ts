@@ -1,7 +1,7 @@
 // The Marketplace connection's rules (spec 0030, #278): off unless turned on, an https address outside the server's
-// network, and Ed25519 signatures of a trusted key over the file's exact bytes.
+// network, and the trusted keys by their part (spec 0059; the signatures themselves: packages/pack marketplace.test.ts).
 import { describe, expect, it } from "vitest";
-import { marketplaceConfig, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL, signedByMarketplace } from "./marketplace";
+import { marketplaceConfig, marketplaceKeyProblem, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL, MARKETPLACE_PUBLIC_KEYS, trustedKeys } from "./marketplace";
 import { testKeys } from "./test/marketplace-keys";
 
 describe("the connection's settings", () => {
@@ -32,20 +32,26 @@ describe("the connection's settings", () => {
   });
 });
 
-describe("signatures", () => {
-  const keys = testKeys();
-  const env = { ZIFFR_MARKETPLACE_PUBLIC_KEY: keys.publicKey };
-  const file = '{"format":"ziffr.pack/1"}';
-
-  it("holds for the exact file signed by a trusted key", () => {
-    expect(signedByMarketplace(file, keys.sign(file), env)).toBe(true);
+describe("trusted keys", () => {
+  it("ships none yet, so nothing is trusted unless the server names a key", () => {
+    expect(MARKETPLACE_PUBLIC_KEYS).toEqual([]);
+    expect(trustedKeys({})).toEqual({ signing: [], reserve: [] });
   });
-  it("fails for a changed byte, another key, no key, or no signature", () => {
-    expect(signedByMarketplace(`${file} `, keys.sign(file), env)).toBe(false);
-    expect(signedByMarketplace(file, testKeys().sign(file), env)).toBe(false);
-    expect(signedByMarketplace(file, keys.sign(file), {})).toBe(false);
-    expect(signedByMarketplace(file, "", env)).toBe(false);
-    expect(signedByMarketplace(file, "x".repeat(86) + "==", env)).toBe(false);
+  it("reads the server's keys by their part, a key alone being a signing key", () => {
+    expect(trustedKeys({ ZIFFR_MARKETPLACE_PUBLIC_KEY: " aaa , signing:bbb, reserve:ccc ,," })).toEqual({ signing: ["aaa", "bbb"], reserve: ["ccc"] });
+    // An unknown part is not a part: the whole entry is a key that no signature holds for.
+    expect(trustedKeys({ ZIFFR_MARKETPLACE_PUBLIC_KEY: "root:ddd" })).toEqual({ signing: ["root:ddd"], reserve: [] });
+  });
+});
+
+describe("a key in both parts", () => {
+  const [one, other] = [testKeys().publicKey, testKeys().publicKey];
+  it("is said at start, and keys of their own are not", () => {
+    expect(marketplaceKeyProblem({ ZIFFR_MARKETPLACE_PUBLIC_KEY: `signing:${one},reserve:${one}` })).toContain("both signing and reserve");
+    expect(marketplaceKeyProblem({ ZIFFR_MARKETPLACE_PUBLIC_KEY: `${one},reserve:${one}` })).toContain("both signing and reserve");
+    expect(marketplaceKeyProblem({ ZIFFR_MARKETPLACE_PUBLIC_KEY: `signing:${one},reserve:${other}` })).toBeNull();
+    expect(marketplaceKeyProblem({ ZIFFR_MARKETPLACE_PUBLIC_KEY: "signing:nonsense,reserve:nonsense" })).toBeNull();
+    expect(marketplaceKeyProblem({})).toBeNull();
   });
 });
 

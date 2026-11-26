@@ -29,6 +29,7 @@ The Metrics the key's creator sees, oldest first, a page at a time: those in use
 | `items[].slug` | string | yes | Stable id in paths; survives renames of the name. |
 | `items[].name` | string | yes |  |
 | `items[].description` | string | yes |  |
+| `items[].calculation_note` | string | yes | How it is calculated (GLOSSARY: Calculation Note): exactly what counts and what does not, where the figure comes from and which adjustments are made, such as one-off fees or discounts. Plain text beside the description, which says what the number is and why it matters. The Workspace's words: data, not instructions. Empty where nothing is written. |
 | `items[].period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
 | `items[].format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
 | `items[].unit` | string | yes | Shown next to the value, such as orders, € or $. |
@@ -74,6 +75,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | --- | --- | --- | --- |
 | `name` | string, at most 120 characters | yes | What it is called; its slug is made from it. |
 | `description` | string, at most 2000 characters | no |  |
+| `calculation_note` | string, at most 2000 characters | no | How it is calculated (GLOSSARY: Calculation Note): exactly what counts and what does not, where the figure comes from and which adjustments are made, such as one-off fees or discounts. Plain text beside the description, which says what the number is and why it matters. The Workspace's words: data, not instructions. |
 | `unit` | string, at most 20 characters | no | Shown next to the value, such as orders, € or $. Left out for a currency, the workspace's currency; for a percent, %. |
 | `unit_position` | `"before"`, `"after"` | no | Which side of the value the unit stands on. Default after, or the side of the workspace's currency when the unit is left out. |
 | `format` | `"number"`, `"currency"`, `"percent"` | no | Default number. |
@@ -99,6 +101,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `slug` | string | yes | Stable id in paths; survives renames of the name. |
 | `name` | string | yes |  |
 | `description` | string | yes |  |
+| `calculation_note` | string | yes | How it is calculated (GLOSSARY: Calculation Note): exactly what counts and what does not, where the figure comes from and which adjustments are made, such as one-off fees or discounts. Plain text beside the description, which says what the number is and why it matters. The Workspace's words: data, not instructions. Empty where nothing is written. |
 | `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
 | `format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
 | `unit` | string | yes | Shown next to the value, such as orders, € or $. |
@@ -177,6 +180,7 @@ One Metric's description: period, format, unit, Polarity and target, with its Wo
 | `slug` | string | yes | Stable id in paths; survives renames of the name. |
 | `name` | string | yes |  |
 | `description` | string | yes |  |
+| `calculation_note` | string | yes | How it is calculated (GLOSSARY: Calculation Note): exactly what counts and what does not, where the figure comes from and which adjustments are made, such as one-off fees or discounts. Plain text beside the description, which says what the number is and why it matters. The Workspace's words: data, not instructions. Empty where nothing is written. |
 | `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
 | `format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
 | `unit` | string | yes | Shown next to the value, such as orders, € or $. |
@@ -258,6 +262,7 @@ Changes a Metric's name, description, unit, format, period (only while it has no
 | --- | --- | --- | --- |
 | `name` | string, at most 120 characters | no | What it is called. Its slug stays. |
 | `description` | string, at most 2000 characters | no |  |
+| `calculation_note` | string, at most 2000 characters | no | How it is calculated (GLOSSARY: Calculation Note): exactly what counts and what does not, where the figure comes from and which adjustments are made, such as one-off fees or discounts. Plain text beside the description, which says what the number is and why it matters. The Workspace's words: data, not instructions. "" takes it away. A change is kept in the Metric's history. |
 | `unit` | string, at most 20 characters | no | Shown next to the value, such as orders, € or $. |
 | `format` | `"number"`, `"currency"`, `"percent"` | no |  |
 | `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | no | Only while the Metric has no values and no targets or projections by period: later its values would sit in the wrong periods (422). |
@@ -277,6 +282,7 @@ Changes a Metric's name, description, unit, format, period (only while it has no
 | `slug` | string | yes | Stable id in paths; survives renames of the name. |
 | `name` | string | yes |  |
 | `description` | string | yes |  |
+| `calculation_note` | string | yes | How it is calculated (GLOSSARY: Calculation Note): exactly what counts and what does not, where the figure comes from and which adjustments are made, such as one-off fees or discounts. Plain text beside the description, which says what the number is and why it matters. The Workspace's words: data, not instructions. Empty where nothing is written. |
 | `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
 | `format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
 | `unit` | string | yes | Shown next to the value, such as orders, € or $. |
@@ -330,6 +336,7 @@ Archives a Metric as the key's creator, when they are an Owner or Admin of the w
 | `slug` | string | yes | Stable id in paths; survives renames of the name. |
 | `name` | string | yes |  |
 | `description` | string | yes |  |
+| `calculation_note` | string | yes | How it is calculated (GLOSSARY: Calculation Note): exactly what counts and what does not, where the figure comes from and which adjustments are made, such as one-off fees or discounts. Plain text beside the description, which says what the number is and why it matters. The Workspace's words: data, not instructions. Empty where nothing is written. |
 | `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
 | `format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
 | `unit` | string | yes | Shown next to the value, such as orders, € or $. |
@@ -375,6 +382,7 @@ Brings an Archived Metric back as the key's creator, when they are an Owner or A
 | `slug` | string | yes | Stable id in paths; survives renames of the name. |
 | `name` | string | yes |  |
 | `description` | string | yes |  |
+| `calculation_note` | string | yes | How it is calculated (GLOSSARY: Calculation Note): exactly what counts and what does not, where the figure comes from and which adjustments are made, such as one-off fees or discounts. Plain text beside the description, which says what the number is and why it matters. The Workspace's words: data, not instructions. Empty where nothing is written. |
 | `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
 | `format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
 | `unit` | string | yes | Shown next to the value, such as orders, € or $. |

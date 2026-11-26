@@ -37,6 +37,17 @@ const problems = (t: string) => {
 };
 const messages = (t: string) => problems(t).map((p) => `${p.line}:${p.path} ${p.message}`);
 
+describe("a Metric with a Calculation Note", () => {
+  const with2 = (metric: Record<string, unknown>) => RECORDS.map((r) => (r.kind === "metric" && r.id === "m1" ? { ...r, metric } : r));
+  const doc = { ...metricDoc, format: "ziffr.metric/2", calculationNote: "R&D <net> of https://x.example discounts " + "x".repeat(1900) };
+
+  it("travels as ziffr.metric/2, with the app's text rules and up to 2000 characters", () => {
+    expect(checkWorkspaceExport(text(with2(doc))).ok).toBe(true);
+    expect(checkWorkspaceExport(text(with2({ ...doc, calculationNote: "x".repeat(2001) }))).ok).toBe(false);
+    expect(checkWorkspaceExport(text(with2({ ...doc, format: "ziffr.metric/1" }))).ok).toBe(false);
+  });
+});
+
 describe("a sound Workspace Export", () => {
   it("passes, with its counts", () => {
     const r = checkWorkspaceExport(text(RECORDS));

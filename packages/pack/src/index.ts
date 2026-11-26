@@ -1,7 +1,7 @@
 // @ziffr/pack (GLOSSARY: Pack): the Pack format and the formats of the things in it, with the checks Ziffr runs on
 // every Pack it is given. Plain data, no code: a Pack this kit accepts is one Ziffr accepts.
 export { checkPack, checkPackValue, FEED_TEMPLATE_IDS, PACK_FORMAT, PACK_LICENSES, PACK_LIMITS, PACK_SCHEMA, UNSIGNED_WARNING, versionBelow, type Pack, type PackCheck, type PackItem, type PackKind } from "./pack.js";
-export { checkMetricFile, METRIC_FILE_SCHEMA, type MetricFile } from "./metric-file.js";
+export { checkMetricFile, METRIC_FILE_2_SCHEMA, METRIC_FILE_SCHEMA, type MetricFile } from "./metric-file.js";
 export { checkDashboardTemplateFile, DASHBOARD_TEMPLATE_SCHEMA, type DashboardTemplateFile } from "./dashboard-template-file.js";
 export { checkDeckTemplateFile, DECK_TEMPLATE_2_SCHEMA, DECK_TEMPLATE_SCHEMA, type DeckTemplateFile } from "./deck-template-file.js";
 export { SLIDE_ELEMENT_KINDS, SLIDE_ELEMENT_LIMITS, SLIDE_TONES, type SlideElement, type SlideElementKind, type SlideTone } from "./slide-element.js";

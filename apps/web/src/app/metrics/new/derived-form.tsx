@@ -13,6 +13,7 @@ import type { Period, Polarity } from "@ziffr/core/types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CalculationNoteField } from "../calculation-note-field";
 import { Textarea } from "@/components/ui/textarea";
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
@@ -59,7 +60,7 @@ export function DerivedForm({ choices }: { choices: FormulaChoice[] }) {
             </div>
             <div className="sm:col-span-2">
               <Label htmlFor="derived-description" className="mb-1.5 block">Description</Label>
-              <Textarea id="derived-description" name="description" rows={2} placeholder="What does the number say?" />
+              <Textarea id="derived-description" name="description" rows={2} placeholder="What is it, and why does it matter?" />
             </div>
           </div>
         </section>
@@ -107,6 +108,7 @@ export function DerivedForm({ choices }: { choices: FormulaChoice[] }) {
               </div>
             </>
           )}
+          <CalculationNoteField id="derived-calc" label="In words (optional)" className="mt-4" />
         </section>
 
         <section className="stock rounded-[var(--radius-card)] p-5">
