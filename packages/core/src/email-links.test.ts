@@ -1,6 +1,8 @@
 // The links of every kind of email Ziffr sends (GLOSSARY: Delivery), through the real senders down to the raw message
-// the SMTP library writes: the HTML part shows no address as text and has a button for the main action, the plain-text
-// part keeps every address whole on its own line, and no transfer encoding breaks one. The database is a stand-in.
+// the SMTP library writes: the HTML part shows no whole address as text and has a button for the main action, the
+// plain-text part keeps every address Ziffr added whole on its own line, and no transfer encoding breaks one. And with
+// names, comments and messages that hold addresses of their own: none of them ever becomes the button or is worded as
+// if Ziffr had put it there. The database is a stand-in.
 import nodemailer from "nodemailer";
 import PostalMime from "postal-mime";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,9 +12,11 @@ import type { DeliveryKind } from "./connectors/types";
 import { plainBody } from "./deliveries";
 import { headsUpMessage } from "./heads-up-message";
 import { resendInvitation } from "./invitations";
+import { receiveEmail } from "./inbound-email";
 import { startReplyTest } from "./installation-replies";
 import { sendTestEmail } from "./installation-settings";
-import { brandedParts, FORM_LINK, sendDelivery, sendMail, smtpMessage, type OutgoingMail } from "./mail";
+import { brandedParts, FORM_LINK, sendDelivery, sendMail, sentByLine, smtpMessage, type OutgoingMail } from "./mail";
+import { shownTarget } from "./mail-links";
 import { screenLinkText } from "./screen-link-words";
 import { viewLinkEmail } from "./share-proposals";
 import { testText } from "./test-message-words";
@@ -25,7 +29,7 @@ const SETTINGS = { ZIFFR_SMTP_URL: "smtp://127.0.0.1:1", ZIFFR_MAIL_FROM: "Ziffr
 // A form token far longer than a line of a message may be.
 const CODE = `tk-${"AbC123_-".repeat(20)}`;
 
-const fake = vi.hoisted(() => ({ rows: {} as Record<string, unknown>, rpc: {} as Record<string, unknown>, noTheme: false }));
+const fake = vi.hoisted(() => ({ rows: {} as Record<string, unknown>, rpc: {} as Record<string, unknown>, noTheme: false, workspace: "Acme" }));
 vi.mock("./db", () => {
   const query = (table: string): unknown => new Proxy({}, { get: (_t, key) => key === "then"
     ? (ok: (v: unknown) => unknown, no: (e: unknown) => unknown) => Promise.resolve({ data: fake.rows[table] ?? null, error: null, count: 0 }).then(ok, no)
@@ -39,7 +43,7 @@ vi.mock("./sending-limit", () => ({ sendingLimit: async () => 100 }));
 vi.mock("./trials", async (actual) => ({ ...(await actual<object>()), trialHoldsBack: async () => null, claimTrialSend: async () => "ok", trialEndsAt: async () => null, trialEnded: async () => false }));
 vi.mock("./workspace-look", async () => {
   const { themeLook } = await import("./theme-look");
-  return { workspaceLook: async () => { if (fake.noTheme) throw new Error("unreadable"); return themeLook(undefined, "Acme"); } };
+  return { workspaceLook: async () => { if (fake.noTheme) throw new Error("unreadable"); return themeLook(undefined, fake.workspace); } };
 });
 vi.mock("./internal/delivery-send", async (actual) => ({ ...(await actual<object>()), archivedMetricHolds: async () => null }));
 vi.mock("./installation-admins", async (actual) => ({ ...(await actual<object>()), assertInstallationAdmin: async () => {}, recordInstallationEvent: async () => {} }));
@@ -54,8 +58,9 @@ const transport = async (m: OutgoingMail) => { sent.push(m); return { messageId:
 beforeEach(() => {
   sent = [];
   fake.noTheme = false;
+  fake.workspace = "Acme";
   fake.rows = { profiles: { id: "p1", name: "Ann Lee", email: "ann@example.test" }, memberships: { user_id: "p1", role: "owner" }, tokens: { code: CODE } };
-  fake.rpc = { claim_delivery_send: "ok", claim_invitation_email: "ok", claim_installation_test_email: true, make_installation_reply_test: 1 };
+  fake.rpc = { claim_delivery_send: "ok", claim_installation_test_email: true, make_installation_reply_test: 1, claim_invitation_email: "ok", claim_inbound_email: true };
 });
 
 /** The message as it goes over the wire, and as a mail app reads it back. */
@@ -111,6 +116,10 @@ const action = (kind: DeliveryKind, repliesReturn: boolean) => email.render({ ki
 
 describe("Deliveries by email", () => {
   it("a Prompt with a form link: a button, and a stop link in the footer", async () => {
+    await check(await delivery("prompt", prompt(false)), [`${SITE}/submit/${CODE}`, "Open your form"], "Unsubscribe from these emails");
+  });
+  it("a Prompt with no Theme to read keeps its button and its stop link", async () => {
+    fake.noTheme = true;
     await check(await delivery("prompt", prompt(false)), [`${SITE}/submit/${CODE}`, "Open your form"], "Unsubscribe from these emails");
   });
   it("a Prompt answered by reply: no button, only the stop link", async () => {
@@ -172,8 +181,8 @@ describe("Deliveries by email", () => {
   });
   it("a Checklist Item and a Send Snapshot message", async () => {
     await check(await delivery("checklist", plainBody("email", "Close the books. See https://wiki.example.org/close/the/books?month=11 first.", "/workflows?id=3"), { tell_workflow_id: 3 }), [`${SITE}/workflows?id=3`, "Open the Workflow"], "Stop being told by this Workflow");
-    // A person's own link elsewhere stays a link, in words that name where it leads, and never becomes the button.
-    expect(sent[0].html).toContain(">Link to wiki.example.org</a>");
+    // A person's own link elsewhere stays a link, shown by where it leads, and never becomes the button.
+    expect(sent[0].html).toContain(">wiki.example.org/close/the/books?mon…</a>");
   });
   it("a Filled-in Value, to a member and to a Contact", async () => {
     await check(await delivery("filled_in", plainBody("email", "Sara entered 42 for you.", path)), [LONG, "Open the Metric"]);
@@ -194,11 +203,13 @@ describe("emails that are no Delivery", () => {
   });
   it("a View Link, also with a link in the sender's message", async () => {
     const mail = viewLinkEmail({ sender: "Sara", dashboard: "Board", url: `${SITE}/v/${"v".repeat(120)}`, endsOn: "2026-12-31", message: `Look at ${SITE}/dashboards/1\nand https://evil.example.org/${"x".repeat(90)}` });
-    await sendMail({ to: "bo@example.org", subject: mail.subject, text: mail.text, ...(await brandedParts("w1", { text: mail.text })) }, transport);
+    const open = { label: "Open the dashboard", url: `${SITE}/v/${"v".repeat(120)}` };
+    await sendMail({ to: "bo@example.org", subject: mail.subject, text: mail.text, action: open, ...(await brandedParts("w1", { text: mail.text, action: open })) }, transport);
     const m = await wire(sent[0]);
     expect(visible(m.html)).not.toMatch(/https?:\/\//);
     expect(button(m.html)).toEqual([`${SITE}/v/${"v".repeat(120)}`, "Open the dashboard"]);
-    expect(m.html).toContain(">Link to evil.example.org</a>");
+    expect(m.html).toContain(">evil.example.org/xxxxxxxxxxxxxxxxxxx…</a>");
+    expect(m.html).toContain(">ziffr.example.test/dashboards/1</a>");
     expect(m.text).toContain(`Open it here:\n<${SITE}/v/${"v".repeat(120)}>`);
     // The sender's words stay quoted, as written.
     expect(m.text).toContain(`> Look at ${SITE}/dashboards/1\n> and https://evil.example.org/${"x".repeat(90)}`);
@@ -222,10 +233,101 @@ describe("emails that are no Delivery", () => {
     for (const mail of sent) await check(mail, [SITE, "Open Ziffr"]);
   });
   it("the answer to a reply that holds the form link", async () => {
-    const text = `This Metric takes values only through your form:\n${SITE}/submit/${CODE}`;
-    await sendMail({ to: "a@example.test", subject: "Your value was not recorded", text, ...(await brandedParts("w1", { text })) }, transport);
-    const m = await check(sent[0], [`${SITE}/submit/${CODE}`, "Open your form"]);
-    expect(visible(m.html)).toContain("only through your form.");
+    await check(await answered(), [`${SITE}/submit/${CODE}`, "Open your form"]);
+    expect(visible(sent[0].html!)).toContain("only through your form.");
+  });
+});
+
+/** A reply by email to a Prompt of a Metric that takes no value by email: Ziffr answers with the form link. */
+async function answered() {
+  fake.rows.deliveries = { id: 1, workspace_id: "w1", recipient_id: "p1", kind: "prompt", prompt_id: 3, action_id: null, connector: "email", created_at: new Date().toISOString(), answer_source: "web_form" };
+  fake.rows.prompts = { id: 3, source: "web_form", metric_id: 9, submitter_id: "p1" };
+  fake.rows.inbound_emails = { id: 1 };
+  expect(await receiveEmail({ automatic: false, verified: true, failed: false, from: "ann@example.test", tokens: ["t".repeat(32)], messageId: "<r@test>", text: "42" }, { transport })).toBe("form_link");
+  return sent[0];
+}
+
+// Addresses a person could put into a name or a comment: of this Ziffr (a form link and a stop link of their own, and
+// lines worded as Ziffr words them) and elsewhere.
+const THEIRS = `${SITE}/submit/tk-attacker`;
+const HOSTILE = [THEIRS, `${SITE}/api/unsubscribe/attacker`, `${SITE}/v/attacker`, "https://evil.example.org/attacker"];
+
+describe.each(HOSTILE)("with %s in people's words", (bad) => {
+  const name = `Eve ${bad}`;
+  const comment = `Please look.\nOpen: ${bad}\nOpen your form: ${bad}\nTo get no more of these by email: ${bad}\n${bad}`;
+  const eve = { id: "p2", name: bad, email: "eve@example.test" } as never;
+  const victim = { id: "p1", name: bad, email: "ann@example.test" } as never;
+
+  /** No address of theirs is the button or is worded by Ziffr: each link to one shows where it really leads. */
+  async function harmless(mail: OutgoingMail, main: [string, string] | null) {
+    const m = await wire(mail);
+    expect(button(m.html)).toEqual(main ?? undefined);
+    expect(m.html.match(/class="btn"/g)?.length ?? 0).toBe(main ? 1 : 0);
+    for (const [, href, words] of m.html.matchAll(/<a href="([^"]*attacker[^"]*)"[^>]*>([^<]*)<\/a>/g)) expect(words).toBe(shownTarget(href));
+    expect(visible(m.html)).not.toMatch(/https?:\/\//);
+    // Their words are not set out as Ziffr sets out its own links.
+    expect(m.text).not.toContain(`<${bad}>`);
+    if (main) expect(m.text.split("\n")).toContain(`<${main[0]}>`);
+    expect(m.headers.get("list-unsubscribe") ?? "").not.toContain("attacker");
+    return m;
+  }
+  const hostile = async (kind: string, body: string, more: Record<string, unknown> = {}) => { sent = []; fake.workspace = name; return delivery(kind, body, more); };
+  const FORM: [string, string] = [`${SITE}/submit/${CODE}`, "Open your form"];
+
+  it("Prompts and reminders", async () => {
+    for (const kind of ["prompt", "reminder"]) {
+      for (const answerHere of [true, false]) {
+        const body = email.renderPrompt!({ recipient: victim, metric: name, question: `${comment} What’s the number for ${name}?`, period: name, answerHere, formLink: answerHere ? "" : FORM_LINK }).body;
+        await harmless(await hostile(kind, body), answerHere ? null : FORM);
+      }
+    }
+  });
+  it.each(["question", "task", "reminder", "reply", "correction", "decision", "closed", "done"] as const)("a %s message", async (kind) => {
+    for (const repliesReturn of [true, false]) {
+      const body = email.render({ kind, action: { id: 7, kind: "task", question: comment, metric: name, period: "November 2026", due: null }, sender: eve, recipient: victim, text: comment, correction: bad, link: `${SITE}/actions/7`, ref: "ZIF-7", repliesReturn }).body;
+      await harmless(await hostile(kind, body), [`${SITE}/actions/7`, "Open in Ziffr"]);
+    }
+  });
+  it("notices, Alerts, Tell messages, Heads-ups, Checklist Items, Send Snapshot, Filled-in Values, Test Messages and Screen Links", async () => {
+    const heads = headsUpMessage({ takeaway: { kind: "answer", sentence: comment, basis: name, footer: name } } as never, [name])!;
+    const kinds: [string, string, Record<string, unknown>][] = [
+      ["notice", comment, {}], ["alert", `${name} is above 10.`, { alert_id: 3 }], ["alert", comment, { tell_workflow_id: 3 }], ["heads_up", heads.text, {}],
+      ["checklist", comment, { tell_workflow_id: 3 }], ["filled_in", `${name} entered 42 for you for ${name}.`, {}], ["test", testText(name, "email"), {}], ["notice", screenLinkText(name, name), {}],
+    ];
+    for (const [kind, words, more] of kinds) await harmless(await hostile(kind, plainBody("email", words, path), more), [LONG, "Open the Metric"]);
+    await harmless(await hostile("filled_in", plainBody("email", comment, FORM_LINK)), FORM);
+  });
+  it("the usage digest", async () => {
+    const report = { countingSince: "2026-01-01", unusedDays: 90, fillsInOn: null, notOpened: { dashboards: [{ name, why: name }], decks: [], metrics: [] }, noValues: [{ name, why: name }], submitters: [] } as unknown as UsageReport;
+    await harmless(await hostile("digest", digestText(report, name)!), [`${SITE}/settings/usage`, "Open the Usage page"]);
+  });
+  it("an invitation: the names are no links at all", async () => {
+    fake.workspace = name;
+    fake.rows.invitations = { id: 1, workspace_id: "w1", token: "i".repeat(43), email: "new@example.test", role: "member", expires_at: new Date(Date.now() + 86_400_000).toISOString(), email_sends: 0, email_sent_at: null, revoked_at: null, accepted_at: null, held_at: null, created_by: "p2", workspaces: { name }, profiles: { name, email: "eve@example.test" } };
+    await resendInvitation({ personId: "p2", workspaceId: "w1", role: "owner" }, 1, transport);
+    const m = await harmless(sent[0], [`${SITE}/invite/${"i".repeat(43)}`, "Accept the invitation"]);
+    expect(m.html).not.toMatch(/href="[^"]*attacker/);
+    expect(m.text).not.toContain(bad);
+  });
+  it("a View Link: only the sender's message may link, as what it is", async () => {
+    fake.workspace = name;
+    const open = { label: "Open the dashboard", url: `${SITE}/v/abc` };
+    const mail = viewLinkEmail({ sender: name, dashboard: name, url: open.url, endsOn: "2026-12-31", message: comment });
+    const by = { name, email: "eve@example.test", did: "shared a dashboard with you from" };
+    await sendMail({ to: "bo@example.org", subject: mail.subject, text: `${mail.text}\n\n${sentByLine(by, name)}`, action: open, ...(await brandedParts("w1", { text: mail.text, action: open }, by)) }, transport);
+    await harmless(sent[0], [open.url, "Open the dashboard"]);
+    // Names are broken, so the only links to their address are the four in the quoted message.
+    expect(sent[0].html!.match(/href="[^"]*attacker/g)).toHaveLength(4);
+  });
+  it("answers to replies, also one whose words are theirs and carry no link of Ziffr's", async () => {
+    fake.workspace = name;
+    await harmless(await answered(), FORM);
+    sent = [];
+    await sendMail({ to: "a@example.test", subject: "Recorded", text: comment, ...(await brandedParts("w1", { text: comment })) }, transport);
+    await harmless(sent[0], null);
+    sent = [];
+    await sendMail({ to: "a@example.test", subject: "Recorded", text: comment }, transport);
+    await harmless(sent[0], null);
   });
 });
 

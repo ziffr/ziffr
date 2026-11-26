@@ -95,8 +95,9 @@ const ENDING = "The link works once, for an hour. If you did not ask for it, ign
 export function authMail(to: string, subject: string, lead: string, button: string, url: string) {
   const look = themeLook(undefined, "Ziffr");
   const text = `${lead}\n\n<${url}>\n\n${ENDING}`;
-  const html = emailHtml(look, { text, action: { label: button, url }, preheader: ENDING, sentBy: "Sent by Ziffr because this address was used to sign in." });
-  return { to, subject, text, html };
+  const action = { label: button, url };
+  const html = emailHtml(look, { text, action, preheader: ENDING, sentBy: "Sent by Ziffr because this address was used to sign in." });
+  return { to, subject, text, html, action };
 }
 
 /** Sends the email of one hook call, already checked for its signature: the sign-in link for its kind, to the

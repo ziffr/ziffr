@@ -470,7 +470,8 @@ export async function sendTestEmail(actor: InstallationActor, transport?: MailTr
     await (transport ?? smtpTransportWith(settings))(composed({
       to, subject: "Ziffr: test email",
       text: `This is a test email from Ziffr.\n\nIf you can read it, Ziffr can send email.\n\nOpen this Ziffr: ${settings.ZIFFR_SITE_URL}`,
-    }, settings));
+      action: { label: "Open Ziffr", url: String(settings.ZIFFR_SITE_URL) },
+    }));
   } catch (e) {
     throw new Error(testEmailError(e));
   }

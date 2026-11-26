@@ -32,8 +32,8 @@ const seen = async (w: Awaited<ReturnType<typeof ws>>, person: string, id: numbe
 
 /** A stub transport that keeps what would have been sent. */
 function outbox() {
-  const sent: { to: string; subject: string; text: string }[] = [];
-  const transport: MailTransport = async (m) => { sent.push({ to: m.to, subject: m.subject, text: m.text }); return { messageId: "stub" }; };
+  const sent: { to: string; subject: string; text: string; button?: string }[] = [];
+  const transport: MailTransport = async (m) => { sent.push({ to: m.to, subject: m.subject, text: m.text, button: m.action?.url }); return { messageId: "stub" }; };
   return { sent, transport };
 }
 
@@ -132,6 +132,8 @@ describe("confirming a View Link", () => {
     expect(mail.sent).toHaveLength(1);
     expect(mail.sent[0]).toMatchObject({ to: "jenny@example.test", subject: "Numbers were shared with you on Ziffr" });
     expect(mail.sent[0].text).toContain(`https://ziffr.example.test${done.linkPath}`);
+    // The button is the link Ziffr made, handed on as the action.
+    expect(mail.sent[0].button).toBe(`https://ziffr.example.test${done.linkPath}`);
     expect(mail.sent[0].text).toContain("> the coffee numbers.");
     expect(mail.sent[0].text).toContain("written by the sender");
     const links = await rowsOf("view_links", { workspace_id: w.id });

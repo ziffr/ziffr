@@ -5,6 +5,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
+import { unlinked } from "./mail-links";
 import { openNames } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor, type WorkspaceRoleName } from "./actor";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -93,7 +94,7 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
   if (claim !== "ok") return false;
   // Names people chose go in the body, quoted, never in the subject, so the subject cannot pass for another sender's.
   // Each on one line, at most 80 characters, without quote marks of its own, and always inside quotes after fixed text.
-  const named = (s: string) => headerSafe(s).replace(/[“”"«»„]/g, "'").slice(0, 80);
+  const named = (s: string) => unlinked(headerSafe(s)).replace(/[“”"«»„]/g, "'").slice(0, 80);
   const workspace = named((inv.workspaces as unknown as { name: string } | null)?.name ?? "a workspace");
   const inviterRow = inv.profiles as unknown as { id?: string; name: string; email: string | null } | null;
   // Read through openNames, as the accept page does, so a sealed name is never mailed as its sealed form.
@@ -102,20 +103,22 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
   const by = { name: inviter, email: inviterRow?.email, did: "invited you to" };
   const until = new Date(inv.expires_at).toISOString().slice(0, 10);
   const stopUrl = stopToken ? linkTo(`/api/unsubscribe/invitations/${stopToken}`) : undefined;
+  const join = linkTo(`/invite/${inv.token}`);
   const stop = stopUrl ? { label: "Do not invite me again (from any workspace on this Ziffr)", link: "Do not invite me again from any workspace on this Ziffr", url: stopUrl } : undefined;
   try {
     const words = [
         "Hi,", "",
         trialEnds ? `${trialInvitedWords(`“${inviter}”`, trialEnds.toISOString())} You are invited to join it as ${ROLE_LABEL[inv.role as WorkspaceRoleName] ?? "a Member"}.`
           : `You are invited to join the workspace “${workspace}” on Ziffr as ${ROLE_LABEL[inv.role as WorkspaceRoleName] ?? "a Member"}, by “${inviter}”.`, "",
-        `Join here: ${linkTo(`/invite/${inv.token}`)}`, "",
+        `Join here: ${join}`, "",
         `The invitation works until ${until}, and only for this address (${inv.email}).`,
         "The names above were chosen by the people in that workspace. If you did not expect this, you can ignore it.",
       "", sentByLine(by, workspace),
       ].join("\n");
     // The HTML shows the stop link in its footer (brandedParts), so the words it is made from do not hold it twice.
+    const action = { label: "Accept the invitation", url: join };
     const text = stop ? `${words}\n\n${stop.label}: ${stop.url}` : words;
-    await sendMail({ to: inv.email, subject: trialEnds ? "You are invited to a trial of Ziffr" : "You are invited to a workspace on Ziffr", text, ...(stopUrl ? { unsubscribe: stopUrl } : {}), ...(await brandedParts(inv.workspace_id, { text: words, ...(stop ? { stop } : {}) }, by)) }, transport);
+    await sendMail({ to: inv.email, subject: trialEnds ? "You are invited to a trial of Ziffr" : "You are invited to a workspace on Ziffr", text, ...(stopUrl ? { unsubscribe: stopUrl } : {}), action, ...(await brandedParts(inv.workspace_id, { text: words, action, ...(stop ? { stop } : {}) }, by)) }, transport);
     return true;
   } catch (e) {
     // Only the kind of failure: the server's own words may hold addresses or settings.

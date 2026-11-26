@@ -2,10 +2,10 @@
 // drawn from its default Theme: logo (or the Workspace's name), accent, footer. Table layout with inline styles, a
 // web-safe font stack, colours that stay readable when the reader's mail app is dark (a media query for the clients
 // that honour it, and the light colours already checked for contrast for the ones that do not). Everything a person
-// wrote is escaped, and a link is made only from an https: or http: address. No address is shown as text: the main
-// action is a button, every other link has a few words (mail-links.ts). The plain-text part is the caller's own text
-// and is always sent too. Pure.
-import { aroundAction, linkWords, mainAction, type MailAction, type OwnAddresses } from "./mail-links";
+// wrote is escaped, and a link is made only from an https: or http: address. No whole address is shown as text: the
+// action the caller names is a button, and every address in the words shows where it leads, cut short (mail-links.ts).
+// The plain-text part is the caller's own text and is always sent too. Pure.
+import { aroundAction, shownTarget, unlinked, type MailAction } from "./mail-links";
 import { contrastRatio, onFill, readableOn, type ThemeLook } from "./theme-look";
 import { FONTS } from "./themes";
 
@@ -35,27 +35,25 @@ export function emailLogo(look: Pick<ThemeLook, "logo">, max = 150_000): { conte
 /** What an email says, besides the brand: its paragraphs (the plain text, blank lines between them), the stop link for
  * its footer, and a short line shown before it opens (the preheader). */
 export type EmailContent = { text: string;
-  /** The one-click stop link, shown in the footer as the words `link` (else `label`). */
+  /** The one-click stop link Ziffr added, shown in the footer as the words `link` (else `label`). */
   stop?: { label: string; url: string; link?: string }; preheader?: string;
-  /** The button, where the line of the text that ends with its address stood (a sign-in link). Without one, the last
-   * address of this Ziffr in the text (`own`) is the button. */
+  /** The button, where the line of the text that ends with its address stood. Only an address Ziffr itself added:
+   * without one there is no button, whatever the text holds. */
   action?: MailAction;
-  /** This Ziffr's addresses: only they can become a button by themselves, and their links say so rather than naming a host. */
-  own?: OwnAddresses;
   /** Who is really behind the message, in Ziffr's own words; a fixed line in the footer that no Theme can change or remove. */
   sentBy?: string };
 
 // An address is linked only when it starts with https:// or http://.
 const safeUrl = (u: string) => /^https?:\/\//i.test(u) ? u : "#";
 
-// Text becomes paragraphs; an address becomes a link in words, also one in angle brackets; a "> " line is a quote.
-function paragraphs(text: string, own: OwnAddresses, accent: string, rule: string): string {
+// Text becomes paragraphs; an address becomes a link that shows where it leads; a "> " line is a quote.
+function paragraphs(text: string, accent: string, rule: string): string {
   const link = (line: string) => line.split(/(<https?:\/\/[^\s<>"']+>|https?:\/\/[^\s<>"']+)/g).map((part, i) => {
     if (i % 2 === 0) return esc(part);
     const bracketed = part.startsWith("<");
     const url = bracketed ? part.slice(1, -1) : part.replace(/[.,;:!?)]+$/, "");
     const rest = bracketed ? "" : part.slice(url.length);
-    return `<a href="${esc(url)}" class="accent" style="color:${accent};text-decoration:underline;word-break:break-word;">${esc(linkWords(url, own))}</a>${esc(rest)}`;
+    return `<a href="${esc(url)}" class="accent" style="color:${accent};text-decoration:underline;word-break:break-word;">${esc(shownTarget(url))}</a>${esc(rest)}`;
   }).join("");
   return text.replace(/\r\n?/g, "\n").trim().split(/\n{2,}/).filter(Boolean).map((block) => {
     const lines = block.split("\n");
@@ -83,11 +81,13 @@ export function emailHtml(look: ThemeLook, content: EmailContent, opts: { logo?:
   const stack = (s: string) => s.replace(/"/g, "'");
   const width = Math.min(look.logoWidth, 200);
   const height = Math.max(16, Math.min(56, Math.round(width / look.logoRatio)));
+  // A name people chose is never a link in the header or the footer, also not one a mail app would make by itself.
+  const name = unlinked(look.name);
   const header = opts.logo
-    ? `<img src="cid:${LOGO_CID}" alt="${esc(look.name)}" height="${height}" style="display:block;height:${height}px;width:auto;max-width:200px;border:0;">`
-    : `<span class="ink" style="font:600 20px/1.2 ${stack(heading)};color:${base.ink};">${esc(look.name)}</span>`;
+    ? `<img src="cid:${LOGO_CID}" alt="${esc(name)}" height="${height}" style="display:block;height:${height}px;width:auto;max-width:200px;border:0;">`
+    : `<span class="ink" style="font:600 20px/1.2 ${stack(heading)};color:${base.ink};">${esc(name)}</span>`;
   // Ziffr's own identity stays in every email: whatever the Theme's footer says, this line says who sent it and through what.
-  const footer = [look.footer, content.sentBy ?? `Sent by Ziffr for ${look.name}`].filter(Boolean);
+  const footer = [unlinked(look.footer), content.sentBy ?? `Sent by Ziffr for ${name}`].filter(Boolean);
   const css = `
     :root { color-scheme: light dark; supported-color-schemes: light dark; }
     ${themeIsDark || opts.scheme ? "" : `@media (prefers-color-scheme: dark) {
@@ -100,9 +100,8 @@ export function emailHtml(look: ThemeLook, content: EmailContent, opts: { logo?:
       .btn { color: ${onFill(night.accent)} !important; }
       .rule { border-color: ${night.rule} !important; }
     }`}`;
-  const own = content.own ?? [];
-  const action = content.action ?? mainAction(content.text, own);
-  const prose = (text: string) => paragraphs(text, own, base.accent, base.rule);
+  const { action } = content;
+  const prose = (text: string) => paragraphs(text, base.accent, base.rule);
   // A button every mail app draws: the colour is the table cell's, and so is the padding for Outlook, which ignores a
   // link's own; a reader's dark mode changes the colours through the classes.
   const button = (a: MailAction) => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;border-collapse:separate;"><tr><td class="bar" align="center" bgcolor="${base.accent}" style="background-color:${base.accent};border-radius:6px;mso-padding-alt:14px 28px;"><a href="${esc(safeUrl(a.url))}" class="btn" style="display:inline-block;padding:14px 28px;font:600 16px/1.2 ${stack(heading)};color:${onFill(base.accent)};text-decoration:none;border-radius:6px;">${esc(a.label)}</a></td></tr></table>`;
@@ -113,7 +112,7 @@ export function emailHtml(look: ThemeLook, content: EmailContent, opts: { logo?:
   } else words = prose(content.text);
   const stop = content.stop ? `<p style="margin:0 0 8px;font-size:13px;"><a href="${esc(safeUrl(content.stop.url))}" class="muted" style="color:${base.muted};text-decoration:underline;">${esc(content.stop.link ?? content.stop.label)}</a></p>` : "";
   const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${esc(look.name)}</title><style>${css}</style></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${esc(name)}</title><style>${css}</style></head>
 <body class="bg" style="margin:0;padding:0;background-color:${base.canvas};">
 ${content.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(content.preheader)}</div>` : ""}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg" style="background-color:${base.canvas};"><tr><td align="center" style="padding:24px 12px;">

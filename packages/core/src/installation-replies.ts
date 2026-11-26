@@ -74,7 +74,8 @@ export async function startReplyTest(actor: InstallationActor, transport?: MailT
     await (transport ?? smtpTransportWith(settings))(composed({
       to, subject: "Ziffr: test of replies by email", replyTo: replyAddress(token, settings),
       text: `This is a test from Ziffr.\n\nReply to this email with anything, such as "test". When your reply arrives, the Installation settings page says so.\n\nThe reply address works once, for ${REPLY_TEST_MINUTES} minutes.\n\nOpen this Ziffr: ${settings.ZIFFR_SITE_URL}`,
-    }, settings));
+      action: { label: "Open Ziffr", url: String(settings.ZIFFR_SITE_URL) },
+    }));
   } catch {
     await db().from("installation_reply_tests").update({ token_hash: null }).eq("id", id);
     throw new Error("The test email could not be sent. Try Send a test email in the Mail section first.");

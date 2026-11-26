@@ -17,7 +17,7 @@ import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { signDigestToken } from "./usage-digest-token";
 import { emailHtml, emailLogo, LOGO_CID, type EmailContent } from "./branded-email";
-import { plainWords, type OwnAddresses } from "./mail-links";
+import { appendedLink, buttonTo, plainWords, unlinked, type MailAction } from "./mail-links";
 import { themeLook } from "./theme-look";
 import { workspaceLook } from "./workspace-look";
 import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
@@ -42,39 +42,39 @@ export { FORM_LINK };
 export const OPT_OUT_KINDS = ["prompt", "reminder"];
 
 /** An email ready to go out: always the plain text, and with the Workspace's Theme also the same words as HTML (branded-email.ts)
- * and its logo as a picture to attach (shown as cid:ziffr-logo). `replyTo` is the Delivery's own reply address, when replies come back. */
-export type OutgoingMail = { to: string; subject: string; text: string; html?: string; logo?: { content: Buffer; contentType: string }; fromName?: string; replyTo?: string; unsubscribe?: string };
+ * and its logo as a picture to attach (shown as cid:ziffr-logo). `replyTo` is the Delivery's own reply address, when replies come back.
+ * `action` is the address Ziffr itself added to the words: the HTML's button, never taken from the words (mail-links.ts). */
+export type OutgoingMail = { to: string; subject: string; text: string; html?: string; logo?: { content: Buffer; contentType: string }; fromName?: string; replyTo?: string; unsubscribe?: string; action?: MailAction };
 
 /** Who really stands behind a message that goes to someone outside the Workspace, for its footer: the person, how to
  * reach them, and what they did ("invited you to", "shared a dashboard with you from"). */
 export type SentBy = { name: string; email?: string | null; did: string };
 
 /** The line that says so, in Ziffr's own words (also added to the plain text): the Workspace's brand never replaces it. */
-export const sentByLine = (by: SentBy, workspace: string) => `Sent by Ziffr for ${headerSafe(by.name)}${by.email ? ` (${headerSafe(by.email)})` : ""}, who ${by.did} ${headerSafe(workspace)}.`;
+export const sentByLine = (by: SentBy, workspace: string) => `Sent by Ziffr for ${unlinked(headerSafe(by.name))}${by.email ? ` (${unlinked(headerSafe(by.email))})` : ""}, who ${by.did} ${unlinked(headerSafe(workspace))}.`;
 
 /** The HTML part, logo and sender name of an email in a Workspace's Theme (GLOSSARY: Theme), for the words in `text`. The
  * From name is always "<Workspace> via <Installation's sender name>", so the brand never passes for Ziffr itself. */
-export async function brandedParts(workspaceId: string, content: Pick<EmailContent, "text" | "stop" | "own">, by?: SentBy): Promise<Pick<OutgoingMail, "html" | "logo" | "fromName">> {
-  // A Theme that cannot be read never holds a message back: it goes out in Ziffr's own look (composed).
+export async function brandedParts(workspaceId: string, content: Pick<EmailContent, "text" | "stop" | "action">, by?: SentBy): Promise<Pick<OutgoingMail, "html" | "logo" | "fromName">> {
+  // A Theme that cannot be read never holds a message back: it goes out in Ziffr's own look.
   try {
     const look = await workspaceLook(workspaceId);
     const logo = emailLogo(look) ?? undefined;
-    const own = content.own ?? ownAddresses(await settingsInEffect());
-    return { html: emailHtml(look, { ...content, own, ...(by ? { sentBy: sentByLine(by, look.name) } : {}) }, { logo: Boolean(logo) }), ...(logo ? { logo } : {}), fromName: look.name };
+    return { html: emailHtml(look, { ...content, ...(by ? { sentBy: sentByLine(by, look.name) } : {}) }, { logo: Boolean(logo) }), ...(logo ? { logo } : {}), fromName: look.name };
   } catch {
-    return {};
+    return { html: inZiffrsLook(content) };
   }
 }
 
-/** The addresses that are this Ziffr with these settings, for the links of an email (mail-links.ts). */
-export const ownAddresses = (settings: Settings): OwnAddresses => [String(settings.ZIFFR_SITE_URL ?? "")].filter(Boolean);
+/** The HTML of an email that carries no Workspace's brand. */
+const inZiffrsLook = (content: Pick<EmailContent, "text" | "stop" | "action">) => emailHtml(themeLook(undefined, "Ziffr"), { ...content, sentBy: "Sent by Ziffr." });
 
-/** An email as it leaves, whoever worded it: the plain text with every address of this Ziffr on a line of its own in
- * angle brackets, and always an HTML part beside it with a button and worded links, in Ziffr's own look when the caller
+/** An email as it leaves, whoever worded it: the plain text with each address Ziffr added (its action and its stop
+ * link) on a line of its own in angle brackets, and always an HTML part beside it, in Ziffr's own look when the caller
  * brought none. Every send goes through this. */
-export function composed(mail: OutgoingMail, settings: Settings): OutgoingMail {
-  const own = ownAddresses(settings);
-  return { ...mail, text: plainWords(mail.text, own), html: mail.html ?? emailHtml(themeLook(undefined, "Ziffr"), { text: mail.text, own, sentBy: "Sent by Ziffr." }) };
+export function composed(mail: OutgoingMail): OutgoingMail {
+  const added = [mail.action?.url, mail.unsubscribe].filter((u): u is string => Boolean(u));
+  return { ...mail, text: plainWords(mail.text, added), html: mail.html ?? inZiffrsLook({ text: mail.text, action: mail.action }) };
 }
 
 /** Sends one email and returns the provider's Message-ID; tests pass their own. */
@@ -189,7 +189,7 @@ export async function sendMail(mail: OutgoingMail, transport: MailTransport = sm
   const settings = await settingsInEffect();
   if (!mailEnabled(settings)) throw new Error("Email is not set up.");
   if (!isAddress(mail.to)) throw new Error("Not one plain email address.");
-  return (await transport(composed({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text), ...(mail.html ? { html: mail.html } : {}), ...(mail.logo ? { logo: mail.logo } : {}), ...(mail.fromName ? { fromName: mail.fromName } : {}), ...(mail.unsubscribe ? { unsubscribe: mail.unsubscribe } : {}) }, settings))).messageId;
+  return (await transport(composed({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text), ...(mail.html ? { html: mail.html } : {}), ...(mail.logo ? { logo: mail.logo } : {}), ...(mail.fromName ? { fromName: mail.fromName } : {}), ...(mail.unsubscribe ? { unsubscribe: mail.unsubscribe } : {}), ...(mail.action ? { action: mail.action } : {}) }))).messageId;
 }
 
 /** Whether replies by email come back into Ziffr with these settings (spec 0004, ticket #73): sending works,
@@ -286,13 +286,17 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   let text = await withFormLink(String(claimed.body), claimed, String(settings.ZIFFR_SITE_URL));
   // The same words again as HTML in the Workspace's Theme; the plain text below is sent with it, always.
   const words = text;
+  // The button is the link Ziffr put there: the Usage page for the digest, else the one appended to the words.
+  const site = String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "");
+  const target = claimed.kind === "digest" ? `${site}/settings/usage` : appendedLink(words, [site]);
+  const action = target ? buttonTo(target, [site]) : undefined;
   let stop: EmailContent["stop"];
   // An Alert email has a one-click link of its own that pauses that Alert only (email-opt-out.ts).
   // (the daily limit note names no Alert and has no link: deliveryFor would refuse it)
   if (stoppable || claimed.kind === "heads_up" || ((claimed.kind === "alert" || claimed.kind === "checklist") && (claimed.alert_id || claimed.tell_workflow_id))) {
     const token = claimed.unsubscribe_token ?? randomBytes(24).toString("base64url");
     if (!claimed.unsubscribe_token) await db().from("deliveries").update({ unsubscribe_token: token }).eq("id", id);
-    unsubscribe = `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/unsubscribe/${token}`;
+    unsubscribe = `${site}/api/unsubscribe/${token}`;
     const [label, link] = claimed.tell_workflow_id ? ["To stop being told by this Workflow", "Stop being told by this Workflow"]
       : claimed.kind === "heads_up" ? ["To get no more Heads-ups by message", "Stop Heads-ups by message"]
       : claimed.kind === "alert" ? ["To pause this Alert", "Pause this Alert"]
@@ -305,7 +309,7 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
     // sends none rather than one that cannot be stopped.
     const token = signDigestToken(claimed.recipient_id);
     if (!token) return fail("No key to sign the unsubscribe link.");
-    unsubscribe = `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/unsubscribe/digest/${token}`;
+    unsubscribe = `${site}/api/unsubscribe/digest/${token}`;
     stop = { label: "To get no more of these emails", link: "Unsubscribe from this digest", url: unsubscribe };
     text += `\n\n--\n${stop.label}: ${unsubscribe}`;
   }
@@ -318,8 +322,8 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
     replyTo = replyAddress(token, settings);
   }
   try {
-    const parts = await brandedParts(claimed.workspace_id, { text: words, stop, own: ownAddresses(settings) });
-    const { messageId } = await (transport === smtpTransport ? smtpTransportWith(settings) : transport)(composed({ to, subject: headerSafe(claimed.subject), text, ...parts, replyTo, unsubscribe }, settings));
+    const parts = await brandedParts(claimed.workspace_id, { text: words, stop, action });
+    const { messageId } = await (transport === smtpTransport ? smtpTransportWith(settings) : transport)(composed({ to, subject: headerSafe(claimed.subject), text, ...parts, replyTo, unsubscribe, action }));
     await db().from("deliveries").update({ mail_state: "sent", attempts, sent_at: new Date().toISOString(), provider_id: messageId.slice(0, 300) || null, last_error: null }).eq("id", id);
     return "sent";
   } catch (e) {
