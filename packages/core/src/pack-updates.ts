@@ -9,7 +9,7 @@ import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { checkPack, versionBelow, type Pack } from "./pack";
 import { cleanLogo, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
-import { assertManages, itemHash, packLogoOf, safeLogo, themeHashInput, itemKeys, keptManifest, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
+import { assertManages, itemHash, packLogoOf, safeLogo, themeHashInput, itemKeys, keptManifest, notBuiltYet, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
 import { packLogoAddress } from "./brand-logo";
 import { ensureBaseline, recordVersion } from "./versions";
 import type { ThemeSlides } from "./types";
@@ -193,9 +193,9 @@ async function planUpdate(actor: Actor, installId: number, text: string) {
   }
   for (const c of copies) if (!nextKeys.has(c.key)) leave(c, "removed");
   const blocked = pack.id !== install.pack_id ? `This file is the Pack “${pack.id}”, not “${install.pack_id}”.`
-    : !versionBelow(install.version, pack.version) ? `This file is version ${pack.version}; ${install.version} is installed. An update needs a higher version.`
+    : notBuiltYet(pack) ?? (!versionBelow(install.version, pack.version) ? `This file is version ${pack.version}; ${install.version} is installed. An update needs a higher version.`
       : (copies.some((c) => c.table === "themes") || next.themes.length) && actor.role !== "owner" ? "This Pack holds Themes, and only Owners change Themes: an Owner updates it."
-        : await overCaps(actor, ops);
+        : await overCaps(actor, ops));
   const was = oldLogo;
   const now = safeLogo(pack);
   const logo = { before: packLogoAddress(actor.workspaceId, installId, install.manifest.logo), after: now, changed: was !== now };
