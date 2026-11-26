@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { openNames, openOne, openRows, reserveIds, sealRow, sealedPatch } from "./sealed-columns";
 import { CONNECTORS } from "./connectors/index";
-import { REMOVED_BEFORE_SENT, type FirstAsk } from "./asked-message";
+import type { FirstAsk } from "./asked-message";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { parseSeriesLine } from "./series-lines";
 import { assertSeesMetrics } from "./sharing";
@@ -33,6 +33,7 @@ import { DemoTextRefused, inDemoVisit, visitorOptionalText, visitorText } from "
 import { visitorMembersOnly, visitorNumber, visitorSeries, visitorSlug } from "./demo-visitor-metrics";
 import { DEMO_METRIC_WORDS } from "./demo-words";
 import { calculationNoteFrom } from "./calculation-note";
+import { REMOVED_BEFORE_SENT } from "./asked-message";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month", "quarter", "year"];
