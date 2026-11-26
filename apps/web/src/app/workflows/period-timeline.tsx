@@ -44,7 +44,7 @@ export function PeriodTimelines({ timelines }: { timelines: PeriodTimeline[] }) 
                           <span aria-hidden className={cn("absolute top-1.5 left-0 size-[7px] rounded-full border border-[var(--color-rule-2)] bg-card", (e.kind === "locked" || e.kind === "published") && "bg-[var(--color-ink)]")} />
                           <span className="w-11 shrink-0 text-xs tabular-nums text-muted-foreground">{e.time}</span>
                           <div className="min-w-0">
-                            <p>{e.path ? <Link href={e.path} className="hover:underline">{e.text}</Link> : e.text}</p>
+                            <p>{e.path ? <Link href={e.path} className="hover:underline max-sm:block max-sm:py-3">{e.text}</Link> : e.text}</p>
                             {e.items.length > 0 && <p className="text-xs text-muted-foreground">{e.items.join("; ")}</p>}
                           </div>
                         </li>

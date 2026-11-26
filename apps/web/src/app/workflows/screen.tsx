@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, BellRing, Camera, CheckCheck, CircleUserRound, ListChecks, Lock, Megaphone, Plus, Play, ScanSearch, Send, Trash2, TriangleAlert } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, BellRing, Camera, CheckCheck, CircleUserRound, ListChecks, Lock, Megaphone, Plus, Play, ScanSearch, Send, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -52,7 +52,7 @@ type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null
 /** When Workflows run in a real workspace, and its last run; null in the demo, which pretends a day instead. */
 type Schedule = { timeZone: string; runHour: number; today: string; hour: number; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
 
-export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, askingRun = null, canRun, yearStart, templates = [], canCreate = true, timelines = [], tellFacts = { groups: [], webhooks: [], steps: [] }, checklistPaused = null, dashboards = [], fillIns = [], numberStyle }: {
+export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, askingRun = null, canRun, yearStart, templates = [], picked = false, canCreate = true, timelines = [], tellFacts = { groups: [], webhooks: [], steps: [] }, checklistPaused = null, dashboards = [], fillIns = [], numberStyle }: {
   numberStyle: NumberStyle;
   /** Where the viewer may fill in for a submitter, by Metric (decided in the core, which checks again on saving). */
   fillIns?: FillInOffer[];
@@ -68,6 +68,8 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
   timelines?: PeriodTimeline[];
   /** The team's Workflow Templates (spec 0030). */
   templates?: WorkflowTemplateSummary[];
+  /** The address names a Workflow: on a phone its editor is a screen of its own, and the list is the screen before it. */
+  picked?: boolean;
   /** May make Workflows and templates: not a Guest. */
   canCreate?: boolean;
   yearStart: YearStart; schedule: Schedule | null; canRun: boolean; viewer: string; people: Profile[]; feeds?: { id: string; name: string }[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period" | "unit"> & { workflow_id: number | null; mine: boolean })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
@@ -96,7 +98,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
   return (
     <div className="grid gap-8 lg:grid-cols-[14rem_minmax(0,1fr)]">
       {dialog}
-      <nav aria-label="Workflows" className="space-y-1">
+      <nav aria-label="Workflows" className={cn("space-y-1", picked && "max-md:hidden")}>
         {workflows.map((w) => (
           <Link key={w.id} href={`/workflows?id=${w.id}`} aria-current={w.id === current?.id ? "page" : undefined} className={cn("block rounded-[var(--radius-input)] px-2.5 py-2 text-sm hover:bg-muted", w.id === current?.id && "stock font-medium")}>
             {w.name}
@@ -108,20 +110,21 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
       </nav>
 
       {current && (
-        <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className={cn("grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]", !picked && "max-md:hidden")}>
           <section aria-label="Steps" className="min-w-0">
+            <Link href="/workflows" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm underline md:hidden"><ArrowLeft aria-hidden className="size-4" /> All workflows</Link>
             <div className="flex flex-wrap items-end gap-3">
-              <label className="min-w-0 flex-1">
+              <label className="min-w-0 flex-1 max-sm:basis-full">
                 <span className="mb-1 block text-xs font-medium">Name</span>
                 <Input value={name} disabled={!canEdit} onChange={(e) => setName(e.target.value)} />
               </label>
-              <label className="w-40">
+              <label className="w-40 max-sm:w-full">
                 <span className="mb-1 block text-xs font-medium">Due, working days after the period</span>
                 <Input type="number" min={0} max={30} value={cfg.dueWorkingDays} disabled={!canEdit} onChange={(e) => setCfg({ ...cfg, dueWorkingDays: Number(e.target.value) })} />
               </label>
             </div>
 
-            <label className="mt-3 flex items-center gap-2 text-xs">
+            <label className="mt-3 flex items-center gap-2 text-xs max-sm:min-h-11">
               <input type="checkbox" checked={cfg.lockSummary === true} disabled={!canEdit} onChange={(e) => setCfg({ ...cfg, lockSummary: e.target.checked })} className="size-4 accent-[var(--color-ink)]" />
               Tell the owner when a period locks
             </label>
@@ -136,7 +139,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
               {steps.map((s, i) => (
                 <Node key={i} icon={ICON[s.type]} title={STEP_TITLE[s.type]} text={stepLabel(s, people, tellFacts.groups, dashboards)}
                   controls={canEdit && (
-                    <span className="flex gap-0.5">
+                    <span className="flex gap-0.5 max-sm:self-end">
                       {s.type !== "publish" && i > 0 && <IconBtn label={`Move ${STEP_TITLE[s.type]} (step ${i + 1}) earlier`} onClick={() => move(i, -1)}><ArrowUp className="size-3.5" /></IconBtn>}
                       {s.type !== "publish" && i < steps.length - 1 && steps[i + 1]?.type !== "publish" && <IconBtn label={`Move ${STEP_TITLE[s.type]} (step ${i + 1}) later`} onClick={() => move(i, 1)}><ArrowDown className="size-3.5" /></IconBtn>}
                       {s.type !== "publish" && <IconBtn label={`Remove ${STEP_TITLE[s.type]} (step ${i + 1})`} onClick={() => setCfg({ ...cfg, steps: steps.filter((_, j) => j !== i) })}><Trash2 className="size-3.5" /></IconBtn>}
@@ -154,7 +157,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
               <div className="mt-4 flex flex-wrap gap-2 pl-12">
                 <DropdownMenu>
                   <DropdownMenuTrigger className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-input)] border border-input bg-card px-3 text-sm"><Plus aria-hidden className="size-4" /> Add step</DropdownMenuTrigger>
-                  <DropdownMenuContent>
+                  <DropdownMenuContent className="max-sm:min-w-48">
                     {(["remind", "escalate", "check", "approve", "tell", "checklist", "send_snapshot"] as const).filter((t) => t === "tell" ? steps.filter((x) => x.type === "tell").length < TELL_STEPS_PER_WORKFLOW : t === "checklist" ? steps.filter((x) => x.type === "checklist").length < CHECKLIST_ITEMS_PER_WORKFLOW : (t !== "check" && t !== "approve" && t !== "send_snapshot") || !steps.some((x) => x.type === t)).map((t) => {
                       const Icon = ICON[t];
                       // Send Snapshot goes when the period is finished, which needs a locking Publish step: adding it ticks the lock.
@@ -182,7 +185,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
                   return (
                     <li key={m.id} className="stock rounded-[var(--radius-card)] p-3 text-sm">
                       <div className="flex items-start justify-between gap-2">
-                        <Link href={`/metrics/${m.slug}`} className="font-medium hover:underline">{m.name}</Link>
+                        <Link href={`/metrics/${m.slug}`} className="font-medium hover:underline max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">{m.name}</Link>
                         {m.mine && <Button variant="ghost" size="sm" className="h-6 px-1.5 text-xs" disabled={pending} aria-label={`Take ${m.name} off this workflow`} onClick={() => run(async () => { unwrap(await setMetricWorkflow(m.id, null)); toast.success(`${m.name} is off this workflow`); router.refresh(); })}>Remove</Button>}
                       </div>
                       <div className="text-xs text-muted-foreground">{periodLabel(period, m.period, yearStart)}, due {formatDate(dueDate(period, m.period, cfg))}</div>
@@ -234,7 +237,7 @@ function Node({ icon: Icon, title, text, controls, children }: { icon: typeof Se
     <li className="relative flex gap-3">
       <span className="z-[1] flex size-10 shrink-0 items-center justify-center rounded-full border border-[var(--color-rule-2)] bg-card"><Icon aria-hidden className="size-4" /></span>
       <div className="stock min-w-0 flex-1 rounded-[var(--radius-card)] p-3 text-sm">
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-2 max-sm:flex-col max-sm:gap-0">
           <div className="min-w-0 flex-1"><span className="font-semibold">{title}</span><p className="text-muted-foreground">{text}</p></div>
           {controls}
         </div>
@@ -263,7 +266,7 @@ function StepFields({ s, people, submitters, tellFacts, dashboards, lockHeld, on
       {s.type === "check" && (
         <>
           <label className="flex items-center gap-1.5">changes more than {num(s.changePct, (n) => onChange({ ...s, changePct: n }), 1000)} %</label>
-          <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.outsideTarget} onChange={(e) => onChange({ ...s, outsideTarget: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> or outside the target</label>
+          <label className="flex items-center gap-1.5 max-sm:min-h-11"><input type="checkbox" checked={s.outsideTarget} onChange={(e) => onChange({ ...s, outsideTarget: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> or outside the target</label>
         </>
       )}
       {s.type === "approve" && (
@@ -302,7 +305,7 @@ function StepFields({ s, people, submitters, tellFacts, dashboards, lockHeld, on
       {s.type === "tell" && <TellFields s={s} people={people} tellFacts={tellFacts} onChange={onChange} field={field} />}
       {s.type === "checklist" && <ChecklistFields s={s} people={people} tellFacts={tellFacts} onChange={onChange} field={field} />}
       {s.type === "send_snapshot" && <SnapshotFields s={s} people={people} dashboards={dashboards} tellFacts={tellFacts} onChange={onChange} field={field} />}
-      {s.type === "publish" && <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.lock} disabled={lockHeld} onChange={(e) => onChange({ ...s, lock: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> lock the period once published{lockHeld && <span>(kept on: the Send Snapshot step waits for the lock)</span>}</label>}
+      {s.type === "publish" && <label className="flex items-center gap-1.5 max-sm:min-h-11 max-sm:flex-wrap"><input type="checkbox" checked={s.lock} disabled={lockHeld} onChange={(e) => onChange({ ...s, lock: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> lock the period once published{lockHeld && <span className="max-sm:basis-full">(kept on: the Send Snapshot step waits for the lock)</span>}</label>}
     </div>
   );
 }
@@ -484,7 +487,7 @@ function AddMetrics({ workflow, metrics, workflows, pending, onAdd }: { workflow
       <ul className="max-h-60 space-y-1 overflow-auto">
         {offered.map((m) => (
           <li key={m.id}>
-            <label className="flex items-start gap-2">
+            <label className="flex items-start gap-2 max-sm:min-h-11">
               <input type="checkbox" className="mt-1" checked={picked.includes(m.id)} onChange={(e) => setPicked(e.target.checked ? [...picked, m.id] : picked.filter((x) => x !== m.id))} />
               <span>{m.name}{m.workflow_id !== null && <span className="text-xs text-muted-foreground"> (now on {workflows.find((w) => w.id === m.workflow_id)?.name ?? "another workflow"})</span>}</span>
             </label>

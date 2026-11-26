@@ -38,7 +38,7 @@ export function CalendarLink({ link, demo }: { link: CalendarLinkInfo | null; de
     <section aria-labelledby="calendar-heading" className="space-y-3 border-t border-border pt-6">
       <div>
         <h2 id="calendar-heading" className="font-medium">In your calendar</h2>
-        <p className="max-w-[62ch] text-sm text-muted-foreground">A Calendar Link puts these dates in your calendar app as all-day entries, each linking here, from 30 days back to 90 days ahead. Entries without a date are left out. Anyone with the address sees what it shows, so keep it to yourself.</p>
+        <p className="max-w-[62ch] text-sm text-muted-foreground">Show these dates in your calendar app, as all-day entries that open here. Anyone with the address sees them, so keep it to yourself.</p>
       </div>
       {demo ? <p className="text-sm text-muted-foreground">The demo has no Calendar Links. Make one in your own Workspace.</p> : (
         <>

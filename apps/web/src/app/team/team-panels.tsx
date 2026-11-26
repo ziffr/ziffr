@@ -72,7 +72,7 @@ export function PersonPanel({ id }: { id: string }) {
           <ul className="space-y-1">
             {data.groups.map((g) => (
               <li key={g.id}>
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2 max-sm:min-h-11">
                   <input type="checkbox" aria-label={`${person.name} in ${g.name}`} checked={g.members.includes(person.id)} disabled={pending} onChange={(e) => run(() => setMember(g.id, person.id, e.target.checked))} className="size-4 accent-[var(--color-ink)]" />
                   {g.name}
                 </label>
@@ -209,7 +209,7 @@ export function InvitePanel() {
         <p>{link.emailed === null ? "Send this link:" : link.emailed ? "Emailed. You can also send this link yourself:" : "Not emailed. Send this link yourself:"} <input readOnly value={link.url} onFocus={(e) => e.target.select()} aria-label="Invitation link" className={`${field} mt-1 w-full font-mono`} /></p>
       )}
       {data.isOwner && !data.trial && (
-        <label className="flex items-start gap-2">
+        <label className="flex items-start gap-2 max-sm:min-h-11">
           <input type="checkbox" checked={Boolean(data.joinDomain)} disabled={pending || (!data.joinDomain && !data.myDomain)} onChange={(e) => run(() => setDomainJoining(e.target.checked))} className="mt-0.5 size-4 accent-[var(--color-ink)]" />
           {data.joinDomain ? `People with an address at ${data.joinDomain} may ask to join` : data.myDomain ? `Let people with an address at ${data.myDomain} ask to join` : "Domain joining needs a verified company address"}
         </label>

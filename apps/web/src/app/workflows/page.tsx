@@ -33,7 +33,7 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
   const asOf = sp.asOf && /^\d{4}-\d{2}-\d{2}$/.test(sp.asOf) ? sp.asOf : format(new Date(), "yyyy-MM-dd");
   return (
     <>
-      <PageHeader title="Workflows" sub="The path a value takes each period: who is asked, when they are reminded, who steps in, which values need approval, and when a period locks." />
+      <PageHeader title="Workflows" sub="Who is asked for a value, when they are reminded, and who approves it, each period." />
       <WorkflowsScreen
         key={current ? `${current.id}-${current.updated_at}` : "new"}
         viewer={viewer}
@@ -50,6 +50,7 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
         canRun={actor.role === "owner" || actor.role === "admin"}
         yearStart={yearStart}
         templates={await listWorkflowTemplates(actor)}
+        picked={Boolean(current && current.id === Number(sp.id))}
         canCreate={can(actor, "create")}
         timelines={timelines}
         tellFacts={await tellEditorFacts(actor, current?.id ?? null)}

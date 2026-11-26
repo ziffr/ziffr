@@ -154,6 +154,7 @@ Above the schedule a switch chooses how it is shown: **List** (the lines above),
 - **Week** has a column for each day, from the Workspace's first day of the week (Monday, unless an Owner or Admin chose Sunday in **Workspace → General**), with today marked. Each duty is a small card in its kind's colour, with its words as in the list; click it to open what the list line opens. On a phone the week becomes an agenda, one day under the other.
 - **Month** shows up to three cards per day, and **+ 2 more** opens that day's whole list below the grid. On a phone each day shows dots for its duties instead; touch a day to read its duties below the grid.
 - Something **Overdue** sits on today, marked as late, with the day it was originally due. Tasks without a due date and Questions stay under **No date**, in every view.
+- On a phone the choices above the schedule and the **List**, **Week** and **Month** switch are large enough to tap with a thumb.
 - With the keyboard, the arrow keys move between days, Enter opens a day, and a screen reader reads each day with its duties as a list.
 
 Your assistant can read the same list: ask it "What do I have to do in Ziffr this week?" (see [Working with an assistant](#working-with-an-assistant)).

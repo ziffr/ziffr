@@ -28,21 +28,23 @@ export function Preferences({ viewer, isOwner, people, prefs }: { viewer: string
   return (
   <section aria-labelledby="p-h">
     <h2 id="p-h" className="text-[length:var(--text-lg)]">Who gets what, where</h2>
-    <p className="mt-1 mb-3 max-w-prose text-sm text-muted-foreground">Everyone chooses for themselves; the team default covers the rest. A Prompt can go by up to three ways at once, for example Slack and email: the first answer counts, the other messages are updated where the way allows, and reminders go by the first way only. Replies about a question or task stay where it started, so a ticket collects its comments. Whoever asks can pick another way for one message.</p>
+    <p className="mt-1 mb-3 max-w-prose text-sm text-muted-foreground">Everyone chooses how Ziffr reaches them; the team default covers the rest. A request for a value can go up to three ways at once, such as Slack and email: the first answer counts, and reminders go the first way only. Replies stay where a question or task started. Whoever asks can pick another way for one message.</p>
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[40rem] text-sm">
-        <thead>
+      {/* On a phone each person is a card, with a labelled choice under their name for each kind of message. */}
+      <table className="w-full text-sm max-sm:block sm:min-w-[40rem]">
+        <thead className="max-sm:sr-only">
           <tr className="text-left text-xs text-muted-foreground">
             <th className="py-2 pr-3 font-medium">Person</th>
             {KINDS.map((k) => <th key={k.id} className="py-2 pr-3 font-medium">{k.label}</th>)}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="max-sm:block">
           {[{ id: null as string | null, label: "Team default", can: isOwner }, ...people.filter((p) => !p.contact).map((p) => ({ id: p.id as string | null, label: p.name, can: p.id === viewer }))].map((row) => (
-            <tr key={row.id ?? "team"} className="border-t border-border">
-              <th scope="row" className="py-2 pr-3 text-left font-medium">{row.label}{row.id === viewer && <span className="font-normal text-muted-foreground">, you</span>}</th>
+            <tr key={row.id ?? "team"} className="border-t border-border max-sm:block max-sm:py-2">
+              <th scope="row" className="py-2 pr-3 text-left font-medium max-sm:block max-sm:pb-0">{row.label}{row.id === viewer && <span className="font-normal text-muted-foreground">, you</span>}</th>
               {KINDS.map((k) => (
-                <td key={k.id} className="py-2 pr-3">
+                <td key={k.id} className="py-2 pr-3 max-sm:block max-sm:pr-0 max-sm:pb-0">
+                  <span aria-hidden className="mb-1 block text-xs text-muted-foreground sm:hidden">{k.label}</span>
                   {k.id === "reminder" ? (
                     <PromptWays list={list(row.id, k.id)} teamDefault={list(null, k.id)} team={row.id === null} disabled={!row.can || pending} label={`${k.label} for ${row.label}`} onChange={(next) => save(row.id, k.id, next)} />
                   ) : (

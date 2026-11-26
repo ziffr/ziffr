@@ -409,6 +409,8 @@ If you stopped Prompts and reminders by email, a note at the top of **Channels**
 
 The **Who gets what** tab: a table of **Delivery Preferences**: one row per person and one column each for **Questions**, **Tasks**, **Prompts and reminders** and **Replies and updates**.
 
+On a phone each person is a card, with the four choices under their name.
+
 - The first row, **Team default**, covers everyone who leaves a column open. Only Owners and Admins change it. Without a team default, Ziffr uses email.
 - Your own row is marked "you". Change it here or under **Your Deliveries**. Everyone else's row is greyed out.
 - Under **Prompts and reminders** a person can pick up to three ways, in order: the first select is the first way, the others are **Also by**. A Prompt goes by every way in the list at once and the first answer counts; reminders go by the first way only. The team default can be a list too. Where there is neither, the column reads "Default: every way you've connected".
@@ -629,6 +631,8 @@ Owners (not Admins) get one plain-text email a month about the same lists, in th
 ## Audit log
 
 **Workspace → Audit log** is for Owners and Admins only. It is the **Audit Log**: who changed who may see or do what, and the decisions taken on numbers. Nothing in it can be changed or removed, and events are kept for two years, or for the days the Installation Admin has set (the page says how long). Times are shown in the Workspace's time zone.
+
+On a phone each event is a small card (when, who, what, details) instead of a table row.
 
 On a phone the filter (**Person**, **What happened**, **From**, **To**, **Show**) stacks one field under the other, and the **Section** menu above it names the Settings page you are on. The bar at the bottom of the screen fits even a phone 320 px wide.
 

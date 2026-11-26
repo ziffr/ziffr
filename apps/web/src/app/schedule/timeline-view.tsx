@@ -33,7 +33,7 @@ export function TimelineList({ timeline }: { timeline: ActionsTimeline }) {
                 <span className="w-11 shrink-0 text-xs tabular-nums text-muted-foreground">{e.time}</span>
                 <div className="min-w-0">
                   <p>
-                    {e.path ? <Link href={e.path} className="hover:underline">{e.text}</Link> : e.text}
+                    {e.path ? <Link href={e.path} className="hover:underline max-sm:block max-sm:py-3">{e.text}</Link> : e.text}
                     {e.tone === "attention" && <span className="ml-2 rounded-[var(--radius-input)] border border-foreground px-1.5 text-xs font-medium">Needs attention</span>}
                     {e.tone === "finished" && <Check aria-label="Finished" className="ml-1.5 inline size-3.5 text-muted-foreground" />}
                   </p>

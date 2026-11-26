@@ -25,7 +25,7 @@ export function ChannelCards({ demo, email, slack, telegram, ways, installationA
             <ul className="mt-3 space-y-0.5 text-xs">
               {c.capabilities.map((k) => <li key={k} className="flex items-center gap-1.5"><CheckCircle2 aria-hidden className="size-3.5 text-[var(--color-success)]" /> {CAPABILITY_LABEL[k]}</li>)}
             </ul>
-            {c.sourceId && demo && <Link href="/connectors/sources" aria-label={`Try sending a value by ${c.label}`} className="mt-3 inline-block text-xs underline">Try sending a value</Link>}
+            {c.sourceId && demo && <Link href="/connectors/sources" aria-label={`Try sending a value by ${c.label}`} className="mt-3 inline-block text-xs underline max-sm:mt-1 max-sm:flex max-sm:min-h-11 max-sm:items-center">Try sending a value</Link>}
             {/* Real, simulated or off, from the core's whatWorksHere (spec 0021), so it says what the queue does. */}
             {ways.find((w) => w.way === id) ? <WayLine way={ways.find((w) => w.way === id)!} className="mt-3" /> : (
               <p className="mt-3 text-xs text-muted-foreground">{id === "email" && email !== "off" ? (email === "both" ? "Sends real email; replies come back." : "Sends real email; answers are given in Ziffr.") : id === "slack" && slack === "connected" ? "Sends real direct messages; answers in the thread come back." : id === "telegram" && telegram === "on" ? "Sends real messages to everyone who connected their Telegram; replies come back." : demo ? "Played in the demo: answer in the Outbox as the recipient." : "Not connected yet. Ziffr keeps what it would send in the Outbox."}</p>
