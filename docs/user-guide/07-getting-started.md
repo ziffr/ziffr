@@ -133,7 +133,13 @@ This step is for Owners and Admins; a Member and a Guest never see it. It does t
 
 The step ticks once someone beside you is in the Workspace, an invitation is waiting, Domain Joining is on, or a Contact is asked for at least one Metric. A Contact that only exists does not count. Revoking the last invitation later does not reopen a finished guide.
 
-**In a trial**, invitations open once your first value has arrived, and the step says so ("Invitations open once your first value has arrived. Answer your first request in the First Metric step, then come back here."). A trial invites by email only: there is no link and no Domain Joining, as [the trial](16-workspace-settings.md#on-a-ziffr-that-offers-trials) describes. After the trial has ended, nobody can be invited.
+**In a trial**, invitations open once the Owner has sent in a first value of their own. Until then the fields are greyed out, and a box right above them, **Invitations are not open yet**, says why (an invitation is an email to an address nobody has confirmed yet, and this keeps automated sign-ups from using a trial to send mail) and what opens them:
+
+- It names one Metric you send values for, with **Ask me now** (then reply to the request) and **Record a value**. Either counts, and so does a reply by your form link; a value from a Feed or an Import does not.
+- If you send values for no Metric yet, for example right after starting from a Pack, it offers **Make a Metric** and **Go to the First Metric step**. Add yourself as the Metric's Submitter.
+- An Admin reads that an Owner has to send in that value.
+
+The fields open by themselves a few seconds after the value arrives, without reloading the page, and the box says **Invitations are open now**. When every place of the trial is taken, the fields are greyed out too and the box says how to free one. After the trial has ended, nobody can be invited. The same box shows in **Invite** on Members and Groups and under **Invite someone** in a Share panel. A trial invites by email only: there is no link and no Domain Joining, as [the trial](16-workspace-settings.md#on-a-ziffr-that-offers-trials) describes.
 
 ### The Setup line and opening by itself
 
