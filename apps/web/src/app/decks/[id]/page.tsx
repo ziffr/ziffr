@@ -15,8 +15,7 @@ import { deckAddition } from "@ziffr/core/deck-additions";
 import { cookies } from "next/headers";
 import { followDemoSuccessor } from "@/lib/demo-follow";
 import { DECK_ADD_COOKIE, readIntent } from "@/lib/deck-add-intent";
-import { MonitorPlay } from "lucide-react";
-import { LargerScreenNote } from "@/components/larger-screen-note";
+import { DesktopOnly } from "@/components/desktop-only";
 
 export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; snapshot?: string; template?: string; fills?: string; add?: string }> }) {
   const id = Number((await params).id);
@@ -66,9 +65,7 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
   ]);
   return (
     <>
-      <LargerScreenNote href={`/decks/${deck.id}/present`} action={<><MonitorPlay aria-hidden /> Present</>}>
-        Slides are laid out with a mouse or a trackpad. On a phone you can read and present this deck.
-      </LargerScreenNote>
+      <DesktopOnly path={`/decks/${deck.id}`} look={`/decks/${deck.id}/present`} />
       <DeckEditorLoader
         deck={{ id: deck.id, name: deck.name, document: waiting ? null : deck.document, theme_id: deck.theme_id, footer: deck.footer }}
         data={data}

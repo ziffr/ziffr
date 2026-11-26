@@ -5,4 +5,4 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 pnpm --filter @ziffr/core exec vitest run src/api-coverage.test.ts src/extensions.test.ts src/catalogue.test.ts
-pnpm --filter @ziffr/web exec vitest run src/app/demo-read-only-table.test.ts src/app/api/v1/openapi.test.ts src/lib/help-index.test.ts src/lib/user-guide-render.test.ts
+pnpm --filter @ziffr/web exec vitest run src/app/demo-read-only-table.test.ts src/app/api/v1/openapi.test.ts src/lib/help-index.test.ts src/lib/user-guide-render.test.ts src/lib/route-tiers.test.ts

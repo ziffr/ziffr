@@ -10,6 +10,8 @@ Everyone in the Workspace can use Analyze, with the Metrics they can see. The pa
 
 ## The screen
 
+On a phone a note at the top says Analyze is easier on a larger screen; see [Screens made for a larger screen](07-getting-started.md#screens-made-for-a-larger-screen).
+
 From the top, the screen has these parts:
 
 - **Heads-ups**, one slim line under the title: "3 Heads-ups for you. **Look**", or "No Heads-ups right now." **Look** opens the list in the side panel (see [Heads-ups](#heads-ups)).

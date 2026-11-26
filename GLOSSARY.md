@@ -429,6 +429,10 @@ _Avoid_: Wizard, onboarding, tour
 The part of a business a person works in, picked by that person from a fixed list (sales, marketing, finance, operations, customer support, people and HR, product and engineering, management, something else). Set per Workspace, optional, and seen only by the person and the Workspace's Owners and Admins. Ziffr uses it to suggest Packs and who is asked for what.
 _Avoid_: Department, team (that is a Group), role (that is a Workspace Role), job title
 
+**Screen Link**:
+A Delivery a person asks Ziffr to email to themselves from their phone: the address of a screen that is made for building, such as the deck editor, to open on a larger screen. It holds fixed words and that address, goes only to the person's own email address and counts in the same limit as Test Messages.
+_Avoid_: Magic link, share link, handoff
+
 **Test Message**:
 A Delivery a person sends to themselves through one Connector (email, Slack or Telegram) to see that it reaches them. It asks for nothing, cannot be answered, and never goes to anyone else.
 _Avoid_: Ping, test notification
@@ -500,6 +504,9 @@ _Avoid_: Tenant key, encryption key, data key, customer key
 **Installed app**:
 Ziffr added to a phone's home screen or a computer's dock from the browser, so it opens in a window of its own. It is the same Ziffr as in the browser, needs a connection and keeps no Workspace data on the device; there is no native app. Not an Installation, which is a running Ziffr on a server.
 _Avoid_: PWA, native app, mobile app, offline mode
+
+**Route Tier**:
+How much a phone has to do well on one page of Ziffr. *Phone-first* pages are made for a thumb and checked at phone widths with every change, *Phone-OK* pages let everything be read and the common change be made, and *Desktop-first* pages are made for a pointer and a large screen. A tier never hides a page or changes who may see it.
 
 **Workspace Profile**:
 What kind of business a Workspace belongs to: its industry, who it sells to (B2B, B2C, B2B2C, public sector, non-profit), its country and currency, and how many people and how much revenue it has, each picked from a fixed list. Ziffr uses it to suggest Metrics; teams within a workspace are Groups, not part of it. It is asked in the Setup Guide's About you step; it stays in the Workspace and is sent nowhere.

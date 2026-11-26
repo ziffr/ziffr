@@ -36,14 +36,17 @@ export const TEST_PER_DAY_IN_TRIAL = 5;
 /** The subject of a Test Message. */
 export const TEST_SUBJECT = "Test message from Ziffr";
 
+/** A Workspace's name as it may stand in a fixed message: one line, without what a Connector could read as markup, cut short. */
+export const plainName = (workspaceName: string) => workspaceName.replace(/[<>&]/g, "").replace(/\s+/g, " ").trim().slice(0, 80);
+
 /** The fixed text of a Test Message: the Workspace's name and the way, nothing else. */
 export function testText(workspaceName: string, way: ConnectorId & TestWay): string {
-  const name = workspaceName.replace(/[<>&]/g, "").replace(/\s+/g, " ").trim().slice(0, 80);
+  const name = plainName(workspaceName);
   return `This is a test from Ziffr${name ? ` for ${name}` : ""}. If you can read it here, Ziffr reaches you on ${WAY_WORDS[way]}. Nothing to answer.`;
 }
 
 /** How long until a reset, in words a person reads: minutes up to an hour and a half, then hours. */
-function untilWords(resetsAt: string, now: number): string {
+export function untilWords(resetsAt: string, now: number): string {
   const minutes = Math.max(1, Math.ceil((Date.parse(resetsAt) - now) / 60_000));
   if (minutes <= 90) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
   const hours = Math.ceil(minutes / 60);
