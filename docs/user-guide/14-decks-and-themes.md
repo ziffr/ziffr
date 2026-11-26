@@ -13,9 +13,39 @@ The page lists every deck you made and every deck someone shared with you. Each 
 - **Open a deck** by choosing its card. If you may change it, the deck opens in the editor. If you may only present it, it opens for presenting.
 - **Make a new deck**: type a name in **Name of the new deck** and choose **New deck**. The deck opens in the editor and starts with one title slide.
 - **Make a deck from a Deck Template**: choose **From a Deck Template**, pick a template, and pick a Metric for each of its Slots, once even when several slides show it. The button shows when your team has saved a Deck Template. The new deck is yours: it starts with the template's slides, its words filled in from today's data, and the template's Theme if the Workspace still has it. Changing the deck never changes the template.
-- **Make a deck from a dashboard**: on a dashboard, open the **⋯** menu and choose **Make a deck**. The new deck has the dashboard's name. It starts with a title slide showing the dashboard's name and introduction, then one slide for each Widget, in the dashboard's reading order. Each slide is titled with the Widget's own title, or else its Metric's name.
+- **Make a deck from a dashboard or a Snapshot**: on a dashboard, open the **⋯** menu and choose **Make a deck…**; on a Snapshot, choose **Make a deck…**. A panel asks which numbers the deck shows (see [Live numbers or a Snapshot's](#live-numbers-or-a-snapshots)).
 
 If you follow a link to a deck that is not shared with you, Ziffr says "This deck isn't shared with you" and lets you ask its owner for access.
+
+## Live numbers or a Snapshot's
+
+**Make a deck…** offers two kinds of deck, and you choose one before it is made:
+
+| Choice | What you get | The default on |
+|---|---|---|
+| **Live numbers** | A title slide with the dashboard's name and introduction, then one slide for each Widget of the dashboard as it is now, in its reading order, titled with the Widget's own title or else its Metric's name. You can change the Widgets, and their numbers change as values are recorded or corrected. | a dashboard, and a Snapshot that is still a draft |
+| **A Snapshot's numbers** | A slide with the Snapshot's opening part (the dashboard's name, the period and the introduction), then one slide for each part of the Snapshot. The numbers never change. The deck is named after the dashboard and the period. | a Snapshot that has been shown |
+
+From a dashboard you pick which Snapshot; only Snapshots that have been shown are offered. While there is none, the panel says to take one and show it.
+
+### Adding a Snapshot to a deck
+
+On a Snapshot that has been shown, **Add to a deck…** puts its slides at the end of a deck that exists: pick a deck you own or may edit, or **New deck**. Nothing already on the deck changes. You need to be able to create things in the Workspace (Guests cannot) and to open the Snapshot; any role on its dashboard is enough. Parts you may not see are left out, and Ziffr says how many. Adding the same Snapshot twice adds it twice. A deck holds at most 100 such parts from at most 20 Snapshots.
+
+### Slides that keep numbers
+
+Each of these slides holds a **Snapshot Part**: one part of the Snapshot. A line says whose numbers it shows, such as "Numbers as of 5 Oct 2026 · Sales, Q3 2026" (the day the Snapshot was taken). It is shown in the editor, when presenting, and in PDF and PowerPoint.
+
+- **The numbers stay.** Values, Targets, comparisons, Breakdowns, Projections and figures computed from them are what the Snapshot kept. A value corrected or recorded later, a changed target or a new start of the Fiscal Year changes nothing on the slide. How numbers are written follows the Workspace's Number Style, and colours and fonts follow the deck's Theme. If a value was corrected since, the line adds "Corrected since: see the Snapshot".
+- **The words follow the Snapshot.** Titles, headlines and the introduction are the Snapshot's words as they are now. Change them on the Snapshot, not on the deck; you can move, resize and delete a part.
+- **Everything on such a slide keeps numbers.** A Widget or Slide Element you add to it draws the Snapshot's numbers too, never live ones. For a live number, use another slide. Moving a Widget off the slide, or deleting what keeps it there, makes it live again; you can only save that when you see its Metrics.
+- **Each person sees only what the Snapshot would show them.** Sharing the deck opens none of it: someone sees a part only if they may open that dashboard, the Snapshot is shown, and they may see every Metric the part draws. Otherwise the slide says "This part is not available to you." (or, for a Widget or element beside a part, "These numbers are not shown to you: this slide keeps a Snapshot's numbers."). To let an audience see the parts, ask each dashboard's owner to share it with them.
+- **A deleted Snapshot takes its numbers with it.** Its parts say "This Snapshot was deleted." to whoever may open the dashboard. To change a number, the dashboard's owner deletes the Snapshot and takes it again; then add the new one.
+- **Not carried elsewhere.** View Links leave these parts and numbers out; send an exported file to someone outside. Slide layouts, Deck Templates, Packs and the Workspace Export keep no parts, and a part cannot be placed on a dashboard or in a free layout.
+
+Decks made from a Snapshot before decks kept numbers stay as they were: their numbers are **live**, drawn for the periods complete by the Snapshot's last day. The editor says so above the deck, and each such slide says "Live numbers, periods up to" that day, also when presenting and exported.
+
+If two people edit a deck at the same time, the last save wins. Let one person add the Snapshots to a deck others are working on.
 
 ## The deck editor
 
@@ -79,9 +109,9 @@ The **Pool** on the left holds the Metrics you can see, your saved Widgets and t
 
 - A Metric dropped on a slide becomes a line chart. You can change that afterwards.
 - A Widget Template asks for its Metrics first.
-- A Widget shows live numbers: whenever a new value arrives, the slide shows it. A Widget's title may use Placeholders such as {latest} and {change yoy}, which fill in from the same numbers, on the slide and in the PowerPoint export.
+- A Widget shows live numbers: whenever a new value arrives, the slide shows it (except on a [slide that keeps numbers](#slides-that-keep-numbers)). A Widget's title may use Placeholders such as {latest} and {change yoy}, which fill in from the same numbers, on the slide and in the PowerPoint export.
 
-You can only place Metrics you may see. Everyone you share the deck with can see the Metrics on its slides.
+You can only place Metrics you may see. Everyone you share the deck with can see the Metrics its slides draw live; what a slide keeps from a Snapshot is not opened by the share.
 
 From a dashboard or a story, without opening the deck first: open a Widget's or a Finding's **⋯** menu and choose **Add to…** → **Deck…**. A panel opens beside the page: pick a deck you own or may edit (or **New deck**), then a slide, or **New slide at the end**, which gets the Widget's name as its title. The deck opens on that slide with the copy in the first free space, and is saved. A deck you may only view is not offered. Only your own choice in the menu adds it, once: opening the deck again, or a link someone sends you, adds nothing.
 
@@ -146,7 +176,7 @@ A slide with a **Logo place**, a page number ({slide}) or a **Footer line** of i
 
 ### Saving a slide as a layout
 
-Select a slide and choose **Save slide as layout…**; a panel opens beside the slide. Give it a name and, if you like, a description. The Metrics on the slide become Slots, so others can fill the layout with their own Metrics. Everyone in the team can use the layout from **+ Slide**, under **Team layouts**. Only you can change it.
+Select a slide and choose **Save slide as layout…**; a panel opens beside the slide. Snapshot Parts are left out, and the panel says so. Give it a name and, if you like, a description. The Metrics on the slide become Slots, so others can fill the layout with their own Metrics. Everyone in the team can use the layout from **+ Slide**, under **Team layouts**. Only you can change it.
 
 ### Saving a deck as a Deck Template
 
@@ -154,7 +184,7 @@ A **Deck Template** keeps a whole deck: every slide with its Widgets, words and 
 
 ## Presenting
 
-Choose **Present** to show the deck one slide at a time, filling the screen, with live numbers. Nobody can change the deck while it is presented.
+Choose **Present** to show the deck one slide at a time, filling the screen, with live numbers and, on slides that keep them, the numbers of their Snapshot as you may see them. Nobody can change the deck while it is presented.
 
 - **Next slide**: the right arrow, down arrow, Page Down or the space bar, a click on the right part of the slide, a swipe, or **›** at the bottom.
 - **Previous slide**: the left arrow, up arrow, Page Up, a click on the left part of the slide, a swipe, or **‹**.
@@ -169,7 +199,7 @@ People you shared the deck with as Viewers always open it this way.
 
 ## Exporting to PowerPoint and PDF
 
-An exported deck is a **Snapshot**: it holds the values its Widgets show at the moment you export. Every slide carries the stamp "Data as of" and that day's date, so readers know how old the numbers are. The deck in Ziffr stays live.
+An exported deck is a **Snapshot**: it holds the values its Widgets show at the moment you export. Every slide carries the stamp "Data as of" and that day's date, so readers know how old the numbers are, except a [slide that keeps numbers](#slides-that-keep-numbers), which carries its "Numbers as of" line instead. The file holds what you may see: a part you may not see is exported as its sentence. A file you have exported keeps its numbers, also after the Snapshot is deleted or unshared. The deck in Ziffr stays as it is.
 
 Slides are exported in their order on the canvas. Each export is noted in the workspace's Audit Log.
 
@@ -190,7 +220,7 @@ Choose **Export PowerPoint**. Your browser downloads a file named after the deck
 
 ### PDF
 
-Choose **PDF**. Ziffr opens the deck in a new browser tab and starts printing. Choose "Save as PDF" in the print window to keep a file. Each page shows "Data as of", the date and the slide number. If nothing opens, allow pop-ups for Ziffr in your browser.
+Choose **PDF**. Ziffr opens the deck in a new browser tab and starts printing. Choose "Save as PDF" in the print window to keep a file. Each page shows "Data as of", the date and the slide number; a page of a slide that keeps numbers shows its own line instead of the date. If nothing opens, allow pop-ups for Ziffr in your browser.
 
 If an export fails, Ziffr says "Export failed". Try again, or remove the last thing you added.
 
@@ -199,8 +229,9 @@ If an export fails, Ziffr says "Export failed". Try again, or remove the last th
 Sharing a deck works like sharing a dashboard. [Dashboards and Findings](12-dashboards.md) explains Shares, View Links and Versions in full. In short:
 
 - **Share** gives people or Groups a role on the deck. A **Viewer** can present it. An **Editor** can also change its slides, name, footer and Theme. Only the owner shares the deck and makes View Links.
+- **Who will not see what.** On a deck with [slides that keep numbers](#slides-that-keep-numbers), the Share panel says under each person and Group, before and after you share, such as "Cannot see 3 Snapshot Parts (Sales, Q3 2026). Ask the dashboard's owner to share it." A Group is listed when any member cannot. The panel names only what you may see yourself, and counts other parts without saying what they are.
 - **Invite someone…** at the bottom of the Share panel invites a person who is not in the Workspace yet, by email, as **Member** or **Guest**; only Owners and Admins see it, others are told "Ask an Owner or Admin to invite them".
-- **View link** lets someone outside the team watch the deck slide by slide, without signing in. Under **For**, say who it is for; under **Works until**, choose when it ends (at most 90 days ahead). Tick **Freeze today's numbers** to keep the values as they are now; otherwise the link shows live numbers until it ends. You can copy or revoke each link.
+- **View link** lets someone outside the team watch the deck slide by slide, without signing in. Under **For**, say who it is for; under **Works until**, choose when it ends (at most 90 days ahead). Tick **Freeze today's numbers** to keep the values as they are now; otherwise the link shows live numbers until it ends. A View Link shows no Snapshot Part and nothing of a slide that keeps numbers; the panel says how many are left out. You can copy or revoke each link.
 - **Versions** keeps earlier states of the deck. Going back to one makes a new version.
 
 ## The Themes page
@@ -309,4 +340,4 @@ In the demo, where visitors may change it, a deck that the demo started fresh wi
 
 In the demo, where visitors may change it, you may copy a Theme, add a standard one, shape it, pick it for your own dashboards and delete it. A Theme the demo came with keeps its colours and name, the team default cannot be changed, and no logo or background picture can be added.
 
-In the demo, where visitors may change it, you may make decks of your own (new, from a dashboard, from a Snapshot, from a Deck Template, or with **Add to deck…**), lay out their slides, rename them, give them a footer and a Theme, name, save and restore their Versions, and save a deck as a Deck Template or a slide as a layout. Slides take plain words only: the demo refuses web addresses, email addresses and markup, and no picture, video or embedded page can be added. A deck may be up to 512 KB, and the demo holds a limited number of them at once. The decks the demo came with are kept as they are and say so ("Everyone sees this one as it is. Make your own to change it."). What you make is seen by every visitor who looks as the same made-up person and is gone when the demo starts fresh. Sharing, View Links and the PowerPoint and PDF files are not available in the demo. Where the setting is off the demo saves nothing, as before.
+In the demo, where visitors may change it, you may make decks of your own (new, from a dashboard, from a Snapshot, from a Deck Template, or with **Add to deck…** and **Add to a deck…**), lay out their slides, rename them, give them a footer and a Theme, name, save and restore their Versions, and save a deck as a Deck Template or a slide as a layout. Slides take plain words only: the demo refuses web addresses, email addresses and markup, and no picture, video or embedded page can be added. A deck may be up to 512 KB, and the demo holds a limited number of them at once. The decks the demo came with are kept as they are and say so ("Everyone sees this one as it is. Make your own to change it."). What you make is seen by every visitor who looks as the same made-up person and is gone when the demo starts fresh. Sharing, View Links and the PowerPoint and PDF files are not available in the demo. Where the setting is off the demo saves nothing, as before.

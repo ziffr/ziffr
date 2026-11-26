@@ -35,7 +35,7 @@ export const DEMO_WORDS_COLUMNS: Readonly<Record<string, DemoTableWords>> = {
   widgets: { words: ["title", "settings"], wordKeys: { settings: DEMO_SETTING_WORD_KEYS }, other: ["owner_id", "template", "metric_ids"] },
   decks: { words: ["name", "footer"], other: ["owner_id", "document"], keepRows: true },
   metrics: {
-    words: ["name", "description", "unit"],
+    words: ["name", "description", "calculation_note", "unit"],
     kept: ["slug", "archived_at", "archived_by"],
     other: ["format", "period", "submission_rule", "polarity", "sources", "owner_id", "formula", "aggregation", "unit_position", "attainment_method", "retention", "retention_pending", "retention_cap", "target_min_sealed", "target_max_sealed", "owner_taken_by"],
     keepRows: true,

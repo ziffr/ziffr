@@ -29,7 +29,7 @@ Every `id` is a **label** of up to 64 letters, digits, dashes and underscores th
 | `group` | A Group's name. | |
 | `theme` | A Theme, as a `ziffr.theme/1` document. | |
 | `person` | A person as an **invitation**: name, email address, Workspace Role (`admin`, `member` or `guest`) and Groups. The old Owner is an `admin`: whoever imports becomes the Owner. | `group` |
-| `metric` | A Metric's `ziffr.metric/1` document, its `key` (how a Derived Metric's formula names it), Tags, owner and Submitters. | `person` |
+| `metric` | A Metric's `ziffr.metric/1` document (`ziffr.metric/2` when it has a Calculation Note), its `key` (how a Derived Metric's formula names it), Tags, owner and Submitters. | `person` |
 | `dashboard` | A `ziffr.dashboard-template/1` document and the Metrics that fill its Slots. | `metric` |
 | `deck` | A `ziffr.deck-template/1` document, the Metrics that fill its Slots and its Theme. | `metric`, `theme` |
 | `workflow` | A `ziffr.workflow-template/1` document and the Metrics it asks for. | `metric` |

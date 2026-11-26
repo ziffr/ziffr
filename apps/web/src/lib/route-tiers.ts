@@ -1,7 +1,8 @@
 // Which screens a phone has to do well (spec 0055; GLOSSARY: Route Tier): the one table of every page in apps/web/src/app.
 // The phone viewport check and anything that speaks about a screen on a phone read it, so there is one source. A tier never
 // hides a page or changes who may see it. Pure data: client components may import it. A new page is added here with its
-// page.tsx; route-tiers.test.ts fails until it is.
+// page.tsx; route-tiers.test.ts fails until it is. A Desktop-first page also has its words in the core's
+// desktop-screens.ts, which the same test holds to this table.
 
 /** Phone-first is designed for a thumb and checked in CI; Phone-OK reads and does the common change on a phone; Desktop-first is made for a larger screen. */
 export type RouteTier = "phone-first" | "phone-ok" | "desktop-first";

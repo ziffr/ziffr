@@ -127,6 +127,7 @@ export const DEMO_CREATES: Readonly<Record<string, keyof typeof DEMO_ROW_CAPS>> 
   "dashboard-template-actions:createFromDashboardTemplate": "dashboards",
   "home-actions:newDashboard": "dashboards",
   "canvas-actions:saveToPool": "saved_widgets",
+  "convert-actions:addSnapshotToDeck": "decks",
   "convert-actions:addToDeck": "decks",
   "convert-actions:makeDeck": "decks",
   "convert-actions:makeDeckFromSnapshot": "decks",
