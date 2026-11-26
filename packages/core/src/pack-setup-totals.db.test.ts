@@ -8,6 +8,8 @@ import { installPackFile } from "./packs";
 import { setUpFromPack, setUpStep } from "./pack-setup";
 import { planPackSetup } from "./pack-setup-plan";
 import { closeTotal, openTotal, totalOpening } from "./total-opening";
+import { setTotalPartPeriods } from "./total-changes";
+import { exportPack } from "./pack-export";
 import { SALES_TEAM } from "./test/sales-team-pack";
 import { salesTeam } from "./test/sales-team-people";
 import type { PackSetupInput } from "./pack-setup-build";
@@ -92,18 +94,39 @@ describe("adding a line to a Set up with a Total", () => {
     const t = await setUp();
     await setUpFromPack(t.by, t.install, t.input);
     const total = await t.metric("Team commit");
+    // A week both lines count in and have a value for.
+    for (const [name, value] of [["Commit, Anna", 5], ["Commit, Ben", 7]] as const) {
+      const m = await t.metric(name);
+      await setTotalPartPeriods(t.by, total.id, m.id, { first: "2026-03-02", last: null });
+      await t.w.value(m.id, "2026-03-02", value);
+    }
+    const past = async () => (await allSeriesFor(t.by)).series[total.slug]?.find((p) => p.period === "2026-03-02")?.value;
+    expect(await past()).toBe(12);
     const offered = (await planPackSetup(t.by, t.install, await t.line())).offers.find((o) => o.id === `total:${total.id}`)!;
     expect(offered).toMatchObject({ suggested: true, on: false });
     expect(offered.words).toContain("Commit, Cara");
     const unticked = await setUpFromPack(t.by, t.install, await t.line([]));
     expect(unticked.totals).toBe(0);
     expect(await t.parts(total.id)).toHaveLength(2);
+    // With the period proposed, the running one, earlier totals stay as they were.
+    expect((await setUpFromPack(t.by, t.install, await t.line([offered.id], undefined, "Fay"))).totals).toBe(1);
+    expect(await past()).toBe(12);
     const added = await setUpFromPack(t.by, t.install, await t.line([offered.id], { [offered.id]: "2026-03-04" }, "Dan"));
     expect(added.totals).toBe(1);
+    // A first period the person moved back is theirs to move: that week now waits for the new line's value.
+    expect(await past()).toBeUndefined();
     const dan = added.metrics.find((m) => m.name === "Commit, Dan")!;
     expect((await t.parts(total.id)).find((p) => p.part_id === dan.id)!.first_period).toBe("2026-03-02");
     const bad = await planPackSetup(t.by, t.install, await t.line([offered.id], { [offered.id]: "soon" }, "Eve"));
     expect(bad.problems.join(" ")).toMatch(/first period/);
+  });
+
+  it("leaves a Total's entry out of a Pack made from this Workspace, naming nothing of it in the file", async () => {
+    const t = await setUp();
+    const { data } = await db().from("catalog_metrics").select("id, pack_key").eq("workspace_id", t.w.id).in("pack_key", ["commit", "team-commit"]);
+    const res = await exportPack(t.by, { id: "sales/copy", name: "Copy", version: "1.0.0", summary: "A copy.", author: "Sales", license: "CC-BY-4.0" }, { catalog: (data ?? []).map((r) => Number(r.id)) });
+    expect(res.leftOut).toContainEqual({ name: "Team commit", why: "A Total is not in a Pack yet." });
+    expect(res.text).not.toMatch(/Team commit|"total"/);
   });
 
   it("offers an open Total unticked, saying who learns what, and drops a tick given before it was opened", async () => {
