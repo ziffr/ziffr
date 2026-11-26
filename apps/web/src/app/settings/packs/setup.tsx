@@ -16,8 +16,7 @@ import { approversStart, lineSetupStart, openSlots, setupStart, type LineRow } f
 import { DashboardPick, WorkflowPick } from "./setup-templates";
 import { RepeatLines } from "./setup-lines";
 import { FillFromN8n } from "@/components/fill-from-n8n";
-import { PackNeeds } from "@/components/pack-numbers";
-import { comesFromWords } from "@ziffr/pack/comes-from";
+import { PackNumbersView } from "@/components/pack-numbers";
 import { lineStart, packSetup, setUpPack } from "@/app/pack-setup-actions";
 import { ByHand, PlanCheck, PositionField, usePlan } from "./setup-positions";
 import type { PackSetupInput, PackSetupOptions, PackSetupResult, PackSetupRoom, PackSetupStep, SetupRun } from "@ziffr/core/pack-setup";
@@ -227,7 +226,7 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
       {options.room && !options.refusal && <Fit room={options.room} n={count} />}
       {options.room && options.refusal && <p className="text-xs"><Link href="/settings/workspace#size" className="underline">Size and usage</Link></p>}
 
-      {options.overview && <div className="@container text-xs"><PackNeeds overview={options.overview} included={false} /></div>}
+      {options.overview && <PackNumbersView overview={options.overview} included={false} />}
 
       <fieldset className="space-y-1">
         <legend className="mb-1 text-xs font-medium">Metrics to make</legend>
@@ -236,7 +235,7 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
           return (
             <label key={e.key} className="flex items-start gap-2">
               <input type="checkbox" checked={making.has(e.key)} disabled={needed} onChange={(ev) => toggle(e.key, ev.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
-              <span>{e.name} <span className="text-xs text-muted-foreground">by {e.period}{e.unit ? `, in ${e.unit}` : ""}{e.repeat ? `, one for each ${options.repeats.find((r) => r.key === e.repeat)?.name ?? e.repeat}` : ""}{e.derived ? `, a Derived Metric computed from ${e.inputs.map((i) => byKey.get(i)?.name ?? i).join(" and ")}, made too` : ""}{needed ? ", made for a Derived Metric" : ""}</span>{e.comesFrom && !e.derived && <span className="block text-xs text-muted-foreground">{comesFromWords(e.comesFrom).from}</span>}{e.tags.length > 0 && <span className="mt-0.5 flex flex-wrap gap-1">{e.tags.map((t) => <span key={t} className="rounded-full bg-muted px-1.5 py-0.5 text-[11px]">{t}</span>)}</span>}</span>
+              <span>{e.name} <span className="text-xs text-muted-foreground">by {e.period}{e.unit ? `, in ${e.unit}` : ""}{e.repeat ? `, one for each ${options.repeats.find((r) => r.key === e.repeat)?.name ?? e.repeat}` : ""}{e.derived ? `, a Derived Metric computed from ${e.inputs.map((i) => byKey.get(i)?.name ?? i).join(" and ")}, made too` : ""}{needed ? ", made for a Derived Metric" : ""}</span>{e.tags.length > 0 && <span className="mt-0.5 flex flex-wrap gap-1">{e.tags.map((t) => <span key={t} className="rounded-full bg-muted px-1.5 py-0.5 text-[11px]">{t}</span>)}</span>}</span>
             </label>
           );
         })}

@@ -56,8 +56,14 @@ export function checkComesFrom(p: Pick<Pack, "contents">, at: (path: string, mes
   });
 }
 
+/** The Sources a person answers by, in the order and words a page names them. “api” is the other way in: a program, such
+ * as a Feed, sends the value. */
+const ANSWERS_BY: Record<string, string> = { web_form: "web form", mail: "email", slack: "Slack", telegram: "Telegram" };
+const SOURCES = [...Object.keys(ANSWERS_BY), "api"];
+
 /** One number of a Pack as a page lists it. `calculated` names what it is worked out from, `target` whose target it is;
- * `unsaid` is an entry whose creator said nothing. `templates` are the delivered n8n templates that fill it. */
+ * `unsaid` is an entry whose creator said nothing, which is described by the ways Ziffr has: its `sources` (left out:
+ * every Source) and the delivered n8n `templates` that fill it. */
 export type PackNumber = {
   key: string;
   name: string;
@@ -66,6 +72,7 @@ export type PackNumber = {
   note?: string;
   templates?: string[];
   of?: string[];
+  sources?: string[];
 };
 
 /** What a Workflow Template of a Pack does, in the order of its steps. */
@@ -106,7 +113,10 @@ export function packOverview(pack: Pick<Pack, "contents" | "feeds">): PackOvervi
     const fills = new Set<string>((pack.feeds ?? []).filter((f) => f.fills.includes(m.key)).map((f) => f.template));
     const templates = Object.keys(FEED_TEMPLATE_LABELS).filter((t) => fills.has(t));
     const said = m.comesFrom;
-    return { ...head, by: said?.by ?? "unsaid", ...(said?.system ? { system: said.system } : {}), ...(said?.note ? { note: said.note } : {}), ...(templates.length ? { templates } : {}) };
+    // Kept only where the Pack narrows them, and only where they change the words.
+    const allowed = said && said.by !== "person" ? [] : SOURCES.filter((s) => (m.metric.sources as string[] | undefined)?.includes(s));
+    const sources = allowed.length && allowed.length < SOURCES.length ? allowed : undefined;
+    return { ...head, by: said?.by ?? "unsaid", ...(said?.system ? { system: said.system } : {}), ...(said?.note ? { note: said.note } : {}), ...(templates.length ? { templates } : {}), ...(sources ? { sources } : {}) };
   });
   const workflows = (c.workflows ?? []).map((w): PackWorkflowSummary => {
     const does = new Set<PackWorkflowSummary["does"][number]>(["asks"]);
@@ -141,21 +151,56 @@ export function targetsRead(pack: Pick<Pack, "contents">): string[] {
   return [...new Set(keys)].flatMap((k) => names.get(k) ?? []);
 }
 
-const list = (names: string[]) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
+const list = (names: string[], word = "and") => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} ${word} ${names.at(-1)}`);
 
-/** Where one number comes from, in words: the line of the table, and for another system's number what is delivered. */
-export function comesFromWords(n: PackNumber): { from: string; delivered: string } {
-  const of = list(n.of ?? []);
-  if (n.by === "person") return { from: "A person types it", delivered: "" };
-  if (n.by === "calculated") return { from: of ? `Ziffr calculates it from ${of}` : "Ziffr calculates it", delivered: "" };
-  if (n.by === "target") return { from: of ? `Set once as the target of ${of}` : "Set once as a target", delivered: "" };
-  if (n.by === "unsaid") return { from: "The Pack does not say", delivered: "" };
-  const templates = (n.templates ?? []).map((t) => FEED_TEMPLATE_LABELS[t] ?? t);
-  return {
-    from: `Another system sends it: ${n.system ?? "not named"}`,
-    delivered: templates.length ? `Comes with an n8n template for ${templates.join(" and ")}; you connect it.` : "You set this up.",
-  };
+/** Which of Ziffr's two ways a number without a creator's word can arrive by. A delivered template is a way for a system
+ * whatever the Sources say, since connecting it adds the Feed. */
+function ways(n: PackNumber): { asked: string[]; system: boolean } {
+  const sources = n.sources ?? SOURCES;
+  return { asked: Object.keys(ANSWERS_BY).filter((s) => sources.includes(s)).map((s) => ANSWERS_BY[s]!), system: sources.includes("api") || Boolean(n.templates?.length) };
 }
+
+/** Where a number comes from, in words: the line itself, and under it how that is done. `count` is how many numbers the
+ * words stand for, so a group reads “them”. */
+export function comesFromWords(n: PackNumber, count = 1): { from: string; delivered: string } {
+  const it = count > 1 ? "them" : "it";
+  const of = list(n.of ?? []);
+  if (n.by === "calculated") return { from: of ? `Ziffr calculates ${it} from ${of}` : `Ziffr calculates ${it}`, delivered: "" };
+  if (n.by === "target") return { from: of ? `Set once as the target of ${of}` : `Set once as ${count > 1 ? "targets" : "a target"}`, delivered: "" };
+  const templates = (n.templates ?? []).map((t) => FEED_TEMPLATE_LABELS[t] ?? t);
+  const included = templates.length ? `${list(templates, "or")} (${templates.length === 1 ? "template" : "templates"} included)` : "";
+  const connect = "with n8n, a SQL Feed or another program";
+  if (n.by === "system") {
+    return { from: `Another system sends ${it}: ${n.system ?? "not named"}`, delivered: included ? `Fill ${it} from ${included}; you connect it.` : `Connect ${it} ${connect}.` };
+  }
+  const { asked, system } = ways(n);
+  const answers = asked.length ? `A person answers by ${list(asked, "or")}` : "";
+  if (n.by === "unsaid" && !asked.length) {
+    return included ? { from: `Fill ${it} from ${included}`, delivered: `Or connect another system ${connect}.` } : { from: `Another system sends ${it}`, delivered: `Connect ${it} ${connect}.` };
+  }
+  // A delivered template is named whoever types the number; without one, a creator who says a person does is taken at
+  // their word.
+  if (included) return { from: `Ask a person, or fill ${it} from ${included}`, delivered: answers && `${answers}.` };
+  if (n.by === "person" || !system) return { from: "Ask a person", delivered: answers && `${answers}.` };
+  return { from: `Ask a person, or another system sends ${it}`, delivered: `${answers}; a system sends ${it} ${connect}.` };
+}
+
+/** The numbers of a Pack that share one answer, as one line of a page: their keys and names, the words and the note. */
+export type ComesFromGroup = { keys: string[]; names: string[]; from: string; delivered: string; note?: string };
+
+/** The numbers grouped by what is said of them, in the Pack's order of each group's first number. */
+export function comesFromGroups(numbers: PackNumber[]): ComesFromGroup[] {
+  const groups = new Map<string, PackNumber[]>();
+  for (const n of numbers) {
+    const words = comesFromWords(n);
+    const same = JSON.stringify([words.from, words.delivered, n.note ?? ""]);
+    groups.set(same, [...(groups.get(same) ?? []), n]);
+  }
+  return [...groups.values()].map((g) => ({ keys: g.map((n) => n.key), names: g.map((n) => n.name), ...comesFromWords(g[0]!, g.length), ...(g[0]!.note ? { note: g[0]!.note } : {}) }));
+}
+
+/** Up to three names, else how many numbers: the table above a list of needs names them all. */
+const few = (numbers: PackNumber[]) => (numbers.length > 3 ? `${numbers.length} numbers` : list(numbers.map((n) => n.name)));
 
 const DOES: Record<PackWorkflowSummary["does"][number], string> = {
   asks: "asks for the values", reminds: "reminds", escalates: "raises late values", checks: "marks unusual values", approves: "has values approved",
@@ -179,21 +224,24 @@ export function includedAndNeeded(o: PackOverview, targets: string[] = []): { in
 
   const needed: string[] = [];
   const by = (kind: PackNumber["by"]) => o.numbers.filter((n) => n.by === kind);
-  const people = by("person").map((n) => n.name);
-  if (people.length) needed.push(`Someone who types ${list(people)}`);
+  const unsaid = by("unsaid").map((n) => ({ n, ...ways(n) }));
+  const people = [...by("person"), ...unsaid.filter((u) => u.asked.length && !u.system).map((u) => u.n)];
+  if (people.length) needed.push(`Someone to ask for ${few(people)}`);
+  const either = unsaid.filter((u) => u.asked.length && u.system).map((u) => u.n);
+  if (either.length) needed.push(`Someone to ask, or a system that sends the values, for ${few(either)}`);
+  const sent = unsaid.filter((u) => !u.asked.length).map((u) => u.n);
+  if (sent.length) needed.push(`A system that sends the values for ${few(sent)}`);
   const systems = new Map<string, PackNumber[]>();
   for (const n of by("system")) systems.set(n.system ?? "", [...(systems.get(n.system ?? "") ?? []), n]);
   for (const [name, numbers] of systems) {
-    const bare = numbers.filter((n) => !n.templates?.length).map((n) => n.name);
+    const bare = numbers.filter((n) => !n.templates?.length);
     const filled = numbers.filter((n) => n.templates?.length);
-    if (filled.length) needed.push(`A connection to your ${name} for ${list(filled.map((n) => n.name))}, using a delivered n8n template that you connect`);
-    if (bare.length) needed.push(`A connection to your ${name} for ${list(bare)}, which you set up yourself`);
+    if (filled.length) needed.push(`A connection to your ${name} for ${few(filled)}, using a delivered n8n template that you connect`);
+    if (bare.length) needed.push(`A connection to your ${name} for ${few(bare)}, which you set up yourself`);
   }
   // A number said to be a target and not itself worked out from another's is set on its own Metric.
   const set = [...new Set([...targets, ...by("target").filter((n) => !n.of?.length).map((n) => n.name)])];
   if (set.length) needed.push(`A target, set once, on ${list(set)}`);
-  const unsaid = by("unsaid").map((n) => n.name);
-  if (unsaid.length) needed.push(`To decide where ${list(unsaid)} ${unsaid.length === 1 ? "comes" : "come"} from: the Pack does not say`);
   for (const w of o.workflows) {
     if (w.approvers) needed.push(`${w.approvers === 1 ? "An Approver" : `${w.approvers} Approvers`} for the Workflow ${w.name}`);
     if (w.does.includes("snapshot")) needed.push(`The dashboard and the people for the Snapshot of the Workflow ${w.name}`);
@@ -213,7 +261,7 @@ export const PACK_OVERVIEW_SCHEMA: Schema = {
       type: "array", maxItems: L.entries,
       items: {
         type: "object",
-        properties: { key: name(40), name: name(120), by: { enum: [...COMES_FROM_BY, "calculated", "unsaid"] }, system, note, templates: { type: "array", maxItems: 10, items: { enum: Object.keys(FEED_TEMPLATE_LABELS) } }, of: names(L.of, 120) },
+        properties: { key: name(40), name: name(120), by: { enum: [...COMES_FROM_BY, "calculated", "unsaid"] }, system, note, templates: { type: "array", maxItems: 10, items: { enum: Object.keys(FEED_TEMPLATE_LABELS) } }, of: names(L.of, 120), sources: { type: "array", maxItems: SOURCES.length, items: { enum: SOURCES } } },
         required: ["key", "name", "by"], additionalProperties: false,
       },
     },

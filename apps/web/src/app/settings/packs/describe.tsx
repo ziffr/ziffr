@@ -42,7 +42,7 @@ export function useDescription() {
   const drafted = useCallback((draft: PackGuideDraft) => {
     const before = listed.current;
     listed.current = draft.contents;
-    // Each number starts with what the Pack it came from says, else "A person types it"; an answer given stays.
+    // Each number starts with what the Pack it came from says, else "Ask a person"; an answer given stays.
     setState((s) => ({ ...s, offers: draft.installed, numbers: draft.numbers, numberProblems: [], problems: [], text: (s.text.eachPart ?? "") === before ? { ...s.text, eachPart: draft.contents } : s.text,
       comesFrom: Object.fromEntries(draft.numbers.map((n) => [n.ref, s.comesFrom[n.ref] ?? n.said ?? { by: "person" as const }])) }));
   }, []);
