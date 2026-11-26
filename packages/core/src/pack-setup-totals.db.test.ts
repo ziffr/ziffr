@@ -23,7 +23,7 @@ function withTotal(): Pack {
   const pack = structuredClone(SALES_TEAM);
   const commit = pack.contents.metrics![0].metric;
   pack.contents.metrics!.push(
-    { key: "team-commit", total: { of: "commit", targets: "own" }, viewers: ["lead"], metric: { ...commit, name: "Team commit" } },
+    { key: "team-commit", total: { of: "commit", targets: "own" }, viewers: ["lead"], metric: { ...commit, format: "ziffr.metric/2", name: "Team commit", calculationNote: "The commit of every salesperson, added up." } },
     { key: "left", metric: { ...commit, name: "Left to commit", aggregation: "none", formula: "{quota} - {team-commit}" } },
   );
   return pack;
@@ -58,6 +58,7 @@ describe("setting up a Pack with a Total", () => {
     expect(names.indexOf("Left to commit")).toBeGreaterThan(names.indexOf("Team commit"));
     const total = step.result.metrics.find((m) => m.name === "Team commit")!;
     expect(total.takesValues).toBe(false);
+    expect((await t.metric("Team commit")).calculation_note).toBe("The commit of every salesperson, added up.");
     const { data: row } = await db().from("metrics").select("total_targets, total_opened_at, workflow_id, from_catalog_id").eq("id", total.id).single();
     expect(row).toMatchObject({ total_targets: "own", total_opened_at: null, workflow_id: null });
     expect(row!.from_catalog_id).not.toBeNull();

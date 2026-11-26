@@ -15,6 +15,7 @@ import { createGroup, createInviteLink, inviteMember, setDomainJoining, setMembe
 import { askForMetric } from "./team-actions";
 import { skipStep } from "./actions";
 import { PHONE_BUTTON, PHONE_BUTTON_SM, PHONE_FIELD, PHONE_FOOTER } from "./phone";
+import { InviteLock, useInviteGate } from "@/components/invite-lock";
 import { WORKSPACE_ROLE_ORDER, WORKSPACE_ROLE_WORDS } from "@ziffr/core/role-words";
 import type { WorkspaceRoleName } from "@ziffr/core/actor";
 import type { TeamSetup } from "@ziffr/core/team-setup";
@@ -31,7 +32,9 @@ export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: 
   const [group, setGroup] = useState("");
   const [other, setOther] = useState<Record<number, string>>({});
   const grantable = WORKSPACE_ROLE_ORDER.filter((r) => data.isOwner || r !== "owner");
-  const closed = !data.trial.invitationsOpen;
+  const invites = useInviteGate(data.gate);
+  const { closed } = invites;
+  const why = closed ? "team-invite-why" : undefined;
   // One press: its words on a refusal, a refresh on success so the lists and the step bar say the new truth.
   const run = (work: () => Promise<unknown>, done?: (r: unknown) => void) => start(async () => {
     const r = await work().catch(() => ({ error: UNEXPECTED }));
@@ -43,12 +46,6 @@ export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: 
   const candidates = data.people;
   return (
     <div className="space-y-8">
-      {data.trial.ended ? (
-        <p role="status" className="rounded-[var(--radius-card)] border border-border p-3 text-sm">This trial has ended, so nobody can be invited any more.</p>
-      ) : closed ? (
-        <p role="status" className="rounded-[var(--radius-card)] border border-border p-3 text-sm">Invitations open once your first value has arrived. Answer your first request in the First Metric step, then come back here.</p>
-      ) : null}
-
       <section aria-labelledby="team-people">
         <h3 id="team-people" className="text-base font-medium">Who is here</h3>
         <ul className="mt-2 divide-y divide-border rounded-[var(--radius-card)] border border-border text-sm">
@@ -70,8 +67,9 @@ export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: 
       <section aria-labelledby="team-invite">
         <h3 id="team-invite" className="text-base font-medium">Invite people</h3>
         <p className="mb-3 mt-1 text-sm text-muted-foreground">Type an address and choose what the person may do. You can invite more later on Members and Groups.</p>
+        <div className="mb-3 empty:hidden"><InviteLock {...invites} id="team-invite-why" /></div>
         <form className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => inviteMember({ email, role }), (r) => { setLink((r as { link: string }).link); setEmail(""); toast.success((r as { emailed: boolean }).emailed ? "Invitation emailed" : data.mailOn ? "Invitation made, but the email could not be sent: send the link yourself" : "Invitation made: send the link yourself, this Ziffr cannot email"); }); }}>
-          <label className="block text-sm text-muted-foreground sm:text-xs">Email address<Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" disabled={closed} className="mt-1 h-11 w-full text-base sm:h-9 sm:w-64 sm:text-sm" /></label>
+          <label className="block text-sm text-muted-foreground sm:text-xs">Email address<Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" disabled={closed} aria-describedby={why} className="mt-1 h-11 w-full text-base sm:h-9 sm:w-64 sm:text-sm" /></label>
           <label className="block text-sm text-muted-foreground sm:text-xs">Invite as<select value={role} onChange={(e) => setRole(e.target.value as WorkspaceRoleName)} disabled={closed} className={`${PHONE_FIELD} mt-1 block`}>{grantable.map((r) => <option key={r} value={r}>{WORKSPACE_ROLE_WORDS[r].label}</option>)}</select></label>
           <Button type="submit" variant="outline" className={PHONE_BUTTON} disabled={pending || closed}>Invite</Button>
           {!data.trial.onTrial && <Button type="button" variant="ghost" className={PHONE_BUTTON} disabled={pending} onClick={() => run(async () => createInviteLink("member"), (r) => setLink(r as string))}><Link2 aria-hidden /> Make a link for Members</Button>}

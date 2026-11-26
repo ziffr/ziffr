@@ -51,7 +51,7 @@ export function makeTotal(actor: Actor, planned: PlannedMetric, parts: number[])
   const e = planned.entry;
   const total = entryTotal(e)!;
   return createTotal(actor, {
-    name: planned.name, description: e.description, parts, targets: total.targets, polarity: e.polarity as Polarity, decimals: e.decimals,
+    name: planned.name, description: e.description, calculationNote: e.calculation_note, parts, targets: total.targets, polarity: e.polarity as Polarity, decimals: e.decimals,
     targetMin: e.target_min, targetMax: e.target_max, fromCatalogId: e.id,
   });
 }

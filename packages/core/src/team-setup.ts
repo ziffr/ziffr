@@ -1,6 +1,6 @@
 // The Setup Guide's Team step through the core (spec 0052, ticket 10; GLOSSARY: Setup Guide, Invitation, Domain Joining,
 // Group, Contact, Submitter, Business Function, Trial Workspace). One read for Owners and Admins that gathers what the
-// step shows: who is in, the invitations waiting, whether the trial lets anyone be invited yet, Domain Joining, the Groups
+// step shows: who is in, the invitations waiting, whether the trial lets anyone be invited now, Domain Joining, the Groups
 // and, for the Metrics the person may change, who is asked and who might be, as suggestions only. Every change is made
 // by the operations that already exist (invitations, Groups, Submitters); nothing here writes. Visibility is the point:
 // a Business Function is read through `businessFunctions`, which only Owners and Admins pass, so nobody else ever
@@ -17,6 +17,7 @@ import { businessFunctions } from "./business-function";
 import { openInvitations } from "./invitations";
 import { mailOn } from "./mail";
 import { trialEndsAt } from "./trials";
+import { inviteGate, type InviteGate } from "./invite-gate";
 import { BUSINESS_FUNCTION_LABELS, isBusinessFunction, type BusinessFunction } from "@ziffr/pack/business-functions";
 
 /** How many Metrics "Who is asked for what" lists: the newest ones the person may change. The Metrics page has the rest. */
@@ -41,7 +42,9 @@ export type TeamSetup = {
   mailOn: boolean;
   people: TeamPerson[];
   invitations: { id: number; email: string | null; role: string; expiresAt: string }[];
-  trial: { onTrial: boolean; ended: boolean; invitationsOpen: boolean };
+  trial: { onTrial: boolean };
+  /** Whether anyone can be invited now, and if not, why and what opens it. */
+  gate: InviteGate;
   domain: { on: string | null };
   groups: { id: number; name: string; members: string[] }[];
   asks: TeamAsk[];
@@ -54,23 +57,13 @@ export function suggestPeople<T extends { id: string; function: BusinessFunction
   return people.filter((p) => p.function !== null && audienceFunctions.includes(p.function));
 }
 
-/** Whether a Trial Workspace's Owner has recorded a first value of their own (never one that came in through a Feed or
- * an Import), which opens invitations in a trial (spec 0040). The database refuses an earlier invitation whatever this
- * says: it only lets the step say why in words instead of letting a press fail. */
-async function ownerHasOwnValue(ws: string): Promise<boolean> {
-  const { data: owners } = await db().from("memberships").select("user_id").eq("workspace_id", ws).eq("role", "owner");
-  const ids = (owners ?? []).map((o) => o.user_id as string);
-  if (!ids.length) return false;
-  const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).in("submitter_id", ids).eq("imported", false);
-  return (count ?? 0) > 0;
-}
-
 /** The Team step's data for an Owner or Admin. A Member, a Guest, an Access Key and the demo are refused: the step is
  * theirs to see only as Owners and Admins, and it carries Business Functions. */
 export async function teamSetup(actor: Actor): Promise<TeamSetup> {
   if (actor.key || actor.workspaceId === DEMO_WORKSPACE_ID || (actor.role !== "owner" && actor.role !== "admin")) throw new Forbidden();
   const ws = actor.workspaceId;
-  const [people, functionRows, invitations, mail, ends, { data: roles }, { data: space }, groups, shares, { data: rows }, { data: installs }] = await Promise.all([
+  const [gate, people, functionRows, invitations, mail, ends, { data: roles }, { data: space }, groups, shares, { data: rows }, { data: installs }] = await Promise.all([
+    inviteGate(actor),
     peopleIn(ws),
     businessFunctions(actor),
     openInvitations(actor),
@@ -127,7 +120,8 @@ export async function teamSetup(actor: Actor): Promise<TeamSetup> {
     mailOn: mail,
     people: team.map((p) => ({ id: p.id, name: p.name, kind: p.kind, role: p.role, function: p.function })),
     invitations: invitations.filter((i) => !i.held_at).map((i) => ({ id: i.id as number, email: (i.email as string | null) ?? null, role: String(i.role), expiresAt: String(i.expires_at) })),
-    trial: { onTrial: ends !== null, ended: ends !== null && ends.getTime() <= Date.now(), invitationsOpen: ends === null || (ends.getTime() > Date.now() && (await ownerHasOwnValue(ws))) },
+    trial: { onTrial: ends !== null },
+    gate,
     domain: { on: (space?.join_domain as string | null) ?? null },
     groups: groups.filter((g) => !g.everyone).map((g) => ({ id: g.id, name: g.name, members: g.members })),
     asks,

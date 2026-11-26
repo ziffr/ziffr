@@ -99,13 +99,14 @@ describe("the trial's invitation gate", () => {
   it("is closed until the Owner has a value of their own, open after, and a value that was imported does not open it", async () => {
     const { w, o, owner } = await fresh();
     await w.trial(day(7));
-    expect((await teamSetup(o)).trial).toEqual({ onTrial: true, ended: false, invitationsOpen: false });
+    expect((await teamSetup(o)).trial).toEqual({ onTrial: true });
+    expect((await teamSetup(o)).gate).toEqual({ state: "waiting", you: true, metric: null });
     await expect(inviteByEmail(o, { email: `a-${randomUUID().slice(0, 8)}@example.test`, role: "member" }, transport)).rejects.toThrow(/first value/);
     const m = await w.metric(owner);
     await db().from("observations").insert({ workspace_id: w.id, metric_id: m.id, period_start: "2026-10-01", value: 1, submitter_id: owner, imported: true, source: "api" });
-    expect((await teamSetup(o)).trial.invitationsOpen).toBe(false);
+    expect((await teamSetup(o)).gate).toMatchObject({ state: "waiting" });
     await w.value(m.id, "2026-11-01", 3, owner);
-    expect((await teamSetup(o)).trial).toEqual({ onTrial: true, ended: false, invitationsOpen: true });
+    expect((await teamSetup(o)).gate).toEqual({ state: "open" });
     await expect(inviteByEmail(o, { email: `b-${randomUUID().slice(0, 8)}@example.test`, role: "member" }, transport)).resolves.toMatchObject({ emailed: false });
     // A trial has no links and no Domain Joining: the core refuses both, and the step does not offer them.
     await expect(createInviteLink(o, "member")).rejects.toThrow(/trial/);
@@ -114,11 +115,12 @@ describe("the trial's invitation gate", () => {
 
   it("says the trial has ended and offers nothing once it has, and an ordinary Workspace is always open", async () => {
     const a = await fresh();
-    expect((await teamSetup(a.o)).trial).toEqual({ onTrial: false, ended: false, invitationsOpen: true });
+    expect((await teamSetup(a.o)).trial).toEqual({ onTrial: false });
+    expect((await teamSetup(a.o)).gate).toEqual({ state: "open" });
     const b = await fresh();
     await b.w.trial(day(-1));
     await b.w.value((await b.w.metric(b.owner)).id, "2026-11-01", 3, b.owner);
-    expect((await teamSetup(b.o)).trial).toEqual({ onTrial: true, ended: true, invitationsOpen: false });
+    expect((await teamSetup(b.o)).gate).toEqual({ state: "ended" });
   });
 });
 

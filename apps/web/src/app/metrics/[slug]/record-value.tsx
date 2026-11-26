@@ -12,13 +12,13 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 /** The Record a value button with its form. */
-export function RecordValue({ offer, wide }: { offer: RecordingOffer; /** Fills its row, as in the list's slide-over. */ wide?: boolean }) {
+export function RecordValue({ offer, wide, onClose }: { offer: RecordingOffer; /** Fills its row, as in the list's slide-over. */ wide?: boolean; /** Called when the form is closed, whether or not a value was recorded. */ onClose?: () => void }) {
   const [open, setOpen] = useState(false);
   const trigger = <><Plus aria-hidden /> Record a value</>;
   const intro = `Goes the way a value sent by your form link does: ${offer.rule.toLowerCase()}, and the Metric's checks and approvals apply.`;
   const body = <RecordForm offer={offer} />;
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={(next) => { setOpen(next); if (!next) onClose?.(); }}>
       <SheetTrigger className={buttonVariants({ className: wide ? "w-full" : undefined })}>{trigger}</SheetTrigger>
       <SheetContent>
         <SheetHeader><SheetTitle>Record a value for {offer.name}</SheetTitle><SheetDescription>{intro}</SheetDescription></SheetHeader>
