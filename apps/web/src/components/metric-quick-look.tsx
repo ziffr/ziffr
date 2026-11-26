@@ -14,6 +14,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Change, TargetChip } from "@/components/target-chip";
 import { Sparkline } from "@/views/sparkline";
+import { CalculationDisclosure } from "@/components/calculation-note";
 import { formatValue, health, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 
@@ -65,6 +66,7 @@ function Panel({ slug }: { slug: string }) {
         <dt className="text-muted-foreground">Target</dt><dd className="fig min-w-0 text-right">{targetText(m, numberStyle)}</dd>
         <dt className="text-muted-foreground">Owner</dt><dd className="min-w-0 text-right [overflow-wrap:anywhere]">{ownerName ?? "–"}</dd>
       </dl>
+      <CalculationDisclosure note={m.calculation_note} derived={m.derived} formula={m.formula} />
       {pts.length > 0 && (
         <table className="w-full text-sm">
           <caption className="pb-1 text-left text-xs text-muted-foreground">Latest values</caption>

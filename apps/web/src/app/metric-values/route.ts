@@ -5,6 +5,7 @@ import { unstable_rethrow } from "next/navigation";
 import { Forbidden, type Actor } from "@ziffr/core/actor";
 import { EXPORT_METRICS, exportMetricValues } from "@ziffr/core/metric-values-export";
 import { forPeople } from "@/lib/action-result";
+import { csvFile } from "@/lib/csv-file";
 import { currentActor } from "@/lib/viewer";
 
 const headers = { "cache-control": "no-store" };
@@ -29,7 +30,7 @@ export async function GET(req: Request) {
   const slugs = new URL(req.url).searchParams.getAll("metric").slice(0, EXPORT_METRICS + 1);
   try {
     const { csv } = await exportMetricValues(await person(), slugs);
-    return new Response(csv, { headers: { ...headers, "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="ziffr-values.csv"' } });
+    return new Response(csvFile(csv), { headers: { ...headers, "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="ziffr-values.csv"' } });
   } catch (e) {
     // A redirect to sign in, or to make a Workspace, is Next.js's, not a refusal to put into words.
     unstable_rethrow(e);

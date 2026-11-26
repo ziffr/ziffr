@@ -18,6 +18,7 @@ import { POLARITY_LABEL, RULE_LABEL } from "@ziffr/core/format";
 import type { Metric, Period, Polarity, SubmissionRule, UnitPosition } from "@ziffr/core/types";
 import { NameField } from "../name-field";
 import { UnitFields } from "../unit-fields";
+import { CalculationNoteField } from "../calculation-note-field";
 import { AttainmentMethodField } from "../attainment-method-field";
 import type { AttainmentMethod } from "@ziffr/core/attainment-method";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
@@ -25,7 +26,7 @@ import { NUMBER_STYLE_MARKS, type NumberStyle } from "@ziffr/core/number-style";
 import { readNumber } from "@ziffr/core/numbers";
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
-type M = Pick<Metric, "id" | "name" | "description" | "unit" | "unit_position" | "format" | "decimals" | "period" | "submission_rule" | "polarity" | "aggregation" | "target_min" | "target_max" | "formula" | "attainment_method">;
+type M = Pick<Metric, "id" | "name" | "description" | "calculation_note" | "unit" | "unit_position" | "format" | "decimals" | "period" | "submission_rule" | "polarity" | "aggregation" | "target_min" | "target_max" | "formula" | "attainment_method">;
 
 /** "Edit details…" with the Metric's description as a form. `fixed` keeps the period as it is, and says why: the
  * Metric has values, or targets or projections by period. */
@@ -56,7 +57,7 @@ export function EditDetails({ metric, fixed, money, numberStyle, attainmentMetho
             start(async () => {
               try {
                 const r = await updateMetricDetails(metric.id, {
-                  name: String(f.get("name") ?? ""), description: String(f.get("description") ?? ""), unit: String(f.get("unit") ?? ""), unitPosition: String(f.get("unit_position") ?? "after"),
+                  name: String(f.get("name") ?? ""), description: String(f.get("description") ?? ""), calculationNote: String(f.get("calculation_note") ?? ""), unit: String(f.get("unit") ?? ""), unitPosition: String(f.get("unit_position") ?? "after"),
                   format: String(f.get("format")), decimals: Number(f.get("decimals")), period: String(f.get("period") ?? metric.period),
                   submissionRule: metric.formula ? undefined : String(f.get("submission_rule")), polarity: String(f.get("polarity")),
                   aggregation: String(f.get("aggregation")), targetMin: num(f.get("target_min")), targetMax: num(f.get("target_max")),
@@ -73,7 +74,8 @@ export function EditDetails({ metric, fixed, money, numberStyle, attainmentMetho
           }}
         >
           <div className="sm:col-span-2"><Label htmlFor="ed-name">Name</Label><NameField id="ed-name" defaultValue={metric.name} exceptMetricId={metric.id} /></div>
-          <div className="sm:col-span-2"><Label htmlFor="ed-desc">Description</Label><Textarea id="ed-desc" name="description" defaultValue={metric.description ?? ""} maxLength={2000} rows={3} /></div>
+          <div className="sm:col-span-2"><Label htmlFor="ed-desc">Description</Label><Textarea id="ed-desc" name="description" defaultValue={metric.description ?? ""} maxLength={2000} rows={3} placeholder="What is it, and why does it matter?" /></div>
+          <CalculationNoteField id="ed-calc" defaultValue={metric.calculation_note} className="sm:col-span-2" />
           <UnitFields format={metric.format} unit={metric.unit ?? ""} unitPosition={metric.unit_position} decimals={metric.decimals} money={money} numberStyle={numberStyle} idPrefix="ed" />
           <div>
             <Label htmlFor="ed-period">Period</Label>

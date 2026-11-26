@@ -209,7 +209,7 @@
         },
         "metric": {
           "type": "object",
-          "description": "A ziffr.metric/1 document, checked by its schema with the text rules of the app instead of the Pack's: any text without control or direction characters, a description of up to 2000 characters and Target bounds up to 10^15."
+          "description": "A ziffr.metric/1 or ziffr.metric/2 document, checked by its schema with the text rules of the app instead of the Pack's: any text without control or direction characters, a description and a Calculation Note of up to 2000 characters each and Target bounds up to 10^15."
         },
         "tags": {
           "type": "array",

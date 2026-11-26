@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentActor } from "@/lib/viewer";
 import * as decks from "@ziffr/core/decks";
+import { deckShareGaps, readKeptNumbers } from "@ziffr/core/deck-snapshots";
+import { attempt } from "@/lib/action-result";
 import { recordDeckExport } from "@ziffr/core/audit-log";
 import { attemptAsVisitor } from "@/lib/demo-write";
 import { chargeDeckSave } from "@ziffr/core/demo-shares";
@@ -49,6 +51,17 @@ export async function setDeckFooter(id: number, footer: string | null) {
 /** Notes in the Audit Log that the person exported the deck; the file itself is made in the browser. */
 export async function noteDeckExport(id: number, format: "pptx" | "pdf") {
   await recordDeckExport(await currentActor(), Number(id), format === "pdf" ? "pdf" : "pptx");
+}
+
+/** The Snapshot numbers the viewer gets for what a deck's slides ask now (spec 0061); the core checks the request and
+ * each Snapshot for this person. */
+export async function readDeckNumbers(requests: unknown) {
+  return attempt(async () => readKeptNumbers(await currentActor(), requests));
+}
+
+/** Who will not see which of the deck's Snapshot Parts, for its owner's share panel (spec 0061). */
+export async function deckShareLeftOut(id: number) {
+  return attempt(async () => deckShareGaps(await currentActor(), Number(id)));
 }
 
 /** The deck's owner deletes it; the core refuses anyone else. */
