@@ -200,7 +200,7 @@ export type Dashboard = {
 };
 
 /** The built-in Widget Templates. */
-export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "stacked" | "pareto" | "slope" | "running-total" | "bump" | "heatmap" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design";
+export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "stacked" | "pareto" | "slope" | "running-total" | "bump" | "heatmap" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design" | "slide";
 
 /** A callout sits at one period, or (in templates) at whatever period a rule picks. */
 export type Callout = { period: string; text: string; rule?: AnchorRule };
@@ -243,6 +243,8 @@ export type Panel = {
 
 /** Everything a widget can be set to; each view uses the parts it needs. */
 export type WidgetSettings = {
+  /** What a slide's Slide Element draws (GLOSSARY: Slide Element; spec 0057): only on the view "slide". */
+  element?: import("@ziffr/pack/slide-element").SlideElement;
   /** How many periods it shows: of its Display Period when it has one. */
   window?: number;
   /** Show by (GLOSSARY: Display Period): a period longer than the Metric's own; absent means its own. */
@@ -371,8 +373,8 @@ export type SlideShape = {
   props: Record<string, unknown>;
   widget?: { metricSlots: number[]; settings: WidgetSettings; title: string | null };
 };
-/** The shapes a slide layout keeps. */
-export type SlideBody = { shapes: SlideShape[] };
+/** The shapes a slide layout keeps; `cover` marks a cover slide (spec 0057). */
+export type SlideBody = { shapes: SlideShape[]; cover?: boolean };
 /** A whole slide saved with its metrics left open (a slide layout). */
 export type SlideTemplate = TemplateBase & { kind: "slide"; view: "slide"; body: SlideBody };
 /** A team's Widget Template: for one widget, or a whole slide. */
@@ -449,6 +451,14 @@ export type ThemeTokens = {
   bad: string;
   /** The target band. */
   band: string;
+  /** A dark panel behind words (Slide Elements, spec 0057); absent, as are the three after it: worked out from the others. */
+  cover?: string;
+  /** Words on the cover colour. */
+  coverText?: string;
+  /** The accent that reads on the cover colour. */
+  coverAccent?: string;
+  /** A pale accent. */
+  soft?: string;
   fontHeading: FontId;
   fontBody: FontId;
   fontFigures: FontId;

@@ -10,7 +10,7 @@ export type TemplateDef = {
   id: TemplateId;
   label: string;
   blurb: string;
-  kind: "metric" | "analysis" | "story" | "layout";
+  kind: "metric" | "analysis" | "story" | "layout" | "slide";
   /** Templates that draw a Breakdown (a Finding of one period's, or a View of every period's): offered only for a Metric that has one. */
   needsBreakdown?: boolean;
   /** Templates that add a Metric up over the year: only a Metric whose Aggregation is sum can be drawn by them. */
@@ -56,6 +56,8 @@ export const TEMPLATES: Record<TemplateId, TemplateDef> = {
   // A View Design of the Workspace: its name, Slots and settings come from the design the widget carries (designTemplate).
   design: { id: "design", label: "View Design", blurb: "A View your Workspace added as a View Design.", kind: "metric", slots: one, size: { w: 6, h: 6 }, settings: {} },
   canvas: { id: "canvas", label: "Free layout", blurb: "Place widgets, text, arrows and shapes freely, like on a slide.", kind: "layout", slots: [], size: { w: 8, h: 10 }, settings: {} },
+  // A Slide Element (spec 0057): what it draws is in its settings. For slides only, and never offered as a Widget.
+  slide: { id: "slide", label: "Slide Element", blurb: "A part of a slide drawn in the deck's Theme.", kind: "slide", slots: [], size: { w: 6, h: 6 }, settings: {} },
   "story-line": { id: "story-line", label: "Finding: annotated line", blurb: "The trend with callouts at moments that matter.", kind: "story", slots: one, size: { w: 8, h: 9 }, settings: { window: 12, callouts: [] } },
 };
 
@@ -71,7 +73,10 @@ export const templatesFor = (hasBreakdown: boolean) => [...METRIC_TEMPLATES, ...
 
 /** The built-in templates offered to choose from: every one but the stand-in for a Workspace's View Design, which is
  * offered by its own name (GLOSSARY: View Design). */
-export const OFFERED_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.id !== "design");
+export const OFFERED_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.id !== "design" && t.kind !== "slide");
+
+/** Whether a view can stand on a dashboard: one that exists and is not a slide's own (a Slide Element). */
+export const isDashboardView = (template: string): template is TemplateId => template in TEMPLATES && TEMPLATES[template as TemplateId].kind !== "slide";
 
 /** A Workspace's View Design as a template to offer and fill: by its own name, Slots, size and settings. */
 export function designTemplate(design: ViewDesign): TemplateDef {

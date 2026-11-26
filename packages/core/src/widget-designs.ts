@@ -4,6 +4,7 @@
 // Security: settings come from browsers, and widgets nest: a Free layout keeps the widget it starts from
 // (`canvasSeed`) and a tldraw document of widgets, each with settings of its own. Every path a design can sit on is
 // walked here, so the renderer only ever sees checked designs, however the settings arrived. Pure.
+import { checkedElement } from "./slide-element";
 import { checkViewDesignValue } from "./view-design";
 import type { WidgetSettings } from "./types";
 
@@ -27,6 +28,8 @@ export function assertSettingsDesigns(settings: unknown, depth = 0): void {
   if (depth > MAX_WIDGET_NESTING) throw new Error("This widget nests other widgets too deeply.");
   const s = settings as WidgetSettings;
   checkedDesignSetting(s.design);
+  // A Slide Element is walked by the same path, so no shape, nested or not, carries one that was not checked.
+  if (s.element !== undefined) checkedElement(s.element);
   if (s.canvasSeed) assertSettingsDesigns(s.canvasSeed.settings, depth + 1);
   assertWidgetDesigns(s.canvas?.document, depth + 1);
 }

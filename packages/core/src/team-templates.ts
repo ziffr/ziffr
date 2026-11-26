@@ -134,6 +134,8 @@ function templatize(widget: W, metrics: Metric[], choices: Choices, ctx: SlotCtx
 
   // Only what a template means to carry: no free-layout documents, no comparison choices of the original.
   const settings: WidgetSettings = {
+    // A Slide Element keeps what it draws: its words are filled live, so they stay as written.
+    ...(s.element ? { element: s.element } : {}),
     window: s.window, display: s.display, showTarget: s.showTarget, showForecast: s.showForecast, rows: s.rows, fullPeriods: s.fullPeriods,
     kicker: p(s.kicker), headline: p(s.headline), subline: p(s.subline), footnote: p(s.footnote), source: p(s.source),
     highlight: null, period: null,
@@ -247,10 +249,14 @@ export function deckSpecifics(slides: SlideShape[][]): Specific[] {
   return slides.flatMap((shapes, j) => slideSpecifics(shapes).map((x) => ({ ...x, key: `d${j}:${x.key}` })));
 }
 
-/** The Deck Template a deck's slides make: shared Slots, each slide's shapes with Slot numbers instead of Metrics. */
-export function toDeckTemplate(slides: SlideShape[][], metrics: Metric[], choices: Choices, labels: string[] = []) {
+/** The Deck Template a deck's slides make: shared Slots, each slide's shapes with Slot numbers instead of Metrics.
+ * `covers` says which slides are covers. */
+export function toDeckTemplate(slides: SlideShape[][], metrics: Metric[], choices: Choices, labels: string[] = [], covers: boolean[] = []) {
   const ctx = newCtx();
-  const made = slides.map((shapes, j) => templatizeSlide(shapes, metrics, choices, ctx, `d${j}:`));
+  const made = slides.map((shapes, j) => {
+    const slide = templatizeSlide(shapes, metrics, choices, ctx, `d${j}:`);
+    return covers[j] ? { ...slide, body: { ...slide.body, cover: true } } : slide;
+  });
   return { slots: nameSlots(ctx, labels), body: { slides: made.map((m) => m.body) } as DeckTemplateBody, notices: [...new Set(made.flatMap((m) => m.notices))] };
 }
 
@@ -262,8 +268,9 @@ export function fromDeckTemplate(body: DeckTemplateBody, fills: number[][], fill
 // Dashboard Templates (spec 0014): a whole dashboard saved as a template. Its widgets share one set of slots, so a
 // Metric drawn by three widgets is picked once; each widget keeps its own words, with its own {metric}.
 
-/** Views a Dashboard Template cannot hold: a Free Layout keeps a drawing whose Metrics cannot be left open yet. */
-export const NOT_IN_DASHBOARD_TEMPLATES: TemplateId[] = ["canvas"];
+/** Views a Dashboard Template cannot hold: a Free Layout keeps a drawing whose Metrics cannot be left open yet, and a
+ * Slide Element is for slides only. */
+export const NOT_IN_DASHBOARD_TEMPLATES: TemplateId[] = ["canvas", "slide"];
 
 /** The Dashboard Template a dashboard makes: shared slots, each widget with slot numbers instead of Metrics, where
  * it sits, the widgets left out (by title or view) and what changed on the way. Every note tied to one period or row

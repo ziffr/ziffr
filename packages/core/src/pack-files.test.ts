@@ -226,7 +226,7 @@ describe.each(formats)("%s", (format, hostile, _value, check, good, schema) => {
     expect(res.ok ? [] : res.problems).toEqual([]);
   });
   it("names a later version as one", () => {
-    const later = format.replace("/1", "/2");
+    const later = format.replace("/1", "/9");
     const res = check(text({ ...(good as object), format: later }));
     expect(!res.ok && res.problems[0].message).toContain(`format ${later}; this Ziffr reads ${format}`);
   });

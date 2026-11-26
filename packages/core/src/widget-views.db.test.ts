@@ -23,7 +23,9 @@ describe("every built-in View", () => {
     const added = await addViewDesign(w.actor(sara), writeViewDesign(BUILT_IN_DESIGNS.line));
     if (!added.ok) throw new Error("The View Design was not added.");
     const dash = await createDashboard(w.actor(sara), "Every View");
-    const all = Object.keys(TEMPLATES) as TemplateId[];
+    // A Slide Element is for slides only, and a dashboard refuses it (spec 0057).
+    const all = (Object.keys(TEMPLATES) as TemplateId[]).filter((t) => t !== "slide");
+    await expect(placeWidget(w.actor(sara), dash, { type: "spec", template: "slide", metricIds: [m.id] })).rejects.toThrow();
     for (const template of all) {
       const settings = template === "design" ? { design: { id: added.id, body: BUILT_IN_DESIGNS.line } } : undefined;
       const metricIds = TEMPLATES[template].slots.length ? [m.id] : [];

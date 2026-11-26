@@ -28,11 +28,26 @@ export const PLAIN = `^${NO_ADDRESS}${CHARS}*$`;
  * ones, each a fixed word, so braces can never read as a template of anything else. */
 export const WORDS = `^${NO_ADDRESS}(?:${CHARS}|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$`;
 
+/** Plain text that may hold the Placeholders of a slide's own words (spec 0057): those above, the quarter, the changes
+ * and gaps between an element's Metrics ({gap 2 1}), the unit they are written in and the page number. */
+export const SLIDE_WORDS = `^${NO_ADDRESS}(?:${CHARS}|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target|quarter weeks|quarter week|quarter|weeks left|change|scale|slide)(?: [1-9])?\\}|\\{(?:difference|gap) [1-9] [1-9]\\})*$`;
+
+// What a person typed into the app: any text but control characters, line and paragraph separators, characters that
+// reverse the direction of text and invisible ones (zero-width spaces, soft hyphens, tag characters, lone surrogates). Markup and web addresses are data here, never rendered or followed as such.
+/** The pattern of what a person typed into the app. */
+export const APP_TEXT = "^[^\\p{Cc}\\p{Cs}\\u00AD\\u200B\\u2060\\uFEFF\\u{E0000}-\\u{E007F}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$";
+
+/** A text a person typed into the app, of at most `max` characters. */
+export const appText = (max: number, description = "text without control characters, line breaks or characters that reverse its direction"): Schema => ({ type: "string", maxLength: max, pattern: APP_TEXT, description });
+
 /** A plain text of at most `max` characters, described as `description` in the schema and its messages. */
 export const plainText = (max: number, description = "plain text, without markup or web addresses"): Schema => ({ type: "string", maxLength: max, pattern: PLAIN, description });
 
 /** Words of a widget or slide, which may hold Placeholders, of at most `max` characters. */
 export const words = (max: number): Schema => ({ type: "string", maxLength: max, pattern: WORDS, description: "plain text, without markup or web addresses; Placeholders such as {metric} are allowed" });
+
+/** Words of a Slide Element, which may hold a slide's Placeholders, of at most `max` characters. */
+export const slideWords = (max: number): Schema => ({ type: "string", maxLength: max, pattern: SLIDE_WORDS, description: "plain text, without markup or web addresses; Placeholders such as {gap 2 1} are allowed" });
 
 /** The pattern of an item's key in a Pack, such as “mrr” or “saas-overview”: also how a formula names it ({mrr}). */
 export const KEY = "^[a-z][a-z0-9-]{0,39}$";

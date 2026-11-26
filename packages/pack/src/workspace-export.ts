@@ -11,14 +11,15 @@
 // are finite and bounded, dates real and in range; text follows the Pack's plain-text rules; "__proto__" and its kin
 // are data (ids are held in Maps, keys are refused by pattern). Nothing here runs or queries what it reads.
 import { checkSchema, MAX_PROBLEMS, parseJson, under, type Problem, type Schema } from "./json-check.js";
-import { itemKey, PLAIN, WORDS } from "./file-text.js";
+import { appText, APP_TEXT, itemKey, PLAIN, SLIDE_WORDS, WORDS } from "./file-text.js";
 import { checkMetricFileValue, METRIC_FILE_SCHEMA, type MetricFile } from "./metric-file.js";
 import { checkDashboardTemplateFileValue, DASHBOARD_TEMPLATE_LIMITS, DASHBOARD_TEMPLATE_SCHEMA, dashboardTemplateReferences, refusedOutsidePack, type DashboardTemplateFile } from "./dashboard-template-file.js";
-import { checkDeckTemplateFileValue, DECK_TEMPLATE_LIMITS, DECK_TEMPLATE_SCHEMA, deckTemplateReferences, type DeckTemplateFile } from "./deck-template-file.js";
+import { checkDeckTemplateFileValue, DECK_TEMPLATE_LIMITS, DECK_TEMPLATE_SCHEMA, deckTemplateReferences, deckTemplateSchema2, type DeckTemplateFile } from "./deck-template-file.js";
 import { checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_LIMITS, WORKFLOW_TEMPLATE_SCHEMA, type WorkflowTemplateFile } from "./workflow-template-file.js";
-import { checkThemeFileValue, THEME_FILE_LIMITS, THEME_FILE_SCHEMA, type ThemeFile } from "./theme-file.js";
+import { checkThemeFileValue, THEME_FILE_LIMITS, THEME_FILE_2_SCHEMA, THEME_FILE_SCHEMA, type ThemeFile } from "./theme-file.js";
 import { VIEW_DESIGN_SCHEMA } from "./view-design.js";
 import { checkPackFormula, type FormulaEntry } from "./formula-check.js";
+import { slideElementSchema } from "./slide-element.js";
 import type { Period, SourceId } from "./kinds.js";
 import { readParents } from "./breakdown-parents.js";
 
@@ -108,10 +109,6 @@ export type WorkspaceExportRecord = HeaderRecord | GroupRecord | ThemeRecord | P
 // ---------------------------------------------------------------------------------------------------------------------
 // The schema.
 
-// What a person typed into the app: any text but control characters, line and paragraph separators, characters that
-// reverse the direction of text and invisible ones (zero-width spaces, soft hyphens, tag characters, lone surrogates). Markup and web addresses are data here, never rendered or followed as such.
-const LOOSE = "^[^\\p{Cc}\\p{Cs}\\u00AD\\u200B\\u2060\\uFEFF\\u{E0000}-\\u{E007F}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$";
-const looseText = (max: number, description = "text without control characters, line breaks or characters that reverse its direction"): Schema => ({ type: "string", maxLength: max, pattern: LOOSE, description });
 
 const ID = "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$";
 const id = (what: string): Schema => ({ type: "string", pattern: ID, description: `${what}: a label of up to ${L.id} letters, digits, dashes and underscores, standing for one record of this file only` });
@@ -129,7 +126,7 @@ const slots: Schema = { type: "array", minItems: 1, maxItems: DASHBOARD_TEMPLATE
  * typed in the app, with an "@", an emoji or an address, travels; a Pack file keeps the Pack's rule. */
 function loosened(schema: Schema): Schema {
   const walk = (s: Schema): Schema => {
-    const out: Schema = s.pattern === PLAIN || s.pattern === WORDS ? { ...s, pattern: LOOSE, description: looseText(1).description } : { ...s };
+    const out: Schema = s.pattern === PLAIN || s.pattern === WORDS || s.pattern === SLIDE_WORDS ? { ...s, pattern: APP_TEXT, description: appText(1).description } : { ...s };
     if (s.properties) out.properties = Object.fromEntries(Object.entries(s.properties).map(([k, v]) => [k, walk(v)]));
     if (s.items) out.items = walk(s.items);
     if (s.oneOf) out.oneOf = s.oneOf.map(walk);
@@ -140,8 +137,10 @@ function loosened(schema: Schema): Schema {
 }
 const EXPORT_DASHBOARD_SCHEMA = loosened(DASHBOARD_TEMPLATE_SCHEMA);
 const EXPORT_DECK_SCHEMA = loosened(DECK_TEMPLATE_SCHEMA);
+// A Slide Element's words follow the app's text rules too, as a slide's words do.
+const EXPORT_DECK_SCHEMAS = { v1: EXPORT_DECK_SCHEMA, v2: deckTemplateSchema2(slideElementSchema(appText), EXPORT_DECK_SCHEMA) };
 const EXPORT_WORKFLOW_SCHEMA = loosened(WORKFLOW_TEMPLATE_SCHEMA);
-const EXPORT_THEME_SCHEMA = loosened(THEME_FILE_SCHEMA);
+const EXPORT_THEME_SCHEMAS = { v1: loosened(THEME_FILE_SCHEMA), v2: loosened(THEME_FILE_2_SCHEMA) };
 /** A View Design inside a widget, with the app's text rules too: nothing the app stores may stop an export. */
 const EXPORT_VIEW_SCHEMA = loosened(VIEW_DESIGN_SCHEMA);
 
@@ -154,10 +153,10 @@ const EXPORT_METRIC_SCHEMA: Schema = (() => {
     ...METRIC_FILE_SCHEMA,
     properties: {
       ...props,
-      name: { ...looseText(120), minLength: 1 },
-      description: looseText(L.metricDescription),
-      category: looseText(60),
-      unit: looseText(20),
+      name: { ...appText(120), minLength: 1 },
+      description: appText(L.metricDescription),
+      category: appText(60),
+      unit: appText(20),
       targetMin: bound(props.targetMin),
       targetMax: bound(props.targetMax),
     },
@@ -177,18 +176,18 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
       ziffr: { type: "string", maxLength: 40, pattern: "^[0-9]{1,4}\\.[0-9]{1,4}\\.[0-9]{1,4}(?:-[0-9A-Za-z.-]{1,30})?$", description: "The Ziffr release that wrote the file." },
       exportedAt: INSTANT,
       workspace: obj({
-        name: { ...looseText(80), minLength: 1 },
+        name: { ...appText(80), minLength: 1 },
         timeZone: { type: "string", maxLength: 64, pattern: "^[A-Za-z][A-Za-z0-9_+/-]{0,63}$", description: "A time zone name such as “Europe/Berlin”." },
         language: { type: "string", maxLength: 5, pattern: "^[a-z]{2}(?:-[A-Z]{2})?$", description: "A language such as “en” or “de-AT”." },
         yearStart: { type: "integer", minimum: 1, maximum: 12, description: "The month the Workspace's year starts in (its Fiscal Year); left out, January." },
         attainmentMethod: { enum: ["ratio", "distance"], description: "How Attainment is computed in the Workspace." },
       }, ["name"], "The settings of the Workspace an Owner chose."),
     }, ["format", "ziffr", "exportedAt", "workspace"]),
-    record("group", "A Group of people.", { id: id("this Group"), name: { ...looseText(80), minLength: 1 } }, ["id", "name"]),
+    record("group", "A Group of people.", { id: id("this Group"), name: { ...appText(80), minLength: 1 } }, ["id", "name"]),
     record("theme", "A Theme of the Workspace, as a ziffr.theme/1 document.", { id: id("this Theme"), theme: { type: "object", description: "A ziffr.theme/1 document, checked by its own schema." } }, ["id", "theme"]),
     record("person", "A person, as an invitation the new Owner chooses to send. Nothing of their account travels.", {
       id: id("this person"),
-      name: { ...looseText(L.name), minLength: 1 },
+      name: { ...appText(L.name), minLength: 1 },
       email: { type: "string", minLength: 3, maxLength: L.email, pattern: "^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$", description: "an email address, such as “ada@example.com”" },
       role: { enum: ["admin", "member", "guest"], description: "The Workspace Role to invite them with. The Owner of the old Workspace is listed as an admin: the person who imports becomes the Owner." },
       groups: refs("the Groups they belong to", L.groupsOfPerson),
@@ -197,7 +196,7 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
       id: id("this Metric"),
       key: itemKey("the Metric's key, which a Derived Metric's formula names as {key}: lower-case letters, digits and dashes, unique in the file"),
       metric: { type: "object", description: "A ziffr.metric/1 document, checked by its schema with the text rules of the app instead of the Pack's: any text without control or direction characters, a description of up to 2000 characters and Target bounds up to 10^15." },
-      tags: { type: "array", maxItems: L.tags, items: { ...looseText(L.tag), minLength: 1 }, description: "The Tags put on the Metric." },
+      tags: { type: "array", maxItems: L.tags, items: { ...appText(L.tag), minLength: 1 }, description: "The Tags put on the Metric." },
       owner: ref("the person who owns it"),
       submitters: refs("the people who send its values", L.submitters),
     }, ["id", "key", "metric"]),
@@ -216,9 +215,9 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
       value: number(`The value, with at most ${L.decimals} decimals.`),
       recordedAt: INSTANT,
       source: { enum: ["web_form", "mail", "slack", "telegram", "api", "import"], description: "Where it arrived from; an import records every value as an Import whatever this says." },
-      submittedBy: { ...looseText(L.name), minLength: 1, description: "Who submitted it, as a name, never an id." },
-      enteredBy: { ...looseText(L.name), minLength: 1, description: "Who entered it for the submitter (a Filled-in Value), as a name, never an id. Left out when the submitter entered it." },
-      breakdown: { type: "array", maxItems: L.breakdown, items: obj({ label: { ...looseText(L.label), minLength: 1 }, value: number("The part of the value."), parent: { ...looseText(L.label), minLength: 1, description: "The label of the row of this Breakdown that this one is a part of: a row of the same list, at most 4 levels down; left out for a row at the top." } }, ["label", "value"]), description: "Labelled values that split the observation, each optionally a part of another row of the list (parent)." },
+      submittedBy: { ...appText(L.name), minLength: 1, description: "Who submitted it, as a name, never an id." },
+      enteredBy: { ...appText(L.name), minLength: 1, description: "Who entered it for the submitter (a Filled-in Value), as a name, never an id. Left out when the submitter entered it." },
+      breakdown: { type: "array", maxItems: L.breakdown, items: obj({ label: { ...appText(L.label), minLength: 1 }, value: number("The part of the value."), parent: { ...appText(L.label), minLength: 1, description: "The label of the row of this Breakdown that this one is a part of: a row of the same list, at most 4 levels down; left out for a row at the top." } }, ["label", "value"]), description: "Labelled values that split the observation, each optionally a part of another row of the list (parent)." },
     }, ["metric", "period", "value"]),
     record("end", "The last line: how many records of each kind the file holds.", {
       counts: obj(Object.fromEntries(Object.keys(L.perKind).map((k) => [k, { type: "integer", minimum: 0, maximum: L.perKind[k as Counted] } satisfies Schema])), Object.keys(L.perKind), "The records of each kind, header and end not counted."),
@@ -415,7 +414,7 @@ export class WorkspaceExportChecker {
         return fresh("group", r.id);
       case "theme": {
         fresh("theme", r.id);
-        if (doc("theme", "Theme", THEME_FILE_LIMITS.bytes, r.theme)) merge("theme", checkThemeFileValue(r.theme, new Map(), "standalone", EXPORT_THEME_SCHEMA));
+        if (doc("theme", "Theme", THEME_FILE_LIMITS.bytes, r.theme)) merge("theme", checkThemeFileValue(r.theme, new Map(), "standalone", EXPORT_THEME_SCHEMAS));
         return;
       }
       case "person": {
@@ -456,7 +455,7 @@ export class WorkspaceExportChecker {
       case "deck": {
         fresh("deck", r.id);
         if (doc("deck", "deck", DECK_TEMPLATE_LIMITS.bytes, r.deck)) {
-          const res = checkDeckTemplateFileValue(r.deck, undefined, EXPORT_DECK_SCHEMA, EXPORT_VIEW_SCHEMA);
+          const res = checkDeckTemplateFileValue(r.deck, undefined, EXPORT_DECK_SCHEMAS, EXPORT_VIEW_SCHEMA);
           const refs = res.ok ? Object.values(deckTemplateReferences(res.value)).flat() : [];
           merge("deck", res.ok ? refusedOutsidePack(res, refs, new Map()) : res);
           this.slots(r.slots, res.ok ? res.value.slots : undefined, at, known);
@@ -566,7 +565,7 @@ export function exportDocumentProblem(kind: ExportDocumentKind, value: unknown):
     case "metric":
       return size(L.metricBytes, "Metric") ?? first(checkMetricFileValue(value, undefined, EXPORT_METRIC_SCHEMA));
     case "theme":
-      return size(THEME_FILE_LIMITS.bytes, "Theme") ?? first(checkThemeFileValue(value, new Map(), "standalone", EXPORT_THEME_SCHEMA));
+      return size(THEME_FILE_LIMITS.bytes, "Theme") ?? first(checkThemeFileValue(value, new Map(), "standalone", EXPORT_THEME_SCHEMAS));
     case "workflow":
       return size(WORKFLOW_TEMPLATE_LIMITS.bytes, "Workflow") ?? first(checkWorkflowTemplateFileValue(value, undefined, EXPORT_WORKFLOW_SCHEMA));
     case "dashboard": {
@@ -578,7 +577,7 @@ export function exportDocumentProblem(kind: ExportDocumentKind, value: unknown):
     case "deck": {
       const big = size(DECK_TEMPLATE_LIMITS.bytes, "deck");
       if (big) return big;
-      const res = checkDeckTemplateFileValue(value, undefined, EXPORT_DECK_SCHEMA, EXPORT_VIEW_SCHEMA);
+      const res = checkDeckTemplateFileValue(value, undefined, EXPORT_DECK_SCHEMAS, EXPORT_VIEW_SCHEMA);
       return first(res.ok ? refusedOutsidePack(res, Object.values(deckTemplateReferences(res.value)).flat(), new Map()) : res);
     }
   }

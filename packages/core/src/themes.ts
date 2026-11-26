@@ -1,5 +1,6 @@
 // Themes (GLOSSARY: Theme): a theme becomes CSS custom properties on the element that holds content.
 // Widgets, stories and slides only use tokens, so one wrapper repaints all of them. Pure.
+import type { SlideTone } from "@ziffr/pack/slide-element";
 import type { FontId, SlideDesign, Theme, ThemeDarkColours, ThemeSlides, ThemeTokens } from "./types";
 
 type Font = { label: string; stack: string; href?: string; /** The name PowerPoint looks for. */ office: string; kind: "sans" | "serif" | "mono" };
@@ -9,7 +10,7 @@ const G = (family: string) => `https://fonts.googleapis.com/css2?family=${family
 export const FONTS: Record<FontId, Font> = {
   "general-sans": { label: "General Sans", stack: '"General Sans", ui-sans-serif, system-ui, sans-serif', href: "https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap", office: "Arial", kind: "sans" },
   inter: { label: "Inter", stack: '"Inter", ui-sans-serif, system-ui, sans-serif', href: G("Inter:wght@400;500;600;700"), office: "Inter", kind: "sans" },
-  "ibm-plex-sans": { label: "IBM Plex Sans", stack: '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif', href: G("IBM+Plex+Sans:wght@400;500;600"), office: "IBM Plex Sans", kind: "sans" },
+  "ibm-plex-sans": { label: "IBM Plex Sans", stack: '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif', href: G("IBM+Plex+Sans:wght@400;500;600;700"), office: "IBM Plex Sans", kind: "sans" },
   "libre-franklin": { label: "Libre Franklin", stack: '"Libre Franklin", ui-sans-serif, system-ui, sans-serif', href: G("Libre+Franklin:wght@400;500;600;700"), office: "Libre Franklin", kind: "sans" },
   "source-serif": { label: "Source Serif", stack: '"Source Serif 4", Georgia, serif', href: G("Source+Serif+4:wght@400;600;700"), office: "Source Serif 4", kind: "serif" },
   playfair: { label: "Playfair Display", stack: '"Playfair Display", Georgia, serif', href: G("Playfair+Display:wght@500;600;700"), office: "Playfair Display", kind: "serif" },
@@ -37,12 +38,40 @@ export function slideDesign(theme: Theme | undefined, footer?: string | null): S
 
 const mix = (a: string, b: string, pct: number) => `color-mix(in oklab, ${a} ${pct}%, ${b})`;
 
+/** Two colours mixed, as a colour of its own: `pct` of the first. Plain hex, so files and PowerPoint can read it. */
+export function mixHex(a: string, b: string, pct: number): string {
+  const part = (c: string, i: number) => parseInt(c.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return `#${[0, 1, 2].map((i) => Math.round(part(a, i) * (pct / 100) + part(b, i) * (1 - pct / 100)).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
+
+/** Every colour a Slide Element may name (spec 0057), and the pale tint behind an off-target row, as plain hex. A Theme
+ * that names no cover colours gets them from its own: its darker end as the cover, its other end for the words on it. */
+export function slideTones(t: ThemeTokens): Record<SlideTone | "bad-soft", string> {
+  const dark = isDark(t);
+  const cover = t.cover ?? (dark ? t.band : t.ink);
+  const coverText = t.coverText ?? (dark ? t.ink : t.surface);
+  return {
+    ink: t.ink, muted: t.muted, rule: t.rule, surface: t.surface, canvas: t.canvas, band: t.band, accent: t.accent, good: t.good, bad: t.bad,
+    data: t.data[0] ?? t.accent,
+    cover,
+    "cover-text": coverText,
+    "cover-accent": t.coverAccent ?? mixHex(t.accent, coverText, 55),
+    soft: t.soft ?? mixHex(t.accent, t.surface, 32),
+    "bad-soft": mixHex(t.bad, t.surface, 8),
+  };
+}
+
 /** Every token the content uses, including the UI kit's aliases (they resolve where they are declared). */
 /** CSS custom properties and the two direct styles a theme sets on the element that holds content. With `dark` (the
  * Theme's dark variant, #583) every colour is `light-dark(designed, dark)`: the browser picks by the colour scheme the
  * page inherits from the viewer's Appearance (appearance.css), so the first paint is right with no script. Without it
  * the Theme is always as designed. */
 export function themeVars(t: ThemeTokens, dark?: ThemeDarkColours | null): Record<string, string | number | undefined> {
+  // The colours Slide Elements name. In the dark variant the cover stays as designed (it is a dark panel already); the
+  // rest follows the dark colours.
+  const designed = slideTones(t);
+  const darkTones = dark ? { ...slideTones({ ...t, ...dark, soft: undefined }), cover: designed.cover, "cover-text": designed["cover-text"], "cover-accent": designed["cover-accent"] } : null;
+  const tones = Object.fromEntries((Object.keys(designed) as (keyof typeof designed)[]).map((k) => [`--tone-${k}`, darkTones && darkTones[k] !== designed[k] ? `light-dark(${designed[k]}, ${darkTones[k]})` : designed[k]]));
   const pick = (k: "canvas" | "surface" | "ink" | "muted" | "rule" | "accent" | "good" | "bad" | "band", base: string = t[k]) => (dark ? `light-dark(${base}, ${dark[k]})` : base);
   const dataAt = (i: number, fallback: string) => (dark && t.data[i] ? `light-dark(${t.data[i]}, ${dark.data[i] ?? dark.data[dark.data.length - 1]})` : t.data[i] ?? fallback);
   t = { ...t, canvas: pick("canvas"), surface: pick("surface"), ink: pick("ink"), muted: pick("muted"), rule: pick("rule"), accent: pick("accent"), good: pick("good"), bad: pick("bad"), band: pick("band"), data: [0, 1, 2, 3, 4].map((i) => dataAt(i, "")).filter(Boolean) };
@@ -65,6 +94,7 @@ export function themeVars(t: ThemeTokens, dark?: ThemeDarkColours | null): Recor
     "--chart-1": t.data[0], "--chart-2": t.data[1], "--chart-3": t.data[2], "--chart-4": t.data[3], "--chart-5": t.accent,
     "--font-display": heading, "--font-heading": heading, "--font-body": body, "--font-sans": body, "--font-outlier": figures, "--font-deck": body,
     "--tl-font-sans": body, "--tl-font-serif": heading,
+    ...tones, "--slide-heading": heading, "--slide-body": body,
     "--radius-card": `${t.radius}px`, "--radius-input": `${Math.round(t.radius * 0.75)}px`, "--radius-stock": `${t.radius}px`, "--radius": `${t.radius}px`,
     ...(t.cards === "paper" ? {} : { "--tex-cotton": "none", "--tex-desk": "none", "--edge-stock": edge, "--cast-stock": "none", "--cast-stock-lift": "none" }),
   };
