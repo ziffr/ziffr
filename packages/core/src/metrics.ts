@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { openNames, openOne, openRows, reserveIds, sealRow, sealedPatch } from "./sealed-columns";
 import { CONNECTORS } from "./connectors/index";
-import type { FirstAsk } from "./asked-message";
+import { REMOVED_BEFORE_SENT, type FirstAsk } from "./asked-message";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { parseSeriesLine } from "./series-lines";
 import { assertSeesMetrics } from "./sharing";
@@ -403,11 +403,26 @@ export async function addSubmitters(actor: Actor, metricId: number, personIds: u
   return added;
 }
 
+/** Prompts that wait to go out to these people's Tokens, and to anyone standing in for them, are not sent any more.
+ * Called before the Tokens go: a Delivery loses the mark of its Token with it. */
+async function holdPromptsOfRemoved(ws: string, metricId: number, ids: string[]): Promise<void> {
+  const tokens = () => db().from("tokens").select("id").eq("metric_id", metricId).eq("workspace_id", ws);
+  const found = await Promise.all([tokens().in("submitter_id", ids).is("stands_in_for", null), tokens().in("stands_in_for", ids)]);
+  if (found.some((r) => r.error)) throw new Error("The Submitters could not be removed.");
+  const theirs = found.flatMap((r) => (r.data ?? []).map((t) => t.id as number));
+  if (!theirs.length) return;
+  const { error } = await db().from("deliveries").update({ mail_state: "failed", last_error: REMOVED_BEFORE_SENT })
+    .eq("workspace_id", ws).eq("kind", "prompt").eq("mail_state", "queued").in("form_token_id", theirs);
+  if (error) throw new Error("The Submitters could not be removed.");
+}
+
 /** Stops people submitting to a Metric, for its owner and its Editors: their Tokens go, and those of anyone standing
- * in for them on it. Their earlier values stay. Returns who was removed. */
+ * in for them on it, and Prompts still waiting to go to those Tokens are not sent. Their earlier values stay. Returns
+ * who was removed. */
 export async function removeSubmitters(actor: Actor, metricId: number, personIds: unknown): Promise<string[]> {
   const m = await editableMetric(actor, metricId, "who submits");
   const ids = submitterIds(personIds);
+  await holdPromptsOfRemoved(actor.workspaceId, m.id, ids);
   const { data: gone } = await db().from("tokens").delete().eq("metric_id", m.id).eq("workspace_id", actor.workspaceId).in("submitter_id", ids).is("stands_in_for", null).select("submitter_id");
   await db().from("tokens").delete().eq("metric_id", m.id).eq("workspace_id", actor.workspaceId).in("stands_in_for", ids);
   const removed = [...new Set((gone ?? []).map((t) => t.submitter_id as string))];
