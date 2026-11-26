@@ -30,7 +30,7 @@ export function DesignsScreen({ designs, manages, demo, viewer, numberStyle }: P
         {designs.length === 0 ? (
           <p className="text-sm text-muted-foreground">None yet. {manages ? "Add one below, from a file you exported and changed." : "Owners and Admins add them."}</p>
         ) : (
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {designs.map((d) => (
               <DesignCard key={d.id} design={d.body} data={data}>
                 {manages && (
@@ -48,7 +48,7 @@ export function DesignsScreen({ designs, manages, demo, viewer, numberStyle }: P
       <section aria-labelledby="built-in-designs">
         <h2 id="built-in-designs" className="mb-2 text-sm font-medium">Built-in View Designs</h2>
         <p className="mb-3 text-sm text-muted-foreground">Export any of them as a starting point: you get the design and a Sample Data file to try it with.</p>
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {DESIGNED_VIEWS.map((id) => <DesignCard key={id} design={BUILT_IN_DESIGNS[id]} data={data} />)}
         </ul>
       </section>
@@ -59,13 +59,14 @@ export function DesignsScreen({ designs, manages, demo, viewer, numberStyle }: P
 function DesignCard({ design, data, children }: { design: ViewDesign; data: ReturnType<typeof sampleCanvasData>; children?: React.ReactNode }) {
   return (
     <li className="stock flex flex-col gap-2 rounded-[var(--radius-card)] p-3">
-      <Preview widget={sampleDesignWidget(design)} data={data} size={design.size} width={300} sample />
+      {/* The preview is drawn 300 px wide; on the smallest phones it is shrunk to fit the card. */}
+      <div className="max-[359px]:[zoom:0.88]"><Preview widget={sampleDesignWidget(design)} data={data} size={design.size} width={300} sample /></div>
       <div className="min-w-0">
         {/* A design's words are shown as text, like everything a person brings in. */}
         <p className="truncate text-sm font-medium">{design.name}</p>
         {design.description && <p className="text-xs text-muted-foreground">{design.description}</p>}
       </div>
-      <div className="mt-auto flex gap-1">
+      <div className="mt-auto flex flex-wrap gap-1">
         <Button variant="outline" size="sm" onClick={() => downloadDesign(design)}><FileDown /> Export</Button>
         {children}
       </div>
@@ -99,7 +100,7 @@ function AddDesign() {
         </ul>
       )}
       {check?.ok && <p aria-live="polite" className="text-xs text-muted-foreground">“{check.design.name}” passes the checks.</p>}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={(e) => read(e.target.files?.[0])} />
         <Button variant="outline" size="sm" onClick={() => file.current?.click()}><Upload /> Upload a file</Button>
         <Button size="sm" disabled={!check?.ok || pending} onClick={() => start(async () => {

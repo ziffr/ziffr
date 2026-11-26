@@ -10,7 +10,7 @@ export function RecipesSection({ writes }: { writes: boolean }) {
     <section aria-labelledby="library-recipes">
       <h2 id="library-recipes" className="mb-1 text-base font-medium">Analysis Recipes</h2>
       <p className="mb-3 text-sm text-muted-foreground">An Analysis written as steps of Ziffr&rsquo;s own functions. A View Design carries one and draws its results.</p>
-      <ul className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {RECIPES.map((id) => (
           <li key={id} className="stock rounded-[var(--radius-card)] p-3">
             <p className="text-sm font-medium">{BUILT_IN_RECIPES[id].name}</p>

@@ -5,6 +5,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RelativeTime } from "@/components/relative-time";
@@ -73,25 +74,55 @@ function Standing({ section }: { section: SectionView }) {
   return <span className={section.working ? "pressed text-xs" : "inline-flex items-center rounded-[var(--radius-input)] border border-[var(--color-rule-2)] px-1.5 text-xs text-[var(--color-ink-2)]"}>{word}</span>;
 }
 
+/** The page's own list of sections: a side list from 768 px with the section you are reading marked, and on a phone one
+ * "Section" menu that names it, so no row of tabs hides the current one. */
+function SectionNav({ items }: { items: { id: string; label: string }[] }) {
+  const [active, setActive] = useState(items[0]?.id ?? "");
+  const key = items.map((i) => i.id).join(",");
+  useEffect(() => {
+    // The section being read is the last one whose top has reached the upper third of the screen; at the page's end,
+    // the last one, which may be too short to get there.
+    const mark = () => {
+      const ids = key.split(",");
+      const end = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+      const passed = ids.filter((id) => (document.getElementById(id)?.getBoundingClientRect().top ?? Infinity) <= window.innerHeight * 0.3);
+      setActive((end ? ids.at(-1) : passed.at(-1)) ?? ids[0]);
+    };
+    mark();
+    window.addEventListener("scroll", mark, { passive: true });
+    return () => window.removeEventListener("scroll", mark);
+  }, [key]);
+  const go = (id: string) => { setActive(id); document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); history.replaceState(null, "", `#${id}`); };
+  // On a phone the menu stays at the top while the page scrolls, so the section being read is always named.
+  return (
+    <div className="sticky top-0 z-30 bg-background py-2 md:static md:min-w-0 md:py-0">
+      <label className="block md:hidden">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">Section</span>
+        <select value={active} onChange={(e) => go(e.target.value)} className="h-11 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-base">
+          {items.map((i) => <option key={i.id} value={i.id}>{i.label}</option>)}
+        </select>
+      </label>
+      <nav aria-label="Sections" className="hidden md:sticky md:top-20 md:block">
+        <ul className="flex flex-col gap-1">
+          {items.map((i) => (
+            <li key={i.id}><a href={`#${i.id}`} aria-current={i.id === active ? "location" : undefined} className={cn("flex min-h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm hover:bg-muted hover:text-foreground", i.id === active ? "bg-muted font-medium text-foreground" : "text-muted-foreground")}>{i.label}</a></li>
+          ))}
+        </ul>
+      </nav>
+    </div>
+  );
+}
+
 /** The whole page: the sections in a side list, the Installation Admins, each section, and the latest changes. */
 /** What the Replies section shows beside its form: the replies domain's MX records now, and the latest test. */
 type RepliesView = { mx: MxView | null; test: ReplyTestStatus };
 
 export function InstallationScreen({ announcements, view, admins, events, limits, replies, usage, encryption, feedback }: { announcements: InstallationAnnouncementRow[]; feedback: { at: string; words: string }[]; encryption: KeyProgress; view: InstallationSettingsView; admins: InstallationAdminRow[]; events: InstallationEvent[]; limits: WorkspaceLimitRow[]; replies: RepliesView; usage: { key: UsageKeyInfo | null; days: UsageDay[]; leaveOut: { workspaceId: string; name: string }[] } }) {
+  const items = [{ id: "admins", label: "Installation Admins" }, ...view.sections.map((s) => ({ id: s.id, label: s.title })), { id: "announcements", label: "Announcements" }, { id: "encryption", label: "Encryption" }, { id: "changes", label: "Changes" }];
   return (
-    <div className="grid gap-8 md:grid-cols-[12rem_minmax(0,1fr)]">
-      <nav aria-label="Sections" className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
-        <ul className="flex gap-1 md:sticky md:top-20 md:flex-col">
-          <li><a href="#admins" className="flex min-h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">Installation Admins</a></li>
-          {view.sections.map((s) => (
-            <li key={s.id}><a href={`#${s.id}`} className="flex min-h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">{s.title}</a></li>
-          ))}
-          <li><a href="#announcements" className="flex min-h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">Announcements</a></li>
-          <li><a href="#encryption" className="flex min-h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">Encryption</a></li>
-          <li><a href="#changes" className="flex min-h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">Changes</a></li>
-        </ul>
-      </nav>
-      <div className="min-w-0 space-y-12">
+    <div className="space-y-8 md:grid md:grid-cols-[12rem_minmax(0,1fr)] md:gap-8 md:space-y-0">
+      <SectionNav items={items} />
+      <div className="phone-fields min-w-0 space-y-12">
         <AdminsSection admins={admins} />
         {view.sections.map((s) => <Section key={s.id} feedback={s.id === "feedback" ? feedback : undefined} section={s} canSeal={view.canSeal} slack={s.id === "slack" ? view.slack : undefined} siteUrl={view.siteUrl} limits={s.id === "limits" ? limits : undefined} replies={s.id === "replies" ? replies : undefined} usage={s.id === "usage" ? { key: usage.key, days: usage.days, workspaces: usage.leaveOut } : undefined} />)}
         <AnnouncementsSection rows={announcements} kind={INSTALLATION_ANNOUNCEMENTS} />
@@ -105,7 +136,7 @@ export function InstallationScreen({ announcements, view, admins, events, limits
                 <li key={i} className="flex flex-wrap gap-x-2 py-2">
                   <span className="font-medium">{e.actorName}</span>
                   <span>{EVENT_WORDS[e.kind] ?? e.kind}</span>
-                  {e.subject && <span className={e.kind.startsWith("setting.") || e.kind === "workspace.key_destroyed" || e.kind === "workspace.key_changed" ? "font-mono text-xs leading-5" : ""}>{e.subject}</span>}
+                  {e.subject && <span className={e.kind.startsWith("setting.") || e.kind === "workspace.key_destroyed" || e.kind === "workspace.key_changed" ? "min-w-0 break-all font-mono text-xs leading-5" : ""}>{e.subject}</span>}
                   <RelativeTime at={e.at} className="ml-auto text-muted-foreground" />
                 </li>
               ))}
@@ -307,7 +338,7 @@ function Field({ setting: s, value, disabled, onChange, onRemove }: { setting: S
       : s.source === "default" ? "Not set: the Installation's default is used." : "Not set.";
   return (
     <div className="max-w-xl space-y-1">
-      <label htmlFor={id} className="block text-sm font-medium">{s.label} <span className="font-mono text-xs font-normal text-muted-foreground">{s.name}</span></label>
+      <label htmlFor={id} className="block text-sm font-medium">{s.label} <span className="break-all font-mono text-xs font-normal text-muted-foreground">{s.name}</span></label>
       <p className="text-xs text-muted-foreground">{s.help}</p>
       {fixed ? (
         <p id={id} className="rounded-[var(--radius-input)] border border-dashed border-border px-2 py-1.5 text-sm">{s.secret ? "Set on the server" : s.choices?.find((c) => c.value === s.value)?.label ?? s.value ?? (s.source === "cloud" ? "The usual value" : "")}{s.source === "cloud" && <span className="ml-2 text-xs text-muted-foreground">set by Ziffr Cloud</span>}</p>

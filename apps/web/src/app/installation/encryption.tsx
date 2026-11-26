@@ -69,7 +69,7 @@ export function EncryptionSection({ progress }: { progress: KeyProgress }) {
         <p role="status" className="max-w-[62ch] text-sm">A retired key version stays until the job has moved everything sealed under it over to the current one and a quarter of an hour has passed, so that no running server still seals with it. Then it is destroyed.</p>
       )}
       {progress.columns.length > 0 && (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[32rem] text-left text-sm">
             <caption className="sr-only">Sealed values by kind</caption>
             <thead className="text-xs text-muted-foreground">
