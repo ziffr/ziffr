@@ -2,7 +2,7 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/sales",
   "name": "Sales",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "summary": "New and qualified leads, deals won and lost, closed-won value, pipeline, sales cycle, win rate and average deal size, with a monthly dashboard and a Workflow that asks for the month's figures.",
   "author": {
     "name": "Ziffr"
@@ -22,9 +22,10 @@
       {
         "key": "new-leads",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "New leads",
           "description": "Contacts that became leads in the month, from any source.",
+          "calculationNote": "Contacts recorded as a lead for the first time in the month, from any source. Duplicates and contacts already known as customers are left out.",
           "category": "Sales",
           "period": "month",
           "aggregation": "sum",
@@ -48,9 +49,10 @@
       {
         "key": "qualified-leads",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Qualified leads",
           "description": "New leads that a person judged worth following up, in the month.",
+          "calculationNote": "Leads of the month that a person marked as worth following up. A score given by a program alone does not count.",
           "category": "Sales",
           "period": "month",
           "aggregation": "sum",
@@ -73,9 +75,10 @@
       {
         "key": "deals-won",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Deals won",
           "description": "Deals that were closed won in the month.",
+          "calculationNote": "Deals set to won with a close date in the month, each counted once. A deal still waiting for a signature is not won yet.",
           "category": "Sales",
           "period": "month",
           "aggregation": "sum",
@@ -99,9 +102,10 @@
       {
         "key": "deals-lost",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Deals lost",
           "description": "Deals that were closed lost in the month.",
+          "calculationNote": "Deals set to lost with a close date in the month, whatever the reason. Deals deleted as duplicates are left out.",
           "category": "Sales",
           "period": "month",
           "aggregation": "sum",
@@ -124,9 +128,10 @@
       {
         "key": "won-value",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Closed-won value",
           "description": "The value of the deals won in the month.",
+          "calculationNote": "The value of the deals won in the month, after discounts and without VAT. It is what was agreed, not what has been invoiced or paid.",
           "category": "Sales",
           "period": "month",
           "aggregation": "sum",
@@ -153,9 +158,10 @@
       {
         "key": "pipeline-value",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Pipeline value",
           "description": "The value of the open deals at month end.",
+          "calculationNote": "The full value of every deal still open on the last day of the month, whenever it is expected to close. No deal is weighted by its chance.",
           "category": "Sales",
           "period": "month",
           "aggregation": "last",
@@ -180,9 +186,10 @@
       {
         "key": "sales-cycle",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Sales cycle",
           "description": "The average number of days from first contact to a won deal, for the deals won in the month.",
+          "calculationNote": "Calendar days from the first recorded contact to the day a deal was won, averaged over the deals won in the month. Lost deals are left out.",
           "category": "Sales",
           "period": "month",
           "aggregation": "average",
@@ -207,9 +214,10 @@
       {
         "key": "win-rate",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Win rate",
           "description": "Deals won as a share of the deals closed (won and lost) in the month.",
+          "calculationNote": "Deals won divided by deals won and lost in the month, in percent. Deals still open are not counted.",
           "category": "Sales",
           "period": "month",
           "aggregation": "none",
@@ -228,9 +236,10 @@
       {
         "key": "average-deal",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Average deal size",
           "description": "Closed-won value divided by the number of deals won in the month.",
+          "calculationNote": "Closed-won value of the month divided by the number of deals won in it.",
           "category": "Sales",
           "period": "month",
           "aggregation": "none",

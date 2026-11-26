@@ -37,13 +37,22 @@ export function textPasses(pattern: string, text: string): boolean {
   return new RegExp(pattern, "u").test(text) && (!pattern.startsWith(`^${NO_ADDRESS}`) || NO_ADDRESS_READ.test(asRead(text)));
 }
 
+// The Placeholders every text knows. How a Metric is calculated is added only to words that are filled each time they are
+// drawn: filled once into saved words, it would stay for people who may not see the Metric (spec 0060).
+const SHARED_PLACEHOLDERS = "metrics|metric|period|latest|change yoy|change prev|top row|target";
+const withPlaceholders = (names: string) => `^${NO_ADDRESS}(?:${CHARS}|\\{(?:${names})(?: [1-9])?\\})*$`;
+
 /** Plain text that may also hold Placeholders such as {metric} or {latest} (GLOSSARY: Placeholder): only the known
- * ones, each a fixed word, so braces can never read as a template of anything else. */
-export const WORDS = `^${NO_ADDRESS}(?:${CHARS}|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$`;
+ * ones, each a fixed word, so braces can never read as a template of anything else. For words filled each time they
+ * are drawn. */
+export const WORDS = withPlaceholders(`${SHARED_PLACEHOLDERS}|calculation note`);
+
+/** As `WORDS` for words filled once and then saved (a slide's text and boxes): without {calculation note}. */
+export const SAVED_WORDS = withPlaceholders(SHARED_PLACEHOLDERS);
 
 /** Plain text that may hold the Placeholders of a slide's own words (spec 0057): those above, the quarter, the changes
  * and gaps between an element's Metrics ({gap 2 1}, {left 2 3}), the unit they are written in and the page number. */
-export const SLIDE_WORDS = `^${NO_ADDRESS}(?:${CHARS}|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target|quarter weeks|quarter week|quarter|weeks left|change|scale|slide)(?: [1-9])?\\}|\\{(?:difference|gap|left) [1-9] [1-9]\\})*$`;
+export const SLIDE_WORDS = `^${NO_ADDRESS}(?:${CHARS}|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target|calculation note|quarter weeks|quarter week|quarter|weeks left|change|scale|slide)(?: [1-9])?\\}|\\{(?:difference|gap|left) [1-9] [1-9]\\})*$`;
 
 // What a person typed into the app: any text but control characters, line and paragraph separators, characters that
 // reverse the direction of text and invisible ones (zero-width spaces, soft hyphens, tag characters, lone surrogates). Markup and web addresses are data here, never rendered or followed as such.
@@ -58,6 +67,9 @@ export const plainText = (max: number, description = "plain text, without markup
 
 /** Words of a widget or slide, which may hold Placeholders, of at most `max` characters. */
 export const words = (max: number): Schema => ({ type: "string", maxLength: max, pattern: WORDS, description: "plain text, without markup or web addresses; Placeholders such as {metric} are allowed" });
+
+/** Words filled once and then saved, such as a slide's text, of at most `max` characters. */
+export const savedWords = (max: number): Schema => ({ type: "string", maxLength: max, pattern: SAVED_WORDS, description: "plain text, without markup or web addresses; Placeholders such as {metric} are allowed, {calculation note} only in widgets and Slide Elements" });
 
 /** Words of a Slide Element, which may hold a slide's Placeholders, of at most `max` characters. */
 export const slideWords = (max: number): Schema => ({ type: "string", maxLength: max, pattern: SLIDE_WORDS, description: "plain text, without markup or web addresses; Placeholders such as {gap 2 1} are allowed" });
