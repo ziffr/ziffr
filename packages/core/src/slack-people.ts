@@ -71,7 +71,7 @@ export async function slackUserFor(bot: SlackBot, personId: string): Promise<Sla
   if (error?.code === "23505") return { userId: null, why: "Someone else here is that Slack user." };
   if (error) throw new Error("The Slack match could not be kept.");
   // Queued: whoever asked who someone is on Slack (a page, a send) does not wait on the mail server.
-  if (changed && member) await tellConnected({ workspaceId: ws, personId, service: "slack", account: await accountOf(ws, user.id, user), by: "email", linkedAt, queue: true });
+  if (changed && member) await tellConnected({ workspaceId: ws, personId, service: "slack", accountId: `${bot.teamId}:${user.id}`, account: await accountOf(ws, user.id, user), by: "email", linkedAt, queue: true });
   return { userId: user.id, by: "email" };
 }
 
@@ -138,7 +138,7 @@ export async function linkSlackByCode(bot: SlackBot, slackUserId: string, text: 
   if (!(await isMember(bot.workspaceId, c.person_id))) return null;
   // That Slack user was someone else here (found by address): now they are the person who proved it.
   const { data: dropped } = await db().from("slack_links").delete().eq("workspace_id", bot.workspaceId).eq("slack_user_id", slackUserId).neq("person_id", c.person_id).select("person_id");
-  for (const d of dropped ?? []) await tellDisconnected({ workspaceId: bot.workspaceId, personId: d.person_id as string, service: "slack" });
+  for (const d of dropped ?? []) await tellDisconnected({ workspaceId: bot.workspaceId, personId: d.person_id as string, service: "slack", accountId: `${bot.teamId}:${slackUserId}` });
   const { data: before } = await db().from("slack_links").select("slack_user_id").eq("workspace_id", bot.workspaceId).eq("person_id", c.person_id).maybeSingle();
   const linkedAt = new Date();
   const { error } = await db().from("slack_links").upsert({ workspace_id: bot.workspaceId, person_id: c.person_id, team_id: bot.teamId, slack_user_id: slackUserId, matched_by: "code", email: null, linked_at: linkedAt.toISOString() }, { onConflict: "workspace_id,person_id" });
@@ -146,7 +146,7 @@ export async function linkSlackByCode(bot: SlackBot, slackUserId: string, text: 
   if (before?.slack_user_id !== slackUserId) {
     // Only for the name in the email: a connection stands whether or not Slack gives it.
     const user = await callSlack("users.info", { user: slackUserId }, bot.token).then((r) => r.user, () => null);
-    await tellConnected({ workspaceId: bot.workspaceId, personId: c.person_id, service: "slack", account: await accountOf(bot.workspaceId, slackUserId, user), by: "code", linkedAt });
+    await tellConnected({ workspaceId: bot.workspaceId, personId: c.person_id, service: "slack", accountId: `${bot.teamId}:${slackUserId}`, account: await accountOf(bot.workspaceId, slackUserId, user), by: "code", linkedAt });
   }
   const { data: w } = await db().from("workspaces").select("name").eq("id", bot.workspaceId).maybeSingle();
   return w?.name ?? "Ziffr";

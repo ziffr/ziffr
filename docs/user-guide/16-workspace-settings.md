@@ -404,7 +404,15 @@ Ziffr emails a Member when a Telegram or Slack account becomes theirs in a Works
 
 Either way, also tell an Owner or Admin. Where this Ziffr has no secrets key (`ZIFFR_SECRETS_KEY`), there is no **Not you? Disconnect it** button: the email points you to **Connectors** instead.
 
-If an account that is yours in a Workspace is connected to someone else there, Ziffr emails you that it is not yours any more, without saying whose it is now. A Contact gets this email too, at the address the Workspace keeps for them. Nothing is sent when you connect the account you already have. One person gets at most five of these emails an hour and twenty a day in a Workspace. Where this Ziffr sends no email, they wait in the **Outbox**.
+If an account that is yours in a Workspace is connected to someone else there, Ziffr emails you that it is not yours any more, without saying whose it is now. A Contact gets this email too, at the address the Workspace keeps for them. Nothing is sent when you connect the account you already have.
+
+When an email goes:
+
+- About an account you have not been emailed about in the last day, it goes.
+- About one you were told about already, at most five an hour and twenty a day go in a Workspace.
+- Beyond twenty emails an hour or sixty a day, one email, **Several account connections in Ziffr**, goes in their place, at most once an hour. It asks you to check **Connectors** and to tell an Owner or Admin.
+
+An email that could not be sent does not count. Where this Ziffr sends no email, they wait in the **Outbox**.
 
 ### Claude and other AI assistants
 

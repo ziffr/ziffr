@@ -234,6 +234,6 @@ async function connect(to: { workspaceId: string; personId: string; userId: numb
   const moved = await db().from("telegram_links").update(row).eq("workspace_id", to.workspaceId).eq("telegram_user_id", to.userId).neq("person_id", to.personId).select("person_id");
   if (moved.error || !moved.data?.length) return false;
   // Whoever held the account is told by email that it is not theirs any more.
-  if (held) await tellDisconnected({ workspaceId: to.workspaceId, personId: held.person_id as string, service: "telegram" });
+  if (held) await tellDisconnected({ workspaceId: to.workspaceId, personId: held.person_id as string, service: "telegram", accountId: String(to.userId) });
   return true;
 }

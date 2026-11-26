@@ -5,20 +5,16 @@
 // Security: that link is signed (unsubscribe-token.ts), with the secrets key only, for one connection, named by the Workspace, the person and the
 // moment it was made, so it can only end that one and does nothing once it was replaced; it never connects anything,
 // which is why it does not expire. Opening it only asks; the page's button disconnects, drops any code the person had
-// waiting and writes an Audit Log entry. Notices are limited per person and Workspace. Sending one never fails what
-// caused it.
+// waiting and writes an Audit Log entry. When a notice goes, and when a summary takes its place, is
+// connection-notice-rules.ts. Sending one never fails what caused it.
 import { recordAudit } from "./audit-log";
 import { db } from "./db";
 import { deliverEmailNotice } from "./deliveries";
-import { CONNECTION_NOTICE, connectedWords, DISCONNECT_PATH, disconnectedWords, type ChatService, type NoticeWords } from "./connection-notice-words";
+import { CONNECTION_NOTICE, NOTICE_HISTORY_HOURS, noticeRef, SUMMARY_NOTICE, whatToSend, type EarlierNotice } from "./connection-notice-rules";
+import { connectedWords, DISCONNECT_PATH, disconnectedWords, summaryWords, type ChatService, type NoticeWords } from "./connection-notice-words";
 import { headerSafe } from "./mail";
 import { openNames } from "./sealed-columns";
 import { unsubscribeSigner } from "./unsubscribe-token";
-
-/** Connection notices one person gets in an hour at most, per Workspace. */
-export const CONNECTION_NOTICES_PER_HOUR = 5;
-/** Connection notices one person gets in 24 hours at most, per Workspace. */
-export const CONNECTION_NOTICES_PER_DAY = 20;
 
 const LINKS = { telegram: "telegram_links", slack: "slack_links" } as const;
 const CODES = { telegram: "telegram_link_codes", slack: "slack_link_codes" } as const;
@@ -39,42 +35,64 @@ async function placeAndTime(workspaceId: string, at: Date): Promise<{ workspace:
   return { workspace: headerSafe(String(data?.name ?? "Ziffr")), when };
 }
 
-/** Whether another notice may go to this person now. */
-async function underLimit(workspaceId: string, personId: string): Promise<boolean> {
-  const since = async (hours: number) => (await db().from("deliveries").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("recipient_id", personId).eq("external_ref", CONNECTION_NOTICE).gt("created_at", new Date(Date.now() - hours * 3_600_000).toISOString())).count ?? 0;
-  const [hour, day] = await Promise.all([since(1), since(24)]);
-  return hour < CONNECTION_NOTICES_PER_HOUR && day < CONNECTION_NOTICES_PER_DAY;
+/** The connection notices made for this person in this Workspace in the last day. Where they cannot be read, none: a
+ * notice then goes. */
+async function earlierNotices(workspaceId: string, personId: string): Promise<EarlierNotice[]> {
+  const since = new Date(Date.now() - NOTICE_HISTORY_HOURS * 3_600_000).toISOString();
+  const { data } = await db().from("deliveries").select("external_ref, created_at, mail_state").eq("workspace_id", workspaceId).eq("recipient_id", personId)
+    .like("external_ref", `${CONNECTION_NOTICE}:%`).gt("created_at", since).order("id", { ascending: false }).limit(500);
+  return (data ?? []).map((d) => ({ ref: d.external_ref as string, at: new Date(d.created_at as string).getTime(), failed: d.mail_state === "failed" }));
 }
 
-/** Makes the notice's Delivery, within the limit; a notice that cannot be made is logged and changes nothing. */
-async function send(workspaceId: string, personId: string, words: () => Promise<NoticeWords & { link: string | null }>, queue: boolean): Promise<void> {
+/** One thing to tell a person: which notice it is (`ref`), whom, about which service, and whether to leave the email to
+ * the deliveries job. */
+type About = { workspaceId: string; personId: string; service: ChatService; ref: string; queue?: boolean };
+
+async function isMember(workspaceId: string, personId: string): Promise<boolean> {
+  const { data } = await db().from("memberships").select("user_id").eq("workspace_id", workspaceId).eq("user_id", personId).maybeSingle();
+  return Boolean(data);
+}
+
+/** Makes the notice's Delivery, or the summary in its place, or neither (connection-notice-rules.ts); one that cannot be
+ * made is logged and changes nothing. */
+async function send(about: About, words: () => Promise<NoticeWords & { link: string | null }>): Promise<void> {
+  const { workspaceId, personId } = about;
   try {
-    if (!(await underLimit(workspaceId, personId))) return;
-    await deliverEmailNotice(workspaceId, { recipientId: personId, ...(await words()), ref: CONNECTION_NOTICE, queue });
+    const what = whatToSend(await earlierNotices(workspaceId, personId), about.ref, Date.now());
+    if (what === "nothing") return;
+    let mail: NoticeWords & { link: string | null };
+    if (what === "notice") mail = await words();
+    else {
+      const member = await isMember(workspaceId, personId);
+      mail = { ...summaryWords({ member, ...(await placeAndTime(workspaceId, new Date())) }), link: member ? `/connectors?account=${about.service}` : null };
+    }
+    await deliverEmailNotice(workspaceId, { recipientId: personId, ...mail, ref: what === "notice" ? about.ref : SUMMARY_NOTICE, queue: about.queue });
   } catch (e) {
     console.error("A connection notice could not be sent:", e instanceof Error ? e.message : e);
   }
 }
 
-/** Tells a member that an account was just connected to them, by a code they made or by their email address. `linkedAt`
- * is the moment the connection was stored with. With `queue`, the email is left to the deliveries job, for a caller
- * that must not wait on the mail server. The caller has checked the person is a member. */
-export async function tellConnected(c: { workspaceId: string; personId: string; service: ChatService; account: string; by: "code" | "email"; linkedAt: Date; queue?: boolean }): Promise<void> {
-  await send(c.workspaceId, c.personId, async () => {
+/** Tells a member that an account was just connected to them, by a code they made or by their email address. `accountId`
+ * is the service's own id for it, `account` its name as the email shows it, `linkedAt` the moment the connection was
+ * stored with. With `queue`, the email is left to the deliveries job, for a caller that must not wait on the mail
+ * server. The caller has checked the person is a member. */
+export async function tellConnected(c: { workspaceId: string; personId: string; service: ChatService; accountId: string; account: string; by: "code" | "email"; linkedAt: Date; queue?: boolean }): Promise<void> {
+  await send({ workspaceId: c.workspaceId, personId: c.personId, service: c.service, ref: noticeRef("got", c.service, c.accountId), queue: c.queue }, async () => {
     // An account found by address would be found again, so such a notice says what does help instead.
     const token = c.by === "code" ? signer.sign(`${c.service}|${c.workspaceId}|${c.personId}|${c.linkedAt.getTime()}`) : null;
     const words = connectedWords({ service: c.service, account: c.account, by: c.by, disconnect: token !== null, ...(await placeAndTime(c.workspaceId, c.linkedAt)) });
     return { ...words, link: token ? `${DISCONNECT_PATH}${token}` : `/connectors?account=${c.service}` };
-  }, c.queue ?? false);
+  });
 }
 
-/** Tells a member or Contact that the account connected to them was just connected to someone else in the Workspace. */
-export async function tellDisconnected(c: { workspaceId: string; personId: string; service: ChatService; queue?: boolean }): Promise<void> {
-  await send(c.workspaceId, c.personId, async () => {
-    const { data } = await db().from("memberships").select("user_id").eq("workspace_id", c.workspaceId).eq("user_id", c.personId).maybeSingle();
-    const words = disconnectedWords({ service: c.service, member: Boolean(data), ...(await placeAndTime(c.workspaceId, new Date())) });
-    return { ...words, link: data ? `/connectors?account=${c.service}` : null };
-  }, c.queue ?? false);
+/** Tells a member or Contact that the account connected to them (`accountId`) was just connected to someone else in the
+ * Workspace. */
+export async function tellDisconnected(c: { workspaceId: string; personId: string; service: ChatService; accountId: string; queue?: boolean }): Promise<void> {
+  await send({ workspaceId: c.workspaceId, personId: c.personId, service: c.service, ref: noticeRef("lost", c.service, c.accountId), queue: c.queue }, async () => {
+    const member = await isMember(c.workspaceId, c.personId);
+    const words = disconnectedWords({ service: c.service, member, ...(await placeAndTime(c.workspaceId, new Date())) });
+    return { ...words, link: member ? `/connectors?account=${c.service}` : null };
+  });
 }
 
 /** The connection a link's token names, and whether it is still the person's; null for a token Ziffr did not sign. */

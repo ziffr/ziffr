@@ -4,8 +4,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { auditLog } from "./audit-log";
-import { CONNECTION_NOTICES_PER_HOUR, chatDisconnectView, disconnectByLink, tellConnected } from "./connection-notices";
-import { CONNECTION_NOTICE } from "./connection-notice-words";
+import { chatDisconnectView, disconnectByLink, tellConnected } from "./connection-notices";
+import { CEILING_PER_HOUR, CONNECTION_NOTICE, REPEATS_PER_HOUR } from "./connection-notice-rules";
 import { finishSlackInstall, slackBot, startSlackInstall } from "./slack-connection";
 import { linkSlackByCode, slackUserFor, startSlackLink } from "./slack-people";
 import { confirmTelegram } from "./telegram-confirm";
@@ -43,7 +43,7 @@ const codeOf = (url: string) => new URL(url).searchParams.get("start")!;
 
 /** The connection notices made for a person, oldest first, their words opened. */
 async function notices(ws: string, person: string) {
-  const rows = await rowsOf("deliveries", { workspace_id: ws, recipient_id: person, external_ref: CONNECTION_NOTICE });
+  const rows = (await rowsOf("deliveries", { workspace_id: ws, recipient_id: person })).filter((d) => String(d.external_ref).startsWith(`${CONNECTION_NOTICE}:`));
   const open = await opened("deliveries", ws, rows as never[]) as unknown as { id: number; subject: string; body: string; mail_state: string; sender_id: string | null; connector: string }[];
   return open.sort((a, b) => a.id - b.id);
 }
@@ -193,7 +193,7 @@ describe("telling a member an account became theirs", () => {
     delete process.env.ZIFFR_SECRETS_KEY;
     process.env.ZIFFR_JOB_SECRET = "j".repeat(40);
     try {
-      await tellConnected({ workspaceId: w.id, personId: sara, service: "telegram", account: "“Phone”", by: "code", linkedAt: new Date(), queue: true });
+      await tellConnected({ workspaceId: w.id, personId: sara, service: "telegram", accountId: "1", account: "“Phone”", by: "code", linkedAt: new Date(), queue: true });
       const [mail] = await notices(w.id, sara);
       expect(mail.body).toMatch(/choose Disconnect there[\s\S]*\/connectors\?account=telegram$/);
       expect(mail.body).not.toContain("disconnect-chat");
@@ -203,9 +203,24 @@ describe("telling a member an account became theirs", () => {
     }
   });
 
-  it("sends a person only a few notices an hour", async () => {
+  const tell = (ws: string, person: string, accountId: string) => tellConnected({ workspaceId: ws, personId: person, service: "telegram", accountId, account: "“Phone”", by: "code", linkedAt: new Date(), queue: true });
+
+  it("repeats a notice about an announced account only a few times an hour, and always announces another account", async () => {
     const { w, sara } = await setup();
-    for (let i = 0; i < CONNECTION_NOTICES_PER_HOUR + 3; i++) await tellConnected({ workspaceId: w.id, personId: sara, service: "telegram", account: "“Phone”", by: "code", linkedAt: new Date(), queue: true });
-    expect(await notices(w.id, sara)).toHaveLength(CONNECTION_NOTICES_PER_HOUR);
+    for (let i = 0; i < REPEATS_PER_HOUR + 3; i++) await tell(w.id, sara, "1");
+    expect(await notices(w.id, sara)).toHaveLength(REPEATS_PER_HOUR);
+    await tell(w.id, sara, "2");
+    expect(await notices(w.id, sara)).toHaveLength(REPEATS_PER_HOUR + 1);
+    await tell(w.id, sara, "2");
+    expect(await notices(w.id, sara)).toHaveLength(REPEATS_PER_HOUR + 1);
+  });
+
+  it("sends one summary in place of single notices above the ceiling", async () => {
+    const { w, sara } = await setup();
+    for (let i = 0; i < CEILING_PER_HOUR + 4; i++) await tell(w.id, sara, `account-${i}`);
+    const all = await notices(w.id, sara);
+    expect(all).toHaveLength(CEILING_PER_HOUR + 1);
+    expect(all.filter((n) => n.subject === "Several account connections in Ziffr")).toHaveLength(1);
+    expect(all.at(-1)!.body).toMatch(/holds back further emails[\s\S]*check what is connected to you[\s\S]*\/connectors\?account=telegram$/);
   });
 });

@@ -1,6 +1,6 @@
 // The words of a connection notice: how an account's name is cleaned, and what each notice says to do.
 import { describe, expect, it } from "vitest";
-import { connectedWords, disconnectedWords, slackAccountName, telegramAccountName } from "./connection-notice-words";
+import { connectedWords, disconnectedWords, slackAccountName, summaryWords, telegramAccountName } from "./connection-notice-words";
 
 describe("account names", () => {
   it("keep no address or link, and are cut short", () => {
@@ -22,5 +22,7 @@ describe("the notices", () => {
     expect(connectedWords({ ...base, service: "slack", by: "email", disconnect: false }).text).toMatch(/found your Slack account by your email address[\s\S]*Link my Slack account/);
     expect(disconnectedWords({ ...base, member: false }).text).toMatch(/use your personal form/);
     expect(disconnectedWords({ ...base, member: true }).text).toMatch(/open Connectors/);
+    expect(summaryWords({ ...base, member: true }).text).toMatch(/holds back further emails[\s\S]*Open Connectors[\s\S]*tell an Owner or Admin/);
+    expect(summaryWords({ ...base, member: false }).text).not.toMatch(/Open Connectors/);
   });
 });

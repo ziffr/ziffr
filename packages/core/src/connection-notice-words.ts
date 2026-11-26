@@ -9,9 +9,6 @@ const SERVICE: Record<ChatService, string> = { telegram: "Telegram", slack: "Sla
 /** What the button that disconnects one's own account is called on the Connectors page. */
 const OWN_DISCONNECT: Record<ChatService, string> = { telegram: "Disconnect", slack: "Forget me on Slack" };
 
-/** Marks a Delivery as a connection notice (its external reference), so notices are counted for their limit. */
-export const CONNECTION_NOTICE = "account-connection";
-
 /** Where the page that disconnects an account from an email's link lives, before the link's token. */
 export const DISCONNECT_PATH = "/api/disconnect-chat/";
 
@@ -58,6 +55,19 @@ export function connectedWords(n: { service: ChatService; workspace: string; whe
       `${service} account: ${n.account}`,
       `Ziffr can send your messages from this workspace to that account, and what it answers counts as yours, approvals included.`,
       action,
+    ].join("\n\n"),
+  };
+}
+
+/** What a person is told in place of single notices when there are more than those go out for. */
+export function summaryWords(n: { workspace: string; when: string; member: boolean }): NoticeWords {
+  return {
+    subject: "Several account connections in Ziffr",
+    text: [
+      `Telegram or Slack accounts were connected to you, or moved away from you, in the workspace “${n.workspace}” more often than Ziffr emails you about one by one. The latest was on ${n.when}. For now Ziffr holds back further emails about single connections there.`,
+      n.member
+        ? `Open Connectors with the workspace “${n.workspace}” chosen and check what is connected to you under Telegram and Slack. Disconnect what you did not connect, and tell an Owner or Admin of the workspace.`
+        : "If you did not expect this, tell an Owner or Admin of the workspace, or the person who asks you for numbers.",
     ].join("\n\n"),
   };
 }
