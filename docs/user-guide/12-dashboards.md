@@ -459,7 +459,7 @@ A **View Link** shows one dashboard to someone outside the team, such as a board
 
 Opening a View Link changes the address in the browser's address bar to one that stands for this link in this browser only. Reloading works for 12 hours; after that, or in another browser, open the link that was sent. To pass a View Link on, pass on that link, not the address bar's. The browser needs to allow cookies.
 
-**View links…** in the **⋯** menu opens a panel on the right, over the page, so the dashboard stays in view. Revoking a link or hiding its names takes effect at once. The panel has:
+**View links…** in the **⋯** menu opens a panel on the right, over the page, so the dashboard stays in view. It says at the top that anyone with a link can read it, without signing in, until it ends. Revoking a link or hiding its names takes effect at once. The panel has:
 
 | Field | What it does |
 | --- | --- |

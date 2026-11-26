@@ -18,6 +18,7 @@ import { telegramOnIn } from "./telegram-connection";
 import { forgetTelegramUser, isTelegramId, linkTelegramByCode, personOfTelegramUser, type TelegramLinkOutcome } from "./telegram-people";
 import { isTelegramTestCode, takeTelegramTestAnswer, takeTelegramTestStart } from "./installation-telegram-test";
 import { trialEnded } from "./trials";
+import { mayAnswer } from "./practice";
 
 /** Largest update taken, in bytes; real ones are far smaller. */
 export const MAX_TELEGRAM_BYTES = 64 * 1024;
@@ -126,7 +127,7 @@ async function handle(u: Obj, userId: number | null, effects: { submission?: Sub
     // A code still links when the bot keeps quiet: a flood by others must not stop someone linking.
     const result = await linkTelegramByCode({ code: start[1], userId, chatId, chatType: chat.type, from: msg.from });
     // The number to compare with the email is said even then: the database limits how often that happens.
-    if (!silent || (!result.linked && result.why === "confirm")) await telegramSay(chatId, startAnswer(result));
+    if ((!silent || (!result.linked && result.why === "confirm")) && !(result.linked && result.silent)) await telegramSay(chatId, startAnswer(result));
     return none(result.linked ? "linked" : result.why === "confirm" ? "confirm_sent" : "refused");
   }
   if (/^\/stop(?:@\w+)?$/.test(text)) {
@@ -145,6 +146,11 @@ async function handle(u: Obj, userId: number | null, effects: { submission?: Sub
   const test = await takeTelegramTestAnswer({ userId, chatId, repliedTo, text, say: async (t) => { if (!(await quiet(userId))) await telegramSay(chatId, t, Number(msg.message_id) || undefined); } });
   if (test) return none(test === "answered" ? "test_answered" : "test_hint");
   return reply(userId, chatId, repliedTo, Number(msg.message_id) || undefined, text, effects);
+}
+
+/** Answers about a Workspace's message in a chat: in a Practice Workspace (spec 0063) only in its person's recorded chat. */
+async function answerIn(workspaceId: string, chatId: number, text: string, replyTo?: number): Promise<void> {
+  if (await mayAnswer(workspaceId, "telegram", String(chatId))) await telegramSay(chatId, text, replyTo);
 }
 
 /** What the bot says to a /start with a Workspace's code. */
@@ -183,7 +189,7 @@ async function reply(userId: number, chatId: number, repliedTo: number, messageI
   if (!text) return at("empty");
   const outcome = await routeReply(d as RepliedDelivery, text.slice(0, 5000), {
     source: "telegram", sender: `telegram:${userId}`, provenPersonId: d.recipient_id,
-    answer: (subject, detail) => telegramSay(chatId, `${subject}: ${detail}`, messageId),
+    answer: (subject, detail) => answerIn(d.workspace_id as string, chatId, `${subject}: ${detail}`, messageId),
   }, effects.submission);
   return at(outcome === "unknown_token" ? "unknown_message" : outcome);
 }
@@ -220,7 +226,7 @@ async function pressed(cq: Obj, userId: number): Promise<Handled> {
     return none("unknown_message");
   }
   const at = async (outcome: TelegramOutcome, notice?: string): Promise<Handled> => {
-    await answerPress(pressId, notice);
+    await answerPress(pressId, notice && (await mayAnswer(d.workspace_id as string, "telegram", String(chatId))) ? notice : undefined);
     return { outcome, workspaceId: d.workspace_id as string, deliveryId: d.id as number };
   };
   if (!(await telegramOnIn(d.workspace_id))) return at("ignored");
@@ -231,7 +237,7 @@ async function pressed(cq: Obj, userId: number): Promise<Handled> {
     // The same path as in Ziffr, which checks the person is this approval's approver and it is still open.
     try {
       await approve(d.workspace_id, d.action_id, d.recipient_id, { type: "telegram" });
-      await telegramSay(chatId, "Approved.", messageId);
+      await answerIn(d.workspace_id as string, chatId, "Approved.", messageId);
       return at("approved", "Approved.");
     } catch {
       return at("refused", "This approval is done already.");
@@ -240,7 +246,7 @@ async function pressed(cq: Obj, userId: number): Promise<Handled> {
   if (m[1] === TELEGRAM_BUTTONS.stop && OPT_OUT_KINDS.includes(d.kind)) {
     const { data: added } = await db().from("telegram_opt_outs").upsert({ workspace_id: d.workspace_id, person_id: d.recipient_id }, { onConflict: "workspace_id,person_id", ignoreDuplicates: true }).select("person_id");
     if (added?.length) await tellOwnersOfStop(d.workspace_id, d.recipient_id, "on Telegram");
-    await telegramSay(chatId, "Stopped: no more requests for numbers or reminders on Telegram from this workspace. Turn them on again on the Connectors page in Ziffr.", messageId);
+    await answerIn(d.workspace_id as string, chatId, "Stopped: no more requests for numbers or reminders on Telegram from this workspace. Turn them on again on the Connectors page in Ziffr.", messageId);
     return at("stopped", "Stopped.");
   }
   return at("ignored");

@@ -232,7 +232,7 @@ async function answer(workspaceId: string, to: string, subject: string, text: st
   if (!(await mailOn())) return;
   const action = link ? { label: "Open your form", url: link } : undefined;
   try {
-    await sendMail({ to, subject, text, action, ...(await brandedParts(workspaceId, { text, action })) }, transport);
+    await sendMail({ to, subject, text, action, ...(await brandedParts(workspaceId, { text, action })) }, workspaceId, transport);
   } catch {
     // The reply itself was taken; a lost confirmation is not worth failing it for.
   }

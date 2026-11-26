@@ -277,6 +277,18 @@ describe("the Marketplace connection", () => {
     await expect(readMarketplacePack(w.actor(ann), "ziffr/saas-metrics", "1.3.0")).rejects.toThrow("took out of use");
   });
 
+  it("leaves a Practice Workspace's installs out of the daily question unless somebody there asks (spec 0063)", async () => {
+    const p = await workspace("Practice", { practice: true }); cleanups.push(p.cleanup);
+    const me = await p.person("owner", { id: p.practiceFor! });
+    await installFromMarketplace(p.actor(me), "ziffr/saas-metrics", "1.2.0", { assistantTexts: true });
+    const asked = () => sent.filter((s) => s.method === "POST").flatMap((s) => (JSON.parse(s.body!) as { installed: { id: string }[] }).installed.map((i) => i.id));
+    sent = [];
+    await checkMarketplaceVersions(true);
+    expect(asked()).not.toContain("ziffr/saas-metrics");
+    await checkMarketplaceVersions(true, p.id);
+    expect(asked()).toContain("ziffr/saas-metrics");
+  });
+
   it("asks for updates once for the whole Installation, with no Workspace or person in it, and updates from the Marketplace", async () => {
     const a = await ws("Alpha Corp"); const b = await ws("Beta Ltd"); const ann = await a.person("owner"); const zoe = await b.person("owner");
     await installFromMarketplace(a.actor(ann), "ziffr/saas-metrics", "1.2.0", { assistantTexts: true });

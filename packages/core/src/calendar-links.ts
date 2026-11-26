@@ -11,6 +11,7 @@ import { db } from "./db";
 import { calendarEntries } from "./schedule";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { refuseInDemo } from "./demo";
+import { assertMayLeave } from "./practice";
 
 /** Most fetches of one link in an hour; more are refused (429) until the hour is over. */
 export const CALENDAR_FETCHES_PER_HOUR = 60;
@@ -42,6 +43,7 @@ export async function myCalendarLink(actor: Actor): Promise<CalendarLinkInfo | n
  * `/cal/<secret>.ics`, shown this once. The "no names" choice carries over unless given. */
 export async function makeCalendarLink(actor: Actor, opts: { noNames?: boolean } = {}): Promise<{ secret: string }> {
   assertMayHaveLink(actor);
+  await assertMayLeave(actor.workspaceId, "calendar_link");
   const secret = randomBytes(32).toString("base64url");
   const before = await myCalendarLink(actor);
   const noNames = typeof opts.noNames === "boolean" ? opts.noNames : before?.noNames ?? false;
