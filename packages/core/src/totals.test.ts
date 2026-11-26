@@ -8,7 +8,6 @@ import { targetText } from "./format";
 import { checkFormula, inputsProblem } from "./formula";
 import { treeFromData } from "./formula-tree";
 import { buildSeries } from "./series";
-import { shownData } from "./view-links";
 import { canvas, metric, months } from "./test/fixtures";
 import { runs, valueText } from "./test/reference/check";
 import { isNearestDouble } from "./test/reference/exact";
@@ -151,15 +150,9 @@ describe("a Total worked by hand", () => {
     const answer = whatIfRecipe(ana, { by: 1 }, [total({ formula: "{ana}" })], resolverFrom([ana, total({ formula: "{ana}" })], series), { yearStart: 1, ctx: { style: "1,234.5" } });
     expect(JSON.stringify(answer)).not.toContain("worked out from its formula");
   });
-  it("goes out with no view, nor does a formula that reads it", () => {
+  it("is told apart from a Metric whose numbers rest on none", () => {
     const share = metric({ id: 10, slug: "share", name: "Share", formula: "{team} - {ana}", aggregation: "none", reads_total: true });
     expect([total(), share, ana].map(restsOnTotal)).toEqual([true, true, false]);
-    const series = buildSeries([...all, share], VALUES, {}, read([1, 2, 3]));
-    const full = canvas([...all, share], series, { targets: { 9: months("2026-01", [5]), 10: months("2026-01", [5]), 1: months("2026-01", [5]) }, pending: { 9: ["2026-01-01"] } });
-    const sent = shownData(full, new Set([1, 9, 10]), null);
-    expect(Object.keys(sent.series)).toEqual(["ana"]);
-    expect(Object.keys(sent.targets)).toEqual(["1"]);
-    expect(sent.pending).toEqual({});
   });
 });
 

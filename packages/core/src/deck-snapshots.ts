@@ -77,7 +77,8 @@ export async function readKeptNumbers(actor: Actor, requests: unknown): Promise<
     });
     // Only the Metrics the parts draw and the other shapes name, of those the viewer gets in the Snapshot.
     const wanted = new Set([...parts.flatMap((p) => (p.widget ? widgetIds(p.widget) : [])), ...q.metricIds]);
-    const data = { ...shownData(s.data, wanted, null), themes: [] };
+    // `s.data` is what this viewer gets of the Snapshot, Totals included: only fewer Metrics of it are taken here.
+    const data = { ...shownData(s.data, wanted, null, () => true), themes: [] };
     return {
       snapshotId: q.snapshotId, state: "shown", dashboardId: s.dashboardId, name: s.name, label: s.label, takenAt: s.takenAt,
       intro: q.parts.includes(OPENING_PART) ? s.intro : "", parts, data, corrected: [],

@@ -12,6 +12,7 @@ import { changeMetricTags } from "./tags";
 import { mailHostResolver } from "./mail-hosts";
 import { auditLog } from "./audit-log";
 import { createDashboard, placeWidget } from "./dashboards";
+import { createTotal } from "./total-changes";
 import { db } from "./db";
 import { saveDeck } from "./decks";
 import { createFeed, createFeedKey } from "./feeds";
@@ -391,5 +392,27 @@ describe("the Audit Log", () => {
     await file.stream.next();
     await file.stream.return(undefined);
     expect((await auditRowsOf(s.id, "export.workspace_finished"))[0].details).toMatchObject({ complete: false });
+  });
+});
+
+describe("a Total in the file", () => {
+  it("travels with its list, as the newer format, and is left out where a Metric it adds up is not in the file", async () => {
+    const s = await base("Totals");
+    const make = (name: string) => createMetric(s.as, { name, period: "month", aggregation: "sum", polarity: "higher" }, quiet);
+    const [ana, eva] = [await make("Commit Ana"), await make("Commit Eva")];
+    const total = await createTotal(s.as, { name: "Commit", parts: [ana.id, eva.id], from: "2026-01-01", targets: "parts" }, quiet);
+    const { records } = await download(s.as);
+    expect(of(records, "header")[0].format).toBe("ziffr.workspace-export/2");
+    const [a, e, t] = ["Commit Ana", "Commit Eva", "Commit"].map((name) => of(records, "metric").find((m) => m.metric.name === name)!);
+    expect(Object.keys(t.metric)).not.toContain("formula");
+    expect(of(records, "total")).toEqual([{ kind: "total", metric: t.id, targets: "parts", open: false, parts: [{ metric: a.id, first: "2026-01-01" }, { metric: e.id, first: "2026-01-01" }] }]);
+    // Eva's is handed to someone and no longer shared with the Owner: the Total stays out, and no shorter list goes.
+    await db().from("metrics").update({ owner_id: s.member }).eq("id", eva.id);
+    const later = await download(s.as);
+    expect(of(later.records, "total")).toEqual([]);
+    expect(of(later.records, "metric").map((m) => m.metric.name)).toEqual(["Commit Ana"]);
+    expect(of(later.records, "header")[0].format).toBe("ziffr.workspace-export/1");
+    expect(later.file.leftOut).toContainEqual({ what: "Metric", name: "Commit", why: "Left out: it adds up Metrics that are not in the file." });
+    expect(total.id).toBeGreaterThan(0);
   });
 });

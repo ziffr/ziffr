@@ -25,15 +25,18 @@ import { readParents } from "./breakdown-parents.js";
 
 /** The format this Ziffr writes; it reads every version in `WORKSPACE_EXPORT_FORMATS`. */
 export const WORKSPACE_EXPORT_FORMAT = "ziffr.workspace-export/1";
+/** The format of a file that holds a Total (a `total` record): written only then, so an older Ziffr reads every other
+ * file, and says of this one which format it is. */
+export const WORKSPACE_EXPORT_TOTALS_FORMAT = "ziffr.workspace-export/2";
 /** Every Workspace Export format Ziffr ever published, oldest first. */
-export const WORKSPACE_EXPORT_FORMATS = [WORKSPACE_EXPORT_FORMAT] as const;
+export const WORKSPACE_EXPORT_FORMATS = [WORKSPACE_EXPORT_FORMAT, WORKSPACE_EXPORT_TOTALS_FORMAT] as const;
 
 /** The records of a file, in the order they must come: a record may name only records of an earlier or the same step,
  * and a file never goes back a step. This is what lets a reader check references while it streams. */
-export const WORKSPACE_EXPORT_KINDS = ["header", "group", "theme", "person", "metric", "dashboard", "deck", "workflow", "share", "target", "projection", "value", "end"] as const;
+export const WORKSPACE_EXPORT_KINDS = ["header", "group", "theme", "person", "metric", "total", "dashboard", "deck", "workflow", "share", "target", "projection", "value", "end"] as const;
 /** One of WORKSPACE_EXPORT_KINDS. */
 export type WorkspaceExportKind = (typeof WORKSPACE_EXPORT_KINDS)[number];
-const STEP: Record<WorkspaceExportKind, number> = { header: 0, group: 1, theme: 1, person: 2, metric: 3, dashboard: 4, deck: 4, workflow: 4, share: 5, target: 6, projection: 6, value: 6, end: 7 };
+const STEP: Record<WorkspaceExportKind, number> = { header: 0, group: 1, theme: 1, person: 2, metric: 3, total: 3, dashboard: 4, deck: 4, workflow: 4, share: 5, target: 6, projection: 6, value: 6, end: 7 };
 
 /** The exact limits a file is held to. The two byte limits are the reader's (an Installation setting may lower or
  * raise them); the rest belong to the format. A Workspace Limit of the destination is checked by the import, not here. */
@@ -44,7 +47,7 @@ export const WORKSPACE_EXPORT_LIMITS = {
   lineBytes: 640 * 1024,
   depth: 20,
   records: 10_000_000,
-  perKind: { group: 1_000, theme: 200, person: 5_000, metric: 10_000, dashboard: 2_000, deck: 2_000, workflow: 1_000, share: 100_000, target: 1_000_000, projection: 1_000_000, value: 8_000_000 },
+  perKind: { group: 1_000, theme: 200, person: 5_000, metric: 10_000, total: 10_000, dashboard: 2_000, deck: 2_000, workflow: 1_000, share: 100_000, target: 1_000_000, projection: 1_000_000, value: 8_000_000 },
   name: 120,
   id: 64,
   email: 254,
@@ -54,6 +57,8 @@ export const WORKSPACE_EXPORT_LIMITS = {
   label: 60,
   slotMetrics: 50,
   workflowMetrics: 1_000,
+  /** The most Metrics one Total adds up. */
+  totalParts: 50,
   submitters: 100,
   groupsOfPerson: 50,
   magnitude: 1e15,
@@ -72,6 +77,8 @@ export type WorkspaceExportReaderLimits = { fileBytes: number; textBytes: number
 
 /** The kinds of record that hold things counted by `perKind`. */
 type Counted = keyof typeof L.perKind;
+// What an end record declares: `total` only where the file holds one, so a file without a Total reads as it always did.
+type Counts = Record<Exclude<Counted, "total">, number> & { total?: number };
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The records, as TypeScript sees them.
@@ -79,7 +86,7 @@ type Counted = keyof typeof L.perKind;
 /** What the Workspace's Owner chose that travels in version 1. */
 export type WorkspaceExportSettings = { name: string; timeZone?: string; language?: string; yearStart?: number; attainmentMethod?: "ratio" | "distance" };
 /** The first line: what the file is. */
-export type HeaderRecord = { kind: "header"; format: typeof WORKSPACE_EXPORT_FORMAT; ziffr: string; exportedAt: string; workspace: WorkspaceExportSettings };
+export type HeaderRecord = { kind: "header"; format: (typeof WORKSPACE_EXPORT_FORMATS)[number]; ziffr: string; exportedAt: string; workspace: WorkspaceExportSettings };
 /** A Group: its name; its people name it on their own record. */
 export type GroupRecord = { kind: "group"; id: string; name: string };
 /** A Theme of the Workspace, as the Theme file format. */
@@ -88,6 +95,10 @@ export type ThemeRecord = { kind: "theme"; id: string; theme: ThemeFile };
 export type PersonRecord = { kind: "person"; id: string; name: string; email: string; role: "admin" | "member" | "guest"; groups?: string[] };
 /** A Metric: its Description as the Metric file format, its key (how formulas name it), Tags, owner and Submitters. */
 export type MetricRecord = { kind: "metric"; id: string; key: string; metric: MetricFile; tags?: string[]; owner?: string; submitters?: string[] };
+/** What makes a Metric of this file a Total (GLOSSARY: Total): the Metrics of the file it adds up, each from the first
+ * period it counts in and, once it has left, up to its last, and where its target comes from. `open` says its owner had
+ * opened it to people who do not see every one of them; an import leaves it closed. */
+export type TotalRecord = { kind: "total"; metric: string; targets: "own" | "parts"; open: boolean; parts: { metric: string; first: string; last?: string }[] };
 /** A dashboard: a Dashboard Template file whose Slots are filled with these Metrics. */
 export type DashboardRecord = { kind: "dashboard"; id: string; dashboard: DashboardTemplateFile; slots: string[][] };
 /** A deck: a Deck Template file whose Slots are filled with these Metrics, and its Theme. */
@@ -103,9 +114,9 @@ export type ProjectionRecord = { kind: "projection"; metric: string; period: str
 /** A value: one observation, with who submitted it as a name and its Breakdown. */
 export type ValueRecord = { kind: "value"; metric: string; period: string; value: number; recordedAt?: string; source?: SourceId | "import"; submittedBy?: string; enteredBy?: string; breakdown?: { label: string; value: number; parent?: string }[] };
 /** The last line: how many records of each kind the file holds, so a cut-off file is noticed. */
-export type EndRecord = { kind: "end"; counts: Record<Counted, number> };
+export type EndRecord = { kind: "end"; counts: Counts };
 /** One line of a Workspace Export. */
-export type WorkspaceExportRecord = HeaderRecord | GroupRecord | ThemeRecord | PersonRecord | MetricRecord | DashboardRecord | DeckRecord | WorkflowRecord | ShareRecord | TargetRecord | ProjectionRecord | ValueRecord | EndRecord;
+export type WorkspaceExportRecord = HeaderRecord | GroupRecord | ThemeRecord | PersonRecord | MetricRecord | TotalRecord | DashboardRecord | DeckRecord | WorkflowRecord | ShareRecord | TargetRecord | ProjectionRecord | ValueRecord | EndRecord;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The schema.
@@ -174,7 +185,7 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
   description: "One record of a Workspace Export: a file of JSON Lines that holds a whole Workspace for another Installation to import, with no secret, key, Connector link or sealed data. The first line is a header, the last an end record, and a record names only records before it.",
   oneOf: [
     record("header", "The first line: what the file is and the Workspace's own settings.", {
-      format: { const: WORKSPACE_EXPORT_FORMAT, description: "The format and its version." },
+      format: { enum: [...WORKSPACE_EXPORT_FORMATS], description: "The format and its version: version 2 for a file with a `total` record, else version 1." },
       ziffr: { type: "string", maxLength: 40, pattern: "^[0-9]{1,4}\\.[0-9]{1,4}\\.[0-9]{1,4}(?:-[0-9A-Za-z.-]{1,30})?$", description: "The Ziffr release that wrote the file." },
       exportedAt: INSTANT,
       workspace: obj({
@@ -202,6 +213,12 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
       owner: ref("the person who owns it"),
       submitters: refs("the people who send its values", L.submitters),
     }, ["id", "key", "metric"]),
+    record("total", "What makes a Metric of the file a Total, a sum over a list of Metrics: its record then has no formula. A file with such a record is read by a Ziffr that knows Totals.", {
+      metric: ref("the Metric that is the Total"),
+      targets: { enum: ["own", "parts"], description: "Where its target comes from: its own Target Range and Target Series, or those of the Metrics it adds up." },
+      open: { type: "boolean", description: "Whether its owner showed it to people who do not see every Metric it adds up. An import leaves it closed." },
+      parts: { type: "array", minItems: 0, maxItems: L.totalParts, items: obj({ metric: ref("a Metric it adds up"), first: PERIOD_START, last: PERIOD_START }, ["metric", "first"]), description: "The Metrics it adds up, each with the first period it counts in and, once it has left, the last." },
+    }, ["metric", "targets", "open", "parts"]),
     record("dashboard", "A dashboard, as a ziffr.dashboard-template/1 document and the Metrics that fill its Slots.", { id: id("this dashboard"), dashboard: { type: "object", description: "A ziffr.dashboard-template/1 document, checked by its own schema." }, slots }, ["id", "dashboard", "slots"]),
     record("deck", "A deck, as a ziffr.deck-template/1 document, the Metrics that fill its Slots and its Theme.", { id: id("this deck"), deck: { type: "object", description: "A ziffr.deck-template/1 document, checked by its own schema." }, slots, theme: ref("the Theme it starts with") }, ["id", "deck", "slots"]),
     record("workflow", "A Workflow, as a ziffr.workflow-template/1 document and the Metrics it asks for.", { id: id("this Workflow"), workflow: { type: "object", description: "A ziffr.workflow-template/1 document, checked by its own schema." }, metrics: refs("the Metrics it asks for", L.workflowMetrics, 1) }, ["id", "workflow", "metrics"]),
@@ -222,7 +239,7 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
       breakdown: { type: "array", maxItems: L.breakdown, items: obj({ label: { ...appText(L.label), minLength: 1 }, value: number("The part of the value."), parent: { ...appText(L.label), minLength: 1, description: "The label of the row of this Breakdown that this one is a part of: a row of the same list, at most 4 levels down; left out for a row at the top." } }, ["label", "value"]), description: "Labelled values that split the observation, each optionally a part of another row of the list (parent)." },
     }, ["metric", "period", "value"]),
     record("end", "The last line: how many records of each kind the file holds.", {
-      counts: obj(Object.fromEntries(Object.keys(L.perKind).map((k) => [k, { type: "integer", minimum: 0, maximum: L.perKind[k as Counted] } satisfies Schema])), Object.keys(L.perKind), "The records of each kind, header and end not counted."),
+      counts: obj(Object.fromEntries(Object.keys(L.perKind).map((k) => [k, { type: "integer", minimum: 0, maximum: L.perKind[k as Counted] } satisfies Schema])), Object.keys(L.perKind).filter((k) => k !== "total"), "The records of each kind, header and end not counted; `total` only where the file holds one."),
     }, ["counts"]),
   ],
 };
@@ -271,7 +288,11 @@ function startsPeriod(day: { y: number; m: number; d: number }, period: Period, 
 export type WorkspaceExportCheck = { ok: true; header: HeaderRecord; counts: Record<Counted, number>; records: number } | { ok: false; problems: Problem[] };
 
 /** What the checker keeps of a Metric: enough to check what later records say of it. */
-type MetricInfo = { key: string; period: Period; line: number };
+type MetricInfo = {
+  key: string; period: Period; line: number; derived: boolean; aggregation: string;
+  /** What a Total and the Metrics it adds up share: period, Aggregation, unit and number format. */
+  adds: string;
+};
 
 /**
  * Checks a Workspace Export one line at a time, holding only the labels of what it has read (never the values), so
@@ -291,10 +312,11 @@ export class WorkspaceExportChecker {
   private readonly metricEntries = new Map<string, { entry: FormulaEntry; formula?: string; line: number }>();
   private readonly emails = new Set<string>();
   private readonly shares = new Set<string>();
-  private readonly counts: Record<Counted, number> = { group: 0, theme: 0, person: 0, metric: 0, dashboard: 0, deck: 0, workflow: 0, share: 0, target: 0, projection: 0, value: 0 };
+  private readonly counts: Record<Counted, number> = { group: 0, theme: 0, person: 0, metric: 0, total: 0, dashboard: 0, deck: 0, workflow: 0, share: 0, target: 0, projection: 0, value: 0 };
   /** The last target and projection read, as `metric period`: each kind is listed in strictly rising order, so a repeat is seen with no memory. */
   private last = { target: "", projection: "" };
-  private declared: Record<Counted, number> | undefined;
+  private declared: Counts | undefined;
+  private readonly totals = new Set<string>();
 
   /** The lines read so far. */
   get lines(): number {
@@ -364,7 +386,7 @@ export class WorkspaceExportChecker {
     if (this.n === 0) return [{ path: "", line: null, message: "The file is empty." }];
     if (!this.ended) at(this.n, "", "The file has no end record: it may have been cut off while it was written or downloaded.");
     else if (this.declared) {
-      for (const k of Object.keys(this.counts) as Counted[]) if (this.declared[k] !== this.counts[k]) at(this.n, `counts.${k}`, `says ${this.declared[k].toLocaleString("en")} but the file holds ${this.counts[k].toLocaleString("en")}.`);
+      for (const k of Object.keys(this.counts) as Counted[]) if ((this.declared[k] ?? 0) !== this.counts[k]) at(this.n, `counts.${k}`, `says ${(this.declared[k] ?? 0).toLocaleString("en")} but the file holds ${this.counts[k].toLocaleString("en")}.`);
     }
     // The entries are listed once and the loop stops at the problem limit, so 10,000 formulas cost one pass each.
     const entries = new Map([...this.metricEntries.values()].map((e) => [e.entry.key, e.entry] as const));
@@ -382,7 +404,7 @@ export class WorkspaceExportChecker {
     const label = raw.id;
     if (typeof label !== "string" || !new RegExp(ID).test(label)) return;
     if (k === "metric") {
-      if (!this.metrics.has(label)) this.metrics.set(label, { key: typeof raw.key === "string" ? raw.key : "", period: "day", line: this.n });
+      if (!this.metrics.has(label)) this.metrics.set(label, { key: typeof raw.key === "string" ? raw.key : "", period: "day", line: this.n, derived: false, aggregation: "", adds: "" });
     } else if (k in this.ids) (this.ids[k as keyof typeof this.ids]).add(label);
   }
 
@@ -436,12 +458,30 @@ export class WorkspaceExportChecker {
         const res = sound ? checkMetricFileValue(r.metric, undefined, EXPORT_METRIC_SCHEMAS) : undefined;
         if (res) merge("metric", res);
         const m = res && res.ok ? res.value : (r.metric as MetricFile);
-        this.metrics.set(r.id, { key: r.key, period: m.period, line: this.n });
+        this.metrics.set(r.id, { key: r.key, period: m.period, line: this.n, derived: m.formula !== undefined, adds: [m.period, m.aggregation, m.unit ?? "", m.valueFormat ?? "number"].join("\u0000"), aggregation: m.aggregation });
         this.metricEntries.set(r.id, { entry: { key: r.key, name: m.name, period: m.period, aggregation: m.aggregation, derived: m.formula !== undefined }, formula: m.formula, line: this.n });
         if (r.owner !== undefined) known("person", r.owner, "owner");
         r.submitters?.forEach((p, i) => known("person", p, `submitters[${i}]`));
         distinct("submitters", r.submitters ?? [], "person");
         distinct("tags", r.tags ?? [], "Tag");
+        return;
+      }
+      case "total": {
+        if (this.header?.format !== WORKSPACE_EXPORT_TOTALS_FORMAT) at("kind", `A file with a “total” record is ${WORKSPACE_EXPORT_TOTALS_FORMAT}, and its header says so.`);
+        const total = this.metricOf(r.metric, "metric", at);
+        if (this.totals.has(r.metric)) at("metric", "is a Total already: a Metric is made one once.");
+        this.totals.add(r.metric);
+        if (total?.derived) at("metric", "has a formula: a Total adds up a list instead.");
+        r.parts.forEach((p, i) => {
+          const part = this.metricOf(p.metric, `parts[${i}].metric`, at);
+          this.period(p.first, `parts[${i}].first`, part, at);
+          if (p.last !== undefined) this.period(p.last, `parts[${i}].last`, part, at);
+          if (p.last !== undefined && p.last < p.first) at(`parts[${i}].last`, "is before the first period.");
+          if (!part) return;
+          if (p.metric === r.metric || part.derived || this.totals.has(p.metric)) at(`parts[${i}].metric`, "is not a Metric that takes values: a Total adds up no formula and no Total.");
+          if (part.aggregation === "none" || (total && part.adds !== total.adds)) at(`parts[${i}].metric`, "does not go with the Total: its period, unit, number format and Aggregation are the Total's, and its values add up.");
+        });
+        distinct("parts", r.parts.map((p) => p.metric), "Metric");
         return;
       }
       case "dashboard": {
