@@ -19,7 +19,7 @@ The code works once. After it, nobody can claim the Installation again, and the 
 
 Whoever runs the server can also name Installation Admins in its settings, by email address (`ZIFFR_INSTALLATION_ADMINS`). Then no setup code is needed, and those people are listed as "Named on the server".
 
-Once you are an Installation Admin, your own menu at the bottom of the sidebar has **Installation settings**. Below its heading, the page says which release this Ziffr is, such as "This is Ziffr 0.12.0.", when the server runs an image made by a release or for `main`: the release notes after it are the ones that concern you.
+Once you are an Installation Admin, your own menu at the bottom of the sidebar has **Installation settings**. On a phone the list of sections is one **Section** menu that names the section you are reading and jumps to the one you choose; from 768 px wide it is a side list with the section you are reading marked. Below its heading, the page says which release this Ziffr is, such as "This is Ziffr 0.12.0.", when the server runs an image made by a release or for `main`: the release notes after it are the ones that concern you.
 
 ## Other Installation Admins
 

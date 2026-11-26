@@ -73,7 +73,7 @@ export function AnnouncementsSection({ rows, kind }: { rows: AnnouncementRow[]; 
       <p className="max-w-[62ch] text-sm text-muted-foreground">{kind.intro} Each person can dismiss it for their visit, unless you make it one that stays. Several that are on show one after the other, a warning first. At most {kind.activeMax} can be on at once ({on} now).</p>
       <div><Button type="button" onClick={() => openForm()}>Add an Announcement</Button></div>
       {rows.length ? (
-        <div className="overflow-x-auto rounded-[var(--radius-card,0.5rem)] border border-border">
+        <div className="relative overflow-x-auto rounded-[var(--radius-card,0.5rem)] border border-border">
           <table className={kind.installation ? "w-full min-w-[44rem] text-left text-sm" : "w-full min-w-[34rem] text-left text-sm"}>
             <caption className="sr-only">Announcements, a warning first. Times are in {zone}.</caption>
             <thead className="text-xs text-muted-foreground">

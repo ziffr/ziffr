@@ -201,3 +201,11 @@
   input[type="checkbox"], input[type="radio"] { width: 1.25rem; height: 1.25rem; }
   button:has(> svg:only-child):not([role="switch"], [role="checkbox"], [role="radio"], .widget-drag) { min-width: 44px; }
 }
+
+/* Settings screens on a phone (#1122): a label sits above its field instead of squeezed beside it, and a checkbox with
+   its words is one full-width, 44 px line. */
+@media (max-width: 767px) {
+  .phone-fields label:has(> :is(select, textarea, input:not([type="checkbox"], [type="radio"], [type="hidden"]))) { display: block; width: 100%; }
+  .phone-fields label > :is(select, textarea, input:not([type="checkbox"], [type="radio"], [type="hidden"])) { display: block; }
+  .phone-fields label:has(> input[type="checkbox"]) { width: 100%; min-height: 44px; }
+}
