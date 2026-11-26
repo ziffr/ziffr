@@ -91,7 +91,7 @@ To add it to a screen:
 1. Add the path, its name and one sentence why to the list in [`packages/core/src/desktop-screens.ts`](../../packages/core/src/desktop-screens.ts), with its cases in `desktop-screens.test.ts`. A path that is not on the list shows no note.
 2. On a server page, render `<DesktopOnly path="…" look="…" />` from `components/desktop-only.tsx` (`look` is optional). A client screen renders `LargerScreenNote`, with `send` worked out on the server by `maySendLink`.
 
-No test ties a Desktop-first tier to the note, so do both.
+`route-tiers.test.ts` fails when a Desktop-first page has no words in that list, or when the list names a page that is not Desktop-first (the dashboard's page is the one exception, for Edit mode). No test sees whether the page renders the note, so do step 2.
 
 **Send me the link** emails the person a **Screen Link**. The list in `desktop-screens.ts` is also the only list of addresses such an email may lead to: a new entry matches one whole path of this Ziffr and nothing else, and needs a security review. The core (`screen-link.ts`) sends only to the acting person's own address, within the limit of Test Messages, and never for an Access Key, a Guest or the demo.
 

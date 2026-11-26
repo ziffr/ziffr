@@ -53,7 +53,7 @@ export function PresentDashboard({ dashboard, data, widgets, start, single, publ
   const height = useWindowHeight();
   const sparse = height !== null && (height - CHROME_PX - (rows - 1) * 16) / rows > MOST_ROW_PX;
 
-  const bar = "flex min-h-10 items-center gap-1.5 rounded-[var(--radius-input)] px-2.5 text-sm hover:bg-[var(--muted)] focus-visible:outline-2 focus-visible:outline-[var(--color-accent-2)]";
+  const bar = "flex min-h-10 items-center gap-1.5 max-md:min-h-11 max-md:min-w-11 max-md:justify-center rounded-[var(--radius-input)] px-2.5 text-sm hover:bg-[var(--muted)] focus-visible:outline-2 focus-visible:outline-[var(--color-accent-2)]";
   return (
     <ThemeScope theme={theme} scheme={pub ? "designed" : "follow"} className="desk fixed inset-0 z-[var(--z-modal)] flex flex-col overflow-hidden">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-3 pb-2 sm:px-6">
