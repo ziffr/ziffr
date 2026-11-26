@@ -22,6 +22,11 @@ export async function createViewLink(type: "dashboard" | "deck", id: number, inp
   });
 }
 
+/** What a new link would show with no number because it rests on a Total, by name (spec 0058). */
+export async function emptyInLink(type: "dashboard" | "deck", id: number, snapshotId: number | null) {
+  return links.emptyInLink(await currentActor(), type === "deck" ? "deck" : "dashboard", Number(id), snapshotId === null ? null : Number(snapshotId));
+}
+
 /** A dashboard's Snapshots a View Link may show: those already shown (spec 0013). */
 export async function shownSnapshots(dashboardId: number) {
   return (await listSnapshots(await currentActor(), Number(dashboardId))).filter((s) => s.shownAt).map((s) => ({ id: s.id, label: s.label }));

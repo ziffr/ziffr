@@ -46,6 +46,11 @@ const workflowRef = z.union([z.number().int().positive(), z.string().trim().min(
 /** A Metric on its own (GET, POST and PATCH answer this): its description, its Workflow and when a value is due next. */
 export const MetricDetail = MetricDescription.extend({
   formula: z.string().nullable().describe("A Derived Metric's formula by its inputs' slugs, only when you see all of them; null for other Metrics, and for one made from Metrics you may not see."),
+  total: z.object({
+    targets: z.enum(["own", "parts"]).describe("Its own target, or its Metrics' targets added up."),
+    open: z.boolean().describe("Whether its owner shows it to people who do not see every Metric it adds up."),
+    periods_withheld: z.boolean().describe("Whether its values leave out periods for you, because you do not see every Metric counted in them."),
+  }).optional().describe("Only for a Total, a Metric that adds up a list of others (its formula is null). Programs read it; only a person makes, changes or opens one, in the app."),
   defaults: z.array(z.string()).optional().describe("Only in the answer to creating a Derived Metric: what was chosen where you left a field out, in plain words."),
   tags_left_out: z.array(z.string()).optional().describe("Only in the answer to creating a Metric with `tags` that the Workspace's limit of 200 Tags refused: the words left out. The Metric was made without them."),
   url: z.string().describe("Where the Metric is in Ziffr, to give the person a link; needs a sign-in."),
