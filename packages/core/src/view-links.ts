@@ -11,6 +11,7 @@ import { mapViewWords, openFrozenData, opening, openObject, sealFrozenData, seal
 import { workspaceCipher } from "./workspace-keys";
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { getCanvasData } from "./access";
+import { assertSeesKeptMetrics } from "./deleted-metrics";
 import { assertSeesMetrics } from "./sharing";
 import { deckMetricIds } from "./visibility";
 import { widgetMetricIds } from "./widget-metrics";
@@ -321,7 +322,8 @@ export async function emptyInLink(actor: Actor, type: "dashboard" | "deck", id: 
   await assertOwner(actor, type, id);
   const view = type === "dashboard" && snapshotId !== null ? await previewViewLink(actor, id, snapshotId) : await buildView(type, id);
   if (!view) return [];
-  await assertSeesMetrics(actor, view.data.metrics.map((m) => m.id));
+  const ids = view.data.metrics.map((m) => m.id);
+  await (snapshotId !== null ? assertSeesKeptMetrics(actor, ids) : assertSeesMetrics(actor, ids));
   return view.data.metrics.filter((m) => restsOnTotal(m) && !view.data.series[m.slug]?.length).map((m) => m.name);
 }
 
@@ -336,7 +338,7 @@ export async function previewViewLink(actor: Actor, dashboardId: number, snapsho
     const s = await snapshotForLink(snapshotId, dashboardId);
     if (!s) return null;
     const ids = s.data.metrics.map((m) => m.id);
-    await assertSeesMetrics(actor, ids);
+    await assertSeesKeptMetrics(actor, ids);
     return snapshotPayload(dashboardId, s, await forReader(actor, s.widgets, s.data, s.themeId, ids));
   }
   const view = await buildView("dashboard", dashboardId);
@@ -427,7 +429,7 @@ async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId:
   const s = await snapshotForLink(snapshotId, dashboardId);
   // Only a shown Snapshot of this dashboard: a draft is not for anyone else yet.
   if (!s) throw new Refused("Show the Snapshot to everyone with access first, then make a link to it.");
-  await assertSeesMetrics(actor, s.data.metrics.map((m) => m.id));
+  await assertSeesKeptMetrics(actor, s.data.metrics.map((m) => m.id));
   const token = randomBytes(24).toString("base64url");
   const [linkId] = await reserveIds("view_links", 1);
   const { data: made, error: madeError } = await db().from("view_links").insert({ id: linkId, token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: asked, frozen: null, show_names: input?.showNames === true, snapshot_id: snapshotId,

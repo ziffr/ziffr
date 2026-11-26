@@ -517,6 +517,7 @@ A band at the top of a Snapshot says which period it is, when and by whom it was
 
 - If you may not see some of its Metrics, the band says how many parts are not shown.
 - If a value was corrected or removed since, the band lists it under "Corrected since this Snapshot was taken; it keeps the values it had", with the value then and what it is now.
+- If a Metric it shows was [deleted](10-metrics.md#deleting-a-metric) since, the band names it. The Snapshot keeps its numbers, marked **(deleted)**, for the people who could see the Metric when it was deleted; for others its parts are not shown.
 - Once its words were changed after it was shown, the band says when.
 
 The owner and Editors have these buttons:

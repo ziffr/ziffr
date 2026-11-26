@@ -377,6 +377,14 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `dashboardTemplateDraft` (templates.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `workspaceValuesCsv` (unused-workspaces.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `exportMetricValues` (metric-values-export.ts): the CSV download of chosen Metrics for a signed-in person (spec 0056); a program reads values through the API with its scopes and its own log, and the function refuses an Access Key
+- `exportMetricRecord` (metric-record.ts): the ZIP a Metric Owner downloads before deleting Metrics in the app (spec 0065); the function refuses an Access Key
+- `deleteChosenMetrics` (metric-delete.ts): the app's deletion, behind the record download and typed words (spec 0065); a program deletes one unused Metric with `deleteMetricWithKey`
+- `archiveChosenMetrics` (metric-delete.ts): "Archive instead" in the app's deletion window; a program archives one Metric at a time
+- `archiveEach` (archived-metrics.ts): several Metrics at once, for the app's Usage page and deletion window; a program archives one at a time
+- `planMetricDelete` (metric-delete.ts): the preview of the app's deletion window; reads Workspace words, which opening needs the Workspace's key for (spec 0028)
+- `ownedForRecord` (metric-record.ts): who may have a record, asked by the app's download and its check; reads Workspace words, which opening needs the Workspace's key for (spec 0028)
+- `buildMetricRecord` (metric-record.ts): the contents of the app's record download; reads Workspace words, which opening needs the Workspace's key for (spec 0028)
+- `recordDownloaded` (metric-record.ts): the app's check that the record was downloaded, read from the Audit Log for the signed-in Metric Owner
 - `versionAccess` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `listVersions` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `trialUsage` (trial-usage.ts): the trial bar and Try it show an Owner or Admin what the trial has used; the API has no such page

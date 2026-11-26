@@ -14,13 +14,12 @@ import { keepTrial, trialEndsAt, trialThen } from "./trials";
 import { settingsInEffect, settingsInEffectStrict } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { daysSetting } from "./installation-days";
-import { csvNumber } from "./export-values";
+import { spreadsheetCells } from "./export-values";
 import { inCondensed, partOfCondensed, valueOfParts } from "./condensed-parts";
 import { condensedFor } from "./condensed-values";
 import { NOT_FINAL_STATES, valueStateWords } from "./value-state";
 import { allRows, mustRead } from "./workspace-data";
 import type { Aggregation } from "./types";
-import { NUMBER_STYLE_MARKS } from "./number-style";
 import { numberStyleOf } from "./workspace-settings";
 import { destroyWorkspaceKeys } from "./workspace-keys";
 import { membersGoingWords, trialEndsWords, workspaceClosedWords, workspaceReopenedWords } from "./trial-words";
@@ -343,14 +342,7 @@ export async function valueLines(workspaceId: string, only: ReadonlySet<number> 
   // Names are sealed, so the order by name is made here, on the opened rows.
   const all = (await openRows("metrics", workspaceId, sealedRows)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
   const metrics = all.filter((m) => !only || only.has(m.id as number));
-  const sep = NUMBER_STYLE_MARKS[style].decimal === "," ? ";" : ",";
-  const cell = (v: unknown) => {
-    const s = String(v ?? "");
-    // The full-width signs and a line feed start a formula in some spreadsheets too.
-    return `"${(/^[=+\-@\t\r\n\uFF1D\uFF0B\uFF0D\uFF20]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
-  };
-  // A value is ours, never text someone typed: a minus is a negative number, not a formula.
-  const number = (v: unknown) => `"${csvNumber(Number(v), style)}"`;
+  const { sep, text: cell, number } = spreadsheetCells(style);
   // A Condensed Value (spec 0033) is one line for its span: `period` is the span's kind, `period_start` its first day,
   // `period_end` its last, `condensed_from` how many of the Metric's periods it was made from; both are empty on a value.
   const lines = [["metric", "name", "period", "period_start", "value", "unit", "source", "recorded_at", "period_end", "condensed_from", "state"].map(cell).join(sep)];

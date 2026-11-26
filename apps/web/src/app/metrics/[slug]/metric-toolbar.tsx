@@ -9,12 +9,12 @@ import { Archive, ArchiveRestore, Bell, Copy, History, LayoutDashboard, Send, Si
 import { createDashboardNamed, placeWidget } from "@/app/canvas-actions";
 import { told } from "@/lib/action-toast";
 import { AlertMe, type WebhookChoice } from "@/components/alerts";
+import { DeleteMetrics } from "@/components/delete-metrics";
 import { usePanel } from "@/lib/panel-param";
 import { ObjectToolbar, type ObjectToolbarProps, type MenuEntry } from "@/components/object-toolbar";
 import { askNow } from "./ask-now";
 import { AssistantPrompt } from "./assistant-prompt";
 import { ArchiveMetric, useBringBack, type CountingTotal } from "./archive-metric";
-import { DeleteMetric } from "./delete-metric";
 import { FillPast } from "./fill-past";
 import { RecordValue } from "./record-value";
 import type { RecordingOffer } from "@ziffr/core/record-own-value";
@@ -87,7 +87,10 @@ export function MetricToolbar(p: MetricToolbarProps) {
       {p.record && <AssistantPrompt metric={{ ...p.metric, mcpUrl: p.mcp }} open={open === "assistant"} onOpenChange={(o) => setOpen(o ? "assistant" : null)} />}
       {p.alert && <AlertMe metric={p.metric} mine={p.alert.mine} choices={p.alert.choices} webhooks={p.alert.webhooks} controlled />}
       {p.archive.allowed && !p.archive.archived && <ArchiveMetric metricId={p.metric.id} name={p.metric.name} totals={p.archive.totals} open={open === "archive"} onOpenChange={(o) => setOpen(o ? "archive" : null)} />}
-      {p.canDelete && <DeleteMetric metricId={p.metric.id} name={p.metric.name} open={open === "delete"} onOpenChange={(o) => setOpen(o ? "delete" : null)} />}
+      {p.canDelete && (
+        <DeleteMetrics ids={[p.metric.id]} open={open === "delete"} onOpenChange={(o) => setOpen((was) => (o ? "delete" : was === "delete" ? null : was))} onDeleted={() => router.push("/metrics")}
+          onArchive={p.archive.allowed && !p.archive.archived ? show("archive") : undefined} />
+      )}
     </>
   );
 }

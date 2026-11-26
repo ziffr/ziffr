@@ -1,6 +1,7 @@
 // The parts of Totals as stored (GLOSSARY: Total; spec 0058), and what the Metric loader makes of them. Every loader
 // takes the workspace and reads nothing outside it; who is shown a Total's numbers is decided where they are worked out
 // (totals.ts), from what the reader sees.
+import { deletedOpenTotals } from "./deleted-metrics";
 import { allowedBy, restsFor, type Allowed, type KeptData, type Rests } from "./total-views";
 import { Refused } from "./actor";
 import { db } from "./db";
@@ -98,7 +99,10 @@ export async function restsNow(ws: string, data: Omit<KeptData, "rests">): Promi
  * says. Closing a Total takes effect on every copy. */
 export async function allowedNow(ws: string, rests: Rests | undefined, sees: (metricId: number) => boolean): Promise<Allowed> {
   if (!rests) return () => false;
-  const open = new Set((await getMetrics(ws)).filter((m) => m.total?.open).map((m) => m.id));
+  const metrics = await getMetrics(ws);
+  // A Total that was open when it was deleted stays so in the copies (spec 0065).
+  const gone = await deletedOpenTotals(ws, new Set(metrics.map((m) => m.id)));
+  const open = new Set([...metrics.filter((m) => m.total?.open).map((m) => m.id), ...gone]);
   return allowedBy(rests, open, sees);
 }
 

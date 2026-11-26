@@ -4,7 +4,7 @@
 import { COMPARE_LABEL, compare, resolverFrom, type CompareKey } from "./compare";
 import { scaled } from "./exact";
 import { formatChange, formatNumber, MINUS } from "./format";
-import type { NumberStyle } from "./number-style";
+import { NUMBER_STYLE_MARKS, type NumberStyle } from "./number-style";
 import type { CanvasData, Metric, WidgetSettings } from "./types";
 
 // The comparison strip's default and its short label for "prev", so the slide reads like the widget.
@@ -37,6 +37,22 @@ export function csvNumber(v: number, style: NumberStyle): string {
   if (!Number.isFinite(v)) return "";
   // The decimals of its exact text: 1.5e-7 has eight (written 0.000000), not the one "1.5e-7" seems to have (#126).
   return formatNumber(v, Math.min(6, scaled(v).places), style, { group: false });
+}
+
+/** How a CSV file of a Workspace's numbers is written (spec 0022): every field quoted, separated by ";" where the
+ * decimal mark is a comma. `text` is for anything a person typed: one that starts like a formula gets a leading
+ * apostrophe, so a spreadsheet never runs it (CSV injection). `number` is for a value of ours, whose minus is a
+ * negative number, not a formula. */
+export function spreadsheetCells(style: NumberStyle): { sep: string; text: (v: unknown) => string; number: (v: unknown) => string } {
+  return {
+    sep: NUMBER_STYLE_MARKS[style].decimal === "," ? ";" : ",",
+    text: (v) => {
+      const s = String(v ?? "");
+      // The full-width signs and a line feed start a formula in some spreadsheets too.
+      return `"${(/^[=+\-@\t\r\n\uFF1D\uFF0B\uFF0D\uFF20]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    },
+    number: (v) => `"${v === null || v === undefined || v === "" ? "" : csvNumber(Number(v), style)}"`,
+  };
 }
 
 /** The number format PowerPoint labels a chart's values with: the Metric's decimals and its unit on its side, such

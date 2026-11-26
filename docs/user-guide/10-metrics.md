@@ -38,7 +38,7 @@ Each row also has a **Quick look** button beside the Metric's name (it shows on 
 
 ### Download values
 
-Each row has a checkbox (on a phone, in the card's top right corner). Tick the Metrics you want and a bar appears at the foot of the screen with how many are selected, **Download values** and **Clear**. **Download values** gives you one CSV file with every value of those Metrics, one row per value, oldest first for each Metric. The box at the head of the table (on a phone, **Select all** in the bar) ticks every Metric the list shows, after the Tag and Archived filters; under **Archived** you can download Archived Metrics, whose values are kept. One file holds at most 50 Metrics and 250,000 values; over that, Ziffr says so, you download them in parts, and nothing is cut short.
+Each row has a checkbox (on a phone, in the card's top right corner). Tick the Metrics you want and a bar appears at the foot of the screen with how many are selected, **Delete…** (not for a Guest; see [Deleting a Metric](#deleting-a-metric)), **Download values** and **Clear**. **Download values** gives you one CSV file with every value of those Metrics, one row per value, oldest first for each Metric. The box at the head of the table (on a phone, **Select all** in the bar) ticks every Metric the list shows, after the Tag and Archived filters; under **Archived** you can download Archived Metrics, whose values are kept. One file holds at most 50 Metrics and 250,000 values; over that, Ziffr says so, you download them in parts, and nothing is cut short.
 
 The columns are `metric` (the Metric's slug), `name`, `period`, `period_start`, `value`, `unit`, `source`, `recorded_at`, `period_end`, `condensed_from` and `state`; `period_end` and `condensed_from` are filled only for a [Condensed Value](#retention), which is one row for its span. Numbers are written in your Workspace's **Number Style** without group marks, and where that style writes a decimal comma the columns are separated by semicolons, as a spreadsheet there expects. The file is UTF-8 and starts with a byte-order mark, as every CSV file Ziffr gives you does, so Excel shows umlauts and other letters rightly; a program of your own that reads it should skip that mark. `state` says **final** or **not approved yet**: a value that waits for **Approval**, or was sent back to its Submitter, is in the file and reads **not approved yet**, as does every other value of that period. Filter on **final** to work with final values only. A Metric without a **Workflow** has final values. Where a Metric keeps both values of a period, both are rows; of a corrected value only the corrected number is in the file. A Derived Metric has no values of its own and adds no rows, and the bar says so when one is ticked.
 
@@ -640,13 +640,34 @@ Duplicating is also the way to count a number in a different period, since a Met
 
 ## Deleting a Metric
 
-**Delete…** is for the Metric Owner. To confirm, type the Metric's name and choose **Delete the Metric**. Its values, targets, questions, tasks and form links go with it, and this cannot be undone. The **Audit Log** keeps that you deleted it.
+Only the **Metric Owner** deletes a Metric. Deleting is for good: its values and their history, Breakdowns, targets, Projections, questions, tasks and form links go with it. If you only want the requests to stop, [archive it](#archiving-a-metric) instead; **Archive instead** is in the same window.
 
-Ziffr refuses to delete a Metric while something still uses it, and says what:
+Open the Metric and choose **⋯** → **Delete…**. To delete several at once, tick them in the Metrics list and choose **Delete…** in the bar beside **Download values** (at most 50 at once).
 
-- another Metric is calculated from it (change that formula first),
-- it is shown in a widget or a deck (take it out first),
-- a **View Link** that still works shows it (revoke the link first).
+**1. Look at what can be deleted.** The window lists the Metrics that can go and those that stay, each with the reason:
+
+- you are not its Metric Owner;
+- another Metric is calculated from it, or a [Total](#adding-up-metrics-a-total) adds it up. Tick that Metric too, and Ziffr deletes them in the right order. Otherwise change the formula, or remove it from the Total, first;
+- it is on a dashboard or in a deck you cannot change, or in someone else's saved widgets;
+- a **View Link** that still works shows it and only someone else can revoke it.
+
+Dashboards, decks and Metrics you may not see are counted, never named.
+
+**2. Tick the changes Ziffr may make for you.** Nothing is ticked at first, and each tick lists what it changes:
+
+- **Take them off dashboards**: a widget that shows one list of Metrics keeps the others; any other widget that shows a picked Metric is removed, with everything in it. Your saved widgets are changed the same way.
+- **Take them out of decks**: the same for widgets on slides, also on slides that keep a Snapshot's numbers. A text box keeps its words, and the [live values](14-decks-and-themes.md#live-values-in-text-boxes) of a deleted Metric are left empty. Snapshot Parts stay.
+- **Revoke these View Links**: each listed link stops working as a whole, not only for these Metrics.
+
+Dashboards and decks keep their Versions, but a Version that showed a deleted Metric cannot bring its numbers back.
+
+**3. Download the record.** **Download the record** saves a ZIP file with one folder per Metric: `definition.csv` (what it is, how it is calculated, its owner and settings), `values.csv`, `value-history.csv`, `breakdowns.csv`, `breakdown-history.csv`, `targets.csv`, `projections.csv`, `questions-and-tasks.csv` and, for a calculated Metric or a Total, `calculated-values.csv` with its numbers as you see them. The files are written like [Download values](#download-values): numbers in the Workspace's Number Style, semicolons where it writes a decimal comma, UTF-8 with a byte-order mark, and a text that starts like a formula gets an apostrophe. Ziffr cannot read the file back in. One record holds at most 500,000 values, earlier values included; over that, delete in parts. The download is written in the **Audit Log**.
+
+**4. Confirm.** Delete unlocks once you have downloaded the record of exactly the Metrics that can be deleted. Type the Metric's name, or for several the words shown, such as `delete 3 Metrics`, and choose **Delete … for good**. If something changed in between, such as a new value or reply, Ziffr deletes nothing and asks you to download the record again. The download unlocks deleting for 24 hours. The **Audit Log** keeps that you deleted each Metric.
+
+**Past Snapshots keep their numbers.** A [Snapshot](12-dashboards.md#snapshots) that showed a deleted Metric still shows it, marked **(deleted)**, to the people who could see the Metric when it was deleted and may still open the Snapshot; also on slides that show its Snapshot Parts and through a View Link to the Snapshot. Nobody else gets it, and someone who leaves the Workspace loses it. A View Link that shows live or frozen numbers of a Metric has to be revoked before the Metric goes. Metrics deleted before this version of Ziffr are not shown in Snapshots.
+
+Programs and AI assistants that delete a Metric (the API and the MCP Server) are not asked for the record, and are refused while anything uses the Metric.
 
 The demo's Metrics cannot be deleted: the demo can't be changed. Where visitors may change the demo, they can define Metrics of their own, change their details, Sources, targets and projections, tag, archive and bring them back, but not delete or hand them over, and not change the names and descriptions of the Metrics the demo started with (see [Trying Metrics, questions and sharing in a demo that can be changed](07-getting-started.md#trying-metrics-questions-and-sharing-in-a-demo-that-can-be-changed)).
 
