@@ -52,7 +52,7 @@ export default async function PeriodRecordPage({ params }: { params: Promise<{ s
   const write = (v: number | null) => formatValue(m, v, numberStyle);
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href={`/metrics/${m.slug}?tab=history`} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> {m.name}</Link>
+      <Link href={`/metrics/${m.slug}?tab=history`} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> {m.name}</Link>
       <section className="stock rounded-[var(--radius-card)] p-5">
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link>

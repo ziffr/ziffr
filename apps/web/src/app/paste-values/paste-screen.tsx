@@ -174,7 +174,7 @@ export function PasteScreen({ metrics, metricId: opened }: { metrics: PasteChoic
             Copy the cells in Excel, Google Sheets, LibreOffice or Numbers and press Ctrl+V (⌘V) here. Metrics as rows and periods as columns (or the other way round), or one value per row with its Metric and period. At most {PASTE_LIMITS.values.toLocaleString("en")} values at a time.
           </p>
           <Textarea
-            id="paste-text" ref={box} aria-describedby="paste-help" rows={6} spellCheck={false} className="font-mono text-base sm:text-xs"
+            id="paste-text" ref={box} aria-describedby="paste-help" rows={6} spellCheck={false} className="font-mono text-xs"
             value={text}
             onChange={(e) => setText(e.target.value)}
             onPaste={(e) => { const pasted = e.clipboardData.getData("text/plain"); if (!pasted) return; e.preventDefault(); setText(pasted); setLeaveOut(new Set()); read({ text: pasted, leaveOut: new Set() }); }}
@@ -225,7 +225,7 @@ export function PasteScreen({ metrics, metricId: opened }: { metrics: PasteChoic
               <span className="font-medium">{LAYOUT_WORDS[shown.layout]}</span>
               {shown.layout === "one_metric" ? `: ${shown.periods} periods.` : `: ${shown.metrics} Metric${shown.metrics === 1 ? "" : "s"} × ${shown.periods} period${shown.periods === 1 ? "" : "s"}.`}
               {!result && shown.alternatives.map((alt) => (
-                <Button key={alt} variant="link" size="sm" disabled={pending} onClick={() => { setLayout(alt); read({ layout: alt }); }}>Read it as: {LAYOUT_WORDS[alt]}</Button>
+                <Button key={alt} variant="link" size="sm" className="h-auto max-w-full justify-start text-left whitespace-normal max-sm:px-0" disabled={pending} onClick={() => { setLayout(alt); read({ layout: alt }); }}>Read it as: {LAYOUT_WORDS[alt]}</Button>
               ))}
             </p>
             <p className="text-lg font-medium" aria-hidden>{result ? "Done: " : ""}{summary(shown, !!result)}</p>

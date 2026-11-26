@@ -77,7 +77,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
     const [choices, refusal] = await Promise.all([formulaChoices(await currentActor()), newMetricRefusal(await currentActor())]);
     return (
       <>
-        <Link href="/metrics/new" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Catalog</Link>
+        <Link href="/metrics/new" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> Catalog</Link>
         <PageHeader title="New calculated metric" sub="A number worked out from other Metrics, such as a margin or the change since last week. Nobody is asked for its values." />
         <LimitNotes refusal={refusal} note={note} />
         <DerivedForm choices={choices} />
@@ -90,7 +90,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
     const fit = profile.industry ? { industry: profile.industry, segment: profile.segment, label: INDUSTRY_LABEL[profile.industry] } : null;
     return (
       <>
-        {guide && <Link href="/setup?step=start" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Back to the Setup Guide</Link>}
+        {guide && <Link href="/setup?step=start" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> Back to the Setup Guide</Link>}
         <PageHeader title="New metric" sub="Start from the Metric Catalog, or describe one from scratch. You can change everything afterwards." />
         <LimitNotes refusal={refusal} note={note} />
         <Link href={`/metrics/new?scratch=1${qs}`} className="mb-3 flex items-center gap-3 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 hover:bg-muted/40">
@@ -122,8 +122,8 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
   return (
     <>
       {copy
-        ? <Link href={`/metrics`} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Metrics</Link>
-        : <Link href={guide ? "/metrics/new?setup=1" : "/metrics/new"} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Catalog</Link>}
+        ? <Link href={`/metrics`} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> Metrics</Link>
+        : <Link href={guide ? "/metrics/new?setup=1" : "/metrics/new"} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> Catalog</Link>}
       <PageHeader
         title={copy ? `Duplicate “${copy.original}”` : picked ? `New metric from “${picked.name}”` : "New metric"}
         sub={copy
@@ -157,7 +157,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
               <F label="Who submits" hint="Each gets a personal form link for this metric, and a first request for the value by chat or mail." className="sm:col-span-2">
                 <div className="flex flex-wrap gap-4">
                   {people.map((p) => (
-                    <label key={p.id} className="flex items-center gap-2 text-sm">
+                    <label key={p.id} className="flex items-center gap-2 text-sm max-sm:min-h-11">
                       <input type="checkbox" name="submitters" value={p.id} defaultChecked={copy ? copy.submitters.includes(p.id) : p.id === viewer} className="size-4 accent-primary" />
                       <span className="size-2.5 rounded-full" style={{ background: p.color }} />
                       {p.name.split(" ")[0]} <span className="text-xs text-muted-foreground">{p.role}</span>
@@ -167,7 +167,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
               </F>
               {copy?.workflow && (
                 <F label="Workflow" hint="The path its values take each period, as for the original." className="sm:col-span-2">
-                  <label className="flex items-center gap-2 text-sm">
+                  <label className="flex items-center gap-2 text-sm max-sm:min-h-11">
                     <input type="checkbox" name="workflow_id" value={copy.workflow.id} defaultChecked className="size-4 accent-primary" />
                     {copy.workflow.name}
                   </label>
@@ -212,7 +212,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
               <F label="Sources" className="sm:col-span-2">
                 <div className="flex flex-wrap gap-4">
                   {SOURCES.map((s) => (
-                    <label key={s.id} className="flex items-center gap-2 text-sm">
+                    <label key={s.id} className="flex items-center gap-2 text-sm max-sm:min-h-11">
                       <input type="checkbox" name="sources" value={s.id} defaultChecked={(d.sources as SourceId[]).includes(s.id)} className="size-4 accent-primary" />
                       {s.label} {s.simulated && demo && <span className="text-xs text-muted-foreground">(played in the demo)</span>}
                     </label>

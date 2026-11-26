@@ -35,7 +35,7 @@ export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { 
   const first = fromGuide && fit && suited.length > 0 && !onlySuited ? shown.filter((c) => suits(c, fit)) : [];
   const groups = [...(first.length ? [[`For ${fit!.label}`, first] as const] : []), ...Object.entries(Object.groupBy(first.length ? shown.filter((c) => !first.includes(c)) : shown, (c) => c.category))];
   const restFrom = first.length ? 1 : -1;
-  const chip = (active: boolean) => cn("inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 py-1 text-sm sm:min-h-0 sm:text-xs", active ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-muted/60");
+  const chip = (active: boolean) => cn("shrink-0 rounded-full border px-3 py-1 text-sm sm:text-xs", active ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-muted/60");
 
   return (
     <>

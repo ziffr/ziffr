@@ -211,6 +211,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           </span>
         }
         sub={metric.description}
+        besideTitle={!isOwner && !record}
       >
         {/* Record a value is the one main button, for someone who submits the Metric; Share is the owner's; the rest is in the ⋯ menu. */}
         <MetricToolbar
@@ -266,7 +267,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 {bdPeriods.length > 0 && (
                   <nav aria-label="Breakdown period" className="flex flex-wrap gap-1">
                     {bdPeriods.slice(-6).map((p) => (
-                      <Link key={p} href={at({ bp: p })} scroll={false} aria-current={p === bdPeriod ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 text-xs no-underline", p === bdPeriod ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>
+                      <Link key={p} href={at({ bp: p })} scroll={false} aria-current={p === bdPeriod ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 text-xs no-underline max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:text-sm", p === bdPeriod ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>
                         {periodLabel(p, metric.period, yearStart, true)}
                       </Link>
                     ))}
