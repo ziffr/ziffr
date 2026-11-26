@@ -74,11 +74,11 @@ describe("the guide an install keeps", () => {
     const w = await ws(); const o = await ws();
     const ann = await w.person("owner"); const mia = await w.person("member"); const gus = await w.person("guest"); const eve = await o.person("owner");
     const id = await installPackFile(w.actor(ann), withGuide(short("Ours.")), yes);
-    expect((await readInstalledGuide(w.actor(mia), id))!.guide).toEqual(short("Ours."));
-    expect((await listInstalledGuides(w.actor(mia))).map((g) => g.installId)).toEqual([id]);
+    expect((await readInstalledGuide(w.actor(mia, "member"), id))!.guide).toEqual(short("Ours."));
+    expect((await listInstalledGuides(w.actor(mia, "member"))).map((g) => g.installId)).toEqual([id]);
     // A Guest, an Access Key of an Owner, and an Owner of another Workspace who names the install's id.
     const key = { ...w.actor(ann), key: { id: 1 } } as unknown as Actor;
-    for (const actor of [w.actor(gus), key, o.actor(eve)]) {
+    for (const actor of [w.actor(gus, "guest"), key, o.actor(eve)]) {
       expect(await readInstalledGuide(actor, id)).toBeNull();
       expect(await listInstalledGuides(actor)).toEqual([]);
     }
