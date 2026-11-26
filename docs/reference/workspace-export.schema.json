@@ -13,8 +13,11 @@
           "description": "Which record this line is."
         },
         "format": {
-          "const": "ziffr.workspace-export/1",
-          "description": "The format and its version."
+          "enum": [
+            "ziffr.workspace-export/1",
+            "ziffr.workspace-export/2"
+          ],
+          "description": "The format and its version: version 2 for a file with a `total` record, else version 1."
         },
         "ziffr": {
           "type": "string",
@@ -245,6 +248,73 @@
         "id",
         "key",
         "metric"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "What makes a Metric of the file a Total, a sum over a list of Metrics: its record then has no formula. A file with such a record is read by a Ziffr that knows Totals.",
+      "properties": {
+        "kind": {
+          "const": "total",
+          "description": "Which record this line is."
+        },
+        "metric": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+          "description": "the label of the Metric that is the Total of this file, listed before this record: a label of up to 64 letters, digits, dashes and underscores, standing for one record of this file only"
+        },
+        "targets": {
+          "enum": [
+            "own",
+            "parts"
+          ],
+          "description": "Where its target comes from: its own Target Range and Target Series, or those of the Metrics it adds up."
+        },
+        "open": {
+          "type": "boolean",
+          "description": "Whether its owner showed it to people who do not see every Metric it adds up. An import leaves it closed."
+        },
+        "parts": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "properties": {
+              "metric": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                "description": "the label of a Metric it adds up of this file, listed before this record: a label of up to 64 letters, digits, dashes and underscores, standing for one record of this file only"
+              },
+              "first": {
+                "type": "string",
+                "maxLength": 10,
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                "description": "The first day of the period, as YYYY-MM-DD."
+              },
+              "last": {
+                "type": "string",
+                "maxLength": 10,
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                "description": "The first day of the period, as YYYY-MM-DD."
+              }
+            },
+            "required": [
+              "metric",
+              "first"
+            ],
+            "additionalProperties": false
+          },
+          "description": "The Metrics it adds up, each with the first period it counts in and, once it has left, the last."
+        }
+      },
+      "required": [
+        "kind",
+        "metric",
+        "targets",
+        "open",
+        "parts"
       ],
       "additionalProperties": false
     },
@@ -618,7 +688,7 @@
         },
         "counts": {
           "type": "object",
-          "description": "The records of each kind, header and end not counted.",
+          "description": "The records of each kind, header and end not counted; `total` only where the file holds one.",
           "properties": {
             "group": {
               "type": "integer",
@@ -636,6 +706,11 @@
               "maximum": 5000
             },
             "metric": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "total": {
               "type": "integer",
               "minimum": 0,
               "maximum": 10000

@@ -8,7 +8,7 @@
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.20",
   "audience": {
     "segments": [
       "non_profit"
@@ -78,6 +78,7 @@
     "metrics": [
       {
         "key": "members",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Members",
@@ -102,6 +103,7 @@
       },
       {
         "key": "joiners",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Joiners",
@@ -126,6 +128,7 @@
       },
       {
         "key": "leavers",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Leavers",
@@ -150,6 +153,7 @@
       },
       {
         "key": "attendance",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Attendance per training",
@@ -174,6 +178,7 @@
       },
       {
         "key": "fees",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Fees received",
@@ -198,6 +203,7 @@
       },
       {
         "key": "volunteer-hours",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Volunteer hours",

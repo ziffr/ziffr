@@ -1,4 +1,5 @@
 "use client";
+import { noValuesWords } from "@ziffr/core/total-rules";
 import { tellApart } from "@ziffr/core/metric-names";
 import { useEnsure, useSeriesReady } from "@/canvas/series-store";
 import { inUse } from "@ziffr/core/metric-row";
@@ -343,7 +344,7 @@ function MetricPreview({ metric: m, data }: { metric: Metric; data: CanvasData }
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           <div className="fig truncate text-lg font-semibold">{last ? formatValue(m, last.value, data.numberStyle) : "–"}</div>
-          <div className="text-xs text-muted-foreground">{last ? periodLabel(last.period, m.period, data.yearStart, true) : ready ? "No values yet" : "Loading…"}</div>
+          <div className="text-xs text-muted-foreground">{last ? periodLabel(last.period, m.period, data.yearStart, true) : ready ? noValuesWords(m) : "Loading…"}</div>
         </div>
         {points.length > 1 && <div className="w-28 shrink-0"><Sparkline points={points.slice(-24)} height={36} tone={health(m, last.value)} /></div>}
       </div>

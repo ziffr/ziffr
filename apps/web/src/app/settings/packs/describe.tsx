@@ -1,11 +1,13 @@
 "use client";
-// "Describe your Pack", the second step of Export as Pack (spec 0058, GLOSSARY: Pack Guide): a field for each of the
-// guide's five sections, "Each part" starting with the list of what goes into the file, the guide of an installed Pack
+// "Describe your Pack", the second step of Export as Pack (spec 0058, GLOSSARY: Pack Guide, Comes From): where each number
+// comes from, and a field for each of the guide's five sections, "Each part" starting with the list of what goes into the file, the guide of an installed Pack
 // offered again, and what the file may not hold told at its field. The core makes and checks the guide; this step only
 // holds the words and decides whether they go into the file.
 import { useCallback, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { PackNumberFields } from "./describe-numbers";
+import type { ComesFromChoice, ComesFromProblem } from "@ziffr/core/pack-export-numbers";
 import { PACK_GUIDE_SECTIONS, type PackGuideSection } from "@ziffr/pack/pack-guide";
 import type { PackGuideDraft } from "@ziffr/core/pack-export-guide";
 import type { GuideProblem, PackGuideText } from "@ziffr/core/pack-guide-text";
@@ -26,20 +28,26 @@ export type Description = {
   include: boolean;
   problems: GuideProblem[];
   offers: PackGuideDraft["installed"];
+  /** The numbers of the file, and where the person says each comes from. */
+  numbers: PackGuideDraft["numbers"];
+  comesFrom: ComesFromChoice;
+  numberProblems: ComesFromProblem[];
 };
 
 /** The state of the step, kept while the dialog moves back and forth. `drafted` takes in what the core answers each time
  * the step is opened: the list of contents replaces "Each part" only while the person has not changed it. */
 export function useDescription() {
-  const [state, setState] = useState<Description>({ text: {}, include: false, problems: [], offers: [] });
+  const [state, setState] = useState<Description>({ text: {}, include: false, problems: [], offers: [], numbers: [], comesFrom: {}, numberProblems: [] });
   const listed = useRef("");
   const drafted = useCallback((draft: PackGuideDraft) => {
     const before = listed.current;
     listed.current = draft.contents;
-    setState((s) => ({ ...s, offers: draft.installed, problems: [], text: (s.text.eachPart ?? "") === before ? { ...s.text, eachPart: draft.contents } : s.text }));
+    // Each number starts with what the Pack it came from says, else "A person types it"; an answer given stays.
+    setState((s) => ({ ...s, offers: draft.installed, numbers: draft.numbers, numberProblems: [], problems: [], text: (s.text.eachPart ?? "") === before ? { ...s.text, eachPart: draft.contents } : s.text,
+      comesFrom: Object.fromEntries(draft.numbers.map((n) => [n.ref, s.comesFrom[n.ref] ?? n.said ?? { by: "person" as const }])) }));
   }, []);
-  const refused = useCallback((problems: GuideProblem[]) => setState((s) => ({ ...s, problems })), []);
-  return { state, setState, drafted, refused, /** What goes with the export: nothing unless the guide is ticked. */ guide: state.include ? state.text : undefined };
+  const refused = useCallback((problems: GuideProblem[], numberProblems: ComesFromProblem[]) => setState((s) => ({ ...s, problems, numberProblems })), []);
+  return { state, setState, drafted, refused, /** What goes with the export: the guide only when it is ticked. */ guide: state.include ? state.text : undefined, comesFrom: state.comesFrom };
 }
 
 /** The fields of the step, each problem under the field it is in. */
@@ -49,6 +57,8 @@ export function DescribeStep({ state, setState }: { state: Description; setState
   const whole = state.problems.filter((p) => p.section === null);
   return (
     <div className="space-y-4 text-sm">
+      <PackNumberFields state={state} setState={setState} />
+      <h3 className="font-medium">The guide</h3>
       <p className="text-xs text-muted-foreground">One paragraph per line. Start a line with <code>-</code> for a list, <code>1.</code> for numbered steps or <code>#</code> for a heading; an empty line starts a new list. Put <code>**</code> before and after words to show them bold. A guide holds no link, web or email address, or markup. Leave a field empty to leave its section out.</p>
       {state.offers.map((o) => (
         <div key={o.installId} className="flex flex-wrap items-center gap-2 rounded-[var(--radius-input)] bg-muted p-2.5 text-xs">
@@ -58,7 +68,7 @@ export function DescribeStep({ state, setState }: { state: Description; setState
       ))}
       <label className="flex items-start gap-2">
         <input type="checkbox" checked={state.include} onChange={(e) => setState((s) => ({ ...s, include: e.target.checked, problems: [] }))} className="mt-0.5 accent-[var(--color-ink)]" />
-        <span>Put this guide into the Pack<span className="block text-xs text-muted-foreground">Ticked by itself when you write in a field. Without it, the Pack has no guide and older versions of Ziffr can install it.</span></span>
+        <span>Put this guide into the Pack<span className="block text-xs text-muted-foreground">Ticked by itself when you write in a field. Without it, the Pack has no guide.</span></span>
       </label>
       {whole.map((p, i) => <p key={i} role="alert" className="font-medium text-destructive">{p.message}</p>)}
       {PACK_GUIDE_SECTIONS.map((s) => {

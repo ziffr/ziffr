@@ -4,6 +4,7 @@
 // Style), worked out once in `designValues`; the design only says which of them each mark shows and how it looks.
 // Security: a design is data. Its words are drawn as React text, never as markup, and it reaches no Metric outside
 // the widget's own.
+import { noValuesWords } from "@ziffr/core/total-rules";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useTakeawayHost } from "./takeaway-host";
@@ -71,7 +72,7 @@ export type DesignValues = ReturnType<typeof designValues> & {
 function correlationWork(design: ViewDesign, metrics: Metric[], data: CanvasData, basis: BasisChoice, page: RecipeBudget) {
   const uses = usage(design);
   const m = metrics[0];
-  const resolve = resolverFrom(data.metrics, data.series);
+  const resolve = resolverFrom(data.metrics, data.series, data);
   const opts = { yearStart: data.yearStart, basis };
   const tooMuch = (a: Metric, b: Metric): Correlation => ({ ok: false, period: commonPeriod(a.period, b.period), n: 0, why: "too-much", reason: sayIn("recipe-page-too-much", {}, { style: data.numberStyle, yearStart: data.yearStart }) });
   const one = (a: Metric, b: Metric) => onPage(page, RANK_BUDGET, () => correlate(a, b, resolve, opts)) ?? tooMuch(a, b);
@@ -364,7 +365,7 @@ function textValue(show: TextShow, v: DesignValues): ReactNode {
       return formatValue(m, last?.value, ns);
     case "latest.period":
       // "Q4 26, 2 of 3 months" fits a small card; the tooltip says "to date" in full.
-      if (!last) return "No values yet";
+      if (!last) return noValuesWords(m);
       return last.toDate || isPartial(last) ? <span title={v.name(last)}>{periodLabel(last.period, v.by, data.yearStart, true)}, {heldText(last, m.period)}</span> : v.name(last);
     case "latest.status":
       // The headline stays neutral; the chip says on or off target (one colour rule, see target-chip).

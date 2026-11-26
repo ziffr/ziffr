@@ -27,7 +27,7 @@ export function measureSeries(m: Metric, data: CanvasData, panel: Panel): Bar[] 
   const combined: Point[] = [...actual, ...proj];
   const projected = new Set(proj.map((p) => p.period));
   // The engine reads this metric through a resolver that includes its projections.
-  const resolve = resolverFrom(data.metrics, { ...data.series, [m.slug]: combined });
+  const resolve = resolverFrom(data.metrics, { ...data.series, [m.slug]: combined }, data);
   const measure = panel.measure ?? "value";
   const n = panel.periods ?? (measure === "value" ? 12 : 6);
   const rows: Bar[] = [];

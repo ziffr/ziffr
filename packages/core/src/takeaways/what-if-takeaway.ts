@@ -9,7 +9,7 @@
 // never a number above 0 written as 0, a sign never lost: the direction is a word); a range only where the Method gives one;
 // nothing stronger than "moderate" with a caution; the footer once, and only where something is estimated; a Metric that is not
 // in the list given (one the person may not see) is never named, used or counted.
-import { formulaInputs, inputsProblem, usesPrevious } from "../formula";
+import { formulaInputs, inputsProblem, usesPrevious, usesTarget } from "../formula";
 import { MIN_PAIRS } from "../correlation";
 import { changes } from "../basis";
 import { formatNumber } from "../format";
@@ -319,7 +319,7 @@ function whatIfRecipeWithin(start: Metric, change: WhatIfChange, others: Metric[
     const inputs = formulaInputs(t.formula!).map((s) => everyone.find((m) => m.slug === s));
     const have = inputs as Metric[];
     // Its inputs are counted by its own period (`inputsProblem` says where they are not, or are Derived Metrics themselves).
-    const levels = inputs.some((m) => m === undefined) || usesPrevious(t.formula!) || t.period !== span || inputsProblem(t, have) !== null ? null : levelsOf(have, series, last.period);
+    const levels = inputs.some((m) => m === undefined) || t.total || usesPrevious(t.formula!) || usesTarget(t.formula!) || t.period !== span || inputsProblem(t, have) !== null ? null : levelsOf(have, series, last.period);
     if (!levels) {
       left.add(t.name);
       return null;

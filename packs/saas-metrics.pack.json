@@ -8,7 +8,7 @@
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.20",
   "audience": {
     "industries": [
       "saas"
@@ -103,6 +103,7 @@
     "metrics": [
       {
         "key": "mrr",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Monthly recurring revenue",
@@ -162,6 +163,7 @@
       },
       {
         "key": "new-mrr",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "New MRR",
@@ -194,6 +196,7 @@
       },
       {
         "key": "expansion-mrr",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Expansion revenue",
@@ -226,6 +229,7 @@
       },
       {
         "key": "churned-mrr",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Churned MRR",
@@ -258,6 +262,7 @@
       },
       {
         "key": "customers",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Active customers",
@@ -288,6 +293,7 @@
       },
       {
         "key": "logo-churn",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Churn rate",
@@ -322,6 +328,7 @@
       },
       {
         "key": "nrr",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Net revenue retention",
@@ -356,6 +363,7 @@
       },
       {
         "key": "cac",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Customer acquisition cost",
@@ -385,6 +393,7 @@
       },
       {
         "key": "cac-payback",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "CAC payback",
@@ -442,6 +451,7 @@
       },
       {
         "key": "cash",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Cash balance",
@@ -476,6 +486,7 @@
       },
       {
         "key": "runway",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Cash runway",

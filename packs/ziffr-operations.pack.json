@@ -8,7 +8,7 @@
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.20",
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },
@@ -71,6 +71,7 @@
     "metrics": [
       {
         "key": "workspaces",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspaces",
@@ -91,6 +92,7 @@
       },
       {
         "key": "workspaces-trial",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspaces: trial",
@@ -111,6 +113,7 @@
       },
       {
         "key": "workspaces-free",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspaces: free",
@@ -131,6 +134,7 @@
       },
       {
         "key": "workspaces-paid",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspaces: paid",
@@ -151,6 +155,7 @@
       },
       {
         "key": "people",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "People",
@@ -171,6 +176,7 @@
       },
       {
         "key": "people-active-7d",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "People: active 7d",
@@ -191,6 +197,7 @@
       },
       {
         "key": "workspaces-active-7d",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspaces: active 7d",
@@ -211,6 +218,7 @@
       },
       {
         "key": "metrics",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Metrics",
@@ -231,6 +239,7 @@
       },
       {
         "key": "metrics-archived",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Metrics: archived",
@@ -251,6 +260,7 @@
       },
       {
         "key": "dashboards",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Dashboards",
@@ -271,6 +281,7 @@
       },
       {
         "key": "widgets",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Widgets",
@@ -291,6 +302,7 @@
       },
       {
         "key": "decks",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Decks",
@@ -311,6 +323,7 @@
       },
       {
         "key": "workflows",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workflows",
@@ -331,6 +344,7 @@
       },
       {
         "key": "feeds",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Feeds",
@@ -351,6 +365,7 @@
       },
       {
         "key": "packs-installed",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Packs installed",
@@ -371,6 +386,7 @@
       },
       {
         "key": "workspaces-created",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspaces created",
@@ -391,6 +407,7 @@
       },
       {
         "key": "trials-started",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Trials started",
@@ -411,6 +428,7 @@
       },
       {
         "key": "trials-kept",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Trials kept",
@@ -431,6 +449,7 @@
       },
       {
         "key": "trials-closed",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Trials closed",
@@ -451,6 +470,7 @@
       },
       {
         "key": "sizes-booked",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Sizes booked",
@@ -471,6 +491,7 @@
       },
       {
         "key": "workspaces-deleted",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspaces deleted",
@@ -491,6 +512,7 @@
       },
       {
         "key": "signups",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Signups",
@@ -511,6 +533,7 @@
       },
       {
         "key": "values-web",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Values: web",
@@ -531,6 +554,7 @@
       },
       {
         "key": "values-email",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Values: email",
@@ -551,6 +575,7 @@
       },
       {
         "key": "values-slack",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Values: Slack",
@@ -571,6 +596,7 @@
       },
       {
         "key": "values-telegram",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Values: Telegram",
@@ -591,6 +617,7 @@
       },
       {
         "key": "values-api",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Values: API",
@@ -611,6 +638,7 @@
       },
       {
         "key": "values-feed",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Values: Feed",
@@ -631,6 +659,7 @@
       },
       {
         "key": "values-mcp",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Values: MCP",
@@ -651,6 +680,7 @@
       },
       {
         "key": "api-calls",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "API calls",
@@ -671,6 +701,7 @@
       },
       {
         "key": "feed-calls",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Feed calls",
@@ -691,6 +722,7 @@
       },
       {
         "key": "mcp-calls",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "MCP calls",
@@ -711,6 +743,7 @@
       },
       {
         "key": "emails-sent",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Emails sent",
@@ -731,6 +764,7 @@
       },
       {
         "key": "views-dashboards",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Views: dashboards",
@@ -751,6 +785,7 @@
       },
       {
         "key": "views-decks",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Views: decks",
@@ -771,6 +806,7 @@
       },
       {
         "key": "views-metrics",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Views: metrics",

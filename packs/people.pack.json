@@ -8,7 +8,7 @@
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.20",
   "audience": {
     "functions": [
       "people"
@@ -78,6 +78,7 @@
     "metrics": [
       {
         "key": "headcount",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Headcount",
@@ -105,6 +106,7 @@
       },
       {
         "key": "hires",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Hires",
@@ -130,6 +132,7 @@
       },
       {
         "key": "leavers",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Leavers",
@@ -156,6 +159,7 @@
       },
       {
         "key": "open-roles",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Open roles",
@@ -181,6 +185,7 @@
       },
       {
         "key": "time-to-hire",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Time to hire",
@@ -208,6 +213,7 @@
       },
       {
         "key": "absence-rate",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Absence rate",
@@ -237,6 +243,7 @@
       },
       {
         "key": "engagement",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Engagement score",

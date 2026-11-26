@@ -1,6 +1,6 @@
 # Workspace Export format
 
-A **Workspace Export** is one file that holds a whole Workspace, so that another Installation can import it as a new Workspace. This page is the format, `ziffr.workspace-export/1`, for anyone who reads or writes one. The checks are in [`@ziffr/pack`](../../packages/pack/README.md) (MIT), beside the Pack format they reuse; the JSON Schema of one line is [`workspace-export.schema.json`](workspace-export.schema.json), generated from the definition the checks run and never edited by hand.
+A **Workspace Export** is one file that holds a whole Workspace, so that another Installation can import it as a new Workspace. This page is the format, `ziffr.workspace-export/1` and `ziffr.workspace-export/2` (version 1 with the `total` record), for anyone who reads or writes one. The checks are in [`@ziffr/pack`](../../packages/pack/README.md) (MIT), beside the Pack format they reuse; the JSON Schema of one line is [`workspace-export.schema.json`](workspace-export.schema.json), generated from the definition the checks run and never edited by hand.
 
 A Workspace Export is as private as the Workspace was: it holds every value in the clear. Ziffr never stores one; it is built while it downloads.
 
@@ -8,7 +8,7 @@ A Workspace Export is as private as the Workspace was: it holds every value in t
 
 JSON Lines in UTF-8: one record per line, each a JSON object with a `kind`. The file may be gzipped (it then starts with the gzip mark; the usual name is `.jsonl.gz`). A line is at most 640 KiB and an object is nested at most 20 levels deep.
 
-The first line is the **header**, the last is the **end** record, and in between the records come in this order: `group` and `theme`, then `person`, then `metric`, then `dashboard`, `deck` and `workflow`, then `share`, then `target`, `projection` and `value`. Within one step any order is fine (except that `target` records and `projection` records are each sorted, below); the file never goes back a step. A record may name only records read before it, so a reader checks every reference while it streams and holds only the labels of what it has read, never the values.
+The first line is the **header**, the last is the **end** record, and in between the records come in this order: `group` and `theme`, then `person`, then `metric` and `total`, then `dashboard`, `deck` and `workflow`, then `share`, then `target`, `projection` and `value`. Within one step any order is fine (except that `target` records and `projection` records are each sorted, below); the file never goes back a step. A record may name only records read before it, so a reader checks every reference while it streams and holds only the labels of what it has read, never the values.
 
 ```text
 {"kind":"header","format":"ziffr.workspace-export/1","ziffr":"0.40.0","exportedAt":"2026-11-22T10:00:00Z","workspace":{"name":"Acme"}}
@@ -30,6 +30,7 @@ Every `id` is a **label** of up to 64 letters, digits, dashes and underscores th
 | `theme` | A Theme, as a `ziffr.theme/1` document. | |
 | `person` | A person as an **invitation**: name, email address, Workspace Role (`admin`, `member` or `guest`) and Groups. The old Owner is an `admin`: whoever imports becomes the Owner. | `group` |
 | `metric` | A Metric's `ziffr.metric/1` document (`ziffr.metric/2` when it has a Calculation Note), its `key` (how a Derived Metric's formula names it), Tags, owner and Submitters. | `person` |
+| `total` | What makes a Metric of the file a **Total**: whether its target is its own or its Metrics' added up (`targets`), whether its owner had opened it (`open`), and the Metrics it adds up (`parts`), each with the first period it counts in (`first`) and, once it has left, the last (`last`). The Total's `metric` record then has no formula and no Sources. | `metric` |
 | `dashboard` | A `ziffr.dashboard-template/1` document and the Metrics that fill its Slots. | `metric` |
 | `deck` | A `ziffr.deck-template/1` document, the Metrics that fill its Slots and its Theme. | `metric`, `theme` |
 | `workflow` | A `ziffr.workflow-template/1` document and the Metrics it asks for. | `metric` |
@@ -47,6 +48,8 @@ Access Keys, Feed Keys, Webhook addresses and secrets, Connector links (Slack, T
 
 Later versions may add Threads, Findings, Snapshots, Alerts, Retentions and Delivery Preferences; each addition is a new version number. A reader of version 1 refuses a record kind it does not know rather than skip it.
 
+**Version 2** adds the `total` record. A file is written as version 2 only when it holds one, so an older Ziffr reads every other file and refuses this one by naming its format.
+
 A writer lists `target` and `projection` records sorted by Metric label and then period, comparing labels by JavaScript code units (in SQL, `COLLATE "C"`), so “m10” comes before “m9”.
 
 Names, descriptions, Tags, Groups, people and Breakdown labels hold whatever a person typed in Ziffr (markup and web addresses are data here, never rendered or followed as such): only control characters, line and paragraph separators, characters that reverse the direction of text and invisible characters (zero-width spaces, soft hyphens, tag characters) are refused. A Metric's description may have 2,000 characters. The text inside the documents of dashboards, decks, Workflows and Themes follows the same rule, so no dashboard is lost for a title typed in Ziffr; a Pack file keeps the Pack's plain-text rules. A writer never truncates silently: text over a limit is an error it reports. A file's text may reach 1 GB and the file 200 MB (a reader may set other limits): Ziffr's writer gzips by default and refuses to write a file over the limits, so what it writes is always read.
@@ -62,18 +65,18 @@ Names, descriptions, Tags, Groups, people and Breakdown labels hold whatever a p
 - A Contact and a person without an email address are no invitation, so a Metric's Submitters are only the people of the file; an owner or Submitter who is a Guest is a `guest` person, for the importer to decide.
 - Text keeps what was typed but control and direction characters, which are removed, and line breaks become spaces. Text longer than a field allows, a value with more than eight decimals or of 10^15 or more, or a period that starts no period of its Metric leaves that item out and is counted; a Breakdown that does not fit leaves only the Breakdown off its value.
 
-Metric keys are the Metric's slug, or `metric-` and a number when the slug is not a key of the format; a formula names Metrics by them. A Derived Metric whose formula or inputs are not in the file is left out with them. Targets, projections and values are written Metric by Metric, in the order of their labels as text.
+Metric keys are the Metric's slug, or `metric-` and a number when the slug is not a key of the format; a formula names Metrics by them. A Derived Metric whose formula or inputs are not in the file is left out with them, and so is a Total unless every Metric it adds up, past ones too, is in the file. Targets, projections and values are written Metric by Metric, in the order of their labels as text.
 
 ## Checks on an untrusted file
 
 A reader checks, in this order and while it reads:
 
 - the size of the file and of its unzipped text, against limits it sets (Ziffr's defaults are 200 MB and 1 GB), while reading, so a zip bomb stops at the limit;
-- the length of each line, nesting depth, and the number of records (at most 10,000,000 lines, and per kind: 1,000 Groups, 200 Themes, 5,000 people, 10,000 Metrics, 2,000 dashboards, 2,000 decks, 1,000 Workflows, 100,000 Shares, 1,000,000 targets, 1,000,000 projections, 8,000,000 values);
+- the length of each line, nesting depth, and the number of records (at most 10,000,000 lines, and per kind: 1,000 Groups, 200 Themes, 5,000 people, 10,000 Metrics, 10,000 Totals, 2,000 dashboards, 2,000 decks, 1,000 Workflows, 100,000 Shares, 1,000,000 targets, 1,000,000 projections, 8,000,000 values);
 - that each line is JSON with no repeated field, and that `__proto__` and its like are data, never a prototype;
 - the record against its schema: types, lengths, patterns, finite numbers within range, real dates and moments;
 - text by the Pack's plain-text rules: no markup, templates, web addresses or control characters;
-- references: each names a record already read; labels, Metric keys, email addresses and Groups of one person are unique; a Slot is filled by as many Metrics as it takes; a Derived Metric's formula names only Metrics of the file;
+- references: each names a record already read; labels, Metric keys, email addresses and Groups of one person are unique; a Slot is filled by as many Metrics as it takes; a Derived Metric's formula names only Metrics of the file; a Total adds up at most 50 Metrics of the file that take values and share its period, unit, number format and Aggregation;
 - the documents inside against their own formats, with no Pack item named (a file is not a Pack);
 - that the file has its end record and the counts in it are true.
 
@@ -93,4 +96,4 @@ In a program, `import { checkWorkspaceExport, WorkspaceExportChecker } from "@zi
 
 On an Installation that is not hosted Ziffr, **New workspace, From a Workspace Export** reads a file in two passes. The first checks every line with the checks above, writes nothing, and adds what only this Installation knows: the time zone against its database, the number of Metrics against its Workspace Limit, the number of Themes and people against its limits. The second makes a new Workspace marked as importing, with its own Workspace Key, and writes the records in the order of the file through the core's ordinary operations, so every rule of the app applies. A label is replaced through a table of what it became; a label the file never listed stops the import and is never used as an id. At the first problem, or when the job stops, the Workspace is deleted with its key.
 
-What the import makes of each record: Groups and Themes as they are; Metrics owned by whoever imports (the owner and Submitters the file names are applied when those people join); Derived Metrics with their formulas by the new Metrics' slugs and no values; dashboards from their templates with every Slot filled; decks as an empty deck with its Deck Template and fills, laid out when first opened; Workflows with the importer as every Approver; Shares with Groups at once and with people when they join; values as imports, sealed for their row, with their Breakdown, recording time and the submitter's name (sealed, shown as "(imported)"). People become invitations on hold: they cannot be accepted and send nothing until the new Owner presses **Invite everyone**; the importer's own address is never invited. The sizes the byte reader accepts are `ZIFFR_IMPORT_MAX_FILE_MB` (default 200) and `ZIFFR_IMPORT_MAX_TEXT_MB` (default 1,024).
+What the import makes of each record: Groups and Themes as they are; Metrics owned by whoever imports (the owner and Submitters the file names are applied when those people join); Derived Metrics with their formulas by the new Metrics' slugs and no values; Totals with their lists, closed, whatever `open` says; dashboards from their templates with every Slot filled; decks as an empty deck with its Deck Template and fills, laid out when first opened; Workflows with the importer as every Approver; Shares with Groups at once and with people when they join; values as imports, sealed for their row, with their Breakdown, recording time and the submitter's name (sealed, shown as "(imported)"). People become invitations on hold: they cannot be accepted and send nothing until the new Owner presses **Invite everyone**; the importer's own address is never invited. The sizes the byte reader accepts are `ZIFFR_IMPORT_MAX_FILE_MB` (default 200) and `ZIFFR_IMPORT_MAX_TEXT_MB` (default 1,024).

@@ -28,8 +28,8 @@ describe("Describe your Pack", () => {
     const hidden = await w.metric(ann, { name: "Salaries" });
     const address = await w.metric(mia, { name: "See evil.example/x" });
     const draft = await draftPackGuide(w.actor(mia, "member"), "northwind/board", { metrics: [own.id, hidden.id, address.id] });
-    expect(draft).toEqual({ contents: "# Metrics\n- Orders", installed: [] });
-    expect(await draftPackGuide(w.actor(mia, "member"), "northwind/board", {})).toEqual({ contents: "", installed: [] });
+    expect(draft).toEqual({ contents: "# Metrics\n- Orders", numbers: [{ ref: `metric:${own.id}`, name: "Orders", said: null }], installed: [] });
+    expect(await draftPackGuide(w.actor(mia, "member"), "northwind/board", {})).toEqual({ contents: "", numbers: [], installed: [] });
   });
 
   it("writes a /2 file with the guide that passes the check, installs and keeps it; an empty step writes /1", async () => {

@@ -37,7 +37,7 @@ export const DEMO_WORDS_COLUMNS: Readonly<Record<string, DemoTableWords>> = {
   metrics: {
     words: ["name", "description", "calculation_note", "unit"],
     kept: ["slug", "archived_at", "archived_by"],
-    other: ["format", "period", "submission_rule", "polarity", "sources", "owner_id", "formula", "aggregation", "unit_position", "attainment_method", "retention", "retention_pending", "retention_cap", "target_min_sealed", "target_max_sealed", "owner_taken_by"],
+    other: ["format", "period", "submission_rule", "polarity", "sources", "owner_id", "formula", "aggregation", "unit_position", "attainment_method", "retention", "retention_pending", "retention_cap", "target_min_sealed", "target_max_sealed", "owner_taken_by", "total_targets", "total_opened_at", "total_opened_by"],
     keepRows: true,
   },
   // The config holds the text of Checklist Items (sealed-workflow.ts), so the whole of it is a seeded Workflow's words.
@@ -55,7 +55,7 @@ export const DEMO_WORDS_COLUMNS: Readonly<Record<string, DemoTableWords>> = {
   prompts: { words: ["text"], other: ["submitter_id", "source", "answered_source", "stands_in_for"] },
   deliveries: {
     words: ["subject", "body"],
-    other: ["connector", "recipient_id", "sender_id", "kind", "external_ref", "status", "mail_state", "provider_id", "last_error", "reply_token", "unsubscribe_token", "slack_channel", "slack_ts", "answer_source", "heads_up_key"],
+    other: ["connector", "recipient_id", "sender_id", "kind", "external_ref", "status", "mail_state", "provider_id", "last_error", "reply_token", "unsubscribe_token", "slack_channel", "slack_ts", "answer_source", "heads_up_key", "total_rests"],
   },
   versions: { words: ["name", "message", "snapshot"], other: ["object_type", "author_id"] },
   observations: { words: [], other: ["submitter_id", "source", "value_sealed", "original_value_sealed", "submitted_by_name", "entered_by", "entered_by_name"] },

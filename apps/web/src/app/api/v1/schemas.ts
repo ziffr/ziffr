@@ -46,6 +46,11 @@ const workflowRef = z.union([z.number().int().positive(), z.string().trim().min(
 /** A Metric on its own (GET, POST and PATCH answer this): its description, its Workflow and when a value is due next. */
 export const MetricDetail = MetricDescription.extend({
   formula: z.string().nullable().describe("A Derived Metric's formula by its inputs' slugs, only when you see all of them; null for other Metrics, and for one made from Metrics you may not see."),
+  total: z.object({
+    targets: z.enum(["own", "parts"]).describe("Its own target, or its Metrics' targets added up."),
+    open: z.boolean().describe("Whether its owner shows it to people who do not see every Metric it adds up."),
+    periods_withheld: z.boolean().describe("Whether its values leave out periods for you, because you do not see every Metric counted in them."),
+  }).optional().describe("Only for a Total, a Metric that adds up a list of others (its formula is null). Programs read it; only a person makes, changes or opens one, in the app."),
   defaults: z.array(z.string()).optional().describe("Only in the answer to creating a Derived Metric: what was chosen where you left a field out, in plain words."),
   tags_left_out: z.array(z.string()).optional().describe("Only in the answer to creating a Metric with `tags` that the Workspace's limit of 200 Tags refused: the words left out. The Metric was made without them."),
   url: z.string().describe("Where the Metric is in Ziffr, to give the person a link; needs a sign-in."),
@@ -153,7 +158,7 @@ export const CreateMetric = z.object({
   submitters: submitterIds.optional().describe("Who submits: ids from GET /people (people, Contacts) and GET /feeds (Feeds), at most 20. Each gets a first Prompt. Needs metrics:edit as well."),
   workflow: workflowRef.nullable().optional().describe("One of your own Workflows, by id or exact name (GET /workflows), so the Metric is asked for on its schedule at once. Needs metrics:edit as well. A Workflow with an Approve or Tell step only with workflows:people on a program's key."),
   tags: tagWords.optional().describe(TAGS_TEXT),
-  formula: z.string().min(1).max(500).optional().describe("Makes a Derived Metric: computed from other Metrics you own or edit, by their slugs, such as {revenue} / {orders} or ({revenue} - {cost}) / {revenue} * 100. + - * /, brackets and numbers; change({odometer}) is this period's value minus the previous period's and prev({odometer}) the previous period's (a Derived Metric with these is shown by its own period only). Its period is its inputs' own unless given, its unit their unit for sums and differences. It takes no values, so submit, submitters, sources, aggregation, submission_rule and workflow are refused with it. Needs metrics:read as well."),
+  formula: z.string().min(1).max(500).optional().describe("Makes a Derived Metric: computed from other Metrics you own or edit, by their slugs, such as {revenue} / {orders} or ({revenue} - {cost}) / {revenue} * 100. + - * /, brackets and numbers; change({odometer}) is this period's value minus the previous period's and prev({odometer}) the previous period's (a Derived Metric with these is shown by its own period only); target({commit}) is that Metric's target for the period (its Target Series value, else its Target Range when it has one bound; otherwise no value). Its period is its inputs' own unless given, its unit their unit for sums and differences. It takes no values, so submit, submitters, sources, aggregation, submission_rule and workflow are refused with it. Needs metrics:read as well."),
 }).strict();
 
 /** A target or Projection: a number at most 10^15 either way. */

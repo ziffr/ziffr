@@ -8,7 +8,7 @@
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.20",
   "audience": {
     "functions": [
       "finance"
@@ -78,6 +78,7 @@
     "metrics": [
       {
         "key": "revenue",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Revenue",
@@ -108,6 +109,7 @@
       },
       {
         "key": "cogs",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Cost of goods sold",
@@ -135,6 +137,7 @@
       },
       {
         "key": "operating-costs",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Operating costs",
@@ -163,6 +166,7 @@
       },
       {
         "key": "cash",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Cash balance",
@@ -191,6 +195,7 @@
       },
       {
         "key": "open-invoices",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Open invoices",
@@ -218,6 +223,7 @@
       },
       {
         "key": "overdue-invoices",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Overdue invoices",

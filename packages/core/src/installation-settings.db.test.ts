@@ -107,7 +107,7 @@ describe("who may see and change Installation Settings", () => {
     await expect(installationSettingsView(owner)).rejects.toThrow(/Only Installation Admins/);
     await expect(saveInstallationSettings(owner, "mail", { ZIFFR_MAIL_FROM: "Ziffr <z@example.test>" })).rejects.toThrow(/Only Installation Admins/);
     await expect(sendTestEmail(owner)).rejects.toThrow(/Only Installation Admins/);
-    expect((await installationSettingsView(a)).sections.map((s) => s.id)).toEqual(["mail", "replies", "telegram", "slack", "limits", "sending", "keep", "marketplace", "bots", "usage", "feedback", "demo"]);
+    expect((await installationSettingsView(a)).sections.map((s) => s.id)).toEqual(["mail", "replies", "telegram", "slack", "slides", "limits", "sending", "keep", "marketplace", "bots", "usage", "feedback", "demo"]);
   });
 
   it("refuses names of other sections, unknown names, bad values and sections that are not ready", async () => {

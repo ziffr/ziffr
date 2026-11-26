@@ -12,6 +12,8 @@
 //   one {slug} alone between its brackets. The reference reads prev({x}) as an input named "prev:x" and change({x}) as
 //   ({x} - "prev:x"); a formula that names x has a value only where x has one in this period too, and a period
 //   before with no value gives no value;
+// - target({x}) is x's target for the period (spec 0062), written like prev: the reference reads it as an input named
+//   "target:x", which counts only where x has a value in this period too;
 // - its value is exact; it has none when an input it names has no value or a division is by zero.
 import { exactOf, fraction, minus, plus, type Exact } from "./exact";
 
@@ -55,7 +57,7 @@ function tokens(formula: string): Token[] | null {
       let j = i;
       while (formula[j] !== undefined && formula[j] >= "a" && formula[j] <= "z") j++;
       const word = formula.slice(i, j);
-      if (word !== "prev" && word !== "change") return null;
+      if (word !== "prev" && word !== "change" && word !== "target") return null;
       while (/\s/.test(formula[j] ?? "x")) j++;
       if (formula[j] !== "(") return null;
       j++;
@@ -68,7 +70,7 @@ function tokens(formula: string): Token[] | null {
       j = close + 1;
       while (/\s/.test(formula[j] ?? "x")) j++;
       if (formula[j] !== ")") return null;
-      if (word === "prev") out.push({ kind: "input", slug: `prev:${slug}` });
+      if (word !== "change") out.push({ kind: "input", slug: `${word}:${slug}` });
       else out.push({ kind: "open" }, { kind: "input", slug }, { kind: "op", op: "-", synthetic: true }, { kind: "input", slug: `prev:${slug}` }, { kind: "close" });
       i = j + 1;
       continue;
@@ -136,7 +138,12 @@ function postfix(formula: string): Token[] | null {
 /** The slugs a formula names, each once, in the order they first stand; none when it does not read whole. */
 export function referenceInputs(formula: string): string[] {
   const ts = postfix(formula) ?? [];
-  return [...new Set(ts.flatMap((t) => (t.kind === "input" ? [t.slug.replace(/^prev:/, "")] : [])))];
+  return [...new Set(ts.flatMap((t) => (t.kind === "input" ? [t.slug.replace(/^(prev|target):/, "")] : [])))];
+}
+
+/** The slugs a formula reads the target of, each once; none when it does not read whole. */
+export function referenceTargetInputs(formula: string): string[] {
+  return [...new Set((postfix(formula) ?? []).flatMap((t) => (t.kind === "input" && t.slug.startsWith("target:") ? [t.slug.slice(7)] : [])))];
 }
 
 /** Whether a formula reads whole. */
@@ -145,7 +152,7 @@ export function referenceReads(formula: string): boolean {
 }
 
 /** A formula's exact value for exact inputs: null when refused, when an input is missing or on a division by zero.
- * The inputs one period earlier, for prev and change, are named "prev:slug". */
+ * The inputs one period earlier, for prev and change, are named "prev:slug", and targets "target:slug". */
 export function referenceEvaluate(formula: string, inputs: Record<string, Exact>): Exact | null {
   const rpn = postfix(formula);
   if (!rpn) return null;
@@ -154,8 +161,8 @@ export function referenceEvaluate(formula: string, inputs: Record<string, Exact>
     if (t.kind === "number") stack.push(exactOf(t.text));
     else if (t.kind === "input") {
       if (!Object.hasOwn(inputs, t.slug)) return null;
-      // prev:x is x's value a period before, and counts only where x has one in this period too.
-      if (t.slug.startsWith("prev:") && !Object.hasOwn(inputs, t.slug.slice(5))) return null;
+      // prev:x is x's value a period before and target:x its target: both count only where x has a value in this period too.
+      if (t.slug.includes(":") && !Object.hasOwn(inputs, t.slug.slice(t.slug.indexOf(":") + 1))) return null;
       stack.push(inputs[t.slug]);
     } else if (t.kind === "op") {
       if (t.op === "neg") {

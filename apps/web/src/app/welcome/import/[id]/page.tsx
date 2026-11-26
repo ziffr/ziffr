@@ -11,7 +11,7 @@ import { openImported } from "@/app/workspace-import-actions";
 import { Refresh } from "./refresh";
 import { DesktopOnly } from "@/components/desktop-only";
 
-const COUNTS: [string, string][] = [["groups", "Groups"], ["themes", "Themes"], ["people", "People, kept as invitations"], ["metrics", "Metrics"], ["values", "Values"], ["targets", "Target Series points"], ["projections", "Projections"], ["dashboards", "Dashboards"], ["decks", "Decks"], ["workflows", "Workflows"], ["shares", "Shares"]];
+const COUNTS: [string, string][] = [["groups", "Groups"], ["themes", "Themes"], ["people", "People, kept as invitations"], ["metrics", "Metrics"], ["totals", "Totals"], ["values", "Values"], ["targets", "Target Series points"], ["projections", "Projections"], ["dashboards", "Dashboards"], ["decks", "Decks"], ["workflows", "Workflows"], ["shares", "Shares"]];
 
 export default async function ImportProgress({ params }: { params: Promise<{ id: string }> }) {
   const user = await sessionUser();

@@ -15,7 +15,7 @@ export const ROUTE_TIERS = {
   "/dashboards/[id]": "phone-first",
   "/dashboards/[id]/present": "phone-first",
   "/dashboards/[id]/snapshots/[sid]": "phone-first",
-  "/v/[token]": "phone-first",
+  "/v/open/[key]": "phone-first",
   "/gallery": "phone-first",
   "/stories": "phone-first",
   "/stories/[id]": "phone-first",

@@ -12,6 +12,7 @@ import { normaliseTagName, tagKey, tagNameProblem, TAGS_PER_ENTRY } from "./tag-
 import { getMetrics } from "./workspace-data";
 import { checkPack, PACK_FORMAT, PACK_FORMAT_2, PACK_LICENSES, type Pack } from "./pack";
 import { guideFromText, type PackGuideText } from "./pack-guide-text";
+import { comesFromOf, type ComesFromChoice } from "./pack-export-numbers";
 import { PACK_GUIDE_SECTIONS } from "@ziffr/pack/pack-guide";
 import { checkSchema, type Schema } from "./json-check";
 import { PLAIN, WORDS, KEY } from "./file-text";
@@ -91,7 +92,7 @@ export async function exportOptions(actor: Actor): Promise<ExportOptions> {
   const opt = (rows: { id: unknown; name: unknown }[] | null, detail: (r: Record<string, unknown>) => string = () => "") => (rows ?? []).map((r) => ({ id: Number(r.id), name: String(r.name), detail: detail(r as Record<string, unknown>) }));
   const of = (kind: string) => (tpl.data ?? []).filter((r) => r.kind === kind);
   return {
-    metrics: [...metrics.values()].sort((a, b) => a.name.localeCompare(b.name)).map((m) => ({ id: m.id, name: m.name, detail: m.formula ? "Derived Metric" : `by ${m.period}` })),
+    metrics: [...metrics.values()].sort((a, b) => a.name.localeCompare(b.name)).map((m) => ({ id: m.id, name: m.name, detail: m.total ? "Total" : m.formula ? "Derived Metric" : `by ${m.period}` })),
     catalog: opt(cat.data, (r) => String(r.category)),
     dashboards: opt(of("dashboard")), decks: opt(of("deck")), workflows: opt(of("workflow")),
     designs: opt(des.data),
@@ -111,13 +112,15 @@ export async function themeLogoForExport(actor: Actor, themeId: number): Promise
   return cleanLogo((data?.slides as { logo?: unknown } | null)?.logo, PACK_LOGO_MAX_BYTES);
 }
 
-/** What else the person chose about the file: `tags: false` leaves the Tags of Metrics out (they go in by default), and
- * `guide` is what they wrote under "Describe your Pack". */
-export type ExportOptionsChosen = { tags?: boolean; guide?: PackGuideText };
+/** What else the person chose about the file: `tags: false` leaves the Tags of Metrics out (they go in by default),
+ * `guide` is what they wrote under "Describe your Pack", and `comesFrom` where each number comes from, by what was
+ * picked (a number it does not name is typed by a person; without it the file says nothing of numbers). */
+export type ExportOptionsChosen = { tags?: boolean; guide?: PackGuideText; comesFrom?: ComesFromChoice };
 
 /** Makes a Pack of what the person picked: each item as its format writes it, keyed by its key in the Pack it came
  * from or by its name, in the order of their keys, so exporting what a Pack installed gives the same file again.
- * A guide the person wrote goes in with it, and makes the file ziffr.pack/2; without one it stays ziffr.pack/1.
+ * A guide the person wrote, and where each number comes from, go in with it and make the file ziffr.pack/2; without
+ * either it stays ziffr.pack/1.
  * Checked as any Pack before it is given out. */
 export async function exportPack(actor: Actor, manifest: ExportManifest, choice: ExportChoice, chosen: ExportOptionsChosen = {}): Promise<ExportResult> {
   assertMayExport(actor);
@@ -128,7 +131,8 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
     throw new Error(`The Pack cannot be made: ${where ? `in “${where}”${p.line ? `, line ${p.line}` : ""}: ` : ""}${p.message}`);
   }
   const { pack: made, leftOut } = await gatherPack(actor, manifest, choice, chosen);
-  const pack: Pack = guide ? { ...made, format: PACK_FORMAT_2, guide } : made;
+  const said = made.contents.metrics?.some((x) => x.comesFrom) ?? false;
+  const pack: Pack = guide || said ? { ...made, format: PACK_FORMAT_2, ...(guide ? { guide } : {}) } : made;
   const text = `${JSON.stringify(pack, null, 2)}\n`;
   const res = checkPack(text);
   if (!res.ok) throw new Error(`The Pack cannot be made: ${res.problems[0].path ? `${res.problems[0].path} ` : ""}${res.problems[0].message}`);
@@ -136,8 +140,9 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
 }
 
 /** The Pack of what the person picked, as it would be written and before the whole of it is checked: only what they may
- * put into a file, and what had to stay out. */
-export async function gatherPack(actor: Actor, manifest: ExportManifest, choice: ExportChoice, chosen: ExportOptionsChosen = {}): Promise<{ pack: Pack; leftOut: ExportResult["leftOut"] }> {
+ * put into a file, what had to stay out, and for each Metric Catalog entry of it, by its key, what was picked for it
+ * (“metric:12” or “catalog:7”). */
+export async function gatherPack(actor: Actor, manifest: ExportManifest, choice: ExportChoice, chosen: ExportOptionsChosen = {}): Promise<{ pack: Pack; leftOut: ExportResult["leftOut"]; picked: Map<string, string> }> {
   assertMayExport(actor);
   const ws = actor.workspaceId;
   const ids = (k: keyof ExportOptions) => [...new Set((Array.isArray(choice?.[k]) ? choice[k]! : []).map(Number).filter(Number.isInteger))].slice(0, 50);
@@ -188,10 +193,12 @@ export async function gatherPack(actor: Actor, manifest: ExportManifest, choice:
   const seenTags = chosen?.tags === false || !metricRows.length ? new Map<number, string[]>() : (await tagSight(actor)).namesByMetric;
   const keyOfInput = new Map(entries.map((e) => [e.slugOrKey, e.key]));
   const metrics: Pack["contents"]["metrics"] = [];
+  const picked = new Map<string, string>();
   for (const e of entries) {
     const m = e.m;
     const name = plain(m.name, 120);
     if (!name) { leftOut.push({ name: String(m.name), why: "Its name holds something a Pack may not, such as a web address." }); continue; }
+    if (m.total) { leftOut.push({ name, why: "A Total is not in a Pack yet." }); continue; }
     let formula: string | undefined;
     if (m.formula) {
       const inputs = [...String(m.formula).matchAll(/\{([a-z0-9-]+)\}/g)].map((x) => x[1]);
@@ -218,7 +225,11 @@ export async function gatherPack(actor: Actor, manifest: ExportManifest, choice:
       ...(m.attainment_method ? { attainmentMethod: m.attainment_method as MetricFile["attainmentMethod"] } : {}),
       ...(formula ? { formula } : { sources: m.sources as MetricFile["sources"] }),
     };
-    if (keep(file, checkMetricFileValue(file), name, leftOut)) metrics.push({ key: e.key, metric: file });
+    if (!keep(file, checkMetricFileValue(file), name, leftOut)) continue;
+    const ref = `${e.src}:${Number(m.id)}`;
+    picked.set(e.key, ref);
+    // A computed number's origin is its formula; every other one says where it comes from, when the file says it at all.
+    metrics.push({ key: e.key, metric: file, ...(chosen?.comesFrom !== undefined && !formula ? { comesFrom: comesFromOf(chosen.comesFrom, ref, name) } : {}) });
   }
   const entryKeys = new Set(metrics.map((x) => x.key));
   const suggestFor = (s: Slot) => {
@@ -279,7 +290,7 @@ export async function gatherPack(actor: Actor, manifest: ExportManifest, choice:
     license: (PACK_LICENSES as readonly string[]).includes(String(manifest?.license)) ? (manifest.license as Pack["license"]) : "CC-BY-4.0",
     ...(logo ? { logo } : {}), ziffr: `>=${major}.${minor}`, contents,
   };
-  return { pack, leftOut };
+  return { pack, leftOut, picked };
 }
 
 /** Tags for an entry of a Pack: those that meet the Pack's rules (plain text, the Tag rules), at most 5; what stays out is said. */

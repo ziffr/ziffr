@@ -8,7 +8,7 @@
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.20",
   "audience": {
     "functions": [
       "management",
@@ -78,6 +78,7 @@
     "metrics": [
       {
         "key": "revenue",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Revenue",
@@ -102,6 +103,7 @@
       },
       {
         "key": "cash",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Cash balance",
@@ -127,6 +129,7 @@
       },
       {
         "key": "runway",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Cash runway",
@@ -152,6 +155,7 @@
       },
       {
         "key": "headcount",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Headcount",

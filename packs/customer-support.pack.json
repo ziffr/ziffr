@@ -8,7 +8,7 @@
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.20",
   "audience": {
     "functions": [
       "customer_support"
@@ -76,6 +76,7 @@
     "metrics": [
       {
         "key": "tickets-opened",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Tickets opened",
@@ -102,6 +103,7 @@
       },
       {
         "key": "tickets-closed",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Tickets closed",
@@ -128,6 +130,7 @@
       },
       {
         "key": "open-tickets",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Open tickets",
@@ -154,6 +157,7 @@
       },
       {
         "key": "old-tickets",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Tickets open over 7 days",
@@ -180,6 +184,7 @@
       },
       {
         "key": "first-response",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "First response time",
@@ -208,6 +213,7 @@
       },
       {
         "key": "resolution-time",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Resolution time",
@@ -235,6 +241,7 @@
       },
       {
         "key": "csat",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Customer satisfaction",
@@ -264,6 +271,7 @@
       },
       {
         "key": "reopen-rate",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Reopen rate",

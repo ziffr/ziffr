@@ -8,7 +8,7 @@
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.20",
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },
@@ -72,6 +72,7 @@
     "metrics": [
       {
         "key": "workspace-metrics",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: metrics",
@@ -92,6 +93,7 @@
       },
       {
         "key": "workspace-metrics-without-values",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: metrics without values",
@@ -112,6 +114,7 @@
       },
       {
         "key": "workspace-metrics-not-opened",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: metrics not opened",
@@ -132,6 +135,7 @@
       },
       {
         "key": "workspace-dashboards-not-opened",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: dashboards not opened",
@@ -152,6 +156,7 @@
       },
       {
         "key": "workspace-decks-not-opened",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: decks not opened",
@@ -172,6 +177,7 @@
       },
       {
         "key": "workspace-submitters-without-values",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: submitters without values",
@@ -192,6 +198,7 @@
       },
       {
         "key": "workspace-archive-suggestions",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: archive suggestions",
@@ -212,6 +219,7 @@
       },
       {
         "key": "workspace-values",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: values",
@@ -232,6 +240,7 @@
       },
       {
         "key": "workspace-values-web",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: values web",
@@ -252,6 +261,7 @@
       },
       {
         "key": "workspace-values-email",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: values email",
@@ -272,6 +282,7 @@
       },
       {
         "key": "workspace-values-slack",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: values slack",
@@ -292,6 +303,7 @@
       },
       {
         "key": "workspace-values-telegram",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: values telegram",
@@ -312,6 +324,7 @@
       },
       {
         "key": "workspace-values-api",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: values api",
@@ -332,6 +345,7 @@
       },
       {
         "key": "workspace-values-feed",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: values feed",
@@ -352,6 +366,7 @@
       },
       {
         "key": "workspace-values-mcp",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: values mcp",
@@ -372,6 +387,7 @@
       },
       {
         "key": "workspace-views-dashboards",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: views dashboards",
@@ -392,6 +408,7 @@
       },
       {
         "key": "workspace-views-decks",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: views decks",
@@ -412,6 +429,7 @@
       },
       {
         "key": "workspace-views-metrics",
+        "comesFrom": { "by": "system", "system": "Usage Feed", "note": "Ziffr's Usage Feed is the program for this. Someone who runs scheduled jobs sets it up." },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Workspace: views metrics",

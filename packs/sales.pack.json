@@ -8,7 +8,7 @@
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.20",
   "audience": {
     "functions": [
       "sales"
@@ -44,6 +44,7 @@
         "items": [
           "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
           "Keep the Metrics you want ticked, up to all 9, with the dashboard **Sales monthly** and the Workflow **Monthly sales figures**. Tick **Ask me for their values** if you send the figures yourself, then choose **Set up**.",
+          "**New leads** and **Deals won** are marked as sent by a CRM, so Set up asks nobody for them. Connect HubSpot with **Fill from n8n** under **Who submits** on each of the two, or tick **Ask me also for** them to type them.",
           "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
           "Send the first figures: answer the request Ziffr sends, or open a Metric you submit and choose **Record a value**.",
           "Open **Dashboards** and then **Sales monthly**. It fills as values come in."
@@ -77,6 +78,7 @@
     "metrics": [
       {
         "key": "new-leads",
+        "comesFrom": { "by": "system", "system": "CRM" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "New leads",
@@ -103,6 +105,7 @@
       },
       {
         "key": "qualified-leads",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Qualified leads",
@@ -128,6 +131,7 @@
       },
       {
         "key": "deals-won",
+        "comesFrom": { "by": "system", "system": "CRM" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Deals won",
@@ -154,6 +158,7 @@
       },
       {
         "key": "deals-lost",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Deals lost",
@@ -179,6 +184,7 @@
       },
       {
         "key": "won-value",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Closed-won value",
@@ -208,6 +214,7 @@
       },
       {
         "key": "pipeline-value",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Pipeline value",
@@ -235,6 +242,7 @@
       },
       {
         "key": "sales-cycle",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Sales cycle",

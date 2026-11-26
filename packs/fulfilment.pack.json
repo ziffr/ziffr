@@ -8,7 +8,7 @@
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.20",
   "audience": {
     "industries": [
       "ecommerce",
@@ -84,6 +84,7 @@
     "metrics": [
       {
         "key": "orders-shipped",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Orders shipped",
@@ -110,6 +111,7 @@
       },
       {
         "key": "on-time",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "On-time delivery",
@@ -139,6 +141,7 @@
       },
       {
         "key": "backlog",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Order backlog",
@@ -164,6 +167,7 @@
       },
       {
         "key": "stock-value",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Stock value",
@@ -191,6 +195,7 @@
       },
       {
         "key": "stock-outs",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Stock-outs",
@@ -216,6 +221,7 @@
       },
       {
         "key": "output",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Units produced",
@@ -241,6 +247,7 @@
       },
       {
         "key": "defect-rate",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Defect rate",
@@ -270,6 +277,7 @@
       },
       {
         "key": "downtime",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Downtime",

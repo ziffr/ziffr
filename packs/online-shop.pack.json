@@ -8,7 +8,7 @@
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.20",
   "audience": {
     "industries": [
       "ecommerce",
@@ -81,6 +81,7 @@
     "metrics": [
       {
         "key": "orders",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Orders",
@@ -109,6 +110,7 @@
       },
       {
         "key": "revenue",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Online revenue",
@@ -155,6 +157,7 @@
       },
       {
         "key": "conversion",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Conversion rate",
@@ -183,6 +186,7 @@
       },
       {
         "key": "return-rate",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Return rate",
@@ -211,6 +215,7 @@
       },
       {
         "key": "sessions",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Sessions",

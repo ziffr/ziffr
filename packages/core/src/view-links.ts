@@ -30,6 +30,10 @@ import { numberStyleOf } from "./workspace-settings";
 import { effectiveLimit } from "./limits";
 import { trialEnded, trialLastDay, trialLimitMessage } from "./trials";
 import type { CanvasData, Widget } from "./types";
+import { gateTotals, type Allowed, type KeptData } from "./total-views";
+import { allowedNow, restsNow } from "./total-parts";
+import { restsOnTotal } from "./totals";
+import { withoutUnseenInputs } from "./formula";
 
 /** How long a View Link may live at most, in days: the ceiling; a Workspace may set a shorter life (limits.ts). */
 export const MAX_DAYS = 90;
@@ -74,19 +78,27 @@ function peopleShown(people: CanvasData["people"], metrics: { owner_id: string }
 
 /** What may go out with a View Link or a Snapshot (spec 0013) of what one person sees: only these Metrics and their
  * own series, people's names without contact details, the theme in use and the default, and nothing to act on. */
-export function shownData(full: CanvasData, ids: Set<number>, themeId: number | null): CanvasData {
+export function shownData(full: CanvasData, ids: Set<number>, themeId: number | null, totals?: Allowed): CanvasData {
   // A description and a Calculation Note are for people inside the Workspace, so neither goes out with a view (rule 3).
   const metrics = full.metrics.filter((m) => ids.has(m.id)).map(insideOnly);
   // Only the shown Metrics' own series: a derived Metric's inputs stay out (its comparisons then do not show).
   const slugs = new Set(metrics.map((m) => m.slug));
+  // A number that rests on a Total goes out only for the periods `totals` gives: left out, none does (spec 0058).
+  const numbers = gateTotals({
+    // Nor does its formula name a Metric that is not shown.
+    metrics: withoutUnseenInputs(metrics, slugs),
+    series: Object.fromEntries(Object.entries(full.series).filter(([slug]) => slugs.has(slug))),
+    targets: pick(full.targets, ids),
+    pending: pick(full.pending, ids),
+  }, totals);
   return {
     viewer: "",
-    metrics,
-    series: Object.fromEntries(Object.entries(full.series).filter(([slug]) => slugs.has(slug))),
+    metrics: numbers.metrics,
+    series: numbers.series,
     people: peopleShown(full.people, metrics),
     openActions: {},
     submitters: {},
-    targets: pick(full.targets, ids),
+    targets: numbers.targets,
     projections: pick(full.projections, ids),
     // Only the shown Metrics' Condensed Values, like their series.
     condensed: pick(full.condensed ?? {}, ids),
@@ -96,7 +108,7 @@ export function shownData(full: CanvasData, ids: Set<number>, themeId: number | 
     themes: full.themes.filter((t) => t.id === themeId || t.is_default).map((t) => ({ ...t, owner_id: "" })),
     canEditThemes: false,
     groups: [],
-    pending: pick(full.pending, ids),
+    pending: numbers.pending,
     locked: pick(full.locked, ids),
     yearStart: full.yearStart,
     numberStyle: full.numberStyle,
@@ -141,9 +153,12 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
   }
   // The deck as this link shows it: only the records it had when the link was made, nothing from other sites.
   const document = type === "deck" ? deckForLink(withoutNestedTagSources(stripOutsideContent(slides)), ids, allowedShapes ?? null) : undefined;
+  // A Total's periods go to someone outside only while it is open, or where the link shows every Metric counted.
+  const totals = await allowedNow(ws, await restsNow(ws, full), (m) => ids.has(m));
   // A deck made from a Snapshot draws its Metrics as of the period's end: then only that much goes out (spec 0013).
   // Read from the deck this link shows, so a widget added since cannot make a Metric go out whole again.
-  const data = type === "deck" ? dataAsOfEach(shownData(full, ids, obj.theme_id ?? null), deckAsOf(document)) : shownData(full, ids, obj.theme_id ?? null);
+  const cut = shownData(full, ids, obj.theme_id ?? null, totals);
+  const data = type === "deck" ? dataAsOfEach(cut, deckAsOf(document)) : cut;
   return { type, id, name: obj.name, themeId: obj.theme_id ?? null, data, widgets, document, footer: type === "deck" ? obj.footer : undefined, intro: type === "dashboard" ? String(obj.intro ?? "") : undefined, asOf: new Date().toISOString() };
 }
 
@@ -196,7 +211,10 @@ function mapStrings(value: unknown, change: (text: string) => string): unknown {
  * words) the names, first names, emails and handles of the Workspace's people, and of those a frozen copy kept,
  * read "Someone" (hide-names.ts, as for a Guest). Rule 3: what is not sent cannot leak, so the people are dropped
  * rather than hidden by the page (contact details are loaded only to find them in words, never sent). With names on, the list is what shownData keeps: names and colours, no contact details. */
-export async function viewForLink(view: ViewPayload, workspaceId: string, showNames: boolean): Promise<ViewPayload> {
+export async function viewForLink(kept: ViewPayload, workspaceId: string, showNames: boolean): Promise<ViewPayload> {
+  // Served through the same cut as made, as for people below: a frozen copy's formulas name only Metrics it shows.
+  const metricsShown = withoutUnseenInputs(kept.data.metrics, new Set(kept.data.metrics.map((m) => m.slug)));
+  const view = { ...kept, data: { ...kept.data, metrics: metricsShown } };
   // A Theme is drawn by its looks: never the id of whoever made it, also in a frozen copy made before that was left out.
   const themes = view.data.themes.map((t) => ({ ...t, owner_id: "" }));
   // Served through the same cut as made: frozen copies and Snapshots kept the whole list before (ticket #902).
@@ -256,7 +274,11 @@ async function openLinkContent(token: string, opts: { count?: boolean }): Promis
     const [yearStart, numberStyle] = await Promise.all([yearStartOf(ws), numberStyleOf(ws)]);
     // A link made before descriptions were left out of what goes out still holds them: they are not sent (rule 3).
     const metrics = frozen.data.metrics.map((m) => insideOnly(normalizeMetric(keptUnit(m))));
-    return { ...frozen, data: { ...frozen.data, metrics, yearStart, numberStyle, attainmentMethod: keptMethod(frozen.data.attainmentMethod), today: frozen.data.today ?? String(link.created_at).slice(0, 10) } };
+    // What rests on a Total is judged again by how the Totals stand now, and what it rested on never goes out.
+    const { rests, ...copy } = frozen.data as KeptData;
+    const shown = new Set(metrics.map((m) => m.id));
+    const gated = gateTotals({ metrics, series: copy.series, targets: copy.targets, pending: copy.pending }, await allowedNow(ws, rests, (m) => shown.has(m)));
+    return { ...frozen, data: { ...copy, ...gated, yearStart, numberStyle, attainmentMethod: keptMethod(copy.attainmentMethod), today: copy.today ?? String(link.created_at).slice(0, 10) } };
   }
   // A link to a Snapshot reads it each time, so a deleted Snapshot ends the link; its words are those kept with it.
   if (link.snapshot_id) {
@@ -276,6 +298,17 @@ async function openLinkContent(token: string, opts: { count?: boolean }): Promis
 /** What a View Link to a Snapshot shows: its widgets as the reader may see them, with the words kept with it. */
 function snapshotPayload(dashboardId: number, s: NonNullable<Awaited<ReturnType<typeof snapshotForLink>>>, seen: Awaited<ReturnType<typeof forReader>>): ViewPayload {
   return { type: "dashboard", id: dashboardId, name: s.name, themeId: s.themeId, data: seen.data, widgets: seen.widgets.map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget), intro: s.intro, snapshot: { label: s.label, takenAt: s.takenAt }, asOf: s.takenAt };
+}
+
+/** The Totals, and formulas that read one, that a new View Link to this dashboard or deck (or Snapshot) would show
+ * with no number, by name, for its owner to know before making it (spec 0058). */
+export async function emptyInLink(actor: Actor, type: "dashboard" | "deck", id: number, snapshotId: number | null): Promise<string[]> {
+  if (!Number.isInteger(id)) throw new Forbidden();
+  await assertOwner(actor, type, id);
+  const view = type === "dashboard" && snapshotId !== null ? await previewViewLink(actor, id, snapshotId) : await buildView(type, id);
+  if (!view) return [];
+  await assertSeesMetrics(actor, view.data.metrics.map((m) => m.id));
+  return view.data.metrics.filter((m) => restsOnTotal(m) && !view.data.series[m.slug]?.length).map((m) => m.name);
 }
 
 /** Exactly what the person on the other end of a View Link to this dashboard (or one of its shown Snapshots) would see
@@ -343,7 +376,9 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   // A frozen link keeps the words it shows, sealed for it with the Workspace Key (spec 0028), so its id is taken first.
   const [linkId] = await reserveIds("view_links", 1);
   const cipher = await workspaceCipher(actor.workspaceId);
-  const frozen = input?.frozen ? sealFrozenData(cipher, "view_links", linkId, mapViewWords(view, sealing(cipher, "view_links", linkId))) : null;
+  // A frozen copy keeps what its Totals rested on, so closing one takes effect on it too.
+  const kept = input?.frozen ? { ...view, data: { ...view.data, rests: await restsNow(actor.workspaceId, view.data) } } : view;
+  const frozen = input?.frozen ? sealFrozenData(cipher, "view_links", linkId, mapViewWords(kept, sealing(cipher, "view_links", linkId))) : null;
   const { data: made, error: madeError } = await db().from("view_links").insert({ id: linkId, token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: asked, frozen, show_names: input?.showNames === true, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
     // Every record the deck has now, not only shapes: anything added later stays out of a live link.
     shape_ids: type === "deck" ? Object.keys((view.document as { store?: object } | null)?.store ?? {}) : null,

@@ -8,7 +8,7 @@
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.20",
   "audience": {
     "industries": [
       "agency",
@@ -82,6 +82,7 @@
     "metrics": [
       {
         "key": "billable-hours",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Billable hours",
@@ -109,6 +110,7 @@
       },
       {
         "key": "utilisation",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Billable utilisation",
@@ -138,6 +140,7 @@
       },
       {
         "key": "revenue",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Revenue",
@@ -162,6 +165,7 @@
       },
       {
         "key": "hourly-rate",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Effective hourly rate",
@@ -189,6 +193,7 @@
       },
       {
         "key": "open-invoices",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Open invoices",
@@ -213,6 +218,7 @@
       },
       {
         "key": "pipeline",
+        "comesFrom": { "by": "person" },
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Pipeline value",

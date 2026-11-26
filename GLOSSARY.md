@@ -27,8 +27,12 @@ The year a workspace reports in, starting in the month it sets (January unless s
 _Avoid_: Financial year, business year
 
 **Derived Metric**:
-A metric computed by a formula from other metrics. It never receives observations directly. Its inputs are counted by its own period and combine by an Aggregation other than none; a formula Ziffr cannot read whole is refused. It is made from a Pack, in the new-Metric flow ("Calculated from other Metrics") or by a program, only from Metrics its maker owns or edits, since it shows their values to whoever it is shared with; while its owner may not share one of them, it shows no values. A formula may reach one period back: `prev({x})` is the input's value in the period before, `change({x})` this period's value minus that one. Such a Derived Metric is shown by its own period only.
+A metric computed by a formula from other metrics. It never receives observations directly. Its inputs are counted by its own period and combine by an Aggregation other than none; a formula Ziffr cannot read whole is refused. It is made from a Pack, in the new-Metric flow ("Calculated from other Metrics") or by a program, only from Metrics its maker owns or edits, since it shows their values to whoever it is shared with; while its owner may not share one of them, it shows no values. A formula may reach one period back: `prev({x})` is the input's value in the period before, `change({x})` this period's value minus that one. Such a Derived Metric is shown by its own period only. It may also read an input's target: `target({x})` is x's Target Series value for the period, else the number of its Target Range where that holds one number (one bound, or two equal ones), else nothing, and only where x has a value in the period too. A changed target changes the results at once, past periods included; a Snapshot keeps what it showed.
 _Avoid_: Calculated field, formula metric
+
+**Total**:
+A Derived Metric that adds up a list of Metrics it keeps, its parts, such as the Commit of every salesperson. Parts are added and ended on the Total, never by editing a formula; each counts from a first period and, once ended, up to a last one. A period has a value only when every part counting in it has one, and it is shown only to people who may see all of those parts, unless the Total's owner opens it. Not a formula, not an Aggregation (which combines one Metric's own periods) and not a Running total.
+_Avoid_: Roll-up, consolidation, group sum
 
 **Aggregation**:
 How a metric's values combine into a longer period: summed (revenue, deals), averaged (a score), the last value (a balance), or not at all (a rate).
@@ -106,7 +110,7 @@ _Avoid_: Achievement, target fulfilment, performance
 ### Input
 
 **Connector**:
-A link between Ziffr and an outside system, such as Slack, email, Telegram, WhatsApp, a ticket system or the web form, and what it can do there: receive values, send reminders, send questions and tasks, bring replies back, keep a task's status in step. Some, such as Slack, are connected per Workspace by an Owner or Admin, to one workspace of that system, and reach a person only once they are found there by their proven address or link themselves; Telegram, turned on per Workspace, reaches only those who linked their own account.
+A link between Ziffr and an outside system, such as Slack, email, Telegram, WhatsApp, a ticket system or the web form, and what it can do there: receive values, send reminders, send questions and tasks, bring replies back, keep a task's status in step. Some, such as Slack, are connected per Workspace by an Owner or Admin, to one workspace of that system, and reach a person only once they are found there by their proven address or link themselves; Telegram, turned on per Workspace, reaches only those who linked their own account. A Member is emailed when an account of Slack or Telegram becomes theirs, and whoever such an account moves away from is emailed too.
 _Avoid_: Integration, plugin, channel
 
 **Source**:
@@ -490,7 +494,7 @@ The private service that runs hosted Ziffr's billing: Sizes, prices, payments, i
 _Avoid_: Billing service, SaaS, hosted edition
 
 **Pack**:
-A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Ziffr's own Packs (the thirteen of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs. It may say whom it is for (its Pack Audience), which ranks it in the Setup Guide.
+A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Setting up from it keeps a record of what was made and who fills its Positions, which decides nothing and goes when the Pack is uninstalled. Ziffr's own Packs (the thirteen of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs. It may say whom it is for (its Pack Audience), which ranks it in the Setup Guide.
 _Avoid_: Plugin, add-on, integration, app, bundle
 
 **Pack Audience**:
@@ -525,6 +529,14 @@ _Avoid_: Certificate, stamp, seal
 A public key whose Signed Statements Ziffr trusts, with its part: the signing key signs them; the reserve key stays unused until it takes the signing key out of use with a revocation, which Ziffr keeps.
 _Avoid_: Publisher key, master key, certificate
 
+**New creator**:
+A Marketplace creator in the first days after their first publish, or after a report against them was upheld. Their Packs say so wherever they are listed; it changes their limits, never what a Pack may hold.
+_Avoid_: Unverified, rookie, untrusted
+
+**Withdrawn Pack**:
+A Pack its Marketplace no longer offers: no new installs and no updates. Workspaces that installed it are told why in one line and keep everything they installed.
+_Avoid_: Banned, removed, recalled, deleted Pack
+
 **Webhook**:
 An address that a Workspace's Owner or Admin sets so that Ziffr sends it signed messages about what happens there, such as a task given, a task done or a value recorded, for a program to pass on to another system. It belongs to the Workspace, like a Feed, and sees only what every Member sees; other things reach it with their words left out. It can mark a task done, reply to a thread or answer a question, as the Webhook, but only for tasks that were sent to it, and it can say which task in the other system an Action is (an _external id_, kept per Webhook, with an optional link shown on the Action as "Also in"). Not a Connector, which reaches a person. The app heads these **Workspace Webhooks** where it also lists Personal Webhooks; "Webhook" alone means this kind.
 _Avoid_: Callback, trigger, integration, subscription
@@ -532,6 +544,10 @@ _Avoid_: Callback, trigger, integration, subscription
 **Personal Webhook**:
 A Webhook that one person adds for themselves in one Workspace, once an Owner or Admin allows it, and that acts as that person: it hears the Tasks and Questions given to or asked by them, the values of Metrics they pick and their own Alerts, each in full and only if they may see it at the moment it is sent, and it can mark their tasks done as them. It ends when they leave the Workspace. Not a Delivery Preference way, which reaches the person, not a program (spec 0037).
 _Avoid_: My webhook, user webhook, private webhook
+
+**Comes From**:
+What a Pack says of each of its numbers (a person types it, another system sends it, or it is set once as a target), with what Ziffr works out from the Pack: that it calculates a number, which Automation Templates are delivered and what the installer still needs. Shown as "Where the numbers come from". Not a Source (the way a value arrives) and not a thing's origin.
+_Avoid_: Provenance, data source, lineage
 
 **Automation Template**:
 An importable file for an automation tool such as n8n that joins Ziffr to another system, in one direction or the other: out, from a Webhook to Microsoft To Do, Google Tasks, Slack, Asana or Todoist; or in, from a system such as Google Sheets, Stripe or HubSpot through a Feed, to fill Metrics. It lives in the repository; Ziffr never runs it or holds the other system's credentials. A person may download one from Ziffr with their Ziffr's address and their Metrics already in it.
