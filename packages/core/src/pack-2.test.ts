@@ -9,13 +9,15 @@ import { checkFormat } from "@ziffr/pack/json-check";
 import { guideRuns, PACK_GUIDE_LIMITS, type PackGuide } from "@ziffr/pack/pack-guide";
 import { run } from "@ziffr/pack/run";
 import { checkPack, checkPackValue, PACK_2_SCHEMA, PACK_FORMAT, PACK_SCHEMA, type Pack } from "./pack";
-import { installManifest, installPackFile, itemHash, notBuiltYet, readPackFile, storedItems } from "./packs";
+import { installManifest, itemHash, previewPeople, storedItems } from "./packs";
 import { listInstalledGuides, readInstalledGuide, safeGuide } from "./installed-pack-guides";
 import { withSlugs } from "./pack-setup-build";
+import { TOTAL_MAX_PARTS } from "./total-rules";
+import { PACK_POSITION_LIMITS } from "@ziffr/pack/pack-positions";
 import { formulaInputs } from "./formula";
 import { PLAIN, textPasses } from "./file-text";
 import { describePlaces, readPlaces, type PackPlaces } from "./pack-places";
-import { Forbidden, type Actor } from "./actor";
+import type { Actor } from "./actor";
 import { checkWorkflowTemplateFile, checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_SCHEMA, workflowTemplateFromFile, type WorkflowTemplateFile } from "./workflow-template-file";
 import { fromWorkflowTemplate } from "./team-templates";
 import { ALERT_SHARE_MAX, ALERT_SHARE_MIN } from "./alert-rules";
@@ -396,7 +398,8 @@ describe("what the server stores of a /2 Pack", () => {
 
   it("stores the items as for the same Pack without Positions", () => {
     const stored = storedItems(checked());
-    expect(JSON.stringify(stored)).not.toMatch(/area-lead|site-manager|someone\/safety|"per"|"total"|submitters|comesFrom/);
+    // A Total alone keeps something of its wrapper (below).
+    expect(JSON.stringify(stored)).not.toMatch(/area-lead|site-manager|someone\/safety|"per"|submitters|comesFrom/);
     expect(stored.catalog.map((c) => c.key)).toEqual(["incidents", "hours", "rate", "target", "all-hours"]);
   });
 
@@ -478,9 +481,8 @@ describe("what an install keeps of Positions and Repeats", () => {
     for (const raw of bad) expect(readPlaces(raw)).toBeNull();
   });
 
-  it("says in the preview what each Position does, what a line makes and every proposed Share", async () => {
-    const res = await readPackFile({ personId: "p", workspaceId: "w", role: "owner" } as Actor, JSON.stringify(SITES));
-    const people = res.ok ? res.preview.people! : null;
+  it("says in the preview what each Position does, what a line makes and every proposed Share", () => {
+    const people = previewPeople(checked());
     expect(people!.repeats[0]).toEqual({ name: "Site", max: 30, makes: ["Metrics: Incidents, Hours and Incident rate", "Dashboard: Monthly overview", "Workflow: Weekly site report"], positions: ["Site manager", "Crew"] });
     const does = new Map(people!.positions.map((p) => [p.name, p.does]));
     expect(does.get("Area lead")).toEqual([
@@ -503,25 +505,25 @@ describe("what an install keeps of Positions and Repeats", () => {
   });
 });
 
-// Until #1226 builds Totals, a Pack holding one is refused whole. Both refusals come before the database is asked, so
-// they need none here; pack-updates.db.test.ts holds that nothing is stored.
+// A Total (spec 0058) is stored with what it adds up, so that Set up never makes it a Metric that takes values.
 describe("a Pack with a Total", () => {
-  const owner = { personId: "p", workspaceId: "w", role: "owner" } as Actor;
-  const why = "This Pack holds a Total, “All hours”, which this version of Ziffr cannot make yet. Nothing of the Pack is added.";
-
-  it("is shown with why it cannot be installed", async () => {
-    const res = await readPackFile(owner, JSON.stringify(SITES));
-    expect(res.ok && res.preview.blocked).toBe(why);
-    expect(res.ok && res.preview.items.find((i) => i.key === "all-hours")).toMatchObject({ derived: true });
+  it("stores which entry it adds up, and no Source", () => {
+    const res = checkPack(JSON.stringify(SITES));
+    const entry = res.ok ? storedItems(res.pack).catalog.find((e) => e.key === "all-hours") : undefined;
+    expect(entry).toMatchObject({ total: { of: expect.any(String), targets: expect.any(String) }, sources: [], formula: null });
   });
 
-  it("is not installed, however it is confirmed", async () => {
-    await expect(installPackFile(owner, JSON.stringify(SITES), { unsigned: true, assistantTexts: true })).rejects.toThrow(new Forbidden(why));
+  it("leaves what any other entry stores as it was", () => {
+    const res = checkPack(JSON.stringify(SITES));
+    const others = res.ok ? storedItems(res.pack).catalog.filter((e) => e.key !== "all-hours") : [];
+    expect(others.length).toBeGreaterThan(0);
+    for (const e of others) expect(e).not.toHaveProperty("total");
   });
 
-  it("alone is what refuses: the same Pack without one is not", () => {
-    const res = checkPack(changed((p) => p.contents.metrics.pop()));
-    expect(res.ok && notBuiltYet(res.pack)).toBeNull();
+  // Set up makes a Total over every line, so no Repeat may take more lines than a Total counts (a Repeat of 51 lines is
+  // refused above, and Set up takes no more than the same number).
+  it("never has more lines to add up than a Total counts", () => {
+    expect(PACK_POSITION_LIMITS.lines).toBeLessThanOrEqual(TOTAL_MAX_PARTS);
   });
 });
 

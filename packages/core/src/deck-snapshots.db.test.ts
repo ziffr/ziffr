@@ -228,7 +228,7 @@ describe("a deck with kept numbers", () => {
     await saveDeck(editor, deck, deckOf(...kept, widget("shape:w", "shape:kept", mine.id)));
     await expect(saveDeck(editor, deck, deckOf(...kept, frame("shape:live"), widget("shape:w", "shape:live", mine.id)))).rejects.toThrow(/live numbers of a Metric you cannot see/);
     // So is taking the part away, which would leave the widget on a live slide.
-    await expect(saveDeck(editor, deck, deckOf(frame("shape:kept"), widget("shape:w", "shape:kept", mine.id)))).rejects.toThrow(/Undo, remove that Widget/);
+    await expect(saveDeck(editor, deck, deckOf(frame("shape:kept"), widget("shape:w", "shape:kept", mine.id)))).rejects.toThrow(/Undo, remove it/);
     await saveDeck(editor, deck, deckOf(...kept));
     const version = (await listVersions(editor, "deck", deck)).versions.find((v) => v.name === "With the pipeline")!;
     await expect(restoreVersion(editor, version.id)).rejects.toThrow(/not shared with you/);
