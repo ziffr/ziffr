@@ -337,6 +337,28 @@ describe("a job that stopped", () => {
   });
 });
 
+describe("a file with a Total", () => {
+  it("becomes a Total with its list, closed whatever the file says", async () => {
+    const { person, email } = await importer();
+    const rs = records(email).map((r) => (r.kind === "header" ? { ...r, format: "ziffr.workspace-export/2" as const } : r));
+    // The Total's record comes before the last Metric, which has a formula; its Metric record names Submitters a Total
+    // cannot have.
+    rs.splice(rs.findIndex((r) => r.kind === "metric" && r.id === "m3"), 0,
+      { kind: "metric", id: "m4", key: "all", metric: { ...metricDoc, name: "All orders" }, submitters: ["me", "ada"] },
+      { kind: "total", metric: "m4", targets: "own", open: true, parts: [{ metric: "m1", first: "2026-04-01" }, { metric: "m2", first: "2026-04-01", last: "2026-07-01" }] });
+    const status = await run(person, rs);
+    expect(status).toMatchObject({ status: "done", problem: null, counts: { metrics: 4, totals: 1 } });
+    const { data: made } = await db().from("metrics").select("id, formula, total_targets, total_opened_at, sources").eq("workspace_id", status.workspaceId!).not("total_targets", "is", null);
+    expect(made).toEqual([expect.objectContaining({ formula: "{-}", total_targets: "own", total_opened_at: null, sources: [] })]);
+    const { data: parts } = await db().from("total_parts").select("first_period, last_period").eq("total_id", made![0].id).order("part_id");
+    expect(parts).toEqual([{ first_period: "2026-04-01", last_period: null }, { first_period: "2026-04-01", last_period: "2026-07-01" }]);
+    expect((await db().from("tokens").select("id").eq("metric_id", made![0].id)).data).toEqual([]);
+    const { data: held } = await db().from("invitations").select("import_plan").eq("workspace_id", status.workspaceId!).eq("email", "ada@example.com").single();
+    expect((held!.import_plan as { submits: number[] }).submits).not.toContain(made![0].id);
+    expect((await metricsOf(status.workspaceId!)).find((m) => m.name === "Average")!.formula).toMatch(/^\{.+\} \/ \{.+\}$/);
+  });
+});
+
 describe("labels and sizes", () => {
   it("replaces a label only through its map: a missing one throws and is never used as an id", () => {
     const l = new Labels<number>("Metric");

@@ -58,6 +58,7 @@ const READS: readonly string[] = [
   "tag-actions:tagImpact",
   "theme-actions:themeLogoSource",
   "version-actions:listVersions",
+  "view-link-actions:emptyInLink",
   "view-link-actions:listViewLinks",
   "view-link-actions:shownSnapshots",
   "view-link-actions:tagListsToFix",

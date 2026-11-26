@@ -8,7 +8,7 @@ import { Copy } from "lucide-react";
 import { useSlideOver } from "@/components/slide-over-host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createViewLink, fixListsForLink, listViewLinks, revokeViewLink, setViewLinkNames, shownSnapshots, tagListsToFix } from "@/app/view-link-actions";
+import { createViewLink, emptyInLink, fixListsForLink, listViewLinks, revokeViewLink, setViewLinkNames, shownSnapshots, tagListsToFix } from "@/app/view-link-actions";
 import { formatDate } from "@ziffr/core/format";
 
 type Link = Awaited<ReturnType<typeof listViewLinks>>[number];
@@ -37,6 +37,8 @@ function ViewLinksBody({ type, id, snapshot, leftOut }: { type: "dashboard" | "d
   const [showNames, setShowNames] = useState(false);
   // Widgets that show all Metrics with a Tag: a link shows a list its maker chose, so these are fixed first (spec 0038).
   const [toFix, setToFix] = useState(0);
+  // Totals the link would show with no number, said before it is made (spec 0058).
+  const [empty, setEmpty] = useState<string[]>([]);
   const [pending, start] = useTransition();
   const load = () => listViewLinks(type, id).then(setLinks);
   const url = (token: string) => `${window.location.origin}/v/${token}`;
@@ -46,6 +48,11 @@ function ViewLinksBody({ type, id, snapshot, leftOut }: { type: "dashboard" | "d
     load();
     if (type === "dashboard") { shownSnapshots(id).then(setSnapshots).catch(() => {}); tagListsToFix(id).then(setToFix).catch(() => {}); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, when opened
+  useEffect(() => {
+    let current = true;
+    emptyInLink(type, id, shows === "live" ? null : Number(shows)).then((names) => { if (current) setEmpty(names); }).catch(() => {});
+    return () => { current = false; };
+  }, [type, id, shows]);
   const input = () => (type === "dashboard" ? { label, expires, frozen: false, snapshotId: shows === "live" ? null : Number(shows), showNames } : { label, expires, frozen, showNames });
   return (
     <>
@@ -75,6 +82,11 @@ function ViewLinksBody({ type, id, snapshot, leftOut }: { type: "dashboard" | "d
               {leftOut > 0 && (
                 <p role="status" className="rounded-[var(--radius-input)] border border-input bg-muted/40 p-2.5 text-xs">
                   {leftOut === 1 ? "One part of this deck is" : `${leftOut} parts of this deck are`} left out of View Links: someone with a link sees no Snapshot&rsquo;s numbers. Send them a PDF or PowerPoint file instead.
+                </p>
+              )}
+              {empty.length > 0 && (
+                <p role="status" className="rounded-[var(--radius-input)] border border-input bg-muted/40 p-2.5 text-xs [overflow-wrap:anywhere]">
+                  Shown with no number: {empty.join(", ")}. A link shows a Total&rsquo;s numbers only while the Total is open, or where the link shows every Metric it adds up.
                 </p>
               )}
               <label className="flex items-start gap-2">

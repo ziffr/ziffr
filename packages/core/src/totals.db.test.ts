@@ -1,6 +1,6 @@
 // Totals against the real database (spec 0058, ticket #1225; GLOSSARY: Total): what each person is given of one, closed
-// and open, on a canvas, through the API and in a formula; nothing of it with a view; a part kept; and what the database
-// itself refuses. The rows are written here, so each case holds however a Total came to be.
+// and open, on a canvas, through the API and in a formula; nothing of it with an unjudged view; a part kept; and what
+// the database itself refuses. The rows are written here, so each case holds however a Total came to be.
 import { afterEach, describe, expect, it } from "vitest";
 import { actorForKey, createAccessKey } from "./access-keys";
 import { getCanvasData } from "./access";
@@ -69,11 +69,11 @@ describe("a Total as each person is given it", () => {
     expect((await listObservations(other, total.slug, { limit: 10 })).items.map((i) => i.value)).toEqual([17, 19]);
   });
 
-  it("goes out with no view, open or not", async () => {
+  it("goes out with no view that does not say who may have it", async () => {
     const { w, sara, total, rest, open } = await setup();
     await open();
     const sent = shownData(await getCanvasData(w.id, sara), new Set([total.id, rest.id]), null);
-    expect(sent.series).toEqual({});
+    expect([sent.series[total.slug], sent.series[rest.slug]]).toEqual([[], []]);
   });
 });
 
