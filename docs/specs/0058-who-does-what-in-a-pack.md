@@ -1,6 +1,6 @@
 # 0058 Who does what in a Pack: named Positions such as "Sales lead", filled at Set up
 
-**Status:** draft. **Tracking issue:** #1164 (label `tracking`); tickets #1177 to #1191 are its sub-issues, labelled `spec:0058`. The owner approved the direction and, on 2026-11-26, the decisions at the end. Builds on spec 0030 (Packs) and spec 0045 (Checklist Items and Send Snapshot); the community Marketplace that shares such Packs is spec 0059.
+**Status:** draft. **Tracking issue:** #1164 (label `tracking`); tickets #1177 to #1191 and, for team totals, #1225 to #1227 are its sub-issues, labelled `spec:0058`. The owner approved the direction and, on 2026-11-26, the decisions at the end. Builds on spec 0030 (Packs) and spec 0045 (Checklist Items and Send Snapshot); the community Marketplace that shares such Packs is spec 0059.
 
 ## Problem Statement
 
@@ -144,10 +144,63 @@ Set up from this Pack (spec 0030) gains three parts. A Pack without Positions lo
 - An entry with `per` becomes one Metric for each line of that Repeat, named "<entry>, <line's name>" ("Incidents, Munich"). Two lines of a Repeat may not share a name.
 - **Visibility follows the Metrics.** A site manager who only submits to Munich's Metrics sees only Munich's. This is why a Repeat makes separate Metrics and not one Metric with a Breakdown: Submitters, Approval, targets and sight belong to a Metric.
 - **Names are words everyone reads.** The form says that a line's name appears in Metric names, read by everyone who sees them, Guests included.
-- A Derived Metric per entry may use entries of the same Repeat and entries outside it. One outside a Repeat may not use an entry inside it, so there is no team total yet (decision 6).
+- A Derived Metric per entry may use entries of the same Repeat and entries outside it. A formula outside a Repeat may not use an entry inside it: it would have to name every line. What adds up a Repeat is a **Total** (see "Team totals" below).
 - **Workflows and dashboards** with `per` are made once per line. Without it, one Workflow takes all lines' Metrics.
 - A dashboard outside the Repeat may use a repeated entry only in a Slot that takes several Metrics, which is filled with every line's Metric. A shared dashboard shows all of them to whoever it is shared with, and the preview says so by name.
 - **Limits:** at most 50 lines in a Repeat (Set up fills a Slot with at most 50 Metrics today) and 200 Metrics in one Set up (today 50). The Workspace Limit and a trial's cap are checked for the whole set before anything is made. A run this large works in steps and says what was made if it stops.
+
+### Team totals
+
+A team wants "the commit of all salespeople", and the list of salespeople changes. A formula cannot say this: it names every input, is limited to 500 characters, and someone would have to rewrite it for every new line. The owner moved team totals forward on 2026-11-26: they are specified here and built with Positions and Repeats.
+
+#### What a Total is
+
+**Total** (added to the glossary by #1225): A Derived Metric that adds up a list of Metrics it keeps, its parts, such as the Commit of every salesperson. Parts are added and ended on the Total, never by editing a formula; each counts from a first period and, once ended, up to a last one. A period has a value only when every part counting in it has one. Not a formula, not an Aggregation (which combines one Metric's own periods) and not a Running total. _Avoid_: roll-up, consolidation, group sum.
+
+- **It only adds.** No average, no smallest or largest.
+- **Parts:** 1 to 50 Metrics that take values (no Derived Metric, no Total), of the Total's period, with one unit, number format and Aggregation among them, which the Total takes; never Aggregation none.
+- **The list is kept on the Total.** The record of a Set up still decides nothing, and nothing follows a Tag, a Group or a Repeat by itself: a part counts because someone with the right to do so added it, and saw it listed.
+- **Over longer periods** a Total combines like any Metric: its own period values by its Aggregation. A quarter in which one week has no total is shown as partial, as for any Metric with a gap.
+- **Formulas may read a Total** as an input, `target()` included (spec 0062). Parts are never derived, so this adds one level and no cycle. A formula still may not read another formula.
+- **Its target** is one of two, chosen on the Total: its **own** Target Series and Target Range, set once as the team's quota, or the **targets of its parts added up**: for each period the sum of what `target()` gives for every counting part, and no target for a period in which one part has none.
+- **By hand too:** the flow "Calculated from other Metrics" offers "Add up Metrics". A Total counts towards the Workspace Limit as one Metric and has no Breakdown.
+
+#### New and leaving lines
+
+- Each part has a **first period** and, once it has left, a **last period**. Past totals do not change when the list does.
+- **Add a line** (below) offers, ticked and listed, to count the new Metrics in each Total that Set up made, from the first period the line is asked for (shown, and changeable), where this person may change the Total and its owner may share the part. What it cannot change, it lists.
+- **A line leaves** by ending its parts: "Count it up to <period>", by default its last period with a value. Archiving a Metric that a Total counts asks this. Counting it again is the same screen.
+- Removing a part altogether is possible and says in words that past totals change. A Metric a Total names cannot be deleted, and Retention treats the Total like a Derived Metric that reads it.
+- Every change of the list is in the Total's history and the Audit Log.
+
+#### Missing and unapproved values
+
+- A period has a total only when **every part counting in it has a value**. Ziffr never shows a smaller sum as the total, and never takes a missing value as 0: a salesperson with nothing sends 0.
+- While one is missing, the period reads "4 of 5 in" to whoever sees every part (they can then see which), and "not all in yet" to everyone else.
+- A value **waiting for Approval or sent back** counts, as it shows on its own Metric, and the period's total is marked **not approved yet** until every part is final. Alerts, Tell steps and Heads-ups read a total only then.
+- Nothing is stored: a corrected value changes the total at once. Snapshots and frozen View Links keep what they showed, mark included.
+
+#### Who sees what
+
+A Total is a Metric: who may see it is chosen on it. Its owner must own or edit every part, or it shows no values (as for any Derived Metric); adding a part needs the right to change the Total and to share that part.
+
+- **Nothing of a hidden part is sent** to someone who does not see it: no name, line name, id, value, count or row. There is never a "rest" row, and never a total worked out from the rows shown.
+- **No total that gives one part away.** If exactly one part counted in a period is hidden from a person, that period's total is not shown to them: "Not shown: it would give away a Metric that is not shared with you." With none hidden they could add it up themselves; with two or more hidden, only their sum can be worked out.
+- This is worked out per person and period, wherever a total goes: widgets, formulas that read it (withheld in the same periods), the API and MCP Server, downloads, Snapshots, View Links (the viewer sees what the link shows), messages and Webhooks (only where the rule holds for everyone who receives them). Sharing a Total says beforehand who would not see it.
+- **What this does not catch,** and the guide says: someone who sees two overlapping Totals, or one total in two periods with different parts, may subtract one from the other.
+
+#### The forecast's gap slide, one row per salesperson
+
+- The sales forecast Pack gains a Repeat "Salesperson": Commit, Best case, Closed this quarter and Pipeline value once per line; the team's figures are Totals of them. Each salesperson's quota is the target of their Commit (spec 0062), and the team's quota is either the Total's own or the targets added up.
+- A gap table may take **a Total** instead of two Metrics: one row for each part counting in the latest period, named by its line, with the part's target for that period, its value and the gap, ordered by gap. A part without a value reads "–"; a part without one target number has no gap. At most 30 rows, the rest named as left out.
+- A viewer gets the rows of the parts they see, with one line saying that others are not shown to them, and no totals row.
+- The Metric "Quota by salesperson" of spec 0062 then leaves the Pack. Existing set-ups that send Breakdowns keep their two-Metric gap table.
+
+#### Format
+
+- A Metric Catalog entry outside a Repeat may say `"total": { "of": "commit", "targets": "parts" }` in place of a formula: `of` names an entry of a Repeat in the same Pack, `targets` is `own` or `parts`. The gap table's element gains the one-Total form.
+- Both are new fields that change what Set up and a slide do, so an older Ziffr must refuse them in words: they go into `ziffr.pack/2` and the deck template format only if these have not been released without them, else into the next format version.
+- The Workspace Export carries a Total's parts with their first and last periods. Export as Pack turns a Total over the picked example line back into `total`.
 
 ### The record of a Set up, and adding a line
 
@@ -155,7 +208,7 @@ Set up from this Pack (spec 0030) gains three parts. A Pack without Positions lo
 - **The record decides nothing.** No permission, message or sight is ever worked out from it.
 - Owners and Admins read it, and see names of only those Metrics, dashboards and Workflows they may see. Removing a person takes them out of it. Uninstalling the Pack deletes it and leaves everything made. The new tables are classified for the demo and for deletion, and a Workspace Export leaves the record out and says so.
 - **Add a site** (the Repeat's own word) on the Pack's page runs Set up for one new line, with the same preview. It also offers to add the new Metrics to the shared Workflow and to the several-Metric widgets, each ticked and listed, only where this person may change them. What it cannot change, it lists.
-- Removing a line is not automated: archive its Metrics by hand.
+- Removing a line is not automated: archive its Metrics by hand, which asks on each Total up to which period they count.
 - Updating a Pack never changes what was set up. The update page says which Positions and Repeats are new or gone.
 
 ### Starting a Workflow from a template
@@ -201,6 +254,7 @@ Spec 0059's decisions on paid Packs need this, and it **has to be in place befor
 - **Set up** (`pack-setup.db.test.ts`): every place filled by the right person; who may fill each; unticked Shares make none; no Prompt to others without the tick; an empty Approver refuses the Workflow; the Workspace Limit refuses the whole set; Admins only, never a key or the demo.
 - **Visibility:** the "who will see what" list equals what each person sees afterwards, compared for every person; a salesperson sees only their line.
 - **Add a line:** makes only the new line; changes only what the actor may change.
+- **Team totals:** hand-worked cases for lines that join and leave, a missing value, a value not approved yet and longer periods; what each person sees compared for every person, with none, one and two parts hidden, in the app, the API, a Snapshot and a View Link.
 - **Export:** a test greps the file for every id, name, first name, address, handle, Group name and line name of a seeded Workspace; round trip (export, install, set up with the same people, export again) gives the same file.
 - **Origin:** a table of every way to copy, each keeping it; uninstall and update keep it; a browser cannot clear it; an export credits free items and leaves paid ones out; the import of a Workspace Export keeps it.
 - **Pages** tried in the running app at phone and desktop widths.
@@ -215,6 +269,9 @@ Spec 0059's decisions on paid Packs need this, and it **has to be in place befor
 | #1180 | Set up with Positions: pickers, Share ticks, messages, the record | #1179 |
 | #1181 | Repeats in Set up: lines, names, limits, working in steps | #1180 |
 | #1182 | Add a line | #1181 |
+| #1225 | Team totals: a Total adds up a kept list of Metrics (core, screens, visibility) | #1222 |
+| #1226 | Team totals in Packs: Set up, a new line joins, a leaving line stops counting, export | #1182, #1225 |
+| #1227 | Gap table with one row per line of a Total; the sales forecast Pack with a Repeat | #1223, #1226 |
 | #1183 | Start a Workflow from a template with Positions | #1177 |
 | #1184 | Where things came from: every copy, existing Workspaces. Before any paid Pack | |
 | #1185 | Where things came from: widgets on dashboards and slides | #1184 |
@@ -230,7 +287,7 @@ Spec 0059's decisions on paid Packs need this, and it **has to be in place befor
 - Live Positions that the Workspace keeps and rules look up.
 - Inviting people or making Contacts from Set up.
 - A Position that sets a Workspace Role or manages Groups.
-- Team totals over a Repeat, and a Repeat inside a Repeat.
+- A Repeat inside a Repeat. Totals that average, a Total of Totals, and a Total that follows a Tag, a Group or a Repeat by itself.
 - Removing a line automatically.
 - Positions in Deck Templates (Set up makes no deck).
 - Copy protection. Where things came from is a record, not a lock.
@@ -242,5 +299,5 @@ Spec 0059's decisions on paid Packs need this, and it **has to be in place befor
 3. **Shares from a Pack start unticked** where they show someone more.
 4. **Prompts to others wait** for the next run unless ticked.
 5. **Tell steps travel** when they wait for a share, never a level.
-6. **Team totals** over a Repeat come later.
+6. **Team totals** over a Repeat: first postponed; moved forward by the owner on 2026-11-26. Specified under "Team totals" and built with Positions and Repeats. For the owner to check there: a Total is withheld from someone from whom exactly one counted part is hidden; unapproved values count and mark the total; the list is kept on the Total and never follows by itself.
 7. **Installed items remember where they came from**, through edits and "save as template". Export as Pack leaves out paid items and credits free ones by itself. This is part of this spec's work, before any paid Pack (spec 0059).
