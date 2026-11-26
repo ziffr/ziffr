@@ -18,13 +18,28 @@ import { Textarea } from "@/components/ui/textarea";
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 
+type Wrap = "change" | "prev" | "target";
+
+// The functions a formula may put around a Metric, as buttons that stay pressed until a Metric is picked.
+function Wraps({ fns, chosen, onChoose }: { fns: Wrap[]; chosen: Wrap | null; onChoose: (fn: Wrap | null) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {fns.map((fn) => (
+        <button key={fn} type="button" aria-pressed={chosen === fn} onClick={() => onChoose(chosen === fn ? null : fn)} className="rounded-full border border-[var(--color-rule-2)] bg-card px-2.5 py-1 text-xs hover:bg-muted/60 aria-pressed:border-primary aria-pressed:bg-primary/10">
+          {fn}( )
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** The form: a name, the formula written with the Metrics' names picked from a list, and what is optional. */
 export function DerivedForm({ choices }: { choices: FormulaChoice[] }) {
   const [result, action, pending] = useActionState<ActionError | null, FormData>(createDerivedMetric, null);
   const [formula, setFormula] = useState("");
   const box = useRef<HTMLInputElement>(null);
-  // "change" or "prev" chosen: the next Metric picked goes inside it, as change({slug}).
-  const [wrap, setWrap] = useState<"change" | "prev" | null>(null);
+  // A function chosen: the next Metric picked goes inside it, as change({slug}).
+  const [wrap, setWrap] = useState<Wrap | null>(null);
   // Inserted where the cursor stands, so a formula is built by clicking and typing the signs between.
   const insert = (text: string) => {
     const el = box.current;
@@ -78,15 +93,16 @@ export function DerivedForm({ choices }: { choices: FormulaChoice[] }) {
                 </div>
                 <div>
                   <div className="mb-1.5 text-xs font-medium text-muted-foreground">Compared with the period before</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(["change", "prev"] as const).map((fn) => (
-                      <button key={fn} type="button" aria-pressed={wrap === fn} onClick={() => setWrap(wrap === fn ? null : fn)} className="rounded-full border border-[var(--color-rule-2)] bg-card px-2.5 py-1 text-xs hover:bg-muted/60 aria-pressed:border-primary aria-pressed:bg-primary/10">
-                        {fn}( )
-                      </button>
-                    ))}
-                  </div>
+                  <Wraps fns={["change", "prev"]} chosen={wrap} onChoose={setWrap} />
                   <p className="mt-1.5 text-xs text-muted-foreground">
                     Press one, then pick a Metric above to put it inside. <code>change({"{odometer}"})</code> is this period&rsquo;s value minus the previous period&rsquo;s, <code>prev({"{odometer}"})</code> the previous period&rsquo;s value. Put a Metric between the brackets, for example <code>change({"{odometer}"}) / 7</code> for the kilometres a day from a weekly reading. A Metric like this is shown by its own period only.
+                  </p>
+                </div>
+                <div>
+                  <div className="mb-1.5 text-xs font-medium text-muted-foreground">A Metric&rsquo;s target</div>
+                  <Wraps fns={["target"]} chosen={wrap} onChoose={setWrap} />
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    <code>target({"{commit}"})</code> is the target of that Metric for the period: its Target Series value, else its Target Range when it has one bound. For example <code>target({"{commit}"}) - {"{commit}"}</code> for what is still missing.
                   </p>
                 </div>
               </div>

@@ -2,7 +2,7 @@
 // Draws a Widget (GLOSSARY: Widget, View): the Views for Metrics and Analyses are View Designs drawn by one renderer
 // (design-view.tsx); Findings and the free layout are drawn by their own code.
 import { BUILT_IN_DESIGNS, isDesignedView } from "@ziffr/core/built-in-designs";
-import { inputsProblem } from "@ziffr/core/formula";
+import { inputsProblem, targetProblem } from "@ziffr/core/formula";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { fillSettings } from "@ziffr/core/placeholders";
 import dynamic from "next/dynamic";
@@ -54,8 +54,9 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
     return <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">No access to this metric. Ask its owner to share it.</div>;
   }
   const m = ms[0];
-  // A Derived Metric whose inputs are counted by different periods has no value in any period: it says why.
-  const broken = inputsProblem(m, data.metrics);
+  // A Derived Metric whose inputs are counted by different periods has no value in any period: it says why. So does one
+  // without values because a Metric it reads the target of has none to read.
+  const broken = inputsProblem(m, data.metrics) ?? (data.series[m.slug]?.length ? null : targetProblem(m, data.metrics, data.targets));
   if (broken) return <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">{broken}</div>;
   if (isDesignedView(widget.template)) return <DesignView design={BUILT_IN_DESIGNS[widget.template]} widget={widget} metrics={ms} data={data} onPointContext={onPointContext} />;
   // A Workspace's View Design: the widget's own checked copy (the core checks it on every save).

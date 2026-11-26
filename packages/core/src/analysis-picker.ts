@@ -82,7 +82,7 @@ async function load(actor: Actor, ids: number[]): Promise<Loaded> {
   // Only the Metrics asked for and the visible inputs of their formulas are in `series`; the world holds the visible Metrics only, so a lookup never finds another.
   // At most the latest MOST_POINTS values of each Metric are read: a Method looks at the latest 120 periods, and a very long daily history would only cost work.
   const series = Object.fromEntries(Object.entries(data.series).map(([k, v]) => [k, v.length > MOST_POINTS ? v.slice(-MOST_POINTS) : v]));
-  const world: PickWorld = { metrics: [...visible.values()], series, breakdowns: data.breakdowns, ctx: { style }, yearStart };
+  const world: PickWorld = { metrics: [...visible.values()], series, breakdowns: data.breakdowns, ctx: { style }, yearStart, targets: data.targets, condensed: data.condensed };
   return { world, visible };
 }
 

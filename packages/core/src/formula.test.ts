@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkFormula, evaluate, formulaInputs, inputsNotCombined, inputsProblem, readFormula, type FormulaInput } from "./formula";
+import { checkFormula, evaluate, evaluateRange, formulaInputs, inputsNotCombined, inputsProblem, rangeNumber, readFormula, targetInputs, targetProblem, targetReader, usesPrevious, usesTarget, withoutUnseenInputs, type FormulaInput } from "./formula";
 import { referenceReads } from "./test/reference/formula";
 
 describe("formula", () => {
@@ -129,5 +129,80 @@ describe("checkFormula", () => {
     expect(inputsProblem({ formula: "{revenue} / {hidden}", period: "month" }, inputs)).toBeNull();
     expect(inputsNotCombined({ formula: "{revenue} / {stock}" }, inputs)).toMatch(/STOCK is set to Aggregation none/);
     expect(inputsNotCombined({ formula: "{revenue} / {orders}" }, inputs)).toBeNull();
+  });
+});
+
+describe("a formula that reads a target (spec 0062)", () => {
+  const range = (target_min: number | null, target_max: number | null) => ({ target_min, target_max });
+  it("is read as the Metric's target, which makes the Metric an input", () => {
+    expect(readFormula("target ( {commit} )")).toEqual({ ok: true, node: { k: "target", slug: "commit" } });
+    expect(formulaInputs("{pipeline} / (target({commit}) - {closed})")).toEqual(["pipeline", "commit", "closed"]);
+    expect(targetInputs("target({a}) + target( {a} ) - {b} + change({c})")).toEqual(["a"]);
+    expect([usesTarget("target({a})"), usesTarget("{a} - prev({a})"), usesPrevious("target({a})")]).toEqual([true, false, false]);
+  });
+  it("needs the target and a value of that Metric", () => {
+    expect(evaluate("target({a}) - {a}", { a: 70 }, {}, { a: 100 })).toBe(30);
+    expect(evaluate("{b} / (target({a}) - 10)", { a: 1, b: 180 }, {}, { a: 100 })).toBe(2);
+    // No target given, a target that is no number, and a target of a Metric without a value.
+    expect(evaluate("target({a})", { a: 70 })).toBeNull();
+    expect(evaluate("target({a})", { a: 70 }, {}, { a: NaN })).toBeNull();
+    expect(evaluate("target({a})", {}, {}, { a: 100 })).toBeNull();
+    expect(evaluate("{b} - target({a})", { b: 1 }, {}, { a: 100 })).toBeNull();
+    // A range of values has no target to read.
+    expect(evaluateRange("target({a})", {})).toBeNull();
+  });
+  it("refuses what is not one Metric between the brackets, in words", () => {
+    const ins: FormulaInput[] = [{ slug: "a", name: "A", period: "month", aggregation: "sum", formula: null }];
+    for (const bad of ["target(1)", "target({a} - 1)", "target {a}", "target()", "target(target({a}))", "prev(target({a}))"]) {
+      expect(checkFormula(bad, ins), bad).toMatch(/takes one Metric/);
+      expect(referenceReads(bad), bad).toBe(false);
+    }
+    expect(checkFormula("target(1)", ins)).toBe("target takes one Metric: write target({commit}), with the Metric's slug in lower case.");
+    expect(checkFormula("target({a})", ins, { slug: "a", period: "month" })).toMatch(/this Metric itself/);
+    expect(checkFormula("target({nobody})", ins)).toMatch(/not a Metric of this Workspace/);
+    expect(checkFormula("target({a})", [{ ...ins[0], formula: "{b}" }])).toMatch(/Derived Metric itself/);
+    expect(checkFormula("target({a})", [{ ...ins[0], aggregation: "none" }])).toMatch(/Aggregation none/);
+  });
+  it("takes a range as a number only where it holds one", () => {
+    expect(rangeNumber(range(500, null))).toBe(500);
+    expect(rangeNumber(range(null, 40))).toBe(40);
+    expect(rangeNumber(range(7, 7))).toBe(7);
+    expect(rangeNumber(range(0, null))).toBe(0);
+    expect(rangeNumber(range(10, 20))).toBeUndefined();
+    expect(rangeNumber(range(null, null))).toBeUndefined();
+  });
+  it("takes the period's Target Series value before the range, and never the range for one it cannot read", () => {
+    const read = targetReader(range(500, null), [{ period: "2026-01-01", value: 600 }, { period: "2026-02-01", value: NaN }, { period: "2026-01-01", value: 650 }]);
+    expect([read("2026-01-01"), read("2026-02-01"), read("2026-03-01")]).toEqual([650, undefined, 500]);
+    expect(targetReader(range(1, 2), [])("2026-01-01")).toBeUndefined();
+  });
+  it("says why there may be no value: an input without a target to read", () => {
+    const commit = { id: 1, slug: "commit", name: "Commit", ...range(null, null) };
+    const why = "It reads the target of Commit, which has no number to read: set a Target Range with one bound, such as “at least 500”, or Target Series values.";
+    expect(targetProblem({ formula: "target({commit})" }, [commit], {})).toBe(why);
+    expect(targetProblem({ formula: "target({commit})" }, [{ ...commit, ...range(1, 2) }], { 1: [] })).toBe(why);
+    expect(targetProblem({ formula: "target({commit})" }, [{ ...commit, ...range(1, null) }], {})).toBeNull();
+    expect(targetProblem({ formula: "target({commit})" }, [commit], { 1: [{ period: "2026-01-01", value: 1 }] })).toBeNull();
+    // An input the viewer was not given is not named.
+    expect(targetProblem({ formula: "target({commit})" }, [], {})).toBeNull();
+    expect(targetProblem({ formula: null }, [commit], {})).toBeNull();
+  });
+});
+
+describe("a formula as it is sent to someone", () => {
+  const sent = (formula: string | null, seen: string[]) => withoutUnseenInputs([{ formula }], new Set(seen))[0].formula;
+  it("is whole where they see every Metric it names, and a Metric without one is as it was", () => {
+    const metrics = [{ formula: "target({a}) - {b}" }, { formula: null }];
+    const out = withoutUnseenInputs(metrics, new Set(["a", "b"]));
+    expect(out[0]).toBe(metrics[0]);
+    expect(out[1]).toBe(metrics[1]);
+  });
+  it("otherwise names only what they see, with no sign or number, and can no longer be worked out", () => {
+    expect(sent("({a} - {hidden}) * 12.5 + target({other})", ["a"])).toBe("{a} {-}");
+    expect(sent("change({hidden})", [])).toBe("{-}");
+    for (const formula of [sent("{a} + {hidden}", ["a"])!, sent("{hidden}", [])!]) {
+      expect(formulaInputs(formula)).toContain("-");
+      expect(evaluate(formula, { a: 1, hidden: 2 })).toBeNull();
+    }
   });
 });
