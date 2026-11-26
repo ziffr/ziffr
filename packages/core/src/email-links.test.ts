@@ -159,9 +159,15 @@ describe("Deliveries by email", () => {
   it.each([
     ["/settings/export", "Download your data"], ["/settings/workspace/download", "Download your data"], ["/workflows?id=3", "Open the Workflow"],
     ["/dashboards/3", "Open the dashboard"], ["/dashboards/3/snapshots/9", "Open the Snapshot"], ["/?panel=feedback", "Open My feedback"], ["/", "Open Ziffr"],
-    [`/api/confirm-reply/${"a".repeat(43)}`, "Check your reply"], ["/settings/webhooks", "Open in Ziffr"], ["/analyze#heads-ups", "Open in Ziffr"],
+    [`/api/confirm-reply/${"a".repeat(43)}`, "Check your reply"], [`/api/confirm-telegram/1.2.${"b".repeat(60)}.${"c".repeat(32)}.${"d".repeat(32)}.${"e".repeat(43)}`, "Check the request"], ["/settings/webhooks", "Open in Ziffr"], ["/analyze#heads-ups", "Open in Ziffr"],
   ])("a notice that leads to %s", async (to, words) => {
     await check(await delivery("notice", plainBody("email", "Something happened.", to)), [`${SITE}${to}`, words]);
+  });
+  it("a notice with nothing to open: no button, and no last line that passes for Ziffr's link", async () => {
+    await check(await delivery("notice", plainBody("email", "Telegram is connected to Ziffr.", null)), null);
+    sent = [];
+    const mail = await delivery("notice", plainBody("email", `Words of a person.\nOpen: ${SITE}/submit/tk-attacker`, null));
+    expect(button((await wire(mail)).html)).toBeUndefined();
   });
   it("a Screen Link and a Test Message", async () => {
     await check(await delivery("notice", plainBody("email", screenLinkText("Acme", "Themes"), "/themes")), [`${SITE}/themes`, "Open in Ziffr"]);
