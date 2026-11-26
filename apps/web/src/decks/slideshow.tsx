@@ -44,6 +44,9 @@ export function Slideshow({ deck, data, start, publicNote, back = `/decks/${deck
   useEffect(() => {
     if (!editor) return;
     const fit = () => {
+      // tldraw measures a new size a moment later (throttled): without this the slide is fitted to the old one, and a
+      // phone turned sideways keeps its small slide.
+      editor.updateViewportScreenBounds(editor.getContainer());
       const slide = orderedSlides(editor)[step.i];
       const b = slide && editor.getShapePageBounds(slide);
       if (b) editor.zoomToBounds(b, { inset: 0 });
@@ -60,8 +63,9 @@ export function Slideshow({ deck, data, start, publicNote, back = `/decks/${deck
       <DeckMaster.Provider value={master}>
         <ThemeScope theme={theme} scheme={pub ? "designed" : "follow"} className="slideshow fixed inset-0 z-[var(--z-modal)] flex flex-col bg-[var(--color-desk)]">
           <div className="relative min-h-0 flex-1" {...(zoomed ? {} : step.swipe)} style={{ touchAction: zoomed ? "auto" : "pan-y pinch-zoom", pointerEvents: "auto" }}>
-            {/* On an upright phone only the slide's own 16:9 band is drawn, so the slides above and below do not show. */}
-            <div className="absolute inset-0 max-sm:portrait:top-1/2 max-sm:portrait:bottom-auto max-sm:portrait:aspect-video max-sm:portrait:-translate-y-1/2" style={{ pointerEvents: "none" }}>
+            {/* On an upright phone only the slide's own 16:9 band is drawn, so the slides above and below do not show.
+                Text is laid out at its own size: Chrome otherwise keeps chart labels where the last zoom put them. */}
+            <div className="absolute inset-0 [text-rendering:geometricPrecision] max-sm:portrait:top-1/2 max-sm:portrait:bottom-auto max-sm:portrait:aspect-video max-sm:portrait:-translate-y-1/2" style={{ pointerEvents: "none" }}>
               <Tldraw
                 shapeUtils={shapeUtils}
                 snapshot={snapshot}
