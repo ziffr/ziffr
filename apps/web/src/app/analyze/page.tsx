@@ -32,12 +32,12 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader title="Analyze" sub="Ask a question of your numbers: drop Metrics on the canvas, pick a question, read the answer." />
-      <DesktopOnly path="/analyze" />
       {/* A slim hint says how many Heads-ups there are; the list is in the side panel behind it. In a Workspace over the scan's cap the
           list scans the person's own Metrics: the page does not wait for it. */}
       <Suspense fallback={<p className="-mt-4 mb-5 text-sm text-muted-foreground">Looking for Heads-ups…</p>}>
         <HeadsUpsSection actor={actor} demo={demo} />
       </Suspense>
+      <DesktopOnly path="/analyze" />
       <AnalyzeScreen data={data} demo={demo} onCanvas={onCanvas} writes={actor.role === "owner" || actor.role === "admin"} explained={demo ? named : state.explains !== null && onCanvas.includes(state.explains) ? state.explains : null} open={named !== null} />
     </>
   );
