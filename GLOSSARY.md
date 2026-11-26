@@ -130,7 +130,7 @@ Values recorded for past periods that had none yet, by a Feed (such as two years
 _Avoid_: Backfill, migration, sync
 
 **Token**:
-The standing permission that links one submitter to one metric. Every incoming value is checked against a token, which is usually invisible and implied by who sent the value and where.
+The standing permission that links one submitter to one metric. Every incoming value is checked against a token, which is usually invisible and implied by who sent the value and where. On the personal form link, which needs no sign-in, it records the current period or one that was asked for from it.
 _Avoid_: Key, code, credential
 
 **Submission Rule**:
