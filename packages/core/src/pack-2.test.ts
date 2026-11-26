@@ -10,6 +10,8 @@ import { guideRuns, PACK_GUIDE_LIMITS, type PackGuide } from "@ziffr/pack/pack-g
 import { run } from "@ziffr/pack/run";
 import { checkPack, checkPackValue, PACK_2_SCHEMA, PACK_FORMAT, PACK_SCHEMA, type Pack } from "./pack";
 import { installManifest, installPackFile, itemHash, notBuiltYet, readPackFile, storedItems } from "./packs";
+import { withSlugs } from "./pack-setup-build";
+import { formulaInputs } from "./formula";
 import { PLAIN, textPasses } from "./file-text";
 import { describePlaces, readPlaces, type PackPlaces } from "./pack-places";
 import { Forbidden, type Actor } from "./actor";
@@ -401,6 +403,14 @@ describe("what the server stores of a /2 Pack", () => {
     const guide: PackGuide = { questions: many(50, () => ({ type: "text" as const, text: "x".repeat(600) })) };
     const manifest = installManifest({ ...checked(), guide });
     expect(Object.keys(manifest).sort()).toEqual(["author", "format", "id", "license", "name", "places", "summary", "version"]);
+  });
+});
+
+describe("a formula of a Pack's entries at Set up", () => {
+  it("names the inputs of target() too, so they are made first and written by their slugs", () => {
+    const formula = "target({commit}) - {commit} + target( {quota} )";
+    expect(formulaInputs(formula)).toEqual(["commit", "quota"]);
+    expect(withSlugs(formula, (k) => `${k}-anna`)).toBe("target({commit-anna}) - {commit-anna} + target( {quota-anna} )");
   });
 });
 
