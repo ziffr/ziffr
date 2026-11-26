@@ -2,6 +2,7 @@
 // again at install and only its cleaned form is stored, a Theme saying "pack" gets it, nothing becomes the team default,
 // the item hash covers it, and an Owner's own changes are never overwritten.
 import { afterEach, describe, expect, it } from "vitest";
+import { PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import { db } from "./db";
 import { installPackFile, itemHash, packLogoOf, storedItems, themeHashInput } from "./packs";
 import { readPackUpdate, readUninstall, takeNewVersion, updatePackFile, uninstallPack } from "./pack-updates";
@@ -104,6 +105,28 @@ describe("a Pack's logo at install", () => {
     const got = await brandLogo(w.id, hash);
     expect(got).toMatchObject({ contentType: "image/png" });
     expect(await brandLogo(o.id, hash)).toBeNull();
+  });
+});
+
+describe("a logo of the largest size a Pack may bring", () => {
+  // A PNG of exactly that many bytes (45 of them are the picture's own, the rest a text chunk). The install keeps it in
+  // its manifest, so the database needs room for it (#1234).
+  const LARGEST = png(200, 100, "x".repeat(PACK_LOGO_MAX_BYTES - 45));
+  const kept = async (id: number) => ((await db().from("pack_installs").select("manifest").eq("id", id).single()).data!.manifest as { logo: string }).logo;
+
+  it("is installed, and kept with the install and the Theme", async () => {
+    expect(Buffer.from(LARGEST.split(",")[1], "base64")).toHaveLength(PACK_LOGO_MAX_BYTES);
+    const w = await ws(); const ann = await w.person("owner");
+    const id = await installPackFile(w.actor(ann), file(withLogo(LARGEST)), yes);
+    expect(await kept(id)).toBe(LARGEST);
+    expect((await theme(w.id))!.slides).toMatchObject({ logo: LARGEST });
+  });
+
+  it("comes with an update too", async () => {
+    const w = await ws(); const ann = await w.person("owner"); const actor = w.actor(ann);
+    const id = await installPackFile(actor, file(withLogo(LOGO)), yes);
+    await updatePackFile(actor, id, file(withLogo(LARGEST, true, "1.3.0")), yes);
+    expect(await kept(id)).toBe(LARGEST);
   });
 });
 
