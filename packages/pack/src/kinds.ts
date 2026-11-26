@@ -54,3 +54,14 @@ export type WorkflowTemplateStep =
   | { type: "checklist"; kind: "tick"; text: string; dueWorkingDays: number }
   | { type: "send_snapshot" }
   | { type: "publish"; lock: boolean };
+
+/** A step of a Workflow Template as a file holds it. In ziffr.workflow-template/2 a step may name Positions of the
+ * Pack that holds it, by key (`by`, `assignee`, `standIn`, `to`), a Send Snapshot step its Dashboard Template, and a
+ * Tell step waits for a share. */
+export type WorkflowTemplateFileStep =
+  | Extract<WorkflowTemplateStep, { type: "remind" | "escalate" | "check" | "publish" }>
+  | (Extract<WorkflowTemplateStep, { type: "approve" }> & { by?: string[] })
+  | (Extract<WorkflowTemplateStep, { type: "checklist"; kind: "info" }> & { to?: string[] })
+  | (Extract<WorkflowTemplateStep, { type: "checklist"; kind: "tick" }> & { assignee?: string; standIn?: string })
+  | { type: "send_snapshot"; to?: string[]; dashboard?: string }
+  | { type: "tell"; condition: { kind: "share_of_target" | "changed_more"; share: string }; to?: string[] };

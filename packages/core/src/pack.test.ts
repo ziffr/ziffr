@@ -4,7 +4,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import Ajv2020 from "ajv/dist/2020";
 import { describe, expect, it } from "vitest";
-import { checkPack, checkPackValue, PACK_LIMITS, PACK_SCHEMA, versionBelow, type Pack } from "./pack";
+import { checkPack, checkPackValue, PACK_2_SCHEMA, PACK_LIMITS, PACK_SCHEMA, versionBelow, type Pack } from "./pack";
 import { aimsAtAssistant } from "./assistant-words";
 import { METRIC_FILE_2_SCHEMA, METRIC_FILE_SCHEMA } from "./metric-file";
 import { DASHBOARD_TEMPLATE_SCHEMA } from "./dashboard-template-file";
@@ -13,7 +13,7 @@ import { EXAMPLE as VIEW, WITH_RECIPE } from "./view-design.test";
 import { repoFile } from "./test/repo-file";
 import { DASHBOARD, DECK, METRIC, THEME, WORKFLOW } from "./pack-files.test";
 import { DECK_TEMPLATE_2_SCHEMA, DECK_TEMPLATE_SCHEMA } from "./deck-template-file";
-import { WORKFLOW_TEMPLATE_SCHEMA } from "./workflow-template-file";
+import { WORKFLOW_TEMPLATE_2_SCHEMA, WORKFLOW_TEMPLATE_SCHEMA } from "./workflow-template-file";
 
 /** A Pack with one item of every kind, the dashboard naming the Pack's entries and design, as a creator might write it. */
 export const PACK: Pack = {
@@ -55,7 +55,7 @@ const HOSTILE: [string, string, string, Where][] = [
   ["too big", text({ ...PACK, summary: "x".repeat(PACK_LIMITS.bytes) }), "at most 1,048,576 are allowed", null],
   ["nested too deeply", JSON.stringify({ ...PACK, contents: { views: [{ key: "x", design: JSON.parse("[".repeat(25) + "]".repeat(25)) }] } }), "nested more than 20 levels", "{"],
   ["a field given twice", '{\n "format": "ziffr.pack/1",\n "format": "ziffr.pack/1"\n}', "given twice", '"format": "ziffr.pack/1"\n}'],
-  ["a later version of the format", text({ ...PACK, format: "ziffr.pack/2" }), "format ziffr.pack/2; this Ziffr reads ziffr.pack/1", '"format"'],
+  ["a later version of the format", text({ ...PACK, format: "ziffr.pack/3" }), "format ziffr.pack/3; this Ziffr reads ziffr.pack/1, ziffr.pack/2", '"format"'],
   ["another format", text({ ...PACK, format: "npm-package" }), "must be “ziffr.pack/1”", '"format"'],
   ["an unknown field", text({ ...PACK, scripts: { postinstall: "x" } }), "is not a field here", '"scripts"'],
   ["an unknown kind of content", withContents({ plugins: [{ key: "x", code: "x" }] }), "is not a field here", '"plugins"'],
@@ -241,6 +241,7 @@ describe("the published schemas", () => {
   // UPDATE_REFERENCE=1 writes them.
   const published: [string, object][] = [
     ["docs/reference/pack.schema.json", PACK_SCHEMA],
+    ["docs/reference/pack-2.schema.json", PACK_2_SCHEMA],
     ["docs/reference/metric.schema.json", METRIC_FILE_SCHEMA],
     ["docs/reference/metric-2.schema.json", METRIC_FILE_2_SCHEMA],
     ["docs/reference/dashboard-template.schema.json", DASHBOARD_TEMPLATE_SCHEMA],
@@ -249,6 +250,7 @@ describe("the published schemas", () => {
     ["docs/reference/deck-template.schema.json", DECK_TEMPLATE_SCHEMA],
     ["docs/reference/deck-template-2.schema.json", DECK_TEMPLATE_2_SCHEMA],
     ["docs/reference/workflow-template.schema.json", WORKFLOW_TEMPLATE_SCHEMA],
+    ["docs/reference/workflow-template-2.schema.json", WORKFLOW_TEMPLATE_2_SCHEMA],
   ];
   it.each(published)("%s is the one the checks run", (file, schema) => {
     const path = repoFile(file);

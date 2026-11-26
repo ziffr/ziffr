@@ -2,6 +2,7 @@
 // with every value's line kept, so a problem names its line, and held to a JSON Schema the reference is generated from.
 // Security: nothing here runs what it reads. Size and depth are limited before the text is walked, so a hostile file
 // cannot make the parser or the checks work without end.
+import { textPasses } from "./file-text.js";
 
 /** The JSON Schema keywords these checks understand: enough for a file format, nothing that loads or runs anything. */
 export type Schema = {
@@ -188,7 +189,7 @@ export function checkSchema(root: Schema, value: unknown, lines: Map<string, num
     if (typeof v === "string") {
       if (s.minLength !== undefined && chars(v) < s.minLength) at(path, s.minLength === 1 ? "must not be empty." : `must have at least ${s.minLength} characters.`);
       if (s.maxLength !== undefined && chars(v) > s.maxLength) at(path, `has ${chars(v)} characters; at most ${s.maxLength} are allowed.`);
-      if (s.pattern !== undefined && !new RegExp(s.pattern, "u").test(v)) at(path, s.description ? `must be ${s.description.replace(/\.$/, "")}.` : "is not allowed here.");
+      if (s.pattern !== undefined && !textPasses(s.pattern, v)) at(path, s.description ? `must be ${s.description.replace(/\.$/, "")}.` : "is not allowed here.");
     }
     if (typeof v === "number") {
       if (s.minimum !== undefined && v < s.minimum) at(path, `must be at least ${s.minimum}.`);
