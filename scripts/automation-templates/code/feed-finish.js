@@ -35,7 +35,7 @@ if (items.length === 0) throw new Error(String(given.none || 'No figure to send:
 
 const overview = $('What is filled').first().json;
 const listed = overview && overview.metrics && Array.isArray(overview.metrics.items) ? overview.metrics.items : [];
-if (overview && overview.metrics && overview.metrics.next) throw new Error('This Feed submits to more than 200 Metrics; this template reads that many at most. No figure was sent.');
+if (overview && overview.metrics && overview.metrics.next) throw new Error('This Feed submits to more than 100 Metrics; this template reads that many at most (use a second Feed for the rest). No figure was sent.');
 const metricOf = new Map(listed.map((m) => [m.slug, m]));
 const send = items.filter((i) => {
   const m = metricOf.get(i.metric);
