@@ -206,3 +206,17 @@ export async function setTotalTargets(actor: Actor, totalId: number, targets: st
   await recordVersion("metric", total.id, actor.personId, { message: "Changed where its target comes from", always: true });
   await audit(actor, { kind: "metric.total_changed", object: { type: "metric", id: total.id, name: total.name }, details: { change: "targets" } });
 }
+
+/** Makes a Metric just made from a Workspace Export the Total the file says it is: its list as the file has it, closed.
+ * For the import only, which acts as the new Workspace's Owner on Metrics of its own; the database checks that every
+ * Metric of the list takes values and goes with the Total. */
+export async function restoreTotal(actor: Actor, totalId: number, targets: "own" | "parts", parts: { id: number; first: string; last: string | null }[]): Promise<void> {
+  assertCan(actor, "create");
+  const m = await editableMetric(actor, totalId, "what it adds up");
+  const patch = await sealedPatch("metrics", actor.workspaceId, m.id as number, { formula: "{-}", sources: [], inputs_checked: true, total_targets: targets, ...(targets === "parts" ? { target_min: null, target_max: null } : {}) });
+  const turned = await db().from("metrics").update(patch).eq("id", totalId).eq("workspace_id", actor.workspaceId);
+  const rows = parts.map((p) => ({ total_id: totalId, part_id: p.id, workspace_id: actor.workspaceId, first_period: p.first, last_period: p.last }));
+  const listed = turned.error || !rows.length ? turned : await db().from("total_parts").insert(rows);
+  if (listed.error) throw refusal(listed.error, "A Total could not be made.");
+  await recordVersion("metric", totalId, actor.personId, { message: "Imported from a Workspace Export" });
+}

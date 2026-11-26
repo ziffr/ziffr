@@ -110,7 +110,7 @@ _Avoid_: Achievement, target fulfilment, performance
 ### Input
 
 **Connector**:
-A link between Ziffr and an outside system, such as Slack, email, Telegram, WhatsApp, a ticket system or the web form, and what it can do there: receive values, send reminders, send questions and tasks, bring replies back, keep a task's status in step. Some, such as Slack, are connected per Workspace by an Owner or Admin, to one workspace of that system, and reach a person only once they are found there by their proven address or link themselves; Telegram, turned on per Workspace, reaches only those who linked their own account.
+A link between Ziffr and an outside system, such as Slack, email, Telegram, WhatsApp, a ticket system or the web form, and what it can do there: receive values, send reminders, send questions and tasks, bring replies back, keep a task's status in step. Some, such as Slack, are connected per Workspace by an Owner or Admin, to one workspace of that system, and reach a person only once they are found there by their proven address or link themselves; Telegram, turned on per Workspace, reaches only those who linked their own account. A Member is emailed when an account of Slack or Telegram becomes theirs, and whoever such an account moves away from is emailed too.
 _Avoid_: Integration, plugin, channel
 
 **Source**:

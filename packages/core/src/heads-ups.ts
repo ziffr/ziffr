@@ -18,6 +18,7 @@
 // counts the scans each person starts, so the list can be opened by a page or a script without scanning again each time (ticket #707).
 // A Metric that is archived or hidden since is gone from the list at once, without a new scan, because the set is part of what a
 // kept result is matched against and the filter is applied at every read.
+import { totalParts } from "./total-parts";
 import { createHash } from "node:crypto";
 import type { Actor } from "./actor";
 import { visibleMetricIds } from "./access";
@@ -130,7 +131,7 @@ function ingredients(metrics: readonly Metric[]): Map<number, Set<number>> {
  * it cannot be combined to that Period), and which Metric was updated how recently. Only values of the last ten years are read: no series is longer than 120 periods, and
  * a yearly Metric has few values. A value that is not final (waiting for Approval, or sent back; value-state.ts, the rule Alerts read too) is not used: the period is left
  * out (a gap), so no Heads-up rests on a value not approved yet. */
-async function finalValues(ws: string, day: string) {
+async function finalValues(ws: string, day: string, sees?: (metricId: number) => boolean) {
   const [metrics, yearStart] = await Promise.all([getMetrics(ws), yearStartOf(ws)]);
   const [all, waiting] = await Promise.all([
     getLatestObservations(ws, { from: shiftPeriod(day, "year", -10) }),
@@ -140,7 +141,8 @@ async function finalValues(ws: string, day: string) {
   const unapproved = new Set(waiting.map((w) => `${w.metric_id}:${w.period_start}`));
   const observations = all.filter((o) => !unapproved.has(`${o.metric_id}:${o.period_start}`));
   const targets = await formulaTargets(ws, metrics, metrics.map((m) => m.id));
-  const series = buildSeries(metrics, observations, targets);
+  // A Total is worked out only for one person (`sees`), from values that are final: never for the scan all share.
+  const series = buildSeries(metrics, observations, targets, sees && (await totalParts(ws, metrics, { sees })));
   const resolve = resolverFrom(metrics, series, { targets, yearStart });
   const byId = new Map(metrics.map((m) => [m.id, m]));
   const levels = (id: number, span: Span): Point[] | null => {
@@ -176,7 +178,8 @@ async function scanSubset(ws: string, day: string, pick: (all: Metric[]) => Metr
 /** The Metrics `mine` (the ones a person may see, in use) as the Heads-ups about one Metric look at them: the 200 most recently updated that have values, each with
  * its final levels on its own Period. Nothing here reads a Metric outside `mine`, except that a Derived Metric's values come from its inputs. */
 async function singleLooks(ws: string, day: string, mine: Metric[]): Promise<SingleLook[]> {
-  const { series, levels, updatedAmong } = await finalValues(ws, day);
+  const seen = new Set(mine.map((m) => m.id));
+  const { series, levels, updatedAmong } = await finalValues(ws, day, (id) => seen.has(id));
   const updated = updatedAmong(mine);
   const withValues = mine.filter((m) => (series[m.slug]?.length ?? 0) > 0);
   const looked = capMetrics(withValues.map((m) => ({ m, id: m.id, latest: updated(m) })));
@@ -389,7 +392,7 @@ async function singleHeads(actor: Actor, all: Metric[], mine: Metric[], ctx: { s
   const ws = actor.workspaceId;
   const make = async () => singleHeadsUpsFrom(await singleLooks(ws, day, mine), { ...ctx, today: day });
   try {
-    const rests = hashOf([ctx, day, mine.map((m) => [m.id, m.name, m.slug, m.formula ?? null, m.period, m.polarity, m.target_min, m.target_max, m.unit, m.unit_position, m.decimals, m.aggregation])]);
+    const rests = hashOf([ctx, day, mine.map((m) => [m.id, m.name, m.slug, m.formula ?? null, m.total?.open ?? null, m.period, m.polarity, m.target_min, m.target_max, m.unit, m.unit_position, m.decimals, m.aggregation])]);
     const sig = signature(mine.map((m) => m.id), `${rests}|${await valuesFingerprint(ws, all, mine)}`);
     return await ownHeads(ws, `${actor.personId}~single`, sig, opts.now ?? Date.now(), opts.lane ?? "page", make);
   } catch {

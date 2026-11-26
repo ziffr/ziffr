@@ -2,6 +2,8 @@
 // (slack-send.ts) and Telegram (telegram-send.ts). Internal to the core: these check no Actor and no claim, so only a
 // sender that has read the queued Delivery itself, and claimed it before it adds the link, calls them. The app never
 // imports from core/internal (.github/scripts/app-db-access.mjs).
+import { mayReadMessage } from "../total-views";
+import { restsOnTotal } from "../totals";
 import { db } from "../db";
 import { ARCHIVED_BEFORE_SENT } from "../archived-metrics";
 import { visibleDashboards, visibleMetricIds } from "../access";
@@ -30,7 +32,7 @@ export async function withFormLink(body: string, d: { workspace_id: string; form
 export const PROMPT_ANSWERED = "Not sent: the request was answered another way first.";
 
 /** What a Delivery is about, as far as its Metric goes. */
-type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; heads_up_key?: string | null; heads_up_told_id?: number | null; tell_workflow_id?: number | null; snapshot_dashboard_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null; sender_id?: string | null; filled_in_observation_id?: number | null };
+type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; heads_up_key?: string | null; heads_up_told_id?: number | null; tell_workflow_id?: number | null; snapshot_dashboard_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null; sender_id?: string | null; filled_in_observation_id?: number | null; total_rests?: unknown };
 
 /** Why a message of a Workflow's (a Tell or a Checklist Item) must not go out: its recipient said "stop telling me" after it was queued. Null otherwise. */
 async function toldStop(d: AboutMetric): Promise<string | null> {
@@ -82,7 +84,10 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
   if (d.kind === "alert" && d.alert_metric_id) {
     const metrics = await getMetrics(ws);
     const m = metrics.find((x) => x.id === d.alert_metric_id);
-    if (!m || m.archived_at || !d.recipient_id || !(await visibleMetricIds(ws, d.recipient_id, metrics)).has(m.id)) return "Not sent.";
+    if (!m || m.archived_at || !d.recipient_id) return "Not sent.";
+    const sight = await visibleMetricIds(ws, d.recipient_id, metrics);
+    // A Total closed while the message waited tells its numbers to no one who may not see every Metric they counted.
+    if (!sight.has(m.id) || !mayReadMessage(metrics, m, d.total_rests, (id) => sight.has(id))) return "Not sent.";
     // A Tell message (GLOSSARY: Tell) also stops when the person said "stop telling me" after it was queued.
     return toldStop(d);
   }
@@ -97,7 +102,8 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
     // not sent hours later. A message that does not go gives its place back by itself (a trigger on a failed Delivery).
     const { data: told } = d.heads_up_told_id ? await db().from("heads_up_told").select("id").eq("id", d.heads_up_told_id).eq("workspace_id", ws).eq("person_id", d.recipient_id).is("ended_at", null).maybeSingle() : { data: null };
     if (!told) return "Not sent.";
-    if (!about.every((id) => seen.has(id) && metrics.some((m) => m.id === id && !m.archived_at && !m.inputs_withheld))) return "Not sent.";
+    // Nor about a Metric that rests on a Total by now: a Heads-up looks back over many periods, so none is sent.
+    if (!about.every((id) => seen.has(id) && metrics.some((m) => m.id === id && !m.archived_at && !m.inputs_withheld && !restsOnTotal(m)))) return "Not sent.";
     // The person's own choices made while it waited: switched off, a Metric muted, or this Heads-up marked Not useful.
     const [{ data: set }, { data: mutes }, { data: no }] = await Promise.all([
       db().from("heads_up_settings").select("show, by_message").eq("workspace_id", ws).eq("person_id", d.recipient_id).maybeSingle(),

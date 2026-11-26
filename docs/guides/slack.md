@@ -91,6 +91,8 @@ A Slack message goes only to a member or Contact of the Ziffr workspace, and onl
 - **Contacts** are found by the email address the workspace keeps for them.
 - A Slack handle stored for a Contact is never used: Slack display names are neither unique nor proven.
 
+A member is emailed when a Slack account becomes theirs, found by address or linked with a code, and whoever's account a code connects to someone else is emailed too (see [the user guide](../user-guide/16-workspace-settings.md#when-an-account-is-connected-to-you)). The email for a code carries a button that disconnects the account without signing in; proxies should not log paths under `/api/disconnect-chat/`. A first connection of a Slack workspace therefore sends each member found there one email, as Ziffr finds them. The name in the email comes from Slack (`users:read`).
+
 Deactivated Slack users and bots are never messaged. The Outbox shows each Slack message as **Sent on Slack**, **Waiting to send** or **Not sent**, with the reason, for example "Nobody on the connected Slack has their address."
 
 **Limits.** A workspace sends at most 500 Slack messages a day, one person gets at most 20 an hour, and one person causes at most 300 a day. Ziffr also sends at most 40 a minute to one Slack workspace, below Slack's own limit. Messages over a limit wait in the queue. When Slack asks Ziffr to wait, it waits as long as Slack says.

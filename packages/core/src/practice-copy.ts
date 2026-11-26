@@ -209,6 +209,7 @@ export async function makeFromDemo(personId: string, made: (workspaceId: string)
   const written = await writeInto(personId, workspaceId, header, {
     // Shares are copied from the demo afterwards, with Everyone's and Editors'.
     records: numbered(without(source.records, "share")),
+    totals: source.totals,
     isSelf: (p) => p.email.toLowerCase() === String(email ?? "").toLowerCase(),
     keepPeople: (actor, list, groupOf) => keepMadeUp(actor, list, groupOf, source.labels, people),
   });

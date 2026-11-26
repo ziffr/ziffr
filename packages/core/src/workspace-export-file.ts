@@ -193,7 +193,9 @@ async function* linesOf(records: AsyncIterable<WorkspaceExportRecord> | Iterable
     if (record.kind === "end") refuse("The end record is written by the writer, not given to it.");
     yield write(record);
   }
-  yield write({ kind: "end", counts: { ...checker.recordCounts } });
+  // `total` is declared only where there is one, so a file without a Total is read by an older Ziffr too.
+  const { total, ...counts } = checker.recordCounts;
+  yield write({ kind: "end", counts: { ...counts, ...(total ? { total } : {}) } });
   const problems = checker.finish();
   if (problems.length) throw new WorkspaceExportProblem(problems);
 }
