@@ -25,6 +25,7 @@ export function ShareSheet({ objectType, objectId, name, ownerId, people, shares
     mine.current = true;
     setUrlOpen(true);
     panel.open({
+      short: true,
       title: `Share \u201c${name}\u201d`,
       description: objectType === "dashboard"
         ? "Viewers can look, inspect history and ask questions. Editors can also arrange widgets. Everyone you share with can see the metrics on this dashboard."

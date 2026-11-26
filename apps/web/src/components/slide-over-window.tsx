@@ -27,7 +27,7 @@ function Watch({ onGone, children }: { onGone: () => void; children: React.React
 }
 
 /** Shows `children` in the side panel while mounted. `children` is read once, when the window opens: give it state of its own rather than props that change. */
-export function SlideOverWindow({ title, description, onClose, children }: { title: string; description?: string; onClose: () => void; children: React.ReactNode }) {
+export function SlideOverWindow({ title, description, short, onClose, children }: { title: string; description?: string; /** A bottom sheet on a phone (see SlideOverContent). */ short?: boolean; onClose: () => void; children: React.ReactNode }) {
   const { open, replace, close } = useSlideOver();
   const alive = useRef(false);
   const gone = useRef(false);
@@ -41,6 +41,7 @@ export function SlideOverWindow({ title, description, onClose, children }: { tit
     (started.current ? replace : open)({
       title,
       description,
+      short,
       content: <Watch onGone={() => { gone.current = true; latest.current(); }}>{children}</Watch>,
     });
     started.current = true;

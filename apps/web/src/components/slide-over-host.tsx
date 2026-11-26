@@ -1,8 +1,8 @@
 "use client";
 // GLOSSARY: Slide-over. The one host for the side panel (spec 0050, docs/guides/side-panel.md): a screen that
 // wants to show something beside the page calls `useSlideOver().open({ title, content })` instead of building
-// its own Sheet. The host owns the width (the full width on a phone, a fixed one on a desktop), where focus goes
-// on open and where it returns on close, Escape, the accessible title and the way back. It holds no data of its
+// its own Sheet. The host owns the shape (on a phone the whole screen, or a bottom sheet for a short panel; a fixed
+// width on a desktop), where focus goes on open and where it returns on close, Escape, the accessible title and the way back. It holds no data of its
 // own: `content` is a component the caller already built from what the page may show.
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -17,6 +17,8 @@ export type SlideOverContent = {
   content: React.ReactNode;
   /** Shows a "Wider" / "Narrower" button in the header (reading panels such as Help); the choice is kept for the session. Other panels keep their one width. */
   widthToggle?: boolean;
+  /** A short panel (Share, Alert me, one choice): on a phone it opens from the bottom and leaves the top of the page in view. Work panels leave this out and cover the screen. */
+  short?: boolean;
 };
 
 type SlideOverApi = {
@@ -89,7 +91,7 @@ export function SlideOverProvider({ children }: { children: React.ReactNode }) {
       {children}
       <Sheet open={Boolean(current)} onOpenChange={(o) => { if (!o) close(); }}>
         {current && (
-          <SheetContent className={isWide ? "max-w-[min(48rem,100vw)] sm:w-[48rem]" : "sm:w-[26rem]"} data-slide-over finalFocus={opener}>
+          <SheetContent short={current.short} className={isWide ? "max-w-[min(48rem,100vw)] sm:w-[48rem]" : "sm:w-[26rem]"} data-slide-over finalFocus={opener}>
             <SheetHeader>
               {steps.length > 1 && (
                 <Button variant="ghost" size="sm" className="-ml-2 w-fit" onClick={back}><ArrowLeft aria-hidden /> Back</Button>
