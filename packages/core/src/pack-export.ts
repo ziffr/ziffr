@@ -183,7 +183,7 @@ export async function gatherPack(actor: Actor, manifest: ExportManifest, choice:
   // Metrics and catalog entries: the entries a Pack holds. A formula names others by their key in this Pack.
   const metricRows = ids("metrics").filter((id) => seen.has(id)).map((id) => seen.get(id)!);
   for (const id of ids("metrics")) if (!seen.has(id)) leftOut.push({ name: `Metric ${id}`, why: "You do not see it." });
-  const catRows = await rows("catalog_metrics", ids("catalog"), "id, category, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, formula, tags, pack_key, pack_install_id");
+  const catRows = await rows("catalog_metrics", ids("catalog"), "id, category, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, formula, tags, total, pack_key, pack_install_id");
   const entries = [
     ...metricRows.map((m) => ({ src: "metric" as const, m: m as unknown as Row, key: keyFor(null, m.name), slugOrKey: m.slug })),
     ...catRows.map((r) => ({ src: "catalog" as const, m: r, key: keyFor(r.pack_key, String(r.name)), slugOrKey: String(r.pack_key ?? "") })),

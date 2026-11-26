@@ -13,6 +13,7 @@ import { listed } from "./pack-places";
 import { buildSetup, SETUP_METRICS_MAX, tickedShares, type Blueprint, type PackSetupInput, type PlannedDashboard, type ProposedShare } from "./pack-setup-build";
 import { installedForSetup, assertSetsUp, roomNow, type PackSetupRoom } from "./pack-setup-install";
 import { PLACE_WORDS, whyNot, type PersonKind } from "./pack-setup-who";
+import { isComputed, plannedSums } from "./pack-setup-totals";
 import type { DashboardTemplateBody, Metric, WorkflowStep } from "./types";
 
 /** How many requests for values a person gets. */
@@ -51,7 +52,7 @@ function plannedRows(actor: Actor, b: Blueprint, shares: ProposedShare[]): Plann
   return {
     // All are the actor's, who sees what they own whatever it is computed from, so no formula is needed.
     metrics: b.metrics.map((m) => ({ id: m.plan, name: m.name, slug: `planned-${-m.plan}`, owner_id: actor.personId, formula: null }) as unknown as Metric),
-    tokens: b.metrics.flatMap((m) => [...m.submitters, ...(b.feed && !m.entry.formula ? [b.feed] : [])].map((s) => ({ metric_id: m.plan, submitter_id: s }))),
+    tokens: b.metrics.flatMap((m) => [...m.submitters, ...(b.feed && !isComputed(m.entry) ? [b.feed] : [])].map((s) => ({ metric_id: m.plan, submitter_id: s }))),
     shares: shares.map((s) => ({ object_type: s.object, object_id: s.plan, user_id: s.person, role: s.role })),
     dashboards: b.dashboards.map((d) => ({ id: d.plan, owner_id: actor.personId })),
     widgets: [
@@ -134,7 +135,9 @@ export async function planPackSetup(actor: Actor, installId: number, input: Pack
       ...b.dashboards.filter((d) => onBoards.get(d.plan)!.includes(metric) && ticked.some((s) => s.object === "dashboard" && s.plan === d.plan && s.person === person)).map((d) => `on the dashboard ${d.name}`),
       ...new Set(joins(person, metric)),
     ];
-    return reasons.length ? reasons : ["sees it already"];
+    // A Total's sums, and what is computed from them, are shown only to who sees every Metric it adds up.
+    const sums = planned ? plannedSums(b.metrics, planned, after(person).metrics) : null;
+    return [...(reasons.length ? reasons : ["sees it already"]), ...(sums ? [sums] : [])];
   };
   const everyone = involved(actor, b, through.map((s) => s.user_id));
   const sees = everyone.map((id) => {

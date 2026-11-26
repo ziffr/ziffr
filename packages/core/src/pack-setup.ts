@@ -9,7 +9,8 @@
 // cap), addSubmitters and setStandIn, addFeedToMetric (which also turns the API Source on), saveWorkflow (people of
 // this Workspace only), createDashboardFromTemplate (every Metric must be seen) and share (only what the actor owns,
 // only with members). A Share is made only when ticked, and nobody but the actor is messaged unless asked. A Derived
-// Metric's formula is checked like any other. Everything asked for is checked before anything is made.
+// Metric's formula is checked like any other. A Total is made and added to as by hand, never opened. Everything asked
+// for is checked before anything is made.
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
@@ -30,6 +31,8 @@ import { peopleIn } from "./submissions";
 import { LimitReached } from "./workspace-limits";
 import { buildSetup, placeMaps, SETUP_METRICS_MAX, tickedShares, withSlugs, type Blueprint, type BuiltLine, type PackSetupInput, type PlannedMetric, type PlannedWorkflow, type ProposedShare } from "./pack-setup-build";
 import { PACK_POSITION_LIMITS } from "@ziffr/pack/pack-positions";
+import { entryInputs, entryTotal, isComputed, makeTotal } from "./pack-setup-totals";
+import { addTotalPart } from "./total-changes";
 import { assertSetsUp, installedForSetup, roomFor, roomNow, type PackSetupRoom } from "./pack-setup-install";
 import type { Slot, WorkflowTemplateBody } from "./types";
 import type { KeptOverview, PackNumber } from "@ziffr/pack/comes-from";
@@ -37,8 +40,8 @@ import type { KeptOverview, PackNumber } from "@ziffr/pack/comes-from";
 export type { PackSetupInput, PackSetupRoom };
 
 /** An entry of the Pack's part of the Metric Catalog, as the set-up page offers it. `inputs` are the keys a Derived
- * Metric's formula names: picking it makes them too, first. */
-export type SetupEntry = { key: string; name: string; period: string; unit: string; derived: boolean; inputs: string[]; tags: string[]; /** The Repeat that makes it once for each line, or null. */ repeat: string | null; /** Whether a Position says who submits it. */ asksPosition: boolean; /** Where the Pack says its number comes from (comes-from.ts); null for an install that keeps none. */ comesFrom: PackNumber | null };
+ * Metric's formula names, or the entry a Total adds up: picking it makes them too, first. */
+export type SetupEntry = { key: string; name: string; period: string; unit: string; derived: boolean; /** Whether it is a Total, which adds up its one input of every line. */ total: boolean; inputs: string[]; tags: string[]; /** The Repeat that makes it once for each line, or null. */ repeat: string | null; /** Whether a Position says who submits it. */ asksPosition: boolean; /** Where the Pack says its number comes from (comes-from.ts); null for an install that keeps none. */ comesFrom: PackNumber | null };
 /** What setting up from an installed Pack offers: its entries and templates, the members who may approve, and the
  * Metrics this person sees to fill a Slot no entry fills. Names and ids only. */
 export type PackSetupOptions = {
@@ -67,12 +70,12 @@ export type PackSetupOptions = {
 };
 
 /** What was made. `dashboardId` and `workflowId` are the first of each. */
-export type PackSetupResult = { metrics: { id: number; slug: string; name: string; /** The Pack's key of the entry it was made from. */ key: string; /** The name of the Repeat's line it was made for, or null. */ line: string | null; /** False for a Derived Metric, which a Feed cannot fill. */ takesValues: boolean }[]; dashboardId: number | null; workflowId: number | null;
+export type PackSetupResult = { metrics: { id: number; slug: string; name: string; /** The Pack's key of the entry it was made from. */ key: string; /** The name of the Repeat's line it was made for, or null. */ line: string | null; /** False for a Derived Metric or a Total, which a Feed cannot fill. */ takesValues: boolean }[]; dashboardId: number | null; workflowId: number | null;
   dashboards: { id: number; name: string }[]; workflows: { id: number; name: string }[];
   /** How many Shares were made, and how many requests for values went out at once. */
   shares: number; messages: number;
-  /** Adding a line: how many widgets took its Metrics, and what is left to do by hand. */
-  widgets: number; byHand: string[];
+  /** Adding a line: how many widgets took its Metrics, how many Totals count them, and what is left to do by hand. */
+  widgets: number; totals: number; byHand: string[];
   /** The Tags of an entry that a limit kept off its Metric (the Metric is made either way), by Metric: the page says so. */
   tagsLeftOut: { metric: string; tags: string[] }[] };
 
@@ -98,7 +101,7 @@ export async function packSetupOptions(actor: Actor, installId: number): Promise
     install: p.install,
     suggestedFeeds: p.feeds,
     overview: p.overview,
-    entries: [...p.entries.values()].map((e) => ({ key: e.pack_key, name: e.name, period: e.period, unit: e.unit, derived: Boolean(e.formula), inputs: e.formula ? formulaInputs(e.formula) : [], tags: tagNamesOf(e.tags, TAGS_PER_ENTRY), repeat: places.metrics.get(e.pack_key)?.per ?? null, asksPosition: Boolean(places.metrics.get(e.pack_key)?.submitters), comesFrom: numbers.get(e.pack_key) ?? null })),
+    entries: [...p.entries.values()].map((e) => ({ key: e.pack_key, name: e.name, period: e.period, unit: e.unit, derived: isComputed(e), total: entryTotal(e) !== null, inputs: entryInputs(e, formulaInputs), tags: tagNamesOf(e.tags, TAGS_PER_ENTRY), repeat: places.metrics.get(e.pack_key)?.per ?? null, asksPosition: Boolean(places.metrics.get(e.pack_key)?.submitters), comesFrom: numbers.get(e.pack_key) ?? null })),
     dashboards: [...p.dashboards.values()].map((t) => ({ key: t.pack_key, name: t.name, slots: (t.slots ?? []).map((s) => ({ label: s.label, multiple: s.multiple, ...(s.suggests ? { suggests: s.suggests } : {}) })), repeat: places.dashboards.get(t.pack_key)?.per ?? null })),
     workflows: [...p.workflows.values()].map((t) => ({ key: t.pack_key, name: t.name, approvers: places.workflows.get(t.pack_key)?.steps.some((s) => s.by) ? 0 : approversWanted(t.body as WorkflowTemplateBody), repeat: places.workflows.get(t.pack_key)?.per ?? null })),
     positions: places.positions.size > 0 || places.repeats.size > 0,
@@ -121,6 +124,7 @@ type Progress = {
   dashboards: Map<number, { id: number; name: string }>;
   shares: number;
   widgets: number;
+  totals: number;
   messages: number;
   tagsLeftOut: PackSetupResult["tagsLeftOut"];
 };
@@ -138,7 +142,8 @@ async function makeWorkflows(actor: Actor, b: Blueprint, record: SetupRecord, do
 async function makeMetrics(actor: Actor, b: Blueprint, todo: PlannedMetric[], record: SetupRecord, done: Progress) {
   for (const planned of todo) {
     const e = planned.entry;
-    const m = await createMetric(actor, {
+    // A Total counts the Metrics of the lines, all made before it.
+    const m = entryTotal(e) ? await makeTotal(actor, planned, planned.parts!.map((x) => done.metrics.get(x)!.id)) : await createMetric(actor, {
       name: planned.name, description: e.description, unit: e.unit, unitPosition: e.unit_position, format: e.format, decimals: e.decimals, period: e.period,
       submissionRule: e.submission_rule, polarity: e.polarity, aggregation: e.aggregation, targetMin: e.target_min, targetMax: e.target_max,
       // A Derived Metric takes no values, so no Source and no Workflow.
@@ -152,7 +157,7 @@ async function makeMetrics(actor: Actor, b: Blueprint, todo: PlannedMetric[], re
       const slug = (key: string) => [...done.metrics.values()].find((x) => x.key === key && (x.line === planned.line?.name || x.line === null))?.slug ?? b.given.get(key)!;
       await writeFormula(actor, { ...m, name: planned.name }, withSlugs(e.formula, slug));
     }
-    const one = { id: m.id, slug: m.slug, name: planned.name, key: e.pack_key, line: planned.line?.name ?? null, takesValues: !e.formula };
+    const one = { id: m.id, slug: m.slug, name: planned.name, key: e.pack_key, line: planned.line?.name ?? null, takesValues: !isComputed(e) };
     done.metrics.set(planned.plan, one);
     await record.made({ kind: "metric", key: e.pack_key, line: planned.line, id: m.id });
   }
@@ -170,14 +175,14 @@ async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | nul
       return sent;
     },
   };
-  const taking = todo.filter((m) => !m.entry.formula).map((m) => ({ ...m, id: done.metrics.get(m.plan)!.id }));
+  const taking = todo.filter((m) => !isComputed(m.entry)).map((m) => ({ ...m, id: done.metrics.get(m.plan)!.id }));
   for (const m of taking) for (let i = 0; i < m.submitters.length; i += SUBMITTERS_PER_CHANGE) await addSubmitters(actor, m.id, m.submitters.slice(i, i + SUBMITTERS_PER_CHANGE), effects);
   for (const m of taking) if (m.standIn) for (const s of m.submitters) if (s !== m.standIn) await setStandIn(actor, m.id, s, m.standIn);
   if (feed) for (const m of taking) await addFeedToMetric(actor, m.id, feed);
 }
 
 /** Makes the dashboards, then the Shares ticked, then gives each Send Snapshot step its dashboard, then adds the new
- * Metrics to the widgets ticked of what was set up before. */
+ * Metrics to the widgets and the Totals ticked of what was set up before. */
 async function makeDashboards(actor: Actor, b: Blueprint, ticked: ProposedShare[], record: SetupRecord, done: Progress) {
   for (const d of b.dashboards) {
     const id = await createDashboardFromTemplate(actor, { template: d.template.id, name: d.name, fills: d.fills.map((f) => f.map((x) => (x < 0 ? done.metrics.get(x)!.id : x))) });
@@ -194,6 +199,11 @@ async function makeDashboards(actor: Actor, b: Blueprint, ticked: ProposedShare[
     const now = await editableWidget(actor, w.id);
     await updateWidget(actor, w.id, { metricIds: [...now.metric_ids, ...w.add.map((plan) => done.metrics.get(plan)!.id)] });
     done.widgets++;
+  }
+  for (const t of b.additions.totals) {
+    // `open` is what the tick said: a Total opened since is refused by the same check as by hand.
+    await addTotalPart(actor, t.id, done.metrics.get(t.part)!.id, t.from, t.open);
+    done.totals++;
   }
 }
 
@@ -212,7 +222,7 @@ async function takeUp(actor: Actor, b: Blueprint, made: MadeThing[], done: Progr
     if (!was) continue;
     const metric = now.get(was.id);
     if (!metric) throw new Error(`“${m.name}” was deleted meanwhile.`);
-    done.metrics.set(m.plan, { id: was.id, slug: metric.slug, name: m.name, key: m.entry.pack_key, line: m.line?.name ?? null, takesValues: !m.entry.formula });
+    done.metrics.set(m.plan, { id: was.id, slug: metric.slug, name: m.name, key: m.entry.pack_key, line: m.line?.name ?? null, takesValues: !isComputed(m.entry) });
   }
 }
 
@@ -247,7 +257,7 @@ export async function setUpStep(actor: Actor, installId: number, input: PackSetu
   let record = resumed?.record ?? null;
   // Made in order: Workflows, then Metric by Metric (inputs first) with their Submitters and Stand-ins, then
   // dashboards, Shares and the Send Snapshot step. All of it was checked; only what changed meanwhile can still refuse.
-  const done: Progress = { workflows: new Map(), metrics: new Map(), dashboards: new Map(), shares: 0, widgets: 0, messages: resumed?.messages ?? 0, tagsLeftOut: [] };
+  const done: Progress = { workflows: new Map(), metrics: new Map(), dashboards: new Map(), shares: 0, widgets: 0, totals: 0, messages: resumed?.messages ?? 0, tagsLeftOut: [] };
   let b: Blueprint;
   try {
     b = await buildSetup(actor, p, input, resumed ? { record: resumed.record.id, metrics: resumed.made.filter((x) => x.kind === "metric").length } : undefined);
@@ -277,9 +287,9 @@ export async function setUpStep(actor: Actor, installId: number, input: PackSetu
   const dashboards = [...done.dashboards.values()];
   // Counts only: who was put where is in each change's own record.
   const positions = [b.fills, ...b.lines.map((l) => l.fills)].flatMap((f) => [...f.values()].filter((ids) => ids.length)).length;
-  await audit(actor, { kind: "pack.set_up", object: { type: "pack", id: p.install.id, name: p.install.name }, details: { version: p.install.version, metrics: done.metrics.size, dashboard: dashboards.length > 0, workflow: workflows.length > 0, feed: b.feed !== null, positions, lines: b.lines.length, shares: done.shares, messages: done.messages, ...(input.adding ? { added_line: true, widgets: done.widgets, joined_workflow: b.additions.join !== null } : {}) } });
+  await audit(actor, { kind: "pack.set_up", object: { type: "pack", id: p.install.id, name: p.install.name }, details: { version: p.install.version, metrics: done.metrics.size, dashboard: dashboards.length > 0, workflow: workflows.length > 0, feed: b.feed !== null, positions, lines: b.lines.length, shares: done.shares, messages: done.messages, ...(input.adding ? { added_line: true, widgets: done.widgets, totals: done.totals, joined_workflow: b.additions.join !== null } : {}) } });
   const metrics = [...done.metrics.values()];
-  return { done: true, result: { metrics, dashboardId: dashboards[0]?.id ?? null, workflowId: workflows[0]?.id ?? null, dashboards, workflows, shares: done.shares, messages: done.messages, widgets: done.widgets, byHand: b.additions.byHand, tagsLeftOut: done.tagsLeftOut } };
+  return { done: true, result: { metrics, dashboardId: dashboards[0]?.id ?? null, workflowId: workflows[0]?.id ?? null, dashboards, workflows, shares: done.shares, messages: done.messages, widgets: done.widgets, totals: done.totals, byHand: b.additions.byHand, tagsLeftOut: done.tagsLeftOut } };
 }
 
 /** Sets up from one of the Workspace's installed Packs (Owners and Admins) in one go: the picked entries as Metrics, a

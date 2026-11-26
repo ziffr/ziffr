@@ -13,7 +13,7 @@ import { safeOverview } from "./installed-pack-guides";
 import type { KeptOverview } from "@ziffr/pack/comes-from";
 
 /** A Metric Catalog entry of an install, as stored. */
-export type EntryRow = { id: number; pack_key: string; name: string; description: string; unit: string; unit_position: string; format: string; decimals: number; period: string; submission_rule: string; polarity: string; target_min: number | null; target_max: number | null; sources: string[]; aggregation: string; formula: string | null; tags: string[] | null };
+export type EntryRow = { id: number; pack_key: string; name: string; description: string; unit: string; unit_position: string; format: string; decimals: number; period: string; submission_rule: string; polarity: string; target_min: number | null; target_max: number | null; sources: string[]; aggregation: string; formula: string | null; tags: string[] | null; /** What makes it a Total, as stored (pack-setup-totals.ts reads it). */ total?: unknown };
 /** A Dashboard or Workflow Template of an install, as stored. */
 export type TemplateRow = { id: number; kind: "dashboard" | "workflow"; pack_key: string; name: string; slots: Slot[]; body: unknown };
 
@@ -51,7 +51,7 @@ export async function installedForSetup(actor: Actor, installId: number): Promis
   const { data: install } = await db().from("pack_installs").select("id, version, manifest").eq("id", installId).eq("workspace_id", ws).maybeSingle();
   if (!install) throw new Forbidden();
   const [{ data: entries }, { data: templates }] = await Promise.all([
-    db().from("catalog_metrics").select("id, pack_key, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, formula, tags").eq("workspace_id", ws).eq("pack_install_id", installId).order("id"),
+    db().from("catalog_metrics").select("id, pack_key, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, formula, tags, total").eq("workspace_id", ws).eq("pack_install_id", installId).order("id"),
     db().from("team_templates").select("id, kind, pack_key, name, slots, body").eq("workspace_id", ws).eq("pack_install_id", installId).in("kind", ["dashboard", "workflow"]).order("id"),
   ]);
   const byKey = <T extends { pack_key: string }>(rows: T[]) => new Map(rows.filter((r) => typeof r.pack_key === "string").map((r) => [r.pack_key, r]));

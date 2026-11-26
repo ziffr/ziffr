@@ -9,7 +9,7 @@ import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { checkPack, versionBelow, type Pack } from "./pack";
 import { cleanLogo, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
-import { assertManages, itemHash, packLogoOf, safeLogo, themeHashInput, itemKeys, keptManifest, notBuiltYet, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
+import { assertManages, itemHash, packLogoOf, safeLogo, themeHashInput, itemKeys, keptManifest, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
 import { packLogoAddress } from "./brand-logo";
 import { ensureBaseline, recordVersion } from "./versions";
 import type { ThemeSlides } from "./types";
@@ -30,8 +30,9 @@ function stored(table: Table, r: Record<string, unknown>, ownThemes: ReadonlySet
   if (table === "catalog") {
     const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
     const row = Object.fromEntries(CATALOG_FIELDS.map((f) => [f, f === "target_min" || f === "target_max" ? n(r[f]) : f === "decimals" ? Number(r[f]) : r[f] ?? null]));
-    // As installing hashed it: the field is there only for an entry that brings Tags (packs.ts storedItems).
-    return Array.isArray(r.tags) && r.tags.length ? { ...row, tags: r.tags } : row;
+    // As installing hashed it: these two fields are there only for an entry that brings Tags or is a Total (packs.ts
+    // storedItems).
+    return { ...row, ...(Array.isArray(r.tags) && r.tags.length ? { tags: r.tags } : {}), ...(r.total ? { total: r.total } : {}) };
   }
   if (table === "templates") {
     // A Deck Template's Theme is the installed Theme's id, which the hash leaves out: it was not known when hashed. Any
@@ -57,7 +58,7 @@ async function installOf(actor: Actor, installId: number) {
 /** Every copy still marked as from this install, with its hash as installed and now. */
 async function copiesOf(actor: Actor, installId: number): Promise<Copy[]> {
   const cols: Record<Table, string> = {
-    catalog: `id, pack_key, pack_hash, pack_offer, tags, ${CATALOG_FIELDS.join(", ")}`,
+    catalog: `id, pack_key, pack_hash, pack_offer, tags, total, ${CATALOG_FIELDS.join(", ")}`,
     templates: "id, pack_key, pack_hash, pack_offer, updated_at, kind, name, description, slots, body",
     designs: "id, pack_key, pack_hash, pack_offer, name, body",
     themes: "id, pack_key, pack_hash, pack_offer, updated_at, name, tokens, slides",
@@ -193,7 +194,7 @@ async function planUpdate(actor: Actor, installId: number, text: string) {
   }
   for (const c of copies) if (!nextKeys.has(c.key)) leave(c, "removed");
   const blocked = pack.id !== install.pack_id ? `This file is the Pack “${pack.id}”, not “${install.pack_id}”.`
-    : notBuiltYet(pack) ?? (!versionBelow(install.version, pack.version) ? `This file is version ${pack.version}; ${install.version} is installed. An update needs a higher version.`
+    : (!versionBelow(install.version, pack.version) ? `This file is version ${pack.version}; ${install.version} is installed. An update needs a higher version.`
       : (copies.some((c) => c.table === "themes") || next.themes.length) && actor.role !== "owner" ? "This Pack holds Themes, and only Owners change Themes: an Owner updates it."
         : await overCaps(actor, ops));
   const was = oldLogo;

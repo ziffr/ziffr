@@ -21,6 +21,7 @@ import { PACK_POSITION_LIMITS } from "@ziffr/pack/pack-positions";
 import { listed, type PackPlaces, type PlacedDashboard, type PlacedMetric, type PlacedStep, type PlacedWorkflow } from "./pack-places";
 import { roomFor, type EntryRow, type InstalledForSetup, type TemplateRow } from "./pack-setup-install";
 import { addingTo, additionsFor, NO_ADDITIONS, type Additions, type AddingTo } from "./pack-setup-adding";
+import { entryInputs, entryTotal, isComputed, orderTotals } from "./pack-setup-totals";
 import { whyNot, type PersonKind, type Place } from "./pack-setup-who";
 import type { Metric, ShareRole, WorkflowConfig, WorkflowStep, WorkflowTemplateBody } from "./types";
 
@@ -60,7 +61,7 @@ export type PackSetupInput = {
   askNow?: boolean;
   /** Adds one line to what was set up before: only what is made once for each line of its Repeat is made. `ticked` are
    * the offers to add it to what is there; nothing else there is changed. */
-  adding?: { ticked?: string[] } | null;
+  adding?: { ticked?: string[]; /** By offer, a day of the first period a Total counts the new Metric in. */ from?: Record<string, string> } | null;
 };
 
 /** The most Metrics one Set up makes (spec 0058). */
@@ -82,7 +83,7 @@ export type BuiltLine = { repeat: string; name: string; fills: Map<string, strin
 /** A Workflow to make. `send` is the dashboard its Send Snapshot step sends (a dashboard's `plan`) and to whom. */
 export type PlannedWorkflow = { key: string; line: BuiltLine | null; name: string; templateName: string; config: WorkflowConfig; approvers: string[]; send: { dashboard: number; people: string[] } | null };
 /** A Metric to make. `plan` is a number below 0 that stands for it until it has an id. */
-export type PlannedMetric = { plan: number; entry: EntryRow; line: BuiltLine | null; name: string; submitters: string[]; standIn: string | null; workflow: PlannedWorkflow | null; /** The slug of a Metric that is there already (`plan` is then its id). */ slug?: string };
+export type PlannedMetric = { plan: number; entry: EntryRow; line: BuiltLine | null; name: string; submitters: string[]; standIn: string | null; workflow: PlannedWorkflow | null; /** The slug of a Metric that is there already (`plan` is then its id). */ slug?: string; /** The planned Metrics a Total counts. */ parts?: number[] };
 /** A dashboard to make; each Slot's Metrics are ids, or below 0 for Metrics made here. */
 export type PlannedDashboard = { plan: number; key: string; line: BuiltLine | null; name: string; template: TemplateRow; fills: number[][] };
 /** A Share the Pack proposes among what is made. `id` is what a person ticks. */
@@ -153,18 +154,22 @@ export function placeMaps(places: PackPlaces | null, workflows: ReadonlyMap<stri
 }
 type Places = ReturnType<typeof placeMaps>;
 
-/** The entries to make: those picked, and every input of a Derived one, in the Pack's order. */
+/** The entries to make: those picked, every input of a Derived one and, unless a line is added to what is there, the
+ * entry each Total adds up, in the Pack's order. */
 function wantedEntries(p: InstalledForSetup, input: PackSetupInput): EntryRow[] {
   const asked = Array.isArray(input?.metrics) ? input.metrics.slice(0, SETUP_ENTRIES_MAX + 1).map(String) : [];
   if (asked.length > SETUP_ENTRIES_MAX || asked.some((k) => !KEY.test(k) || !p.entries.has(k))) throw new Error("Pick entries of this Pack's Metric Catalog.");
   const wanted = new Set(asked);
-  for (const k of asked) {
-    const f = p.entries.get(k)!.formula;
-    if (!f) continue;
-    for (const i of formulaInputs(f)) {
+  // A Set grows as it is walked, so what a Total brought in is looked at too.
+  for (const k of wanted) {
+    const of = p.entries.get(k)!;
+    // A line added counts in Totals that are there: it makes none, and nothing outside the line.
+    if (entryTotal(of) && input.adding) continue;
+    for (const i of entryInputs(of, formulaInputs)) {
       const entry = p.entries.get(i);
-      if (!entry) throw new Error(`“${p.entries.get(k)!.name}” is computed from an entry this Pack does not have.`);
-      if (entry.formula) throw new Error(`“${p.entries.get(k)!.name}” is computed from “${entry.name}”, a Derived Metric itself: Ziffr computes from Metrics that take values.`);
+      if (!entry) throw new Error(`“${of.name}” is computed from an entry this Pack does not have.`);
+      // A formula may read a Total, which reads entries that take values; nothing else computes from what is computed.
+      if (entry.formula || (entryTotal(of) && isComputed(entry))) throw new Error(`“${of.name}” is computed from “${entry.name}”, a Derived Metric itself: Ziffr computes from Metrics that take values.`);
       wanted.add(i);
     }
   }
@@ -358,11 +363,11 @@ function plannedMetrics(f: Filling, entries: EntryRow[], workflows: PlannedWorkf
   }
   for (const line of [...(to ? [] : [null]), ...f.lines]) {
     const part = entries.filter((e) => perOf(e.pack_key) === line?.repeat);
-    for (const entry of [...part.filter((e) => !e.formula), ...part.filter((e) => e.formula)]) {
+    for (const entry of [...part.filter((e) => !isComputed(e)), ...part.filter((e) => isComputed(e))]) {
       const place = f.places.metrics.get(entry.pack_key);
       const name = suffixed(entry.name, line);
       if ([...name].length > 120) f.problems.push(`“${name}” is longer than a Metric's name may be, 120 characters: shorten the line's name.`);
-      const plain = !entry.formula;
+      const plain = !isComputed(entry);
       const submitters = !plain ? [] : place?.submitters ? holders(f, place.submitters, line) : beside(entry.pack_key);
       let standIn = plain ? holders(f, place?.standIn, line)[0] ?? null : null;
       if (standIn && submitters.includes(standIn)) {
@@ -379,7 +384,11 @@ function plannedMetrics(f: Filling, entries: EntryRow[], workflows: PlannedWorkf
     if (!f.lines.some((l) => l.repeat === r.key) && entries.some((e) => perOf(e.pack_key) === r.key)) f.problems.push(`List at least one ${r.name}, or leave out what is made once for each.`);
   }
   if (metrics.length > SETUP_METRICS_MAX) f.problems.push(`One Set up makes at most ${SETUP_METRICS_MAX} Metrics; this makes ${metrics.length}. List fewer lines.`);
-  return { metrics, made: (key, line) => byPlace.get(at(key, perOf(key) === undefined ? null : line)) };
+  for (const m of metrics) {
+    const total = entryTotal(m.entry);
+    if (total && (m.line !== null || perOf(total.of) === undefined)) f.problems.push(`${m.name} cannot be made: a Total adds up what is made once for each line of a Repeat.`);
+  }
+  return { metrics: orderTotals(metrics, formulaInputs), made: (key, line) => byPlace.get(at(key, perOf(key) === undefined ? null : line)) };
 }
 
 /** The dashboards to make, with their Slots filled by what is made, else by Metrics picked (`offered`). */
@@ -524,7 +533,8 @@ export async function buildSetup(actor: Actor, p: InstalledForSetup, input: Pack
   if (refusal) filling.problems.push(refusal);
   if (!metrics.length && !dashboards.length && !workflows.length && !filling.problems.length) filling.problems.push("Pick something to set up.");
   const ticked = new Set((Array.isArray(input.adding?.ticked) ? input.adding.ticked : []).map(String));
-  const additions = to && p.places ? await additionsFor(actor, to, p.places, metrics, ticked) : NO_ADDITIONS;
+  const additions = to && p.places ? await additionsFor(actor, to, p.places, { entries: p.entries, metrics, ticked, from: input.adding?.from }) : NO_ADDITIONS;
+  filling.problems.push(...additions.problems);
   return {
     given: new Map([...(to?.given ?? [])].map(([k, m]) => [k, m.slug])), additions,
     workflows, metrics, dashboards, shares: proposedShares(filling, actor, metrics, dashboards), feed, positions, fills: filling.global, lines: filling.lines,

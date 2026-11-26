@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { shown, unwrap } from "@/lib/action-error";
 import { planSetUp } from "@/app/pack-setup-actions";
+import { Input } from "@/components/ui/input";
 import type { PackSetupInput } from "@ziffr/core/pack-setup";
 import type { PackSetupPlan } from "@ziffr/core/pack-setup-plan";
 
@@ -90,9 +91,33 @@ export function ByHand({ items }: { items: string[] }) {
   );
 }
 
+type OfferState = { offerTicks: Record<string, boolean>; onOffer: (id: string, on: boolean) => void; offerFrom: Record<string, string>; onOfferFrom: (id: string, day: string) => void };
+
+/** What a new line may be added to, each with its tick; a Total also with the first period it counts the new Metric in. */
+function Offers({ offers, offerTicks, onOffer, offerFrom, onOfferFrom }: { offers: PackSetupPlan["offers"] } & OfferState) {
+  return (
+    <fieldset className="space-y-1 text-xs">
+      <legend className="font-medium">Add to what is set up</legend>
+      {offers.map((o) => {
+        const on = offerTicks[o.id] ?? o.suggested ?? true;
+        return (
+          <div key={o.id} className="space-y-1">
+            <label className="flex items-start gap-2"><input type="checkbox" className={check} checked={on} onChange={(e) => onOffer(o.id, e.target.checked)} /> <span>{o.words}</span></label>
+            {o.from && on && (
+              <label className="flex flex-wrap items-center gap-2 pl-6">A day in the first period it counts
+                <Input type="date" className="w-auto" value={offerFrom[o.id] ?? o.from} onChange={(e) => onOfferFrom(o.id, e.target.value)} />
+              </label>
+            )}
+          </div>
+        );
+      })}
+    </fieldset>
+  );
+}
+
 /** What to check before setting up: what is made, who will see what, the proposed Shares, what a new line is added to,
  * the messages and the rest. */
-export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow, offerTicks, onOffer }: { plan: PackSetupPlan; ticks: Record<string, boolean>; onTick: (changes: Record<string, boolean>) => void; askNow: boolean; onAskNow: (v: boolean) => void; offerTicks: Record<string, boolean>; onOffer: (id: string, on: boolean) => void }) {
+export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow, ...offers }: { plan: PackSetupPlan; ticks: Record<string, boolean>; onTick: (changes: Record<string, boolean>) => void; askNow: boolean; onAskNow: (v: boolean) => void } & OfferState) {
   const byPerson = [...new Set(plan.shares.map((s) => s.person))];
   return (
     <section aria-label="Check before you set up" className="space-y-3 rounded-[var(--radius-input)] bg-muted p-3 [overflow-wrap:anywhere]">
@@ -149,14 +174,7 @@ export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow, offerTicks, o
         </div>
       )}
 
-      {plan.offers.length > 0 && (
-        <fieldset className="space-y-1 text-xs">
-          <legend className="font-medium">Add to what is set up</legend>
-          {plan.offers.map((o) => (
-            <label key={o.id} className="flex items-start gap-2"><input type="checkbox" className={check} checked={offerTicks[o.id] ?? true} onChange={(e) => onOffer(o.id, e.target.checked)} /> <span>{o.words}</span></label>
-          ))}
-        </fieldset>
-      )}
+      {plan.offers.length > 0 && <Offers offers={plan.offers} {...offers} />}
       {plan.byHand.length > 0 && <ByHand items={plan.byHand} />}
 
       <div className="text-xs">
