@@ -2,13 +2,13 @@
   "format": "ziffr.pack/2",
   "id": "ziffr/agency",
   "name": "Agency or freelancer",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "summary": "Billable hours, utilisation, revenue, the effective hourly rate, open invoices and pipeline, with a monthly dashboard and a Workflow that asks for hours on Fridays.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.20",
+  "ziffr": ">=0.21",
   "audience": {
     "industries": [
       "agency",
@@ -48,9 +48,9 @@
         "numbered": true,
         "items": [
           "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
-          "Keep the Metrics you want ticked, up to all 6, with the dashboard **Agency monthly** and the Workflow **Friday hours**. Tick **Ask me for their values** if you send the figures yourself, then choose **Set up**.",
+          "Keep the Metrics you want ticked, up to all 6, with the dashboard **Agency monthly** and the Workflow **Friday hours**. Leave **Make me the Submitter of their values** ticked if you send the figures yourself, else untick it. Setting up sends no request unless you tick **Send the first requests now**. Choose **Set up**.",
           "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
-          "Send the first figures: answer the request Ziffr sends, or open a Metric you submit and choose **Record a value**.",
+          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
           "Open **Dashboards** and then **Agency monthly**. It fills as values come in."
         ]
       }
@@ -84,9 +84,10 @@
         "key": "billable-hours",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Billable hours",
           "description": "Hours worked on client projects that can be invoiced, in the week; internal work and sales are not counted.",
+          "calculationNote": "Hours logged on client projects that the client is charged for, from Monday to Sunday. Internal work, sales, training and free corrections are left out.",
           "category": "People",
           "industries": [
             "agency"
@@ -112,9 +113,10 @@
         "key": "utilisation",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Billable utilisation",
           "description": "Hours billed to clients as a share of all hours worked in the month.",
+          "calculationNote": "Billable hours divided by all hours worked in the month, in percent. Holidays and sick days are not hours worked.",
           "category": "People",
           "industries": [
             "agency"
@@ -142,9 +144,10 @@
         "key": "revenue",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Revenue",
           "description": "Net revenue invoiced in the month, excluding VAT, discounts and credit notes.",
+          "calculationNote": "Counted by the date of the invoice. VAT, discounts and credit notes are taken off, and money paid in advance for work not yet invoiced is not counted.",
           "category": "Finance",
           "period": "month",
           "aggregation": "sum",
@@ -167,9 +170,10 @@
         "key": "hourly-rate",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Effective hourly rate",
           "description": "Revenue of the month divided by the hours worked on client projects in it, billed or not.",
+          "calculationNote": "Revenue of the month divided by the hours worked on client projects in it. Hours that were not billed count too, so free work lowers the rate.",
           "category": "Finance",
           "industries": [
             "agency"
@@ -195,9 +199,10 @@
         "key": "open-invoices",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Open invoices",
           "description": "Invoiced amounts clients have not paid yet, at month end.",
+          "calculationNote": "The unpaid amount of every invoice sent, on the last day of the month, overdue ones included. A part payment reduces it.",
           "category": "Finance",
           "period": "month",
           "aggregation": "last",
@@ -220,9 +225,10 @@
         "key": "pipeline",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Pipeline value",
           "description": "Value of all open deals at month end, not weighted by probability.",
+          "calculationNote": "The full value of every deal still open on the last day of the month. Deals won or lost are not in it, and no deal is weighted by its chance.",
           "category": "Sales",
           "period": "month",
           "aggregation": "last",

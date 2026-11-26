@@ -30,8 +30,8 @@ function stored(table: Table, r: Record<string, unknown>, ownThemes: ReadonlySet
   if (table === "catalog") {
     const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
     const row = Object.fromEntries(CATALOG_FIELDS.map((f) => [f, f === "target_min" || f === "target_max" ? n(r[f]) : f === "decimals" ? Number(r[f]) : r[f] ?? null]));
-    // As installing hashed it: the field is there only for an entry that brings Tags (packs.ts storedItems).
-    return Array.isArray(r.tags) && r.tags.length ? { ...row, tags: r.tags } : row;
+    // As installing hashed it: these fields are there only for an entry that brings them (packs.ts storedItems).
+    return { ...row, ...(Array.isArray(r.tags) && r.tags.length ? { tags: r.tags } : {}), ...(r.calculation_note ? { calculation_note: r.calculation_note } : {}) };
   }
   if (table === "templates") {
     // A Deck Template's Theme is the installed Theme's id, which the hash leaves out: it was not known when hashed. Any
@@ -57,7 +57,7 @@ async function installOf(actor: Actor, installId: number) {
 /** Every copy still marked as from this install, with its hash as installed and now. */
 async function copiesOf(actor: Actor, installId: number): Promise<Copy[]> {
   const cols: Record<Table, string> = {
-    catalog: `id, pack_key, pack_hash, pack_offer, tags, ${CATALOG_FIELDS.join(", ")}`,
+    catalog: `id, pack_key, pack_hash, pack_offer, tags, calculation_note, ${CATALOG_FIELDS.join(", ")}`,
     templates: "id, pack_key, pack_hash, pack_offer, updated_at, kind, name, description, slots, body",
     designs: "id, pack_key, pack_hash, pack_offer, name, body",
     themes: "id, pack_key, pack_hash, pack_offer, updated_at, name, tokens, slides",

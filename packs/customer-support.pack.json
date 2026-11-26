@@ -2,13 +2,13 @@
   "format": "ziffr.pack/2",
   "id": "ziffr/customer-support",
   "name": "Customer support",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "summary": "Tickets opened, closed and open, the old ones, first response and resolution times, satisfaction and reopens, with a weekly dashboard and a Workflow that asks for last week's figures on Monday.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.20",
+  "ziffr": ">=0.21",
   "audience": {
     "functions": [
       "customer_support"
@@ -43,9 +43,9 @@
         "numbered": true,
         "items": [
           "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
-          "Keep the Metrics you want ticked, up to all 8, with the dashboard **Support weekly** and the Workflow **Monday support figures**. Tick **Ask me for their values** if you send the figures yourself, then choose **Set up**.",
+          "Keep the Metrics you want ticked, up to all 8, with the dashboard **Support weekly** and the Workflow **Monday support figures**. Leave **Make me the Submitter of their values** ticked if you send the figures yourself, else untick it. Setting up sends no request unless you tick **Send the first requests now**. Choose **Set up**.",
           "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
-          "Send the first figures: answer the request Ziffr sends, or open a Metric you submit and choose **Record a value**.",
+          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
           "Open **Dashboards** and then **Support weekly**. It fills as values come in."
         ]
       }
@@ -78,9 +78,10 @@
         "key": "tickets-opened",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Tickets opened",
           "description": "Support tickets that customers opened in the week.",
+          "calculationNote": "Every new ticket a customer opened from Monday to Sunday, on any channel. Spam, duplicates and tickets the team opened itself are left out.",
           "category": "Support",
           "period": "week",
           "aggregation": "sum",
@@ -105,9 +106,10 @@
         "key": "tickets-closed",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Tickets closed",
           "description": "Support tickets that were resolved and closed in the week.",
+          "calculationNote": "Tickets set to resolved or closed from Monday to Sunday, whenever they were opened. Spam and merged duplicates are left out.",
           "category": "Support",
           "period": "week",
           "aggregation": "sum",
@@ -132,9 +134,10 @@
         "key": "open-tickets",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Open tickets",
           "description": "Tickets still open at the end of the week.",
+          "calculationNote": "Tickets not yet resolved on Sunday evening, including those waiting for the customer.",
           "category": "Support",
           "period": "week",
           "aggregation": "last",
@@ -159,9 +162,10 @@
         "key": "old-tickets",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Tickets open over 7 days",
           "description": "Tickets that have been open for more than seven days at the end of the week.",
+          "calculationNote": "Tickets still open on Sunday evening that were opened more than seven calendar days before. It is part of the open tickets, not in addition to them.",
           "category": "Support",
           "period": "week",
           "aggregation": "last",
@@ -186,9 +190,10 @@
         "key": "first-response",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "First response time",
           "description": "The average hours from a ticket arriving to the first human answer, for the tickets answered in the week.",
+          "calculationNote": "The time from a ticket arriving to the first answer a person wrote, averaged over the tickets answered in the week. Automatic replies do not count, and nights and weekends are included.",
           "category": "Support",
           "period": "week",
           "aggregation": "average",
@@ -215,9 +220,10 @@
         "key": "resolution-time",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Resolution time",
           "description": "The average hours from a ticket arriving to it being resolved, for the tickets resolved in the week.",
+          "calculationNote": "The time from a ticket arriving to it being resolved, averaged over the tickets resolved in the week. Nights, weekends and time waiting for the customer are included.",
           "category": "Support",
           "period": "week",
           "aggregation": "average",
@@ -243,9 +249,10 @@
         "key": "csat",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Customer satisfaction",
           "description": "The share of rated tickets where the customer was satisfied, in the week.",
+          "calculationNote": "Tickets rated as satisfied divided by all tickets rated in the week, in percent. Tickets without a rating are not counted either way.",
           "category": "Support",
           "period": "week",
           "aggregation": "average",
@@ -273,9 +280,10 @@
         "key": "reopen-rate",
         "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Reopen rate",
           "description": "The share of resolved tickets that the customer reopened, in the week.",
+          "calculationNote": "Resolved tickets of the week that the customer opened again, divided by all tickets resolved in it, in percent.",
           "category": "Support",
           "period": "week",
           "aggregation": "average",

@@ -1,6 +1,6 @@
 // Planning a Set up (spec 0058, #1179; GLOSSARY: Pack, Position, Repeat, Share, Submitter, Stand-in, Approver,
 // Prompt, Workspace Limit): from the people picked, who may fill each Position, what would be made, who will then see
-// what and why, every Share the Pack proposes and who would be messaged at once. Nothing is written.
+// what and why, every Share the Pack proposes and who would be asked for values, and when. Nothing is written.
 // Security: Owners and Admins only, never through a key, never in the demo. Who will see what is answered by the same
 // visibility rules the app uses, over the rows as they would be. Only Metrics made here and Metrics the actor sees are
 // named: no other Metric can be seen through anything a Set up makes.
@@ -16,8 +16,8 @@ import { installedForSetup, assertSetsUp, roomNow, type PackSetupRoom } from "./
 import { PLACE_WORDS, whyNot, type PersonKind } from "./pack-setup-who";
 import type { DashboardTemplateBody, Metric, WorkflowStep } from "./types";
 
-/** How many requests for values a person gets. */
-export type PlannedMessages = { name: string; count: number };
+/** How many requests for values a person gets. `you`: the person setting up. */
+export type PlannedMessages = { name: string; count: number; you: boolean };
 
 /** The plan of a Set up, as the form shows it. */
 export type PackSetupPlan = {
@@ -33,8 +33,9 @@ export type PackSetupPlan = {
    * the form ticks it by itself, which it does only for a Viewer who sees no more, or whose sight it keeps. */
   shares: { id: string; person: string; role: "viewer" | "editor"; kind: "Metric" | "dashboard"; item: string; showsMore: boolean; keeps: boolean; suggested: boolean }[];
   /** Requests for values: those that go out at once, those that wait for the Workflow's next run, and those nobody
-   * sends by themselves because the Metric follows no Workflow. */
-  messages: { now: PlannedMessages[]; nextRun: PlannedMessages[]; unasked: PlannedMessages[]; /** How many requests go to others than the person setting up, if they are asked now. */ others: number };
+   * sends by themselves because the Metric follows no Workflow. `ifSent`: what goes out at once if sending the first
+   * requests is chosen, one message for each Metric and person. */
+  messages: { now: PlannedMessages[]; nextRun: PlannedMessages[]; unasked: PlannedMessages[]; ifSent: PlannedMessages[] };
   /** Who would submit a number and is not asked for it, and why, in words. */
   notAsked: string[];
   /** The numbers nobody types that the person setting up would submit: what “Ask me also for …” is about. */
@@ -77,21 +78,23 @@ function involved(actor: Actor, b: Blueprint, alsoSee: string[]): string[] {
   return [...new Set(all.filter((id): id is string => typeof id === "string" && b.people.has(id)))];
 }
 
-const countBy = (b: Blueprint, ids: string[]): PlannedMessages[] => [...b.people.values()].flatMap((p) => {
+const countBy = (actor: Actor, b: Blueprint, ids: string[]): PlannedMessages[] => [...b.people.values()].flatMap((p) => {
   const count = ids.filter((id) => id === p.id).length;
-  return count ? [{ name: p.name, count }] : [];
+  return count ? [{ name: p.name, count, you: p.id === actor.personId }] : [];
 });
 
-/** Who is asked for values: the person setting up at once, as ever; others at once only when asked for, else by the
- * Workflow's next run, if the Metric follows one. */
+/** Who is asked for values: at once only when sending the first requests was chosen, the person setting up included;
+ * else by the Workflow's next run, if the Metric follows one. */
 function messagesOf(actor: Actor, b: Blueprint, askNow: boolean): PackSetupPlan["messages"] {
-  const now: string[] = [], nextRun: string[] = [], unasked: string[] = [];
+  const all: string[] = [], nextRun: string[] = [], unasked: string[] = [];
   for (const m of b.metrics) for (const s of m.submitters) {
     if (!b.people.has(s)) continue;
-    (s === actor.personId || askNow ? now : m.workflow || b.additions.join !== null ? nextRun : unasked).push(s);
+    all.push(s);
+    (m.workflow || b.additions.join !== null ? nextRun : unasked).push(s);
   }
-  const others = b.metrics.flatMap((m) => m.submitters).filter((s) => s !== actor.personId && b.people.has(s)).length;
-  return { now: countBy(b, now), nextRun: countBy(b, nextRun), unasked: countBy(b, unasked), others };
+  const ifSent = countBy(actor, b, all);
+  if (askNow) return { ifSent, now: ifSent, nextRun: [], unasked: [] };
+  return { ifSent, now: [], nextRun: countBy(actor, b, nextRun), unasked: countBy(actor, b, unasked) };
 }
 
 /** What the person should know about places that show or tell something, given who will see what. */
