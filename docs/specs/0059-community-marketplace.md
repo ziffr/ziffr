@@ -1,6 +1,6 @@
 # 0059 The community Marketplace: anyone publishes free Packs, and nobody waits for one person
 
-**Status:** draft. **Tracking issue:** #1165 (label `tracking`); its tickets will be sub-issues labelled `spec:0059`, opened once the owner has taken the open decisions at the end. Builds on spec 0030 and ADR 0013; spec 0058 lets a Pack say who does what and keeps where things came from; the draft spec 0044 (#770) covers paid Packs on self-hosted Ziffr. It changes parts of specs 0030, 0039 and 0044, listed under [Changes to earlier specs](#changes-to-earlier-specs).
+**Status:** draft. **Tracking issue:** #1165 (label `tracking`); tickets #1192 to #1197, labelled `spec:0059`, are the work that needs no account, key or private repository of the owner's. The rest waits for the [one-time steps](#one-time-steps-for-the-owner). Decision 2 (who moderates) is open, and **public opening waits for it**. Builds on spec 0030 and ADR 0013; spec 0058 lets a Pack say who does what and keeps where things came from; the draft spec 0044 (#770) covers paid Packs on self-hosted Ziffr. It changes parts of specs 0030, 0039 and 0044, listed under [Changes to earlier specs](#changes-to-earlier-specs).
 
 ## Problem Statement
 
@@ -45,7 +45,17 @@ Whether hosted Ziffr has the connection turned on was not checked.
 
 All over https, no redirects, 10 seconds. 404 reads as "does not know that Pack"; anything but 200 or 404 as "cannot be reached".
 
-**What changes before launch:** the version answer becomes `{ "file", "statement", "signature" }` (signing, below), the updates answer gains `"withdrawn"`, both can carry key revocations, and a listing gains a "new creator" mark. No key has shipped, so changing the signature breaks nobody who uses Ziffr's Marketplace. Someone who runs a Marketplace of their own with their own key would have to follow.
+**What changes before launch:** the version answer becomes `{ "file", "statement", "signature" }` (signing, below), the updates answer gains `"withdrawn"`, both can carry key revocations, and a listing gains a "new creator" mark.
+
+| New in the contract | Shape |
+| --- | --- |
+| The signed statement | `{ "format": "ziffr.pack-signature/1", "id", "version", "sha256", "key", "signed", "reviewed" }`; `reviewed` says whether a moderator looked |
+| A revocation, in `"revocations"` of the version and updates answers | `{ "statement", "signature" }`, the statement `{ "format": "ziffr.key-revocation/1", "key", "signed" }`, signed by the reserve key |
+| A withdrawal, in the updates answer | `"withdrawn": [{ "id", "reason" }]`, the reason plain text of at most 200 characters |
+| A listing | may add `"newCreator": true` |
+| Web pages under the Marketplace's address | `packs/{handle}/{slug}` and `packs/{handle}/{slug}/report?version=` |
+
+No key has shipped, so changing the signature breaks nobody who uses Ziffr's Marketplace. Someone who runs a Marketplace of their own with their own key would have to follow.
 
 ## Solution
 
@@ -125,13 +135,13 @@ A changed author name or logo that matches nobody is published, and the page say
 
 - Every upload is compared **item by item** with everything listed, free and, later, paid. Keys, spaces and capitals are evened out; near-identical wording counts. Items found in Ziffr's own Packs, the Metric Catalog or several unrelated publishers are ignored.
 - A **close match** (several items, or most of a small Pack, matching one other listing) is **held and decided by a person**. The creator can instead remove the matching items and publish at once.
-- A match with a free Pack that the file credits (`basedOn`, spec 0058) is what the license allows. It publishes, with the credit shown (open decision 3).
+- A match with a free Pack that the file credits (`basedOn`, spec 0058) is what the license allows. It publishes, with the credit shown (decision 3).
 - **A claim that someone copied** is a report. A moderator decides, using the publication dates the Marketplace keeps, and whatever else both sides show. Being first here is evidence, not proof.
 - **Private files are never compared and never blocked.** Only what someone asks to list is looked at.
 
 ### Limits, and the "New creator" mark
 
-All proposed, and settings of the service that change without a release.
+Decided (decision 4). They are settings of the service and change without a release.
 
 | Limit | New creator | Established |
 | --- | --- | --- |
@@ -146,12 +156,12 @@ All proposed, and settings of the service that change without a release.
 
 ### What a signature now says
 
-- Every page and, in Ziffr, the voucher line say what was done: **"Published through the Marketplace as @handle. Checked by program. No person reviewed it."** The second sentence is dropped only where a moderator did look.
+- Every page and, in Ziffr, the voucher line say what was done: **"Published through the Marketplace as @handle. Checked by program. No person reviewed it."** The last sentence is dropped only where a moderator did look, which the signed statement says.
 - A signature shows where a file came from. The checks on install are the protection (spec 0030).
 
 ### Signing and keys
 
-- **A signed statement** replaces the signature over the file: `{ "format": "ziffr.pack-signature/1", "id", "version", "sha256", "key", "signed" }`, with the file's SHA-256, the key's id and the time. Ed25519 signs the statement's exact bytes. Ziffr checks the signature with a key it trusts, then that id, version and hash are the file's.
+- **A signed statement** replaces the signature over the file (shape above), with the file's SHA-256, the key's id and the time. Ed25519 signs the statement's exact bytes. Ziffr checks the signature with a key it trusts, then that id, version and hash are the file's.
 - **The key lives in AWS KMS** (key spec `ECC_NIST_EDWARDS25519`). The private key does not leave KMS unencrypted ([key specs](https://docs.aws.amazon.com/kms/latest/developerguide/symm-asymm-choose-key-spec.html)).
 - **Why a statement:** KMS signs messages of at most 4,096 bytes, and plain Ed25519 (`ED25519_SHA_512`) needs the whole message; a Pack may be 1 MiB ([Sign](https://docs.aws.amazon.com/kms/latest/APIReference/API_Sign.html)). A statement is a few hundred bytes. The result is ordinary Ed25519, which Ziffr's check already verifies.
 - **Not the digest mode:** KMS's `ED25519_PH_SHA_512` signs a digest, but it is another signature scheme, which Ziffr's check does not verify.
@@ -217,7 +227,7 @@ Parts that follow from law are **to be confirmed by a lawyer before the Marketpl
 
 ### Moderators, and what still needs a person
 
-- **Moderators** are accounts with that role and a second factor. At least two, neither needs to be the owner, before step B. One of them may appoint others.
+- **Moderators** are accounts with that role and a second factor. At least two, neither needs to be the owner, before step B. One of them may appoint others. Who they are, their pay and their response times are open (decision 2).
 - They decide held uploads, reports and appeals, hide, withdraw and suspend. They cannot sign, and cannot touch keys.
 - **A maintainer** handles incidents, key changes and updates that do not apply by themselves.
 
@@ -272,7 +282,7 @@ Code from others never runs (ADR 0013), which removes the worst risk a plugin st
 
 | Option | For and against | Judgement |
 | --- | --- | --- |
-| **A. AWS, in an EU region:** a cache and file storage, functions, a key-value database, email, KMS | The signer gets its right from a role, with no stored secret; one bill, one provider | **Recommended** |
+| **A. AWS, in an EU region:** a cache and file storage, functions, a key-value database, email, KMS | The signer gets its right from a role, with no stored secret; one bill, one provider | **Decided** |
 | B. Cloudflare for pages and service, AWS KMS for signing | Cheap and simple to run; a long-lived AWS credential has to be stored there, and whoever steals it can sign | Possible |
 | C. Google Cloud | Works with its KMS; Ed25519 at software level only; not priced | Possible |
 | D. A server of one's own | No managed key; patches and backups by hand | Rejected |
@@ -351,7 +361,7 @@ The owner had suggested: "you can import packs exclusively from the community ma
 
 ### How it works
 
-- **"Own" Workspaces** (proposed): those where the person whose proven address is the account's is an **Owner** when applying. The Pack stays if they later stop being one; it is not applied anew.
+- **"Own" Workspaces:** those where the person whose proven address is the account's is an **Owner** when applying, **at most 10 for one purchase** (decision 6). The Pack stays if they later stop being one; it is not applied anew.
 - **On hosted Ziffr:** an Owner chooses **Add a Pack you bought**. The handover of spec 0029 tells Ziffr Cloud which Workspace and whose address, as for a Size. Ziffr Cloud delivers the file to that Workspace over its signed calls, through a new address with a size limit of its own. The Owner sees the Preview and installs. Updates arrive the same way. The file is offered nowhere as a download. This is a new way into a Workspace and gets its own threat model entry.
 - **For a self-hosted Installation** the buyer downloads file and receipt from their account. A buyer says which of the two a purchase is for. The receipt stays per Installation, as spec 0044 has it.
 - **A file marked paid** uploaded to hosted Ziffr is always refused, with the way to add a purchase. A creator tries a paid Pack before listing it under a free license mark.
@@ -364,20 +374,20 @@ The owner had suggested: "you can import packs exclusively from the community ma
 - A buyer can read what was installed and type it again, take it from the API or a Workspace Export, or have an assistant rebuild it.
 - Whoever changes the code of their own Installation is bound by no check. Ziffr is source-available (ADR 0002).
 - A receipt shared with its file works on another Installation, under the buyer's name.
-- Making a buyer an Owner of one's Workspace lets them apply their purchase there, and Ziffr cannot tell organisations apart (open decision 6).
+- Making a buyer an Owner of one's Workspace lets them apply their purchase there, up to the limit of 10; Ziffr cannot tell organisations apart.
 - A reworded copy can pass the listing comparison. A copy passed on privately is never looked at.
 
 These are copies a determined person makes. The measures make paying the easy way, keep credit by default and keep copies off the Marketplace. They are not copy protection, as spec 0044 already says.
 
 ### What else payments need
 
-Accounts for buyers, payments, VAT, invoices and payouts (spec 0030: 80 % to the creator) in Ziffr Cloud; sellers' onboarding by a person; the license text; question 10; review of paid versions (open decision 7).
+Accounts for buyers, payments, VAT, invoices and payouts (spec 0030: 80 % to the creator) in Ziffr Cloud; sellers' onboarding by a person; the license text; question 10; a moderator's review of a seller's first paid version (decision 7).
 
 ## Changes to earlier specs
 
 | Spec | It said | Now |
 | --- | --- | --- |
-| 0030 | A person reviews a creator's first Pack, and every paid version | **No review before listing a free Pack.** Programs check; a person looks at held uploads and reports. Paid review is open |
+| 0030 | A person reviews a creator's first Pack, and every paid version | **No review before listing a free Pack.** Programs check; a person looks at held uploads and reports. A moderator reviews a seller's first paid version only |
 | 0030 | A text aimed at assistants stops the listing for a person | The same, and the creator may change the words and upload again |
 | 0030 | The Marketplace signs each published version | It signs a statement about the file, with a key id and time |
 | 0030 | A paid Pack is bought for a Workspace by an Owner; the license covers the buying organisation's Workspaces | A purchase belongs to an account, applied to its own Workspaces. The license text follows |
@@ -399,27 +409,24 @@ The service has a threat model of its own: uploads as hostile files (data only, 
 - **Step A** ends with a fresh self-hosted Installation installing and updating one Pack from the real address.
 - **Before step B:** a rehearsal in which a moderator, not the owner, takes a report from receipt to appeal.
 
-## Tickets (not opened yet)
+## Tickets
 
-In this repository:
+Open now: in this repository, needing no account, key or private repository of the owner's.
 
-1. The contract written as a reference with its JSON schema, and a check the service's build can run.
-2. The signed statement and revocations in the client; the two public keys. Needs the keys.
-3. Withdrawn Packs: the updates answer, storage, the line on the Packs page.
-4. Browsing in Ziffr: newest first, From Ziffr and Community, New creator, the voucher line.
-5. **Report this Pack** links.
-6. The release pipeline publishes Ziffr's own Packs.
-7. Threat model, user guide, release notes and an independent security review.
+| Ticket | What | Blocked by |
+| --- | --- | --- |
+| #1192 | The contract as a reference with JSON schemas, and a check the service can run | |
+| #1193 | The client verifies the signed statement and key revocations, tested with test keys | #1192 |
+| #1194 | Withdrawn Packs: the updates answer, storage, the line on the Packs page | #1192 |
+| #1195 | Browsing in Ziffr: newest first, From Ziffr and Community, New creator, the voucher line | #1193 |
+| #1196 | **Report this Pack** links | #1192 |
+| #1197 | Threat model, user guide, release notes and an independent security review of these | #1193 to #1196 |
 
-In the private repository:
+Not opened yet, because they need the one-time steps:
 
-8. Infrastructure, deployment, keys, signer and its watching.
-9. Published files, search, updates, web pages. Step A.
-10. Accounts, upload, checks, limits.
-11. The listing comparison and held uploads.
-12. Reports, hiding, statements of reasons, appeals, the record.
-13. Moderator queue, reminders and the pauses.
-14. Terms and rules pages, runbooks, the rehearsal. Step B.
+- Ship the two public keys in Ziffr. Needs the keys.
+- The release pipeline publishes Ziffr's own Packs. Needs a publishing identity.
+- In the private repository: infrastructure, deployment, keys, signer and its watching; published files, search, updates and web pages (step A); accounts, upload, checks and limits; the listing comparison and held uploads; reports, hiding, statements of reasons, appeals and the record; the moderator queue, reminders and pauses; terms and rules pages, runbooks and the rehearsal (step B).
 
 Later: publishing from Ziffr; payments and delivery of bought Packs.
 
@@ -432,20 +439,20 @@ Later: publishing from Ziffr; payments and delivery of bought Packs.
 
 ## Decisions (2026-11-26, by the owner)
 
-1. A community Marketplace with free Packs, starting with Ziffr's own.
-2. The six points on paid Packs and copies above; no "Marketplace only" rule.
-3. **No bottleneck:** self-service accounts and upload, automatic checks, signing and publishing, a managed key, nothing on the owner's computer. This overrides the earlier recommendations (submissions by email, signing by the owner, review of every version, invited creators first).
-4. **Every Pack can be reported**, with the duties confirmed by a lawyer before the Marketplace opens to the public.
+### The direction
 
-## Decisions still open
+- A community Marketplace with free Packs, starting with Ziffr's own.
+- The six points on paid Packs and copies above; no "Marketplace only" rule.
+- **No bottleneck:** self-service accounts and upload, automatic checks, signing and publishing, a managed key, nothing on the owner's computer. This overrides the earlier recommendations (submissions by email, signing by the owner, review of every version, invited creators first).
+- **Every Pack can be reported**, with the duties confirmed by a lawyer before the Marketplace opens to the public.
 
-All proposed, none taken.
+### The points proposed in this spec
 
-1. **Hosting:** AWS in an EU region (recommended), Cloudflare with AWS KMS, or Google Cloud.
-2. **Who moderates**, whether they are paid, and the response times. Step B waits for this.
-3. **A credited remix of a free Pack publishes by itself** (recommended), or is held like other close matches.
-4. **Limits and the New creator period** as proposed (recommended), or stricter at the start.
-5. **Hiding by count only for new creators** (recommended), never, or for everyone.
-6. **A limit on the Workspaces one purchase may be applied to:** 10 (recommended), none, or another. Needed with payments.
-7. **Review of paid versions:** a moderator looks at a seller's first one (recommended), every one, or none. Needed with payments.
-8. **The pauses** after 14 and 30 days without moderation (recommended), or other times.
+1. **Hosting** on AWS in an EU region.
+2. **Open:** who moderates, whether they are paid, and the response times. **Public opening (step B) waits for it.**
+3. **A credited remix of a free Pack publishes by itself.**
+4. **Limits and the New creator period** as in the table above.
+5. **A number of reports hides only a new creator's Pack.**
+6. **One purchase applies to at most 10 Workspaces** of the buyer's own, those where they are an Owner.
+7. **A moderator reviews a seller's first paid version.**
+8. **Uploads pause** after 14 and 30 days without moderation.

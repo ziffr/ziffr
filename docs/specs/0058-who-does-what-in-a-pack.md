@@ -1,6 +1,6 @@
 # 0058 Who does what in a Pack: named Positions such as "Sales lead", filled at Set up
 
-**Status:** draft. **Tracking issue:** #1164 (label `tracking`); its tickets will be sub-issues labelled `spec:0058`, opened once the owner has taken the decisions at the end. The owner approved the direction on 2026-11-26. Builds on spec 0030 (Packs) and spec 0045 (Checklist Items and Send Snapshot); the community Marketplace that shares such Packs is spec 0059.
+**Status:** draft. **Tracking issue:** #1164 (label `tracking`); tickets #1177 to #1191 are its sub-issues, labelled `spec:0058`. The owner approved the direction and, on 2026-11-26, the decisions at the end. Builds on spec 0030 (Packs) and spec 0045 (Checklist Items and Send Snapshot); the community Marketplace that shares such Packs is spec 0059.
 
 ## Problem Statement
 
@@ -25,7 +25,7 @@ A good setup is mostly about people: who sends which number, who approves it, wh
 
 ## The word
 
-**Position** is the recommendation. The owner confirms it before ticket 1.
+**Position**, decided by the owner on 2026-11-26.
 
 | Word | Why not, or why |
 | --- | --- |
@@ -41,7 +41,7 @@ Two costs are accepted. Code already says `position` for where a logo or a widge
 
 On screen the Pack's own words do most of the work: "Who is the Sales lead?". The word Position appears only in headings and for creators.
 
-### Glossary (added by ticket 1)
+### Glossary (added by #1177)
 
 **Position**: A named place in a Pack that people fill when it is set up, such as "Sales lead" or "Salesperson": who submits, approves, stands in, ticks off a Checklist Task, is told, gets a Snapshot or is shared with. It grants nothing by itself: filling it writes the people into those ordinary places. Not a Workspace Role, not a Viewer or Editor, not a Group, not a Business Function, and not a Slot, which takes a Metric. _Avoid_: Role, seat, persona, job title
 
@@ -67,7 +67,7 @@ On screen the Pack's own words do most of the work: "Who is the Sales lead?". Th
 ### What a Position is, and is not
 
 - A Position is **part of a file, filled at Set up**. It is not a thing in the Workspace that rules look up later. After Set up, a Metric has Submitters and a Workflow has Approvers, exactly as today.
-- Changing who does something later is done where it is done today: on the Metric, the Workflow or the Share. **Live Positions** (change the holder once, everything follows) are not in this spec: every send and every visibility rule would have to look them up, and Groups already serve the sharing part. This is open decision 2.
+- Changing who does something later is done where it is done today: on the Metric, the Workflow or the Share. **Live Positions** (change the holder once, everything follows) are not in this spec: every send and every visibility rule would have to look them up, and Groups already serve the sharing part (decision 2).
 - A Position says how many people fill it: `"people": "one"` or `"several"` (at most 20, as a Tell step takes today).
 
 ### What carries a Position
@@ -133,7 +133,7 @@ Set up from this Pack (spec 0030) gains three parts. A Pack without Positions lo
    - **messages now**: who would get a Prompt or a notice at once.
 
 - **Empty Positions** leave the place open as a template does today: no Submitter, "nobody yet" on a Checklist Task, nobody told. An Approve step is the exception: a Workflow is not made while one of its Approvers is empty.
-- **Shares start unticked** where they would show someone a Metric they do not already see in this plan. A Pack is a stranger's file, and sharing is a decision (open decision 3).
+- **Shares start unticked** where they would show someone a Metric they do not already see in this plan. A Pack is a stranger's file, and sharing is a decision (decision 3).
 - **Prompts to others wait** for the Workflow's next run. "Ask them for the current period now" is a tick, off by default, with the number of messages beside it. Prompts to the person setting up behave as today. Sending Limits and Quiet Hours apply as always.
 - **Self-approval** is not made possible: where one person is both Submitter and Approver, the preview says that the existing rules apply (nobody approves their own value; the Approve step's Self-check or count).
 - **Order:** Workflows, Metrics, Submitters, Stand-ins, dashboards, Shares, the Send Snapshot step. Each goes through the existing core function, so permissions, limits and the Audit Log apply as by hand.
@@ -144,7 +144,7 @@ Set up from this Pack (spec 0030) gains three parts. A Pack without Positions lo
 - An entry with `per` becomes one Metric for each line of that Repeat, named "<entry>, <line's name>" ("Incidents, Munich"). Two lines of a Repeat may not share a name.
 - **Visibility follows the Metrics.** A site manager who only submits to Munich's Metrics sees only Munich's. This is why a Repeat makes separate Metrics and not one Metric with a Breakdown: Submitters, Approval, targets and sight belong to a Metric.
 - **Names are words everyone reads.** The form says that a line's name appears in Metric names, read by everyone who sees them, Guests included.
-- A Derived Metric per entry may use entries of the same Repeat and entries outside it. One outside a Repeat may not use an entry inside it, so there is no team total yet (open decision 6).
+- A Derived Metric per entry may use entries of the same Repeat and entries outside it. One outside a Repeat may not use an entry inside it, so there is no team total yet (decision 6).
 - **Workflows and dashboards** with `per` are made once per line. Without it, one Workflow takes all lines' Metrics.
 - A dashboard outside the Repeat may use a repeated entry only in a Slot that takes several Metrics, which is filled with every line's Metric. A shared dashboard shows all of them to whoever it is shared with, and the preview says so by name.
 - **Limits:** at most 50 lines in a Repeat (Set up fills a Slot with at most 50 Metrics today) and 200 Metrics in one Set up (today 50). The Workspace Limit and a trial's cap are checked for the whole set before anything is made. A run this large works in steps and says what was made if it stops.
@@ -205,19 +205,25 @@ Spec 0059's decisions on paid Packs need this, and it **has to be in place befor
 - **Origin:** a table of every way to copy, each keeping it; uninstall and update keep it; a browser cannot clear it; an export credits free items and leaves paid ones out; the import of a Workspace Export keeps it.
 - **Pages** tried in the running app at phone and desktop widths.
 
-## Tickets (not opened yet)
+## Tickets
 
-1. The formats `ziffr.pack/2` and `ziffr.workflow-template/2`, with `basedOn` and `from`, their checks, hostile table, generated reference and glossary entries. Blocked by decisions 1 and 5.
-2. The Pack's page shows its Positions, Repeats and what each does. Blocked by 1.
-3. Set up with Positions: the pickers, "who will see what", Share ticks, messages, the record. Blocked by 1 and decisions 2 to 4.
-4. Repeats in Set up: lines, names, limits, working in steps. Blocked by 3.
-5. Add a line. Blocked by 4.
-6. Starting a Workflow from a template with Positions. Blocked by 1.
-7. Where things came from: the origin, every copy, the existing Workspaces, `ziffr.workspace-export/2`. Not blocked; before any paid Pack.
-8. Export as Pack: live items, "Who does what", the name check, "Read what goes out", credit and paid items. Blocked by 1 and 7.
-9. Export of Repeats and the round trip. Blocked by 4 and 8.
-10. Ziffr's Sales Pack gains Positions and a Repeat; the creators' guide. Blocked by 4.
-11. User guide, threat model, release notes and an independent security review of the whole spec. Blocked by 2 to 9.
+| Ticket | What | Blocked by |
+| --- | --- | --- |
+| #1177 | `ziffr.pack/2` and `ziffr.workflow-template/2`: Positions, Repeats, credit, checks, reference, glossary | |
+| #1178 | A Pack's page shows its Positions, Repeats and what each does | #1177 |
+| #1179 | Plan a Set up: who may fill each Position, who will see what, which messages go | #1177 |
+| #1180 | Set up with Positions: pickers, Share ticks, messages, the record | #1179 |
+| #1181 | Repeats in Set up: lines, names, limits, working in steps | #1180 |
+| #1182 | Add a line | #1181 |
+| #1183 | Start a Workflow from a template with Positions | #1177 |
+| #1184 | Where things came from: every copy, existing Workspaces. Before any paid Pack | |
+| #1185 | Where things came from: widgets on dashboards and slides | #1184 |
+| #1186 | `ziffr.workspace-export/2` carries where things came from | #1184 |
+| #1187 | Export as Pack: live items, "Who does what", the name check | #1177 |
+| #1188 | Export as Pack: credit, paid items left out, "Read what goes out" | #1185, #1187 |
+| #1189 | Export of Repeats and the round trip | #1181, #1187 |
+| #1190 | Ziffr's Sales Pack gains Positions and a Repeat; the creators' guide | #1181 |
+| #1191 | Threat model, user guide, release notes and an independent security review of the whole spec | the others |
 
 ## Out of Scope
 
@@ -231,15 +237,10 @@ Spec 0059's decisions on paid Packs need this, and it **has to be in place befor
 
 ## Decisions (2026-11-26, by the owner)
 
-- Installed items remember where they came from, through edits and "save as template". Export as Pack leaves out paid items and credits free ones by itself. This is part of this spec's work, before any paid Pack (spec 0059).
-
-## Decisions for the owner
-
-All proposed, none taken.
-
-1. **The word:** Position (recommended), with Repeat for the part made once per line.
-2. **Filled once at Set up, with a record** (recommended), or live Positions.
-3. **Shares from a Pack start unticked** where they show someone more (recommended), or ticked.
-4. **Prompts to others wait** for the next run unless ticked (recommended), or go at once as today's "Ask me" does.
-5. **Tell steps travel** when they wait for a share, not a level (recommended), or stay out as today.
-6. **Team totals** over a Repeat come later (recommended), or in the first release, which needs a new formula form for Packs.
+1. **The word** is Position, with Repeat for the part made once per line.
+2. **Positions are filled once at Set up, with a record.** No live Positions.
+3. **Shares from a Pack start unticked** where they show someone more.
+4. **Prompts to others wait** for the next run unless ticked.
+5. **Tell steps travel** when they wait for a share, never a level.
+6. **Team totals** over a Repeat come later.
+7. **Installed items remember where they came from**, through edits and "save as template". Export as Pack leaves out paid items and credits free ones by itself. This is part of this spec's work, before any paid Pack (spec 0059).
