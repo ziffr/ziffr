@@ -182,8 +182,8 @@ Some steps need more than the web service's word. Each is a signature by a key t
 #### Signed withdrawals
 
 - **The signer signs every withdrawal** and every taking back, with a **sequence number** higher than in any earlier statement about that Pack. It signs nothing more of a Pack while it holds it as withdrawn.
-- **Ziffr believes only these statements**, signed by a key that may sign, and keeps the newest it has seen for each Pack it took from the Marketplace. An answer that leaves a Pack out, or repeats an older statement, changes nothing: a withdrawal ends only with a newer statement that restores the Pack.
-- A statement of a key revoked since stays until a statement of a trusted key replaces it.
+- **Ziffr believes only these statements**, signed by a key that may sign, and keeps the newest it has seen for each Pack it took from the Marketplace. An answer that leaves a Pack out, or repeats an older statement, changes nothing: while its key is in use, a withdrawal ends only with a newer statement that restores the Pack.
+- A statement signed by a key revoked since is no longer believed, and a statement of a trusted key replaces it whatever its number. So after a revocation every withdrawal and restoration is signed again.
 - A withdrawal takes effect on the Marketplace at once; its statement follows as soon as the signer gives it.
 
 ### Browsing
@@ -416,7 +416,7 @@ The service has a threat model of its own: uploads as hostile files (data only, 
 - **Reporting:** each row of the hiding table, and each thing that must not hide; messages to both sides; the record.
 - **Nobody acts:** each row of that table, with the clock moved.
 - **Signer:** the web service cannot read the key or the signer's state; what its own checks hold, `ziffr/` and the taking back of a withdrawal are signed only with the signature named above; an unmatched signature switches it off.
-- **Withdrawals:** Ziffr takes a signed withdrawal and its restoration, and nothing unsigned; an older or missing statement changes nothing.
+- **Withdrawals:** Ziffr takes a signed withdrawal and its restoration, and nothing unsigned; an older or missing statement changes nothing; a statement of a revoked key is not believed, and one signed again counts.
 - **Step A** ends with a fresh self-hosted Installation installing and updating one Pack from the real address.
 - **Before step B:** a rehearsal in which a moderator, not the owner, takes a report from receipt to appeal.
 
