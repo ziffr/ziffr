@@ -14,7 +14,7 @@ import { keepTrial, trialEndsAt, trialThen } from "./trials";
 import { settingsInEffect, settingsInEffectStrict } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { daysSetting } from "./installation-days";
-import { spreadsheetCells } from "./export-values";
+import { spreadsheetCells } from "./spreadsheet-cells";
 import { inCondensed, partOfCondensed, valueOfParts } from "./condensed-parts";
 import { condensedFor } from "./condensed-values";
 import { NOT_FINAL_STATES, valueStateWords } from "./value-state";

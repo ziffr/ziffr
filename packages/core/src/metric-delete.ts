@@ -196,17 +196,19 @@ function untickedFor(f: Facts, m: Metric, c: DeleteChoices): string[] {
   return out;
 }
 
-/** Why a Metric cannot go because of the Metrics that read it: those not picked, or picked but staying. */
-function becauseRead(f: Facts, id: number, readers: Map<number, number[]>, picked: ReadonlySet<number>, going: ReadonlySet<number>): string[] {
+/** Why a Metric cannot go because of the Metrics that read it: those not picked, and, where nothing else is said of
+ * it (`alone`), those picked that are staying. */
+function becauseRead(f: Facts, id: number, readers: Map<number, number[]>, picked: ReadonlySet<number>, going: ReadonlySet<number>, alone: boolean): string[] {
   const staying = (readers.get(id) ?? []).filter((r) => !going.has(r)).flatMap((r) => f.all.find((m) => m.id === r) ?? []);
   const say = (found: Metric[], words: (names: string) => string) =>
     found.length ? [words(listed(found.filter((m) => f.visible.has(m.id)).map((m) => m.name), found.filter((m) => !f.visible.has(m.id)).length, "you cannot see"))] : [];
   const unpicked = staying.filter((m) => !picked.has(m.id));
-  return [
+  const outside = [
     ...say(unpicked.filter((m) => !m.total), (n) => `Calculated from it: ${n}. Pick them too, or change their formulas.`),
     ...say(unpicked.filter((m) => m.total), (n) => `Added up by Totals: ${n}. Pick them too, or remove it from them.`),
-    ...say(staying.filter((m) => picked.has(m.id)), (n) => `Read by ${n}, which cannot be deleted now.`),
   ];
+  if (outside.length || !alone) return outside;
+  return say(staying, (n) => `Read by ${n}, which cannot be deleted now.`);
 }
 
 /** The widgets as they would be after these Metrics go: whole ones removed, others kept with a shorter list. */
@@ -259,7 +261,8 @@ function planFrom(actor: Actor, f: Facts, choices: DeleteChoices): DeletePlan {
   const ids = deletionOrder(free.filter((m) => !soft.get(m.id)!.length).map((m) => m.id), readers);
   const going = new Set(ids);
   const metrics = f.picked.map((m): PlannedMetric => {
-    const reasons = going.has(m.id) ? [] : [...hard.get(m.id)!, ...soft.get(m.id)!, ...(m.owner_id === actor.personId && !demo ? becauseRead(f, m.id, readers, picked, going) : [])];
+    const own = [...hard.get(m.id)!, ...soft.get(m.id)!];
+    const reasons = going.has(m.id) ? [] : [...own, ...(m.owner_id === actor.personId && !demo ? becauseRead(f, m.id, readers, picked, going, !own.length) : [])];
     const archivable = !demo && !isArchived(m) && actor.role !== "guest" && (m.owner_id === actor.personId || ((actor.role === "owner" || actor.role === "admin") && f.visible.has(m.id)));
     return { id: m.id, name: m.name, archived: isArchived(m), archivable, deletable: going.has(m.id), reasons };
   }).sort((a, b) => a.name.localeCompare(b.name));

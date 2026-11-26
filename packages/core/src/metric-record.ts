@@ -12,7 +12,7 @@ import { condensedFor } from "./condensed-values";
 import { inCondensed, partOfCondensed, valueOfParts } from "./condensed-parts";
 import { db } from "./db";
 import { refuseInDemo } from "./demo";
-import { spreadsheetCells } from "./export-values";
+import { spreadsheetCells } from "./spreadsheet-cells";
 import { formulaInputs, withoutUnseenInputs } from "./formula";
 import { DELETE_METRICS } from "./metric-delete-rules";
 import type { NumberStyle } from "./number-style";

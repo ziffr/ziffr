@@ -163,6 +163,7 @@ function Flow({ ids, onOpenChange, onDeleted, onArchive }: Omit<Props, "open">) 
         setDownloaded("");
         setTyped("");
         router.refresh();
+        await look(choices);
         return;
       }
       toast.success(r.deleted.length === 1 ? `${r.deleted[0].name} deleted` : `${metrics(r.deleted.length)} deleted`, { description: "Past Snapshots keep their numbers." });
