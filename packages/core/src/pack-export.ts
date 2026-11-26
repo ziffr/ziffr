@@ -92,7 +92,7 @@ export async function exportOptions(actor: Actor): Promise<ExportOptions> {
   const opt = (rows: { id: unknown; name: unknown }[] | null, detail: (r: Record<string, unknown>) => string = () => "") => (rows ?? []).map((r) => ({ id: Number(r.id), name: String(r.name), detail: detail(r as Record<string, unknown>) }));
   const of = (kind: string) => (tpl.data ?? []).filter((r) => r.kind === kind);
   return {
-    metrics: [...metrics.values()].sort((a, b) => a.name.localeCompare(b.name)).map((m) => ({ id: m.id, name: m.name, detail: m.formula ? "Derived Metric" : `by ${m.period}` })),
+    metrics: [...metrics.values()].sort((a, b) => a.name.localeCompare(b.name)).map((m) => ({ id: m.id, name: m.name, detail: m.total ? "Total" : m.formula ? "Derived Metric" : `by ${m.period}` })),
     catalog: opt(cat.data, (r) => String(r.category)),
     dashboards: opt(of("dashboard")), decks: opt(of("deck")), workflows: opt(of("workflow")),
     designs: opt(des.data),
@@ -198,6 +198,7 @@ export async function gatherPack(actor: Actor, manifest: ExportManifest, choice:
     const m = e.m;
     const name = plain(m.name, 120);
     if (!name) { leftOut.push({ name: String(m.name), why: "Its name holds something a Pack may not, such as a web address." }); continue; }
+    if (m.total) { leftOut.push({ name, why: "A Total is not in a Pack yet." }); continue; }
     let formula: string | undefined;
     if (m.formula) {
       const inputs = [...String(m.formula).matchAll(/\{([a-z0-9-]+)\}/g)].map((x) => x[1]);

@@ -9,7 +9,8 @@ import { planPackSetup } from "./pack-setup-plan";
 import { packLineStart } from "./pack-setup-adding";
 import { visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
-import { share } from "./sharing";
+import { share, shareWithGroup } from "./sharing";
+import { createGroup } from "./team";
 import { salesTeamText } from "./test/sales-team-pack";
 import { salesTeam } from "./test/sales-team-people";
 import type { PackSetupInput } from "./pack-setup-build";
@@ -46,6 +47,23 @@ describe("adding a line", () => {
     expect(plan.makes).toEqual({ metrics: ["Commit, Cara", "Gap, Cara"], dashboards: ["My forecast, Cara"], workflows: [] });
     expect(plan.offers.map((o) => o.id.split(":")[0])).toEqual(["workflow", "widget"]);
     expect(plan.byHand.join(" ")).toMatch(/also names each Salesperson/);
+  });
+
+  it("starts a widget unticked where someone would newly see the new Metrics, and says who", async () => {
+    const t = await setUp();
+    const by = t.w.actor(t.sara);
+    const offers = async () => (await planPackSetup(by, t.install, t.line())).offers;
+    const plan = await planPackSetup(by, t.install, t.line());
+    expect(plan.offers.map((o) => o.suggested)).toEqual([true, false]);
+    expect(plan.offers[1].words).toContain(`${t.name(t.lena)} would newly see it.`);
+    expect(plan.sees.find((p) => p.id === t.lena)?.metrics.map((m) => m.name) ?? []).not.toContain("Commit, Cara");
+    // Shared with nobody, it shows nobody more.
+    await share(by, "dashboard", t.board.id, t.lena, null);
+    expect((await offers())[1]).toMatchObject({ suggested: true, words: expect.stringContaining("Nobody it is shared with now sees more by it.") });
+    // A Group may be joined later, even one with nobody in it today.
+    const group = await createGroup(by, "Leads");
+    await shareWithGroup(by, "dashboard", t.board.id, group, "viewer");
+    expect((await offers())[1]).toMatchObject({ suggested: false, words: expect.stringContaining("Whoever joins the Group Leads would see it too.") });
   });
 
   it("makes only the new line and changes what is ticked, and everyone sees what the plan said", async () => {

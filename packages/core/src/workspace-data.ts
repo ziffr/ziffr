@@ -6,6 +6,8 @@ import { workspaceCipher } from "./workspace-keys";
 import { formulaInputs, targetInputs } from "./formula";
 import { buildSeries } from "./series";
 import { withheldDerived } from "./derived-owner";
+import { asTotals, totalParts } from "./total-parts";
+import type { TotalsReader } from "./totals";
 import { normalizeMetric } from "./metric-row";
 import { nestRows } from "./breakdown-parts";
 import type { Action, BreakdownRow, Metric, Observation, Point } from "./types";
@@ -39,7 +41,8 @@ export async function mustRead<T>(page: PromiseLike<{ data: T[] | null; error: u
 export async function getMetrics(ws: string): Promise<Metric[]> {
   const { data } = await db().from("metrics").select("*").eq("workspace_id", ws).order("id");
   // A description is sealed with the Workspace Key (spec 0028) and read opened.
-  const rows = await openRows("metrics", ws, data);
+  // A Total is given a formula that names its parts, so every rule for a calculated Metric holds for it too.
+  const rows = await asTotals(ws, await openRows("metrics", ws, data));
   const withheld = await withheldDerived(ws, rows);
   return rows.map((m) => (withheld.has(m.id) ? { ...normalizeMetric(m), inputs_withheld: true } : normalizeMetric(m)));
 }
@@ -103,18 +106,21 @@ export async function getLastValues(ws: string, metricId: number, n: number): Pr
   return (await openObservations(ws, data, true)).reverse();
 }
 
-/** These Metrics and the inputs of the Derived Metrics among them: what their series are computed from. */
+/** These Metrics and what their series are computed from: the inputs of the Derived Metrics among them, and the parts
+ * of the Totals among either. */
 export function withInputs(metrics: readonly Metric[], ids: Iterable<number>): number[] {
   const bySlug = new Map(metrics.map((m) => [m.slug, m.id]));
   const byId = new Map(metrics.map((m) => [m.id, m]));
   const out = new Set<number>();
-  for (const id of ids) {
+  // A formula may read a Total, whose parts are then needed too: followed until nothing is new.
+  const next = [...ids];
+  for (let at = 0; at < next.length; at++) {
+    const id = next[at];
+    if (out.has(id)) continue;
     out.add(id);
-    const formula = byId.get(id)?.formula;
-    if (!formula) continue;
-    for (const slug of formulaInputs(formula)) {
+    for (const slug of formulaInputs(byId.get(id)?.formula ?? "")) {
       const input = bySlug.get(slug);
-      if (input !== undefined) out.add(input);
+      if (input !== undefined) next.push(input);
     }
   }
   return [...out];
@@ -124,7 +130,8 @@ export function withInputs(metrics: readonly Metric[], ids: Iterable<number>): n
  * when none is. A read that fails throws, and a value that does not open stays as no number: either way a formula
  * never takes the Target Range where a Target Series value stands. */
 export async function formulaTargets(ws: string, metrics: Metric[], ids: number[]): Promise<Record<number, Point[]>> {
-  const read = new Set(metrics.flatMap((m) => (m.formula ? targetInputs(m.formula) : [])));
+  // Those a formula reads the target of, and the parts of a Total whose target is theirs added up.
+  const read = new Set(metrics.flatMap((m) => (m.total?.targets === "parts" ? formulaInputs(m.formula!) : m.formula ? targetInputs(m.formula) : [])));
   const wanted = metrics.filter((m) => read.has(m.slug) && ids.includes(m.id)).map((m) => m.id);
   const out: Record<number, Point[]> = {};
   if (!wanted.length) return out;
@@ -142,31 +149,33 @@ const TARGETS_UNREAD = "Targets could not be read. Try again in a moment.";
 /** A workspace's Metrics and their plotted series, with the Target Series and Condensed Values of the Metrics a formula
  * reads the target of (what resolverFrom needs besides). With `points`, each series holds only its last periods, for
  * lists; the inputs of Derived Metrics are then still read in full, so a derived series ends as it would otherwise. */
-export async function getAllSeries(ws: string, opts: { points?: number } = {}) {
+export async function getAllSeries(ws: string, opts: { points?: number; reader?: TotalsReader } = {}) {
   const metrics = await getMetrics(ws);
   const targets = await formulaTargets(ws, metrics, metrics.map((m) => m.id));
   const aimed = Object.keys(targets).map(Number);
   // A function-level import: condensed-values.ts reads through this module.
   const condensed = aimed.length ? await (await import("./condensed-values")).condensedFor(ws, aimed) : {};
-  if (!opts.points) return { metrics, series: buildSeries(metrics, await getLatestObservations(ws), targets), targets, condensed };
+  const totals = opts.reader && (await totalParts(ws, metrics, opts.reader));
+  if (!opts.points) return { metrics, series: buildSeries(metrics, await getLatestObservations(ws), targets, totals), targets, condensed };
   const inputs = new Set(withInputs(metrics, metrics.filter((m) => m.formula).map((m) => m.id)));
   const rest = metrics.filter((m) => !m.formula && !inputs.has(m.id)).map((m) => m.id);
   const [recent, full] = await Promise.all([
     rest.length ? getRecentObservations(ws, opts.points, rest) : Promise.resolve([]),
     inputs.size ? getLatestObservations(ws, { metricIds: [...inputs] }) : Promise.resolve([]),
   ]);
-  const series = buildSeries(metrics, [...recent, ...full], targets);
+  const series = buildSeries(metrics, [...recent, ...full], targets, totals);
   for (const slug of Object.keys(series)) series[slug] = series[slug].slice(-opts.points);
   return { metrics, series, targets, condensed };
 }
 
 /** The plotted series of some Metrics only, read with what the Derived ones among them are computed from; optionally
- * of some periods only (period starts, both included). */
-export async function getSeriesOf(ws: string, metrics: Metric[], ids: number[], window: { from?: string | null; to?: string | null } = {}) {
+ * of some periods only (period starts, both included). `reader` says what the reader of these series sees: without it
+ * no Total has a value, nor a formula that reads one. */
+export async function getSeriesOf(ws: string, metrics: Metric[], ids: number[], window: { from?: string | null; to?: string | null } = {}, reader?: TotalsReader) {
   const wanted = withInputs(metrics, ids);
   if (!wanted.length) return buildSeries(metrics, []);
-  const [values, targets] = await Promise.all([getLatestObservations(ws, { metricIds: wanted, ...window }), formulaTargets(ws, metrics, wanted)]);
-  return buildSeries(metrics, values, targets);
+  const [values, targets, totals] = await Promise.all([getLatestObservations(ws, { metricIds: wanted, ...window }), formulaTargets(ws, metrics, wanted), reader ? totalParts(ws, metrics, reader) : undefined]);
+  return buildSeries(metrics, values, targets, totals);
 }
 
 /** A workspace's Actions, newest first; who may read them is decided in access.ts. */
