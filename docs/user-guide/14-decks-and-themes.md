@@ -34,6 +34,7 @@ The panel of colours, sizes and fonts opens at the top right of the canvas only 
 | Option | What it does |
 |---|---|
 | **+ Slide** | Adds a new slide at the end. Pick a layout (see below) or one of your team's layouts. |
+| **Element** | Adds a [Slide Element](#slide-elements) to the slide you are looking at: words or a chart that follow the deck's Theme. |
 | **Present** | Shows the deck one slide at a time, filling the screen. On a phone **Look at it** in the note at the top does the same. |
 | **Share** | Opens a panel on the right to share the deck with people or Groups. Only the deck's owner sees this button. |
 | **Export** | Opens a menu: **PowerPoint** downloads the deck as a PowerPoint file, **PDF** prepares a PDF to print or save. |
@@ -84,6 +85,38 @@ You can only place Metrics you may see. Everyone you share the deck with can see
 
 From a dashboard or a story, without opening the deck first: open a Widget's or a Finding's **⋯** menu and choose **Add to…** → **Deck…**. A panel opens beside the page: pick a deck you own or may edit (or **New deck**), then a slide, or **New slide at the end**, which gets the Widget's name as its title. The deck opens on that slide with the copy in the first free space, and is saved. A deck you may only view is not offered. Only your own choice in the menu adds it, once: opening the deck again, or a link someone sends you, adds nothing.
 
+### Slide Elements
+
+A **Slide Element** is a part of a slide that draws itself in the deck's Theme: change the Theme and its colours and fonts change with it. Choose **Element** at the top and pick one:
+
+| Element | What it shows |
+|---|---|
+| **Words** | Text in a Theme colour and font, such as a headline. It can have a lead-in in its own colour, such as "Ask for the meeting:". |
+| **Box** | A rectangle in a Theme colour, to put behind other things. |
+| **Figure** | A Metric's latest value, large, with a label and a line under it. **Emphasised** puts it on the Theme's cover colour. |
+| **Column chart** | A Metric period by period (a weekly Metric: the weeks of the quarter so far). A second Metric can fill part of each column, such as what is closed of what is committed, and a third can draw a line across, such as the quota. |
+| **Gap table** | The latest breakdowns of two Metrics row by row, such as commit and quota by salesperson, with the difference as bars. Both need a breakdown for the same period with the same lines. |
+| **Metric table** | One row per Metric: this period, the one before, the change, a small trend, and whether it is on target. |
+| **Numbered list** | A heading with numbered rows, such as an agenda. One row per line; text after \| stands at the right. |
+| **Logo place** | The Theme's logo. While the Theme has none, a dashed box with words such as "Your logo", also when presenting and exporting; delete it if you want neither. |
+| **Cover art** | Rings and a rising line, for a cover. |
+
+Select an element to change its words, colours, size and Metrics in the side panel; drag it or its corners to move and resize it.
+
+**Words that stay current.** An element fills its words from the data every time the slide is shown, from the Metrics listed under **Metrics** in the panel. {metric 2} or {latest 2} means the second of them.
+
+| Placeholder | What it becomes |
+|---|---|
+| {latest}, {metric}, {period}, {target}, {change yoy} | As in [Words that fill themselves in](12-dashboards.md#findings). |
+| {change} | The change on the period before, in the Metric's unit, such as +0.12 M€. |
+| {difference 2 3} | The second Metric minus the third, for the second one's latest period. |
+| {gap 2 1} | The second Metric against the first: "0.19 M€ short", or "0.18 M€ above quota". |
+| {quarter}, {quarter week}, {quarter weeks}, {weeks left} | The quarter of the latest week ("Q4"), the week's number in it, how many weeks it has, and how many are left ("five weeks"). The number and the weeks are for weekly Metrics. |
+| {scale} | The unit the element writes in, such as M€. |
+| {slide} | The slide's page number. |
+
+Large values are written short: from a million as "3.01 M€", from ten thousand as "640 k€". Whoever may not see one of an element's Metrics gets none of its figures, and no name or value of it.
+
 ### Text, arrows, shapes and images
 
 The toolbar at the bottom of the canvas has the tools for text, arrows, lines, shapes, sticky notes and free drawing. Text and lines start in plain type with solid lines.
@@ -101,9 +134,12 @@ What the side panel shows depends on what you have selected.
 | Option | What it does |
 |---|---|
 | **Hide logo, footer and number on this slide** | Leaves this slide without the logo, footer and slide number that the Theme puts on every slide. Useful for full-bleed title or image slides. |
+| **Cover slide** | The slide shows no logo, footer or number of the Theme and is not counted in page numbers. |
 | **Save slide as layout…** | Saves this slide for the whole team (see below). |
 
 **Always shown: Footer on every slide.** Type a footer for this deck only, such as "Board meeting, confidential". Leave it empty to use the footer of the deck's Theme. The logo, slide numbers and type sizes always come from the Theme.
+
+A slide with a **Logo place**, a page number ({slide}) or a **Footer line** of its own does not show the Theme's second copy of it. A words element marked **Footer line** shows the deck's footer after its own words.
 
 ### Saving a slide as a layout
 
@@ -199,6 +235,7 @@ Every colour is checked for contrast (WCAG AA) when it is used: an accent that i
 | **Bad** | Values that are bad. |
 | **Target band** | The band that shows the Target Range. |
 | **Data, first for single series** | Four colours for the lines and bars of charts. The first is used when a chart shows only one Metric. |
+| **Cover**, **Cover text**, **Cover accent**, **Soft accent** (under **On slides**) | Used by [Slide Elements](#slide-elements): a dark panel, the words and accent on it, and a pale accent. Until you set one it is worked out from the colours above; **Auto** goes back to that. |
 
 ### In a dark Appearance
 

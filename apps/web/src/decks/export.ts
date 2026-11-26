@@ -9,6 +9,9 @@ import { formatValue } from "@ziffr/core/format";
 import { chartFormatCode, chartValue, exportedChange } from "@ziffr/core/export-values";
 import type { CanvasData, SlideDesign } from "@ziffr/core/types";
 import { masterGeometry } from "./master";
+import { elementMetrics } from "@ziffr/core/slide-figures";
+import { addElement } from "./elements/element-pptx";
+import { elementOf, slideNumber, standIns } from "./elements/slide-page";
 import { orderedSlides, SLIDE_W, SLIDE_H } from "./layouts";
 import { WIDGET_SHAPE, widgetFromShape, type WidgetShape } from "./widget-shape";
 import { widgetMetrics } from "@/views/widget-body";
@@ -84,27 +87,35 @@ export async function exportPptx(editor: Editor, data: CanvasData, deckName: str
   pptx.theme = { headFontFace: HEAD_FONT, bodyFontFace: FONT };
   const asOf = format(new Date(), "d MMMM yyyy");
   const frames = orderedSlides(editor);
-  const MASTER = "ZIFFR_MASTER";
   const hex = (c: string) => c.replace("#", "").toUpperCase();
-  if (master) {
+  // With a cover in the deck PowerPoint's own numbers, which count every slide, would differ: they are then written.
+  const covers = frames.some((f) => f.meta?.cover);
+  const masters = new Set<string>();
+  // A native PowerPoint slide master for each set of parts a slide's own elements stand in for (spec 0057), most
+  // decks having one: all of the Theme's.
+  const masterFor = (hidden: string) => {
+    const name = hidden ? `ZIFFR_MASTER_${hidden.replaceAll(" ", "_")}` : "ZIFFR_MASTER";
+    if (!master || masters.has(name)) return name;
+    masters.add(name);
     // A native PowerPoint slide master: background, logo, footer and number live on the master,
     // so editing the master in PowerPoint changes every slide there too.
     const k = IN_PER_SLIDE_W / SLIDE_W;
     const g = masterGeometry(master, SLIDE_W, SLIDE_H);
     const objects: NonNullable<Parameters<typeof pptx.defineSlideMaster>[0]["objects"]> = [];
-    if (master.logo) objects.push({ image: { x: g.logo.x * k, y: g.logo.y * k, w: g.logo.w * k, h: g.logo.h * k, data: master.logo } });
-    if (master.footer && master.logo_position !== "bottom-left")
+    if (master.logo && !hidden.includes("logo")) objects.push({ image: { x: g.logo.x * k, y: g.logo.y * k, w: g.logo.w * k, h: g.logo.h * k, data: master.logo } });
+    if (master.footer && master.logo_position !== "bottom-left" && !hidden.includes("footer"))
       objects.push({ text: { text: master.footer, options: { x: g.footer.x * k, y: g.footer.y * k, w: g.footer.w * k, h: g.footer.h * k, fontSize: Math.round(g.footer.size * k * 72), color: hex(master.text_color), transparency: 38, fontFace: FONT, margin: 0 } } });
     pptx.defineSlideMaster({
-      title: MASTER,
+      title: name,
       background: master.background_image ? { data: master.background_image } : { color: hex(master.background_color) },
       objects,
       slideNumber:
-        master.show_slide_number && master.logo_position !== "bottom-right"
+        master.show_slide_number && master.logo_position !== "bottom-right" && !covers && !hidden.includes("number")
           ? { x: g.number.x * k, y: g.number.y * k, w: g.number.w * k, h: g.number.h * k, fontSize: Math.round(g.number.size * k * 72), color: hex(master.text_color), fontFace: FONT, align: "right" }
           : undefined,
     });
-  }
+    return name;
+  };
 
   for (const [index, frame] of frames.entries()) {
     const fw = (frame.props as { w: number }).w || SLIDE_W;
@@ -114,8 +125,15 @@ export async function exportPptx(editor: Editor, data: CanvasData, deckName: str
     const k = Math.min(kx, ky);
     const pos = (b: Box) => ({ x: b.x * kx, y: b.y * ky, w: Math.max(b.w * kx, 0.05), h: Math.max(b.h * ky, 0.05) });
     const usesMaster = Boolean(master) && !(frame.meta as { hideMaster?: boolean })?.hideMaster;
-    const slide = usesMaster ? pptx.addSlide({ masterName: MASTER }) : pptx.addSlide();
+    const hidden = standIns(editor, frame.id);
+    const slide = usesMaster ? pptx.addSlide({ masterName: masterFor(hidden) }) : pptx.addSlide();
     if (!usesMaster) slide.background = { color: PAPER };
+    const page = slideNumber(editor, frame.id);
+    if (master && usesMaster && covers && master.show_slide_number && master.logo_position !== "bottom-right" && !hidden.includes("number")) {
+      const g = masterGeometry(master, SLIDE_W, SLIDE_H);
+      const k0 = IN_PER_SLIDE_W / SLIDE_W;
+      slide.addText(`${page}`, { x: g.number.x * k0, y: g.number.y * k0, w: g.number.w * k0, h: g.number.h * k0, fontSize: Math.round(g.number.size * k0 * 72), color: hex(master.text_color), fontFace: FONT, align: "right", margin: 0 });
+    }
 
     for (const shape of descendants(editor, frame.id)) {
       const box = frameBox(editor, frame, shape);
@@ -167,6 +185,8 @@ export async function exportPptx(editor: Editor, data: CanvasData, deckName: str
             flipV: y2 < y1,
             line: { color: TL_COLORS[p.color as string] ?? INK, width: 2, endArrowType: p.arrowheadEnd === "none" ? undefined : "triangle", beginArrowType: p.arrowheadStart && p.arrowheadStart !== "none" ? "triangle" : undefined },
           });
+        } else if (shape.type === WIDGET_SHAPE && elementOf(shape.props)) {
+          await addSlideElement(pptx, slide, shape as WidgetShape, box, data, editor, theme, page, master);
         } else if (shape.type === WIDGET_SHAPE) {
           await addWidget(pptx, slide, shape as WidgetShape, pos(box), data, editor);
         } else {
@@ -184,6 +204,21 @@ export async function exportPptx(editor: Editor, data: CanvasData, deckName: str
   }
 
   await pptx.writeFile({ fileName: `${deckName.replace(/[^\w\- ]+/g, "").trim() || "Ziffr deck"}.pptx` });
+}
+
+// A Slide Element (spec 0057) as native text boxes and shapes; the cover's ornament, which reaches past its box, as a
+// picture of it.
+async function addSlideElement(pptx: Pptx, slide: Slide, shape: WidgetShape, at: Box, live: CanvasData, editor: Editor, theme: Theme | undefined, page: number, master: SlideDesign | null) {
+  const element = elementOf(shape.props)!;
+  const inch = IN_PER_SLIDE_W / SLIDE_W;
+  if (element.kind === "art") {
+    slide.addImage({ data: await shapeImage(editor, [shape.id]), x: at.x * inch, y: at.y * inch, w: at.w * inch, h: at.h * inch });
+    return;
+  }
+  const { settings } = widgetFromShape(shape);
+  const data = settings.asOf ? dataAsOf(live, settings.asOf) : live;
+  const context = { data, metrics: elementMetrics(shape.props.metricIds, data), slide: page, footer: master?.footer };
+  await addElement(pptx, slide, { element, context, w: shape.props.w, h: shape.props.h, logo: master?.logo }, theme, { x: at.x, y: at.y, inch });
 }
 
 type Slide = ReturnType<InstanceType<typeof import("pptxgenjs").default>["addSlide"]>;
@@ -299,6 +334,8 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
 
 export async function exportPdf(editor: Editor, deckName: string) {
   const frames = orderedSlides(editor);
+  // A slide of Slide Elements has its own source line at the bottom left: the stamp then stands in the middle.
+  const designed = frames.map((f) => editor.getSortedChildIdsForParent(f.id).some((id) => elementOf(editor.getShape(id)?.props)));
   const images: string[] = [];
   for (const f of frames) images.push((await editor.toImageDataUrl([f.id], { format: "png", pixelRatio: 2, background: true, padding: 0 })).url);
   const asOf = format(new Date(), "d MMMM yyyy");
@@ -312,7 +349,8 @@ export async function exportPdf(editor: Editor, deckName: string) {
     html, body { margin: 0; background: #${PAPER} }
     figure { margin: 0; width: 13.333in; height: 7.5in; position: relative; break-after: page }
     img { width: 100%; height: 100%; object-fit: contain; display: block }
-    figcaption { position: absolute; left: 0.4in; bottom: 0.2in; font: 9pt system-ui, sans-serif; color: #${MUTED} }`;
+    figcaption { position: absolute; left: 0.4in; bottom: 0.2in; font: 9pt system-ui, sans-serif; color: #${MUTED} }
+    figcaption.middle { left: 0; right: 0; text-align: center }`;
   doc.head.appendChild(style);
   const loads = images.map((src, i) => {
     const fig = doc.createElement("figure");
@@ -322,6 +360,7 @@ export async function exportPdf(editor: Editor, deckName: string) {
     img.src = src;
     const cap = doc.createElement("figcaption");
     cap.textContent = `Data as of ${asOf}, slide ${i + 1}`;
+    if (designed[i]) cap.className = "middle";
     fig.append(img, cap);
     doc.body.appendChild(fig);
     return loaded;

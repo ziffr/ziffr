@@ -9,7 +9,7 @@ import { tokensForViewer } from "@ziffr/core/theme-dark";
 import { useViewerDark } from "@/lib/use-viewer-dark";
 import { toast } from "sonner";
 import { isActionError } from "@/lib/action-error";
-import { ChevronDown, Eye, FileDown, Group as GroupIcon, History, LayoutTemplate, Link2, MonitorPlay, MoreHorizontal, Palette, Plus, Presentation, Printer, Trash2, Ungroup } from "lucide-react";
+import { ChevronDown, Eye, FileDown, Group as GroupIcon, History, LayoutTemplate, Link2, MonitorPlay, MoreHorizontal, Palette, Plus, Presentation, Printer, Shapes, Trash2, Ungroup } from "lucide-react";
 import { createShapeId, DefaultDashStyle, DefaultFontStyle, DefaultStylePanel, getSnapshot, Tldraw, useEditor, useValue, type Editor, type TLComponents, type TLEditorSnapshot, type TLUiStylePanelProps } from "tldraw";
 import { Pool } from "@/components/pool";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -34,6 +34,8 @@ import { StoryEditor } from "@/components/story-editor";
 import { widgetFromShape } from "@/decks/widget-shape";
 import type { CanvasData, Group, Share, SlideDesign, TemplateId, Widget } from "@ziffr/core/types";
 import { DeckMaster, setDeckExportMaster, SlideFrameUtil } from "@/decks/master";
+import { ElementPanel } from "@/decks/elements/element-panel";
+import { ELEMENT_CHOICES, fitMetrics } from "@/decks/elements/element-add";
 import Link from "next/link";
 import { DeckData, setDeckExportData, WIDGET_SHAPE, WidgetShapeUtil, type WidgetShape } from "@/decks/widget-shape";
 import { type DeckSeed, LAYOUTS, type LayoutId, MARGIN, SLIDE_H, SLIDE_W, addSlide, contentAreas, orderedSlides, placeShapes, seedSlides, slideShapes, templateSlides } from "@/decks/layouts";
@@ -120,7 +122,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
         const { seed, templateSeed, data: first } = firstLayout.current;
         const byId = (ids: number[]) => ids.map((mid) => first.metrics.find((m) => m.id === mid)!).filter(Boolean);
         const id = templateSeed
-          ? templateSlides(ed, masterRef.current, fromDeckTemplate({ slides: templateSeed.slides }, templateSeed.fills, (txt, ids) => fillText(txt, byId(ids), first) ?? txt))
+          ? templateSlides(ed, masterRef.current, fromDeckTemplate({ slides: templateSeed.slides }, templateSeed.fills, (txt, ids) => fillText(txt, byId(ids), first) ?? txt), templateSeed.slides.map((s) => Boolean(s.cover)))
           : seed
             ? seedSlides(ed, masterRef.current, seed, WIDGET_SHAPE, (w) => w.title || first.metrics.find((m) => m.id === w.metric_ids[0])?.name || "")
             : addSlide(ed, "title", masterRef.current);
@@ -238,6 +240,24 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
     });
   };
 
+  /** A new Slide Element on the slide in view (spec 0057), at the first free spot, selected so its settings show. */
+  const addElement = (choice: (typeof ELEMENT_CHOICES)[number]) => {
+    if (!editor) return;
+    const slides = orderedSlides(editor);
+    const target = slides.find((f) => editor.getShapePageBounds(f)!.collides(editor.getViewportPageBounds())) ?? slides[0];
+    if (!target) return;
+    const fb = editor.getShapePageBounds(target)!;
+    const taken = editor.getSortedChildIdsForParent(target.id).map((child) => {
+      const b = editor.getShapePageBounds(child)!;
+      return { x: b.x - fb.x, y: b.y - fb.y, w: b.w, h: b.h };
+    });
+    const spot = freeSpot(contentAreas()[0], taken, { w: choice.w, h: choice.h }, { w: SLIDE_W, h: SLIDE_H });
+    const metricIds = fitMetrics(choice.element, data.metrics.slice(0, choice.metrics).map((m) => m.id), data.metrics.map((m) => m.id));
+    const id = createShapeId();
+    editor.createShape<WidgetShape>({ id, type: WIDGET_SHAPE, parentId: target.id, x: spot.x, y: spot.y, props: { w: choice.w, h: choice.h, template: "slide", metricIds, settings: JSON.stringify({ element: choice.element }), title: "" } });
+    editor.select(id);
+  };
+
   const [layoutShapes, setLayoutShapes] = useState<SlideShape[] | null>(null);
   const [deckSlides, setDeckSlides] = useState<SlideShape[][] | null>(null);
   /** A team slide layout: its slots filled, its words filled in from today's data, as a new slide at the end. */
@@ -327,6 +347,22 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger className={buttonVariants({ variant: "outline" })} disabled={!editor}><Shapes aria-hidden /> Element</DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Add to the slide in view</DropdownMenuLabel>
+              {ELEMENT_CHOICES.map((c) => (
+                <DropdownMenuItem key={c.kind} disabled={data.metrics.length < c.metrics} onClick={() => setTimeout(() => addElement(c), 0)}>
+                  <span className="flex flex-col">
+                    <span>{c.label}</span>
+                    <span className="text-xs text-muted-foreground">{c.blurb}</span>
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {/* On a phone the note above the editor carries this button. */}
         <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline", className: "max-sm:hidden" })}><MonitorPlay aria-hidden /> Present</Link>
         {sharing && <ShareSheet objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} canInvite={sharing.canInvite} />}
@@ -374,6 +410,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
           <Pool data={data} saved={saved} onAdd={(s) => place(s)} hint="Drag onto a slide, or click + to add to the slide in view." />
           {slotFill.dialog}
           {editor && <SelectionPanel editor={editor} data={data} onSaveLayout={setLayoutShapes} />}
+          {editor && <ElementPanel editor={editor} data={data} />}
           {editor && <GroupPanel editor={editor} />}
           <label className="stock block rounded-[var(--radius-card)] p-3 text-sm">
             <span className="mb-1 block text-xs font-medium">Footer on every slide</span>
@@ -479,6 +516,16 @@ function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: 
           Hide logo, footer and number on this slide
         </label>
         <p className="mt-1.5 text-xs text-muted-foreground">For full-bleed title or image slides.</p>
+        <label className="mt-3 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={Boolean(slide.meta?.cover)}
+            onChange={(e) => editor.updateShape({ id: slide.id, type: "frame", meta: { ...slide.meta, cover: e.target.checked } })}
+            className="size-4 accent-[var(--color-ink)]"
+          />
+          Cover slide
+        </label>
+        <p className="mt-1.5 text-xs text-muted-foreground">A cover shows no logo, footer or number and is not counted in page numbers.</p>
         <Button
           variant="outline"
           className="mt-3 w-full"

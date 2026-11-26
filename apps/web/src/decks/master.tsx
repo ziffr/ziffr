@@ -4,6 +4,7 @@
 // export (foreignObject, where class-based CSS does not travel) and in the Masters editor.
 import { createContext, useContext } from "react";
 import { FrameShapeUtil, HTMLContainer, useEditor, useValue, type SvgExportContext, type TLFrameShape } from "tldraw";
+import { slideNumber, useSlideMaster } from "./elements/slide-page";
 import type { SlideDesign } from "@ziffr/core/types";
 
 const MARGIN_X = 48;
@@ -13,6 +14,8 @@ const FOOTER_PX = 15;
 export const DeckMaster = createContext<SlideDesign | null>(null);
 let exportMaster: SlideDesign | null = null;
 export const setDeckExportMaster = (m: SlideDesign | null) => (exportMaster = m);
+/** The master of the deck being exported, for shapes drawn outside the page's React tree. */
+export const deckExportMaster = () => exportMaster;
 
 /** Where the master's parts sit, in slide pixels (w × h). Shared with the PowerPoint export. */
 export function masterGeometry(m: SlideDesign, w: number, h: number) {
@@ -78,20 +81,12 @@ function useMaster() {
 
 function useSlideIndex(id: TLFrameShape["id"]) {
   const editor = useEditor();
-  return useValue(
-    "slide index",
-    () =>
-      editor
-        .getCurrentPageShapes()
-        .filter((s) => s.type === "frame")
-        .sort((a, b) => a.y - b.y || a.x - b.x)
-        .findIndex((s) => s.id === id) + 1,
-    [editor, id],
-  );
+  return useValue("slide index", () => slideNumber(editor, id), [editor, id]);
 }
 
 function MasterLayer({ shape }: { shape: TLFrameShape }) {
-  const master = useMaster();
+  // Without what the slide's own elements stand in for: a cover, a logo place, a page number or a footer line.
+  const master = useSlideMaster(useMaster(), shape.id);
   const index = useSlideIndex(shape.id);
   if (!master || shape.meta?.hideMaster) return null;
   return (
@@ -102,7 +97,7 @@ function MasterLayer({ shape }: { shape: TLFrameShape }) {
 }
 
 function MasterSvg({ shape }: { shape: TLFrameShape }) {
-  const master = useMaster();
+  const master = useSlideMaster(useMaster(), shape.id);
   const index = useSlideIndex(shape.id);
   if (!master || shape.meta?.hideMaster) return null;
   return (
