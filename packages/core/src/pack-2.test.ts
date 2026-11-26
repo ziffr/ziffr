@@ -12,6 +12,8 @@ import { checkPack, checkPackValue, PACK_2_SCHEMA, PACK_FORMAT, PACK_SCHEMA, typ
 import { installManifest, itemHash, previewPeople, storedItems } from "./packs";
 import { listInstalledGuides, readInstalledGuide, safeGuide } from "./installed-pack-guides";
 import { withSlugs } from "./pack-setup-build";
+import { TOTAL_MAX_PARTS } from "./total-rules";
+import { PACK_POSITION_LIMITS } from "@ziffr/pack/pack-positions";
 import { formulaInputs } from "./formula";
 import { PLAIN, textPasses } from "./file-text";
 import { describePlaces, readPlaces, type PackPlaces } from "./pack-places";
@@ -516,6 +518,12 @@ describe("a Pack with a Total", () => {
     const others = res.ok ? storedItems(res.pack).catalog.filter((e) => e.key !== "all-hours") : [];
     expect(others.length).toBeGreaterThan(0);
     for (const e of others) expect(e).not.toHaveProperty("total");
+  });
+
+  // Set up makes a Total over every line, so no Repeat may take more lines than a Total counts (a Repeat of 51 lines is
+  // refused above, and Set up takes no more than the same number).
+  it("never has more lines to add up than a Total counts", () => {
+    expect(PACK_POSITION_LIMITS.lines).toBeLessThanOrEqual(TOTAL_MAX_PARTS);
   });
 });
 
