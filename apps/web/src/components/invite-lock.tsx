@@ -2,7 +2,8 @@
 // GLOSSARY: Invitation, Trial Workspace, Trial Limit, Submitter, Ask me now, Record a value. Said right above an invite
 // form that is closed: why, what opens it, and the buttons that do it. The core decides (`inviteGate`) and the database
 // refuses whatever is shown here. While the form waits for something that can happen elsewhere (a reply by email, a freed
-// place), the gate is read again by itself, so the fields open without reloading the page.
+// place), the gate is read again by itself, so the fields open without reloading the page; after the box's own buttons it
+// is read again at once.
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Lock } from "lucide-react";
@@ -13,8 +14,9 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { isActionError } from "@/lib/action-error";
 import type { InviteGate, InviteMetric } from "@ziffr/core/invite-gate";
 
-/** How often a closed gate that can open by itself is read again, while the page is in view. */
-const LOOK_EVERY_MS = 8000;
+/** How often a closed gate that can open by itself is read again, while the page is in view. Not more often: an Owner's
+ * read looks for a Metric to offer, which costs many queries. */
+const LOOK_EVERY_MS = 30_000;
 
 /** The gate as last read, and what it was closed for if it has opened since the form was first seen. */
 export type SeenGate = { gate: InviteGate | null; was: Exclude<InviteGate["state"], "open"> | null };
@@ -54,7 +56,7 @@ const WHY = "An invitation is an email to an address nobody has confirmed yet. S
 
 /** The words above a closed invite form (give the fields `aria-describedby={id}`), or that it has just opened, or
  * nothing. `onMembers` leaves out the link to Members and Groups on that page itself. */
-export function InviteLock({ gate, was, id, onMembers }: SeenGate & { id: string; onMembers?: boolean }) {
+export function InviteLock({ gate, was, id, onMembers, look }: SeenGate & { id: string; onMembers?: boolean; /** Reads the gate again, after the box's own buttons. */ look?: () => void }) {
   if (!gate) return null;
   if (gate.state === "open") {
     if (!was) return null;
@@ -76,7 +78,7 @@ export function InviteLock({ gate, was, id, onMembers }: SeenGate & { id: string
           {!gate.you ? (
             <p>An Owner of this Workspace opens invitations by sending in a first value of their own, as a reply to a request or with Record a value. The fields open here by themselves after that.</p>
           ) : gate.metric ? (
-            <SendOne metric={gate.metric} />
+            <SendOne metric={gate.metric} look={look} />
           ) : (
             <>
               <p><strong className="font-medium">To open them,</strong> send in one value yourself. You do not send values for any Metric yet: make one with yourself as its Submitter, then reply to its request or use Record a value.</p>
@@ -95,15 +97,15 @@ export function InviteLock({ gate, was, id, onMembers }: SeenGate & { id: string
 const TITLE = { ended: "Invitations are closed", full: "This trial has no free place", waiting: "Invitations are not open yet" } as const;
 
 /** What the Owner does to open invitations, for the Metric they can send a value for. */
-function SendOne({ metric }: { metric: InviteMetric }) {
+function SendOne({ metric, look }: { metric: InviteMetric; look?: () => void }) {
   const [asking, setAsking] = useState(false);
   const ways = [metric.canAsk && "press Ask me now and reply to the request", metric.offer && (metric.canAsk ? "record the value here" : "record it here")].filter(Boolean).join(", or ");
   return (
     <>
       <p><strong className="font-medium">To open them,</strong> send in one value for <Link href={`/metrics/${metric.slug}`} className="underline underline-offset-2">{metric.name}</Link> yourself: {ways}. Values from a Feed or an Import do not count.</p>
       <div className="flex flex-wrap gap-2">
-        {metric.canAsk && <Button type="button" className={tall} disabled={asking} onClick={() => { setAsking(true); void askNow(metric.id).finally(() => setAsking(false)); }}>Ask me now</Button>}
-        {metric.offer && <div className="[&>button]:max-sm:min-h-11"><RecordValue offer={metric.offer} /></div>}
+        {metric.canAsk && <Button type="button" className={tall} disabled={asking} onClick={() => { setAsking(true); void askNow(metric.id).finally(() => { setAsking(false); look?.(); }); }}>Ask me now</Button>}
+        {metric.offer && <div className="[&>button]:max-sm:min-h-11"><RecordValue offer={metric.offer} onClose={look} /></div>}
       </div>
       <p className="text-muted-foreground">The fields open here by themselves once your value is in.</p>
     </>

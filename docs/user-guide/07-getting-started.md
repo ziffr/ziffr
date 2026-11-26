@@ -139,7 +139,7 @@ The step ticks once someone beside you is in the Workspace, an invitation is wai
 - If you send values for no Metric yet, for example right after starting from a Pack, it offers **Make a Metric** and **Go to the First Metric step**. Add yourself as the Metric's Submitter.
 - An Admin reads that an Owner has to send in that value.
 
-The fields open by themselves a few seconds after the value arrives, without reloading the page, and the box says **Invitations are open now**. When every place of the trial is taken, the fields are greyed out too and the box says how to free one. After the trial has ended, nobody can be invited. The same box shows in **Invite** on Members and Groups and under **Invite someone** in a Share panel. A trial invites by email only: there is no link and no Domain Joining, as [the trial](16-workspace-settings.md#on-a-ziffr-that-offers-trials) describes.
+The fields open by themselves within half a minute of the value arriving, or at once when you close **Record a value** or come back to the page, without reloading it, and the box says **Invitations are open now**. When every place of the trial is taken, the fields are greyed out too and the box says how to free one. After the trial has ended, nobody can be invited. The same box shows in **Invite** on Members and Groups and under **Invite someone** in a Share panel. A trial invites by email only: there is no link and no Domain Joining, as [the trial](16-workspace-settings.md#on-a-ziffr-that-offers-trials) describes.
 
 ### The Setup line and opening by itself
 

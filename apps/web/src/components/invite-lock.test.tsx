@@ -86,12 +86,22 @@ describe("a closed form", () => {
     await act(async () => root.render(<Form />));
     expect(host.querySelector("input")!.disabled).toBe(true);
     gateNow.mockResolvedValue({ state: "open" });
-    await act(async () => { await vi.advanceTimersByTimeAsync(8000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
     expect(host.querySelector("input")!.disabled).toBe(false);
     expect(host.textContent).toContain("Invitations are open now");
     const looks = gateNow.mock.calls.length;
-    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(120_000); });
     expect(gateNow.mock.calls.length).toBe(looks);
+  });
+  it("reads again at once after Ask me now, and otherwise only every 30 seconds", async () => {
+    gateNow.mockResolvedValue(waiting(both));
+    await act(async () => root.render(<Form />));
+    await act(async () => { await vi.advanceTimersByTimeAsync(29_000); });
+    expect(gateNow).toHaveBeenCalledTimes(1);
+    gateNow.mockResolvedValue({ state: "open" });
+    await act(async () => { [...host.querySelectorAll("button")].find((b) => b.textContent === "Ask me now")!.click(); });
+    expect(gateNow).toHaveBeenCalledTimes(2);
+    expect(host.querySelector("input")!.disabled).toBe(false);
   });
   it("stays usable when the gate cannot be read: the core refuses in its own words", async () => {
     gateNow.mockResolvedValue({ error: "No." });
