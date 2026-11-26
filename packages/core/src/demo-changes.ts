@@ -56,6 +56,7 @@ const READS: readonly string[] = [
   "search-actions:searchStart",
   "series-actions:sameNamedMetrics",
   "tag-actions:tagImpact",
+  "team-actions:inviteGateNow",
   "theme-actions:themeLogoSource",
   "version-actions:listVersions",
   "view-link-actions:emptyInLink",
@@ -272,6 +273,10 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "workflow-actions:runTodayNow",
     // The Setup Guide is for a Workspace of one's own: the demo never shows it, and a person's way of being asked is set on the Delivery settings (`setPreference`).
     "setup/ways-actions:saveAskMeBy",
+    // A trial's example: the demo is no trial and has none.
+    "home-actions:tryExample",
+    "home-actions:removeExample",
+    "setup/first-metric-actions:tryExampleHere",
     "home-actions:setHome",
     "pin-actions:pinDashboard",
     "pin-actions:reorderPinned",
