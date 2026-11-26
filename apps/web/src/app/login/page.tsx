@@ -16,6 +16,7 @@ import { demoChangesInEffect } from "@ziffr/core/demo-reset-decision";
 import { publicAnnouncements } from "@ziffr/core/installation-announcements";
 import { AnnouncementLine } from "@/components/announcement-line";
 import { signInAnnouncements } from "@/lib/announcements";
+import { atAdminAddress } from "@/lib/installation";
 
 /** The way into the shared demo. A plain link, so a full page load: /demo sets the cookie in the middleware, and the
  * root layout's header must be drawn again for it (#14). */
@@ -59,7 +60,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <>
     {announcements}
-    <AuthShell below={offers.demo ? DEMO_LINK : undefined}>
+    {/* The Admin Address (spec 0066) serves no demo, so it offers none. */}
+    <AuthShell below={offers.demo && !(await atAdminAddress()) ? DEMO_LINK : undefined}>
       <AuthHeading title="Sign in to Ziffr">{offers.trial && !full ? "New here? The same link creates your account." : null}</AuthHeading>
       {sp.failed && <AuthNotice>That link did not work, or it was used already. Ask for a new one.</AuthNotice>}
       {full && <p role="status" className="mb-6 rounded-[var(--radius-input)] border border-border p-3 text-sm">All new trials are taken right now. If you have one already, sign in to it here.</p>}
