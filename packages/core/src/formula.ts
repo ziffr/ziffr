@@ -287,7 +287,7 @@ export function evaluateRange(formula: string, vars: Record<string, Bounds>): Bo
 }
 
 /** The Metrics a Derived Metric may be computed from: what `checkFormula` needs to know of each. */
-export type FormulaInput = Pick<Metric, "slug" | "name" | "period" | "aggregation" | "formula">;
+export type FormulaInput = Pick<Metric, "slug" | "name" | "period" | "aggregation" | "formula" | "total">;
 
 /** Why a Derived Metric's inputs cannot be combined, or null: one is a Derived Metric itself (series are computed one
  * level deep, so it has no values here), or they are counted by different periods, or by another period than the
@@ -298,8 +298,9 @@ export function inputsProblem(metric: Pick<Metric, "formula" | "period" | "input
   // Its owner may no longer share one of its inputs (ticket #619): no values, and no word of which input it is.
   if (metric.inputs_withheld) return "Its owner can no longer share one of the Metrics it is calculated from, so it shows no values.";
   const used = known(metric.formula, inputs);
-  // Series are computed one level deep (workspace-data.ts): a Derived Metric among the inputs has no values here.
-  const derived = used.filter((m) => m.formula).map((m) => m.name);
+  // Series are computed one level deep (series.ts): a Derived Metric among the inputs has no values here. A Total is
+  // the exception: its parts take values, so it is worked out first and a formula may read it (spec 0058).
+  const derived = used.filter((m) => m.formula && !m.total).map((m) => m.name);
   if (derived.length) return `${derived.join(" and ")} ${derived.length === 1 ? "is a Derived Metric itself" : "are Derived Metrics themselves"}: compute from the Metrics ${derived.length === 1 ? "it is" : "they are"} made of.`;
   const periods = new Set(used.map((m) => m.period));
   if (periods.size > 1) return "Its inputs are counted by different periods, so no period has a value of each. Give them the same period.";

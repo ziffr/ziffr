@@ -8,7 +8,7 @@ import { schedule } from "@ziffr/core/schedule";
 import { toCloseCount } from "@ziffr/core/actions-overview";
 import * as data from "@ziffr/core/workspace-data";
 import { peopleIn } from "@ziffr/core/submissions";
-import { peopleFor } from "@ziffr/core/access";
+import { allSeriesFor, peopleFor } from "@ziffr/core/access";
 import { yearStartOf } from "@ziffr/core/fiscal-year";
 import { attainmentMethodOf, numberStyleOf } from "@ziffr/core/workspace-settings";
 import type { Profile } from "@ziffr/core/types";
@@ -41,9 +41,10 @@ export const getAttainmentMethod = cache(async () => attainmentMethodOf(await cu
 export const getMetrics = cache(async () => data.getMetrics(await currentWorkspaceId()));
 /** The last values of one Metric of the current workspace, oldest first. */
 export const getLastValues = async (metricId: number, n: number) => data.getLastValues(await currentWorkspaceId(), metricId, n);
-/** The current workspace's Metrics and series; with `points`, only each series' last periods. */
+/** The current workspace's Metrics and series as this person reads them (a Total is worked out for what they see);
+ * with `points`, only each series' last periods. */
 export const getAllSeries = (opts?: { points?: number }) => allSeries(opts?.points ?? 0);
-const allSeries = cache(async (points: number) => data.getAllSeries(await currentWorkspaceId(), points ? { points } : {}));
+const allSeries = cache(async (points: number) => allSeriesFor(await currentActor(), points ? { points } : {}));
 /** Target Series and Projections of the current workspace. */
 export const getSeriesValues = async (metricIds: number[]) => data.getSeriesValues(await currentWorkspaceId(), metricIds);
 /** Breakdowns of the current workspace. */

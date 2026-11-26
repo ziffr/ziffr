@@ -13,6 +13,8 @@ export function normalizeMetric(m: Metric): Metric {
   // The cap holds the confirmation's id and counts; it is the job's alone.
   delete (rest as Record<string, unknown>).retention_cap;
   delete rest.inputs_checked;
+  // A Total's columns, among them who opened it: what is sent on is `total` (getMetrics).
+  for (const column of ["total_targets", "total_opened_at", "total_opened_by"]) delete (rest as Record<string, unknown>)[column];
   return {
     ...rest, target_min: m.target_min === null ? null : Number(m.target_min), target_max: m.target_max === null ? null : Number(m.target_max),
     attainment_method: isAttainmentMethod(m.attainment_method) ? m.attainment_method : null,

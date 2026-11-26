@@ -6,7 +6,7 @@ import { db } from "./db";
 import { openNames, openOne, openRows, reserveIds, sealRow, sealedPatch } from "./sealed-columns";
 import { CONNECTORS } from "./connectors/index";
 import type { FirstAsk } from "./asked-message";
-import { assertCan, Forbidden, type Actor } from "./actor";
+import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { parseSeriesLine } from "./series-lines";
 import { assertSeesMetrics } from "./sharing";
 import type { Aggregation, Format, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "./types";
@@ -27,6 +27,7 @@ import { workspaceProfile } from "./workspace-settings";
 import { isAttainmentMethod } from "./attainment-method";
 import { limitReachedFrom, syncDefaultLimit } from "./workspace-limits";
 import { trialLimitMessage } from "./trials";
+import { assertKeepsTotals } from "./total-parts";
 import { announceDefaultRetention, assertRetentionFits, defaultRetentionFor } from "./retention-setting";
 import { chargeNewRows } from "./demo-creation";
 import { DemoTextRefused, inDemoVisit, visitorOptionalText, visitorText } from "./demo-visitor-words";
@@ -254,6 +255,10 @@ export async function deleteMetric(actor: Actor, metricId: number, confirmName: 
   // Names of what blocks it only where the owner may see them: Derived Metrics are named, other things only counted.
   const usedBy = (await openRows("metrics", ws, derived)).filter((d) => formulaInputs(String(d.formula)).includes(m.slug)).map((d) => d.name as string);
   if (usedBy.length) throw new MetricKept(`Other Metrics are computed from it (${usedBy.length}). Change their formulas first.`);
+  // A Total keeps the Metrics it adds up, past ones too: deleting one would change what past totals were.
+  const { count: addedUp, error: unread } = await db().from("total_parts").select("total_id", { count: "exact", head: true }).eq("workspace_id", ws).eq("part_id", m.id);
+  if (unread) throw new Error("The Metric could not be deleted. Try again in a moment.");
+  if (addedUp) throw new MetricKept(`Totals add it up (${addedUp}). Remove it from them first.`);
   const inWidgets = (widgets ?? []).filter((w) => widgetMetricIds(w.metric_ids ?? [], w.settings).includes(metricId)).length;
   const inDecks = (decks ?? []).filter((d) => allDeckMetricIds(d.document).includes(metricId)).length;
   if (inWidgets || inDecks) throw new MetricKept(`It is shown in ${inWidgets} widget${inWidgets === 1 ? "" : "s"} and ${inDecks} deck${inDecks === 1 ? "" : "s"}. Take it out of them first.`);
@@ -337,7 +342,9 @@ export async function removeSeriesRows(actor: Actor, metricId: number, kind: "ta
 /** The metric, when the actor owns it in their workspace; only its owner sets targets and projections. */
 async function seriesOwnerMetric(actor: Actor, metricId: number, kind: string) {
   if (kind !== "target" && kind !== "projection") throw new Forbidden("Unknown series.");
-  return editableMetric(actor, metricId, "targets and projections");
+  const m = await editableMetric(actor, metricId, "targets and projections");
+  if (kind === "target" && m.total_targets === "parts") throw new Refused("Its target is the targets of the Metrics it adds up. Choose its own target first.");
+  return m;
 }
 
 /** The Metric when the actor may change it (its targets, description and Sources): its owner, or a member it is
@@ -492,6 +499,7 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
   // A change of period or Aggregation that its Retention could not do is refused (a rate cannot be condensed), checked
   // against the final values, after the period above is settled.
   assertRetentionFits(m, { period: (update.period ?? m.period) as Period, aggregation: (update.aggregation ?? m.aggregation) as Aggregation });
+  await assertKeepsTotals(ws, m, update);
   // Name, description, Calculation Note and Target Range are sealed for the row; a Target set to null clears both its columns.
   const { error } = await db().from("metrics").update(await sealedPatch("metrics", ws, metricId, update)).eq("id", metricId).eq("workspace_id", ws);
   if (error) throw new Error("The change could not be saved.");

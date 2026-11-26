@@ -319,7 +319,7 @@ function whatIfRecipeWithin(start: Metric, change: WhatIfChange, others: Metric[
     const inputs = formulaInputs(t.formula!).map((s) => everyone.find((m) => m.slug === s));
     const have = inputs as Metric[];
     // Its inputs are counted by its own period (`inputsProblem` says where they are not, or are Derived Metrics themselves).
-    const levels = inputs.some((m) => m === undefined) || usesPrevious(t.formula!) || usesTarget(t.formula!) || t.period !== span || inputsProblem(t, have) !== null ? null : levelsOf(have, series, last.period);
+    const levels = inputs.some((m) => m === undefined) || t.total || usesPrevious(t.formula!) || usesTarget(t.formula!) || t.period !== span || inputsProblem(t, have) !== null ? null : levelsOf(have, series, last.period);
     if (!levels) {
       left.add(t.name);
       return null;
