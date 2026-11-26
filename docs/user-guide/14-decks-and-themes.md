@@ -129,13 +129,14 @@ A **Slide Element** is a part of a slide that draws itself in the deck's Theme: 
 | **Column chart** | A Metric period by period (a weekly Metric: the weeks of the quarter so far). A second Metric can fill part of each column, such as what is closed of what is committed, and a third can draw a line across, such as the quota. |
 | **Gap table** | The latest breakdowns of two Metrics row by row, such as commit and quota by salesperson, with the difference as bars. Both need a breakdown for the same period with the same lines. It can carry a headline above it and a closing line under it, which move with the table however long the headline is. |
 | **Metric table** | One row per Metric: this period, the one before, the change, a small trend, and whether it is on target. |
+| **Definitions** | For an appendix: each Metric with its description and **How it is calculated**, as they are today. Up to 12 Metrics; the letters get smaller to fit, from four Metrics on in two columns, and what still does not fit is counted as "and 3 more" (use a second element on another slide). On a View Link only the names are shown, because neither text leaves the Workspace. A Metric the viewer may not see is left out, name and all |
 | **Numbered list** | A heading with numbered rows, such as an agenda. One row per line; text after \| stands at the right. |
 | **Logo place** | The Theme's logo. While the Theme has none, a dashed box with words such as "Your logo", also when presenting and exporting; delete it if you want neither. |
 | **Cover art** | Rings and a rising line, for a cover. |
 
 Select an element to change its words, colours, size and Metrics in the side panel; drag it or its corners to move and resize it.
 
-**You pick every Metric.** A new element has none, and Ziffr never chooses one for you, because whoever the deck is shared with, and whoever opens its View Link, sees what is on the slide. A Figure, Column chart, Gap table or Metric table reads **Pick a Metric** until its Metrics are chosen under **Metrics**; **Add a Metric…** adds one more. When you switch on a column chart's filled part and it already has a reference line, pick the line's Metric again after the part's. An element with a Metric still to pick is left out when a deck is saved as a file or put in a Pack.
+**You pick every Metric.** A new element has none, and Ziffr never chooses one for you, because whoever the deck is shared with, and whoever opens its View Link, sees what is on the slide. A Figure, Column chart, Gap table, Metric table or Definitions reads **Pick a Metric** until its Metrics are chosen under **Metrics**; **Add a Metric…** adds one more. When you switch on a column chart's filled part and it already has a reference line, pick the line's Metric again after the part's. An element with a Metric still to pick is left out when a deck is saved as a file or put in a Pack.
 
 **Words that stay current.** An element fills its words from the data every time the slide is shown, from the Metrics listed under **Metrics** in the panel. {metric 2} or {latest 2} means the second of them.
 

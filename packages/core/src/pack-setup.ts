@@ -142,7 +142,7 @@ async function makeMetrics(actor: Actor, b: Blueprint, todo: PlannedMetric[], re
   for (const planned of todo) {
     const e = planned.entry;
     const m = await createMetric(actor, {
-      name: planned.name, description: e.description, unit: e.unit, unitPosition: e.unit_position, format: e.format, decimals: e.decimals, period: e.period,
+      name: planned.name, description: e.description, calculationNote: e.calculation_note, unit: e.unit, unitPosition: e.unit_position, format: e.format, decimals: e.decimals, period: e.period,
       submissionRule: e.submission_rule, polarity: e.polarity, aggregation: e.aggregation, targetMin: e.target_min, targetMax: e.target_max,
       // A Derived Metric takes no values, so no Source and no Workflow.
       // One that takes values and has no Workflow of this run may join the one ticked of what was set up before.

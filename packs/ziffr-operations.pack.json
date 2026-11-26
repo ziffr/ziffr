@@ -2,7 +2,7 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/ziffr-operations",
   "name": "Ziffr operations",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "The figures of the Usage Feed as Metrics, with a dashboard: people, Workspaces, signups, trials, values by Source, calls and views. For whoever runs a Ziffr Installation.",
   "author": {
     "name": "Ziffr"
@@ -17,9 +17,10 @@
       {
         "key": "workspaces",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspaces",
           "description": "Workspaces on the Installation at the end of the day.",
+          "calculationNote": "Every Workspace except the demo and the one the Installation Admin leaves out of the figures.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -37,9 +38,10 @@
       {
         "key": "workspaces-trial",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspaces: trial",
           "description": "Workspaces in a trial at the end of the day. Held back while the Installation has fewer than three Workspaces.",
+          "calculationNote": "Workspaces whose trial has an end date and that have not been kept. Left out while the Installation has fewer than three Workspaces behind the figure.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -57,9 +59,10 @@
       {
         "key": "workspaces-free",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspaces: free",
           "description": "Workspaces on the free size at the end of the day. Held back while the Installation has fewer than three Workspaces.",
+          "calculationNote": "All counted Workspaces less those in a trial and those on a paid size. Left out while the Installation has fewer than three Workspaces behind the figure.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -77,9 +80,10 @@
       {
         "key": "workspaces-paid",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspaces: paid",
           "description": "Workspaces on a paid size at the end of the day. Held back while the Installation has fewer than three Workspaces.",
+          "calculationNote": "Workspaces outside a trial that have a Workspace Limit set for them. Left out while the Installation has fewer than three Workspaces behind the figure.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -97,9 +101,10 @@
       {
         "key": "people",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "People",
           "description": "People with an account at the end of the day.",
+          "calculationNote": "People with an account who are members of at least one counted Workspace, each counted once. Contacts and Feeds are not counted.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -117,9 +122,10 @@
       {
         "key": "people-active-7d",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "People: active 7d",
           "description": "People who used Ziffr in the 7 days up to the end of the day.",
+          "calculationNote": "People who signed in during the seven days up to the end of the day. Someone who stayed signed in from earlier is not counted.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -137,9 +143,10 @@
       {
         "key": "workspaces-active-7d",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspaces: active 7d",
           "description": "Workspaces where something happened in the 7 days up to the end of the day.",
+          "calculationNote": "Counted Workspaces that were last used within the seven days up to the end of the day.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -157,9 +164,10 @@
       {
         "key": "metrics",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Metrics",
           "description": "Metrics across all Workspaces at the end of the day.",
+          "calculationNote": "Metrics that are not archived, in all counted Workspaces.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -177,9 +185,10 @@
       {
         "key": "metrics-archived",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Metrics: archived",
           "description": "Archived Metrics across all Workspaces at the end of the day.",
+          "calculationNote": "Archived Metrics in all counted Workspaces. They are not part of the figure for Metrics.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -197,9 +206,10 @@
       {
         "key": "dashboards",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Dashboards",
           "description": "Dashboards across all Workspaces at the end of the day.",
+          "calculationNote": "All dashboards of the counted Workspaces.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -217,9 +227,10 @@
       {
         "key": "widgets",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Widgets",
           "description": "Widgets on dashboards at the end of the day.",
+          "calculationNote": "Widgets placed on a dashboard. Widgets saved to be used again and widgets on slides are not counted.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -237,9 +248,10 @@
       {
         "key": "decks",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Decks",
           "description": "Decks across all Workspaces at the end of the day.",
+          "calculationNote": "All decks of the counted Workspaces.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -257,9 +269,10 @@
       {
         "key": "workflows",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workflows",
           "description": "Workflows across all Workspaces at the end of the day.",
+          "calculationNote": "All Workflows of the counted Workspaces, whether or not a Metric uses them.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -277,9 +290,10 @@
       {
         "key": "feeds",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Feeds",
           "description": "Feeds across all Workspaces at the end of the day.",
+          "calculationNote": "Feeds that have not been deleted.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -297,9 +311,10 @@
       {
         "key": "packs-installed",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Packs installed",
           "description": "Installed Packs across all Workspaces at the end of the day.",
+          "calculationNote": "Installed Packs added up over all counted Workspaces, so a Pack in five Workspaces counts five times.",
           "category": "Operations",
           "period": "day",
           "aggregation": "last",
@@ -317,9 +332,10 @@
       {
         "key": "workspaces-created",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspaces created",
           "description": "Workspaces created in the period.",
+          "calculationNote": "Workspaces made on that day, in UTC. One deleted again before the figures were taken is not counted.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -337,9 +353,10 @@
       {
         "key": "trials-started",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Trials started",
           "description": "Trials started in the period.",
+          "calculationNote": "Workspaces whose trial began on that day, in UTC.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -357,9 +374,10 @@
       {
         "key": "trials-kept",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Trials kept",
           "description": "Trials that turned into a Workspace kept in the period.",
+          "calculationNote": "Trials kept on that day, in UTC.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -377,9 +395,10 @@
       {
         "key": "trials-closed",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Trials closed",
           "description": "Trials that ended without being kept in the period.",
+          "calculationNote": "Trials closed on that day, in UTC.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -397,9 +416,10 @@
       {
         "key": "sizes-booked",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Sizes booked",
           "description": "Times a Workspace booked a size in the period.",
+          "calculationNote": "Each time Ziffr Cloud set or changed the size of a Workspace on that day, in UTC. Limits an Installation Admin sets by hand are not counted.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -417,9 +437,10 @@
       {
         "key": "workspaces-deleted",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspaces deleted",
           "description": "Workspaces deleted in the period.",
+          "calculationNote": "Workspaces deleted on that day, in UTC.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -437,9 +458,10 @@
       {
         "key": "signups",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Signups",
           "description": "People who signed up in the period.",
+          "calculationNote": "People whose account was made on that day and who belong to a counted Workspace.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -457,9 +479,10 @@
       {
         "key": "values-web",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Values: web",
           "description": "Values that arrived through the web form in the period. Held back while the Installation has fewer than three Workspaces.",
+          "calculationNote": "Values recorded that day through the web form. Left out while the Installation has fewer than three Workspaces behind the figure.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -477,9 +500,10 @@
       {
         "key": "values-email",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Values: email",
           "description": "Values that arrived by email in the period. Held back while the Installation has fewer than three Workspaces.",
+          "calculationNote": "Values recorded that day by email. Left out while the Installation has fewer than three Workspaces behind the figure.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -497,9 +521,10 @@
       {
         "key": "values-slack",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Values: Slack",
           "description": "Values that arrived through Slack in the period. Held back while the Installation has fewer than three Workspaces.",
+          "calculationNote": "Values recorded that day through Slack. Left out while the Installation has fewer than three Workspaces behind the figure.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -517,9 +542,10 @@
       {
         "key": "values-telegram",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Values: Telegram",
           "description": "Values that arrived through Telegram in the period. Held back while the Installation has fewer than three Workspaces.",
+          "calculationNote": "Values recorded that day through Telegram. Left out while the Installation has fewer than three Workspaces behind the figure.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -537,9 +563,10 @@
       {
         "key": "values-api",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Values: API",
           "description": "Values that arrived through the API in the period. Held back while the Installation has fewer than three Workspaces.",
+          "calculationNote": "Values recorded that day with a person’s Access Key, a local MCP Server included. Left out while the Installation has fewer than three Workspaces behind the figure.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -557,9 +584,10 @@
       {
         "key": "values-feed",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Values: Feed",
           "description": "Values that arrived through a Feed in the period. Held back while the Installation has fewer than three Workspaces.",
+          "calculationNote": "Values recorded that day with a Feed Key. Left out while the Installation has fewer than three Workspaces behind the figure.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -577,9 +605,10 @@
       {
         "key": "values-mcp",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Values: MCP",
           "description": "Values that arrived through the MCP server in the period. Held back while the Installation has fewer than three Workspaces.",
+          "calculationNote": "Values recorded that day by a connected assistant. Left out while the Installation has fewer than three Workspaces behind the figure.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -597,9 +626,10 @@
       {
         "key": "api-calls",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "API calls",
           "description": "Calls to the API in the period.",
+          "calculationNote": "Calls to the API counted on that day, in UTC.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -617,9 +647,10 @@
       {
         "key": "feed-calls",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Feed calls",
           "description": "Calls made with a Feed Key in the period.",
+          "calculationNote": "Calls made with a Feed Key, counted on that day, in UTC. Left out while the Installation has fewer than three Workspaces behind the figure.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -637,9 +668,10 @@
       {
         "key": "mcp-calls",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "MCP calls",
           "description": "Calls to the MCP server in the period.",
+          "calculationNote": "Calls by connected assistants to the MCP Server, counted on that day, in UTC. Left out while the Installation has fewer than three Workspaces behind the figure.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -657,9 +689,10 @@
       {
         "key": "emails-sent",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Emails sent",
           "description": "Emails Ziffr sent in the period.",
+          "calculationNote": "Emails from the Outbox that were sent on that day, in UTC. Emails that wait or failed are not counted.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -677,9 +710,10 @@
       {
         "key": "views-dashboards",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Views: dashboards",
           "description": "Dashboard views in the period.",
+          "calculationNote": "How often dashboards were opened that day, by signed-in people and through View Links. Reads by programs are not counted.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -697,9 +731,10 @@
       {
         "key": "views-decks",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Views: decks",
           "description": "Deck views in the period.",
+          "calculationNote": "How often decks were opened that day, by signed-in people and through View Links. Reads by programs are not counted.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",
@@ -717,9 +752,10 @@
       {
         "key": "views-metrics",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Views: metrics",
           "description": "Metric page views in the period.",
+          "calculationNote": "How often a Metric’s page was opened that day by signed-in people. Reads by programs are not counted.",
           "category": "Operations",
           "period": "day",
           "aggregation": "sum",

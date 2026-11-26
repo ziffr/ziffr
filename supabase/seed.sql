@@ -4,4 +4,5 @@ select prototype_seed_history();
 select prototype_seed_pins();
 select prototype_seed_close();
 select prototype_seed_fill_in();
+select prototype_seed_calculation_notes();
 select prototype_seed_showcase();
