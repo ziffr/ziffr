@@ -287,11 +287,14 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
   const { data } = await db().from("pack_installs").select("id, pack_id, version, license, source, signed, manifest, installed_by, installed_at").eq("workspace_id", ws).order("installed_at");
   if (!data?.length) return [];
   const ids = data.map((r) => r.id as number);
-  const [cat, tpl, des, thm] = await Promise.all([
+  // Only an install with Positions needs the steps of its Workflow Templates; other templates' bodies can be large.
+  const withPlaces = data.filter((r) => (r.manifest as { places?: unknown } | null)?.places).map((r) => r.id as number);
+  const [cat, tpl, des, thm, flows] = await Promise.all([
     db().from("catalog_metrics").select("name, pack_install_id, pack_key").eq("workspace_id", ws).in("pack_install_id", ids),
-    db().from("team_templates").select("kind, name, pack_install_id, pack_key, body").eq("workspace_id", ws).in("pack_install_id", ids),
+    db().from("team_templates").select("kind, name, pack_install_id, pack_key").eq("workspace_id", ws).in("pack_install_id", ids),
     db().from("view_designs").select("name, pack_install_id").eq("workspace_id", ws).in("pack_install_id", ids),
     db().from("themes").select("name, pack_install_id").eq("workspace_id", ws).in("pack_install_id", ids),
+    withPlaces.length ? db().from("team_templates").select("pack_install_id, pack_key, body").eq("workspace_id", ws).eq("kind", "workflow").in("pack_install_id", withPlaces) : Promise.resolve({ data: [] }),
   ]);
   const added = new Map<number, InstalledPack["added"]>(ids.map((i) => [i, []]));
   const add = (rows: { name: unknown; pack_install_id: unknown; kind?: unknown }[] | null, kind: (r: { kind?: unknown }) => InstalledPack["added"][number]["kind"]) => {
@@ -302,16 +305,18 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
   add(des.data, () => "view");
   add(thm.data, () => "theme");
   // What each install still has, by install, kind and key: its Positions are said of these.
-  const kept = new Map<string, { name: string; body?: unknown }>();
+  const kept = new Map<string, { name: string }>();
+  const bodies = new Map<string, unknown>();
   const at = (install: unknown, kind: string, key: string) => `${Number(install)} ${kind} ${key}`;
   for (const c of cat.data ?? []) kept.set(at(c.pack_install_id, "metric", String(c.pack_key)), { name: String(c.name) });
-  for (const t of tpl.data ?? []) kept.set(at(t.pack_install_id, String(t.kind), String(t.pack_key)), { name: String(t.name), body: t.body });
+  for (const t of tpl.data ?? []) kept.set(at(t.pack_install_id, String(t.kind), String(t.pack_key)), { name: String(t.name) });
+  for (const t of flows.data ?? []) bodies.set(at(t.pack_install_id, "workflow", String(t.pack_key)), t.body);
   const peopleOfInstall = (id: number, raw: unknown) => {
     const places = readPlaces(raw);
     return places && describePlaces(places, {
       name: (kind, key) => kept.get(at(id, kind, key))?.name ?? null,
       steps: (w) => {
-        const steps = (kept.get(at(id, "workflow", w.key))?.body as WorkflowTemplateBody | undefined)?.steps;
+        const steps = (bodies.get(at(id, "workflow", w.key)) as WorkflowTemplateBody | undefined)?.steps;
         return steps && itemHash(steps) === w.mark ? steps : null;
       },
     });

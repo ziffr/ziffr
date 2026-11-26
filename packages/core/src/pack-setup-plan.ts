@@ -9,18 +9,10 @@ import { visibilityOfMany, type PlannedRows } from "./access";
 import { fromDashboardTemplate } from "./team-templates";
 import { widgetMetricIds } from "./widget-metrics";
 import { listed } from "./pack-places";
-import { buildSetup, SETUP_METRICS_MAX, type Blueprint, type PackSetupInput, type PlannedDashboard, type ProposedShare } from "./pack-setup-build";
+import { buildSetup, SETUP_METRICS_MAX, tickedShares, type Blueprint, type PackSetupInput, type PlannedDashboard, type ProposedShare } from "./pack-setup-build";
 import { installedForSetup, assertSetsUp, roomNow, type PackSetupRoom } from "./pack-setup-install";
 import { PLACE_WORDS, whyNot, type PersonKind } from "./pack-setup-who";
 import type { DashboardTemplateBody, Metric, WorkflowStep } from "./types";
-
-/** What a person has chosen so far: what to set up, the Shares ticked, and whether others are asked at once. */
-export type PackPlanInput = PackSetupInput & {
-  /** The ids of the proposed Shares that are ticked. No other Share is made. */
-  shares?: string[];
-  /** Ask the others for the current period now, instead of at the Workflow's next run. */
-  askNow?: boolean;
-};
 
 /** How many requests for values a person gets. */
 export type PlannedMessages = { name: string; count: number };
@@ -39,7 +31,7 @@ export type PackSetupPlan = {
   shares: { id: string; person: string; role: "viewer" | "editor"; kind: "Metric" | "dashboard"; item: string; showsMore: boolean; suggested: boolean }[];
   /** Requests for values: those that go out at once, those that wait for the Workflow's next run, and those nobody
    * sends by themselves because the Metric follows no Workflow. */
-  messages: { now: PlannedMessages[]; nextRun: PlannedMessages[]; unasked: PlannedMessages[] };
+  messages: { now: PlannedMessages[]; nextRun: PlannedMessages[]; unasked: PlannedMessages[]; /** How many requests go to others than the person setting up, if they are asked now. */ others: number };
   notes: string[];
   problems: string[];
   room: PackSetupRoom | null;
@@ -82,7 +74,8 @@ function messagesOf(actor: Actor, b: Blueprint, askNow: boolean): PackSetupPlan[
     if (!b.people.has(s)) continue;
     (s === actor.personId || askNow ? now : m.workflow ? nextRun : unasked).push(s);
   }
-  return { now: countBy(b, now), nextRun: countBy(b, nextRun), unasked: countBy(b, unasked) };
+  const others = b.metrics.flatMap((m) => m.submitters).filter((s) => s !== actor.personId && b.people.has(s)).length;
+  return { now: countBy(b, now), nextRun: countBy(b, nextRun), unasked: countBy(b, unasked), others };
 }
 
 /** What the person should know about places that show or tell something, given who will see what. */
@@ -105,11 +98,10 @@ function sightNotes(actor: Actor, b: Blueprint, sees: (person: string) => Readon
 }
 
 /** Plans setting up from one of the Workspace's installed Packs (Owners and Admins). Nothing is written. */
-export async function planPackSetup(actor: Actor, installId: number, input: PackPlanInput): Promise<PackSetupPlan> {
+export async function planPackSetup(actor: Actor, installId: number, input: PackSetupInput): Promise<PackSetupPlan> {
   assertSetsUp(actor);
   const b = await buildSetup(actor, await installedForSetup(actor, Number(installId)), input);
-  const wanted = new Set((Array.isArray(input?.shares) ? input.shares : []).map(String));
-  const ticked = b.shares.filter((s) => wanted.has(s.id));
+  const ticked = tickedShares(b, input?.shares);
   const ws = actor.workspaceId;
   const [after, without] = await Promise.all([
     visibilityOfMany(ws, b.existing, plannedRows(actor, b, ticked)),

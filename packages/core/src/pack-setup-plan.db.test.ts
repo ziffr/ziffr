@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { Forbidden } from "./actor";
 import { installPackFile } from "./packs";
-import { planPackSetup, type PackPlanInput } from "./pack-setup-plan";
+import { planPackSetup } from "./pack-setup-plan";
+import type { PackSetupInput } from "./pack-setup-build";
 import { writeFormula } from "./pack-setup";
 import { visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
@@ -104,7 +105,7 @@ describe("planning a Set up with Positions and Repeats", () => {
 
   it("holds lines to their names and limits, and refuses an empty Approver", async () => {
     const t = await setUpTeam();
-    const plan = (over: Partial<PackPlanInput>) => planPackSetup(t.w.actor(t.sara), t.install, { ...t.input, ...over });
+    const plan = (over: Partial<PackSetupInput>) => planPackSetup(t.w.actor(t.sara), t.install, { ...t.input, ...over });
     expect((await plan({ lines: [{ repeat: "rep", name: "Anna" }, { repeat: "rep", name: " anna " }] })).problems.join(" ")).toMatch(/Two lines of Salesperson/);
     expect((await plan({ lines: Array.from({ length: 13 }, (_, i) => ({ repeat: "rep", name: `Rep ${i}` })) })).problems.join(" ")).toMatch(/at most 12 lines/);
     await expect(plan({ lines: [{ repeat: "rep", name: "see https://example.test" }] })).rejects.toThrow(/plain text/);

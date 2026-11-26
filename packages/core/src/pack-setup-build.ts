@@ -49,6 +49,11 @@ export type PackSetupInput = {
   people?: PositionFill[];
   /** The lines of the Pack's Repeats, in the order they are made. */
   lines?: RepeatLine[];
+  /** The ids of the proposed Shares that are ticked. No other Share is made. */
+  shares?: string[];
+  /** Ask the others for the current period now, instead of at the Workflow's next run. The person setting up is always
+   * asked at once. */
+  askNow?: boolean;
 };
 
 /** The most Metrics one Set up makes (spec 0058). */
@@ -88,6 +93,8 @@ export type Blueprint = {
   /** The person row of the Feed made Submitter, or null. */
   feed: string | null;
   positions: PositionUse[];
+  /** Who fills each Position that belongs to no Repeat. */
+  fills: Map<string, string[]>;
   lines: BuiltLine[];
   /** Everyone who may be put into a place, by id, in order of name. */
   people: Map<string, SetupPerson>;
@@ -120,8 +127,8 @@ const list = <T>(v: T[] | undefined, max: number): T[] => {
 const suffixed = (name: string, line: BuiltLine | null) => (line ? `${name}, ${line.name}` : name);
 const givenName = (pick: { name?: string }, row: TemplateRow) => String(pick.name ?? "").trim().slice(0, 120) || row.name;
 
-/** The places of a Pack's items, by key. */
-function placeMaps(places: PackPlaces | null, workflows: ReadonlyMap<string, TemplateRow>) {
+/** The places of a Pack's items, by key, of the Workflow Templates only those whose stored steps they were read for. */
+export function placeMaps(places: PackPlaces | null, workflows: ReadonlyMap<string, TemplateRow>) {
   const byKey = <T extends { key: string }>(xs: T[] = []) => new Map(xs.map((x) => [x.key, x]));
   // A Workflow Template kept from another version has other steps than those the places were read for.
   const matching = (places?.workflows ?? []).filter((w) => {
@@ -423,6 +430,12 @@ function proposedShares(f: Filling, actor: Actor, metrics: PlannedMetric[], dash
   return [...shares.values()];
 }
 
+/** The proposed Shares that are ticked: an id that is no proposal of this blueprint shares nothing. */
+export function tickedShares(b: Blueprint, ids: unknown): ProposedShare[] {
+  const wanted = new Set(Array.isArray(ids) ? ids.map(String) : []);
+  return b.shares.filter((s) => wanted.has(s.id));
+}
+
 /** Checks what is asked for against the install and the Workspace, and lays out what would be made. */
 export async function buildSetup(actor: Actor, p: InstalledForSetup, input: PackSetupInput): Promise<Blueprint> {
   const entries = wantedEntries(p, input);
@@ -466,7 +479,7 @@ export async function buildSetup(actor: Actor, p: InstalledForSetup, input: Pack
   if (refusal) filling.problems.push(refusal);
   if (!metrics.length && !dashboards.length && !workflows.length && !filling.problems.length) filling.problems.push("Pick something to set up.");
   return {
-    workflows, metrics, dashboards, shares: proposedShares(filling, actor, metrics, dashboards), feed, positions, lines: filling.lines,
+    workflows, metrics, dashboards, shares: proposedShares(filling, actor, metrics, dashboards), feed, positions, fills: filling.global, lines: filling.lines,
     people: filling.people, existing, notes: [...new Set(filling.notes)], problems: [...new Set(filling.problems)],
   };
 }
