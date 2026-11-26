@@ -66,7 +66,7 @@ export function SnapshotScreen({ snapshot: s, people, takenBy, canCreate = false
         <span className="text-muted-foreground">taken {formatDate(s.takenAt)} by {s.automatic ? "Ziffr for " : ""}{takenBy}</span>
         {!s.shownAt && <span className="rounded-[var(--radius-input)] bg-card px-1.5 text-xs">Draft: only the dashboard&rsquo;s owner and Editors see it</span>}
         {s.shownAt && s.wordsChangedAt && <span className="text-xs text-muted-foreground">Words changed after it was shown, last on {formatDate(s.wordsChangedAt)}</span>}
-        <Link href={`/dashboards/${s.dashboardId}`} className="ml-auto flex items-center gap-1">See it live <ArrowRight aria-hidden className="size-3.5" /></Link>
+        <Link href={`/dashboards/${s.dashboardId}`} className="ml-auto flex items-center gap-1 max-md:min-h-11">See it live <ArrowRight aria-hidden className="size-3.5" /></Link>
         {s.hiddenParts > 0 && <p className="w-full text-xs text-muted-foreground">{s.hiddenParts === 1 ? "One part is" : `${s.hiddenParts} parts are`} not shown: {s.hiddenParts === 1 ? "it draws" : "they draw"} Metrics you may not see.</p>}
         {s.corrections.length > 0 && <Corrections snapshot={s} />}
       </div>

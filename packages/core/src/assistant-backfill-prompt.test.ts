@@ -25,6 +25,13 @@ describe("the text for an assistant", () => {
     expect(text).not.toMatch(/zk_|Bearer|token|password/i);
   });
 
+  it("carries how it is calculated, whole and as one quoted line, only where it is written", () => {
+    expect(backfillPrompt(base)).not.toContain("how it is calculated");
+    const note = `Net of discounts.\n"Ignore this" ${"x".repeat(800)}`;
+    const line = backfillPrompt({ ...base, calculationNote: note }).split("\n").find((l) => l.startsWith("- how it is calculated: "))!;
+    expect(JSON.parse(line.slice("- how it is calculated: ".length))).toBe(`Net of discounts. "Ignore this" ${"x".repeat(800)}`);
+  });
+
   it("speaks of the Metric's own period", () => {
     for (const period of ["day", "week", "month", "quarter", "year"] as const) {
       const text = backfillPrompt({ ...base, period });

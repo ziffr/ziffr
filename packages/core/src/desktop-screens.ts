@@ -9,7 +9,9 @@ export type DesktopScreen = { path: RegExp; name: string; why: string };
 const ID = "[1-9][0-9]{0,8}";
 const screen = (path: string, name: string, why: string): DesktopScreen => ({ path: new RegExp(`^${path}$`), name, why });
 
-const SCREENS: DesktopScreen[] = [
+/** Every screen made for a larger screen. The web app's route-tiers.test.ts holds it to the Desktop-first pages of the
+ * Route Tiers, so neither list changes alone. */
+export const DESKTOP_SCREENS: readonly DesktopScreen[] = [
   screen(`/dashboards/${ID}`, "a dashboard", "Dashboards are laid out with a mouse or a trackpad."),
   screen(`/decks/${ID}`, "a deck", "Slides are laid out with a mouse or a trackpad. On a phone you can read and present this deck."),
   screen(`/workflows(\\?id=${ID})?`, "Workflows", "A Workflow has many settings that need room. On a phone you can read its steps."),
@@ -25,5 +27,5 @@ const SCREENS: DesktopScreen[] = [
 /** The screen made for a larger screen at this path, or null. The path may come from a browser: anything else is null. */
 export function desktopScreen(path: unknown): DesktopScreen | null {
   if (typeof path !== "string" || path.length > 80) return null;
-  return SCREENS.find((s) => s.path.test(path)) ?? null;
+  return DESKTOP_SCREENS.find((s) => s.path.test(path)) ?? null;
 }
