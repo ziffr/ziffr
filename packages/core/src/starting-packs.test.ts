@@ -4,8 +4,12 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { evaluate } from "./formula";
 import { checkPack } from "./pack";
+import { buildSeries } from "./series";
+import { figureModel } from "./slide-figures";
+import { canvas, metric } from "./test/fixtures";
 import { mapElementWords } from "./slide-element";
 import { repoFile } from "./test/repo-file";
+import type { Observation } from "./types";
 
 /** Every file in packs/, by name. */
 export const STARTING_PACKS = readdirSync(repoFile("packs/")).filter((f) => f.endsWith(".pack.json")).sort();
@@ -45,6 +49,32 @@ describe("the starting Packs", () => {
     // Every figure a person sends is a weekly last value, so a quarter shows the latest call, not a sum of calls. The quota is not one of them.
     const sent = res.pack.contents.metrics!.filter((e) => !e.metric.formula);
     expect(sent.map((e) => [e.key, e.metric.period, e.metric.aggregation])).toEqual(["commit", "best-case", "closed-quarter", "pipeline", "quota-by-salesperson"].map((k) => [k, "week", "last"]));
+  });
+
+  it("Sales forecast's slides show the quota and what follows from it, with nothing but a target on Commit and the week's figures", () => {
+    const res = checkPack(startingPack("sales-forecast.pack.json"));
+    if (!res.ok) throw new Error("does not pass");
+    const metrics = res.pack.contents.metrics!.map(({ key, metric: m }, i) => metric({ id: i + 1, slug: key, name: m.name, period: m.period, aggregation: m.aggregation, unit: m.unit, decimals: m.decimals, formula: m.formula ?? null, target_min: null }));
+    const of = (key: string) => metrics.find((m) => m.slug === key)!;
+    const week = "2026-11-09";
+    const observations = Object.entries({ commit: 400000, "best-case": 450000, "closed-quarter": 200000, pipeline: 900000 }).map(([key, value]) => ({ metric_id: of(key).id, period_start: week, value }) as Observation);
+    const targets = { [of("commit").id]: [{ period: week, value: 500000 }] };
+    const series = buildSeries(metrics, observations, targets);
+    expect(["quota", "commit-gap", "commit-share", "coverage"].map((k) => series[k].map((p) => p.value))).toEqual([[500000], [-100000], [80], [3]]);
+    // The four figures of the call slide, each from the Metrics of its Slots.
+    const { template } = res.pack.contents.decks![0];
+    const data = canvas(metrics, series, { targets });
+    const figures = template.slides[1].shapes.flatMap((shape) => {
+      if (shape.shape !== "element" || shape.element.kind !== "figure") return [];
+      const model = figureModel(shape.element, { data, metrics: shape.slots!.map((slot) => of(template.slots[slot].suggests!)) });
+      return model.denied ? [] : [[model.label, model.value, model.note]];
+    });
+    expect(figures).toEqual([
+      ["Commit", "400 k€", ""],
+      ["Quota", "500 k€", "100 k€ short"],
+      ["Best case", "450 k€", "50 k€ short"],
+      ["Pipeline coverage", "3.0×", "of the 300 k€ still to close"],
+    ]);
   });
 
   it("SaaS metrics 2.0 brings a logo, Tags on every entry, both decks and both close Workflows", () => {
