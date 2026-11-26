@@ -24,7 +24,7 @@
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Commit",
-          "description": "The forecast call: what the team commits to closing by the end of the quarter, deals already won in it included. Taken as it stood at the end of the week: an answer to Monday's request, by reply or form link, counts for the week just ended. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
+          "description": "The forecast call: what the team commits to closing by the end of the quarter, deals already won in it included. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -52,7 +52,7 @@
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Best case",
-          "description": "What the quarter reaches if the open deals that may still close do: commit plus upside, deals already won included. Taken as it stood at the end of the week: an answer to Monday's request, by reply or form link, counts for the week just ended. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
+          "description": "What the quarter reaches if the open deals that may still close do: commit plus upside, deals already won included. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -80,7 +80,7 @@
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Closed this quarter",
-          "description": "The value of the deals won since the quarter began. It starts again from 0 each quarter; a week that spans two quarters belongs to the one it starts in. Taken as it stood at the end of the week: an answer to Monday's request, by reply or form link, counts for the week just ended. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
+          "description": "The value of the deals won since the quarter began. It starts again from 0 each quarter; a week that spans two quarters belongs to the one it starts in. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -108,7 +108,7 @@
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Pipeline value",
-          "description": "The value of all open deals that can still close this quarter, those in the commit included, those already won not. Taken as it stood at the end of the week: an answer to Monday's request, by reply or form link, counts for the week just ended. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
+          "description": "The value of all open deals that can still close this quarter, those in the commit included, those already won not. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -136,7 +136,7 @@
         "metric": {
           "format": "ziffr.metric/1",
           "name": "Quota",
-          "description": "The team's quota for the whole quarter, not a weekly share. Send it every week, unchanged until it changes: without it, that week has no gap and no coverage. Taken as it stood at the end of the week: an answer to Monday's request, by reply or form link, counts for the week just ended. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
+          "description": "The team's quota for the whole quarter, not a weekly share. Send it every week, unchanged until it changes: without it, that week has no gap and no coverage. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
