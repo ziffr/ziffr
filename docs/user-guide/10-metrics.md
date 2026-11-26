@@ -624,6 +624,17 @@ At the bottom, **Open metric** leads to the Metric's page, for those who may sig
 
 A form link records the current period or one you were asked for. To send a value for an earlier period, name it with the number, such as "October 5". Ziffr takes it when it asked you (this link) for that period, you have not answered, and its value is still due: no value is in for it, from you or anyone else who submits the Metric, and it is not too old (a Due Date at most 90 days ago or, for a Metric without a Workflow, the period that ended last). A **Locked** one among them goes to the Metric Owner as a proposed Correction. For any other period nothing is recorded, and the form says so. Signed in, use **Record a value** on the Metric's page for an earlier period.
 
+### On a phone
+
+On a phone (under 640 px wide) the same link opens a shorter screen: the Metric's name, the period, one large number field and **Submit**. **Add a breakdown (optional)** shows the Breakdown field. After a value is recorded, one message says what happened and the field gives way to **Send another value**.
+
+If you are also signed in, and the link is your own, the screen adds what the link alone does not show:
+
+- **Last value**, with its period: the newest value before the period on screen, if one of the eleven periods before the current one has a value.
+- After saving, **Next: …** with the Metric and the period of your next value that is due (the most overdue first, from your **Schedule**), or "No other value of yours is due now." It opens that value's screen for that period, and **For** names it. A value saved there is recorded as with **Record a value** on the Metric's page. The address of that screen keeps the period, so it shows the same period on a larger screen.
+
+Someone who has the link but is not signed in as you sees and can do only what the form above offers. This needs the Workspace you have open to be the one the link belongs to.
+
 Where the Workspace has Telegram on, the form also offers **Connect Telegram**: it gives a link that opens Ziffr's Telegram bot, valid for ten minutes. Tap **Start** there, and requests for numbers then reach you in Telegram as well. Once connected, the form says so. To stop, send `/stop` to the bot in Telegram; only then can the form connect another Telegram account. A form cannot disconnect, so a forwarded form link never moves your messages to someone else's Telegram. Only a Contact sees this on the form: members connect Telegram signed in, on the Connectors page.
 
 A Stand-in's form link works only while they stand in, and for the periods they were asked about; its page says whom they answer for. A Feed has no form link; it sends values with its Feed Key. The form only works when the Web form is one of the Metric's Sources.

@@ -21,6 +21,11 @@ vi.mock("./telegram-connect", () => ({ TelegramConnect: () => null }));
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => (seen.cookie === undefined ? undefined : { value: seen.cookie }) }) }));
 vi.mock("@/app/actions", () => ({ submitWebForm: async () => null }));
+vi.mock("@/app/series-actions", () => ({ recordValue: async () => null }));
+// Signed out unless a test says who is looking; what the core gives that person is the core's own test.
+const signed = vi.hoisted(() => ({ actor: null as unknown, extras: null as unknown, asked: [] as unknown[][] }));
+vi.mock("@/lib/viewer", () => ({ optionalActor: async () => signed.actor }));
+vi.mock("@ziffr/core/form-link-extras", () => ({ formLinkExtras: async (...args: unknown[]) => { signed.asked.push(args); if (signed.extras instanceof Error) throw signed.extras; return signed.extras; } }));
 
 const { default: SubmitPage } = await import("./page");
 
@@ -62,5 +67,52 @@ describe("a form link of the demo", () => {
     seen.cookie = "0123456789abcdef0123456789abcdef";
     await draw();
     expect(seen.demoVisit).toEqual([false, false, true]);
+  });
+});
+
+describe("what a signed-in person sees beyond the link (spec 0055)", () => {
+  const draw = async (searchParams: Record<string, unknown> = {}) => {
+    const page = await (SubmitPage as unknown as (p: unknown) => Promise<React.ReactElement>)({ params: Promise.resolve({ code: "tk-test" }), searchParams: Promise.resolve(searchParams) });
+    return renderToString(page).replace(/<!-- -->/g, "");
+  };
+  const actor = { personId: "sara", workspaceId: "w", role: "member" };
+
+  it("is nothing for a link holder: no extras are read and a period in the address changes nothing", async () => {
+    signed.asked.length = 0;
+    const html = await draw({ period: "2026-10-01" });
+    expect(signed.asked).toEqual([]);
+    expect(html).not.toContain("Last value");
+    expect(html).toContain("19 Nov 2026");
+  });
+
+  it("shows the last value and the period the core accepted, and asks the core with the address's period", async () => {
+    signed.actor = actor;
+    signed.extras = { metricId: 1, named: { start: "2026-11-18", label: "18 Nov 2026", has: "3 cups" }, last: { value: "2 cups", periodLabel: "17 Nov 2026" }, next: null };
+    signed.asked.length = 0;
+    try {
+      const html = await draw({ period: "2026-11-18" });
+      expect(signed.asked).toEqual([[actor, "tk-test", "2026-11-18"]]);
+      expect(html).toContain("18 Nov 2026");
+      expect(html).not.toContain("19 Nov 2026");
+      expect(html).toContain("3 cups");
+      expect(html).toContain("2 cups");
+      expect(html).toContain("Last value");
+    } finally {
+      signed.actor = null;
+      signed.extras = null;
+    }
+  });
+
+  it("keeps the form when the extras cannot be read", async () => {
+    signed.actor = actor;
+    signed.extras = new Error("no database");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(await draw()).toContain("Cups of coffee");
+    } finally {
+      signed.actor = null;
+      signed.extras = null;
+      log.mockRestore();
+    }
   });
 });

@@ -21,7 +21,7 @@ export function TelegramConnect({ code, linked }: { code: string; linked: boolea
         </p>
       ) : link ? (
         <p className="flex flex-wrap items-center gap-2">
-          <a href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center rounded-[var(--radius-input)] border border-input px-3 font-medium hover:bg-muted">Open Telegram</a>
+          <a href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center max-sm:h-11 rounded-[var(--radius-input)] border border-input px-3 font-medium hover:bg-muted">Open Telegram</a>
           <span className="text-muted-foreground">and tap Start within {link.minutes} minutes.</span>
         </p>
       ) : (
