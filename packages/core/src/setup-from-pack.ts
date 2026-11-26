@@ -39,7 +39,7 @@ export async function setUpGuideFromPack(actor: Actor, installId: number, input:
   if (!install) throw new Forbidden();
 
   // The entries of this install and the Metrics already made from them (an archived Metric was made all the same).
-  const { data: entries } = await db().from("catalog_metrics").select("id, pack_key, formula").eq("workspace_id", ws).eq("pack_install_id", installId);
+  const { data: entries } = await db().from("catalog_metrics").select("id, pack_key, formula, total").eq("workspace_id", ws).eq("pack_install_id", installId);
   const keyOf = new Map((entries ?? []).map((e) => [Number(e.id), String(e.pack_key)]));
   const formulaOf = new Map((entries ?? []).map((e) => [String(e.pack_key), (e.formula as string | null) ?? null]));
   const rows = keyOf.size ? (await db().from("metrics").select("id, name, slug, from_catalog_id").eq("workspace_id", ws).in("from_catalog_id", [...keyOf.keys()]).order("id")).data : [];
@@ -57,7 +57,7 @@ export async function setUpGuideFromPack(actor: Actor, installId: number, input:
     if (f && formulaInputs(f).some((i) => have.has(i))) throw new Error("A Metric computed from others cannot be added here once its inputs exist. Add it from the Packs page.");
   }
 
-  let made: PackSetupResult = { metrics: [], dashboardId: null, workflowId: null, dashboards: [], workflows: [], shares: 0, messages: 0, later: { nextRun: 0, noWorkflow: [] }, widgets: 0, byHand: [], tagsLeftOut: [] };
+  let made: PackSetupResult = { metrics: [], dashboardId: null, workflowId: null, dashboards: [], workflows: [], shares: 0, messages: 0, later: { nextRun: 0, noWorkflow: [] }, widgets: 0, totals: 0, byHand: [], tagsLeftOut: [] };
   // Nothing left to make: the earlier click did it, and a dashboard or Workflow is not made a second time with it.
   if (remaining.length > 0) made = await setUpFromPack(actor, installId, { ...input, metrics: remaining });
 

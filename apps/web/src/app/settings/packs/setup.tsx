@@ -16,25 +16,25 @@ import { approversStart, lineSetupStart, openSlots, setupStart, type LineRow } f
 import { DashboardPick, WorkflowPick } from "./setup-templates";
 import { RepeatLines } from "./setup-lines";
 import { FillFromN8n } from "@/components/fill-from-n8n";
-import { PackNeeds } from "@/components/pack-numbers";
+import { PackNumbersView } from "@/components/pack-numbers";
 import { ownRequests, RequestsAfterSetUp, SendFirstRequests } from "@/components/first-requests";
-import { comesFromWords } from "@ziffr/pack/comes-from";
 import { lineStart, packSetup, setUpPack } from "@/app/pack-setup-actions";
 import { ByHand, PlanCheck, PositionField, usePlan } from "./setup-positions";
 import type { PackSetupInput, PackSetupOptions, PackSetupResult, PackSetupRoom, PackSetupStep, SetupRun } from "@ziffr/core/pack-setup";
 import type { LineStart } from "@ziffr/core/pack-setup-adding";
+import { FillMadeUp } from "./fill-made-up";
 
 const field = "h-8 rounded-[var(--radius-input)] border border-input bg-transparent px-2 text-sm";
 
 /** The button that opens setting up from one installed Pack, and the form it opens. */
-export function SetUpFromPack({ installId, viewer }: { installId: number; viewer: string }) {
+export function SetUpFromPack({ installId, viewer, practice = false }: { installId: number; viewer: string; practice?: boolean }) {
   const [options, setOptions] = useState<PackSetupOptions | null>(null);
   const [pending, start] = useTransition();
   const open = () => start(async () => {
     try { setOptions(unwrap(await packSetup(installId))); } catch (e) { toast.error("Not opened", { description: shown(e) }); }
   });
   if (!options) return <Button variant="outline" size="sm" className="mt-3" disabled={pending} onClick={open}><Wand2 aria-hidden /> Set up from this Pack</Button>;
-  return <SetUpForm options={options} viewer={viewer} onClose={() => setOptions(null)} />;
+  return <SetUpForm options={options} viewer={viewer} practice={practice} onClose={() => setOptions(null)} />;
 }
 
 /** The one line being added, and what it starts with. */
@@ -42,7 +42,7 @@ type Adding = { repeat: PackSetupOptions["repeats"][number]; start: LineStart };
 
 /** The button on a Pack's page that adds one line to what was set up from it, in the Repeat's own word, and the form it
  * opens. */
-export function AddLine({ installId, repeat, name, viewer }: { installId: number; repeat: string; name: string; viewer: string }) {
+export function AddLine({ installId, repeat, name, viewer, practice = false }: { installId: number; repeat: string; name: string; viewer: string; practice?: boolean }) {
   const [form, setForm] = useState<{ options: PackSetupOptions; adding: Adding } | null>(null);
   const [pending, start] = useTransition();
   const open = () => start(async () => {
@@ -53,7 +53,7 @@ export function AddLine({ installId, repeat, name, viewer }: { installId: number
     } catch (e) { toast.error("Not opened", { description: shown(e) }); }
   });
   if (!form) return <Button variant="outline" size="sm" className="mt-3" disabled={pending} onClick={open}><Plus aria-hidden /> Add a {name}</Button>;
-  return <SetUpForm options={form.options} viewer={viewer} adding={form.adding} onClose={() => setForm(null)} />;
+  return <SetUpForm options={form.options} viewer={viewer} adding={form.adding} practice={practice} onClose={() => setForm(null)} />;
 }
 
 /** What making `n` Metrics does to the Workspace's limit, said before the button is pressed: it fits, it goes over the
@@ -103,7 +103,14 @@ function FillAfterSetUp({ options, made }: { options: PackSetupOptions; made: Pa
   );
 }
 
-function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOptions; viewer: string; adding?: Adding; onClose: () => void }) {
+/** What an entry that is computed says of itself: what it is computed from, which is made with it. */
+function madeWith(e: PackSetupOptions["entries"][number], inputs: string[], options: PackSetupOptions): string {
+  if (!e.total) return `, a Derived Metric computed from ${inputs.join(" and ")}, made too`;
+  const of = options.entries.find((x) => x.key === e.inputs[0])?.repeat;
+  return `, a Total that adds up ${inputs[0]} of every ${options.repeats.find((r) => r.key === of)?.name ?? of}, made too`;
+}
+
+function SetUpForm({ options, viewer, adding, practice = false, onClose }: { options: PackSetupOptions; viewer: string; adding?: Adding; /** In a Practice Workspace the result offers made-up numbers. */ practice?: boolean; onClose: () => void }) {
   const router = useRouter();
   const [start0] = useState(() => (adding ? lineSetupStart(adding.repeat.key, adding.start) : setupStart(options, viewer)));
   const [picked, setPicked] = useState<Set<string>>(start0.picked);
@@ -123,14 +130,17 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
   const [pending, start] = useTransition();
   const [positionFills, setPeople] = useState<Record<string, string[]>>(adding?.start.people ?? {});
   const [offerTicks, setOfferTicks] = useState<Record<string, boolean>>({});
+  // The first period a Total counts a new Metric in, where the person changed it.
+  const [offerFrom, setOfferFrom] = useState<Record<string, string>>({});
   const [ticks, setTicks] = useState<Record<string, boolean>>({});
   const [askNow, setAskNow] = useState(false);
   const byKey = useMemo(() => new Map(options.entries.map((e) => [e.key, e])), [options.entries]);
 
-  // A Derived Metric's inputs are made with it: shown ticked, and kept while it is.
+  // A Derived Metric's inputs are made with it, and those of a Total it reads: shown ticked, and kept while it is.
   const making = useMemo(() => {
     const all = new Set(picked);
-    for (const k of picked) for (const i of byKey.get(k)?.inputs ?? []) all.add(i);
+    // A Set grows as it is walked, so the inputs of an input are added too.
+    for (const k of all) for (const i of byKey.get(k)?.inputs ?? []) all.add(i);
     return all;
   }, [picked, byKey]);
   // Adding a line makes nothing for the whole set.
@@ -171,7 +181,7 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
     return {
       ...asked, people: fillsFor(null, positionFills),
       // An offer is ticked as the person ticked it, else as the plan suggests.
-      ...(adding ? { adding: { ticked: (plan?.offers ?? []).filter((o) => offerTicks[o.id] ?? o.suggested).map((o) => o.id) } } : {}),
+      ...(adding ? { adding: { ticked: (plan?.offers ?? []).filter((o) => offerTicks[o.id] ?? o.suggested).map((o) => o.id), from: offerFrom } } : {}),
       lines: repeats.flatMap((r) => (lines[r.key] ?? []).filter((l) => l.name.trim()).map((l) => ({ repeat: r.key, name: l.name.trim(), people: fillsFor(r.key, l.fills) }))),
     };
   }, ticks);
@@ -209,12 +219,13 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
           {made.dashboards.map((d) => <li key={d.id}>The dashboard <Link href={`/dashboards/${d.id}`} className="underline">{d.name}</Link></li>)}
           {made.workflows.map((w) => <li key={w.id}>The Workflow <Link href={`/workflows?id=${w.id}`} className="underline">{w.name}</Link></li>)}
         </ul>
-        {options.positions && <p className="mt-2 text-xs">{made.shares} Share{made.shares === 1 ? "" : "s"} made.{adding ? ` ${made.widgets} widget${made.widgets === 1 ? "" : "s"} changed.` : ""} Change who does what on each Metric, Workflow and dashboard.</p>}
+        {options.positions && <p className="mt-2 text-xs">{made.shares} Share{made.shares === 1 ? "" : "s"} made.{adding ? ` ${made.widgets} widget${made.widgets === 1 ? "" : "s"} changed.` : ""}{made.totals ? ` Added to ${made.totals} Total${made.totals === 1 ? "" : "s"}.` : ""} Change who does what on each Metric, Workflow and dashboard.</p>}
         <div className="mt-2"><RequestsAfterSetUp made={made} /></div>
         {made.byHand.length > 0 && <ByHand items={made.byHand} />}
         {made.tagsLeftOut.length > 0 && (
           <p role="status" className="mt-2 text-xs">Some Tags stayed off their Metrics because of the Tag limits (10 per Metric, 200 in the Workspace): {made.tagsLeftOut.map((l) => `${l.metric}: ${l.tags.join(", ")}`).join("; ")}. Merge or delete Tags that are not needed, then add these by hand.</p>
         )}
+        {practice && <FillMadeUp installId={options.install.id} />}
         <FillAfterSetUp options={options} made={made} />
         <Button variant="ghost" size="sm" className="mt-2" onClick={onClose}>Done</Button>
       </div>
@@ -230,7 +241,7 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
       {options.room && !options.refusal && <Fit room={options.room} n={count} />}
       {options.room && options.refusal && <p className="text-xs"><Link href="/settings/workspace#size" className="underline">Size and usage</Link></p>}
 
-      {options.overview && <div className="@container text-xs"><PackNeeds overview={options.overview} included={false} /></div>}
+      {options.overview && <PackNumbersView overview={options.overview} included={false} />}
 
       <fieldset className="space-y-1">
         <legend className="mb-1 text-xs font-medium">Metrics to make</legend>
@@ -239,7 +250,7 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
           return (
             <label key={e.key} className="flex items-start gap-2">
               <input type="checkbox" checked={making.has(e.key)} disabled={needed} onChange={(ev) => toggle(e.key, ev.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
-              <span>{e.name} <span className="text-xs text-muted-foreground">by {e.period}{e.unit ? `, in ${e.unit}` : ""}{e.repeat ? `, one for each ${options.repeats.find((r) => r.key === e.repeat)?.name ?? e.repeat}` : ""}{e.derived ? `, a Derived Metric computed from ${e.inputs.map((i) => byKey.get(i)?.name ?? i).join(" and ")}, made too` : ""}{needed ? ", made for a Derived Metric" : ""}</span>{e.comesFrom && !e.derived && <span className="block text-xs text-muted-foreground">{comesFromWords(e.comesFrom).from}</span>}{e.tags.length > 0 && <span className="mt-0.5 flex flex-wrap gap-1">{e.tags.map((t) => <span key={t} className="rounded-full bg-muted px-1.5 py-0.5 text-[11px]">{t}</span>)}</span>}</span>
+              <span>{e.name} <span className="text-xs text-muted-foreground">by {e.period}{e.unit ? `, in ${e.unit}` : ""}{e.repeat ? `, one for each ${options.repeats.find((r) => r.key === e.repeat)?.name ?? e.repeat}` : ""}{e.derived ? madeWith(e, e.inputs.map((i) => byKey.get(i)?.name ?? i), options) : ""}{needed ? ", made for a Derived Metric" : ""}</span>{e.tags.length > 0 && <span className="mt-0.5 flex flex-wrap gap-1">{e.tags.map((t) => <span key={t} className="rounded-full bg-muted px-1.5 py-0.5 text-[11px]">{t}</span>)}</span>}</span>
             </label>
           );
         })}
@@ -247,7 +258,7 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
           <label className="mt-2 flex items-start gap-2"><input type="checkbox" checked={askMe} onChange={(e) => setAskMe(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> Make me the Submitter of {options.positions ? "the values no Position covers" : "their values"}</label>
         )}
         {alsoAsk.length > 0 && (
-          <label className={`${uncovered ? "ml-6" : "mt-2"} flex items-start gap-2`}><input type="checkbox" checked={askElsewhere} onChange={(e) => setAskElsewhere(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /><span>Ask me also for {alsoAsk.join(", ")}<span className="block text-xs text-muted-foreground">The Pack says another system sends {alsoAsk.length === 1 ? "it" : "them"} or that {alsoAsk.length === 1 ? "it is" : "they are"} set as a target, so nobody is asked unless you tick this{options.positions ? ", and nobody else is asked either way" : ""}.</span></span></label>
+          <label className={`${uncovered ? "pl-6" : "mt-2"} flex items-start gap-2`}><input type="checkbox" checked={askElsewhere} onChange={(e) => setAskElsewhere(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /><span>Ask me also for {alsoAsk.join(", ")}<span className="block text-xs text-muted-foreground">The Pack says another system sends {alsoAsk.length === 1 ? "it" : "them"} or that {alsoAsk.length === 1 ? "it is" : "they are"} set as a target, so nobody is asked unless you tick this{options.positions ? ", and nobody else is asked either way" : ""}.</span></span></label>
         )}
         {making.size > 0 && options.feeds.length > 0 && (
           <label className="mt-2 flex flex-wrap items-center gap-2">
@@ -287,7 +298,7 @@ function SetUpForm({ options, viewer, adding, onClose }: { options: PackSetupOpt
           <p role="status" className="text-xs text-muted-foreground">{planned.error ? "" : planned.current ? "" : "Working out who will see what\u2026"}</p>
           {planned.error && <p role="alert" className="text-xs font-medium">{planned.error}</p>}
           {unnamed && <p role="alert" className="text-xs font-medium">Give every line with people a name.</p>}
-          {planned.plan && <PlanCheck plan={planned.plan} ticks={ticks} onTick={(c) => setTicks((x) => ({ ...x, ...c }))} askNow={askNow} onAskNow={setAskNow} offerTicks={offerTicks} onOffer={(id, on) => setOfferTicks((x) => ({ ...x, [id]: on }))} />}
+          {planned.plan && <PlanCheck plan={planned.plan} ticks={ticks} onTick={(c) => setTicks((x) => ({ ...x, ...c }))} askNow={askNow} onAskNow={setAskNow} offerTicks={offerTicks} onOffer={(id, on) => setOfferTicks((x) => ({ ...x, [id]: on }))} offerFrom={offerFrom} onOfferFrom={(id, day) => setOfferFrom((x) => ({ ...x, [id]: day }))} />}
         </>
       )}
 

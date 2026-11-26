@@ -14,6 +14,11 @@ import * as keyChange from "@ziffr/core/workspace-key-change";
 import * as usage from "@ziffr/core/installation-usage";
 import * as announcements from "@ziffr/core/installation-announcements";
 import { installationActor } from "@/lib/installation";
+import * as practice from "@ziffr/core/practice-workspace";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { DEMO_COOKIE } from "@/lib/auth";
+import { optionalActor, WORKSPACE_COOKIE } from "@/lib/viewer";
 
 /** What an action answers: what went wrong in the page's words, or that it worked, with a line to show and a
  * problem that did not stop it. */
@@ -177,4 +182,33 @@ export async function setInstallationAnnouncementActive(id: string, active: bool
 /** Deletes an Announcement for good. */
 export async function deleteInstallationAnnouncement(id: string): Promise<Result> {
   return run(async (a) => { await announcements.deleteInstallationAnnouncement(a, String(id ?? "")); return "Announcement deleted."; });
+}
+
+// The Practice Workspace (spec 0063; GLOSSARY: Practice Workspace): the core decides who may make one and start it over.
+
+/** Makes or remakes the person's Practice Workspace and opens it; what went wrong comes back as words. */
+async function openedPracticeWorkspace(work: (actor: admins.InstallationActor, from: string | null) => Promise<string>): Promise<{ error: string }> {
+  const actor = await installationActor();
+  if (!actor) return { error: "Sign in first." };
+  let id: string;
+  try {
+    id = await work(actor, (await optionalActor())?.workspaceId ?? null);
+  } catch (e) {
+    return { error: forPeople(e) ?? unforeseen(e) };
+  }
+  const jar = await cookies();
+  jar.set(WORKSPACE_COOKIE, id, { httpOnly: true, sameSite: "lax", path: "/" });
+  jar.delete(DEMO_COOKIE);
+  revalidatePath("/", "layout");
+  redirect("/");
+}
+
+/** Makes the Practice Workspace of an Installation Admin and opens it. */
+export async function makePracticeWorkspace(): Promise<{ error: string }> {
+  return openedPracticeWorkspace((actor, from) => practice.makePracticeWorkspace(actor, from));
+}
+
+/** Deletes the named Practice Workspace, the person's own, makes a fresh one and opens it. */
+export async function startOverPracticeWorkspace(workspaceId: string): Promise<{ error: string }> {
+  return openedPracticeWorkspace((actor, from) => practice.startOverPracticeWorkspace(actor, String(workspaceId ?? ""), from));
 }

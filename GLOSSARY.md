@@ -283,7 +283,7 @@ A place in a Widget Template or Dashboard Template that is filled with a metric 
 _Avoid_: Variable, parameter, input
 
 **Placeholder**:
-A word in braces in a text that is filled in from the data, such as the metric's name, the latest period or the change against last year. It works in a Finding's words, a widget's title, the texts of a View Design and a deck slide, and shows only what the viewer may see.
+A word in braces in a text that is filled in from the data, such as the metric's name, the latest period or the change against last year. It works in a Finding's words, a widget's title, the texts of a View Design, a Slide Element and a text box on a slide (where **Insert value** writes it), is filled each time the words are shown, and shows only what the viewer may see.
 _Avoid_: Token, variable, merge field
 
 **Widget**:
@@ -396,7 +396,7 @@ One 16:9 page of a deck. Its order follows its position on the deck canvas, left
 _Avoid_: Page, frame, board
 
 **Slide Element**:
-A part of a slide that draws itself in the deck's Theme and fills its words from today's data: words, a box, a figure, a column chart, a gap table, a metric table, a numbered list, a logo place or cover art. It may read Metrics, and shows nothing of one the viewer may not see. It is for slides only; on a dashboard stand Widgets.
+A part of a slide that draws itself in the deck's Theme and fills its words from today's data: words, a box, a figure, a column chart, a gap table, a metric table, definitions (Metrics with their description and Calculation Note), a numbered list, a logo place or cover art. It may read Metrics, and shows nothing of one the viewer may not see. It is for slides only; on a dashboard stand Widgets.
 _Avoid_: Block, component, shape (for this)
 
 **Snapshot Part**:
@@ -428,6 +428,14 @@ _Avoid_: Sandbox, test workspace, free trial
 **Trial Limit**:
 One of the numbers that bound every Trial Workspace: people, invitation emails a day, Metrics, messages a day, keys, Feeds, assistants, Webhooks, View Links, and the days a trial lasts and its data stays. Ziffr Cloud or an Installation Admin of hosted Ziffr sets them, each within a range, and a change applies to running trials at once. Lowering one never deletes or stops what a trial has: only what is new waits. Not a Workspace Limit, which counts Metrics of an ordinary Workspace, nor a Sending Limit, which is the same for every Workspace.
 _Avoid_: Plan limit, quota, entitlement
+
+**Practice Workspace**:
+A private Workspace an Installation Admin makes for themself to try Ziffr on made-up numbers (spec 0063). They are its Owner and its only real person; the others are Made-up People. Nothing reaches anyone but that person, or an address they entered themselves: messages to them arrive only by a way they switched on under Send to yourself, every other message stays in the Outbox, they may make View Links, Calendar Links and Webhooks, and nobody can be invited or added as a Contact. Which Workspace is one is set when it is made and never changes. It has no Workspace Limit, no usage digest and is never deleted as unused. Not the demo (shared, and visitors look around it), not a Trial Workspace (on hosted Ziffr, to try Ziffr with real numbers and real colleagues).
+_Avoid_: Sandbox, test workspace, playground, demo copy
+
+**Made-up Person**:
+A person of a Practice Workspace who does not exist: a member with a name, a Workspace Role and whatever is shared with them or asked of them, no way to sign in and an address ending in `.invalid`, which can never be routed. They belong to that Workspace alone. Not a Contact (a real person without an account) and not one of the demo's people, though a Practice Workspace's first ones are named after them.
+_Avoid_: Fake user, test user, dummy, bot
 
 **Workspace Export**:
 The file a Workspace's Owner downloads that holds the Workspace as the Owner may see it (its Metrics and their values, dashboards, decks, Workflows, Themes, Groups, Shares and people as invitations, but no secret, key or Connector link), so that another Installation can import it as a new Workspace (a Workspace made by an import is marked importing, and invisible to its Owner, until it is complete: a failed import deletes it with its key). It asks for a sign-in from the last 10 minutes, is made while it downloads and is never stored. What its format cannot carry is left out and said, never cut short. The people in it become invitations on hold, sent only when the new Owner presses Invite everyone. Not an Archived Metric, nor a Pack, which holds no values.
@@ -522,7 +530,7 @@ Ziffr's catalogue of Packs, checked before they are listed, and of programs outs
 _Avoid_: Store, app store, gallery, hub
 
 **Signed Statement**:
-What a Marketplace signs about one file of one version of a Pack: its id, its version, a fingerprint of the file (SHA-256), the key used, the time and whether a moderator looked. Ziffr takes a file from a Marketplace only when the statement of a trusted Marketplace Key holds for it. It says where a file came from, not that the Pack is safe.
+What a Marketplace signs about one file of one version of a Pack: its id, its version, a fingerprint of the file (SHA-256), the key used, the time and whether a moderator looked. Ziffr takes a file from a Marketplace only when the statement of a trusted Marketplace Key holds for it. It says where a file came from, not that the Pack is safe. A Marketplace signs a statement too when it withdraws a Pack or takes that back, numbered so that an older one never replaces a newer one.
 _Avoid_: Certificate, stamp, seal
 
 **Marketplace Key**:
@@ -534,7 +542,7 @@ A Marketplace creator in the first days after their first publish, or after a re
 _Avoid_: Unverified, rookie, untrusted
 
 **Withdrawn Pack**:
-A Pack its Marketplace no longer offers: no new installs and no updates. Workspaces that installed it are told why in one line and keep everything they installed.
+A Pack its Marketplace no longer offers: no new installs and no updates. Workspaces that installed it are told why in one line and keep everything they installed. A Marketplace withdraws a Pack, and takes that back, only with a Signed Statement; Ziffr believes the newest it has seen.
 _Avoid_: Banned, removed, recalled, deleted Pack
 
 **Webhook**:
@@ -546,7 +554,7 @@ A Webhook that one person adds for themselves in one Workspace, once an Owner or
 _Avoid_: My webhook, user webhook, private webhook
 
 **Comes From**:
-What a Pack says of each of its numbers (a person types it, another system sends it, or it is set once as a target), with what Ziffr works out from the Pack: that it calculates a number, which Automation Templates are delivered and what the installer still needs. Shown as "Where the numbers come from". Not a Source (the way a value arrives) and not a thing's origin.
+What a Pack says of each of its numbers (a person is asked for it, another system sends it, or it is set once as a target), with what Ziffr works out from the Pack: that it calculates a number, by which ways a number it says nothing of can arrive, which Automation Templates are delivered and what the installer still needs. Shown as "Where the numbers come from". Not a Source (the way a value arrives) and not a thing's origin.
 _Avoid_: Provenance, data source, lineage
 
 **Automation Template**:

@@ -64,6 +64,7 @@ Ziffr keeps everything in Postgres. The server makes outgoing connections only t
    select prototype_seed_pins();
    select prototype_seed_close();
    select prototype_seed_fill_in();
+   select prototype_seed_calculation_notes();
    select prototype_seed_showcase();
    ```
 
@@ -502,6 +503,14 @@ Releases are tagged `vX.Y.Z`, and each has its notes on the [Releases page](http
 1. Read the notes of every release between your version and the new one.
 2. Apply the new migrations: `supabase db push`. They only add, so the old app keeps working until it is replaced.
 3. Set any new settings the notes name, then build and start the new version.
+
+**Text boxes with typed numbers.** Text boxes on slides can show live values (**Insert value**). Words that were typed, or filled in when a slide was made from a template before that, stay as they are. To find the decks, Deck Templates and slide layouts whose text boxes hold numbers, so their owners can replace them, run [`scripts/find-typed-figures.sql`](../../scripts/find-typed-figures.sql) against the database. It only reads, and prints names of Workspaces, decks, templates and owners with counts, never the words:
+
+```sh skip="needs your database"
+psql "$DATABASE_URL" -f scripts/find-typed-figures.sql
+# With Docker, from the folder of compose.yml:
+docker compose exec -T db psql -U postgres -h localhost -d postgres < find-typed-figures.sql
+```
 
 ## Backups
 

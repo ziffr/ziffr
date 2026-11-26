@@ -33,7 +33,8 @@ import { SnapshotPartShapeUtil } from "@/decks/kept/part-shape";
 import { KeptNumbers, keptOf, setDeckExportKept, useDeckKept } from "@/decks/kept/kept-store";
 import { onSlide, type Kept } from "@/decks/kept/kept-drawing";
 import { LiveNumbersNote } from "@/decks/kept/live-note";
-import { fillText } from "@ziffr/core/placeholders";
+import { setTextFill, textShapeUtils } from "@/decks/text/live-text";
+import { InsertValueButton, TextBoxPanel } from "@/decks/text/insert-value";
 import type { SlideBody, SlideShape, SlideTemplate } from "@ziffr/core/types";
 import { DEFAULT_TEMPLATE, TEMPLATES, templatesFor } from "@/views/templates";
 import { StoryEditor } from "@/components/story-editor";
@@ -55,7 +56,7 @@ import { useShowWhoCanSee } from "@/components/who-can-see";
 import { useShowViewLinks } from "@/components/view-links";
 import { SlideCanvas } from "@/decks/slide-canvas";
 
-const shapeUtils = [WidgetShapeUtil, SnapshotPartShapeUtil, SlideFrameUtil];
+const shapeUtils = [WidgetShapeUtil, SnapshotPartShapeUtil, SlideFrameUtil, ...textShapeUtils];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
 const DECK_TEMPLATE: TemplateId = "line";
 
@@ -111,8 +112,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
   masterRef.current = master;
   // What onMount lays out a new deck from, read through a ref: onMount sets the editor up once, and a dependency on
   // them would set it up again (and listen twice) whenever the metrics change (#3).
-  const firstLayout = useRef({ seed, templateSeed, data, addition, adding });
-  firstLayout.current = { seed, templateSeed, data, addition, adding };
+  const firstLayout = useRef({ seed, templateSeed, data, addition, adding, kept });
+  firstLayout.current = { seed, templateSeed, data, addition, adding, kept };
 
   // A widget added from its menu is placed once, even if the editor mounts twice.
   const placed = useRef(false);
@@ -123,6 +124,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
     (ed: Editor) => {
       setEditor(ed);
       keepContentLocal(ed);
+      // At once, so no text box is drawn with its values still empty.
+      setTextFill(ed, { data: firstLayout.current.data, kept: firstLayout.current.kept });
       if (process.env.NODE_ENV === "development") (window as unknown as { __deckEditor?: Editor }).__deckEditor = ed;
       ed.user.updateUserPreferences({ colorScheme: "light", locale: "en" }); // the app is English, whatever the browser says
       // A deck is set in clean type with solid lines, not tldraw's hand-drawn defaults.
@@ -134,9 +137,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
       if (!orderedSlides(ed).length && !fromSnapshot) {
         // A new deck made from a dashboard or a Deck Template gets its slides laid out; any other starts with a title slide.
         const { seed, templateSeed, data: first } = firstLayout.current;
-        const byId = (ids: number[]) => ids.map((mid) => first.metrics.find((m) => m.id === mid)!).filter(Boolean);
         const id = templateSeed
-          ? templateSlides(ed, masterRef.current, fromDeckTemplate({ slides: templateSeed.slides }, templateSeed.fills, (txt, ids) => fillText(txt, byId(ids), first) ?? txt), templateSeed.slides.map((s) => Boolean(s.cover)))
+          ? templateSlides(ed, masterRef.current, fromDeckTemplate({ slides: templateSeed.slides }, templateSeed.fills), templateSeed.slides.map((s) => Boolean(s.cover)))
           : seed
             ? seedSlides(ed, masterRef.current, seed, WIDGET_SHAPE, (w) => w.title || first.metrics.find((m) => m.id === w.metric_ids[0])?.name || "")
             : addSlide(ed, "title", masterRef.current);
@@ -215,6 +217,10 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
     };
   }, [kept]);
 
+  useEffect(() => {
+    if (editor) setTextFill(editor, { data, kept });
+  }, [editor, data, kept]);
+
   /** Turn a Pool item into widget props. */
   const slotFill = useSlotFill(data);
   const widgetProps = (s: DropSource) => {
@@ -266,13 +272,12 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
 
   const [layout, setLayout] = useState<{ shapes: SlideShape[]; note?: string } | null>(null);
   const [deckSlides, setDeckSlides] = useState<{ slides: SlideShape[][]; note?: string } | null>(null);
-  /** A team slide layout: its slots filled, its words filled in from today's data, as a new slide at the end. */
+  /** A team slide layout: its slots filled, as a new slide at the end; its words are filled each time it is shown. */
   const newSlideFrom = async (t: SlideTemplate) => {
     if (!editor) return;
     const fills = t.slots.length ? await slotFill.ask(t) : [];
     if (!fills) return;
-    const byId = (ids: number[]) => ids.map((id) => data.metrics.find((m) => m.id === id)!).filter(Boolean);
-    const shapes = fromSlideLayout(t.body, fills, (txt, ids) => fillText(txt, byId(ids), data) ?? txt);
+    const shapes = fromSlideLayout(t.body, fills);
     const id = addSlide(editor, "blank", master);
     placeShapes(editor, id, shapes);
     editor.select(id);
@@ -292,11 +297,10 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
       // Asked again for the file: what the person may see now, not when the page opened.
       const numbers = await refresh();
       setDeckExportKept(numbers);
-      if (kind === "pptx") {
-        // Slides not on screen were never drawn, so a widget there may still lack its series: fetch them first.
-        if (ensure) { await ensure(exportSeriesIds(editor)); await new Promise((r) => setTimeout(r, 0)); }
-        await exportPptx(editor, latest.current, name, designedMaster, theme, numbers);
-      }
+      // Slides not on screen were never drawn, so a widget or text box there may still lack its series: fetch them first.
+      if (ensure) { await ensure(exportSeriesIds(editor)); await new Promise((r) => setTimeout(r, 0)); }
+      setTextFill(editor, { data: latest.current, kept: numbers });
+      if (kind === "pptx") await exportPptx(editor, latest.current, name, designedMaster, theme, numbers);
       else await exportPdf(editor, name, latest.current, numbers);
       // For the Audit Log; a failure to note it never spoils the export the person already has.
       noteDeckExport(deck.id, kind).catch(() => {});
@@ -357,6 +361,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
           </DropdownMenuContent>
         </DropdownMenu>
         <ElementMenu editor={editor} data={data} />
+        <InsertValueButton editor={editor} data={data} />
         {/* On a phone the note above the editor carries this button. */}
         <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline", className: "max-sm:hidden" })}><MonitorPlay aria-hidden /> Present</Link>
         {sharing && <ShareSheet objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} canInvite={sharing.canInvite} />}
@@ -405,6 +410,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
         <div className="order-2 space-y-4 lg:order-1">
           {/* Above the Pool, which stays in view while the column scrolls: below it a long panel would slide under. */}
           {editor && <ElementPanel editor={editor} data={data} />}
+          {editor && <TextBoxPanel editor={editor} data={data} />}
           <Pool data={data} saved={saved} onAdd={(s) => place(s)} hint="Drag onto a slide, or click + to add to the slide in view." />
           {slotFill.dialog}
           {editor && <SelectionPanel editor={editor} data={data} onSaveLayout={(slide) => setLayout({ shapes: slideShapes(editor, slide), note: partsNote(editor, slide) })} />}

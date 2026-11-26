@@ -10,6 +10,7 @@ import { TRIAL_HOLDS_BACK } from "./trials";
 import { ARCHIVED_BEFORE_SENT } from "./archived-metrics";
 import { NO_WAY_HERE } from "./test-message-words";
 import { REMOVED_BEFORE_SENT } from "./asked-message";
+import { PRACTICE_HELD } from "./practice";
 
 /** How long a Metric waits before Ask me now asks again. */
 export const ASK_NOW_EVERY_MINUTES = 10;
@@ -28,7 +29,7 @@ export async function canAskNow(actor: Actor, metricId: number): Promise<boolean
 /** Why a Prompt did not go out, as it may be shown: only reasons Ziffr wrote itself pass; anything else (a mail
  * server's or a provider's own words) becomes one fixed line, so no provider text reaches a browser. */
 const SHOWN_REASONS = new Set<string>([
-  ...Object.values(TRIAL_HOLDS_BACK), ARCHIVED_BEFORE_SENT, REMOVED_BEFORE_SENT,
+  ...Object.values(TRIAL_HOLDS_BACK), ARCHIVED_BEFORE_SENT, REMOVED_BEFORE_SENT, PRACTICE_HELD,
   "Email is not set up.", "No usable email address for this person here.", "They stopped reminders by email.",
   "Slack is not set up.", "Slack is not connected.", "Slack is not connected any more.", "They stopped reminders on Slack.", "Slack asked to wait.",
   ...Object.values(NO_WAY_HERE),

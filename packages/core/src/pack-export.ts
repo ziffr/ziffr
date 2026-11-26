@@ -15,10 +15,10 @@ import { guideFromText, type PackGuideText } from "./pack-guide-text";
 import { comesFromOf, type ComesFromChoice } from "./pack-export-numbers";
 import { PACK_GUIDE_SECTIONS } from "@ziffr/pack/pack-guide";
 import { checkSchema, type Schema } from "./json-check";
-import { PLAIN, WORDS, KEY } from "./file-text";
-import { checkMetricFileValue, type MetricFile } from "./metric-file";
+import { PLAIN, SAVED_WORDS, WORDS, KEY } from "./file-text";
+import { checkMetricFileValue, METRIC_FILE_LIMITS, type MetricFile } from "./metric-file";
 import { checkDashboardTemplateFileValue, type DashboardTemplateFile, type WidgetSettingsFile } from "./dashboard-template-file";
-import { checkDeckTemplateFileValue, DECK_TEMPLATE_FORMAT, DECK_TEMPLATE_FORMAT_2, type DeckTemplateFile } from "./deck-template-file";
+import { checkDeckTemplateFileValue, DECK_TEMPLATE_FORMAT, DECK_TEMPLATE_FORMAT_2, DECK_TEMPLATE_FORMAT_3, type DeckTemplateFile } from "./deck-template-file";
 import { elementSlots, mapElementWords, SLIDE_ELEMENT_LIMITS } from "./slide-element";
 import { slideWords } from "./file-text";
 import { checkWorkflowTemplateFileValue, type WorkflowTemplateFile } from "./workflow-template-file";
@@ -46,20 +46,30 @@ export type ExportResult = { text: string; fileName: string; leftOut: { name: st
 
 /** How text is fitted into a file: a Pack keeps the Pack's plain-text rules; a Workspace Export (workspace-export.ts)
  * the app's own. Both say "does not fit" by an empty answer, and the caller says what was left out. */
-export type TextFit = { plain: (s: unknown, max: number) => string | null; words: (s: unknown, max: number) => string | undefined; /** A Slide Element's words, spaces kept; empty when the file may not hold them. */ slide: (s: string) => string };
+export type TextFit = { plain: (s: unknown, max: number) => string | null; words: (s: unknown, max: number) => string | undefined; /** A paragraph of a slide's text or box that names no Slots (formats /1 and /2). */ saved: (s: unknown, max: number) => string | undefined; /** A Slide Element's words, spaces kept; empty when the file may not hold them. */ slide: (s: string) => string };
 
 const plain = (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
   return checkSchema({ type: "string", pattern: PLAIN } as Schema, t).length ? null : t;
 };
-const wordsOk = (s: unknown, max: number) => {
+/** A Calculation Note as a Pack keeps it: on one line and whole. One the format does not take (too long, or holding such
+ * a thing as a web address) is left out and said: half a definition would say something else. */
+function packNote(s: unknown, name: string, leftOut: ExportResult["leftOut"]): string | undefined {
+  const text = String(s ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return undefined;
+  const fits = [...text].length <= METRIC_FILE_LIMITS.calculationNote ? plain(text, METRIC_FILE_LIMITS.calculationNote) : null;
+  if (!fits) leftOut.push({ name, why: `Only how it is calculated was left out: a Pack keeps up to ${METRIC_FILE_LIMITS.calculationNote} characters of plain text, without markup or web addresses.` });
+  return fits ?? undefined;
+}
+const fitting = (pattern: string) => (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
-  return t && !checkSchema({ type: "string", pattern: WORDS } as Schema, t).length ? t : undefined;
+  return t && !checkSchema({ type: "string", pattern } as Schema, t).length ? t : undefined;
 };
+const wordsOk = fitting(WORDS);
 /** A Pack's text rules. */
 // An element's spaces are part of its layout, so nothing is collapsed: a text is kept whole or not at all.
 const slideOk = (s: string) => (checkSchema(slideWords(SLIDE_ELEMENT_LIMITS.words), s).length ? "" : s);
-const PACK_FIT: TextFit = { plain, words: wordsOk, slide: slideOk };
+const PACK_FIT: TextFit = { plain, words: wordsOk, saved: fitting(SAVED_WORDS), slide: slideOk };
 const slug = (name: string) => {
   const s = name.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36);
   return /^[a-z]/.test(s) ? s : `x-${s || "item"}`.slice(0, 40);
@@ -183,7 +193,7 @@ export async function gatherPack(actor: Actor, manifest: ExportManifest, choice:
   // Metrics and catalog entries: the entries a Pack holds. A formula names others by their key in this Pack.
   const metricRows = ids("metrics").filter((id) => seen.has(id)).map((id) => seen.get(id)!);
   for (const id of ids("metrics")) if (!seen.has(id)) leftOut.push({ name: `Metric ${id}`, why: "You do not see it." });
-  const catRows = await rows("catalog_metrics", ids("catalog"), "id, category, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, formula, tags, pack_key, pack_install_id");
+  const catRows = await rows("catalog_metrics", ids("catalog"), "id, category, name, description, calculation_note, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, formula, tags, total, pack_key, pack_install_id");
   const entries = [
     ...metricRows.map((m) => ({ src: "metric" as const, m: m as unknown as Row, key: keyFor(null, m.name), slugOrKey: m.slug })),
     ...catRows.map((r) => ({ src: "catalog" as const, m: r, key: keyFor(r.pack_key, String(r.name)), slugOrKey: String(r.pack_key ?? "") })),
@@ -207,12 +217,15 @@ export async function gatherPack(actor: Actor, manifest: ExportManifest, choice:
       formula = String(m.formula).replace(/\{([a-z0-9-]+)\}/g, (_x, i: string) => `{${keyOfInput.get(i)}}`);
     }
     const description = plain(m.description, 1000);
+    const note = packNote(m.calculation_note, name, leftOut);
     const unit = plain(m.unit, 20);
     const category = e.src === "catalog" && m.category !== installs.get(Number(m.pack_install_id)) ? plain(m.category, 60) : null;
     const tags = chosen?.tags === false ? [] : packTags(e.src === "metric" ? seenTags.get(Number(m.id)) : m.tags, name, leftOut);
     const file: MetricFile = {
-      format: "ziffr.metric/1", name,
+      // The newer format only for an entry that says how it is calculated, so an older Ziffr reads every other (spec 0060).
+      format: note ? "ziffr.metric/2" : "ziffr.metric/1", name,
       ...(description ? { description } : {}),
+      ...(note ? { calculationNote: note } : {}),
       ...(category ? { category } : {}),
       ...(Array.isArray(m.industries) && m.industries.length ? { industries: m.industries as string[] } : {}),
       ...(Array.isArray(m.segments) && m.segments.length ? { segments: m.segments as string[] } : {}),
@@ -341,16 +354,19 @@ export function settingsOf(s: WidgetSettings | undefined, designKey: ReadonlyMap
   return Object.keys(out).length ? { settings: out } : {};
 }
 
-/** A Deck Template file in the oldest format that holds it: /2 only when it has a Slide Element or a cover. */
+/** A Deck Template file in the oldest format that holds it: /3 when a text or box shape names Slots, else /2 when it
+ * has a Slide Element or a cover. */
 export function deckFile(t: Omit<DeckTemplateFile, "format">): DeckTemplateFile {
-  const newer = t.slides.some((s) => s.cover || s.shapes.some((sh) => sh.shape === "element"));
-  return { format: newer ? DECK_TEMPLATE_FORMAT_2 : DECK_TEMPLATE_FORMAT, ...t };
+  const live = t.slides.some((s) => s.shapes.some((sh) => (sh.shape === "text" || sh.shape === "box") && sh.slots));
+  const designed = t.slides.some((s) => s.cover || s.shapes.some((sh) => sh.shape === "element"));
+  return { format: live ? DECK_TEMPLATE_FORMAT_3 : designed ? DECK_TEMPLATE_FORMAT_2 : DECK_TEMPLATE_FORMAT, ...t };
 }
 
-/** Paragraphs of a shape's words, from the rich text the deck editor keeps. */
-function paragraphsOf(rich: unknown, fit: TextFit = PACK_FIT): string[] {
+/** Paragraphs of a shape's words, from the rich text the deck editor keeps. `live`: the words of a box that names
+ * Slots, which may hold a slide's Placeholders. */
+function paragraphsOf(rich: unknown, fit: TextFit, live: boolean): string[] {
   const doc = rich as { content?: { content?: { text?: string }[] }[] } | undefined;
-  return (doc?.content ?? []).map((p) => (p.content ?? []).map((t) => t.text ?? "").join("")).slice(0, 20).map((t) => fit.words(t, 300) ?? "").filter((t, i, all) => t || i < all.length - 1);
+  return (doc?.content ?? []).map((p) => (p.content ?? []).map((t) => t.text ?? "").join("")).slice(0, 20).map((t) => (live ? fit.slide(t.slice(0, 300)) : fit.saved(t, 300) ?? "")).filter((t, i, all) => t || i < all.length - 1);
 }
 
 const COLORS = ["black", "grey", "light-violet", "violet", "blue", "light-blue", "yellow", "orange", "green", "light-green", "light-red", "red", "white"];
@@ -372,14 +388,15 @@ export function slideShapeOf(sh: SlideShape, designKey: ReadonlyMap<string, stri
   if (sh.type === "ziffr-widget" && sh.widget && (TEMPLATE_VIEWS as readonly string[]).includes(String(p.template))) {
     return [{ shape: "widget", view: p.template as "line", slots: sh.widget.metricSlots, ...titleOf(sh.widget.title, fit), x, y, w: clamp(p.w, 40, 1280 - x), h: clamp(p.h, 40, 720 - y), ...settingsOf(sh.widget.settings, designKey, fit) }];
   }
+  const slots = sh.textSlots ? { slots: sh.textSlots } : {};
   if (sh.type === "text") {
-    const text = paragraphsOf(p.richText, fit);
+    const text = paragraphsOf(p.richText, fit, Boolean(sh.textSlots));
     if (!text.length) return [];
-    return [{ shape: "text", x, y, w: clamp(p.w, 20, 1280 - x), text, ...(["s", "m", "l", "xl"].includes(String(p.size)) ? { size: p.size as "m" } : {}), ...(typeof p.scale === "number" ? { scale: Math.min(4, Math.max(0.25, p.scale)) } : {}), ...(["start", "middle", "end"].includes(String(p.textAlign)) ? { align: p.textAlign as "start" } : {}), ...color }];
+    return [{ shape: "text", x, y, w: clamp(p.w, 20, 1280 - x), ...slots, text, ...(["s", "m", "l", "xl"].includes(String(p.size)) ? { size: p.size as "m" } : {}), ...(typeof p.scale === "number" ? { scale: Math.min(4, Math.max(0.25, p.scale)) } : {}), ...(["start", "middle", "end"].includes(String(p.textAlign)) ? { align: p.textAlign as "start" } : {}), ...color }];
   }
   if (sh.type === "geo") {
-    const text = paragraphsOf(p.richText, fit);
-    return [{ shape: "box", x, y, w: clamp(p.w, 4, 1280 - x), h: clamp(p.h, 4, 720 - y), geo: (GEOS.includes(String(p.geo)) ? p.geo : "rectangle") as "rectangle", ...(["none", "semi", "solid"].includes(String(p.fill)) ? { fill: p.fill as "none" } : {}), ...color, ...(text.length ? { text } : {}) }];
+    const text = paragraphsOf(p.richText, fit, Boolean(sh.textSlots));
+    return [{ shape: "box", x, y, w: clamp(p.w, 4, 1280 - x), h: clamp(p.h, 4, 720 - y), geo: (GEOS.includes(String(p.geo)) ? p.geo : "rectangle") as "rectangle", ...(["none", "semi", "solid"].includes(String(p.fill)) ? { fill: p.fill as "none" } : {}), ...color, ...(text.length ? { text, ...slots } : {}) }];
   }
   return [];
 }

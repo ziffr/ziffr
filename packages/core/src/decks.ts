@@ -10,6 +10,7 @@ import { allDeckMetricIds, deckMetricIds, deckMetricIdsAdded } from "./visibilit
 import { assertWidgetDesigns } from "./widget-designs";
 import { ensureBaseline, recordVersion } from "./versions";
 import { assertNoOutsideContent } from "./deck-content";
+import { withoutUnaskedMetrics } from "./slide-text";
 import { snapshotPartProblem } from "./snapshot-parts";
 import { refuseSeeded } from "./demo-seeded-rows";
 import { visitorDeckDocument } from "./demo-visitor-deck";
@@ -33,7 +34,7 @@ async function assertCanEditDeck(actor: Actor, id: number) {
 const touch = () => new Date().toISOString();
 
 /** What a save is refused with when it would draw live what kept a Snapshot's numbers (spec 0061). */
-const GOES_LIVE = "This change would show live numbers of a Metric you cannot see: a Widget or Slide Element that kept a Snapshot's numbers would no longer be on a slide that keeps them. Undo, remove that Widget or element, or ask someone who sees the Metric to make this change.";
+const GOES_LIVE = "This change would show live numbers of a Metric you cannot see: a Widget, Slide Element or text box that kept a Snapshot's numbers would no longer be on a slide that keeps them. Undo, remove it, or ask someone who sees the Metric to make this change.";
 
 /** Refuses in plain words a save that draws live a Metric the deck named only on slides that keep numbers, by someone
  * who does not see it: a part or a slide's mark was removed, or the Widget moved to another slide. */
@@ -82,8 +83,10 @@ export async function saveDeck(actor: Actor, id: number, document: unknown) {
   const { data: before } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", actor.workspaceId).single();
   // In a demo visit the document is rebuilt from words and shapes the demo accepts, within its size, before the write below.
   document = await visitorDeckDocument(actor, document, before?.document);
+  // A text box is stored listing only the Metrics its words ask for: those are what is checked here.
+  document = withoutUnaskedMetrics(document);
   const added = deckMetricIdsAdded(before?.document, document);
-  if (added.some((m) => !Number.isFinite(m))) throw new Error("A widget on this deck names its metrics in a way Ziffr cannot read. Remove or recreate that widget, then save.");
+  if (added.some((m) => !Number.isFinite(m))) throw new Error("A widget or text box on this deck names its metrics in a way Ziffr cannot read. Remove or recreate it, then save.");
   await assertSeesWhatGoesLive(actor, before?.document, document);
   await assertSeesMetrics(actor, added);
   // A deck that is shared shows only Metrics its recipients see (spec 0051, ticket 11).

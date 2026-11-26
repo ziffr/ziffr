@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { CALCULATION_NOTE_MAX, calculationNoteFrom, formulaInWords } from "./calculation-note";
 import { shownData } from "./view-links";
+import { fillWidgetText } from "./placeholders";
 import { canvas, metric } from "./test/fixtures";
 
 describe("calculationNoteFrom", () => {
@@ -27,6 +28,8 @@ describe("what goes out with a View Link or a Snapshot", () => {
   it("carries neither the description nor how it is calculated", () => {
     const m = metric({ description: "Inside", calculation_note: "Inside too" });
     const out = shownData(canvas([m], { revenue: [] }), new Set([m.id]), null);
-    expect(out.metrics[0]).toMatchObject({ name: "Revenue", description: "", calculation_note: null });
+    expect(out.metrics[0]).toMatchObject({ name: "Revenue", description: "", calculation_note: "" });
+    // And a Placeholder for it fills in as nothing there: neither the words nor the braces.
+    expect(fillWidgetText("{metric}: {calculation note}", { metric_ids: [m.id], settings: {} }, out)).toBe("Revenue: ");
   });
 });

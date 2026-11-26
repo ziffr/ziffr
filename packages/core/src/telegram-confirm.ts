@@ -23,6 +23,7 @@ import { settingsInEffect } from "./settings-in-effect";
 import { callTelegram } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
 import { trialHoldsBack } from "./trials";
+import { heldBack } from "./practice";
 
 /** How long the confirmation link in the email works. */
 export const TELEGRAM_CONFIRM_MINUTES = 30;
@@ -63,6 +64,8 @@ export async function tellChat(chatId: number, text: string): Promise<void> {
 export async function confirmationAddress(workspaceId: string, personId: string): Promise<{ address: string } | { help: string }> {
   const cannot = "Telegram cannot be connected from this page";
   if (!(await mailOn())) return { help: `${cannot}: Ziffr cannot send the email that confirms it. Whoever runs this Ziffr can set up email.` };
+  // A confirmation goes to a Contact's address: never from a Practice Workspace, whose person links by their own code.
+  if (await heldBack(workspaceId, "telegram", { recipientId: personId })) return { help: `${cannot}: nothing is sent from a Practice Workspace.` };
   // A trial sends nothing to a Contact (ADR 0015).
   if (await trialHoldsBack(workspaceId, personId)) return { help: `${cannot}: this trial workspace sends nothing to Contacts.` };
   const address = await addressIn(workspaceId, personId);

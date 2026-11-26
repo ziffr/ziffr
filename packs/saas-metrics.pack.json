@@ -1,14 +1,14 @@
 {
-  "format": "ziffr.pack/1",
+  "format": "ziffr.pack/2",
   "id": "ziffr/saas-metrics",
   "name": "SaaS metrics",
-  "version": "2.1.0",
+  "version": "2.3.0",
   "summary": "MRR and its movements, customers, churn, retention, CAC, cash and runway, with a monthly management report as dashboard and deck, a quarterly board deck, and the Workflows for the monthly and quarterly close.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
-  "ziffr": ">=0.11",
+  "ziffr": ">=0.21",
   "audience": {
     "industries": [
       "saas"
@@ -25,14 +25,90 @@
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For a software business with subscriptions: recurring revenue and how it moved, customers, churn and retention, the cost of winning a customer, cash and runway, reported monthly and to the board each quarter."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "An **Owner** installs the Pack, because it holds a Theme. An Owner or Admin sets it up.",
+          "The person who approves unusual values.",
+          "Room for **13 Metrics**. Tick fewer in Set up if you want fewer."
+        ]
+      }
+    ],
+    "firstSteps": [
+      {
+        "type": "heading",
+        "text": "Start here"
+      },
+      {
+        "type": "list",
+        "numbered": true,
+        "items": [
+          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
+          "Keep the Metrics ticked, with the dashboard **Monthly management report**, pick the Workflow **Monthly close** and its **Approver**, and choose **Set up**.",
+          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
+          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
+          "Open **Decks**, choose **From a Deck Template**, pick **Monthly management report** or **Quarterly board meeting** and a Metric for each Slot."
+        ]
+      }
+    ],
+    "eachPart": [
+      {
+        "type": "heading",
+        "text": "Metrics"
+      },
+      {
+        "type": "list",
+        "items": [
+          "**Monthly recurring revenue**, **New MRR**, **Expansion revenue** and **Churned MRR**.",
+          "**Active customers**, **Churn rate** and **Net revenue retention**.",
+          "**Customer acquisition cost** and **CAC payback**.",
+          "**Cash balance** and **Cash runway**.",
+          "Ziffr works out **Annual recurring revenue** and **Average revenue per account**."
+        ]
+      },
+      {
+        "type": "heading",
+        "text": "What shows and runs them"
+      },
+      {
+        "type": "list",
+        "items": [
+          "The dashboard **Monthly management report**, and the decks **Monthly management report** and **Quarterly board meeting**.",
+          "The Workflows **Monthly close**, due on the third working day, and **Quarter close**, due on the fifth, where every value is approved. Both lock the period. A figure that is still missing after its Due Date is asked from the Submitter's Stand-in. Choose a Stand-in for each Submitter in the Workflow box on the Metric's **Description** tab.",
+          "**Growth, smoothed**: a View Design that draws a Metric's growth and its three-month average.",
+          "The **SaaS metrics** Theme, which shows the Pack's logo."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "How do I set up the quarterly Workflow?"
+      },
+      {
+        "type": "text",
+        "text": "Set up takes one Workflow. Make the other on the **Workflows** page with **New from a template**."
+      }
+    ]
+  },
   "contents": {
     "metrics": [
       {
         "key": "mrr",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Monthly recurring revenue",
           "description": "Recurring subscription revenue at month end.",
+          "calculationNote": "The monthly price of every active subscription on the last day of the month, after discounts, with yearly contracts divided by twelve. One-off fees, VAT, free trials and contracts not yet started are left out.",
           "category": "Sales",
           "industries": [
             "saas"
@@ -63,9 +139,10 @@
       {
         "key": "arr",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Annual recurring revenue",
           "description": "Monthly recurring revenue at month end times twelve.",
+          "calculationNote": "Monthly recurring revenue times twelve, so it follows the same rules: no one-off fees, after discounts, no contracts not yet started. It is a run rate, not what is invoiced in a year.",
           "category": "Sales",
           "industries": [
             "saas"
@@ -88,10 +165,12 @@
       },
       {
         "key": "new-mrr",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "New MRR",
           "description": "Monthly recurring revenue added in the month by customers who paid for the first time.",
+          "calculationNote": "The monthly recurring revenue, after discounts, of customers who paid for the first time in the month. One-off fees are left out, and upgrades by existing customers count as expansion.",
           "category": "Sales",
           "industries": [
             "saas"
@@ -120,10 +199,12 @@
       },
       {
         "key": "expansion-mrr",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Expansion revenue",
           "description": "Monthly recurring revenue added in the month by existing customers through upgrades and add-ons; new customers are not included.",
+          "calculationNote": "The increase in monthly recurring revenue from customers who already paid before the month, through upgrades, more seats and add-ons. One-off fees and new customers are left out.",
           "category": "Sales",
           "industries": [
             "saas"
@@ -152,10 +233,12 @@
       },
       {
         "key": "churned-mrr",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Churned MRR",
           "description": "Monthly recurring revenue lost in the month to cancellations and downgrades.",
+          "calculationNote": "The monthly recurring revenue lost through cancellations, counted when the subscription ends, and through downgrades. It is entered as a positive amount.",
           "category": "Customers",
           "industries": [
             "saas"
@@ -184,10 +267,12 @@
       },
       {
         "key": "customers",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Active customers",
           "description": "Customers with a paying contract or at least one order in the last twelve months, at period end.",
+          "calculationNote": "Accounts with a running paid contract, or at least one order in the last twelve months, on the last day of the month. Free trials and free accounts are left out.",
           "category": "Customers",
           "period": "month",
           "aggregation": "last",
@@ -214,10 +299,12 @@
       },
       {
         "key": "logo-churn",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Churn rate",
           "description": "Share of subscribers who cancelled during the month.",
+          "calculationNote": "Subscribers who cancelled during the month divided by the subscribers at its start, in percent. Downgrades and subscribers who joined during the month are left out.",
           "category": "Customers",
           "industries": [
             "saas"
@@ -248,10 +335,12 @@
       },
       {
         "key": "nrr",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Net revenue retention",
           "description": "Recurring revenue now from customers who were customers twelve months ago, as a share of their recurring revenue then; expansion counts, new customers do not.",
+          "calculationNote": "Recurring revenue today of the customers you had twelve months ago, divided by their recurring revenue then, in percent. Upgrades, downgrades and cancellations count, and new customers do not.",
           "category": "Customers",
           "industries": [
             "saas"
@@ -282,10 +371,12 @@
       },
       {
         "key": "cac",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Customer acquisition cost",
           "description": "Sales and marketing costs of the month divided by the new customers won in it.",
+          "calculationNote": "Sales and marketing costs of the month, salaries included, divided by the new customers won in it. Costs of looking after existing customers are left out.",
           "category": "Marketing",
           "period": "month",
           "aggregation": "none",
@@ -311,10 +402,12 @@
       },
       {
         "key": "cac-payback",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "CAC payback",
           "description": "Months of a new customer's gross margin it takes to earn back what it cost to win them: customer acquisition cost divided by monthly gross margin per new account.",
+          "calculationNote": "Customer acquisition cost divided by the monthly gross margin of a new account, which is its monthly recurring revenue less the cost of serving it.",
           "category": "Marketing",
           "industries": [
             "saas"
@@ -346,9 +439,10 @@
       {
         "key": "arpa",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Average revenue per account",
           "description": "Monthly recurring revenue at month end divided by paying accounts at month end.",
+          "calculationNote": "Monthly recurring revenue at month end divided by active customers at month end. One-off fees are not in it, because they are not in the recurring revenue.",
           "category": "Product",
           "period": "month",
           "aggregation": "none",
@@ -368,10 +462,12 @@
       },
       {
         "key": "cash",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Cash balance",
           "description": "Cash across all bank accounts at period end.",
+          "calculationNote": "The balances of every bank account on the last day of the period, added up. Unpaid invoices and unused credit lines are not counted.",
           "category": "Finance",
           "period": "month",
           "aggregation": "last",
@@ -402,10 +498,12 @@
       },
       {
         "key": "runway",
+        "comesFrom": { "by": "person" },
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Cash runway",
           "description": "Months the cash balance lasts at the average net burn of the last three months.",
+          "calculationNote": "Cash balance divided by the average net burn of the last three months, where net burn is money spent less money received. Funding that has been agreed but not paid in is not counted.",
           "category": "Finance",
           "period": "month",
           "aggregation": "last",

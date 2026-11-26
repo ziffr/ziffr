@@ -28,9 +28,19 @@ An item you removed after installing is left out, and so are the Positions of a 
 
 **Ziffr's own Packs** lists the thirteen Packs that come with this version of Ziffr, for Owners and Admins. Each shows its name, version and summary and what it brings as counts (for example "13 Metrics, 2 dashboards, 2 Workflows"). It works on any Installation, also a self-hosted one with no Marketplace: nothing is downloaded and nothing leaves your server.
 
-Choose **Preview with Sample Data** to see everything the Pack adds, drawn with Sample Data and never your own values. These Packs need no confirmation about where they came from; texts aimed at assistants, if one ever had any, would still be listed and need a tick. Choose **Install** to add it. Nothing installs until you do, and the Audit log records it as installed from Ziffr's own Packs. A Pack that holds a Theme, such as SaaS metrics, Board meeting and Sales forecast, needs an Owner. A Pack that is installed already shows its version instead of a Preview.
+Choose **Preview with Sample Data** to see everything the Pack adds, drawn with Sample Data and never your own values. Under each Metric it shows its description and, where the Pack has one, **How it is calculated**: what counts, where the figure comes from and which adjustments are made. A Metric you set up from the Pack gets that text, and it is yours to change. These Packs need no confirmation about where they came from; texts aimed at assistants, if one ever had any, would still be listed and need a tick. Choose **Install** to add it. Nothing installs until you do, and the Audit log records it as installed from Ziffr's own Packs. A Pack that holds a Theme, such as SaaS metrics, Board meeting and Sales forecast, needs an Owner. A Pack that is installed already shows its version instead of a Preview.
 
 When a newer Ziffr brings a newer version of a Pack you installed, that Pack shows **Version … comes with this Ziffr…**, which shows what an update changes before it is done, as under Updating a Pack. It is never applied by itself.
+
+## Made-up numbers in a Practice Workspace
+
+In a [Practice Workspace](18-installation-settings.md#practice-workspace), a Pack you set up can be filled at once, so its dashboards and slides have something to show. After **Set up** choose **Fill with made-up numbers**; the same button stays on the installed Pack. It fills the Metrics your Set ups made, a few at a time, and says how far it is.
+
+- **Values** for every period from the start of the previous Fiscal Year up to now, and never less than 13 months back (at least 8 quarters and 3 years for quarterly and yearly Metrics), so year on year, year to date against last year and the period before all work. They follow a mild trend and season in the Metric's unit, and are marked as imports.
+- **Targets:** a Metric where higher or lower is better gets a Target Series for the previous and the whole current Fiscal Year, periods still to come included.
+- Calculated Metrics and Totals work themselves out. A Metric with a target range to stay inside keeps it, no Metric gets a Breakdown, and **nothing that is there is replaced**: a period with a value keeps it, and a Metric with a Target Series keeps its own.
+
+The button is offered only to you, only in your Practice Workspace.
 
 ## Whom a Pack is for
 
@@ -106,21 +116,34 @@ For a first try, a Target Range is quicker: under **Edit details…** on Commit,
 3. Choose **New metric**, then [Calculated from other Metrics](10-metrics.md#calculated-from-other-metrics), and add them up into "Commit, sum of salespeople". It has a value in a week once all of them have one.
 4. The team's **Commit** stays the sales lead's call. Add the sum to the dashboard to see both side by side.
 
-**From your CRM.** Instead of asking people, n8n can send **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, and from the first two also **Commit** and **Best case** if you like, for the team and for salespeople with Metrics of their own. Choose **Fill from n8n** on one of these Metrics and a forecast template ([what they send and when](../automations/crm-forecast-feeds.md)). A figure that came from the CRM is approved like any other, but its first value is not checked for being unusual.
+**From your CRM.** Instead of asking people, n8n can send **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, and from the first two also **Commit** and **Best case** if you like, for the team and for salespeople with Metrics of their own. Choose **Fill from n8n** on one of these Metrics and a forecast template ([what they send and when](../automations/crm-forecast-feeds.md)). A figure that came from the CRM is approved like any other, but its first value is not checked for being unusual. The Pack marks **Closed this quarter** and **Pipeline value** as sent by a CRM, so **Set up from this Pack** does not make you their Submitter; to type them yourself, tick **Ask me also for …** there.
 
 **Sending the Snapshot.** The Workflow has a **Send Snapshot** step; **Set up from this Pack** leaves the dashboard and the people open. Open the Workflow, pick **Weekly forecast meeting** and the people in the step (see [The steps](11-workflows.md#the-steps)), and share the dashboard with them, or the link is not sent to them.
 
 ## Where a Pack's numbers come from
 
-The preview of a Pack shows, above what it adds, a table **Where the numbers come from**: for each Metric, **A person types it**, **Another system sends it** (naming the kind of system, and whether the Pack comes with an n8n template for it, which you connect, or you set it up), **Ziffr calculates it** from other Metrics, **Set once as a target**, or **The Pack does not say**. The creator says who or what sends a number and may add a note; the rest Ziffr works out from the Pack.
+The preview of a Pack shows, above what it adds, a table **Where the numbers come from**. Metrics with the same answer share a row. A number reaches Ziffr in one of two ways: Ziffr asks a person, or another system sends it through a [Feed](16-workspace-settings.md#feeds).
 
-Under it, **Included** lists what installing brings, its Workflows with what each does and the templates delivered, and **What you still need** lists what is yours to provide: people who type numbers, connections to other systems, targets to set, Approvers, who gets a Snapshot, and an Owner where the Pack holds a Theme.
+| The row says | What it means |
+| --- | --- |
+| **Ask a person** | Ziffr asks by the ways the line under it names, such as web form, email, Slack or Telegram. |
+| **Ask a person, or another system sends it** | The Pack leaves the choice to you. A system sends it with n8n, a SQL Feed or another program. |
+| **Ask a person, or fill it from** a system **(template included)** | The Pack comes with an n8n template for that system, which you connect. |
+| **Another system sends it** | The Metric takes no value from a person. Where the creator named the kind of system, it follows, such as CRM. |
+| **Ziffr calculates it** from other Metrics | Nothing to do. |
+| **Set once as the target** of another Metric | You set it on that Metric. |
 
-Both are in Help with an installed Pack, also one without a guide (the Pack then shows **What it needs**). **Set up from this Pack** shows **What you still need** and where each number comes from. Nobody is asked for a number another system sends or one set as a target: **Make me the Submitter of their values** covers only the numbers a person types or the Pack does not describe, and whoever holds a Position submits only those too. **Ask me also for …** makes you the Submitter of the other ones where you would submit them; nobody else is asked for them either way. You can add Submitters later on each Metric's page. A Pack installed before Ziffr kept this shows it after an update to a newer version.
+The creator may say who or what sends a number and add a note; where they say nothing, the row names the ways the Metric accepts.
+
+Under it, **Included** lists what installing brings, its Workflows with what each does and the templates delivered, and **What you still need** lists what is yours to provide: people to ask, connections to other systems, targets to set, Approvers, who gets a Snapshot, and an Owner where the Pack holds a Theme.
+
+Both are in Help with an installed Pack, also one without a guide (the Pack then shows **What it needs**). **Set up from this Pack** shows the same table and **What you still need**. Nobody is asked for a number another system sends or one set as a target: **Make me the Submitter of their values** covers only the other numbers, and whoever holds a Position submits only those too. **Ask me also for …** makes you the Submitter of the other ones where you would submit them; nobody else is asked for them either way. You can add Submitters later on each Metric's page. A Pack installed before Ziffr kept this shows it after an update to a newer version.
 
 ## A Pack's guide
 
 A Pack may carry a **Pack Guide**: what its creator tells you about it. The preview shows it above the list of what the Pack adds, for a file, one of Ziffr's own Packs and a Pack from the Marketplace, also in the Setup Guide.
+
+Each of Ziffr's own Packs has one; read **First steps**, which begins with **Start here**. A Pack of one of them installed from an earlier version of Ziffr gets its guide when you update it.
 
 It has up to five sections, always under these titles: **What it's for**, **Before you start**, **First steps**, **Each part** and **Questions**. A guide shows only the sections its creator filled. **What it's for** and **First steps** are open when the guide appears (when it has neither, its first section is); choose a title to open or close a section.
 
@@ -135,7 +158,7 @@ The form opens with the whole Pack chosen: every Metric ticked, the dashboard an
 
 | Control | What it does |
 | --- | --- |
-| **Metrics to make** | One box per Metric Catalog entry of the Pack. A Derived Metric, such as Average order value, is computed from other entries; ticking it ticks those too, and they are made first. |
+| **Metrics to make** | One box per Metric Catalog entry of the Pack. A Derived Metric, such as Average order value, is computed from other entries; ticking it ticks those too, and they are made first. A [Total](10-metrics.md#adding-up-metrics-a-total), such as the team's commit, adds up one entry of every line of a Repeat; ticking it ticks that entry too. |
 | **Tags on an entry** | An entry may bring up to 5 Tags, shown under its name. The Metric made from it gets them, matched by name with the Tags the Workspace has (so `finance` and `Finance` are one Tag, in its first spelling) and new ones made. If a limit is reached (10 Tags on a Metric, 200 in the Workspace) the Metric is still made, and the result says which Tags stayed off it: merge or delete Tags you do not need, then add them by hand. |
 | **Make me the Submitter of their values** | Makes you the Submitter of the Metrics that take values. It sends nothing by itself. Untick it to add Submitters later under [Who submits](10-metrics.md#who-submits) on each Metric's page. |
 | **Values come from the Feed** | Shown when the Workspace has a Feed. Makes that Feed the Submitter of every Metric that takes values and turns on the API Source, so a program such as the [Usage Feed](../guides/usage.md) fills them and nobody is asked. Only Feeds of this Workspace are offered. |
@@ -155,6 +178,8 @@ For a Pack that names Positions or Repeats, the form has more parts. A Pack with
 4. **Check before you set up.** How many Metrics, dashboards and Workflows are made; **Who will see what**, with each person's Metrics and why (submits it, shared with them, on a dashboard); and the **Shares the Pack proposes**, each with its own box. A Share that would show someone a Metric they would not see otherwise, or lets them change something, starts unticked. One kind starts ticked although it shows more: where someone's Position submits a number they are not asked for, a Viewer Share lets them see it all the same. Only ticked Shares are made.
 5. **Messages.** The check names who is not asked for which number, and why. A Contact who is not asked for a number sees nothing of it, as a Contact cannot be shared with. Nobody, you included, is sent a request when you set up, unless you tick **Send the first requests now**, which starts unticked and says how many messages would go to whom: one for each Metric and Submitter. Otherwise they are asked at the Workflow's next run. A Metric that follows no Workflow asks nobody by itself, and the result page names it.
 
+A **Total** of the Pack, such as the commit of all salespeople, is made over the Metrics of every line, with the target the Pack names for it: its own, or the targets of those Metrics added up. It takes no values, so nobody is asked for it. It is never open: a proposed Share of it shows its sums only to someone who also sees every Metric it adds up, and **Who will see what** says "no sums" for anyone else. Only its owner can open it, on its page.
+
 An empty Position leaves the place open: no Submitter, "nobody yet" on a Task, nobody told. A Workflow with an Approve step is not made while one of its Approvers is empty. Where someone submits values and approves them, the rules of Approval apply: nobody approves their own value. A Send Snapshot step gets its dashboard when that is made in the same go; a recipient the dashboard is not shared with gets nothing from it, and the form says so.
 
 Afterwards everything is ordinary: change who does what on each Metric, Workflow and dashboard. Ziffr keeps a record of what was made; it decides nothing, uninstalling the Pack deletes it, and a Workspace Export leaves it out. **Large sets.** One Set up makes at most 200 Metrics. The whole set is checked against the Workspace's limit before anything is made. It then makes the Metrics a few at a time and says how far it is; keep the page open. The dashboards and Shares come last. If it stops on the way, it says what was made, keeps that, and does not go on: archive or delete what you do not want, or set up the missing lines again.
@@ -163,10 +188,12 @@ Afterwards everything is ordinary: change who does what on each Metric, Workflow
 
 Once something of a Repeat was set up, the installed Pack offers **Add a …** in the Repeat's own word, such as **Add a Salesperson** or **Add a Site**. It makes only that one line: give it a name no other line has and pick its people. What each line got so far is chosen, and the people of the other Positions are those of your last Set up; change any of it. The check is the same as for Set up, and also lists:
 
-- **Add to what is set up**, each with its own box: the new Metrics joining the Workflow made for the whole set, when it is yours (ticked), and the widgets of several Metrics that show most lines' Metrics, on dashboards you may change. Whoever such a dashboard is shared with sees what a widget shows, so each widget says who would newly see the new Metrics and starts unticked where anyone would, or where the dashboard is shared with a Group, whose later members would see them too. Tick it to add them; **Who will see what** then names those people.
-- **Left to do by hand:** what Ziffr does not change, such as a Workflow or dashboard of someone else, a Workflow step that names the new person's Position, or a Share the Pack proposes of something made before.
+- **Add to what is set up**, each with its own box: the new Metrics joining the Workflow made for the whole set, when it is yours (ticked), the widgets of several Metrics that show most lines' Metrics, on dashboards you may change, and the Totals of the set that you own. Whoever such a dashboard is shared with sees what a widget shows, so each widget says who would newly see the new Metrics and starts unticked where anyone would, or where the dashboard is shared with a Group, whose later members would see them too. Tick it to add them; **Who will see what** then names those people.
+- A ticked **Total** counts the new Metric from the period of **A day in the first period it counts**, today's to begin with. Earlier totals stay as they were. From then on a period of the Total is shown only to people who also see the new Metric.
+- An **open** Total starts unticked: ticking it puts the new Metric's numbers inside the sums that people who do not see it can read. If a Total is opened while you look at the check, your tick is dropped and the Total is listed again.
+- **Left to do by hand:** what Ziffr does not change, such as a Workflow, dashboard or Total of someone else, a Workflow step that names the new person's Position, or a Share the Pack proposes of something made before.
 
-Nothing else made before changes. Removing a line is not automated: archive its Metrics.
+Nothing else made before changes. Removing a line is not automated: archive its Metrics. For a Metric that a Total counts, archiving asks up to which period it counts, and earlier totals stay.
 
 When Set up has made Metrics that take values, its result page offers **Fill from n8n** for them: the same download as under a Metric's **Who submits**, for all those Metrics at once, with a starter sheet naming each Metric's slug. When the Pack says which template fills which of its entries, the page reads "HR Pack says Google Sheets can fill Headcount, Attrition" with the template already chosen, one button per template. Metrics computed from others are left out, since they take no values.
 
@@ -186,7 +213,7 @@ While the Marketplace connection is on, a Pack from the Marketplace shows **Repo
 
 ## A withdrawn Pack
 
-A Marketplace can withdraw a Pack, for example when it copied someone's work or turned out to mislead. Ziffr learns this with its daily question about newer versions, which it asks when an Owner or Admin opens the Packs page. The Pack in **Installed in this Workspace** then says **Withdrawn from the Marketplace**, with the reason and **What you installed stays as it is.** Everyone who sees the installed Packs sees the line. Nothing is removed or changed: your Metrics, templates and Themes stay. No update is offered, and the Pack cannot be installed from the Marketplace again. If you no longer want it, **Uninstall…** it as any other Pack. When the Marketplace takes the withdrawal back, the line goes with the next answer.
+A Marketplace can withdraw a Pack, for example when it copied someone's work or turned out to mislead. Ziffr learns this with its daily question about newer versions, which it asks when an Owner or Admin opens the Packs page. The Pack in **Installed in this Workspace** then says **Withdrawn from the Marketplace**, with the reason and **What you installed stays as it is.** Everyone who sees the installed Packs sees the line. Nothing is removed or changed: your Metrics, templates and Themes stay. No update is offered, and the Pack cannot be installed from the Marketplace again. If you no longer want it, **Uninstall…** it as any other Pack. Ziffr believes a withdrawal only when the Marketplace signed it. The line goes when an answer carries the Marketplace's signed word that it takes the withdrawal back; an answer that merely says nothing about the Pack changes nothing.
 
 ## Updating a Pack
 
@@ -208,7 +235,7 @@ A new major version, such as 2.0.0 after 1.4.0, says first that it may change ho
 **Uninstall…** first lists what goes and what stays. It removes every item nobody changed and nothing uses. It keeps, no longer marked as from the Pack, every item you changed and every Theme a dashboard, a deck or the Workspace's default uses. Metrics made from its catalog entries, and everything else made from the Pack, stay as they are. When a kept Theme still shows the Pack's logo, the window says so and offers **Also remove the author's logo from this Theme**, ticked by default: the Pack that brought the logo is gone. A logo you chose yourself always stays. The Audit log records it, with how many Themes lost the logo.
 ## Export as Pack
 
-**Export as Pack…** is for everyone but Guests. Pick Metrics, Metric Catalog entries from Packs, Dashboard, Deck and Workflow Templates, View Designs and Themes; name the Pack, give it an id such as `northwind/saas-metrics`, a version, a summary, an author and a license; then choose **Next: describe it**, and **Download Pack** (see [Describe your Pack](#describe-your-pack)). The file holds descriptions and layouts, never a value or a person, and only Metrics you see. Tags of the Metrics you pick go in too, up to 5 per entry and only Tags you see on those Metrics, never a Tag of a Metric you did not pick; untick **Carry the Tags of the Metrics you pick** to leave them out. Anything a Pack may not hold, such as a description with a web address or a drawing on a slide, stays out, and the window lists it with the reason.
+**Export as Pack…** is for everyone but Guests. Pick Metrics, Metric Catalog entries from Packs, Dashboard, Deck and Workflow Templates, View Designs and Themes; name the Pack, give it an id such as `northwind/saas-metrics`, a version, a summary, an author and a license; then choose **Next: describe it**, and **Download Pack** (see [Describe your Pack](#describe-your-pack)). The file holds descriptions and layouts, never a value or a person, and only Metrics you see. **How it is calculated** goes with each Metric, on one line and up to 1,000 characters; a longer one, or one with a web address, is left out whole and listed, and the Metric still goes in. A Pack with such a text is read only by a Ziffr that knows it; an older one says which formats it reads. Tags of the Metrics you pick go in too, up to 5 per entry and only Tags you see on those Metrics, never a Tag of a Metric you did not pick; untick **Carry the Tags of the Metrics you pick** to leave them out. Anything a Pack may not hold, such as a description with a web address or a drawing on a slide, stays out, and the window lists it with the reason.
 
 The **Author** starts as your name; change it to your company's if the Pack is theirs. It is the publisher the Pack is shown with. Under **Logo (optional)** you can take the logo of one of your Themes or upload a picture (PNG, JPEG or plain SVG, at most 128 KB and 512 pixels on a side); the window shows it in a box, as the Packs page will. Themes that use that logo carry it into the Pack; a Theme with another logo keeps it out of the file, and the window says so. Use only a logo you may share: it stays yours, and the Pack's license does not cover it. See [Writing a Pack](../guides/packs.md) and [For creators](../guides/pack-creators.md).
 
@@ -216,7 +243,7 @@ The **Author** starts as your name; change it to your company's if the Pack is t
 
 The second step asks **Where the numbers come from** and writes the Pack's [guide](#a-packs-guide); whoever gets the file reads both before installing and afterwards in Help.
 
-For each number that takes values choose **A person types it** (chosen to begin with, or what the installed Pack it came from said), **Another system sends it**, with the **Kind of system** such as CRM, or **Set once as a target**; add a short note if it helps. [Calculated numbers](#where-a-packs-numbers-come-from) are not asked. A Pack with Metrics is therefore made in the newer format, which older versions of Ziffr do not install.
+For each number that takes values choose **Ask a person** (chosen to begin with, or what the installed Pack it came from said), **Another system sends it**, with the **Kind of system** such as CRM, or **Set once as a target**; add a short note if it helps. [Calculated numbers](#where-a-packs-numbers-come-from) are not asked. A Pack with Metrics is therefore made in the newer format, which older versions of Ziffr do not install.
 
 The guide is optional.
 

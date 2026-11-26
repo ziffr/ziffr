@@ -23,6 +23,7 @@ import { openNames } from "./sealed-columns";
 import { assertMembersIn, share, shareWithGroup } from "./sharing";
 import { createHash } from "node:crypto";
 import { createViewLink, endDate, previewViewLink, viewForLink, type ViewPayload } from "./view-links";
+import { assertMayLeave } from "./practice";
 
 /** Days a Share Proposal can be confirmed. */
 export const PROPOSAL_DAYS = 7;
@@ -131,6 +132,7 @@ export async function createShareProposal(actor: Actor, accessKeyId: number, inp
   let recipient: string;
   if (viewLink) {
     await assertNotTrial(actor.workspaceId, "Sharing by email");
+    await assertMayLeave(actor.workspaceId, "email");
     const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : "";
     // The same check as sending, so a proposal is never made for an address mail cannot go to.
     if (!isAddress(email)) throw new Refused("Enter a valid email address.");
@@ -291,6 +293,7 @@ export async function confirmShareProposal(actor: Actor, id: number, seen: strin
   if (peek.kind === "view_link") {
     if (!seen) throw new Refused(CHANGED);
     await assertNotTrial(actor.workspaceId, "Sharing by email");
+    await assertMayLeave(actor.workspaceId, "email");
     if (!(await mailOn())) throw new Refused("Email is not set up on this Ziffr, so the recipient cannot be told. Make the View Link yourself on the dashboard and send it.");
     await assertEmailLimits(actor, peek.recipient_key ?? "");
   }
@@ -324,7 +327,7 @@ export async function confirmShareProposal(actor: Actor, id: number, seen: strin
       const mail = viewLinkEmail({ sender: sender ?? "someone", dashboard: dashboard.name, url: action.url, endsOn: String(row.ends_on), message: row.message });
       // Ziffr's own line about who is behind it, in the plain text and the HTML alike.
       const text = `${mail.text}\n\n${sentByLine(by, (await workspaceLook(actor.workspaceId)).name)}`;
-      await sendMail({ to: String(row.recipient_email), subject: mail.subject, text, action, ...(await brandedParts(actor.workspaceId, { text: mail.text, action }, by)) }, transport);
+      await sendMail({ to: String(row.recipient_email), subject: mail.subject, text, action, ...(await brandedParts(actor.workspaceId, { text: mail.text, action }, by)) }, actor.workspaceId, transport);
     } catch {
       emailState = "failed";
     }

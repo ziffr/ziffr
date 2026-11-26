@@ -6,8 +6,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
-  checkMarketplaceAnswer, checkRevocation, marketplaceKeyId, marketplacePackPath, marketplaceReportPath, marketplaceVersionPath, MARKETPLACE_CONTRACT, MARKETPLACE_SCHEMA,
-  packSha256, REVOCATION_FORMAT, STATEMENT_FORMAT, verifyPackStatement, type MarketplaceAnswerKind, type MarketplaceKeys,
+  checkMarketplaceAnswer, checkRevocation, checkWithdrawal, marketplaceKeyId, marketplacePackPath, marketplaceReportPath, marketplaceVersionPath, MARKETPLACE_CONTRACT, MARKETPLACE_SCHEMA,
+  packSha256, REVOCATION_FORMAT, STATEMENT_FORMAT, verifyPackStatement, WITHDRAWAL_FORMAT, type MarketplaceAnswerKind, type MarketplaceKeys,
 } from "./marketplace.js";
 import { run } from "./run.js";
 
@@ -41,6 +41,13 @@ function revocation(target = SIGNING.id, by = RESERVE, change: Record<string, un
   return { statement, signature: by.sign(statement) };
 }
 
+/** A withdrawal of another Pack, signed by `by`, with what a test changes. */
+function withdrawal(change: Record<string, unknown> = {}, by = SIGNING) {
+  const statement = JSON.stringify({ format: WITHDRAWAL_FORMAT, id: "other/club", state: "withdrawn", reason: "It copied another Pack.", sequence: 7, key: by.id, signed: "2026-11-26T09:00:00Z", ...change });
+  return { statement, signature: by.sign(statement) };
+}
+const restored = (change: Record<string, unknown> = {}, by = SIGNING) => withdrawal({ state: "restored", reason: undefined, ...change }, by);
+
 const LISTING = { id: "someone/shop", name: "Shop", summary: "Orders and revenue.", author: "Someone", license: "MIT", version: "1.0.0" };
 const GOOD: [MarketplaceAnswerKind, string, unknown][] = [
   ["packs", "no Pack", { packs: [] }],
@@ -49,7 +56,9 @@ const GOOD: [MarketplaceAnswerKind, string, unknown][] = [
   ["version", "a file a moderator looked at", { file: FILE, ...signed({ reviewed: true }) }],
   ["version", "a file signed by the reserve key after it revoked the signing key", { file: FILE, ...signed({}, RESERVE), revocations: [revocation()] }],
   ["updates", "nothing newer", { updates: [] }],
-  ["updates", "a newer version, a withdrawal and a revocation", { updates: [{ id: "someone/shop", version: "1.1.0" }], withdrawn: [{ id: "other/club", reason: "It copied another Pack." }], revocations: [revocation()] }],
+  ["updates", "a newer version and a withdrawal", { updates: [{ id: "someone/shop", version: "1.1.0" }], withdrawals: [withdrawal()] }],
+  ["updates", "a withdrawal taken back, beside an update of that Pack", { updates: [{ id: "other/club", version: "1.1.0" }], withdrawals: [restored()] }],
+  ["updates", "a withdrawal signed by the reserve key after it revoked the signing key", { updates: [], withdrawals: [withdrawal({}, RESERVE)], revocations: [revocation()] }],
   ["updatesRequest", "what an Installation sends", { ziffr: "0.50.0", installed: [ASKED] }],
 ];
 
@@ -76,10 +85,19 @@ const BAD: [MarketplaceAnswerKind, string, unknown, string][] = [
   ["version", "a statement naming another key", { file: FILE, ...signed({ key: RESERVE.id }) }, "does not hold (statement)"],
   ["version", "a revoked key", { file: FILE, ...signed(), revocations: [revocation()] }, "does not hold (revoked)"],
   ["version", "the reserve key before any revocation", { file: FILE, ...signed({}, RESERVE) }, "does not hold (reserve)"],
-  ["updates", "a withdrawal without a reason", { updates: [], withdrawn: [{ id: "a/b", reason: "" }] }, "withdrawn[0].reason"],
-  ["updates", "a reason too long", { updates: [], withdrawn: [{ id: "a/b", reason: "x".repeat(201) }] }, "at most 200"],
-  ["updates", "a reason with a link", { updates: [], withdrawn: [{ id: "a/b", reason: "See https://evil.example" }] }, "withdrawn[0].reason"],
-  ["updates", "an update for a withdrawn Pack", { updates: [{ id: "a/b", version: "2.0.0" }], withdrawn: [{ id: "a/b", reason: "Spam." }] }, "has none"],
+  ["updates", "a withdrawal without a signature", { updates: [], withdrawals: [{ id: "a/b", reason: "Spam." }] }, "needs the field “statement”"],
+  ["updates", "a withdrawal without a reason", { updates: [], withdrawals: [withdrawal({ reason: undefined })] }, "needs the field “reason”"],
+  ["updates", "an empty reason", { updates: [], withdrawals: [withdrawal({ reason: "" })] }, "statement.reason"],
+  ["updates", "a reason too long", { updates: [], withdrawals: [withdrawal({ reason: "x".repeat(201) })] }, "at most 200"],
+  ["updates", "a reason with a link", { updates: [], withdrawals: [withdrawal({ reason: "See https://evil.example" })] }, "statement.reason"],
+  ["updates", "a restoration that gives a reason", { updates: [], withdrawals: [restored({ reason: "Sorry." })] }, "statement.reason"],
+  ["updates", "a withdrawal without a sequence", { updates: [], withdrawals: [withdrawal({ sequence: undefined })] }, "needs the field “sequence”"],
+  ["updates", "a sequence that is not a whole number", { updates: [], withdrawals: [withdrawal({ sequence: 1.5 })] }, "statement.sequence"],
+  ["updates", "two statements about one Pack", { updates: [], withdrawals: [withdrawal(), restored({ sequence: 8 })] }, "listed twice"],
+  ["updates", "an update for a withdrawn Pack", { updates: [{ id: "other/club", version: "2.0.0" }], withdrawals: [withdrawal()] }, "has none"],
+  ["updates", "a withdrawal signed by a stranger", { updates: [], withdrawals: [withdrawal({}, STRANGER)] }, "may sign"],
+  ["updates", "a withdrawal signed by the reserve key before any revocation", { updates: [], withdrawals: [withdrawal({}, RESERVE)] }, "may sign"],
+  ["updates", "a withdrawal signed by a revoked key", { updates: [], withdrawals: [withdrawal()], revocations: [revocation()] }, "may sign"],
   ["updates", "a revocation by the signing key", { updates: [], revocations: [revocation(RESERVE.id, SIGNING)] }, "signed by a reserve key"],
   ["updatesRequest", "a Workspace's name beside the list", { ziffr: "0.50.0", installed: [], workspace: "Acme" }, "workspace"],
   ["updatesRequest", "a Workspace beside a Pack", { ziffr: "0.50.0", installed: [{ ...ASKED, workspace: "Acme" }] }, "installed[0].workspace"],
@@ -141,6 +159,27 @@ describe("a revocation", () => {
     expect(checkRevocation({ ...revocation(), statement: revocation(STRANGER.id).statement }, KEYS)).toBeNull();
     // A statement about a Pack is never read as a revocation, whoever signed it.
     expect(checkRevocation(signed({}, RESERVE), KEYS)).toBeNull();
+  });
+});
+
+describe("a withdrawal statement", () => {
+  const done = () => [checkRevocation(revocation(), KEYS)!];
+  it("holds only for a key that may sign, and for the exact text signed", () => {
+    expect(checkWithdrawal(withdrawal(), KEYS, [])).toMatchObject({ id: "other/club", state: "withdrawn", sequence: 7, reason: "It copied another Pack." });
+    expect(checkWithdrawal(restored(), KEYS, [])).toMatchObject({ state: "restored", sequence: 7 });
+    expect(checkWithdrawal({ ...withdrawal(), statement: restored().statement }, KEYS, [])).toBeNull();
+    expect(checkWithdrawal(withdrawal({ key: RESERVE.id }), KEYS, [])).toBeNull();
+    expect(checkWithdrawal(withdrawal(), { signing: [], reserve: [] }, [])).toBeNull();
+    expect(checkWithdrawal(withdrawal({}, RESERVE), KEYS, [])).toBeNull();
+    expect(checkWithdrawal(withdrawal({}, RESERVE), KEYS, done())).not.toBeNull();
+    expect(checkWithdrawal(withdrawal(), KEYS, done())).toBeNull();
+    for (const nonsense of [null, {}, { statement: 1, signature: "x" }]) expect(checkWithdrawal(nonsense as never, KEYS, [])).toBeNull();
+  });
+  it("is never read as a statement about a file or as a revocation, nor either of those as it", () => {
+    expect(verifyPackStatement({ file: FILE, ...withdrawal({}, SIGNING) }, ASKED, KEYS, [])).toEqual({ ok: false, refusal: "statement" });
+    expect(checkRevocation(withdrawal({}, RESERVE), KEYS)).toBeNull();
+    expect(checkWithdrawal(signed(), KEYS, [])).toBeNull();
+    expect(checkWithdrawal(revocation(), KEYS, done())).toBeNull();
   });
 });
 

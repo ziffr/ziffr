@@ -299,6 +299,8 @@ A Widget that takes a list of Metrics, such as the Correlation matrix, can show 
 
 Press **Save template**. You find it under **Templates** in the Pool, and in **Change view**.
 
+The same panel saves a slide as a layout and a deck as a Deck Template. There it also leaves out numbers typed into text boxes, unless you tick to keep them (see [Saving a slide as a layout](14-decks-and-themes.md#saving-a-slide-as-a-layout)).
+
 ## Findings
 
 A **Finding** is a Widget set as an editorial graphic: a headline that states what happened, a short line under it, the chart, and a source line. Findings read like the sections of an article in a dashboard's Read view, and work well on slides. You place one from the **Findings** group in the Pool:
@@ -345,6 +347,7 @@ What each Finding needs:
 | {change prev} | The change on the period before, in % |
 | {top row} | The largest row of the latest Breakdown |
 | {target} | The target for the latest period |
+| {calculation note} | How the Metric is calculated, its **Calculation Note**. It is filled each time the words are drawn, in a widget's or Finding's words, in a Slide Element and in a slide's text box with [live values](14-decks-and-themes.md#live-values-in-text-boxes), and never written into the deck. Where none is written a widget keeps the braces and a slide shows "–"; a View Link or a Snapshot shows nothing in its place |
 
 Add a number for another Metric of the Finding, such as {metric 2}. A headline such as "{metric} rose {change yoy} on last year" stays right when the values move on, and when someone uses the Finding as a template with another Metric.
 
@@ -456,7 +459,7 @@ A **View Link** shows one dashboard to someone outside the team, such as a board
 
 Opening a View Link changes the address in the browser's address bar to one that stands for this link in this browser only. Reloading works for 12 hours; after that, or in another browser, open the link that was sent. To pass a View Link on, pass on that link, not the address bar's. The browser needs to allow cookies.
 
-**View links…** in the **⋯** menu opens a panel on the right, over the page, so the dashboard stays in view. Revoking a link or hiding its names takes effect at once. The panel has:
+**View links…** in the **⋯** menu opens a panel on the right, over the page, so the dashboard stays in view. It says at the top that anyone with a link can read it, without signing in, until it ends. Revoking a link or hiding its names takes effect at once. The panel has:
 
 | Field | What it does |
 | --- | --- |

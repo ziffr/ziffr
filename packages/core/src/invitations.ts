@@ -11,6 +11,7 @@ import { assertCan, Forbidden, type Actor, type WorkspaceRoleName } from "./acto
 import { DEMO_WORKSPACE_ID } from "./team";
 import { linkTo } from "./deliveries";
 import { brandedParts, headerSafe, sentByLine, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
+import { assertMayLeave } from "./practice";
 import { audit, recordAudit } from "./audit-log";
 import { assertNotTrial, trialEnded, trialEndsAt, trialInvitationMessage, trialLimitMessage } from "./trials";
 import { trialInvitedWords } from "./trial-words";
@@ -118,7 +119,7 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
     // The HTML shows the stop link in its footer (brandedParts), so the words it is made from do not hold it twice.
     const action = { label: "Accept the invitation", url: join };
     const text = stop ? `${words}\n\n${stop.label}: ${stop.url}` : words;
-    await sendMail({ to: inv.email, subject: trialEnds ? "You are invited to a trial of Ziffr" : "You are invited to a workspace on Ziffr", text, ...(stopUrl ? { unsubscribe: stopUrl } : {}), action, ...(await brandedParts(inv.workspace_id, { text: words, action, ...(stop ? { stop } : {}) }, by)) }, transport);
+    await sendMail({ to: inv.email, subject: trialEnds ? "You are invited to a trial of Ziffr" : "You are invited to a workspace on Ziffr", text, ...(stopUrl ? { unsubscribe: stopUrl } : {}), action, ...(await brandedParts(inv.workspace_id, { text: words, action, ...(stop ? { stop } : {}) }, by)) }, inv.workspace_id, transport);
     return true;
   } catch (e) {
     // Only the kind of failure: the server's own words may hold addresses or settings.
@@ -131,6 +132,7 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
  * Contact makes them a member who keeps their history. Returns the token for the link the invitee follows, and whether the email really went out (false when mail is not set up, the daily limit held it back, or the mail server refused it). */
 export async function inviteByEmail(actor: Actor, input: { email: string; role: WorkspaceRoleName; contactPersonId?: string | null }, transport?: MailTransport): Promise<{ token: string; emailed: boolean }> {
   notDemo(actor);
+  await assertMayLeave(actor.workspaceId, "invitation");
   // A trial may invite (ADR 0015) while it runs, within the Trial Limits the database keeps.
   if (await trialEnded(actor.workspaceId)) throw new Forbidden("This trial has ended: nobody can be invited.");
   assertMayGrant(actor, input.role);
@@ -207,6 +209,7 @@ export async function inviteEveryone(actor: Actor, transport?: MailTransport): P
 export async function createInviteLink(actor: Actor, role: "member" | "guest"): Promise<string> {
   notDemo(actor);
   await assertNotTrial(actor.workspaceId, "An invite link");
+  await assertMayLeave(actor.workspaceId, "invitation");
   if (role !== "member" && role !== "guest") throw new Forbidden("Links invite Members or Guests.");
   assertMayGrant(actor, role);
   const t = token();
@@ -329,6 +332,7 @@ export async function setJoinDomain(actor: Actor, ownerEmail: string | null, on:
   notDemo(actor);
   await assertNotTrial(actor.workspaceId, "Domain joining");
   if (actor.role !== "owner") throw new Forbidden("Only Owners switch domain joining.");
+  if (on) await assertMayLeave(actor.workspaceId, "invitation");
   let domain: string | null = null;
   if (on) {
     domain = ownerEmail ? domainOf(ownerEmail) : "";

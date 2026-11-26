@@ -371,7 +371,9 @@ export type Slot = { label: string; multiple: boolean; exampleIds?: number[]; su
 type TemplateBase = { id: number; owner_id: string; name: string; description: string; slots: Slot[]; w: number; h: number; updated_at: string };
 /** A widget saved with its metrics left open: settings keep Panel.slot instead of metric ids. */
 export type WidgetTemplate = TemplateBase & { kind: "widget"; view: TemplateId; body: { metricSlots: number[]; settings: WidgetSettings; title?: string | null } };
-/** One shape on a slide, in slide coordinates. Widget shapes carry their template part instead of metrics. */
+/** One shape on a slide, in slide coordinates. In a template, widget shapes carry their template part instead of
+ * metrics, and a text box with live words the Slots it names (`textSlots`). On a deck, such a box names its Metrics
+ * in `meta.metrics` (slide-text.ts). */
 export type SlideShape = {
   type: string;
   x: number;
@@ -380,6 +382,8 @@ export type SlideShape = {
   opacity: number;
   props: Record<string, unknown>;
   widget?: { metricSlots: number[]; settings: WidgetSettings; title: string | null };
+  meta?: { metrics?: number[] };
+  textSlots?: number[];
 };
 /** The shapes a slide layout keeps; `cover` marks a cover slide (spec 0057). */
 export type SlideBody = { shapes: SlideShape[]; cover?: boolean };
