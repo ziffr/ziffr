@@ -11,7 +11,7 @@ import { allRows, getActions, getBreakdowns, getMetrics, getSeriesOf, getSeriesV
 import { Forbidden, type Actor } from "./actor";
 import { peopleIn, peopleToHide } from "./submissions";
 import { nameHider } from "./hide-names";
-import type { Action, CanvasData, Dashboard, Group, Metric, Profile, Share, ShareRole, TeamTemplate, Theme } from "./types";
+import type { Action, CanvasData, Dashboard, Group, Metric, Profile, Share, ShareRole, TeamTemplate, Theme, WidgetSettings } from "./types";
 import { yearStartOf } from "./fiscal-year";
 import { condensedFor } from "./condensed-values";
 import { attainmentMethodOf, numberStyleOf } from "./workspace-settings";
@@ -126,28 +126,44 @@ export async function visibleMetricIds(ws: string, viewer: string, metrics: Metr
   });
 }
 
+/** What is not made yet, as its rows would be, under ids no stored row has (below 0): for saying who will see what
+ * before it is made (a Set up from a Pack). */
+export type PlannedRows = {
+  metrics: Metric[];
+  tokens: { metric_id: number; submitter_id: string }[];
+  shares: { object_type: "metric" | "dashboard"; object_id: number; user_id: string; role: ShareRole }[];
+  dashboards: { id: number; owner_id: string }[];
+  widgets: { dashboard_id: number; metric_ids: number[]; settings: WidgetSettings }[];
+};
+
 /** What each of many people sees, with the facts read once: the dashboards they may open (as `visibleDashboards`)
- * and the Metrics (as `visibleMetricIds`). For saying who will not see something; decided by the same rules. */
-export async function visibilityOfMany(ws: string, metrics: Metric[]): Promise<(person: string) => { dashboards: Set<number>; metrics: Set<number> }> {
-  const [tokens, shares, { data: dashboards }, { data: decks }] = await Promise.all([
+ * and the Metrics (as `visibleMetricIds`). For saying who will not see something; decided by the same rules.
+ * `planned` adds rows that are not stored, so the same rules answer for what would be made. */
+export async function visibilityOfMany(ws: string, metrics: Metric[], planned?: PlannedRows): Promise<(person: string) => { dashboards: Set<number>; metrics: Set<number> }> {
+  const [storedTokens, storedShares, { data: storedDashboards }, { data: decks }] = await Promise.all([
     tokenFacts(ws), getShares(ws),
     db().from("dashboards").select("id, owner_id, workspace_id").eq("workspace_id", ws),
     db().from("decks").select("id, owner_id, workspace_id").eq("workspace_id", ws),
   ]);
+  const here = <T extends object>(rows: T[] = []) => rows.map((r) => ({ ...r, workspace_id: ws }));
+  const tokens = [...storedTokens, ...here(planned?.tokens)];
+  const shares = [...storedShares, ...here(planned?.shares?.map((s, i) => ({ ...s, id: -(i + 1) })))];
+  const dashboards = [...(storedDashboards ?? []), ...here(planned?.dashboards)];
   const shared = (type: "dashboard" | "deck") => [...new Set(shares.filter((s) => s.object_type === type).map((s) => s.object_id))];
   const [sharedDash, sharedDecks] = [shared("dashboard"), shared("deck")];
-  const [{ data: widgets }, { data: docs }] = await Promise.all([
+  const [{ data: storedWidgets }, { data: docs }] = await Promise.all([
     sharedDash.length ? db().from("widgets").select("dashboard_id, metric_ids, settings, workspace_id").eq("workspace_id", ws).in("dashboard_id", sharedDash) : Promise.resolve({ data: [] }),
     sharedDecks.length ? db().from("decks").select("id, document, workspace_id").eq("workspace_id", ws).in("id", sharedDecks) : Promise.resolve({ data: [] }),
   ]);
-  const facts = { metrics: metrics.map((m) => ({ ...m, workspace_id: (m as Metric & { workspace_id?: string }).workspace_id ?? "" })), tokens, shares };
+  const widgets = [...(storedWidgets ?? []), ...here(planned?.widgets)];
+  const facts = { metrics: [...metrics.map((m) => ({ ...m, workspace_id: (m as Metric & { workspace_id?: string }).workspace_id ?? "" })), ...here(planned?.metrics)], tokens, shares };
   return (person) => {
     const dash = objectRoles(ws, person, "dashboard", dashboards ?? [], shares);
     const deck = objectRoles(ws, person, "deck", decks ?? [], shares);
     const sharedWith = (roles: ReadonlyMap<number, string>, id: number) => (roles.get(id) ?? "owner") !== "owner";
     return {
       dashboards: new Set(dash.keys()),
-      metrics: visibleMetricIdsFrom(ws, person, { ...facts, sharedDashboardWidgets: (widgets ?? []).filter((w) => sharedWith(dash, w.dashboard_id)), sharedDeckDocuments: (docs ?? []).filter((d) => sharedWith(deck, d.id)) }),
+      metrics: visibleMetricIdsFrom(ws, person, { ...facts, sharedDashboardWidgets: widgets.filter((w) => sharedWith(dash, w.dashboard_id)), sharedDeckDocuments: (docs ?? []).filter((d) => sharedWith(deck, d.id)) }),
     };
   };
 }

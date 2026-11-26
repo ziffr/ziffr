@@ -27,6 +27,10 @@ describe("setupStart", () => {
     expect(setupStart(options({ people: [{ id: "me", name: "Me" }, { id: "x", name: "X" }] }), "me").approvers).toEqual(["", ""]);
     expect(setupStart(options({ people: [{ id: "x", name: "X" }] }), "me").approvers).toEqual(["", ""]);
   });
+  it("leaves out what is made once for each line of a Repeat", () => {
+    const s = setupStart(options({ entries: [{ key: "a" }, { key: "b", repeat: "site" }], dashboards: [{ key: "d" }, { key: "e", repeat: "site" }], workflows: [{ key: "w", repeat: "site", approvers: 0 }] } as never), "me");
+    expect([[...s.picked], s.dashboard, s.workflow]).toEqual([["a"], "d", ""]);
+  });
   it("chooses neither dashboard nor Workflow when there are several or none", () => {
     const s = setupStart(options({ dashboards: [{ key: "d" }, { key: "e" }], workflows: [] } as never), "me");
     expect(s.dashboard).toBe("");
