@@ -487,7 +487,9 @@ export async function buildSetup(actor: Actor, p: InstalledForSetup, input: Pack
   const { metrics, made } = plannedMetrics(filling, entries, workflows, beside, to);
   const { dashboards, offered } = plannedDashboards(filling, boards, made);
   connectSends(filling, sends, dashboards);
-  checkFormulas(metrics, made, existing);
+  // Adding a line: one computed from a Metric that is not there to compute from is a problem said already, so its
+  // formula is not read.
+  checkFormulas(to ? metrics.filter((m) => !m.entry.formula || formulaInputs(m.entry.formula).every((k) => made(k, m.line))) : metrics, made, existing);
   // The Metrics that fill the other Slots: ones the person sees and that are not archived, as the page offers.
   if (offered.length) {
     const { choices } = await metricChoices(actor);
