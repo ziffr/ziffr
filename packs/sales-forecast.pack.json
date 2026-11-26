@@ -2,7 +2,7 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/sales-forecast",
   "name": "Sales forecast",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "A weekly sales forecast: commit, best case, closed this quarter and pipeline, with the quota set as the target of Commit and the gap to it and pipeline coverage worked out, a dashboard and a deck for the weekly meeting and a Workflow that asks on Monday and has the sales lead approve.",
   "author": {
     "name": "Ziffr"
@@ -22,9 +22,10 @@
       {
         "key": "commit",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Commit",
           "description": "The forecast call: what the team commits to closing by the end of the quarter, deals already won in it included. Its target is the team's quota: set it on the Targets tab for each week of the quarter. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
+          "calculationNote": "The value of the deals won this quarter plus the open deals the team commits to closing by its end, as it stands at the end of the week. The further deals that count only in the best case, and deals expected after the quarter, are left out.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -50,9 +51,10 @@
       {
         "key": "best-case",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Best case",
           "description": "What the quarter reaches if the open deals that may still close do: commit plus upside, deals already won included. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
+          "calculationNote": "The commit plus the upside: the further open deals that may still close by the end of the quarter, as they stand at the end of the week. Deals already lost and deals expected after the quarter are left out.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -78,9 +80,10 @@
       {
         "key": "closed-quarter",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Closed this quarter",
           "description": "The value of the deals won since the quarter began. It starts again from 0 each quarter; a week that spans two quarters belongs to the one it starts in. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
+          "calculationNote": "The value of every deal won from the first day of the quarter to the end of the week, added up. Open deals are not in it, and it starts again from 0 with the next quarter.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -106,9 +109,10 @@
       {
         "key": "pipeline",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Pipeline value",
           "description": "The value of all open deals that can still close this quarter, those in the commit included, those already won not. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered. By salesperson: add a breakdown with one line for each person, and leave the value empty to add the lines up.",
+          "calculationNote": "The full value of every deal still open at the end of the week that can close this quarter, not weighted by its chance. Committed deals that are still open are in it; deals already won and deals expected after the quarter are not.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -134,9 +138,10 @@
       {
         "key": "quota-split",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Quota split",
           "description": "The quota split by salesperson, only for the deck's gap by salesperson slide: each one's quota for the quarter, sent as a breakdown with the same names as Commit's, in every week you want that table. The team's quota everywhere else is the target of Commit. Leave it out at Set up if you do not want the table. Taken as it stood at the end of the week: a reply to Monday's request counts for the week just ended, and so does its form link while the request is unanswered.",
+          "calculationNote": "The quota of each salesperson for the whole quarter, not a weekly share, sent as one line for each person under the same names as in the breakdown of Commit. Only the slide with the gap by salesperson reads it: every other figure takes the quota of the team from the target of Commit, so the two are kept in step by hand.",
           "category": "Sales",
           "period": "week",
           "aggregation": "last",
@@ -162,9 +167,10 @@
       {
         "key": "quota",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Quota",
           "description": "The team's quota for the quarter, read from the target of Commit, so nobody sends it. Set it on Commit's Targets tab: the quarter's quota for each of its weeks, so every week keeps its own. A Target Range with only “from” works too, but changing it also changes past weeks. Empty in a week without a Commit.",
+          "calculationNote": "The target of Commit for the week, which holds the quota of the team for the whole quarter: its Target Series value for that week, or else a Target Range with one number. Nobody sends it, and there is no value in a week without a Commit or without such a target.",
           "category": "Sales",
           "period": "week",
           "aggregation": "none",
@@ -183,9 +189,10 @@
       {
         "key": "commit-gap",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Commit gap to quota",
           "description": "Commit minus the quota, which is the target of Commit, for the week. Below 0, the commit is that much short; 0 or more covers it. Empty until the week has a Commit and a quota.",
+          "calculationNote": "Commit less its target, which holds the quota, both of the same week. A figure below 0 is what the commit lacks to reach the quota, and there is no value in a week without a Commit or a quota.",
           "category": "Sales",
           "period": "week",
           "aggregation": "none",
@@ -205,9 +212,10 @@
       {
         "key": "commit-share",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Commit as share of quota",
           "description": "Commit as a share of its target, the quota, for the same week. 100 % or more covers it. Empty until the week has a Commit and a quota, and when the quota is 0.",
+          "calculationNote": "Commit divided by its target, which holds the quota, in percent, both of the same week. There is no value in a week without a Commit or a quota, or when the quota is 0.",
           "category": "Sales",
           "period": "week",
           "aggregation": "none",
@@ -227,9 +235,10 @@
       {
         "key": "coverage",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Pipeline coverage",
           "description": "Pipeline value divided by what is still missing, which is the quota (the target of Commit) minus Closed this quarter. 3 times means the open deals are worth three times what is missing. Empty when a figure, the quota or the week’s Commit is missing or exactly nothing is left to close. Below 0 when more than the quota is closed: then nothing is left to cover.",
+          "calculationNote": "Pipeline value divided by the target of Commit less Closed this quarter, all of the same week: how many times the open deals cover what is still to be closed. There is no value when a figure or the quota is missing or exactly nothing is left to close, and a value below 0 means that more than the quota is already closed.",
           "category": "Sales",
           "period": "week",
           "aggregation": "none",

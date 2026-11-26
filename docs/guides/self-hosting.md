@@ -64,6 +64,7 @@ Ziffr keeps everything in Postgres. The server makes outgoing connections only t
    select prototype_seed_pins();
    select prototype_seed_close();
    select prototype_seed_fill_in();
+   select prototype_seed_calculation_notes();
    select prototype_seed_showcase();
    ```
 
@@ -150,6 +151,17 @@ Some of what an Installation talks to can be set on a page instead of in the set
 - **Replies by email** are set up on the page too: the domain for replies, a signing secret the page makes for your provider's forwarder (shown once), the provider that vouches for senders, the MX record the domain needs and what it has now, and a test that emails you and waits for your reply to come back.
 - **What is recorded.** Claiming, adding and removing Installation Admins, and every change of a setting, by name and never by value, with who did it, in a log the page shows.
 
+### The slide editor's license
+
+Decks and free layouts are drawn with [tldraw](https://tldraw.dev), which has a license of its own, apart from Ziffr's. On an `https://` address tldraw shows them only with a **license key**: without one they disappear a few seconds after they appear, so Ziffr shows a notice in their place that says what is missing. Everything else in Ziffr works without a key. Over `http://`, and on `https://localhost`, no key is needed.
+
+1. Get a key at <https://tldraw.dev/pricing>: tldraw offers a free trial of 100 days, commercial licenses and a hobby license for non-commercial use. Their terms say which one fits you.
+2. Name every domain people reach this Ziffr at when you ask for it. A key does not work on a domain it does not list, View Links included.
+3. Enter the key on the Installation settings page under **Slide editor**, or set `ZIFFR_TLDRAW_LICENSE_KEY` on the server (with Docker: in `.env`, then `docker compose up -d`), which wins over the page. The published image takes it at run time; nothing is built again.
+4. Open a deck on your address and look for more than five seconds. Ziffr checks only the key's shape; whether it is good, tldraw decides in the browser, and a notice says so when it does not accept it.
+
+**What others see.** The key goes to the browser of everyone who sees a deck or a free layout, people with a View Link included; tldraw means it to be public. In a demo-only Ziffr nobody can use the settings page, so set it on the server.
+
 ### A Marketplace key of your own
 
 Ziffr takes a Pack from a Marketplace only with a signed statement about that file by a key it trusts ([Marketplace contract](../reference/marketplace.md)). For a Marketplace you run yourself, name its public keys in `ZIFFR_MARKETPLACE_PUBLIC_KEY`, each the base64 of the raw 32-byte Ed25519 key, separated by commas:
@@ -221,6 +233,12 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | `ZIFFR_SLACK_CLIENT_ID` | Client ID | `1234567890.1234567890` | On the app's Basic Information page in Slack, under App Credentials. |
 | `ZIFFR_SLACK_CLIENT_SECRET` | Client Secret | secret | Under App Credentials too: choose Show and copy it. |
 | `ZIFFR_SLACK_SIGNING_SECRET` | Signing Secret | secret | Under App Credentials too. Slack signs every request it sends Ziffr with it. |
+
+**Slide editor**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_TLDRAW_LICENSE_KEY` | tldraw license key | `tldraw-…` | The key tldraw gave you, copied whole, in one line. Ziffr cannot check it: after saving, open a deck on this address and look for more than five seconds. |
 
 **Workspace Limits**
 
@@ -523,6 +541,6 @@ Start with the new key alone, without the old one in `ZIFFR_SECRETS_KEY_PREVIOUS
 - [ ] The demo: filled in with `demo_reset`, or switched off with `ZIFFR_DEMO=0`; if visitors may change it, the [checklist](#before-you-open-it-a-checklist) done
 - [ ] Replies by email, if used: the inbound domain's MX records, a signed forwarder, and `ZIFFR_INBOUND_AUTHSERV_ID`
 - [ ] Slack, if used: the app made from the manifest, its event and interactivity URLs verified by Slack, `ZIFFR_SECRETS_KEY` backed up
-- [ ] Decks: the slide editor uses tldraw, which needs a license from tldraw for production use
+- [ ] Decks and free layouts: a tldraw license key for your domain entered, and a deck still shown after more than five seconds ([the slide editor's license](#the-slide-editors-license))
 - [ ] Backups on, and one restore tried (with Docker: both volumes, `ziffr_db` and `ziffr_keys`)
 - [ ] The workspace's time zone and run hour set on the Team page

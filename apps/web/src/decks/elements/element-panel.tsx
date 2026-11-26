@@ -48,12 +48,13 @@ const FIELDS: Record<SlideElement["kind"], Field[]> = {
   ],
   "gap-table": [flag("total", "One Total: a row for each Metric it adds up, against its target"), line("headline", "Headline above"), text("rowLabel", "Heading of the rows", "Such as Salesperson."), line("gapLabel", "Heading of the difference"), text("lead", "Closing line: lead-in"), line("note", "Closing line")],
   "metric-table": [{ type: "number", key: "periods", label: "Periods in the trend", min: 2, max: SLIDE_ELEMENT_LIMITS.periods }],
+  definitions: [],
   list: [text("title", "Heading")],
   logo: [text("text", "Words without a logo"), { type: "choice", key: "size", label: "Size", options: [["s", "Small"], ["m", "Large"]], unset: "Small" }, { type: "choice", key: "align", label: "Align", options: [["start", "Left"], ["end", "Right"]], unset: "Right" }, tones("tone", "Colour", "Muted")],
   art: [],
 };
 
-const NAMES: Record<SlideElement["kind"], string> = { words: "Words", box: "Box", figure: "Figure", columns: "Column chart", "gap-table": "Gap table", "metric-table": "Metric table", list: "Numbered list", logo: "Logo place", art: "Cover art" };
+const NAMES: Record<SlideElement["kind"], string> = { words: "Words", box: "Box", figure: "Figure", columns: "Column chart", "gap-table": "Gap table", "metric-table": "Metric table", definitions: "Definitions", list: "Numbered list", logo: "Logo place", art: "Cover art" };
 
 /** What each Slot of an element is, in words. */
 function slotName(e: SlideElement, i: number): string {
@@ -161,7 +162,7 @@ export function ElementPanel({ editor, data }: { editor: Editor; data: CanvasDat
         <label className="block text-sm">
           <span className="font-medium">Words</span>
           <Textarea rows={3} value={element.text.join("\n")} onChange={(e) => save({ ...element, text: e.target.value.split("\n").slice(0, SLIDE_ELEMENT_LIMITS.paragraphs) })} className="mt-1" />
-          <span className="mt-1 block text-xs text-muted-foreground">{"Filled from the Metrics below: {latest}, {change}, {difference 1 2}, {left 1 2}, {gap 1 2}, {quarter}, {quarter week}, {weeks left}, {slide}."}</span>
+          <span className="mt-1 block text-xs text-muted-foreground">{"Filled from the Metrics below: {latest}, {change}, {difference 1 2}, {left 1 2}, {gap 1 2}, {quarter}, {quarter week}, {weeks left}, {calculation note}, {slide}."}</span>
         </label>
       )}
       {element.kind === "list" && (

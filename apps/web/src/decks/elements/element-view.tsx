@@ -4,7 +4,7 @@
 // plain HTML or SVG, which is what the PowerPoint export reads back (element-pptx.ts).
 // Visibility: the figures come from slide-figures.ts, which draws nothing of a Metric the viewer may not see.
 import type { CSSProperties, ReactNode } from "react";
-import { columnsModel, figureModel, fillSlideWords, gapModel, metricTableModel, NO_ACCESS, PICK_METRIC, type SlideContext } from "@ziffr/core/slide-figures";
+import { columnsModel, DEFINITION_GAPS, definitionsLayout, definitionsModel, figureModel, fillSlideWords, gapModel, metricTableModel, NO_ACCESS, PICK_METRIC, type SlideContext } from "@ziffr/core/slide-figures";
 import { elementSlots, type SlideElement, type SlideTone, type WordsElement } from "@ziffr/core/slide-element";
 
 /** A Theme colour by its role. */
@@ -290,6 +290,30 @@ function MetricTable({ element, context, w, h }: ElementProps & { element: Extra
   );
 }
 
+function Definitions({ context, w, h }: ElementProps) {
+  const { rows } = definitionsModel(context);
+  if (!rows.length) return <Instead words={NO_ACCESS} />;
+  const fit = definitionsLayout(rows, w, h);
+  return (
+    <div style={{ ...base, display: "flex", flexDirection: "column", overflow: "hidden", lineHeight: 1.35 }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${w >= 700 && rows.length > 3 ? 2 : 1}, minmax(0, 1fr))`, columnGap: DEFINITION_GAPS.column, alignItems: "start" }}>
+        {fit.columns.map((column, i) => (
+          <div key={i} style={{ display: "flex", flexDirection: "column", gap: DEFINITION_GAPS.row, minWidth: 0 }}>
+            {column.map((r, k) => (
+              <div key={k} style={{ fontSize: fit.size, overflowWrap: "break-word" }}>
+                <Words style={{ fontFamily: HEADING, fontSize: fit.size + 1, fontWeight: 600, color: tone("accent") }}>{r.name}</Words>
+                {r.description && <Words style={{ whiteSpace: "pre-wrap" }}>{r.description}</Words>}
+                {r.note && <Words style={{ whiteSpace: "pre-wrap", color: tone("muted") }}>{r.note}</Words>}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <More n={fit.more} />
+    </div>
+  );
+}
+
 function List({ element, context, h }: ElementProps & { element: Extract<SlideElement, { kind: "list" }> }) {
   const say = (t: string) => fillSlideWords(t, context).text;
   // Rows close up where they would not fit: each takes its line (36 pixels), its rule and the space around it.
@@ -349,6 +373,7 @@ export function SlideElementView(props: ElementProps) {
   if (e.kind === "columns") return <Columns {...props} element={e} />;
   if (e.kind === "gap-table") return <GapTable {...props} element={e} />;
   if (e.kind === "metric-table") return <MetricTable {...props} element={e} />;
+  if (e.kind === "definitions") return <Definitions {...props} />;
   if (e.kind === "list") return <List {...props} element={e} />;
   if (e.kind === "logo") return <Logo {...props} element={e} />;
   return <Art />;

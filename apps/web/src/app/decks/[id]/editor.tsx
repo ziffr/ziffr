@@ -10,7 +10,7 @@ import { useViewerDark } from "@/lib/use-viewer-dark";
 import { toast } from "sonner";
 import { isActionError } from "@/lib/action-error";
 import { ChevronDown, Eye, FileDown, Group as GroupIcon, History, LayoutTemplate, Link2, MonitorPlay, MoreHorizontal, Palette, Plus, Presentation, Printer, Trash2, Ungroup } from "lucide-react";
-import { createShapeId, DefaultDashStyle, DefaultFontStyle, DefaultStylePanel, getSnapshot, Tldraw, useEditor, useValue, type Editor, type TLComponents, type TLEditorSnapshot, type TLShapeId, type TLUiStylePanelProps } from "tldraw";
+import { createShapeId, DefaultDashStyle, DefaultFontStyle, DefaultStylePanel, getSnapshot, useEditor, useValue, type Editor, type TLComponents, type TLEditorSnapshot, type TLShapeId, type TLUiStylePanelProps } from "tldraw";
 import { Pool } from "@/components/pool";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -53,6 +53,7 @@ import { useOpenVersions, VersionsSheetOpen } from "@/components/versions-sheet"
 import { ShareSheet } from "@/components/share-sheet";
 import { useShowWhoCanSee } from "@/components/who-can-see";
 import { useShowViewLinks } from "@/components/view-links";
+import { SlideCanvas } from "@/decks/slide-canvas";
 
 const shapeUtils = [WidgetShapeUtil, SnapshotPartShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
@@ -442,7 +443,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
           }}
         >
           <ThemeScope theme={theme} className="h-full w-full">
-            <Tldraw shapeUtils={shapeUtils} snapshot={snapshot} overrides={LOCAL_ONLY_OVERRIDES} components={DECK_COMPONENTS} onMount={onMount} />
+            <SlideCanvas shapeUtils={shapeUtils} snapshot={snapshot} overrides={LOCAL_ONLY_OVERRIDES} components={DECK_COMPONENTS} onMount={onMount} />
           </ThemeScope>
         </div>
       </div>

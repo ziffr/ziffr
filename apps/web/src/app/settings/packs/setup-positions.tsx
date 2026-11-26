@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { shown, unwrap } from "@/lib/action-error";
 import { planSetUp } from "@/app/pack-setup-actions";
 import { Input } from "@/components/ui/input";
+import { SendFirstRequests } from "@/components/first-requests";
 import type { PackSetupInput } from "@ziffr/core/pack-setup";
 import type { PackSetupPlan } from "@ziffr/core/pack-setup-plan";
 
@@ -186,9 +187,7 @@ export function PlanCheck({ plan, ticks, onTick, askNow, onAskNow, ...offers }: 
         {plan.messages.nextRun.length > 0 && <p>Asked at the Workflow&rsquo;s next run: {asks(plan.messages.nextRun)}.</p>}
         {plan.messages.unasked.length > 0 && <p>Nothing asks these by itself, as their Metrics follow no Workflow: {asks(plan.messages.unasked)}.</p>}
         {plan.notAsked.map((x) => <p key={x}>{x}</p>)}
-        {plan.messages.others > 0 && (
-          <label className="mt-1 flex items-start gap-2"><input type="checkbox" className={check} checked={askNow} onChange={(e) => onAskNow(e.target.checked)} /> Ask the others for the current period now ({many(plan.messages.others, "message")})</label>
-        )}
+        <div className="mt-1"><SendFirstRequests to={plan.messages.ifSent} checked={askNow} onChange={onAskNow} /></div>
       </div>
 
       {plan.notes.length > 0 && <ul className="list-disc space-y-0.5 pl-5 text-xs">{plan.notes.map((n) => <li key={n}>{n}</li>)}</ul>}

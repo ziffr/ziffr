@@ -2,7 +2,7 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/workspace-usage",
   "name": "Workspace usage",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "Your own Workspace's usage as Metrics, with a dashboard: views of dashboards, decks and Metrics, values by Source, and what goes unused. Counts only, never who looked. For Owners and Admins.",
   "author": {
     "name": "Ziffr"
@@ -17,9 +17,10 @@
       {
         "key": "workspace-metrics",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: metrics",
           "description": "Metrics in use in this Workspace, as of the run. Archived Metrics are not counted.",
+          "calculationNote": "Metrics in use that the creator of the program’s key may see, on the day of the run. Archived Metrics are left out.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "last",
@@ -37,9 +38,10 @@
       {
         "key": "workspace-metrics-without-values",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: metrics without values",
           "description": "Metrics with no value for 90 days (or the last two periods of their cadence), as of the run.",
+          "calculationNote": "Metrics without a value for 90 days (the Installation may set another number), or for two of their periods if that is longer. Derived Metrics, newer Metrics and those holding only a Projection are not counted.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "last",
@@ -57,9 +59,10 @@
       {
         "key": "workspace-metrics-not-opened",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: metrics not opened",
           "description": "Metrics nobody opened for 90 days, as of the run. Held back until 90 days were counted.",
+          "calculationNote": "Metrics older than 90 days that no person or View Link opened in that time, on their page, a dashboard or a deck. Metrics that only a program reads are left out.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "last",
@@ -77,9 +80,10 @@
       {
         "key": "workspace-dashboards-not-opened",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: dashboards not opened",
           "description": "Dashboards not opened for 90 days, as of the run. Held back until 90 days were counted.",
+          "calculationNote": "Dashboards older than 90 days that no person or View Link opened in that time.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "last",
@@ -97,9 +101,10 @@
       {
         "key": "workspace-decks-not-opened",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: decks not opened",
           "description": "Decks not opened for 90 days, as of the run. Held back until 90 days were counted.",
+          "calculationNote": "Decks older than 90 days that no person or View Link opened in that time.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "last",
@@ -117,9 +122,10 @@
       {
         "key": "workspace-submitters-without-values",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: submitters without values",
           "description": "Submitters who recorded no value for 90 days, as of the run: a number, never a name. Held back while fewer than three people are in the Workspace.",
+          "calculationNote": "People, Contacts and Feeds made Submitters more than 90 days ago who recorded no value for any Metric in the last 90. Stand-ins are not counted.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "last",
@@ -137,9 +143,10 @@
       {
         "key": "workspace-archive-suggestions",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: archive suggestions",
           "description": "Metrics the Usage page suggests archiving, as of the run. Held back until 90 days were counted.",
+          "calculationNote": "Metrics not opened for 90 days that have no Target and that no formula, comparison or analysis uses.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "last",
@@ -157,9 +164,10 @@
       {
         "key": "workspace-values",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: values",
           "description": "Values recorded in the day, by any Source. Only the Metrics the program's key may see; held back while fewer than three people are in the Workspace.",
+          "calculationNote": "Values recorded in the day by any Source, for the Metrics the creator of the program’s key may see. Nothing is sent while fewer than three people are in the Workspace.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "sum",
@@ -177,9 +185,10 @@
       {
         "key": "workspace-values-web",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: values web",
           "description": "Values recorded in the day through the web form (held back while fewer than three people are in the Workspace).",
+          "calculationNote": "Values that came through the web form. Counted by the day the value was recorded, which may be later than the period it is for.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "sum",
@@ -197,9 +206,10 @@
       {
         "key": "workspace-values-email",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: values email",
           "description": "Values recorded in the day by email (held back while fewer than three people are in the Workspace).",
+          "calculationNote": "Values that came by email. Counted by the day the value was recorded, which may be later than the period it is for.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "sum",
@@ -217,9 +227,10 @@
       {
         "key": "workspace-values-slack",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: values slack",
           "description": "Values recorded in the day through Slack (held back while fewer than three people are in the Workspace).",
+          "calculationNote": "Values that came through Slack. Counted by the day the value was recorded, which may be later than the period it is for.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "sum",
@@ -237,9 +248,10 @@
       {
         "key": "workspace-values-telegram",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: values telegram",
           "description": "Values recorded in the day through Telegram (held back while fewer than three people are in the Workspace).",
+          "calculationNote": "Values that came through Telegram. Counted by the day the value was recorded, which may be later than the period it is for.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "sum",
@@ -257,9 +269,10 @@
       {
         "key": "workspace-values-api",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: values api",
           "description": "Values recorded in the day by a program with an Access Key (held back while fewer than three people are in the Workspace).",
+          "calculationNote": "Values a program recorded with an Access Key, a local MCP Server included. Counted by the day the value was recorded, which may be later than the period it is for.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "sum",
@@ -277,9 +290,10 @@
       {
         "key": "workspace-values-feed",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: values feed",
           "description": "Values recorded in the day by a Feed (held back while fewer than three people are in the Workspace).",
+          "calculationNote": "Values a Feed recorded with its Feed Key. Counted by the day the value was recorded, which may be later than the period it is for.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "sum",
@@ -297,9 +311,10 @@
       {
         "key": "workspace-values-mcp",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: values mcp",
           "description": "Values recorded in the day by a connected assistant (held back while fewer than three people are in the Workspace).",
+          "calculationNote": "Values a connected assistant recorded. Counted by the day the value was recorded, which may be later than the period it is for.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "sum",
@@ -317,9 +332,10 @@
       {
         "key": "workspace-views-dashboards",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: views dashboards",
           "description": "Dashboard opens in the day, never by whom (held back while fewer than three people are in the Workspace).",
+          "calculationNote": "How often dashboards were opened in the day. An open is counted for a signed-in person or a View Link, never for a program, and never says who it was.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "sum",
@@ -337,9 +353,10 @@
       {
         "key": "workspace-views-decks",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: views decks",
           "description": "Deck opens in the day, never by whom (held back while fewer than three people are in the Workspace).",
+          "calculationNote": "How often decks were opened in the day. An open is counted for a signed-in person or a View Link, never for a program, and never says who it was.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "sum",
@@ -357,9 +374,10 @@
       {
         "key": "workspace-views-metrics",
         "metric": {
-          "format": "ziffr.metric/1",
+          "format": "ziffr.metric/2",
           "name": "Workspace: views metrics",
           "description": "Metric page opens in the day, never by whom (held back while fewer than three people are in the Workspace).",
+          "calculationNote": "How often a Metric’s page was opened in the day by signed-in people. Reads by programs are not counted, and the figure never says who it was.",
           "category": "Workspace usage",
           "period": "day",
           "aggregation": "sum",

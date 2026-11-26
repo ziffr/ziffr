@@ -10,7 +10,7 @@ export const SLIDE_TONES = ["ink", "muted", "rule", "surface", "canvas", "band",
 /** One Theme colour role an element names. */
 export type SlideTone = (typeof SLIDE_TONES)[number];
 /** The kinds of Slide Element. */
-export const SLIDE_ELEMENT_KINDS = ["words", "box", "figure", "columns", "gap-table", "metric-table", "list", "logo", "art"] as const;
+export const SLIDE_ELEMENT_KINDS = ["words", "box", "figure", "columns", "gap-table", "metric-table", "definitions", "list", "logo", "art"] as const;
 /** One kind of Slide Element. */
 export type SlideElementKind = (typeof SLIDE_ELEMENT_KINDS)[number];
 /** The limits an element is held to, besides the length of its words. */
@@ -42,6 +42,8 @@ export type ColumnsElement = { kind: "columns"; title?: string; part?: boolean; 
 export type GapTableElement = { kind: "gap-table"; total?: boolean; rowLabel?: string; gapLabel?: string; headline?: string; lead?: string; note?: string };
 /** One row per Metric: latest value, the one before, the change, a trend and whether it is on target. */
 export type MetricTableElement = { kind: "metric-table"; /** How many periods the trend shows. */ periods?: number };
+/** Definitions (spec 0060): each Metric with its description and how it is calculated, for an appendix. */
+export type DefinitionsElement = { kind: "definitions" };
 /** Numbered rows under a heading, such as an agenda. */
 export type ListElement = { kind: "list"; title?: string; items: { text: string; note?: string }[] };
 /** The Theme's logo, or a dashed box with words until the Theme has one. */
@@ -49,7 +51,7 @@ export type LogoElement = { kind: "logo"; text?: string; tone?: SlideTone; size?
 /** A fixed ornament in Theme colours. */
 export type ArtElement = { kind: "art"; art: "rings-trend" };
 /** A part of a slide drawn in the deck's Theme (GLOSSARY: Slide Element). */
-export type SlideElement = WordsElement | BoxElement | FigureElement | ColumnsElement | GapTableElement | MetricTableElement | ListElement | LogoElement | ArtElement;
+export type SlideElement = WordsElement | BoxElement | FigureElement | ColumnsElement | GapTableElement | MetricTableElement | DefinitionsElement | ListElement | LogoElement | ArtElement;
 
 /** How many Metrics a kind of element reads: the fewest and the most. */
 export function elementSlots(e: SlideElement): { min: number; max: number } {
@@ -58,7 +60,7 @@ export function elementSlots(e: SlideElement): { min: number; max: number } {
   if (e.kind === "figure") return { min: 1, max: L.slots };
   if (e.kind === "columns") { const n = 1 + (e.part ? 1 : 0) + (e.reference ? 1 : 0); return { min: n, max: n }; }
   if (e.kind === "gap-table") return e.total ? { min: 1, max: 1 } : { min: 2, max: 2 };
-  if (e.kind === "metric-table") return { min: 1, max: L.slots };
+  if (e.kind === "metric-table" || e.kind === "definitions") return { min: 1, max: L.slots };
   // A box, list, logo or ornament shows no number.
   return { min: 0, max: 0 };
 }
@@ -96,6 +98,7 @@ export function slideElementSchema(text: (max: number) => Schema = slideWords, {
       }),
       kind("gap-table", "Two Metrics' Breakdowns row by row, with the difference.", { ...(totals ? { total: flag("Reads one Total instead: a row for each Metric it adds up, against that Metric's target.") } : {}), rowLabel: label, gapLabel: line, headline: line, lead: label, note: line }),
       kind("metric-table", "One row per Metric.", { periods: { type: "integer", minimum: 2, maximum: L.periods } }),
+      kind("definitions", "Each Metric with its description and how it is calculated.", {}),
       kind("list", "Numbered rows under a heading.", {
         title: label,
         items: { type: "array", minItems: 1, maxItems: L.items, items: { type: "object", properties: { text: label, note: label }, required: ["text"], additionalProperties: false } },

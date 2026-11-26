@@ -5,6 +5,7 @@
 // Installation's audit by the setting's name, never its value.
 import { assertInstallationAdmin, recordInstallationEvent, type InstallationActor } from "./installation-admins";
 import { INSTALLATION_SETTINGS, SETTINGS_SECTIONS, settingNamed, type SettingDefinition, type SettingsSectionId } from "./installation-catalogue";
+import { slideEditorLicenseKey } from "./slide-editor-license";
 import { db } from "./db";
 import { demoChangesInEffect } from "./demo-reset-decision";
 import { trialSettings } from "./trials";
@@ -93,6 +94,7 @@ const CHECKS: Record<string, (v: string) => string | null> = {
     }
     return null;
   },
+  ZIFFR_TLDRAW_LICENSE_KEY: (v) => (slideEditorLicenseKey(v) ? null : "That is not a tldraw license key: it is one line that starts with tldraw- and has one dot. Copy it whole."),
   ZIFFR_MAIL_FROM: (v) => {
     const address = v.match(/<([^>]+)>\s*$/)?.[1] ?? v.trim();
     if (!isAddress(address)) return "The sender is one email address, with a name if you like: Ziffr <ziffr@example.com>.";
@@ -190,6 +192,12 @@ async function sectionWorks(id: SettingsSectionId, settings: Record<string, stri
     if (!secretsKey(settings)) return { working: false, detail: "Needs ZIFFR_SECRETS_KEY on the server, which seals the Slack workspaces' bot tokens." };
     if (!/^https?:\/\/[^\s/]+/.test(settings.ZIFFR_SITE_URL ?? "")) return { working: false, detail: "Needs ZIFFR_SITE_URL on the server." };
     return { working: false, detail: "Needs all three values from Slack." };
+  }
+  if (id === "slides") {
+    const set = settings.ZIFFR_TLDRAW_LICENSE_KEY?.trim();
+    if (!set) return { working: false, detail: null };
+    if (!slideEditorLicenseKey(set)) return { working: false, detail: "The value set is not a tldraw license key, so it is not used." };
+    return { working: true, detail: "A key is set. Only tldraw, in the browser, says whether it is good for this address." };
   }
   if (id === "bots") {
     const site = settings.ZIFFR_TURNSTILE_SITE_KEY;
@@ -304,7 +312,7 @@ export async function saveInstallationSettings(actor: InstallationActor, section
     if (typeof raw !== "string") throw new Error(`${def.label}: enter a value.`);
     const value = raw.trim();
     if (!value) throw new Error(`${def.label}: enter a value, or remove it.`);
-    if (value.length > MAX_VALUE) throw new Error(`${def.label} is too long.`);
+    if (value.length > (def.maxLength ?? MAX_VALUE)) throw new Error(`${def.label} is too long.`);
     const problem = CHECKS[name]?.(value);
     if (problem) throw new Error(problem);
     // The Audit Log is never kept for fewer days than a Retention or an Approval still refers to. Read fresh, and a

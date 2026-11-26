@@ -56,8 +56,8 @@ export type PackSetupInput = {
   lines?: RepeatLine[];
   /** The ids of the proposed Shares that are ticked. No other Share is made. */
   shares?: string[];
-  /** Ask the others for the current period now, instead of at the Workflow's next run. The person setting up is always
-   * asked at once. */
+  /** Send the first requests for the current period now, to every Submitter picked, the person setting up included.
+   * Without it nothing is sent: a Metric's Workflow asks at its next run. */
   askNow?: boolean;
   /** Adds one line to what was set up before: only what is made once for each line of its Repeat is made. `ticked` are
    * the offers to add it to what is there; nothing else there is changed. */
@@ -68,7 +68,7 @@ export type PackSetupInput = {
 export const SETUP_METRICS_MAX = 200;
 /** The most entries picked at once: a Pack holds at most 50 of a kind. */
 export const SETUP_ENTRIES_MAX = 50;
-/** The most Submitters picked beside Positions (each gets a first Prompt for every Metric): the page asks only the person. */
+/** The most Submitters picked beside Positions (each is asked for every Metric): the page asks only the person. */
 const MAX_SUBMITTERS = 5;
 /** The most Approvers a Workflow's Approve step takes. */
 const MAX_APPROVERS = 3;

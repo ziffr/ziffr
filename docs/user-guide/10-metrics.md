@@ -133,7 +133,7 @@ On a phone the page says at the top that it is easier on a larger screen; see [S
 **New metric** opens a page with two ways to begin. You can change everything afterwards.
 
 - **Start from scratch**: an empty form, for a number nobody has described before.
-- **Metric Catalog**: a library of ready-made descriptions. Picking one copies its description into a new Metric of your own. It is yours from then on and does not follow later changes to the catalog. Besides the entries every Workspace has, it holds those of the Packs your Workspace installed, under each entry's category or the Pack's name (see [Packs](19-packs.md)). A Pack's entry may carry Tags, shown as small chips on its card; the Metric you make from it gets them, and if a Tag limit kept some off, the Metric's page says which right after you create it.
+- **Metric Catalog**: a library of ready-made descriptions. Picking one copies its description into a new Metric of your own. It is yours from then on and does not follow later changes to the catalog. Besides the entries every Workspace has, it holds those of the Packs your Workspace installed, under each entry's category or the Pack's name (see [Packs](19-packs.md)). A Pack's entry may say how it is calculated, which fills in **How it is calculated** in the form. It may also carry Tags, shown as small chips on its card; the Metric you make from it gets them, and if a Tag limit kept some off, the Metric's page says which right after you create it.
 
 When you arrive from **Explore on my own** in the [Setup Guide](07-getting-started.md#the-setup-guide), the page shows **Back to the Setup Guide** on top, and the Metric you create there becomes the guide's first Metric and takes you back to the guide.
 
@@ -143,7 +143,7 @@ Owners, Admins and Members create Metrics. Guests create nothing: they see no **
 
 | Option | What it does |
 | --- | --- |
-| **Search** | Finds catalog Metrics by words in their name, description or unit, such as "churn", "margin" or "tickets". |
+| **Search** | Finds catalog Metrics by words in their name, description, **Calculation Note** or unit, such as "churn", "margin" or "tickets". |
 | **For** your industry | Shows only the Metrics written for your kind of business. It appears once your Workspace has a **Workspace Profile** with an industry (see [Workspace settings](16-workspace-settings.md)). |
 | **All** | Shows the whole catalog. |
 | A category, such as Finance | Shows only that category. Click it again to show all. |

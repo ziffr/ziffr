@@ -2,9 +2,10 @@
 // A free-layout widget on a dashboard: the tldraw document read-only, live numbers inside its widgets.
 import "tldraw/tldraw.css";
 import { useState } from "react";
-import { Tldraw, type TLEditorSnapshot } from "tldraw";
+import { type TLEditorSnapshot } from "tldraw";
 import { TriangleAlert } from "lucide-react";
 import { DeckData, WidgetShapeUtil } from "@/decks/widget-shape";
+import { SlideCanvas } from "@/decks/slide-canvas";
 import type { CanvasData, WidgetSettings } from "@ziffr/core/types";
 import { artboard } from "./artboard";
 
@@ -21,7 +22,7 @@ export default function LayoutView({ settings, data }: { settings: WidgetSetting
   return (
     <DeckData.Provider value={data}>
       <div className="layout-view relative h-full w-full overflow-hidden rounded-[var(--radius-input)]" style={{ pointerEvents: "none" }}>
-        <Tldraw
+        <SlideCanvas
           shapeUtils={shapeUtils}
           snapshot={snapshot}
           hideUi
