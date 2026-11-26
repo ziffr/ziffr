@@ -155,7 +155,7 @@ A team wants "the commit of all salespeople", and the list of salespeople change
 
 #### What a Total is
 
-**Total** (added to the glossary by #1225): A Derived Metric that adds up a list of Metrics it keeps, its parts, such as the Commit of every salesperson. Parts are added and ended on the Total, never by editing a formula; each counts from a first period and, once ended, up to a last one. A period has a value only when every part counting in it has one. Not a formula, not an Aggregation (which combines one Metric's own periods) and not a Running total. _Avoid_: roll-up, consolidation, group sum.
+**Total** (added to the glossary by #1225): A Derived Metric that adds up a list of Metrics it keeps, its parts, such as the Commit of every salesperson. Parts are added and ended on the Total, never by editing a formula; each counts from a first period and, once ended, up to a last one. A period has a value only when every part counting in it has one, and it is shown only to people who may see all of those parts, unless the Total's owner opens it. Not a formula, not an Aggregation (which combines one Metric's own periods) and not a Running total. _Avoid_: roll-up, consolidation, group sum.
 
 - **It only adds.** No average, no smallest or largest.
 - **Parts:** 1 to 50 Metrics that take values (no Derived Metric, no Total), of the Total's period, with one unit, number format and Aggregation among them, which the Total takes; never Aggregation none.
@@ -168,7 +168,7 @@ A team wants "the commit of all salespeople", and the list of salespeople change
 #### New and leaving lines
 
 - Each part has a **first period** and, once it has left, a **last period**. Past totals do not change when the list does.
-- **Add a line** (below) offers, ticked and listed, to count the new Metrics in each Total that Set up made, from the first period the line is asked for (shown, and changeable), where this person may change the Total and its owner may share the part. What it cannot change, it lists.
+- **A new person's figure joins a Total through Add a line, ticked and confirmed** (decided by the owner). Add a line (below) offers, ticked and listed, to count the new Metrics in each Total that Set up made, from the first period the line is asked for (shown, and changeable), where this person may change the Total and its owner may share the part. What it cannot change, it lists.
 - **A line leaves** by ending its parts: "Count it up to <period>", by default its last period with a value. Archiving a Metric that a Total counts asks this. Counting it again is the same screen.
 - Removing a part altogether is possible and says in words that past totals change. A Metric a Total names cannot be deleted, and Retention treats the Total like a Derived Metric that reads it.
 - Every change of the list is in the Total's history and the Audit Log.
@@ -176,24 +176,46 @@ A team wants "the commit of all salespeople", and the list of salespeople change
 #### Missing and unapproved values
 
 - A period has a total only when **every part counting in it has a value**. Ziffr never shows a smaller sum as the total, and never takes a missing value as 0: a salesperson with nothing sends 0.
-- While one is missing, the period reads "4 of 5 in" to whoever sees every part (they can then see which), and "not all in yet" to everyone else.
+- While one is missing, the period reads "4 of 5 in" to whoever sees every part (they can then see which), and "not all in yet" to others who may see an open Total.
 - A value **waiting for Approval or sent back** counts, as it shows on its own Metric, and the period's total is marked **not approved yet** until every part is final. Alerts, Tell steps and Heads-ups read a total only then.
 - Nothing is stored: a corrected value changes the total at once. Snapshots and frozen View Links keep what they showed, mark included.
 
 #### Who sees what
 
-A Total is a Metric: who may see it is chosen on it. Its owner must own or edit every part, or it shows no values (as for any Derived Metric); adding a part needs the right to change the Total and to share that part.
+Decided by the owner on 2026-11-26. A Total is a Metric: who may open it is chosen on it by sharing, as for any Metric. Its **numbers** are held more tightly than a Derived Metric's, because a part is often one person's figure.
 
-- **Nothing of a hidden part is sent** to someone who does not see it: no name, line name, id, value, count or row. There is never a "rest" row, and never a total worked out from the rows shown.
-- **No total that gives one part away.** If exactly one part counted in a period is hidden from a person, that period's total is not shown to them: "Not shown: it would give away a Metric that is not shared with you." With none hidden they could add it up themselves; with two or more hidden, only their sum can be worked out.
-- This is worked out per person and period, wherever a total goes: widgets, formulas that read it (withheld in the same periods), the API and MCP Server, downloads, Snapshots, View Links (the viewer sees what the link shows), messages and Webhooks (only where the rule holds for everyone who receives them). Sharing a Total says beforehand who would not see it.
-- **What this does not catch,** and the guide says: someone who sees two overlapping Totals, or one total in two periods with different parts, may subtract one from the other.
+- **A period of a Total is shown only to a person who may see every part counted in it,** unless the Total's owner has opened it. Anyone else it is shared with sees its name, description and own target, and for the period "Not shown: you do not see every Metric it adds up." So from a Total that is not open nobody learns anything: every number they read is made of values they could add up themselves. No smaller sum of the parts they do see stands in its place.
+- Its owner must own or edit every part, or it shows no values to anyone (as for any Derived Metric); adding a part needs the right to change the Total and to share that part.
+- **Never sent** to someone who does not see a part, open or not: its name, line name, id, value or row, and how many parts there are. There is never a "rest" row.
+- The added-up targets of the parts follow the same rule as the values. The Total's own target is its own, seen by whoever sees the Total.
+
+#### Opening a Total
+
+- **Who:** the Total's owner only, in the app, while they own or edit every part. Not an Editor, not an Admin who does not own it, never an Access Key or an assistant, never Set up or a Pack, never in the demo.
+- **Per Total:** a setting, "Also show this total to people who do not see every part", off for every new Total, one made by Set up included.
+- **Listed and confirmed.** Before it is switched on, the screen lists the parts counted, every person who will newly see its numbers, the working View Links and the Snapshots that show it, and the formulas that read it. It says: "Each of them learns the sum." Where someone sees every part but one, it names the person and the Metric whose value they can then work out. If any of the lists changed before the owner confirms, it asks again.
+- **What a viewer then learns:** the sum of each period, past ones included, whether it is not approved yet or not all in, and through subtraction the sum of the parts they do not see, which is one person's figure where only one is hidden. Still no name, row, value or count of a hidden part.
+- **While it is open,** sharing it with someone says what they will learn, and only its owner adds a part, confirming that the new figure will be inside what those people see; Add a line lists such a Total as one it cannot change for anyone else.
+- **Closing:** the owner, at any time, in effect at once. Handing the Total over closes it; the new owner opens it anew.
+- **Audit Log:** `metric.total_opened` and `metric.total_closed`, with who did it, the Total, and how many parts and newly seeing people; never a value or a name of a part.
+
+#### The same rule everywhere
+
+It is worked out per reader and period, at the time of reading.
+
+- **App, API, MCP Server, downloads, Heads-ups and Analyze** give only the periods the reader (for a program, the key's creator) may see. The API says of a Total whether it is open and that periods are withheld; no program opens or closes one.
+- **Formulas that read a Total** have no value for a reader in a period whose total they may not see.
+- **Snapshots** keep with each period which parts counted. A reader gets it if they may see every one of those now, or the Total is open now; so closing also hides it in older Snapshots. Taking a Snapshot keeps only what its taker may see.
+- **View Links:** a visitor sees no part, so a link carries a Total's numbers only while it is open, or where the link itself shows every counted part. Live and frozen links alike: closing takes effect on a frozen one too. Making a link says what will be empty.
+- **Messages:** Alerts, Tell steps and Send Snapshot reach a person only with numbers they may see; a Webhook for everyone only where the Total is open or Everyone sees every part.
+- **Files** someone already made (a PDF, a download) cannot be taken back, and the confirmation says so.
+- The Workspace Export records that a Total is open; an import leaves it closed.
 
 #### The forecast's gap slide, one row per salesperson
 
 - The sales forecast Pack gains a Repeat "Salesperson": Commit, Best case, Closed this quarter and Pipeline value once per line; the team's figures are Totals of them. Each salesperson's quota is the target of their Commit (spec 0062), and the team's quota is either the Total's own or the targets added up.
 - A gap table may take **a Total** instead of two Metrics: one row for each part counting in the latest period, named by its line, with the part's target for that period, its value and the gap, ordered by gap. A part without a value reads "–"; a part without one target number has no gap. At most 30 rows, the rest named as left out.
-- A viewer gets the rows of the parts they see, with one line saying that others are not shown to them, and no totals row.
+- A viewer gets the rows of the parts they see, with one line saying that others are not shown to them. The slide's total appears only where they may see the Total, and no total is ever worked out from the rows shown.
 - The Metric "Quota by salesperson" of spec 0062 then leaves the Pack. Existing set-ups that send Breakdowns keep their two-Metric gap table.
 
 #### Format
@@ -254,7 +276,7 @@ Spec 0059's decisions on paid Packs need this, and it **has to be in place befor
 - **Set up** (`pack-setup.db.test.ts`): every place filled by the right person; who may fill each; unticked Shares make none; no Prompt to others without the tick; an empty Approver refuses the Workflow; the Workspace Limit refuses the whole set; Admins only, never a key or the demo.
 - **Visibility:** the "who will see what" list equals what each person sees afterwards, compared for every person; a salesperson sees only their line.
 - **Add a line:** makes only the new line; changes only what the actor may change.
-- **Team totals:** hand-worked cases for lines that join and leave, a missing value, a value not approved yet and longer periods; what each person sees compared for every person, with none, one and two parts hidden, in the app, the API, a Snapshot and a View Link.
+- **Team totals:** hand-worked cases for lines that join and leave, a missing value, a value not approved yet and longer periods; what each person sees compared for every person, with the Total closed and open and with none and one part hidden, in the app, the API, a formula reading it, a Snapshot, a View Link and a message; who may open one; closing takes effect on older Snapshots and frozen links.
 - **Export:** a test greps the file for every id, name, first name, address, handle, Group name and line name of a seeded Workspace; round trip (export, install, set up with the same people, export again) gives the same file.
 - **Origin:** a table of every way to copy, each keeping it; uninstall and update keep it; a browser cannot clear it; an export credits free items and leaves paid ones out; the import of a Workspace Export keeps it.
 - **Pages** tried in the running app at phone and desktop widths.
@@ -269,7 +291,7 @@ Spec 0059's decisions on paid Packs need this, and it **has to be in place befor
 | #1180 | Set up with Positions: pickers, Share ticks, messages, the record | #1179 |
 | #1181 | Repeats in Set up: lines, names, limits, working in steps | #1180 |
 | #1182 | Add a line | #1181 |
-| #1225 | Team totals: a Total adds up a kept list of Metrics (core, screens, visibility) | #1222 |
+| #1225 | Team totals: a Total adds up a kept list of Metrics (core, screens, visibility, opening) | #1222 |
 | #1226 | Team totals in Packs: Set up, a new line joins, a leaving line stops counting, export | #1182, #1225 |
 | #1227 | Gap table with one row per line of a Total; the sales forecast Pack with a Repeat | #1223, #1226 |
 | #1183 | Start a Workflow from a template with Positions | #1177 |
@@ -299,5 +321,5 @@ Spec 0059's decisions on paid Packs need this, and it **has to be in place befor
 3. **Shares from a Pack start unticked** where they show someone more.
 4. **Prompts to others wait** for the next run unless ticked.
 5. **Tell steps travel** when they wait for a share, never a level.
-6. **Team totals** over a Repeat: first postponed; moved forward by the owner on 2026-11-26. Specified under "Team totals" and built with Positions and Repeats. For the owner to check there: a Total is withheld from someone from whom exactly one counted part is hidden; unapproved values count and mark the total; the list is kept on the Total and never follows by itself.
+6. **Team totals** over a Repeat: first postponed; moved forward by the owner on 2026-11-26, specified under "Team totals" and built with Positions and Repeats. Decided by the owner the same day: a Total is shown only to people who may see every counted part, unless its owner deliberately opens it to others; a new person's figure joins a Total through Add a line, ticked and confirmed. Still for the owner to check there: one missing value empties the period, and a value not approved yet counts and marks the total.
 7. **Installed items remember where they came from**, through edits and "save as template". Export as Pack leaves out paid items and credits free ones by itself. This is part of this spec's work, before any paid Pack (spec 0059).
