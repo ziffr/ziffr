@@ -298,6 +298,8 @@ A Widget that takes a list of Metrics, such as the Correlation matrix, can show 
 
 Press **Save template**. You find it under **Templates** in the Pool, and in **Change view**.
 
+The same panel saves a slide as a layout and a deck as a Deck Template. There it also leaves out numbers typed into text boxes, unless you tick to keep them (see [Saving a slide as a layout](14-decks-and-themes.md#saving-a-slide-as-a-layout)).
+
 ## Findings
 
 A **Finding** is a Widget set as an editorial graphic: a headline that states what happened, a short line under it, the chart, and a source line. Findings read like the sections of an article in a dashboard's Read view, and work well on slides. You place one from the **Findings** group in the Pool:
