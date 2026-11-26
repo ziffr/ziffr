@@ -123,7 +123,7 @@ Your assistant can do the same: ask it for "churn march 2026" and it looks the M
 
 ## On a phone
 
-On a phone the demo's note is one line, the bar at the top keeps the **?** button next to the Ziffr name and puts the demo's controls on their own row, the guided tour starts as a small round button, and everything you press is at least 44 px high. The Workspace's Settings pages have one **Section** menu that names the page you are on. On those pages and on your own settings, a field's name sits above the field and each checkbox has its own line. The bar at the bottom fits the screen even on the smallest phones (320 px wide), with its labels a little smaller, and never makes the page scroll sideways.
+On a phone the demo's note is one line, the bar at the top keeps the **?** button next to the Ziffr name and puts the demo's controls on their own row, the guided tour starts as a small round button, and everything you press is at least 44 px high, small links such as **Ziffr** at the top and **User guide** and **Try the demo** on the sign-in page included. The Workspace's Settings pages have one **Section** menu that names the page you are on. On those pages and on your own settings, a field's name sits above the field and each checkbox has its own line. The bar at the bottom fits the screen even on the smallest phones (320 px wide), with its labels a little smaller, and never makes the page scroll sideways.
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app, with the same layout. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
 ## The Schedule and your calendar
@@ -254,13 +254,13 @@ Whoever asks you a question can still pick another way for that one message. Wha
 
 ### Requests for numbers by email
 
-The box **Send me Prompts and reminders by email in this workspace** is ticked while you get them. Untick it to stop them. Questions, tasks and replies keep coming, and the owners of the Metrics you send in are told once that you stopped. Tick it again to get them back. The same happens when you use the unsubscribe link in one of these emails.
+The box **Send me Prompts and reminders by email in this workspace** is ticked while you get them. Untick it to stop them. Questions, tasks and replies keep coming, and the owners of the Metrics you send in are told once that you stopped. Tick it again to get them back. The same happens when you use **Unsubscribe from these emails** at the foot of one of these emails, or your mail app's own unsubscribe button.
 
 If your Ziffr sends no email, the box cannot be ticked and the page says so.
 
 ### Unused Metrics by email
 
-Owners also see **Email me when Metrics, dashboards or decks go unused**. It is ticked at first. It is the monthly usage email described under Usage in [Workspace settings](16-workspace-settings.md), and it is one setting for all the workspaces you own, not one per workspace. Untick it to stop the email, tick it again to get it back. The unsubscribe link at the bottom of every such email does the same with no sign-in. Admins, Members and Guests never get the email and do not see the box.
+Owners also see **Email me when Metrics, dashboards or decks go unused**. It is ticked at first. It is the monthly usage email described under Usage in [Workspace settings](16-workspace-settings.md), and it is one setting for all the workspaces you own, not one per workspace. Untick it to stop the email, tick it again to get it back. **Unsubscribe from this digest** at the foot of every such email does the same with no sign-in. Admins, Members and Guests never get the email and do not see the box.
 
 ### Away
 

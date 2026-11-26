@@ -22,7 +22,8 @@ export type ReplyChannel = {
   /** The recipient, when the Connector proved who wrote (Slack signs it, Telegram sends it with the webhook's
    * secret); else they are recognised by `sender`. */
   provenPersonId?: string;
-  answer: (subject: string, text: string) => Promise<void>;
+  /** `link` is the address Ziffr put at the end of its answer, which an email draws as its button. */
+  answer: (subject: string, text: string, link?: string) => Promise<void>;
 };
 
 /** What became of a reply. */
@@ -59,7 +60,8 @@ export async function routeReply(d: RepliedDelivery, text: string, via: ReplyCha
     if ((await answerSourceOf(d, prompt.source)) !== via.source) {
       // The Metric does not take values from here: the answer is not recorded, and the person gets their form link.
       const { data: token } = await db().from("tokens").select("code").eq("workspace_id", d.workspace_id).eq("metric_id", prompt.metric_id).eq("submitter_id", d.recipient_id).is("stands_in_for", null).limit(1).maybeSingle();
-      await via.answer("Your value was not recorded", token ? `This Metric takes values only through your form:\n${linkTo(`/submit/${token.code}`)}` : `This Metric does not take values ${via.source === "mail" ? "by email" : via.source === "telegram" ? "by Telegram" : "on Slack"}.`);
+      const form = token ? linkTo(`/submit/${token.code}`) : undefined;
+      await via.answer("Your value was not recorded", form ? `This Metric takes values only through your form:\n${form}` : `This Metric does not take values ${via.source === "mail" ? "by email" : via.source === "telegram" ? "by Telegram" : "on Slack"}.`, form);
       return "form_link";
     }
     const r = await submitValue({ source: via.source, sender: via.sender, text, promptId: prompt.id, workspaceId: d.workspace_id }, submission, via.provenPersonId);

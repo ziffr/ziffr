@@ -14,6 +14,10 @@ import { addElement } from "./elements/element-pptx";
 import { elementOf, slideNumber, standIns } from "./elements/slide-page";
 import { orderedSlides, SLIDE_W, SLIDE_H } from "./layouts";
 import { WIDGET_SHAPE, widgetFromShape, type WidgetShape } from "./widget-shape";
+import { SNAPSHOT_PART_SHAPE } from "@ziffr/core/snapshot-parts";
+import { KEPT_WORDS, keptDrawing, keptLine, liveMetricIds, onSlide, type Kept, type KeptDrawing } from "./kept/kept-drawing";
+import { keptOf } from "./kept/kept-store";
+import { slideLines } from "./kept/slide-lines";
 import { widgetMetrics } from "@/views/widget-body";
 import { storyBreakdown, storyDefaults } from "@/views/story";
 import { fillSettings, fillWidgetText } from "@ziffr/core/placeholders";
@@ -78,7 +82,18 @@ async function shapeImage(editor: Editor, ids: TLShape["id"][]) {
   return url;
 }
 
-export async function exportPptx(editor: Editor, data: CanvasData, deckName: string, master: SlideDesign | null, theme?: Theme) {
+/** The Metrics of the deck's live Widgets, whose series an export asks for first: slides not on screen were never
+ * drawn. What keeps a Snapshot's numbers is not among them (spec 0061). */
+export function exportSeriesIds(editor: Editor): number[] {
+  const widgets = editor.getCurrentPageShapes().flatMap((s) => (s.type === WIDGET_SHAPE ? [{ id: s.id, metricIds: (s as WidgetShape).props.metricIds }] : []));
+  return liveMetricIds(widgets, keptOf(editor));
+}
+
+/** Whether a slide draws numbers it keeps from a Snapshot (spec 0061): it then carries their line and no "Data as of". */
+const keepsNumbers = (editor: Editor, slide: TLShape["id"]) => [...keptOf(editor).values()].some((s) => s.slideId === slide);
+
+/** `kept` is what the core answered for the person exporting: the file holds what they may see. */
+export async function exportPptx(editor: Editor, data: CanvasData, deckName: string, master: SlideDesign | null, theme: Theme | undefined, kept: Kept) {
   applyExportTheme(theme);
   const PptxGenJS = (await import("pptxgenjs")).default;
   const pptx = new PptxGenJS();
@@ -185,10 +200,15 @@ export async function exportPptx(editor: Editor, data: CanvasData, deckName: str
             flipV: y2 < y1,
             line: { color: TL_COLORS[p.color as string] ?? INK, width: 2, endArrowType: p.arrowheadEnd === "none" ? undefined : "triangle", beginArrowType: p.arrowheadStart && p.arrowheadStart !== "none" ? "triangle" : undefined },
           });
-        } else if (shape.type === WIDGET_SHAPE && elementOf(shape.props)) {
-          await addSlideElement(pptx, slide, shape as WidgetShape, box, data, editor, theme, page, master);
+        } else if (shape.type === SNAPSHOT_PART_SHAPE) {
+          const part = keptOf(editor).get(shape.id);
+          if (part) await addPart(pptx, slide, shape.id, keptDrawing(part, kept, data), pos(box), editor);
         } else if (shape.type === WIDGET_SHAPE) {
-          await addWidget(pptx, slide, shape as WidgetShape, pos(box), data, editor);
+          const widget = widgetFromShape(shape as WidgetShape);
+          const on = onSlide(keptOf(editor).get(shape.id), kept, data, widget.settings);
+          if ("words" in on) addNotice(slide, on.words ?? KEPT_WORDS.failed, pos(box));
+          else if (elementOf(shape.props)) await addSlideElement(pptx, slide, shape.id, { ...widget, settings: on.settings }, box, on.data, editor, theme, page, master);
+          else await addWidget(pptx, slide, shape.id, { ...widget, settings: on.settings }, pos(box), on.data, editor);
         } else {
           slide.addImage({ data: await shapeImage(editor, [shape.id]), ...pos(box) });
         }
@@ -199,8 +219,13 @@ export async function exportPptx(editor: Editor, data: CanvasData, deckName: str
 
     // The snapshot stamp sits centred, clear of the master's footer and number.
     const footerY = ((SLIDE_H - 36 - 21) * IN_PER_SLIDE_W) / SLIDE_W; // same line as the master footer
+    // A slide that keeps numbers says whose they are instead of today's date (spec 0061); a slide of live numbers up to
+    // a Snapshot's period says that beside it.
+    const lines = slideLines(editor, frame.id, kept, data);
+    const stamp = (keepsNumbers(editor, frame.id) ? lines : [`Data as of ${asOf}`, ...lines]).join(" · ");
+    const width = lines.length ? IN_PER_SLIDE_W - 4 : 3;
     // A cover's own panel may fill the middle: its stamp stands at the right, where a cover writes no number.
-    slide.addText(`Data as of ${asOf}`, { x: frame.meta?.cover ? IN_PER_SLIDE_W - 3.4 : IN_PER_SLIDE_W / 2 - 1.5, y: footerY, w: 3, h: 0.22, fontSize: 9, color: MUTED, fontFace: FONT, align: frame.meta?.cover ? "right" : "center", margin: 0 });
+    if (stamp) slide.addText(stamp, { x: frame.meta?.cover ? IN_PER_SLIDE_W - 0.4 - width : (IN_PER_SLIDE_W - width) / 2, y: footerY, w: width, h: 0.22, fontSize: 9, color: MUTED, fontFace: FONT, align: frame.meta?.cover ? "right" : "center", margin: 0 });
     if (!usesMaster) slide.addText(`${index + 1}`, { x: IN_PER_SLIDE_W - 1, y: footerY, w: 0.6, h: 0.22, fontSize: 9, color: MUTED, align: "right", fontFace: FONT, margin: 0 });
   }
 
@@ -208,26 +233,57 @@ export async function exportPptx(editor: Editor, data: CanvasData, deckName: str
 }
 
 // A Slide Element (spec 0057) as native text boxes and shapes; the cover's ornament, which reaches past its box, as a
-// picture of it.
-async function addSlideElement(pptx: Pptx, slide: Slide, shape: WidgetShape, at: Box, live: CanvasData, editor: Editor, theme: Theme | undefined, page: number, master: SlideDesign | null) {
-  const element = elementOf(shape.props)!;
+// picture of it. `data` is what the element is drawn from on its slide: live, or the Snapshot's (spec 0061).
+async function addSlideElement(pptx: Pptx, slide: Slide, id: TLShape["id"], widget: SlideWidget, at: Box, live: CanvasData, editor: Editor, theme: Theme | undefined, page: number, master: SlideDesign | null) {
+  const element = widget.settings.element!;
   const inch = IN_PER_SLIDE_W / SLIDE_W;
   if (element.kind === "art") {
-    slide.addImage({ data: await shapeImage(editor, [shape.id]), x: at.x * inch, y: at.y * inch, w: at.w * inch, h: at.h * inch });
+    slide.addImage({ data: await shapeImage(editor, [id]), x: at.x * inch, y: at.y * inch, w: at.w * inch, h: at.h * inch });
     return;
   }
-  const { settings } = widgetFromShape(shape);
-  const data = settings.asOf ? dataAsOf(live, settings.asOf) : live;
-  const context = { data, metrics: elementMetrics(shape.props.metricIds, data), slide: page, footer: master?.footer };
-  await addElement(pptx, slide, { element, context, w: shape.props.w, h: shape.props.h, logo: master?.logo }, theme, { x: at.x, y: at.y, inch });
+  const data = widget.settings.asOf ? dataAsOf(live, widget.settings.asOf) : live;
+  const context = { data, metrics: elementMetrics(widget.metric_ids, data), slide: page, footer: master?.footer };
+  const props = (editor.getShape(id) as WidgetShape).props;
+  await addElement(pptx, slide, { element, context, w: props.w, h: props.h, logo: master?.logo }, theme, { x: at.x, y: at.y, inch });
 }
 
 type Slide = ReturnType<InstanceType<typeof import("pptxgenjs").default>["addSlide"]>;
 type Pptx = InstanceType<typeof import("pptxgenjs").default>;
+type SlideWidget = ReturnType<typeof widgetFromShape>;
 
-async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: number; y: number; w: number; h: number }, live: CanvasData, editor: Editor) {
-  const widget = widgetFromShape(shape);
-  // A widget of a deck made from a Snapshot exports the values of that period only, as it draws them (spec 0013).
+/** The words that stand where a person gets no numbers. */
+function addNotice(slide: Slide, words: string, at: Box) {
+  slide.addText(words, { ...at, fontSize: 12, color: MUTED, fontFace: FONT, align: "center", valign: "middle", margin: 0, line: { color: RULE, width: 0.75, dashType: "dash" } });
+}
+
+/** The room the line under a part takes, in inches. */
+const LINE_H = 0.28;
+
+/** A Snapshot Part (spec 0061): what the person exporting gets of it, with the line saying whose numbers these are. */
+async function addPart(pptx: Pptx, slide: Slide, id: TLShape["id"], drawing: KeptDrawing, at: Box, editor: Editor) {
+  if (drawing.state !== "shown") return addNotice(slide, drawing.state === "notice" ? drawing.words : KEPT_WORDS.failed, at);
+  const { snapshot, widget, data, corrected } = drawing;
+  const line = corrected ? `${keptLine(snapshot)} · ${KEPT_WORDS.corrected}` : keptLine(snapshot);
+  if (widget) return addWidget(pptx, slide, id, { template: widget.template, metric_ids: widget.metric_ids, settings: widget.settings, title: widget.title }, at, data, editor, line);
+  slide.addText(
+    [
+      { text: `${snapshot.name}\n`, options: { fontSize: 40, bold: true, color: INK, fontFace: HEAD_FONT } },
+      { text: `${snapshot.label}\n`, options: { fontSize: 20, color: MUTED } },
+      ...(snapshot.intro ? [{ text: snapshot.intro, options: { fontSize: 16, color: INK } }] : []),
+    ],
+    { x: at.x, y: at.y, w: at.w, h: at.h - LINE_H, fontFace: FONT, valign: "middle", margin: 0.1 },
+  );
+  addPartLine(slide, line, at);
+}
+
+function addPartLine(slide: Slide, line: string, at: Box) {
+  slide.addText(line, { x: at.x + 0.15, y: at.y + at.h - LINE_H, w: at.w - 0.3, h: LINE_H, fontSize: 9, color: MUTED, fontFace: FONT, valign: "middle", margin: 0 });
+}
+
+/** A Widget on a slide, drawn from `live`: the live data, or a Snapshot's (spec 0061), with `line` under it. */
+async function addWidget(pptx: Pptx, slide: Slide, id: TLShape["id"], widget: SlideWidget, at: { x: number; y: number; w: number; h: number }, live: CanvasData, editor: Editor, line?: string) {
+  // A widget of a deck made from a Snapshot before decks kept numbers exports the values of that period only, as it
+  // draws them (spec 0013).
   const data = widget.settings.asOf ? dataAsOf(live, widget.settings.asOf) : live;
   const ms = widgetMetrics(widget, data);
   const m = ms[0];
@@ -244,9 +300,16 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
   const goal = (p: DisplayPoint | undefined) => (shown.combined ? { min: shown.targets?.at[p?.period ?? ""]?.min ?? null, max: shown.targets?.at[p?.period ?? ""]?.max ?? null } : { min: m.target_min, max: m.target_max });
   const title = fillWidgetText(widget.title ?? undefined, widget, data) ?? m.name;
 
+  // Gauges, forecasts, correlations and the rest go in as the app's own drawing: a picture, which holds a part's line.
+  const native = (form === "line" && pts.length > 1) || (form === "bar" && pts.length > 0) || form === "number" || widget.template === "ranked" || form === "table";
+  if (!native) {
+    slide.addImage({ data: await shapeImage(editor, [id]), ...at });
+    return;
+  }
   // Card behind every widget, like the cotton sheet in the app.
   slide.addShape(pptx.ShapeType.roundRect, { ...at, rectRadius: 0.06, fill: { color: COTTON }, line: { color: RULE, width: 0.75 }, shadow: { type: "outer", angle: 45, blur: 6, offset: 2, color: "8A7A6C", opacity: 0.25 } });
-  const inner = { x: at.x + 0.15, y: at.y + 0.12, w: at.w - 0.3, h: at.h - 0.24 };
+  if (line) addPartLine(slide, line, at);
+  const inner = { x: at.x + 0.15, y: at.y + 0.12, w: at.w - 0.3, h: at.h - 0.24 - (line ? LINE_H : 0) };
   const head = { ...inner, h: 0.3 };
   const body = { x: inner.x, y: inner.y + 0.32, w: inner.w, h: Math.max(inner.h - 0.32, 0.3) };
 
@@ -317,7 +380,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
       },
     );
     slide.addText(s.source || d.source, { x: inner.x, y: inner.y + inner.h - 0.24, w: inner.w, h: 0.24, fontSize: 8, color: MUTED, fontFace: FONT, margin: 0 });
-  } else if (form === "table") {
+  } else {
     slide.addText(title, { ...head, fontSize: 12, bold: true, color: INK, fontFace: FONT, margin: 0 });
     const rows = all.slice(-(widget.settings.rows ?? 6)).reverse();
     slide.addTable(
@@ -327,16 +390,18 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
       ]),
       { ...body, fontSize: 10, fontFace: FONT, color: INK, border: { type: "solid", pt: 0.5, color: RULE } },
     );
-  } else {
-    // Gauges, forecasts, correlations and the rest: the app's own drawing as a picture.
-    slide.addImage({ data: await shapeImage(editor, [shape.id]), ...at });
   }
 }
 
-export async function exportPdf(editor: Editor, deckName: string) {
+/** `data` lends the Themes and `kept` what the person exporting gets of Snapshots, for each page's line. */
+export async function exportPdf(editor: Editor, deckName: string, data: CanvasData, kept: Kept) {
   const frames = orderedSlides(editor);
   // A slide of Slide Elements has its own source line at the bottom left: the stamp then stands in the middle.
   const designed = frames.map((f) => editor.getSortedChildIdsForParent(f.id).some((id) => elementOf(editor.getShape(id)?.props)));
+  // A slide that keeps numbers gets no "Data as of" (spec 0061). The picture of a slide leaves out what its frame
+  // draws, so the slide's own lines are written under it; a part's line is in the picture already.
+  const keeping = frames.map((f) => keepsNumbers(editor, f.id));
+  const lines = frames.map((f) => slideLines(editor, f.id, kept, data));
   const images: string[] = [];
   for (const f of frames) images.push((await editor.toImageDataUrl([f.id], { format: "png", pixelRatio: 2, background: true, padding: 0 })).url);
   const asOf = format(new Date(), "d MMMM yyyy");
@@ -362,7 +427,8 @@ export async function exportPdf(editor: Editor, deckName: string) {
     img.src = src;
     const cap = doc.createElement("figcaption");
     // A slide of elements writes its own page number, which does not count covers: the stamp then names none.
-    cap.textContent = designed[i] ? `Data as of ${asOf}` : `Data as of ${asOf}, slide ${i + 1}`;
+    const said = [...(keeping[i] ? [] : [`Data as of ${asOf}`]), ...lines[i]];
+    cap.textContent = [...said, ...(designed[i] ? [] : [`${said.length ? "s" : "S"}lide ${i + 1}`])].join(", ");
     if (designed[i]) cap.className = frames[i].meta?.cover ? "cover" : "middle";
     fig.append(img, cap);
     doc.body.appendChild(fig);

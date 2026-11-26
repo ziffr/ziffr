@@ -270,6 +270,45 @@ Spec 0059's decisions on paid Packs need this, and it **has to be in place befor
 - The Audit Log records `pack.set_up` with counts (Positions filled, lines, Shares made, messages sent), never names; each Share, hand-over and Workflow change keeps its own event.
 - The threat model's boundary for Packs gains: a Pack that proposes Shares, the check for names on export, and the record of a Set up. A security review of the whole spec precedes "done".
 
+## The Pack Guide
+
+Whoever opens a stranger's Pack sees a list of items, not why they belong together or what to do first. Added by the owner on 2026-11-26, in the same new format (`ziffr.pack/2`).
+
+### Glossary (added by #1177)
+
+**Pack Guide**: What a Pack's creator tells people about it, in five set sections whose titles Ziffr writes: What it's for, Before you start, First steps, Each part, and Questions. Headings, paragraphs, lists and bold words only; read before installing and, with the installed Pack, in Help. Not the user guide, which is Ziffr's own, not the Setup Guide, and not the summary of one or two sentences. _Avoid_: Readme, manual, documentation, tutorial
+
+### What a creator writes
+
+- **A field of the file,** `guide`, with `whatItsFor`, `beforeYouStart`, `firstSteps`, `eachPart` and `questions`. Each is optional; a guide fills at least one.
+- **A section is a list of blocks:** a heading (`{ "type": "heading", "text": "…" }`), a paragraph (`"text"`) or a list (`"list"`, with `items`, and `"numbered": true` for steps in an order). A pair of `**` makes the words between them bold; it is the only formatting inside a text.
+- **Written** in an extra "Describe your Pack" step of Export as Pack, pre-filled with a list of the Pack's contents, or edited in the file. Ziffr's own Packs use the same field.
+
+```json
+"guide": {
+  "whatItsFor": [{ "type": "text", "text": "Each site reports its **incidents** every week." }],
+  "firstSteps": [{ "type": "list", "numbered": true, "items": ["Open Packs.", "Choose **Set up from this Pack**."] }]
+}
+```
+
+### Where it is read
+
+- **Before installing,** with the preview: on the Packs page and for a Marketplace Pack.
+- **After installing,** in Help, with the installed Pack.
+- By those who may see the Pack today. A guide changes no one's rights and is never in a Snapshot, a View Link or a message.
+
+### It is text from a stranger
+
+- **No links, images, HTML or code.** Every text is held to the plain text of a Pack's names: no web or email address, markup, brace, bracket, backtick, line break or character that turns text around. The text is also checked as it reads with the bold marks taken away, so marks cannot hide an address.
+- **Bounded:** the whole guide at most 32,768 bytes; at most 60 blocks in a section, 20 entries in a list, 80 characters in a heading and 600 in a paragraph or entry.
+- **The assistant-words check** reads it, as a person reads it, and its hits are shown to whoever installs, like those of any other text of the Pack.
+- **Shown as plain structured text:** Ziffr draws the blocks itself and never reads a guide as Markdown or HTML.
+- **Reportable** like the rest of the Pack: it is part of the file that a report names (spec 0059).
+
+An install keeps the guide from the ticket that shows it in Help on; the database's limit on what an install keeps of a manifest has to grow with it.
+
+**Later:** pictures, and a guide in more than one language.
+
 ## Testing Decisions
 
 - **Format** (`@ziffr/pack`): `/1` files check as before; a hostile table of unknown keys, a several-people Position in a one-person place, a Repeat's Position used outside it, a wrong number of `by`, a Tell level, a Send Snapshot dashboard not in the Pack, markup and web addresses in names, every limit, `__proto__`.
@@ -303,6 +342,10 @@ Spec 0059's decisions on paid Packs need this, and it **has to be in place befor
 | #1189 | Export of Repeats and the round trip | #1181, #1187 |
 | #1190 | Ziffr's Sales Pack gains Positions and a Repeat; the creators' guide | #1181 |
 | #1191 | Threat model, user guide, release notes and an independent security review of the whole spec | the others |
+| #1229 | Pack Guide: read it before installing (Packs page and Marketplace preview) | #1177 |
+| #1230 | Pack Guide: the "Describe your Pack" step of Export as Pack | #1177 |
+| #1231 | Pack Guide: keep it with the install and read it in Help | #1177 |
+| #1232 | Pack Guide: guides for Ziffr's own Packs | #1177 |
 
 ## Out of Scope
 
@@ -323,3 +366,13 @@ Spec 0059's decisions on paid Packs need this, and it **has to be in place befor
 5. **Tell steps travel** when they wait for a share, never a level.
 6. **Team totals** over a Repeat: first postponed; moved forward by the owner on 2026-11-26, specified under "Team totals" and built with Positions and Repeats. Decided by the owner the same day: a Total is shown only to people who may see every counted part, unless its owner deliberately opens it to others; a new person's figure joins a Total through Add a line, ticked and confirmed. Still for the owner to check there: one missing value empties the period, and a value not approved yet counts and marks the total.
 7. **Installed items remember where they came from**, through edits and "save as template". Export as Pack leaves out paid items and credits free ones by itself. This is part of this spec's work, before any paid Pack (spec 0059).
+
+## Decisions about the Pack Guide (2026-11-26, by the owner)
+
+1. **A guide inside the Pack,** in the new format: What it's for, Before you start, First steps, Each part, Questions.
+2. **Simple formatting only:** headings, lists and bold.
+3. **Written** in a "Describe your Pack" step of Export as Pack, pre-filled with a list of the Pack's contents, or in the file.
+4. **Read before installing** (Marketplace and Packs page, with the preview) **and after installing** in Help.
+5. **Text from strangers:** no links, images, HTML or code, bounded, checked for words aimed at assistants, shown as plain structured text, reportable like the rest of the Pack.
+6. **Pictures and translations** come later.
+7. **Ziffr's own Packs** use the same field.

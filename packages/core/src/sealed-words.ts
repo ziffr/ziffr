@@ -134,7 +134,7 @@ export function mapViewWords<T extends { intro?: unknown; widgets?: unknown }>(v
   return out as T;
 }
 
-/** A Metric Version's name, description and Targets passed through a change, by their place in the Version. A Target is a
+/** A Metric Version's name, description, Calculation Note and Targets passed through a change, by their place in the Version. A Target is a
  * number: it goes through as text and comes back a number, or stays a number where the change leaves it plain; one that
  * does not open is left out, and so is a name that does not open, so a restore never writes a placeholder back. */
 function mapMetricVersion(snapshot: Obj, change: Change): Obj {
@@ -143,7 +143,10 @@ function mapMetricVersion(snapshot: Obj, change: Change): Obj {
     const name = change("snapshot.name", out.name);
     if (name === undefined) delete out.name; else out.name = name;
   }
-  if (typeof out.description === "string") out.description = change("snapshot.description", out.description) ?? "";
+  for (const column of ["description", "calculation_note"]) {
+    const text = out[column];
+    if (typeof text === "string") out[column] = change(`snapshot.${column}`, text) ?? "";
+  }
   for (const column of ["target_min", "target_max"]) {
     const v = out[column];
     if (typeof v !== "number" && typeof v !== "string") continue;

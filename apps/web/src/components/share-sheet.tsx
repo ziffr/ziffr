@@ -6,6 +6,7 @@ import { inviteMember } from "@/app/team-actions";
 import { told } from "@/lib/action-toast";
 import { useSlideOver } from "@/components/slide-over-host";
 import { usePanel } from "@/lib/panel-param";
+import { LeftOut, LeftOutNote, useDeckGaps } from "@/components/left-out";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -30,7 +31,7 @@ export function ShareSheet({ objectType, objectId, name, ownerId, people, shares
       description: objectType === "dashboard"
         ? "Viewers can look, inspect history and ask questions. Editors can also arrange widgets. Everyone you share with can see the metrics on this dashboard."
         : objectType === "deck"
-          ? "Viewers can present it. Editors can also change slides. Everyone you share with can see the metrics on its slides."
+          ? "Viewers can present it. Editors can also change slides. Everyone you share with can see the metrics its slides draw live, not the numbers they keep from a Snapshot."
           : "People you share with can see this metric and use it on their own dashboards and analyses. Only you can change its description.",
       content: <ShareBody objectType={objectType} objectId={objectId} ownerId={ownerId} people={people} shares={shares} groups={groups} reveals={reveals} canInvite={canInvite} more={more} />,
     });
@@ -61,13 +62,16 @@ function ShareBody({ objectType, objectId, ownerId, people, shares, groups, reve
   const roleOf = (id: string) => roles[id] ?? "";
   const [groupRoles, setGroupRoles] = useState<Record<number, string>>(() => Object.fromEntries(groups.map((g) => [g.id, shares.find((s) => s.object_type === objectType && s.object_id === objectId && s.group_id === g.id)?.role ?? ""])));
   const select = "h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm";
+  // Said beside each name before anything is shared (spec 0061).
+  const gaps = useDeckGaps(objectType === "deck" ? objectId : null);
   return (
     <div className="flex min-h-full flex-col gap-3">
+        <LeftOutNote gaps={gaps} />
         <ul className="space-y-2">
           {others.map((p) => (
             <li key={p.id} className="flex items-center gap-3 text-sm">
               <span className="flex size-7 items-center justify-center rounded-full text-xs font-medium text-white" style={{ background: p.color }}>{p.name[0]}</span>
-              <span className="flex-1">{p.name}<span className="block text-xs text-muted-foreground">{p.role}</span><Reveals names={reveals[p.id]} /></span>
+              <span className="flex-1">{p.name}<span className="block text-xs text-muted-foreground">{p.role}</span><Reveals names={reveals[p.id]} /><LeftOut gaps={gaps?.who[p.id]} /></span>
               <select
                 disabled={pending}
                 value={roleOf(p.id)}
@@ -92,7 +96,7 @@ function ShareBody({ objectType, objectId, ownerId, people, shares, groups, reve
               {groups.map((g) => (
                 <li key={g.id} className="flex items-center gap-3 text-sm">
                   <span className="flex size-7 items-center justify-center rounded-full border border-border text-xs font-medium">{g.name[0]}</span>
-                  <span className="flex-1">{g.name}<span className="block text-xs text-muted-foreground">{g.members.map((id) => people.find((p) => p.id === id)?.name.split(" ")[0]).filter(Boolean).join(", ")}</span><Reveals names={reveals[`g${g.id}`]} /></span>
+                  <span className="flex-1">{g.name}<span className="block text-xs text-muted-foreground">{g.members.map((id) => people.find((p) => p.id === id)?.name.split(" ")[0]).filter(Boolean).join(", ")}</span><Reveals names={reveals[`g${g.id}`]} /><LeftOut gaps={gaps?.who[`g${g.id}`]} /></span>
                   <select
                     disabled={pending}
                     aria-label={`Access for ${g.name}`}

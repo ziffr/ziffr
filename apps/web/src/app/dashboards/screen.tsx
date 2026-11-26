@@ -37,7 +37,7 @@ import { usePin } from "@/components/pinned-dashboards";
 import { useDemoPrefs } from "@/components/demo-visit-prefs";
 import { useWidgetMenuSeen } from "@/lib/widget-menu-hint";
 import { setHome } from "@/app/home-actions";
-import { makeDeck } from "@/app/convert-actions";
+import { MakeDeckDialog } from "@/components/make-deck-dialog";
 import { DashboardReader } from "@/components/dashboard-reader";
 import { SnapshotMenu } from "@/components/snapshot-menu";
 import type { SnapshotSummary } from "@ziffr/core/snapshots";
@@ -156,12 +156,14 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   const menuSeen = useWidgetMenuSeen(data.viewer);
   const [newOpen, setNewOpen] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [makingDeck, setMakingDeck] = useState(false);
   const newDashboard = () => setNewOpen(true);
 
   return (
     <div className={cn("grid grid-cols-[minmax(0,1fr)] gap-4", changing && "lg:grid-cols-[15rem_minmax(0,1fr)]")}>
       {slotFill.dialog}
       {newOpen && <NewDashboardDialog open onOpenChange={setNewOpen} templates={dashboardTemplates} metrics={inUse(data.metrics).map((m) => ({ id: m.id, name: m.name }))} tags={data.tags} viewer={data.viewer} numberStyle={data.numberStyle} />}
+      {makingDeck && current && <MakeDeckDialog key={current.id} source={{ dashboardId: current.id, snapshots: snapshots.filter((s) => s.shownAt) }} onClose={() => setMakingDeck(false)} />}
       {savingTemplate && current && <SaveDashboardTemplateDialog dashboardId={current.id} dashboardName={current.name} metricName={(id) => data.metrics.find((m) => m.id === id)?.name} onClose={() => setSavingTemplate(false)} />}
       {changing && (
         <div className="order-2 lg:order-1">
@@ -209,7 +211,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                   { label: "Home dashboard", icon: <Home aria-hidden />, checked: current.id === homeShown, hint: current.id === homeShown ? "Ziffr opens on this dashboard" : "Open Ziffr on this dashboard", onSelect: () => { if (current.id !== homeShown && visit) { visit.setHome({ id: current.id, name: current.name }); toast.success(`${current.name} is your home`); } else if (current.id !== homeShown) act(async () => { unwrap(await setHome(current.id)); toast.success(`${current.name} is your home`); router.refresh(); }); } },
                   { label: "Pinned", icon: <Pin aria-hidden />, checked: pin.demo ? false : pin.pinned, dimmed: pin.demo, hint: pin.label, onSelect: pin.onPress },
                   ...(canCreate ? [
-                  { label: "Make a deck", icon: <Presentation aria-hidden />, onSelect: () => act(() => makeDeck(current.id)) },
+                  { label: "Make a deck…", icon: <Presentation aria-hidden />, onSelect: () => setTimeout(() => setMakingDeck(true), 0) },
                   ...(editable && widgets.length ? [{ label: "Save as template", icon: <LayoutTemplate aria-hidden />, onSelect: () => setSavingTemplate(true) }] : []),
                   ] : []),
                 ]}

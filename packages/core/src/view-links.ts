@@ -21,6 +21,7 @@ import { recordView } from "./usage";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { forReader, snapshotForLink, type SnapshotWords } from "./snapshots";
 import { dataAsOfEach } from "./snapshot-periods";
+import { withoutKeptNumbers } from "./snapshot-parts";
 import { yearStartOf } from "./fiscal-year";
 import { keptUnit } from "./units";
 import { keptMethod } from "./attainment-method";
@@ -59,6 +60,10 @@ export type ViewPayload = {
 const pick = <T extends Record<string, unknown>>(o: T, keep: Set<number>) => Object.fromEntries(Object.entries(o).filter(([k]) => keep.has(Number(k)))) as T;
 const table = (type: "dashboard" | "deck") => (type === "deck" ? "decks" : "dashboards");
 
+/** A Metric as it may leave the Workspace: without the words that are for people inside it (its description and, spec
+ * 0060, its Calculation Note). */
+const insideOnly = <M extends { description: string; calculation_note?: string | null }>(m: M): M => ({ ...m, description: "", calculation_note: null });
+
 /** The people a shown view refers to, as the page may draw them: only the owners of the shown Metrics (the one place a
  * view names a person), by id, name and colour. No role, no contact details, and no one else of the Workspace, Guests
  * and Contacts included (rule 3; ticket #902). Also cuts down frozen copies and Snapshots made with the whole list. */
@@ -70,8 +75,8 @@ function peopleShown(people: CanvasData["people"], metrics: { owner_id: string }
 /** What may go out with a View Link or a Snapshot (spec 0013) of what one person sees: only these Metrics and their
  * own series, people's names without contact details, the theme in use and the default, and nothing to act on. */
 export function shownData(full: CanvasData, ids: Set<number>, themeId: number | null): CanvasData {
-  // A description is for people inside the Workspace: no view draws it, so it does not go out with one (rule 3).
-  const metrics = full.metrics.filter((m) => ids.has(m.id)).map((m) => ({ ...m, description: "" }));
+  // A description and a Calculation Note are for people inside the Workspace, so neither goes out with a view (rule 3).
+  const metrics = full.metrics.filter((m) => ids.has(m.id)).map(insideOnly);
   // Only the shown Metrics' own series: a derived Metric's inputs stay out (its comparisons then do not show).
   const slugs = new Set(metrics.map((m) => m.slug));
   return {
@@ -108,6 +113,9 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
   const obj = type === "dashboard" ? await openOne("dashboards", String(stored?.workspace_id), stored) : stored;
   if (!obj) return null;
   const ws = obj.workspace_id as string;
+  // A link shows no Snapshot Part and nothing of a slide that keeps numbers (spec 0061): who sees those is decided
+  // per person, and someone with a link is nobody Ziffr knows. They are left out before anything else is read.
+  const slides = type === "deck" ? withoutKeptNumbers(obj.document as unknown).document : undefined;
   let widgets: Widget[] | undefined;
   let metricIds: number[];
   if (type === "dashboard") {
@@ -115,7 +123,7 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
     // Nothing in a free layout may load from another site when shown through the link (spec 0009).
     widgets = ((await openRows("widgets", ws, data)) as Widget[]).map(widgetWithoutOutside);
     metricIds = [...new Set(widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))];
-  } else metricIds = deckMetricIds(obj.document);
+  } else metricIds = deckMetricIds(slides);
   // Only the series this link can show are read; it filters them further below.
   const full = await getCanvasData(ws, obj.owner_id, { seriesOf: metricIds });
   // Only Metrics the owner sees and, for a live link, agreed to when making it; added ones stay out.
@@ -132,7 +140,7 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
       .map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget);
   }
   // The deck as this link shows it: only the records it had when the link was made, nothing from other sites.
-  const document = type === "deck" ? deckForLink(withoutNestedTagSources(stripOutsideContent(obj.document)), ids, allowedShapes ?? null) : undefined;
+  const document = type === "deck" ? deckForLink(withoutNestedTagSources(stripOutsideContent(slides)), ids, allowedShapes ?? null) : undefined;
   // A deck made from a Snapshot draws its Metrics as of the period's end: then only that much goes out (spec 0013).
   // Read from the deck this link shows, so a widget added since cannot make a Metric go out whole again.
   const data = type === "deck" ? dataAsOfEach(shownData(full, ids, obj.theme_id ?? null), deckAsOf(document)) : shownData(full, ids, obj.theme_id ?? null);
@@ -247,7 +255,7 @@ async function openLinkContent(token: string, opts: { count?: boolean }): Promis
     const ws = String(link.workspace_id);
     const [yearStart, numberStyle] = await Promise.all([yearStartOf(ws), numberStyleOf(ws)]);
     // A link made before descriptions were left out of what goes out still holds them: they are not sent (rule 3).
-    const metrics = frozen.data.metrics.map((m) => ({ ...normalizeMetric(keptUnit(m)), description: "" }));
+    const metrics = frozen.data.metrics.map((m) => insideOnly(normalizeMetric(keptUnit(m))));
     return { ...frozen, data: { ...frozen.data, metrics, yearStart, numberStyle, attainmentMethod: keptMethod(frozen.data.attainmentMethod), today: frozen.data.today ?? String(link.created_at).slice(0, 10) } };
   }
   // A link to a Snapshot reads it each time, so a deleted Snapshot ends the link; its words are those kept with it.
