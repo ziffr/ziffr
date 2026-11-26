@@ -5,10 +5,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f8f4f1">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8f4f1">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#14100d">
   <title>Ziffr needs a connection</title>
   <style>
-    /* Colours from tokens.css: --color-paper, --color-ink, --color-muted, --color-board, --color-focus. */
+    /* Colours from tokens.css and, for a dark device, appearance.css: --color-paper, --color-ink, --color-muted,
+       --color-board, --color-board-type, --color-focus. */
     :root { color-scheme: light; }
     body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f8f4f1; color: #1d1614;
       font-family: "General Sans", ui-sans-serif, system-ui, sans-serif; }
@@ -19,6 +21,13 @@
     a { display: inline-block; padding: 0.6rem 1rem; border-radius: 6px; background: #1f1917; color: #f8f4f1;
       text-decoration: none; font-weight: 500; }
     a:focus-visible { outline: 2px solid #bd3a2b; outline-offset: 2px; }
+    @media (prefers-color-scheme: dark) {
+      :root { color-scheme: dark; }
+      body { background: #14100d; color: #eeeae7; }
+      p { color: #aea6a0; }
+      a { background: #e8e4df; color: #181210; }
+      a:focus-visible { outline-color: #fb8371; }
+    }
   </style>
 </head>
 <body>

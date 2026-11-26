@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
 import manifest from "./manifest";
-import { APP_COLOURS } from "@/lib/app-colours";
+import { APP_COLOURS, themeColours } from "@/lib/app-colours";
 
 const PUBLIC = join(import.meta.dirname, "../../public");
 
@@ -44,10 +44,22 @@ describe("the manifest", () => {
     expect(paper).not.toBeNull();
     const [, L, C, h] = paper!.map(Number);
     expect(APP_COLOURS.background).toBe(oklchToHex(L / 100, C, h));
-    const dark = /data-appearance="dark"\][^}]*?--color-paper:\s*oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/.exec(readFileSync(join(import.meta.dirname, "appearance.css"), "utf8"));
-    expect(dark).not.toBeNull();
-    const [, dL, dC, dh] = dark!.map(Number);
-    expect(APP_COLOURS.backgroundDark).toBe(oklchToHex(dL / 100, dC, dh));
+    const appearance = readFileSync(join(import.meta.dirname, "appearance.css"), "utf8");
+    /** The page backgrounds of an Appearance's blocks, in file order: for High contrast the light one, then the dark one. */
+    const papers = (name: string) => [...appearance.matchAll(new RegExp(`data-appearance="${name}"\\][^}]*?--color-paper:\\s*oklch\\(([\\d.]+)%\\s+([\\d.]+)\\s+([\\d.]+)\\)`, "g"))]
+      .map((m) => oklchToHex(Number(m[1]) / 100, Number(m[2]), Number(m[3])));
+    expect(papers("dark")[0]).toBe(APP_COLOURS.backgroundDark);
+    expect(papers("contrast")).toEqual([APP_COLOURS.backgroundContrast, APP_COLOURS.backgroundContrastDark]);
+  });
+
+  it("colours the browser around the page as the person's Appearance draws it, not only as the device is set", () => {
+    const { background, backgroundDark } = APP_COLOURS;
+    expect(themeColours("system")).toEqual({ light: background, dark: backgroundDark });
+    expect(themeColours("light")).toEqual({ light: background, dark: background });
+    expect(themeColours("dark")).toEqual({ light: backgroundDark, dark: backgroundDark });
+    expect(themeColours("contrast")).toEqual({ light: "#ffffff", dark: "#000000" });
+    const offline = readFileSync(join(PUBLIC, "offline.html"), "utf8");
+    for (const colour of [background, backgroundDark]) expect(offline).toContain(`content="${colour}"`);
   });
 });
 
