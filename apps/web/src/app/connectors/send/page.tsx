@@ -8,6 +8,7 @@ import { isDemo } from "@/lib/auth";
 import { SITE_URL } from "@/lib/sign-in";
 import { mcpAddress } from "@/lib/remote-mcp";
 import { SendValues } from "./send-values";
+import { DesktopOnly } from "@/components/desktop-only";
 
 export default async function SendValuesPage() {
   const actor = await currentActor();
@@ -17,6 +18,7 @@ export default async function SendValuesPage() {
   const mcp = mcpAddress();
   return (
     <div className="space-y-8">
+      <DesktopOnly path="/connectors/send" />
       <p className="max-w-prose text-sm text-muted-foreground">
         A program or an automation can send a value for a Metric with one request. Pick a Metric, copy the example and put your key where it says. Ziffr checks it like any other value: who may send it, whether it looks unusual and whether the period is already closed.
       </p>

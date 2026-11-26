@@ -9,6 +9,7 @@ import { Simulator } from "./simulator";
 import { DemoControls } from "@/components/demo-controls";
 import { isDemo } from "@/lib/auth";
 import { visitorsMayChangeDemo } from "@/lib/demo-visit-action";
+import { DesktopOnly } from "@/components/desktop-only";
 import type { IntakeEntry, Prompt } from "@ziffr/core/types";
 
 // Connectors → Sources (spec 0021; GLOSSARY: Source, Prompt): where values come from, and in the demo the Slack and Mail
@@ -30,6 +31,7 @@ export default async function SourcesPage() {
 
   return (
     <>
+      <DesktopOnly path="/connectors/sources" />
       <p className="mb-6 max-w-prose text-sm text-muted-foreground">Where values come from: a reply in Slack or by mail, a personal form link, or a program through the API. Ziffr checks who sent each one and whether they may submit it.</p>
       {demo && (
         <DemoControls className="mb-6" hint={changes ? "Slack and Mail are played here: send a message as anyone. It goes through the same checks as a real one and is recorded, shared with every visitor until the demo starts fresh. Nothing is sent." : "Slack and Mail are played here: send a message as anyone. It goes through the same checks as a real one, so you can see whether a value would be accepted, rejected or added up. Nothing is saved."}>

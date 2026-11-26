@@ -8,6 +8,8 @@ An **Installation** is one running Ziffr, with all its Workspaces. Its **Install
 
 ## Becoming the first Installation Admin
 
+On a phone the Installation settings and the Feedback review say at the top that they are easier on a larger screen; see [Screens made for a larger screen](07-getting-started.md#screens-made-for-a-larger-screen).
+
 A new Ziffr has no Installation Admin. Until it has one, it writes a **setup code** to its server log each time it starts, such as `K7Q2-M9XD-4HRT-BW3N`.
 
 1. Sign in to Ziffr.

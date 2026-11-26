@@ -60,6 +60,12 @@ Every calculation on values is listed in the Calculation Catalogue (`docs/refere
 
 `pnpm test` runs the references on every change. `pnpm --filter @ziffr/core test:numbers` is the full-strength run. CI's `numbers` job runs it whenever a change touches a calculation path, and mutates the calculation modules the change touches, starting from the nightly run's results, in at most 20 minutes. Every night, every module is mutated, and the score must stay at least 95 %. How the tests work, what to do when one fails or a mutant survives, and how to add a case: `docs/guides/calculation-tests.md`.
 
+## Screens on a phone
+
+Every page of the app is in a Route Tier (spec 0055), listed in `apps/web/src/lib/route-tiers.ts`; a new page is added there, or a test fails. The Phone-first pages are also checked in a browser at 390 and 320 wide, light and dark, as a person of the demo (`apps/web/phone/`, in CI's `core-db` job): no sideways scroll, nothing to tap under 44 px, no field with text under 16 px. `walk.ts` there says how each Phone-first page is opened, or why it is not. To run it against your running app: `pnpm --filter @ziffr/web exec playwright install chromium-headless-shell` once, then `pnpm --filter @ziffr/web test:phone` (set `ZIFFR_TEST_URL` for another address than `http://localhost:3000`). It only reads.
+
+Fix what it finds. Where a rule cannot hold, `allowed.ts` there takes one entry for one rule, a narrow selector, the pages and the reason. The check measures sizes and widths only: look at a changed screen on a phone yourself too.
+
 ## Code health
 
 `pnpm lint` also runs `pnpm guards`: client components import only pure core modules, and the app reaches the database only through the core (tests included). CI runs the same two scripts, so they fail on your machine first.

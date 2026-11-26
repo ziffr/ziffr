@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { isDemo } from "@/lib/auth";
 import { AnalyzeScreen } from "./screen";
 import { HeadsUpsSection } from "./heads-ups";
+import { DesktopOnly } from "@/components/desktop-only";
 import { Suspense } from "react";
 
 export default async function AnalyzePage({ searchParams }: { searchParams: Promise<{ add?: string; metric?: string }> }) {
@@ -36,6 +37,7 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
       <Suspense fallback={<p className="-mt-4 mb-5 text-sm text-muted-foreground">Looking for Heads-ups…</p>}>
         <HeadsUpsSection actor={actor} demo={demo} />
       </Suspense>
+      <DesktopOnly path="/analyze" />
       <AnalyzeScreen data={data} demo={demo} onCanvas={onCanvas} writes={actor.role === "owner" || actor.role === "admin"} explained={demo ? named : state.explains !== null && onCanvas.includes(state.explains) ? state.explains : null} open={named !== null} />
     </>
   );

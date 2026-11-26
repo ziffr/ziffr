@@ -25,6 +25,7 @@ import { SOURCES } from "@/sources";
 import { isDemo } from "@/lib/auth";
 import { NameField } from "../name-field";
 import { CatalogBrowser } from "./catalog-browser";
+import { DesktopOnly } from "@/components/desktop-only";
 import { DerivedForm } from "./derived-form";
 import { formulaChoices } from "@ziffr/core/derived-metrics";
 import { workspaceProfile } from "@ziffr/core/workspace-settings";
@@ -79,6 +80,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
       <>
         <Link href="/metrics/new" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> Catalog</Link>
         <PageHeader title="New calculated metric" sub="A number worked out from other Metrics, such as a margin or the change since last week. Nobody is asked for its values." />
+        <DesktopOnly path="/metrics/new" />
         <LimitNotes refusal={refusal} note={note} />
         <DerivedForm choices={choices} />
       </>
@@ -92,6 +94,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
       <>
         {guide && <Link href="/setup?step=start" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> Back to the Setup Guide</Link>}
         <PageHeader title="New metric" sub="Start from the Metric Catalog, or describe one from scratch. You can change everything afterwards." />
+        <DesktopOnly path="/metrics/new" />
         <LimitNotes refusal={refusal} note={note} />
         <Link href={`/metrics/new?scratch=1${qs}`} className="mb-3 flex items-center gap-3 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 hover:bg-muted/40">
           <PenLine className="size-5 text-muted-foreground" />
@@ -130,6 +133,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
           ? "A new metric of yours with the same description. Values, Shares, Target Series and history stay with the original."
           : picked ? "Copied from the Metric Catalog. It’s your metric now: change anything, it won’t follow later catalog changes." : "Describe the metric before anyone can report values for it."}
       />
+      <DesktopOnly path="/metrics/new" />
       <LimitNotes refusal={refusal} note={note} />
       <form action={createMetric} className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <input type="hidden" name="from_catalog_id" value={copy ? "" : picked?.id ?? ""} />

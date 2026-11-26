@@ -15,6 +15,7 @@ import { OptedOutNote } from "./opted-out";
 import { SlackPanel } from "./slack-panel";
 import { TelegramPanel } from "./telegram-panel";
 import { whatWorksHere } from "@ziffr/core/what-works-here";
+import { DesktopOnly } from "@/components/desktop-only";
 
 const SLACK_OUTCOME: Record<string, string> = {
   connected: "Slack is connected.",
@@ -33,6 +34,7 @@ export default async function ConnectorsPage({ searchParams }: { searchParams: P
   const [optedOut, demo, slack, slackLink, slackStopped, telegram, telegramLink, telegramStopped, { slack: outcome }, installer, ways, mail, inbound] = await Promise.all([emailOptedOut(actor), isDemo(), slackConnection(actor), mySlackLink(actor), slackOptedOut(actor), telegramConnection(actor), myTelegramLink(actor), telegramOptedOut(actor), searchParams, installationActor(), whatWorksHere(actor), mailOn(), inboundOn()]);
   return (
     <div className="space-y-12">
+      <DesktopOnly path="/connectors" />
       {optedOut && <OptedOutNote />}
       {(slack.enabled || slack.team) && <SlackPanel connection={slack} link={slackLink} stopped={slackStopped} notice={outcome ? SLACK_OUTCOME[String(outcome)] : undefined} />}
       {telegram.configured && <TelegramPanel connection={telegram} linked={Boolean(telegramLink)} stopped={telegramStopped} />}
