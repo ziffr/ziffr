@@ -1,11 +1,13 @@
 # 0064 Value Notes, and one request for everything that is due
 
-**Status:** draft. **Ticket:** no tracking issue yet. It takes over #1176 (a note on **Record a value**).
+**Status:** in progress. **Tracking issue:** #1306 (label `tracking`); tickets #1307 to #1317 in the order of the table below. It takes over #1176 (a note on **Record a value**).
 
-## Decisions for you
+## Decisions
+
+The owner agreed on 2026-11-27 to build this, with decision 2 as written here, and no model that guesses what a reply means. Decisions 1 and 3 to 6 are built as recommended.
 
 1. **What the setting offers, and its default.** Recommended: **Ask for a note** with **Always** (whenever only a number came in), **Only when off target or unusual** and **Never**; the default is **Always**, for existing Metrics too. Context: the question is a line in a confirmation Ziffr already shows or sends, so asking creates no extra email.
-2. **How a later reply is read.** Recommended: once a person's value is in, only a number standing alone changes it, and any other words are the note. Context: this changes today's behaviour, where "actually 45" overwrites or adds to the value, but a note such as "3 deals slipped" must never become the value.
+2. **How a later reply is read.** Agreed: once a person's value is in, only a number standing alone changes it, and any other words are the note. Where those words hold one other number, Ziffr also offers it: "reply yes". Context: this changes today's behaviour, where "actually 45" overwrites or adds to the value, but a note such as "3 deals slipped" must never become the value unless the person says so. Rules read the reply; no model guesses.
 3. **How several figures are answered by text.** Recommended: one line each ("1: 45"), and plain numbers in order only when there is exactly one for every open figure; anything else is asked back. Context: guessing which figure a number belongs to would record wrong numbers without a sound.
 4. **One link for all figures.** Recommended: the one message carries one link that opens a form for exactly those figures without sign-in, for 30 days. Context: a forwarded message then opens several figures, where today's form link opens one.
 5. **Notes after Approval or Lock.** Recommended: a note may still be added or corrected, is marked "added later", and starts no new Approval. Context: the value is recorded at once, so the note often arrives after the Approver was asked.
@@ -227,11 +229,20 @@ One pure function reads every text reply, for single and Combined Prompts.
 | --- | --- |
 | A number alone ("45", "45 €", "October: 45"), also after "1:" or "Correction:", or a Breakdown | A new value, by the Submission Rule; the lines left over are its note |
 | A refusal or thanks alone ("no", "nein", "-", "thanks"), from a fixed list per Answer Language | Nothing saved; the question is closed |
-| Anything else, numbers included | The note of the one figure it can mean; a second one replaces the first, and the answer says so |
+| Anything else, numbers included | The note of the one figure it can mean; a second one replaces the first, and the answer says so. With one other number, the offer below |
 | The same, where it could mean several figures and no "1:" says which | Nothing saved; Ziffr asks which, in the same place |
 | Nothing left | Nothing |
 
 - Before a value is in, words alone are not a note: they are refused as today.
+
+**The offer.** Rules never guess whether words holding a number correct the value or explain it, so Ziffr asks the person.
+
+- It is made when a later reply was saved as a note, holds exactly one number (period words and "1:" labels not counted) and that number differs from the current value. It goes in the answer that is sent anyway, so it costs no extra message: "Saved as your note. Your value is still 45. To change it to 47, reply yes."
+- The words follow the Metric's Submission Rule: "to change it to 47" (overwrite), "to add 47" (add), "to record 47 as well" (keep both). Where the rule rejects a second value, there is no offer. A locked period offers to propose the Correction.
+- With several numbers there is no offer: "To change the value, send the number alone."
+- "Yes" alone, from a fixed list per Answer Language ("ok" and "thanks" are not on it), as the person's next reply in the same place, sends the offered number through `submitValue` with the saved words as its note. Anything else is read as usual and closes the offer, as do a change of the value by any way and the limits of late replies. Silence changes nothing.
+- A Held Reply's confirmation page shows the same choice as a button. From ticket 6, Slack also shows a button.
+- With no open offer, "yes" saves nothing. It never approves, sends back or confirms anything.
 - Late replies keep today's limits (30 days, a number of replies, only from that person, only while the Token holds). If the value was replaced meanwhile, the note is filed under the person's own earlier value, and the answer says so.
 - A message marked as automatic is never read. A reply nobody vouched for is held first, note or not.
 - **Chats without a reply link.** Slack and Telegram keep refusing a message outside a thread or reply. A later Connector without threads may attach a message only when exactly one question is open, asked in the last 15 minutes, and the message is not a lone number; otherwise it asks which.
@@ -250,7 +261,7 @@ Notes are checked in the core wherever they arrive: a string, trimmed, control a
 
 #### Storage, deletion and files
 
-- Add-only migrations: the notes, the questions asked (Delivery, figure, message id, open or closed), a Delivery's Prompts, the combined form's hash and the Metric setting. Each new table gets the demo guard, its demo classification and its place in the Practice Workspace copy, and goes with its Workspace and Metric.
+- Add-only migrations: the notes, the questions asked (Delivery, figure, message id, open or closed), a Delivery's Prompts, an open offer, the combined form's hash and the Metric setting. Each new table gets the demo guard, its demo classification and its place in the Practice Workspace copy, and goes with its Workspace and Metric.
 - Note words are sealed with the Workspace Key (`SEALED_COLUMNS`, the key change job included). Deleting the Workspace destroys the key.
 - Removing a person keeps their notes, named as their values are.
 - **Retention** removes the notes of periods it condenses or deletes. Its preview counts them, and the download before a delete holds them. Snapshots and frozen View Links keep their copies, as they keep numbers.
@@ -272,11 +283,11 @@ Each is one pull request, with its release note and the user guide chapter for a
 
 | # | Ticket | Needs first | Check | Security review |
 | --- | --- | --- | --- | --- |
-| 1 | The reply reader: value lines, numbered lines, notes, cleaning, refusals; pure, not yet wired | | A table of cases per rule above, English and German; every reply accepted today still gives the same number, except the cases this spec names | Sonnet |
+| 1 | The reply reader: value lines, numbered lines, notes, cleaning, refusals, the offered number and "yes"; pure, not yet wired | | A table of cases per rule above, English and German; every reply accepted today still gives the same number, except the cases this spec names | Sonnet |
 | 2 | Value Note core: tables, sealing, writing and reading with visibility, note with a value, history when values change, Retention, delete for good | | Database tests per row of the history and visibility rules | Opus |
 | 3 | Combined Prompt core: the list of Prompts, collecting in a run, the reminder, composing at send time, marking answered figures, the Outbox | | Database tests: one message per person, way and run; lost sight, archived and answered figures drop out; a failed run asks the rest | Opus |
 | 4 | The combined form, note fields on both forms and in **Record a value** and **Fill in for …** | 2, 3 | Phone checks at 390 and 320; the link opens nothing beyond its figures | Opus |
-| 5 | Replies: wire the reader into email, Held Replies, Slack and Telegram; numbered answers; later replies; switch the Combined Prompt on | 1, 2, 3, 4 | Database tests per row of the later reply table; release notes | Opus |
+| 5 | Replies: wire the reader into email, Held Replies, Slack and Telegram; numbered answers; later replies; switch the Combined Prompt on | 1, 2, 3, 4 | Database tests per row of the later reply table and per rule of the offer; release notes | Opus |
 | 6 | The question: the setting (also in bulk), asked in every confirmation, reply address, Telegram reply box, Slack buttons and windows (notes and **Enter all**) | 4, 5 | Asking sends no email of its own in any path; the question reveals no reason | Opus |
 | 7 | API and MCP: `value_note`, the note call, `add_value_note`, `value_note_wanted`, Feeds | 2, 6 | Client and MCP tests; a key without read learns nothing | Opus |
 | 8 | Showing and editing notes: Period Record, Metric page, History, Quick look, Timeline, Approval page and message | 2 | Phone checks; Guest and Total cases | Opus |
@@ -284,7 +295,7 @@ Each is one pull request, with its release note and the user guide chapter for a
 | 10 | Files: Values Download, Workspace download, Export and Import, Packs | 2, 6 | Round trip; formula guard | Opus |
 | 11 | Glossary check, user guide chapters 04, 10, 11, 12, 14, 16 and 17, threat model, demo data, and a review of the whole spec | all | `pnpm precheck`; a real email, Slack and Telegram round trip tried on a phone | Opus |
 
-Order: 1, 2 and 3 side by side; then 4 and 8; then 5. That is the first release worth making: one message, one form, notes in replies and on screen. Then 6; then 7, 9 and 10; then 11. The deck builder proof (`deck-builder-pptx-proof`, not on `main`) has a **What is behind it** column on its scorecard; it reads the same core loader as ticket 9.
+Order: 1, 2 and 3 side by side; then 4 and 8; then 5. That is the first release worth making: one message, one form, notes in replies and on screen. Then 6; then 7, 9 and 10; then 11. A later deck builder with the same column reads the same core loader as ticket 9.
 
 ### Estimate
 
