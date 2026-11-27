@@ -24,6 +24,7 @@ import { Preview, TemplatePreview } from "./preview";
 import { BROWSE_TEMPLATES, TemplateBrowser } from "./template-browser";
 import { useSlideOver } from "./slide-over-host";
 import { TEMPLATE_GROUPS, builtinTemplates } from "./template-groups";
+import { useFreeLayouts } from "@/decks/slide-license";
 
 /** What a Preview in the Pool shows: a drawing with the name and a line under it, or (`whole`) a body of its own. */
 type Shown = { key: string; draw: () => React.ReactNode; name: string; blurb?: string; whole?: boolean };
@@ -45,7 +46,9 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly }: { data: CanvasDa
   const metrics = inUse(data.metrics).filter((m) => match(m.name));
   // Metrics with the same name are told apart by owner, then period and unit.
   const notes = tellApart(inUse(data.metrics), (id) => people[id]?.name.split(" ")[0] ?? "someone");
-  const widgets = saved.filter((w) => match(w.title ?? ""));
+  // A saved free layout is offered only where one can be drawn.
+  const freeLayouts = useFreeLayouts(saved.some((w) => w.template === "canvas"));
+  const widgets = saved.filter((w) => (freeLayouts || w.template !== "canvas") && match(w.title ?? ""));
   // Slide layouts live under + Slide in decks; the Pool holds templates for single widgets.
   const templates = data.templates.filter((t): t is WidgetTemplate => t.kind === "widget" && match(t.name));
   const builtins = builtinTemplates(false).filter((t) => match(t.label) || match(t.blurb));

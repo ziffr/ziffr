@@ -21,6 +21,8 @@ import { KEPT_WORDS, keptDrawing, keptLine, liveMetricIds, onSlide, type Kept, t
 import { keptOf } from "./kept/kept-store";
 import { slideLines } from "./kept/slide-lines";
 import { widgetMetrics } from "@/views/widget-body";
+import { noteTextOf } from "@/views/note-view";
+import { noteBlocks } from "@ziffr/core/note-widget";
 import { storyBreakdown, storyDefaults } from "@/views/story";
 import { fillSettings, fillWidgetText } from "@ziffr/core/placeholders";
 import { FONTS } from "@ziffr/core/themes";
@@ -289,6 +291,7 @@ async function addWidget(pptx: Pptx, slide: Slide, id: TLShape["id"], widget: Sl
   // A widget of a deck made from a Snapshot before decks kept numbers exports the values of that period only, as it
   // draws them (spec 0013).
   const data = widget.settings.asOf ? dataAsOf(live, widget.settings.asOf) : live;
+  if (widget.template === "note") return addNote(pptx, slide, widget, at, line);
   const ms = widgetMetrics(widget, data);
   const m = ms[0];
   if (!m) return;
@@ -395,6 +398,20 @@ async function addWidget(pptx: Pptx, slide: Slide, id: TLShape["id"], widget: Sl
       { ...body, fontSize: 10, fontFace: FONT, color: INK, border: { type: "solid", pt: 0.5, color: RULE } },
     );
   }
+}
+
+/** A Note Widget as editable words on its card: the heading, then its paragraphs and lists. A highlighted one gets the
+ * accent's edge. The words are another person's text and go in as text only. */
+function addNote(pptx: Pptx, slide: Slide, widget: SlideWidget, at: { x: number; y: number; w: number; h: number }, line?: string) {
+  slide.addShape(pptx.ShapeType.roundRect, { ...at, rectRadius: 0.06, fill: { color: COTTON }, line: { color: RULE, width: 0.75 } });
+  if (widget.settings.noteHighlight === true) slide.addShape(pptx.ShapeType.rect, { x: at.x, y: at.y + 0.06, w: 0.06, h: Math.max(at.h - 0.12, 0.1), fill: { color: INK_2 } });
+  const runs: Exclude<Parameters<Slide["addText"]>[0], string> = widget.title ? [{ text: widget.title, options: { fontSize: 14, bold: true, breakLine: true } }] : [];
+  for (const b of noteBlocks(noteTextOf(widget.settings))) {
+    if (b.kind === "text") runs.push({ text: b.lines.join("\n"), options: { fontSize: 12, breakLine: true, paraSpaceAfter: 4 } });
+    else runs.push(...b.items.map((text, i) => ({ text, options: { fontSize: 12, breakLine: true, bullet: b.ordered ? { type: "number" as const, numberStartAt: b.start + i } : true } })));
+  }
+  if (runs.length) slide.addText(runs, { x: at.x + 0.18, y: at.y + 0.12, w: at.w - 0.33, h: at.h - 0.24 - (line ? LINE_H : 0), color: INK, fontFace: FONT, valign: "top", margin: 0, fit: "shrink" });
+  if (line) addPartLine(slide, line, at);
 }
 
 /** `data` lends the Themes and `kept` what the person exporting gets of Snapshots, for each page's line. */

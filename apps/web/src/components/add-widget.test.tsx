@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-// A dashboard's Add widget panel (#1338): it offers every style, the Metrics, saved widgets, templates and the layout;
-// + asks nothing for a style of one Metric; beside the dashboard a card is dragged, in the Slide-over it is tapped; and
+// A dashboard's Add widget panel (#1338): it offers the Note Widget, every style, the Metrics, saved widgets, templates
+// and, only where the slide editor has a key, the free layout (#1359); + asks nothing for a style of one Metric; beside the dashboard a card is dragged, in the Slide-over it is tapped; and
 // Escape closes it. Server actions and the drawings are replaced.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -8,7 +8,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { sampleCanvasData } from "@ziffr/core/sample-data";
 import type { Widget, WidgetTemplate } from "@ziffr/core/types";
 
-const { deleteSavedWidget } = vi.hoisted(() => ({ deleteSavedWidget: vi.fn<(id: number) => Promise<undefined>>(async () => undefined) }));
+const { deleteSavedWidget, slideKey } = vi.hoisted(() => ({ deleteSavedWidget: vi.fn<(id: number) => Promise<undefined>>(async () => undefined), slideKey: { set: true } }));
+vi.mock("@/decks/slide-license", () => ({ useFreeLayouts: () => slideKey.set }));
 vi.mock("@/app/canvas-actions", () => ({ deleteSavedWidget }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }), usePathname: () => "/dashboards/1" }));
 // The drawings are tested in preview.test.tsx; the template menu imports server actions.
@@ -24,7 +25,7 @@ const sample = sampleCanvasData("sara", "1,234.5");
 const template = { id: 7, kind: "widget", name: "Revenue card", description: "One number to watch.", owner_id: "sara", view: "number", w: 3, h: 4, slots: [{ label: "The number", multiple: false }], body: { metricSlots: [0], settings: {} } } as unknown as WidgetTemplate;
 const data = { ...sample, templates: [template] };
 const metric = data.metrics.find((m) => m.period === "month" && !Object.keys(data.breakdowns[m.id] ?? {}).length)!;
-const saved = [{ id: 31, template: "number", metric_ids: [metric.id], settings: {}, title: "My kept number", w: 3, h: 4 }] as unknown as Widget[];
+const saved = [{ id: 31, template: "number", metric_ids: [metric.id], settings: {}, title: "My kept number", w: 3, h: 4 }, { id: 32, template: "canvas", metric_ids: [], settings: {}, title: "My kept layout", w: 8, h: 10 }] as unknown as Widget[];
 
 let host: HTMLElement; let root: Root;
 const onAdd = vi.fn(); const onClose = vi.fn(); const onPick = vi.fn(); const onDrag = vi.fn();
@@ -36,7 +37,7 @@ async function mount(docked: boolean) {
   });
   await tick();
 }
-afterEach(async () => { await act(async () => root.unmount()); host.remove(); document.body.innerHTML = ""; vi.clearAllMocks(); });
+afterEach(async () => { await act(async () => root.unmount()); host.remove(); document.body.innerHTML = ""; vi.clearAllMocks(); slideKey.set = true; });
 
 const button = (name: string) => document.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`)!;
 const card = (id: string) => document.querySelector<HTMLElement>(`[data-card="${id}"]`)!;
@@ -52,7 +53,22 @@ describe("Add widget beside the dashboard", () => {
     const panel = document.querySelector<HTMLElement>("aside[aria-label='Add widget']")!;
     expect(document.activeElement).toBe(panel);
     expect(panel.querySelector("select")!.value).toBe(String(metric.id));
-    expect([...panel.querySelectorAll("section")].map((s) => s.getAttribute("aria-label"))).toEqual(["Views", "Analyses", "Findings", "Metrics", "My Widgets", "The team’s templates", "Layout"]);
+    expect([...panel.querySelectorAll("section")].map((s) => s.getAttribute("aria-label"))).toEqual(["Your words", "Views", "Analyses", "Findings", "Metrics", "My Widgets", "The team’s templates", "Layout"]);
+  });
+
+  it("adds a note widget with no question and no Metric", async () => {
+    await mount(true);
+    await act(async () => { button("Add Note widget").click(); });
+    expect(onAdd).toHaveBeenLastCalledWith({ type: "spec", template: "note", metricIds: [] }, [metric.id]);
+  });
+
+  it("offers no free layout, new or saved, where the slide editor has no key", async () => {
+    slideKey.set = false;
+    await mount(true);
+    expect([...document.querySelectorAll("section")].map((s) => s.getAttribute("aria-label"))).not.toContain("Layout");
+    expect(card("bcanvas")).toBeNull();
+    expect(card("w32")).toBeNull();
+    expect(card("w31")).not.toBeNull();
   });
 
   it("adds a style for one Metric with it and no question; one of several Metrics asks for its Slots, starting from it", async () => {

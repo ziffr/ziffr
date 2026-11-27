@@ -1,11 +1,13 @@
 "use client";
 // Draws a Widget (GLOSSARY: Widget, View): the Views for Metrics and Analyses are View Designs drawn by one renderer
-// (design-view.tsx); Findings and the free layout are drawn by their own code.
+// (design-view.tsx); Findings, the Note Widget and the free layout are drawn by their own code.
 import { BUILT_IN_DESIGNS, isDesignedView } from "@ziffr/core/built-in-designs";
 import { inputsProblem, targetProblem } from "@ziffr/core/formula";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { fillSettings } from "@ziffr/core/placeholders";
 import dynamic from "next/dynamic";
+import { FreeLayout } from "@/canvas/free-layout";
+import { NoteBody } from "./note-view";
 import { useSeriesReady } from "@/canvas/series-store";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
@@ -13,8 +15,6 @@ import { DesignView } from "./design-view";
 import { DesignBoundary } from "./design-boundary";
 
 
-// tldraw is browser-only; free layouts load it on demand.
-const LayoutView = dynamic(() => import("@/canvas/layout-view"), { ssr: false });
 // Observable Plot is only needed by stories: their code loads with the first story shown (still rendered on the server).
 const StoryBody = dynamic(() => import("./story").then((m) => m.StoryBody));
 
@@ -44,10 +44,12 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
   const ms = widgetMetrics(widget, data);
   // A page sends only the series it draws; one placed or picked since is fetched, with a quiet placeholder meanwhile.
   const ready = useSeriesReady(widgetMetricIds(widget.metric_ids, widget.settings), data);
+  // A Note Widget draws its own words and no Metric.
+  if (widget.template === "note") return <NoteBody settings={widget.settings} />;
   // A widget of "all Metrics tagged X" with nothing this viewer may see says so, and nothing about what they may not (spec 0038).
   if (widget.settings.tagSource && widget.metric_ids.length === 0) return <TagEmpty view={widget.settings.tagView} />;
   if (!ready) return <div aria-busy="true" aria-label="Loading values" className="h-full min-h-16 w-full animate-pulse rounded-[var(--radius-input)] bg-muted/40" />;
-  if (widget.template === "canvas") return <LayoutView settings={widget.settings} data={data} />;
+  if (widget.template === "canvas") return <FreeLayout settings={widget.settings} data={data} />;
   // A Slide Element draws on a slide only (decks/elements); nothing else places one.
   if (widget.template === "slide") return null;
   if (ms.length < widget.metric_ids.length) {

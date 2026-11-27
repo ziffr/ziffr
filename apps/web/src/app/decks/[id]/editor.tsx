@@ -17,6 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { noteDeckExport, readDeckNumbers, renameDeck, saveDeck, setDeckFooter } from "@/app/deck-actions";
 import { doneAddingToDeck } from "@/app/convert-actions";
+import { useFreeLayouts } from "@/decks/slide-license";
 import { DeleteDeckDialog } from "./delete-deck";
 import { Input } from "@/components/ui/input";
 import type { DropSource } from "@/app/canvas-actions";
@@ -508,6 +509,7 @@ function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: 
     return s && s.type === WIDGET_SHAPE ? (s as WidgetShape) : null;
   }, [editor]);
   const ensure = useEnsure();
+  const freeLayouts = useFreeLayouts();
   // Read from the editor prop: this panel stands outside the canvas, where tldraw's own hooks have no editor.
   const keeps = useValue("selected kept shape", () => (shape ? keptOf(editor).get(shape.id) : undefined), [editor, shape]);
   const numbers = useContext(KeptNumbers);
@@ -563,7 +565,7 @@ function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: 
         }}
         className="mt-1.5 h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm"
       >
-        {templatesFor(hasBreakdown).map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+        {templatesFor(hasBreakdown).filter((t) => freeLayouts || t.kind !== "layout").map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
       </select>
       <p className="mt-1.5 text-xs text-muted-foreground">Line, bars and ranked-bar Findings export as native, editable charts.</p>
       {kind === "story" && metric && (
