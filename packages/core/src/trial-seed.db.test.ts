@@ -33,14 +33,14 @@ async function newTrial() {
 const count = async (table: "metrics" | "workflows" | "dashboards" | "deliveries", ws: string) => (await db().from(table).select("id", { count: "exact", head: true }).eq("workspace_id", ws)).count;
 
 describe("a new Trial Workspace", () => {
-  it("holds no Metric, Workflow or dashboard, and its guide's Starting point is done", async () => {
+  it("holds no Metric, Workflow or dashboard, and its guide has no starting point chosen", async () => {
     const t = await newTrial();
     for (const table of ["metrics", "workflows", "dashboards", "deliveries"] as const) expect(await count(table, t.id), table).toBe(0);
     const { data: ws } = await db().from("workspaces").select("trial_test_metric_id, trial_guide_step").eq("id", t.id).single();
     // The Setup Guide (spec 0052) is the only guide: the Trial Guide's old column is no longer written.
     expect(ws).toEqual({ trial_test_metric_id: null, trial_guide_step: null });
     const { data: guide } = await db().from("setup_guides").select("starting_point, first_metric_id").eq("workspace_id", t.id).single();
-    expect(guide).toEqual({ starting_point: "scratch", first_metric_id: null });
+    expect(guide).toEqual({ starting_point: null, first_metric_id: null });
     // Questions, tasks and updates go by email, the team default; Prompts have no team default, so they go by every way
     // that reaches the person (#614).
     const { data: prefs } = await db().from("delivery_preferences").select("kind, connector").eq("workspace_id", t.id).is("user_id", null);
