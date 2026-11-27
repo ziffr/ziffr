@@ -232,9 +232,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         sub={metric.description}
         besideTitle={!isOwner && !record}
       >
-        {/* Record a value is the one main button, for someone who submits the Metric; Share is the owner's; the rest is in the ⋯ menu. */}
+        {/* Record a value is the one main button, for someone who submits the Metric; Edit is for who may change it; Share is the owner's; the rest is in the ⋯ menu. */}
         <MetricToolbar
-          id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug, description: metric.description, calculationNote: metric.calculation_note, unit: metric.unit, period: metric.period }} mcp={mcpAddress()} record={record} askable={askable}
+          id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug, description: metric.description, calculationNote: metric.calculation_note, unit: metric.unit, period: metric.period }} mcp={mcpAddress()} record={record} askable={askable} canEdit={canEdit}
           share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups, canInvite: can(actor, "manage-members"), warning: kind.shareWarning } : null} alert={alertMe ? { mine: alertMe.mine, choices: alertMe.choices, webhooks: alertMe.webhooks } : null}
           canDuplicate={can(actor, "create") && !metric.formula} canPaste={mayPaste(metric, tokens, actor.personId)} canCreateDashboard={can(actor, "create")} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
           archive={{ allowed: archivable && (!demo || demoChanges), archived: Boolean(metric.archived_at), totals: kind.asked }} canDelete={isOwner && !demo}

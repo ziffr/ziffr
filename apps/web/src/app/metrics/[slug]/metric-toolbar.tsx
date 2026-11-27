@@ -1,16 +1,20 @@
 "use client";
 // The toolbar of a Metric's page (GLOSSARY: Metric, Submitter, Alert, Archived Metric): Record a value is the one main
-// button for someone who submits it, Share sits beside it, and everything else is in the ⋯ menu, so the page does not
-// show eight equal buttons (ticket #521). The dialogs and slide-overs the menu opens live here, so they outlive it.
+// button for someone who submits it, Edit (for who may change it) and Share sit beside it, and everything else is in
+// the ⋯ menu, so the page does not show eight equal buttons (ticket #521). On a phone Edit is in the menu too. The dialogs and slide-overs the menu opens live here, so they outlive it.
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Archive, ArchiveRestore, Bell, Copy, History, LayoutDashboard, Send, Sigma, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Bell, Copy, History, LayoutDashboard, PencilLine, Send, Sigma, Trash2 } from "lucide-react";
 import { createDashboardNamed, placeWidget } from "@/app/canvas-actions";
 import { told } from "@/lib/action-toast";
 import { AlertMe, type WebhookChoice } from "@/components/alerts";
 import { DeleteMetrics } from "@/components/delete-metrics";
 import { usePanel } from "@/lib/panel-param";
+import { useMedia } from "@/lib/use-media";
+import { buttonVariants } from "@/components/ui/button";
+import { EDIT_HREF } from "./edit-panel";
 import { ObjectToolbar, type ObjectToolbarProps, type MenuEntry } from "@/components/object-toolbar";
 import { askNow } from "./ask-now";
 import { AssistantPrompt } from "./assistant-prompt";
@@ -29,6 +33,8 @@ export type MetricToolbarProps = Pick<ObjectToolbarProps, "id" | "people" | "sha
   /** Set when they submit the Metric: the form behind Record a value. */
   record: RecordingOffer | null;
   askable: boolean;
+  /** Whether they may change its description: its owner and Editors. The core checks again on saving. */
+  canEdit: boolean;
   alert: { mine: MyAlert[]; choices: AlertChoices; webhooks: WebhookChoice[] } | null;
   canDuplicate: boolean;
   /** Whether they may paste or upload values for it: it takes the web form and they submit it. */
@@ -47,9 +53,12 @@ export function MetricToolbar(p: MetricToolbarProps) {
   const [open, setOpen] = useState<"archive" | "delete" | "assistant" | "fill" | null>(null);
   const [, setAlertOpen] = usePanel("alert");
   const bringBack = useBringBack(p.metric.id, p.metric.name);
+  // A phone's header has no room for another button, so Edit is a menu entry there.
+  const phone = useMedia("(max-width: 639px)");
   // Opened from a menu item: wait until the menu has closed and returned focus.
   const show = (o: "archive" | "delete" | "assistant" | "fill") => () => { setTimeout(() => setOpen(o), 0); };
   const menu: MenuEntry[] = [
+    ...(p.canEdit && phone ? [{ label: "Edit", icon: <PencilLine aria-hidden />, onSelect: () => router.push(EDIT_HREF, { scroll: false }) }] : []),
     ...(p.askable ? [{ label: "Ask me now", icon: <Send aria-hidden />, onSelect: () => { void askNow(p.metric.id); } }] : []),
     ...(p.alert ? [{ label: "Alert me…", icon: <Bell aria-hidden />, onSelect: () => { setTimeout(() => setAlertOpen(true), 0); } }] : []),
     // For someone who submits the Metric: every way to bring its past values in, in one place (paste, template, assistant, system).
@@ -82,7 +91,9 @@ export function MetricToolbar(p: MetricToolbarProps) {
   }
   return (
     <>
-      <ObjectToolbar type="metric" id={p.id} people={p.people} share={p.share} menu={menu} lead={p.record ? <RecordValue offer={p.record} /> : undefined} />
+      <ObjectToolbar type="metric" id={p.id} people={p.people} share={p.share} menu={menu} lead={p.record ? <RecordValue offer={p.record} /> : undefined}>
+        {p.canEdit && <Link href={EDIT_HREF} scroll={false} className={buttonVariants({ variant: "outline", className: "max-sm:hidden" })}><PencilLine aria-hidden /> Edit</Link>}
+      </ObjectToolbar>
       {(p.record || p.canPaste) && <FillPast metric={p.metric} ways={{ paste: p.canPaste, assistant: Boolean(p.record), system: Boolean(p.record) }} open={open === "fill"} onOpenChange={(o) => setOpen(o ? "fill" : null)} onAssistant={show("assistant")} />}
       {p.record && <AssistantPrompt metric={{ ...p.metric, mcpUrl: p.mcp }} open={open === "assistant"} onOpenChange={(o) => setOpen(o ? "assistant" : null)} />}
       {p.alert && <AlertMe metric={p.metric} mine={p.alert.mine} choices={p.alert.choices} webhooks={p.alert.webhooks} controlled />}
