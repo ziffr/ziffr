@@ -83,6 +83,8 @@ const CASES: Record<string, Case> = {
   "auth-actions:signOut": { outside: "signing out, not the demo Workspace" },
   "workspace-import-actions:openImported": { outside: "opens a Workspace of one's own that an import made, never the demo" },
   "auth-actions:createWorkspace": { outside: "a Workspace of one's own, never the demo; refused during a demo visit" },
+  "first-steps/actions:makeWorkspace": { outside: "First Steps makes a Workspace of one's own, never the demo; switched off" },
+  "first-steps/actions:saveAnswers": { outside: "the Owner answers First Steps again; the core refuses a demo actor; switched off" },
   "auth-actions:switchWorkspace": { outside: "chooses one's own Workspace: a cookie" },
   "auth-actions:acceptInvite": { outside: "joins a real Workspace by its invitation" },
   "auth-actions:askToJoin": { outside: "asks to join a real Workspace" },

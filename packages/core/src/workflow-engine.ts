@@ -28,6 +28,7 @@ import { checkAlerts, checkMissingAlerts } from "./alert-firing";
 import { refreshAlertSight } from "./alerts";
 import { checkTells } from "./tell-firing";
 import { runChecklistItems } from "./checklist";
+import { startAsking, stepOf, type AskingRun } from "./asking-run";
 
 /** A Metric with its Workflow and the period at hand. */
 type Ctx = { m: Metric; wf: Workflow; period: string; yearStart: YearStart; numberStyle: NumberStyle; ws: string };
@@ -98,7 +99,7 @@ export type RunScope = "all" | "unscheduled" | { workflowId: number };
 /** Runs the Workflows of one workspace's Metrics as of a day: asks, reminds and escalates for missing values, and
  * checks values that came in. Returns what happened, in words. With `queue`, emails wait for the deliveries job.
  */
-export async function runWorkflows(workspaceId: string, asOf: string, actorId: string, { queue = false, scope = "all", skip }: { queue?: boolean; scope?: RunScope; /** Workflows left out of the run (the demo's showcase, which a visitor may not change). */ skip?: ReadonlySet<number> } = {}) {
+export async function runWorkflows(workspaceId: string, asOf: string, actorId: string, { queue = false, scope = "all", skip, asking }: { queue?: boolean; scope?: RunScope; /** Workflows left out of the run (the demo's showcase, which a visitor may not change). */ skip?: ReadonlySet<number>; /** The run this call is a part of, which the caller flushes (GLOSSARY: Combined Prompt); left out, the call is a run of its own. */ asking?: AskingRun | null } = {}) {
   const [{ data: sealedRows }, { data: sealedFlows }] = await Promise.all([
     db().from("metrics").select("*").eq("workspace_id", workspaceId).not("workflow_id", "is", null),
     // The workspace's Workflows once, not again for each Metric.
@@ -111,7 +112,9 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
   const log: string[] = [];
   // Alerts whose person lost or regained sight of their Metric, or whose Metric is archived: bookkeeping, no messages.
   if (typeof scope === "string") await refreshAlertSight(workspaceId).catch((e) => console.error("Alerts could not be refreshed:", e instanceof Error ? e.message : e));
-  for (const row of rows ?? []) {
+  const mine = asking === undefined ? startAsking(workspaceId, asOf) : null;
+  const run = asking ?? mine;
+  try { for (const row of rows ?? []) {
     const own = workflows.get(row.workflow_id as number);
     if (skip?.has(row.workflow_id as number)) continue;
     // A Workflow with an Asking Schedule is run by its own run, not by the Workspace's.
@@ -136,36 +139,43 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
     const people = await whoToAsk(m.id, asOf);
     const { data: feedTokens } = await db().from("tokens").select("submitter_id").eq("metric_id", m.id).is("stands_in_for", null);
     const feeds = [...(await feedsAmong((feedTokens ?? []).map((t) => t.submitter_id as string))).values()];
+    // Where Prompts are combined, what was asked is only recorded, and the owner only told, once the messages exist.
+    const step = stepOf(run);
+    const record = (done_steps: number[]) => step.done(async () => {
+      // Written later than it was decided, it must not undo what has happened to the period since.
+      const now = run ? await getState(m.id, period) : null;
+      if (!now || now.state === "asked") await setState(m.id, period, { state: "asked", done_steps });
+    });
     if (!state) {
-      for (const p of people) await deliverPrompt({ metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, queue, note: p.away ? "You stand in while your colleague is away." : undefined, standingInFor: p.ask !== p.submitter ? p.submitter : undefined });
-      await setState(m.id, period, { state: "asked", done_steps: [] });
+      for (const p of people) await deliverPrompt({ into: step.into, metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, queue, note: p.away ? "You stand in while your colleague is away." : undefined, standingInFor: p.ask !== p.submitter ? p.submitter : undefined });
+      await record([]);
       log.push(`${label}: asked ${people.map((p) => p.ask).join(", ")}, due ${due}`);
     }
-    for (const [i, step] of ctx.wf.config.steps.entries()) {
+    for (const [i, s] of ctx.wf.config.steps.entries()) {
       if (done.has(i)) continue;
-      if (step.type === "remind" && asOf >= shiftPeriod(due, "day", -step.daysBefore)) {
-        for (const p of people) await deliverPrompt({ metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, queue, note: `Reminder, due ${due}.`, reminder: true, standingInFor: p.ask !== p.submitter ? p.submitter : undefined });
+      if (s.type === "remind" && asOf >= shiftPeriod(due, "day", -s.daysBefore)) {
+        for (const p of people) await deliverPrompt({ into: step.into, metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, queue, note: `Reminder, due ${due}.`, reminder: true, standingInFor: p.ask !== p.submitter ? p.submitter : undefined });
         done.add(i);
         log.push(`${label}: reminded`);
       }
-      if (step.type === "escalate" && asOf > shiftPeriod(due, "day", step.daysAfter) ) {
-        if (step.to === "stand-in") {
-          for (const p of people) if (p.standIn && p.standIn !== p.ask) await deliverPrompt({ metricId: m.id, submitterId: p.standIn, senderId: ctx.wf.owner_id, period, queue, note: `The value was due ${due} and is still missing; you are the stand-in.`, standingInFor: p.submitter });
+      if (s.type === "escalate" && asOf > shiftPeriod(due, "day", s.daysAfter) ) {
+        if (s.to === "stand-in") {
+          for (const p of people) if (p.standIn && p.standIn !== p.ask) await deliverPrompt({ into: step.into, metricId: m.id, submitterId: p.standIn, senderId: ctx.wf.owner_id, period, queue, note: `The value was due ${due} and is still missing; you are the stand-in.`, standingInFor: p.submitter });
           log.push(`${label}: asked the stand-in`);
           // A Feed has no Stand-in: when it is what is missing, the owner hears of it instead (spec 0012).
           if (feeds.length) {
-            await escalateToOwner(ctx, due, actorId, queue, feeds);
+            await step.done(() => escalateToOwner(ctx, due, actorId, queue, feeds));
             log.push(`${label}: told the owner`);
           }
         } else {
-          await escalateToOwner(ctx, due, actorId, queue, feeds);
+          await step.done(() => escalateToOwner(ctx, due, actorId, queue, feeds));
           log.push(`${label}: told the owner`);
         }
         done.add(i);
       }
     }
-    await setState(m.id, period, { state: "asked", done_steps: [...done] });
-  }
+    await record([...done]);
+  } } finally { await mine?.flush(); }
   // The second loop (spec 0045): what works once per Workflow and period, not per Metric. The same scope, so an Asking
   // Schedule decides when these steps run too; a step whose day the Workflow does not run on goes out on its next run day.
   const metrics = (rows ?? []).map((r) => normalizeMetric(r) as Metric);
@@ -241,13 +251,14 @@ export async function settleMadeUpValue(metricId: number, period: string): Promi
 /** The first request for a new Metric's value (a Set up from a Pack): for the period that ended last, which is what a
  * Workflow's run asks for. On a Metric with a Workflow the period is marked asked, so the next run reminds and
  * escalates for it without asking a second time. Internal to the core: its caller has checked who may ask. */
-export async function askForEndedPeriod(metricId: number, submitterId: string, by: string): ReturnType<typeof deliverPrompt> {
+export async function askForEndedPeriod(metricId: number, submitterId: string, by: string, run?: AskingRun | null): ReturnType<typeof deliverPrompt> {
   const { data: m } = await db().from("metrics").select("workspace_id, period, workflow_id").eq("id", metricId).maybeSingle();
   if (!m) return false;
   const ws = String(m.workspace_id);
   const period = workingPeriod(await todayIn(ws), m.period as Period, await yearStartFor(ws, m.period as Period));
-  const sent = await deliverPrompt({ metricId, submitterId, senderId: by, period });
-  if (sent && m.workflow_id && !(await getState(metricId, period))) await setState(metricId, period, { state: "asked", done_steps: [] });
+  const step = stepOf(run);
+  const sent = await deliverPrompt({ into: step.into, metricId, submitterId, senderId: by, period });
+  if (sent && m.workflow_id) await step.done(async () => { if (!(await getState(metricId, period))) await setState(metricId, period, { state: "asked", done_steps: [] }); });
   return sent;
 }
 
