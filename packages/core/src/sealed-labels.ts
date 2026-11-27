@@ -13,4 +13,5 @@ export const SEALED_LABELS: Record<string, string> = {
   "observations.value": "Values", "observations.submitted_by_name": "Names of imported values' submitters", "observations.entered_by_name": "Names of who entered imported values", "observations.original_value": "Values before a Correction", "observation_history.value": "Replaced values", "breakdown_rows.value": "Breakdown row values",
   "breakdown_history.value": "Replaced Breakdown row values", "series_values.value": "Targets and Projections",
   "period_states.note": "Period notes", "slack_installations.bot_token": "Slack bot tokens", "tags.name": "Tag names", "pack_setup_lines.name": "Names of Set up lines",
+  "value_notes.words": "Value Notes", "value_notes.said_of": "Values notes were said of",
 };

@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/2",
+  "format": "ziffr.pack/3",
   "id": "ziffr/people",
   "name": "People and HR",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "summary": "Headcount, hires, leavers, open roles, time to hire, absence and engagement, with attrition worked out, a monthly dashboard and a Workflow that asks HR for the month's figures.",
   "author": {
     "name": "Ziffr"
@@ -16,6 +16,18 @@
   },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "Your team in numbers: who joined, who left and how people are.",
+    "happens": [
+      "The month's people figures are asked for",
+      "Engagement is asked for once a quarter",
+      "The dashboard fills in and works out attrition"
+    ],
+    "needs": [
+      "Headcount, hires, leavers and open roles",
+      "Time to hire, absence rate and engagement score"
+    ]
   },
   "guide": {
     "whatItsFor": [

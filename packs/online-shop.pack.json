@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/2",
+  "format": "ziffr.pack/3",
   "id": "ziffr/online-shop",
   "name": "Online shop",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "summary": "Orders, revenue by channel, average order value, conversion, returns and sessions, with a weekly dashboard and a Workflow that asks for the week's numbers on Monday.",
   "author": {
     "name": "Ziffr"
@@ -20,6 +20,17 @@
   },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "Your online shop's week on one page.",
+    "happens": [
+      "The week's shop figures are due on Monday",
+      "The dashboard fills in and works out the average order value"
+    ],
+    "needs": [
+      "Orders and revenue from your shop",
+      "Visits, conversion rate and return rate"
+    ]
   },
   "guide": {
     "whatItsFor": [
