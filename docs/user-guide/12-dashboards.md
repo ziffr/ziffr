@@ -530,7 +530,11 @@ The owner and Editors also see:
 **Take a Snapshot…** asks:
 
 - **Period**: **Month**, **Quarter**, **Half-year**, **Year** or **Week**.
-- **Which**: one of the last complete periods, the most recent first. Only a period that is over can be taken.
+- **Which**: one of the last complete periods, the most recent first. Only a period that is over can be taken. A period with no value for any Metric on the dashboard is marked **(no values)**, and one that has a Snapshot already is marked **(taken)**; neither can be chosen. The most recent period that is free and has values is chosen for you. A period has values when a value of it, or of any time before it, is recorded: the Snapshot keeps those earlier values.
+
+A period holds only one Snapshot, and nothing is overwritten: the dialog says "One Snapshot per period. To take it again, delete the old one first." **Open the Snapshot of …** opens the most recent one of the kind you chose.
+
+When no finished period of the kind you chose can be taken, **Take Snapshot** cannot be pressed. If none has values yet, the dialog says from which day the first one can be taken, for example "Your first weekly Snapshot can be taken from Monday 30 November"; if all with values are taken, it says so. It also names another **Period** that has one you can take, if there is one. On a dashboard without Metrics, such as one of Notes only, no period is ruled out for want of values.
 
 Press **Take Snapshot**. Ziffr keeps the dashboard as it is now, with the values up to the end of that period, and opens the Snapshot so you can write it up. To take one, you must see every Metric on the dashboard. A dashboard has at most one Snapshot per period, at most 500 in all, going back at most ten years.
 

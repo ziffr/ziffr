@@ -1,17 +1,18 @@
 "use client";
 // A dashboard's Snapshots (spec 0013, ticket #175; spec 0020; GLOSSARY: Snapshot): the list by its title, newest period first,
 // drafts marked, and Take a Snapshot… for its owner and Editors. The core decides which Snapshots are listed.
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Camera, ChevronDown, Repeat } from "lucide-react";
-import { setAutoSnapshots, takeSnapshot } from "@/app/snapshot-actions";
+import { setAutoSnapshots, snapshotChoices, takeSnapshot } from "@/app/snapshot-actions";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { completePeriods, type SnapshotPeriodKind } from "@ziffr/core/snapshot-periods";
+import { completePeriods, isFree, noValuesWords, offeredPeriods, type SnapshotChoices, type SnapshotPeriodKind } from "@ziffr/core/snapshot-periods";
 import type { SnapshotSummary } from "@ziffr/core/snapshots";
 import { type YearStart } from "@ziffr/core/periods";
 
@@ -60,13 +61,25 @@ export function SnapshotMenu({ dashboardId, snapshots, canTake, auto, yearStart 
   );
 }
 
-/** Picks the period to take a Snapshot of: the last complete month by default. */
+/** Picks the period to take a Snapshot of: by default the last complete month that has values and no Snapshot yet.
+ * The core says which periods have none or are taken; those cannot be chosen, and a taken one can be opened. */
 function TakeDialog({ dashboardId, yearStart, onClose }: { dashboardId: number; yearStart: YearStart; onClose: () => void }) {
   const [kind, setKind] = useState<SnapshotPeriodKind>("month");
-  const periods = completePeriods(kind, today(), kind === "week" ? 12 : 8, yearStart);
-  const [start, setStart] = useState(periods[0].start);
+  // Undefined while asking; null when the read failed, which rules no period out: taking says why not.
+  const [choices, setChoices] = useState<SnapshotChoices | null | undefined>(undefined);
+  useEffect(() => {
+    let open = true;
+    snapshotChoices(dashboardId).then((r) => { if (open) setChoices(unwrap(r)); }).catch(() => { if (open) setChoices(null); });
+    return () => { open = false; };
+  }, [dashboardId]);
+  const periods = choices ? choices[kind].periods : completePeriods(kind, today(), offeredPeriods(kind), yearStart).map((p) => ({ ...p, hasValues: true, takenId: null }));
+  const [picked, setStart] = useState<string | null>(null);
+  const free = periods.filter(isFree);
+  const start = (free.find((p) => p.start === picked) ?? free[0] ?? periods[0]).start;
+  const existing = periods.find((p) => p.takenId !== null);
+  const none = choices ? noValuesWords(choices, kind, today()) : null;
   const [pending, run] = useTransition();
-  const pick = (k: SnapshotPeriodKind) => { setKind(k); setStart(completePeriods(k, today(), 1, yearStart)[0].start); };
+  const pick = (k: SnapshotPeriodKind) => { setKind(k); setStart(null); };
   const select = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -83,13 +96,16 @@ function TakeDialog({ dashboardId, yearStart, onClose }: { dashboardId: number; 
           </label>
           <label className="space-y-1 text-sm"><span className="text-muted-foreground">Which</span>
             <select aria-label="Which period" value={start} onChange={(e) => setStart(e.target.value)} className={select}>
-              {periods.map((p) => <option key={p.start} value={p.start}>{p.label}</option>)}
+              {periods.map((p) => <option key={p.start} value={p.start} disabled={!isFree(p)}>{p.takenId !== null ? `${p.label} (taken)` : p.hasValues ? p.label : `${p.label} (no values)`}</option>)}
             </select>
           </label>
         </div>
+        <p className="text-sm text-muted-foreground">One Snapshot per period. To take it again, delete the old one first.</p>
+        {existing && <Link href={`/dashboards/${dashboardId}/snapshots/${existing.takenId}`} onClick={onClose} className="inline-flex min-h-11 items-center text-sm underline underline-offset-2">Open the Snapshot of {existing.label}</Link>}
+        {none && <p role="status" className="text-sm">{none}</p>}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button disabled={pending} onClick={() => run(async () => {
+          <Button disabled={pending || choices === undefined || Boolean(none)} onClick={() => run(async () => {
             try { unwrap(await takeSnapshot(dashboardId, kind, start)); } catch (err) {
               // A redirect after taking it is not a failure.
               if ((err as { digest?: string }).digest?.startsWith("NEXT_REDIRECT")) throw err;

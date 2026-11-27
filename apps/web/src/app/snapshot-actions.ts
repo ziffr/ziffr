@@ -27,6 +27,12 @@ export async function takeSnapshot(dashboardId: number, kind: string, start: str
   });
 }
 
+/** Which finished periods of a dashboard can be taken as a Snapshot. Only which have values and which are taken (with
+ * the id to open it) reaches the browser, and only for who may take the Snapshot. */
+export async function snapshotChoices(dashboardId: number) {
+  return attempt(async () => snapshots.snapshotChoices(await currentActor(), Number(dashboardId)));
+}
+
 /** Sets whether a dashboard takes a Snapshot of every week, month, quarter, half-year or year by itself; only its
  * owner may. */
 export async function setAutoSnapshots(dashboardId: number, every: string | null, waitDays: number) {

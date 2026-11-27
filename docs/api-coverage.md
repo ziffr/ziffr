@@ -152,6 +152,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `editSnapshotWords` (snapshots.ts): a Snapshot's words, showing it and deleting it stay with people (programs take and read Snapshots)
 - `showSnapshot` (snapshots.ts): a Snapshot's words, showing it and deleting it stay with people (programs take and read Snapshots)
 - `deleteSnapshot` (snapshots.ts): a Snapshot's words, showing it and deleting it stay with people (programs take and read Snapshots)
+- `snapshotChoices` (snapshots.ts): what the Take a Snapshot dialog offers; programs name a period, and a taken one is refused
 - `saveSlideLayout` (templates.ts): saving and managing templates and slide layouts
 - `saveDeckTemplate` (templates.ts): saving and managing templates and slide layouts
 - `saveWorkflowTemplate` (templates.ts): saving and managing templates and slide layouts

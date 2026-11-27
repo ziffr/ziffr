@@ -357,6 +357,7 @@ const CASES: Record<string, Case> = {
   "heads-up-actions:unmuteHeadsUpMetric": { blocked: () => [1] },
   "heads-up-actions:setHeadsUpChoices": { blocked: () => [{ byMessage: true }] },
   "settings-actions:setUsageDigestOn": { blocked: () => [false] },
+  "snapshot-actions:snapshotChoices": { reads: (i) => [i.dashboard] },
   "snapshot-actions:takeSnapshot": { open: (i) => [i.dashboard, "month", i.lastMonth] },
   "snapshot-actions:setAutoSnapshots": { blocked: (i) => [i.dashboard, "month", 2] },
   "snapshot-actions:editSnapshotWords": { nothing: "words for none of its widgets change nothing", open: (i) => [i.snapshot, { summary: "Changed" }] },
