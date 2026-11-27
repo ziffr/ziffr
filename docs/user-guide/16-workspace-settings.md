@@ -49,7 +49,7 @@ A public demo (a Ziffr that is only a demo) has no sign-in, takes no new Workspa
 
 After you sign in for the first time and belong to no Workspace yet, Ziffr opens **Start a workspace**, in the same plain column as the sign-in page: the Ziffr mark and a card with the form. **Start your trial**, an Invitation's page and the Setup Guide share that look.
 
-- Type the **Name of the workspace**, such as your name, your team or your company, and choose **Create workspace**. You become its Owner, and Ziffr opens it.
+- Type the **Name of the workspace**, such as your name, your team or your company, and choose **Create workspace**. You become its Owner, and Ziffr opens it. A message appears under the button only when the Workspace could not be made.
 - If a colleague already uses Ziffr, it is better to ask them to invite you, so you join their Workspace instead of starting a second one.
 - A new Workspace opens on the **Setup Guide** (**Set up your Workspace**, `/setup`), where its steps are, starting with **About you**; see [Getting started](07-getting-started.md#the-setup-guide). A thin **Setup line** above every page keeps it one click away until you finish or **Hide** it, see [The Setup line](07-getting-started.md#the-setup-line-and-opening-by-itself). On a trial, **Start your trial** opens the same Setup Guide.
 
@@ -120,7 +120,7 @@ Addresses at public mail providers, such as Gmail or Outlook, never count as a c
 
 An **Invitation** reaches you as an email or as a link someone sends you. Opening it asks you to sign in first, then shows **Join** followed by the Workspace's name and the role you are invited with, such as "You are invited as Member".
 
-- Choose **Join**. You become part of the Workspace with that role, and Ziffr opens it.
+- Choose **Join**. You become part of the Workspace with that role, and Ziffr opens it. A message appears under the button only when you could not join.
 - An Invitation sent to an email address works only for that address. If you are signed in with another one, the page says so: sign out and sign in with the invited address.
 - When the Workspace is a trial, the page says so under its title: who invited you, the day the trial ends and what follows (it becomes a subscription or is closed and its data deleted). The invitation email says the same and has a **Do not invite me again** link; with it, nobody can invite your address by email from this Ziffr again. You can still join through a link someone sends you.
 - An Invitation works once. If it has ended, was used already or was revoked, the page says "This invitation does not work any more". Ask whoever invited you for a new one.
