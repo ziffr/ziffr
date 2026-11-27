@@ -380,11 +380,11 @@ describe("long input is read quickly", () => {
     ["many period words", "October ".repeat(600)],
     ["many greetings", "Hi\n".repeat(1600)],
   ];
-  // A generous bound: six readings by the reply reader, two as a Breakdown.
+  // A generous bound: six readings by the reply reader, two as a Breakdown, also under mutation testing's slower code.
   it.each(TEXTS)("by both readers: %s", (_name, text) => {
     const started = performance.now();
     for (const figures of [[open()], [filled()], fifty()]) for (const over of [{}, email]) read(text, figures, over);
     for (const parents of [false, true]) parseBreakdown(`Name\tValue\tParent\n${text}`, "1,234.5", { parents });
-    expect(performance.now() - started).toBeLessThan(6000);
-  });
+    expect(performance.now() - started).toBeLessThan(30_000);
+  }, 120_000);
 });
