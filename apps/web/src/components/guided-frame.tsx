@@ -5,6 +5,12 @@ import { ArrowLeft, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/** A way out of the frame: a plain link, so the page is loaded anew. The app shell and its menu are drawn by the root
+ * layout, which a navigation in the browser would not draw again. */
+export function FullLoadLink({ children, ...props }: React.ComponentProps<"a">) {
+  return <a {...props}>{children}</a>;
+}
+
 /** A button of the frame: 44 px on a phone. */
 export const FRAME_TAP = "h-11 md:h-9";
 

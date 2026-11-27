@@ -1,13 +1,15 @@
-// Suggestions for a first Metric (GLOSSARY: Metric Catalog, Setup Guide, Business Function): the few catalog entries
-// offered to someone who chose "Explore on my own", picked from what they said in About you, each with one sentence in
-// everyday words. Pure and the same every time. It only picks among entries the caller already read, so it can show
+// Suggestions for a first Metric (GLOSSARY: Metric Catalog, First Steps, Setup Guide, Business Function): the few
+// catalog entries offered to someone who starts without a ready-made set, picked from what they said about themselves,
+// each with one sentence in everyday words. Pure and the same every time. It only picks among entries the caller already read, so it can show
 // nothing the person may not see; it never makes an entry up.
 import type { BusinessFunction } from "@ziffr/pack/business-functions";
 import type { Industry, Segment } from "@ziffr/pack/audience";
+import type { Topic } from "@ziffr/core/first-steps-screens";
 import type { CatalogMetric, Period } from "@ziffr/core/types";
 
-/** What the person and their Workspace said in About you; every part may be unanswered. */
-export type Answers = { function: BusinessFunction | null; industry: Industry | null; segment: Segment | null };
+/** What the person said about themselves and their Workspace; every part may be unanswered. `team` says it is a team
+ * or business, which is then offered nothing private. */
+export type Answers = { function: BusinessFunction | null; industry: Industry | null; segment: Segment | null; team?: boolean };
 
 /** One suggested catalog entry with its plain sentence. */
 export type Suggestion = { entry: CatalogMetric; line: string };
@@ -83,6 +85,16 @@ export const PLAIN: Record<string, string> = {
   "Workplace accidents": "How many accidents happened at work.",
   "Billable utilisation": "The share of working hours you can bill to clients.",
   "Capacity utilisation": "How much of your capacity was in use.",
+  "Hours of sleep": "How long you slept last night.",
+  "Money saved": "What you put aside.",
+  "Spending": "What you spent.",
+  "Account balance": "How much money is in your account.",
+  "Cups of coffee": "How much coffee you drank.",
+  "Pages read": "How many pages you read.",
+  "Screen time": "Hours you spent looking at your phone.",
+  "Club members": "How many people belong to your club.",
+  "Training attendance": "How many people came to training.",
+  "Fees received": "Membership fees that came in.",
 };
 
 /** For someone who said nothing: private and business alike. */
@@ -106,6 +118,15 @@ export const BY_FUNCTION: Record<BusinessFunction, readonly string[]> = {
 
 const PROFESSIONAL = ["Billable utilisation", "Revenue", "Cash balance", "New customers", "Sales meetings held", "Overdue receivables"];
 
+/** For someone who uses Ziffr alone, by what they would like to track; "other" is also for who did not say. */
+export const BY_TOPIC: Record<Topic, readonly string[]> = {
+  health: ["Running distance", "Body weight", "Hours of sleep"],
+  money: ["Money saved", "Spending", "Account balance"],
+  habits: ["Cups of coffee", "Pages read", "Screen time"],
+  club: ["Club members", "Training attendance", "Fees received"],
+  other: ["Running distance", "Money saved", "Cups of coffee"],
+};
+
 /** By the Workspace's industry; one without a list of its own gets the general business ones. */
 export const BY_INDUSTRY: Partial<Record<Industry, readonly string[]>> = {
   saas: ["Monthly recurring revenue", "Sign-ups", "Churn rate", "Daily active users", "Cash runway", "New customers"],
@@ -125,18 +146,33 @@ export const BY_INDUSTRY: Partial<Record<Industry, readonly string[]>> = {
 const fits = (c: CatalogMetric, { industry, segment }: Answers) =>
   (!industry || !c.industries || c.industries.includes(industry)) && (!segment || segment === "b2b2c" || !c.segments || c.segments.includes(segment));
 
-/** The first few catalog entries to offer: their own part of the business and their industry in turn, then general
- * ones. With neither answered, a mix of private and business ones. Names the catalog does not have are passed over. */
-export function suggestMetrics(items: readonly CatalogMetric[], answers: Answers): Suggestion[] {
-  // The entries every Workspace has come first in the list, so a Pack's entry of the same name does not replace one.
+// The entries by name. The ones every Workspace has come first in the list, so a Pack's entry of the same name does
+// not replace one.
+function named(items: readonly CatalogMetric[]): Map<string, CatalogMetric> {
   const byName = new Map<string, CatalogMetric>();
   for (const c of items) if (!byName.has(c.name)) byName.set(c.name, c);
+  return byName;
+}
+
+const offered = (byName: Map<string, CatalogMetric>, names: readonly string[]): Suggestion[] =>
+  names.filter((n) => byName.has(n)).map((n) => ({ entry: byName.get(n)!, line: PLAIN[n] }));
+
+/** The entries to offer someone who uses Ziffr alone: their topic's. Names the catalog does not have are passed over. */
+export function suggestForTopic(items: readonly CatalogMetric[], topic: Topic): Suggestion[] {
+  return offered(named(items), BY_TOPIC[topic]);
+}
+
+/** The first `count` catalog entries to offer: their own part of the business and their industry in turn, then general
+ * ones. With neither answered, and no team, a mix of private and business ones. Names the catalog does not have are
+ * passed over. */
+export function suggestMetrics(items: readonly CatalogMetric[], answers: Answers, count: number = SUGGESTION_COUNT): Suggestion[] {
+  const byName = named(items);
   const own = (answers.function && BY_FUNCTION[answers.function]) || [];
   const industry = (answers.industry && BY_INDUSTRY[answers.industry]) || [];
   const usable = (names: readonly string[]) => names.filter((n) => byName.has(n) && fits(byName.get(n)!, answers));
   const [a, b] = [usable(own), usable(industry)];
   const inTurn = Array.from({ length: Math.max(a.length, b.length) }, (_, i) => [a[i], b[i]]).flat().filter((n): n is string => n !== undefined);
   // An industry or a part of the business is an answer about work; "something else" with no listed industry is not.
-  const fill = answers.industry || inTurn.length ? [...ANY_BUSINESS, ...MIXED] : MIXED;
-  return [...new Set([...inTurn, ...usable(fill)])].slice(0, SUGGESTION_COUNT).map((n) => ({ entry: byName.get(n)!, line: PLAIN[n] }));
+  const fill = answers.team ? ANY_BUSINESS : answers.industry || inTurn.length ? [...ANY_BUSINESS, ...MIXED] : MIXED;
+  return offered(byName, [...new Set([...inTurn, ...usable(fill)])].slice(0, count));
 }
