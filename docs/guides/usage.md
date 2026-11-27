@@ -11,7 +11,7 @@ The Usage Feed is a [Feed](feeds.md) that lives in this repository (`packages/fe
 The quickest way is the **Ziffr operations** Pack: it brings a Metric for every figure below, with the right period, Aggregation and units, and a dashboard.
 
 1. In the Workspace that should hold the numbers, open Settings, Feeds, create a Feed named "Ziffr usage" and a Feed Key for it (copy the key; it is shown once).
-2. Open Workspace, Packs, **Choose a Pack file…** and pick `packs/ziffr-operations.pack.json` from this repository. Under the installed Pack choose **Set up from this Pack**, tick the Metrics, pick **Values come from the Feed** and choose the Feed, pick the dashboard "Ziffr operations", and **Set up**. The Feed becomes the Submitter of every Metric and their API Source is on, so nobody is asked for these numbers.
+2. Open Workspace, Packs, **Choose a Pack file…** and pick `packs/ziffr-operations.pack.json` from this repository. Under the installed Pack choose **Choose parts yourself**, tick the Metrics, pick **Values come from the Feed** and choose the Feed, pick the dashboard "Ziffr operations", and **Set up**. The Feed becomes the Submitter of every Metric and their API Source is on, so nobody is asked for these numbers.
 3. Continue below with the Usage Key and the settings. Doing it by hand instead works too: the Metrics only need the slugs listed under "The figures", the period day, and the Feed as Submitter.
 
 The same steps in detail:
@@ -53,7 +53,7 @@ An Owner or Admin can have the Workspace's own usage, the figures of the Usage p
 
 1. In the Workspace, Settings, Feeds: create a Feed (for example "Workspace usage") and a Feed Key.
 2. Settings, Access Keys: make a key with **Read usage figures**. Only Owners and Admins can; it is never offered to an assistant.
-3. Install **Workspace usage** (`packs/workspace-usage.pack.json`), **Set up from this Pack**, with the Feed as Submitter of its Metrics. The Pack has 18 Metrics, ordinary ones that count towards the [Workspace Limit](self-hosting.md); tick fewer if you want fewer.
+3. Install **Workspace usage** (`packs/workspace-usage.pack.json`), **Choose parts yourself**, with the Feed as Submitter of its Metrics. The Pack has 18 Metrics, ordinary ones that count towards the [Workspace Limit](self-hosting.md); tick fewer if you want fewer.
 4. Run the Feed from any cron, with the keys in the environment:
 
 ```sh skip="needs Usage Feed keys and the Feed program"

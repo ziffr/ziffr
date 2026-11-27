@@ -104,6 +104,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `changePackHolder` (pack-after-holder.ts): after a guided set-up, on the Pack's own screens; a program saves the Workflow, shares and chooses the Stand-in one by one
 - `packInvitees` (pack-after-invite.ts): Packs
 - `packInvite` (pack-after-invite.ts): after a guided set-up, on the Pack's own screens
+- `ownChecks` (pack-after-invite.ts): after a guided set-up, on the Pack's own screens; a program reads its person's open Actions
 - `sendFirstPackNumber` (pack-after-invite.ts): after a guided set-up, on the Pack's own screens; a person's first value, typed by them
 - `confirmPackNumber` (pack-after-invite.ts): after a guided set-up, on the Pack's own screens; a program confirms its person's Self-check on the Action
 - `invitePackPeople` (pack-after-invite.ts): after a guided set-up, on the Pack's own screens; inviting is a person's own press

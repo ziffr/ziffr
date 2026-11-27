@@ -1,6 +1,6 @@
 # 0068 Guided Pack set-up: "Use this pack", one question at a time
 
-**Status:** in progress (2026-11-27). Tracking issue #1341. Builds on spec 0030 (Packs) and spec 0058 (Positions, Repeats); changes how spec 0067 (First Steps) uses a Pack.
+**Status:** done (2026-11-27). Tracking issue #1341. Builds on spec 0030 (Packs) and spec 0058 (Positions, Repeats); changes how spec 0067 (First Steps) uses a Pack.
 
 **Screens:** [0068/screens.html](0068/screens.html) is the clickable draft (open it in a browser). It is the reference for flow and words. **Its styling is not**: only the app's shared tokens and components. Its names and numbers are made up. Where it differs from this spec, the spec wins.
 

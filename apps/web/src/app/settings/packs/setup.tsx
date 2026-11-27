@@ -1,5 +1,5 @@
 "use client";
-// Set up from this Pack (spec 0030, ticket 277, spec 0058; GLOSSARY: Pack, Metric Catalog, Derived Metric, Slot,
+// Choose parts yourself, the detailed set-up of a Pack (spec 0030, ticket 277, spec 0058, spec 0068; GLOSSARY: Pack, Metric Catalog, Derived Metric, Slot,
 // Workflow Template, Position, Repeat, Workspace Limit): an installed Pack's entries made into Metrics, its Dashboard
 // Templates into dashboards and its Workflow Templates into Workflows, as the person picks, with the lines of its
 // Repeats and the people of its Positions. A large set is made in steps. The same form adds one line to what was set

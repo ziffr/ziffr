@@ -10,6 +10,26 @@ A **Pack** is a file of ready-made things for a Workspace: Metric Catalog entrie
 
 Each Pack shows "by" its author, with its logo when it has one, in a bordered box next to the name, and says who vouches for both. A Pack installed from the Marketplace says **Published through the Marketplace as @handle. Checked by program. No person reviewed it.** The last sentence is left out only when the Marketplace signed that a person looked at that version. The signature shows where the file came from, and the checks run on every Pack are the protection. A Pack installed from a file says **Uploaded file. The Marketplace did not check it. Its name and logo are what the file says about itself.**, shows the id as the file writes it, and, when the id begins with `ziffr/`, adds **This file says it is from Ziffr. It is not signed by the Marketplace.** There is no badge: read the lines. The logo is shown only here, in the install preview and on the update page, never anywhere else in Ziffr.
 
+## Use this pack
+
+**Use this pack** sets a Pack up one question at a time. It is on Ziffr's own Packs, on the preview of a Pack from the Marketplace or from a file, and in the [Setup Guide](07-getting-started.md#the-setup-guide). It is for Owners and Admins. A Pack with nothing to set up (no Dashboard, Deck or Workflow Template) has **Add to my Workspace** instead: it adds the Pack and says what was added and where it is.
+
+| Screen | When you see it | What it asks |
+| --- | --- | --- |
+| **Preview** | First, for one of Ziffr's own Packs | The Pack's name and one sentence, its first dashboard (or first slides) drawn with Sample Data, what happens once it is set up and what to have ready. For a Marketplace Pack or a file, its [Preview](#installing-from-a-file) comes first, and the questions follow |
+| **A list**, such as your sales team | For each Repeat | A name and email address for each line, or someone already here. **+ Add another**, or paste a list |
+| **A place**, such as who approves | For each other Position that is used | **I do**, **Someone already here**, or **Someone else** by name and email address |
+| **Who provides these numbers?** | When no Position submits them | **I do**, other people (up to 5), or **Nobody for now** |
+| **A number**, such as a quota | When the Pack asks one | A figure for each line, or one, written as the Metric's target. **Add later** skips it |
+| **Where do the numbers come from?** | When a number can come from a system | People type them, or from your system or a spreadsheet |
+| **Ready to start?** | Last | Who does what, who is asked and when, what is made, the proposed Shares and anything you have to confirm |
+
+**Set it up** makes the Metrics, dashboards, Workflows and decks. Nothing is written before it, except that a Pack from the Marketplace or a file is installed on its Preview. Nothing is sent to anyone. A new person is added as a Contact; where their place needs a role, such as approving, you hold it until they have joined. If the set-up stops on the way, it says what was made, and **Try again** makes only what is missing. **Finish later** leaves; your answers stay in this browser tab, and the installed Pack offers **Finish setting up**.
+
+The last screen says who is asked and when, and opens the dashboard or slides. In a trial where you have sent no value yet, it asks for your first number, which opens invitations.
+
+**Later, on the installed Pack:** **Set it up** (never set up), **Open dashboard**, **Choose who provides them**, **Add a** line, set a number **for a new quarter**, **Change who approves**, **Invite the people from this set-up**, and [Choose parts yourself](#set-up-with-positions), a form where you pick each part. Only what applies to the Pack and to you is shown.
+
 ## Who does what in a Pack
 
 A Pack may name **Positions**, such as "Sales lead" or "Salesperson": places that people fill when the Pack is set up. It names no person. It may also have **Repeats**: parts that are made once for each line of a list, such as each salesperson or site.
@@ -22,27 +42,27 @@ The preview of such a Pack shows this before you install it, and the installed P
 | **Who does what (Positions)** | Each Position, whether one person or several fill it (also once per line), and what it does: which Metrics it submits or stands in for, where it approves, which Checklist Items it is told or ticks off, and which Snapshot it gets. |
 | **Shares it proposes** | Each Position the Pack proposes to share Metrics or dashboards with, as Viewer or Editor. Installing shares nothing and sends nothing. |
 
-An item you removed after installing is left out, and so are the Positions of a Workflow Template kept from another version of the Pack. [Set up from this Pack](#set-up-with-positions) asks who fills each Position.
+An item you removed after installing is left out, and so are the Positions of a Workflow Template kept from another version of the Pack. [Use this pack](#use-this-pack) asks who fills each Position.
 
 ## Ziffr's own Packs
 
 **Ziffr's own Packs** lists the thirteen Packs that come with this version of Ziffr, for Owners and Admins. Each shows its name, version and summary and what it brings as counts (for example "13 Metrics, 2 dashboards, 2 Workflows"). It works on any Installation, also a self-hosted one with no Marketplace: nothing is downloaded and nothing leaves your server.
 
-Choose **Preview with Sample Data** to open the Pack's Preview. It is a view of its own beside the list, and on a phone it covers the whole screen. **Back to the list**, the close button or Escape take you back and install nothing. From the top it shows:
+Choose **Use this pack** to see the Pack and [set it up](#use-this-pack); **Finish later** leads back and installs nothing. A Pack you have not added yet that has nothing to set up offers **Preview with Sample Data** instead: a view of its own beside the list (on a phone it covers the whole screen), which **Back to the list**, the close button or Escape close without adding anything. A Pack's Preview shows, from the top:
 
 1. The Pack's name, version and one sentence about it, with its author and who vouches for them.
 2. Its first dashboard, drawn with Sample Data and never your own values. On a phone you see the dashboard's first three widgets, one below the other, and how many more there are.
-3. **Install**, with whatever you have to confirm first, the license and the Pack's links.
+3. The button, **Use this pack** or **Add to my Workspace**, with whatever you have to confirm first, the license and the Pack's links.
 4. **How it works**, the Pack's [guide](#a-packs-guide). It stays closed until you choose it.
 5. **What it brings**: how many items, [where the numbers come from](#where-a-packs-numbers-come-from), who does what, and every item.
 
-Its Dashboard Templates show made-up numbers under the Pack's own Metric names; a Metric made once for each line of a Repeat is drawn for three made-up lines, such as “Commit, Salesperson A”. Under each Metric it shows its description and, where the Pack has one, **How it is calculated**: what counts, where the figure comes from and which adjustments are made. A Metric you set up from the Pack gets that text, and it is yours to change. These Packs need no confirmation about where they came from; texts aimed at assistants, if one ever had any, would still be listed and need a tick. Choose **Install** to add it. Nothing installs until you do, and the Audit log records it as installed from Ziffr's own Packs. A Pack that holds a Theme, such as SaaS metrics, Board meeting and Sales forecast, needs an Owner. A Pack that is installed already shows its version instead of a Preview.
+Its Dashboard Templates show made-up numbers under the Pack's own Metric names; a Metric made once for each line of a Repeat is drawn for three made-up lines, such as “Commit, Salesperson A”. Under each Metric it shows its description and, where the Pack has one, **How it is calculated**: what counts, where the figure comes from and which adjustments are made. A Metric you set up from the Pack gets that text, and it is yours to change. These Packs need no confirmation about where they came from; texts aimed at assistants, if one ever had any, would still be listed and need a tick. One of Ziffr's own Packs is installed when you press **Set it up** (or **Add to my Workspace**), and the Audit log records it as installed from Ziffr's own Packs. A Pack that holds a Theme, such as SaaS metrics, Board meeting and Sales forecast, needs an Owner. A Pack that is installed already shows its version instead of a Preview.
 
 When a newer Ziffr brings a newer version of a Pack you installed, that Pack shows **Version … comes with this Ziffr…**, which shows what an update changes before it is done, as under Updating a Pack. It is never applied by itself.
 
 ## Made-up numbers in a Practice Workspace
 
-In a [Practice Workspace](18-installation-settings.md#practice-workspace), a Pack you set up can be filled at once, so its dashboards and slides have something to show. After **Set up** choose **Fill with made-up numbers**; the same button stays on the installed Pack. It fills the Metrics your Set ups made, a few at a time, and says how far it is.
+In a [Practice Workspace](18-installation-settings.md#practice-workspace), a Pack you set up can be filled at once, so its dashboards and slides have something to show. After setting it up choose **Fill with made-up numbers**; the same button stays on the installed Pack. It fills the Metrics your Set ups made, a few at a time, and says how far it is.
 
 - **Values** for every period from the start of the previous Fiscal Year, and never less than 13 months back (at least 8 quarters and 3 years for quarterly and yearly Metrics), so year on year, year to date against last year and the period before all work. They follow a mild trend and season in the Metric's unit, and are marked as imports.
 - **Where a Metric has a Submitter, the latest two periods stay empty:** the one that ended last, which is the one a request asks for, and the running one. So you can try the Workflow: **Run today's steps now** asks for last week's figures, you answer, and the Approver approves. A period a Workflow already asked for is left alone too.
@@ -64,23 +84,23 @@ On a phone the Packs page says at the top that it is easier on a larger screen; 
 
 Ziffr makes thirteen starting Packs: SaaS metrics, Online shop, Agency or freelancer, Sports club and a Board meeting deck; five for the functions of a business that any company can use (Sales, Finance, People and HR, Customer support, and Operations and fulfilment); [Sales forecast](#the-sales-forecast-pack), for the weekly forecast meeting; and two for Ziffr's own figures (Workspace usage and Ziffr operations). Each brings its Metrics, a dashboard and a Workflow, and names the ready n8n templates that can fill them. They come with Ziffr: install one from **Ziffr's own Packs**, above, with no download. Their files are also in the `packs` folder of Ziffr's repository, to read or to install as a file.
 
-**SaaS metrics** is the fullest: 13 Metrics with Tags, a monthly management report (a dashboard and a deck), a quarterly board deck, Workflows for the monthly and the quarterly close, an Analysis Recipe with its View Design, and a Theme that shows the Pack's logo. It holds a Theme, so an Owner installs it. **Set up from this Pack** makes its Metrics, the monthly dashboard and a close Workflow in one go; the decks start from **From a Deck Template** on the Decks page, with the Pack's Theme already chosen.
+**SaaS metrics** is the fullest: 13 Metrics with Tags, a monthly management report (a dashboard and a deck), a quarterly board deck, Workflows for the monthly and the quarterly close, an Analysis Recipe with its View Design, and a Theme that shows the Pack's logo. It holds a Theme, so an Owner installs it. **Choose parts yourself** makes its Metrics, the monthly dashboard and a close Workflow in one go; the decks start from **From a Deck Template** on the Decks page, with the Pack's Theme already chosen.
 
-**Install a Pack from a file** is for Owners and Admins. A Pack that holds Themes needs an Owner, since only Owners change Themes. The demo installs no Packs and opens none.
+**Add a Pack from a file** is for Owners and Admins. A Pack that holds Themes needs an Owner, since only Owners change Themes. The demo installs no Packs and opens none.
 
 1. Choose **Choose a Pack file…** and pick the Pack's file (at most 1 MiB). Ziffr checks the whole file before it shows anything. If something in it is wrong, it lists every problem with its line, and installs nothing.
-2. Ziffr opens the Pack's Preview, laid out as for [Ziffr's own Packs](#ziffrs-own-packs): name, version, summary, author with its logo and who vouches for them, the first dashboard, **Install** with the license, **How it works** and, under **What it brings**, every item the Pack adds. A Theme that comes with the Pack's logo says so. Dashboard Templates and View Designs are drawn with Sample Data, never your own values; Themes show their colours.
-3. It says **Uploaded file. The Marketplace did not check it.** Tick **I install a file the Marketplace did not check.**
+2. Ziffr opens the Pack's Preview, laid out as for [Ziffr's own Packs](#ziffrs-own-packs): name, version, summary, author with its logo and who vouches for them, the first dashboard, **Use this pack** (or **Add to my Workspace**) with the license, **How it works** and, under **What it brings**, every item the Pack adds. A Theme that comes with the Pack's logo says so. Dashboard Templates and View Designs are drawn with Sample Data, never your own values; Themes show their colours.
+3. It says **Uploaded file. The Marketplace did not check it.** Tick **I add a file the Marketplace did not check.**
 4. If any text in the Pack reads like an instruction to an AI assistant, such as "ignore your instructions", Ziffr lists each one. Assistants connected to the Workspace read Metric descriptions, but can only do what their key allows. Read them, then tick **I read the words aimed at assistants.**
-5. Choose **Install**, which works once you ticked what is asked. The view closes, and the list shows the Pack. The Pack is installed whole or not at all, and the Audit log records it.
+5. Choose **Use this pack** or **Add to my Workspace**, which works once you ticked what is asked. The Pack is installed whole or not at all, and the Audit log records it. **Use this pack** then opens the [guided set-up](#use-this-pack) at its first question; **Add to my Workspace** closes the view and says what was added.
 
-Installing makes no Metric, Workflow, dashboard or deck, sends nothing and changes nothing already in the Workspace. Its Metric Catalog entries appear under **New metric** (a Derived Metric's entry only through **Set up from this Pack**, below), its templates where you start a dashboard, deck or Workflow, its View Designs under **Workspace → Library** (an Analysis Recipe as a View Design that draws it), and its Themes on the Themes page. Two Packs may describe the same Metric, such as Revenue: the Metric Catalog then lists both, each under its Pack. A Pack that is installed already is not installed again: update it instead.
+Installing by itself makes no Metric, Workflow, dashboard or deck, sends nothing and changes nothing already in the Workspace. Its Metric Catalog entries appear under **New metric** (a Derived Metric's entry only through setting the Pack up), its templates where you start a dashboard, deck or Workflow, its View Designs under **Workspace → Library** (an Analysis Recipe as a View Design that draws it), and its Themes on the Themes page. Two Packs may describe the same Metric, such as Revenue: the Metric Catalog then lists both, each under its Pack. A Pack that is installed already is not installed again: update it instead.
 
-The [Setup Guide](07-getting-started.md#the-setup-guide) offers the same Packs in its **Starting point** step, ranked for your Workspace, with the same Preview, Install and **Set up from this Pack**; there the form starts with only the first three Metrics ticked, so your first Metrics exist quickly, and a second press makes nothing twice.
+The [Setup Guide](07-getting-started.md#the-setup-guide) offers the same Packs in its **Starting point** step, ranked for your Workspace, with the same **Use this pack** and **Add to my Workspace**.
 
 ## The Sales forecast Pack
 
-**Sales forecast** is for a team that calls its quarter every week. It is a Pack of its own: the monthly **Sales** Pack stays as it is, and you can have both. It has two [Positions](#who-does-what-in-a-pack), **Sales lead** and **Salesperson**, and a [Repeat](#who-does-what-in-a-pack) of up to 30 salespeople. **Set up from this Pack** asks you to list each salesperson and to say who the sales lead is, and makes:
+**Sales forecast** is for a team that calls its quarter every week. It is a Pack of its own: the monthly **Sales** Pack stays as it is, and you can have both. It has two [Positions](#who-does-what-in-a-pack), **Sales lead** and **Salesperson**, and a [Repeat](#who-does-what-in-a-pack) of up to 30 salespeople. **Use this pack** asks you to list each salesperson and to say who the sales lead is, and makes:
 
 | What | What it does |
 | --- | --- |
@@ -140,7 +160,7 @@ Three Themes come with the Pack, **Forecast Navy** (the deck starts with it), **
 
 **In a Workspace of one**, nobody else can approve, so every value waits for your own check. Change the Approve step to **Unusual values only** if that is more than you want.
 
-**From your CRM.** Instead of asking people, n8n can send each salesperson's **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, and from the first two also **Commit** and **Best case** if you like. Choose **Fill from n8n** on one of these Metrics and a forecast template, leave its settings for the team's figures empty, since those are Totals and take no values, and give each salesperson a line in its **Owners** node ([what they send and when](../automations/crm-forecast-feeds.md)). A figure that came from the CRM is approved like any other, but its first value is not checked for being unusual. The Pack marks **Closed this quarter** and **Pipeline value** as sent by a CRM, so **Set up from this Pack** asks nobody for them; a salesperson is proposed as their Viewer instead.
+**From your CRM.** Instead of asking people, n8n can send each salesperson's **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, and from the first two also **Commit** and **Best case** if you like. Choose **Fill from n8n** on one of these Metrics and a forecast template, leave its settings for the team's figures empty, since those are Totals and take no values, and give each salesperson a line in its **Owners** node ([what they send and when](../automations/crm-forecast-feeds.md)). A figure that came from the CRM is approved like any other, but its first value is not checked for being unusual. The Pack marks **Closed this quarter** and **Pipeline value** as sent by a CRM, so **Choose parts yourself** asks nobody for them; a salesperson is proposed as their Viewer instead.
 
 **From a spreadsheet.** **Fill from n8n** also offers Google Sheets and Microsoft Excel templates. Any figure of a salesperson can also be typed by whoever submits it.
 
@@ -166,7 +186,7 @@ The creator may say who or what sends a number and add a note; where they say no
 
 Under it, **Included** lists what installing brings, its Workflows with what each does and the templates delivered, and **What you still need** lists what is yours to provide: people to ask, connections to other systems, targets to set, Approvers, who gets a Snapshot, and an Owner where the Pack holds a Theme.
 
-Both are in Help with an installed Pack, also one without a guide (the Pack then shows **What it needs**). **Set up from this Pack** shows the same table and **What you still need**. Nobody is asked for a number another system sends or one set as a target: **Make me the Submitter of their values** covers only the other numbers, and whoever holds a Position submits only those too. **Ask me also for …** makes you the Submitter of the other ones where you would submit them; nobody else is asked for them either way. You can add Submitters later on each Metric's page. A Pack installed before Ziffr kept this shows it after an update to a newer version.
+Both are in Help with an installed Pack, also one without a guide (the Pack then shows **What it needs**). **Choose parts yourself** shows the same table and **What you still need**. Nobody is asked for a number another system sends or one set as a target: **Make me the Submitter of their values** covers only the other numbers, and whoever holds a Position submits only those too. **Ask me also for …** makes you the Submitter of the other ones where you would submit them; nobody else is asked for them either way. You can add Submitters later on each Metric's page. A Pack installed before Ziffr kept this shows it after an update to a newer version.
 
 ## A Pack's guide
 
@@ -181,7 +201,7 @@ The words are the creator's, not Ziffr's. They are headings, paragraphs, lists a
 **After installing,** the guide is in Help. The installed Pack shows **Read its guide**, and the message that says a Pack was installed offers the same. In Help, **Guides from your Packs** lists every installed Pack that has one: at the top on the Packs screen and in the list of chapters, further down on other screens. Everyone who sees the installed Packs reads their guides: Owners, Admins and Members, not Guests. A guide changes nobody's rights and is never part of a Snapshot, a View Link or a message. Updating a Pack replaces its guide with the new version's, or removes it when that one has none; uninstalling removes it. A Pack installed before Ziffr kept guides has none until it is updated to a newer version. A Workspace Export does not hold the installed Packs, so it holds no guide.
 
 
-Installing adds only entries and templates. **Set up from this Pack**, under an installed Pack, turns them into things you use. It is for Owners and Admins.
+Installing adds only entries and templates. [Use this pack](#use-this-pack) turns them into things you use. To pick each part yourself, choose **Choose parts yourself** under an installed Pack. It is for Owners and Admins.
 
 The form opens with the whole Pack chosen: every Metric ticked, the dashboard and the Workflow picked when the Pack has exactly one of each, and, when you are the only member of the Workspace, you as the Approver when its Approve step asks for just one. Press **Set up** to take it all, or untick and change what you do not want. Setting up sends no request for values unless you tick **Send the first requests now**. When the Workspace has other members, Approvers start empty: you pick them.
 
@@ -232,7 +252,7 @@ What it makes are ordinary Metrics, a dashboard and a Workflow, as if you made t
 
 When an Installation Admin turned on the Marketplace connection, Owners and Admins see **From the Marketplace**. It shows the newest free Packs as soon as the page opens, in two parts: **From Ziffr**, the Packs published under `ziffr/`, and **Community**, everyone else's. A search by a word narrows both. A Pack says **New creator** while its creator has published only recently (or a report against them was upheld), and **Installed, version …** when your Workspace has it already, also when it came with Ziffr or from a file.
 
-Choose **See what it adds** to open a Pack's [Preview](#ziffrs-own-packs), drawn with Sample Data. Ziffr first checks that the Marketplace signed exactly that file; a file that fails is not shown. The Preview says who published it, **Checked by program**, and **No person reviewed it** unless one did. It needs no warning about where it came from; texts aimed at assistants are still listed and need a tick. Installing works as from a file.
+Choose **See what it adds** to open a Pack's [Preview](#ziffrs-own-packs), drawn with Sample Data. Ziffr first checks that the Marketplace signed exactly that file; a file that fails is not shown. The Preview says who published it, **Checked by program**, and **No person reviewed it** unless one did. It needs no warning about where it came from; texts aimed at assistants are still listed and need a tick. **Use this pack** and **Add to my Workspace** work as for a file.
 
 Opening the page asks the Marketplace for the newest Packs from your server; a search sends the words you typed, and opening a Pack names it and its version. Nothing about your Workspace or you is sent. Once a day Ziffr asks which installed Packs have newer versions; an installed Pack with one shows **Version … on the Marketplace…**, which shows what an update changes before it is done.
 
@@ -293,8 +313,6 @@ A guide holds no link, web or email address, image, HTML or code, a paragraph or
 When what you picked came from an installed Pack that has a guide, or the id you gave is that Pack's, the step offers **Use its guide**: it fills the fields with that guide, for you to change. The words are their author's, so take them over only if you may.
 
 ### Set-up questions and Try it
-
-*These two come with the guided set-up of a Pack, which is not switched on yet: until it is, the step does not show them.*
 
 Under **Set-up questions**, at the end of **Describe your Pack**, you write what whoever gets your Pack is asked when they set it up, one question on each screen. Write as you would ask a colleague. Ziffr draws every Pack the same way: you write short plain text only, never a screen, markup, a link or an email address. Everything is optional, and where you write nothing Ziffr uses its own words. Every field says how long it may be.
 
