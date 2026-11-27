@@ -45,10 +45,16 @@ export type SubmissionInput = {
   /** A note sent with the value (GLOSSARY: Value Note; spec 0064), untrusted: checked where it is saved, after the
    * value, which it never blocks. A program's longer note is not saved; any other is cut. */
   valueNote?: unknown;
-  /** A program's value as it sent it, instead of a number found in `text` (source "api" only). */
+  /** A program's value as it sent it, instead of a number found in `text` (source "api", and the values named below). */
   value?: { value: number; breakdown?: BreakdownInput[] };
-  /** The period a program names; otherwise the current one, or the Prompt's (source "api" only). */
+  /** The period a program names; otherwise the current one, or the Prompt's (source "api", and the values named below). */
   period?: string;
+  /** Set only by a reply that took an offer (prompt-reply.ts), never from what anyone sends: the number the person was
+   * offered and said "yes" to, in `value` and `period`, instead of a number read from `text`. */
+  offered?: boolean;
+  /** Set only by the reply reading (prompt-reply.ts): why the reply gives no value. Everything is checked as for any
+   * answer, nothing is recorded, and the sender is asked back in these terms. */
+  unread?: Exclude<AnswerReading, { ok: true }>;
   /** The first day of the period picked on the personal form link, as the browser sent it: untrusted. Honoured on the web
    * form only, and only for the running period or one this Token was asked for and still owes (asked-periods.ts). */
   formPeriod?: string;
@@ -179,7 +185,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   // The period the value answers when it names none itself: the one picked on the form link, else the Prompt's.
   const form = await formPick(input, { byLink, ws: workspaceId, metric, token, current, yearStart: ys, promptPeriod: prompt?.period_start ?? null });
   if ("refused" in form) return log({ ...base, ok: false, ...form.refused });
-  const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text, style, { parents: input.source === "web_form" });
+  const breakdown = breakdownOf(input, sent, style);
   // Rows that are parts of others (spec 0041, ticket 12) are checked before anything is looked up or written: a list that
   // is refused is refused whole, in words, whichever way it came in (a program, a form, a message, a Feed).
   const parents = breakdown ? readParents(breakdown.rows) : null;
@@ -200,7 +206,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
     // Period words are read with the workspace's Fiscal Year even for a monthly Metric, so the reply names "Q3"
     // rightly when it says that is not one of its periods.
     // A period picked on the form holds like a Prompt's: words naming another one record nothing.
-    const answer = readAnswer(input.text, { style, today: new Date(), period: metric.period, yearStart: workspaceYearStart, promptPeriod: form.asked, ...reading });
+    const answer = input.unread ?? readAnswer(input.text, { style, today: new Date(), period: metric.period, yearStart: workspaceYearStart, promptPeriod: form.asked, ...reading });
     if (!answer.ok) return log({ ...base, ok: false, ...unread(byLink, answer, metric, workspaceYearStart, form.asked ?? current, input.source === "web_form" ? style : null, form.picked) });
     value = answer.value;
     period = answer.period;
@@ -458,9 +464,16 @@ async function formPick(input: SubmissionInput, at: { byLink: boolean; ws: strin
   return { asked: sent, picked: true };
 }
 
+/** The Breakdown a submission carries: the rows given beside a value read already, else what its text holds; none for a
+ * reply that gives no value. */
+function breakdownOf(input: SubmissionInput, sent: SubmissionInput["value"], style: NumberStyle): { rows: BreakdownInput[]; total: number | null } | null {
+  if (sent) return sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null;
+  return input.unread ? null : parseBreakdown(input.text, style, { parents: input.source === "web_form" });
+}
+
 /** Whether the value and period come read already: a program's, a paste's, or one typed on the Metric's own page. */
 function valueIsGiven(input: SubmissionInput, pasted: boolean): boolean {
-  return input.source === "api" || pasted || (input.typed === true && input.source === "web_form");
+  return input.source === "api" || pasted || input.offered === true || (input.typed === true && input.source === "web_form");
 }
 
 /** How a value with the sender's only Token arrived, in words for the reply. */
