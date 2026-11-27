@@ -352,8 +352,8 @@ describe("older files and older Ziffr", () => {
   });
 
   it("refuses a later format, naming those it reads", () => {
-    const res = checkPack(changed((p) => (p.format = "ziffr.pack/3")));
-    expect(!res.ok && res.problems[0].message).toBe("This file is in format ziffr.pack/3; this Ziffr reads ziffr.pack/1, ziffr.pack/2.");
+    const res = checkPack(changed((p) => (p.format = "ziffr.pack/4")));
+    expect(!res.ok && res.problems[0].message).toBe("This file is in format ziffr.pack/4; this Ziffr reads ziffr.pack/1, ziffr.pack/2, ziffr.pack/3.");
   });
 });
 

@@ -2,8 +2,9 @@
 // manifest (name, version, author, license). Each item is a document in a format Ziffr already checks, and is checked
 // by exactly that format's checks; this file only wraps them. docs/reference is generated from the schemas below.
 // Format /2 (spec 0058) adds Positions and Repeats, the places and repeated parts Set up fills; Totals, which add up
-// a Repeat; the Packs an item came from (`basedOn`, `from`); and the Pack Guide. /1 is read for ever and means what it
-// always meant.
+// a Repeat; the Packs an item came from (`basedOn`, `from`); and the Pack Guide. Format /3 (spec 0068) adds what a Pack
+// declares for its set-up: words, questions and numbers asked. /1 and /2 are read for ever and mean what they always
+// meant.
 // The one image it may bring is `logo` (spec 0039), held to the shared logo checks. Security: a Pack is untrusted input. Its size, depth and number of items are limited before anything is walked,
 // unknown and repeated fields are refused, "__proto__" is read as data, web addresses appear only in `listing`, an
 // item may name only items of the same Pack, and texts that address an assistant are reported for a person to see.
@@ -24,13 +25,17 @@ import { checkGuide, guideAsRead, PACK_GUIDE_SCHEMA, type PackGuide } from "./pa
 import { checkComesFrom, COMES_FROM_FIELD, type PackComesFrom } from "./comes-from.js";
 import { checkPositions, POSITION_FIELDS, WRAPPER_FIELDS, type PackPosition, type PackRepeat } from "./pack-positions.js";
 import { checkTotals, TOTAL_FIELD, type PackTotal } from "./pack-totals.js";
+import { checkSetUp, setUpProperties } from "./pack-set-up.js";
+import type { PackAsk, PackSetUpWords } from "./set-up.js";
 
 /** The first format, which Ziffr writes for a Pack using nothing newer, so an older Ziffr reads it. */
 export const PACK_FORMAT = "ziffr.pack/1";
 /** The format with Positions, Repeats, credit and the Pack Guide (spec 0058). */
 export const PACK_FORMAT_2 = "ziffr.pack/2";
+/** The format with what a Pack declares for its set-up (spec 0068). */
+export const PACK_FORMAT_3 = "ziffr.pack/3";
 /** Every Pack format Ziffr ever published, oldest first. */
-export const PACK_FORMATS = [PACK_FORMAT, PACK_FORMAT_2] as const;
+export const PACK_FORMATS = [PACK_FORMAT, PACK_FORMAT_2, PACK_FORMAT_3] as const;
 /** The exact limits a Pack is held to (spec 0030): 1 MiB, 200 items, 50 of a kind. Each item is also held to its own
  * format's limits. */
 export const PACK_LIMITS = { bytes: 1_048_576, depth: 20, items: 200, perKind: 50, name: 80, summary: 300, author: 80, address: 200, logoBytes: PACK_LOGO_MAX_BYTES, feeds: 10, feedFills: 50, basedOn: 10 } as const;
@@ -59,7 +64,7 @@ export type PackKind = keyof typeof KINDS;
 export type PackItem<F extends string, T> = { key: string; from?: string } & Record<F, T>;
 /** A Pack whose items another carries, as it wrote itself: shown as credit, proved by nothing. */
 export type PackSource = { id: string; name: string; author: { name: string }; license: (typeof PACK_LICENSES)[number] };
-/** A Pack as a file (GLOSSARY: Pack), in either format. */
+/** A Pack as a file (GLOSSARY: Pack), in any of its formats. */
 export type Pack = {
   format: (typeof PACK_FORMATS)[number];
   id: string;
@@ -83,8 +88,10 @@ export type Pack = {
   basedOn?: PackSource[];
   /** /2: what the creator tells people about it (GLOSSARY: Pack Guide). */
   guide?: PackGuide;
+  /** /3: what the preview of its set-up says. */
+  setUp?: PackSetUpWords;
   contents: {
-    metrics?: (PackItem<"metric", MetricFile> & { per?: string; submitters?: string[]; standIn?: string; viewers?: string[]; editors?: string[]; total?: PackTotal; comesFrom?: PackComesFrom })[];
+    metrics?: (PackItem<"metric", MetricFile> & { per?: string; submitters?: string[]; standIn?: string; viewers?: string[]; editors?: string[]; total?: PackTotal; comesFrom?: PackComesFrom; /** /3: a number asked at set-up. */ ask?: PackAsk })[];
     dashboards?: (PackItem<"template", DashboardTemplateFile> & { per?: string; viewers?: string[]; editors?: string[] })[];
     views?: PackItem<"design", ViewDesign>[];
     analyses?: PackItem<"recipe", AnyAnalysisRecipe>[];
@@ -211,6 +218,20 @@ function packSchema2(base: Schema): Schema {
 /** The JSON Schema of ziffr.pack/2. */
 export const PACK_2_SCHEMA: Schema = packSchema2(PACK_SCHEMA);
 
+/** Schema /3 made from schema /2: the same file with what a Pack declares for its set-up. */
+function packSchema3(base: Schema): Schema {
+  return {
+    ...base,
+    $id: "https://ziffr.net/schemas/ziffr.pack-3.json",
+    title: "Ziffr Pack (ziffr.pack/3)",
+    description: "A Pack as ziffr.pack/2, which may also declare what its set-up shows and asks: the words of its preview, the questions that fill its Positions and list its Repeats, and numbers written as targets.",
+    properties: { ...base.properties, format: { const: PACK_FORMAT_3, description: "The format and its version." }, ...setUpProperties(base.properties!) },
+  };
+}
+
+/** The JSON Schema of ziffr.pack/3. */
+export const PACK_3_SCHEMA: Schema = packSchema3(PACK_2_SCHEMA);
+
 /** The result of checking a Pack: the Pack with what a person must see before installing it, or every problem found. */
 export type PackCheck =
   | { ok: true; pack: Pack; items: number; needsOwner: boolean; assistantTexts: { path: string; line: number | null; text: string }[] }
@@ -235,7 +256,9 @@ export function checkPack(textIn: string, ziffr?: string): PackCheck {
 
 /** Checks a Pack already read from JSON (`lines` names where each path starts, when known). */
 export function checkPackValue(value: unknown, lines: Map<string, number> = new Map(), ziffr?: string): PackCheck {
-  const schema = (value as { format?: unknown } | null)?.format === PACK_FORMAT_2 ? PACK_2_SCHEMA : PACK_SCHEMA;
+  const format = (value as { format?: unknown } | null)?.format;
+  // A format this Ziffr does not read is refused by name before any schema is looked at.
+  const schema = format === PACK_FORMAT_3 ? PACK_3_SCHEMA : format === PACK_FORMAT_2 ? PACK_2_SCHEMA : PACK_SCHEMA;
   const res = checkFormat({ family: "ziffr.pack", reads: PACK_FORMATS, schema, meaning: (p: Pack, at) => meaning(p, lines, ziffr, at) }, value, lines);
   if (!res.ok) return res;
   // The logo leaves as Ziffr wrote it out itself (an SVG is serialized again from what was parsed): what was checked is
@@ -249,7 +272,7 @@ export function checkPackValue(value: unknown, lines: Map<string, number> = new 
     needsOwner: (pack.contents.themes?.length ?? 0) > 0,
     // Only the texts people and assistants read: names, descriptions and words, the guide's as a person reads them. Keys,
     // formats and enums cannot hold a sentence, and `listing` holds only addresses.
-    assistantTexts: textsAimedAtAssistants({ name: pack.name, summary: pack.summary, author: pack.author, positions: pack.positions, repeats: pack.repeats, basedOn: pack.basedOn, guide: pack.guide && guideAsRead(pack.guide), contents: pack.contents }).map((t) => ({ ...t, line: lines.get(t.path) ?? null })),
+    assistantTexts: textsAimedAtAssistants({ name: pack.name, summary: pack.summary, author: pack.author, setUp: pack.setUp, positions: pack.positions, repeats: pack.repeats, basedOn: pack.basedOn, guide: pack.guide && guideAsRead(pack.guide), contents: pack.contents }).map((t) => ({ ...t, line: lines.get(t.path) ?? null })),
   };
 }
 
@@ -293,12 +316,14 @@ function meaning(p: Pack, lines: Map<string, number>, ziffr: string | undefined,
   }
   const isSound = (it: object) => sound.has(it);
   references(p, isSound, at);
-  if (p.format !== PACK_FORMAT_2) return;
+  // Everything newer than /1 holds what /2 holds; /1 has none of it, and its schema has refused it already.
+  if (p.format === PACK_FORMAT) return;
   checkPositions(p, isSound, at);
   checkTotals(p, at);
   checkComesFrom(p, at);
   credit(p, at);
   if (p.guide) checkGuide(p.guide, at);
+  checkSetUp(p, isSound, at);
 }
 
 /** The Packs a Pack builds on are listed once each, and an item is `from` one of them. */
