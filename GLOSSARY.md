@@ -470,7 +470,7 @@ The ZIP file of everything Ziffr keeps about some Metrics, which their Metric Ow
 _Avoid_: Backup, dump, archive, full export
 
 **First Steps**:
-The guided start of a new Workspace (spec 0067): one question per screen about the person, the Workspace and its first numbers, ending with a first value the Owner sends in. It belongs to the Owner who made the Workspace and is theirs alone: nobody else in the Workspace is led to it. Not the section "First steps" of a Pack Guide.
+The guided start of a new Workspace (spec 0067): one question per screen about the person, the Workspace and its first numbers, ending with a first value the Owner sends in. It belongs to the Owners of the Workspace it made, at first the one who answered it: Admins, Members and Guests are never led to it. Not the section "First steps" of a Pack Guide.
 _Avoid_: Wizard, onboarding, tour
 
 **Setup Guide**:

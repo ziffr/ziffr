@@ -94,8 +94,9 @@ Nothing on this screen asks anyone for a value at once. The last screen, **Your 
 
 | Who you are | What you see |
 | --- | --- |
-| Someone who makes a Workspace, the first or one more (**New workspace**) | First Steps. It belongs to this Owner, one for each Workspace. |
-| An **Admin**, or another Owner | Nothing: no guide and no line. |
+| Someone who makes a Workspace, the first or one more (**New workspace**) | First Steps, one for each Workspace. |
+| Someone who becomes an Owner of that Workspace while a step is still open | The same line, and Home leads them to First Steps once. |
+| An **Admin** | Nothing: no guide and no line. |
 | Owners and Admins of a Workspace made before First Steps, or imported from a Workspace Export | Nothing. The old address `/setup` leads to **Connectors** or **Members and Groups** where it asked for one of them, and otherwise Home. |
 | An invited **Member** | The short [Setup Guide](#the-setup-guide). |
 | A **Guest** | Nothing. |

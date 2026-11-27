@@ -1,7 +1,6 @@
 // First Steps (spec 0067; GLOSSARY: First Steps): the questions that make a person's Workspace, and where its Owner comes
-// back to. Switched off (not found) until every screen is built. It is for someone signed in who has no Workspace or
-// asked for another (`?another=1`), and for the Owner of a Workspace it made and has not finished. Anyone else goes
-// Home. The browser gets that person's own id, their Workspace's answers, the name of its first Metric, a few entries
+// back to. It is for someone signed in who has no Workspace or asked for another (`?another=1`), and for the Owner of
+// a Workspace it made and has not finished. Anyone else goes Home. The browser gets that person's own id, their Workspace's answers, the name of its first Metric, a few entries
 // of the Metric Catalog to suggest and what they may ask to join, nothing more.
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";

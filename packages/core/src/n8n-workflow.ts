@@ -1,7 +1,7 @@
 // An n8n workflow that sends one value to a Feed (GLOSSARY: Feed, Feed Key; docs/guides/feeds.md): a Manual Trigger,
 // a Set node with the value and an HTTP Request to /api/v1/feed/observations, with a sticky note saying what it does,
 // and a daily Schedule Trigger that is off until someone turns it on. In n8n's own export format, so it can be pasted
-// onto a canvas or imported from a file. Pure, so the Setup Guide of a trial builds it in the browser from what it just showed
+// onto a canvas or imported from a file. Pure, so a trial's page for the key builds it in the browser from what it just showed
 // and nothing is stored; docs/guides/n8n-feed-workflow.json is the same workflow with placeholders.
 
 /** What the workflow needs: this Ziffr's address, the Metric's slug and the Feed Key to send with. */
@@ -12,7 +12,7 @@ export const N8N_PLACEHOLDERS: N8nFeedWorkflowInput = {
   siteUrl: "https://ziffr.example.com", metricSlug: "your-metric-slug", feedKey: "zk_your_feed_key",
 };
 
-/** The file name the Setup Guide of a trial offers the workflow under. */
+/** The file name a trial's page for the key offers the workflow under. */
 export const N8N_WORKFLOW_FILE = "ziffr-feed-workflow.json";
 
 /** The workflow, as n8n exports it. The key sits in the header so the import works at once; the note says that for
@@ -25,7 +25,7 @@ export function n8nFeedWorkflow({ siteUrl, metricSlug, feedKey }: N8nFeedWorkflo
     "## Send a number to Ziffr",
     `Press **Execute workflow**: **Value** picks a number from 1 to 5 and **Send to Ziffr** records it for \`${metricSlug}\` as today's value.`,
     "",
-    "The Feed Key in the Authorization header comes from Ziffr (the Setup Guide of a trial, or Settings, then Feeds). For real use, put it in an n8n credential (Header Auth, name `Authorization`, value `Bearer <key>`) instead of the header field.",
+    "The Feed Key in the Authorization header comes from Ziffr (Try it in a trial, or Settings, then Feeds). For real use, put it in an n8n credential (Header Auth, name `Authorization`, value `Bearer <key>`) instead of the header field.",
     "",
     "**Every day at 9** sends a value daily once you turn it on.",
   ].join("\n");

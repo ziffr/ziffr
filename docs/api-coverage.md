@@ -226,6 +226,11 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `reopenSetupGuide` (setup-guide.ts): a person's own Setup line, for the app
 - `setupLine` (setup-guide.ts): the Setup line's counts for the app's layout, the viewer's own
 - `markSetupGuideSeen` (setup-guide.ts): that a person opened the guide, for the app
+- `setGuidePerson` (setup-guide.ts): writes the person's own side of the Setup Guide or First Steps, for the core's own operations above
+- `openFirstSteps` (first-steps.ts): the Owner's next open step, for the app's line, Home and Help; a program is led nowhere
+- `leadToFirstSteps` (first-steps.ts): Home leads the Owner to First Steps once, in the app
+- `noteFirstStepsLeft` (first-steps.ts): that the Owner left First Steps on purpose, for the app
+- `hideFirstStepsLine` (first-steps.ts): a person's own line about First Steps, for the app
 - `saveFirstStepsAnswers` (first-steps.ts): the Owner answers First Steps again, in the app
 - `firstStepsSet` (first-steps-sets.ts): the Preview of one of First Steps' ready-made sets, for the app; a program installs no Pack
 - `makeFirstMetric` (first-steps-metric.ts): the Owner adds the first Metric in First Steps, with its dashboard; a program makes one with create_metric

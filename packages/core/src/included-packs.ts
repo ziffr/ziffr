@@ -19,7 +19,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 /** Where an install of one of Ziffr's own Packs is recorded: signed, because it is part of Ziffr's code. */
 export const INCLUDED: PackOrigin = { source: "included", signed: true };
 
-/** The order Ziffr ships its Packs in (and the Setup Guide ranks ties by): the five business Packs, the function Packs, the rest. */
+/** The order Ziffr ships its Packs in (and First Steps ranks ties by): the five business Packs, the function Packs, the rest. */
 export const INCLUDED_PACK_ORDER = [
   "ziffr/saas-metrics", "ziffr/online-shop", "ziffr/agency", "ziffr/sports-club", "ziffr/board-meeting",
   "ziffr/sales", "ziffr/sales-forecast", "ziffr/finance", "ziffr/people", "ziffr/customer-support", "ziffr/fulfilment",
@@ -139,7 +139,7 @@ export async function updateIncludedPack(actor: Actor, installId: number, confir
   return updatePack(actor, Number(installId), (await includedInstall(actor, Number(installId))).text, INCLUDED, { unsigned: false, assistantTexts: confirmed?.assistantTexts === true });
 }
 
-/** One of Ziffr's own Packs as the Setup Guide suggests it: what the Pack file says of itself and why it fits, nothing more. */
+/** One of Ziffr's own Packs as First Steps suggests it: what the Pack file says of itself and why it fits, nothing more. */
 export type RecommendedPack = {
   id: string; name: string; summary: string;
   /** The Pack's logo as a checked data address, or null; drawn in an `img` only. */
@@ -158,7 +158,7 @@ export type RecommendedPack = {
   needsOwner: boolean;
 };
 
-/** Ziffr's own Packs in the order that fits this Workspace best, every one of them, for the Setup Guide's Starting point.
+/** Ziffr's own Packs in the order that fits this Workspace best, every one of them, for First Steps' ready-made sets.
  * Owners and Admins only (they alone can install): a Member, a Guest, an Access Key and the demo get nothing. It reads the
  * Workspace Profile, the viewer's own Business Function and the functions of the Workspace's Owners and Admins (whom the
  * viewer may see them of anyway), and returns per Pack only the Pack file's own words, what it brings and the reasons as
