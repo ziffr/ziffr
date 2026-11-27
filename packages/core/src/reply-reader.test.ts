@@ -28,8 +28,10 @@ function short(r: ReplyReading): string {
         ...r.values.map((v) => `${v.figure}=${v.value}${note(v.note)}`),
         ...r.notes.map((n) => `${n.figure} note${note(n.note)}`),
         ...r.unread.map((u) => `${u.figure} ${u.reading.reason}`),
+        ...r.closed.map((f) => `${f} closed`),
+        ...(r.skipped ?? []).map((f) => `${f} skipped`),
       ];
-      return ["values", parts.join(", "), r.open.length ? `open ${r.open.join(",")}` : ""].filter(Boolean).join(" ");
+      return [r.unplaced ? "ask" : "values", parts.join(", "), r.open.length ? `open ${r.open.join(",")}` : ""].filter(Boolean).join(" ");
     }
     case "not_read":
       return `not_read ${r.reading.reason}`;
@@ -245,8 +247,9 @@ table("several figures", [
   ["1: 45\n46\n2: 7", "values 1=7, 0 several_numbers open 0,2"],
   ["45\n7\n2", "values 0=45, 1=7, 2=2"],
   ["45\nTwo moved.\n7\n2", 'values 0=45 "Two moved.", 1=7, 2=2'],
-  ["45\n7", "values open 0,1,2"],
-  ["45\n7\n2\n9", "values open 0,1,2"],
+  ["45", "ask open 0,1,2"],
+  ["45\n7", "ask open 0,1,2"],
+  ["45\n7\n2\n9", "ask open 0,1,2"],
   ["45 7 2", "values open 0,1,2"],
   ["not yet", "values open 0,1,2"],
   ["9: 45", "values open 0,1,2"],
@@ -255,8 +258,11 @@ table("several figures", [
 const mixed = () => [filled(45), open({ name: "New customers" }), open({ name: "Churn" })];
 
 table("several figures, one already in", [
-  ["7\n2", "values 1=7, 2=2"],
-  ["7", "values open 1,2"],
+  ["45\n7\n2", "values 1=7, 2=2, 0 skipped"],
+  ["45\nSlow month\n7\n2", "values 1=7, 2=2, 0 skipped"],
+  // Fewer numbers than the message listed could mean other figures than their order says: asked, never guessed.
+  ["7\n2", "ask open 1,2"],
+  ["7", "ask open 1,2"],
   ["1: 3 deals slipped", 'note "3 deals slipped" offer overwrite 3'],
   ["1: 47", "values 0=47 open 1,2"],
   ["1: 3 deals slipped\n2: 7", 'values 1=7, 0 note "3 deals slipped" open 2'],
@@ -268,7 +274,8 @@ const allIn = () => [filled(45), filled(7, { name: "New customers" })];
 
 table("several figures, all in", [
   ["3 deals slipped", "which 0,1"],
-  ["45", "which 0,1"],
+  ["45", "ask"],
+  ["45\n7", "values 0 skipped, 1 skipped"],
   ["2: 3 left", 'note 1 "3 left" offer overwrite 3'],
   ["New customers: 8", "values 1=8"],
   ["1: slow\n2: fast", 'values 0 note "slow", 1 note "fast"'],
@@ -279,6 +286,15 @@ table("several figures, German email", [
   ["Hallo,\n1: 45\nZwei verschoben.\n2: 7\n\nViele Grüße\nAnna", 'values 0=45 "Zwei verschoben.", 1=7'],
   ["45\n7\nViele Grüße\nAnna", "values 0=45, 1=7"],
 ], () => [open({ name: "Umsatz" }), open({ name: "Neukunden" })], { ...email, ...german });
+
+const oneLeft = () => [filled(45), open({ name: "New customers", closed: true }), open({ name: "Churn" })];
+
+table("several figures, one still open", [
+  ["60", "ask open 2"],
+  ["45\n60", "ask open 2"],
+  ["45\n60\n3", "values 2=3, 1 closed, 0 skipped"],
+  ["3: 60", "values 2=60"],
+], oneLeft);
 
 it("does not guess between two figures of one name", () => {
   expect(short(read("Revenue: 45", [open(), open()]))).toBe("values open 0,1");

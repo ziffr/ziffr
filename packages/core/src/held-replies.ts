@@ -6,15 +6,18 @@
 // from the token itself, so a copy of the table alone confirms and reads nothing (the email's own words, which carry the
 // link, are sealed with the Workspace Key like every Delivery's). A link works once, for HELD_REPLY_HOURS,
 // and answers the same ("not known") when the token is unknown, expired or used. Confirming then takes the reply the way
-// a vouched-for one always went (reply-routing.ts).
+// a vouched-for one always went (reply-routing.ts). A reply to a request for one figure or several is read first without
+// writing anything (prompt-reply.ts): the page lists what confirming would record and which notes it would save, and an
+// offer a note makes is a second button instead of a "yes" by email (spec 0064).
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
 import { parseReply } from "./connectors/index";
 import { deliverNotice, refFor } from "./deliveries";
 import { addressIn } from "./mail";
 import { recordAudit } from "./audit-log";
-import { REPLY_DAYS, routeReply, type RepliedDelivery } from "./reply-routing";
-import { previewValue } from "./submissions";
+import { asksForValues, REPLY_DAYS, routeReply, type RepliedDelivery } from "./reply-routing";
+import { takePromptReply, withoutFormLinks, type OfferChoice } from "./prompt-reply";
+import { submissionEffects } from "./submissions";
 import { answerSourceOf } from "./prompt-ways";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { trialEnded } from "./trials";
@@ -24,7 +27,7 @@ export const HELD_REPLY_HOURS = 48;
 /** Replies of one Delivery that may wait at once; more are refused, so a holder of a forwarded copy cannot fill the person's inbox. */
 export const HELD_PER_DELIVERY = 3;
 /** The longest reply held. The confirm page shows all of it, so what the person confirms is exactly what is taken. */
-const HELD_CHARS = 1000;
+const HELD_CHARS = 5000;
 
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -65,7 +68,8 @@ export type HoldOutcome = "held" | "refused" | "empty" | "unknown_token" | "limi
  * address on file. Nothing is recorded, posted or proposed here. A reply that would change nothing anyway (no number
  * in it, a Metric that takes no value by email, an Alert) is answered as such and not held. `say` writes to the
  * address on file. The caller has checked the Delivery, the sender's address and the limits. */
-export async function holdReply(d: RepliedDelivery, text: string, address: string, say: (subject: string, text: string) => Promise<void>): Promise<HoldOutcome> {
+export async function holdReply(d: RepliedDelivery, reply: string, address: string, say: (subject: string, text: string) => Promise<void>): Promise<HoldOutcome> {
+  const text = withoutFormLinks(reply).slice(0, HELD_CHARS);
   let kind: "value" | "reply";
   if (d.kind === "alert" || d.kind === "heads_up") {
     await say("Not recorded", d.kind === "alert" ? "Alerts cannot be answered; open the Metric in Ziffr." : "Heads-ups cannot be answered; open Ziffr.");
@@ -83,19 +87,23 @@ export async function holdReply(d: RepliedDelivery, text: string, address: strin
     await say("Not recorded", "This message cannot be answered; to replace the value, open the Metric in Ziffr.");
     return "refused";
   }
-  if (d.kind === "prompt" && d.prompt_id) {
-    const { data: prompt } = await db().from("prompts").select("id, source, submitter_id").eq("id", d.prompt_id).eq("workspace_id", d.workspace_id).maybeSingle();
-    if (!prompt || prompt.submitter_id !== d.recipient_id) return "unknown_token";
-    if (!text) return "empty";
-    if ((await answerSourceOf(d, prompt.source)) !== "mail") {
-      await say("Your value was not recorded", "This Metric does not take values by email. Use your form link.");
-      return "refused";
+  if (asksForValues(d)) {
+    if (!d.combined) {
+      const { data: prompt } = await db().from("prompts").select("source, submitter_id").eq("id", d.prompt_id!).eq("workspace_id", d.workspace_id).maybeSingle();
+      if (!prompt || prompt.submitter_id !== d.recipient_id) return "unknown_token";
+      if (!text) return "empty";
+      if ((await answerSourceOf(d, prompt.source)) !== "mail") {
+        await say("Your value was not recorded", "This Metric does not take values by email. Use your form link.");
+        return "refused";
+      }
     }
-    // What recording would do, without doing it: a reply that records nothing is not worth a confirmation.
-    const preview = await previewValue({ source: "mail", sender: address, text, promptId: prompt.id, workspaceId: d.workspace_id });
-    if (!preview.ok && preview.outcome !== "proposed_locked") {
-      await say("Not recorded", preview.detail);
-      return "refused";
+    if (!text) return "empty";
+    // What the reply would do, without doing it: one that changes nothing is not worth a confirmation.
+    const would = await lookAt(d, text, address);
+    if (would.outcome === "unknown_token") return "unknown_token";
+    if (!would.changes) {
+      if (would.text) await say(would.subject || "Not recorded", would.text);
+      return would.outcome === "empty" ? "empty" : "refused";
     }
     kind = "value";
   } else if (d.action_id) {
@@ -112,7 +120,7 @@ export async function holdReply(d: RepliedDelivery, text: string, address: strin
   const token = randomBytes(32).toString("base64url");
   const { data: row, error } = await db().from("held_replies").insert({
     workspace_id: d.workspace_id, delivery_id: d.id, token_hash: sha(token), address_hash: sha(address.toLowerCase()), kind,
-    sealed_text: seal(token, d.id, text.slice(0, HELD_CHARS)), expires_at: new Date(now.getTime() + HELD_REPLY_HOURS * 3_600_000).toISOString(),
+    sealed_text: seal(token, d.id, text), expires_at: new Date(now.getTime() + HELD_REPLY_HOURS * 3_600_000).toISOString(),
   }).select("id").single();
   if (error || !row) throw new Error("The reply could not be held.");
   try {
@@ -131,6 +139,9 @@ export async function holdReply(d: RepliedDelivery, text: string, address: strin
   return "held";
 }
 
+/** What a reply to a request would do, reading it as it will be read, writing nothing. */
+const lookAt = (d: RepliedDelivery, text: string, address: string) => takePromptReply(d, text, { source: "mail", sender: address }, { dry: true });
+
 type Found = { id: number; d: RepliedDelivery; address: string; text: string; kind: "value" | "reply" };
 
 /** The held reply a token names, when it still may be confirmed: known, unexpired, unused, for a Workspace that is not
@@ -141,7 +152,7 @@ async function find(token: string): Promise<Found | null> {
   const hash = sha(token);
   const { data: row } = await db().from("held_replies").select("id, delivery_id, token_hash, address_hash, sealed_text, kind").eq("token_hash", hash).gt("expires_at", new Date().toISOString()).maybeSingle();
   if (!row || !equal(String(row.token_hash), hash)) return null;
-  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, connector, created_at").eq("id", row.delivery_id).maybeSingle();
+  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, combined, connector, created_at").eq("id", row.delivery_id).maybeSingle();
   if (!d || d.connector !== "email" || d.workspace_id === DEMO_WORKSPACE_ID || (await trialEnded(d.workspace_id))) return null;
   // Held for the same reasons a reply is taken at all: within the days a reply address works, and never for an Approval or
   // Self-check (which an Action may have become since), whose answers are only given in Ziffr unvouched.
@@ -163,8 +174,9 @@ function equal(a: string, b: string): boolean {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-/** What the confirm page shows: the kind of reply, its words (cut short), and what confirming would do. */
-export type HeldReplyView = { kind: "value" | "reply"; text: string; effect: string };
+/** What the confirm page shows: the kind of reply, its words, what confirming would do (one line for each figure of a
+ * reply to a request, with its note), and the change a note offers, as a second button. */
+export type HeldReplyView = { kind: "value" | "reply"; text: string; effect: string; offer?: { take: string; label: string } };
 
 /** What a token's held reply says and would do, for the page that asks first. Changes nothing. Null when the link
  * does not work, whatever the reason. Carries only what the person who holds the link needs. */
@@ -173,25 +185,29 @@ export async function heldReplyView(token: string): Promise<HeldReplyView | null
   if (!f) return null;
   const { body, correction } = parseReply(f.text);
   if (f.kind === "value") {
-    const prompt = f.d.prompt_id ? (await db().from("prompts").select("id").eq("id", f.d.prompt_id).eq("workspace_id", f.d.workspace_id).maybeSingle()).data : null;
-    if (!prompt) return null;
-    const r = await previewValue({ source: "mail", sender: f.address, text: f.text, promptId: prompt.id, workspaceId: f.d.workspace_id });
-    return { kind: "value", text: f.text, effect: r.detail };
+    if (!asksForValues(f.d)) return null;
+    const would = await lookAt(f.d, f.text, f.address);
+    if (would.outcome === "unknown_token") return null;
+    return { kind: "value", text: f.text, effect: would.text || "Nothing would change.", ...(would.offer ? { offer: would.offer } : {}) };
   }
   // The whole text as it will be taken, and the Correction's number in words, so nothing taken is hidden from the person.
   return { kind: "reply", text: f.text, effect: correction === null ? `Posted as your reply in the Thread of ${refFor(f.d.action_id!)}.` : `${body ? "Posted as your reply, and proposes" : "Proposes"} a Correction to ${correction} in the Thread of ${refFor(f.d.action_id!)}.` };
 }
 
 /** Confirms a held reply: it is claimed first (deleted, so a second use finds nothing), then taken the way a reply
- * the provider vouched for is. Returns what became of it in words for the page, or null when the link does not work. */
-export async function confirmHeldReply(token: string): Promise<{ ok: boolean; detail: string } | null> {
+ * the provider vouched for is. `take` is the offered change the person pressed, as the page showed it (from a browser:
+ * it takes effect only when the reply still offers exactly that). Returns what became of it in words for the page, or
+ * null when the link does not work. */
+export async function confirmHeldReply(token: string, take?: string): Promise<{ ok: boolean; detail: string } | null> {
   const f = await find(token);
   if (!f) return null;
   const { data: claimed } = await db().from("held_replies").delete().eq("id", f.id).select("id");
   if (!claimed?.length) return null;
   let said = "";
-  const outcome = await routeReply(f.d, f.text, { source: "mail", sender: f.address, answer: async (_subject, text) => { said = text; } });
-  const ok = outcome === "recorded" || outcome === "replied" || outcome === "corrected";
+  // No offer is left open: there is no message the person could say "yes" to.
+  const offers: OfferChoice = take ? { take: String(take).slice(0, 80) } : "none";
+  const outcome = await routeReply(f.d, f.text, { source: "mail", sender: f.address, onPage: true, answer: async (_subject, text) => { said = text; } }, submissionEffects, offers);
+  const ok = outcome === "recorded" || outcome === "noted" || outcome === "replied" || outcome === "corrected";
   await recordAudit(f.d.workspace_id, f.d.recipient_id, { kind: "email_reply.confirmed", details: { kind: f.kind, outcome } });
   return { ok, detail: said || (ok ? "Your reply was added." : "Nothing was recorded.") };
 }
