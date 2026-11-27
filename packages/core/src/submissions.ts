@@ -654,6 +654,7 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
   if (accept) {
     let written: { error: { code?: string } | null };
     let writtenTo = act.observation_id;
+    let before: number | null = null;
     // The proposed value is sealed in the message; it is opened here and sealed again for the value's row.
     const [opened] = await openRows("thread_messages", actor.workspaceId, [msg as Record<string, unknown>]);
     const proposed = opened.correction_value;
@@ -664,6 +665,7 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
       if (!obs) throw new Forbidden();
       const [was] = await openRows("observations", actor.workspaceId, [obs as Record<string, unknown>]);
       const original = was.original_value ?? was.value;
+      if (typeof was.value === "number") before = was.value;
       if (typeof original !== "number") throw new Error("The Correction could not be saved. Try again in a moment.");
       const sealedNow = await sealRow("observations", actor.workspaceId, { id: act.observation_id, value: proposed, original_value: original });
       delete sealedNow.id;
@@ -689,7 +691,7 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
       throw new Error(written.error.code === ARCHIVED_CODE ? ARCHIVED_REFUSAL : "The Correction could not be saved. Try again in a moment.");
     }
     // The replaced value's notes become history; the note sent with the proposal is now the period's (spec 0064).
-    await notesAfterValue(actor.workspaceId, { metricId: act.metric_id, period: act.period_start, observationId: Number(writtenTo), before: null, after: proposed, replaces: true });
+    await notesAfterValue(actor.workspaceId, { metricId: act.metric_id, period: act.period_start, observationId: Number(writtenTo), before, after: proposed, replaces: true });
     await decideProposedNote(actor.workspaceId, messageId, { observationId: Number(writtenTo) });
   }
   // A declined proposal takes its note with it: it never was a Value Note.
