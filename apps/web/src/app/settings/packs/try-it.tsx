@@ -8,7 +8,7 @@
 import { useMemo, useState } from "react";
 import { ScreenHeading } from "@/app/first-steps/parts";
 import { PHONE_ACTIONS, PHONE_BUTTON } from "@/app/setup/phone";
-import { PackFlow, type PackFlowData } from "@/app/use-pack/flow";
+import { PackFlow, type PackFlowData, type PackFlowTry } from "@/app/use-pack/flow";
 import { Lines } from "@/app/use-pack/parts";
 import { askedWhen } from "@/app/use-pack/when";
 import { Button } from "@/components/ui/button";
@@ -70,7 +70,7 @@ export function TryIt({ made, viewer, numberStyle, onClose }: { made: PackExport
   const data = useMemo(() => tryData(made, viewer, numberStyle, new Date().toISOString().slice(0, 10)), [made, viewer, numberStyle]);
   const actions = useMemo(() => ({ check: async (choices: StartChoices) => planStart(made.declarations, ROOM, choices, PEOPLE) }), [made]);
   const setsUp = startSteps(made.declarations, ROOM).some((s) => s.step === "preview" && s.setsUp);
-  const tryOut = {
+  const tryOut: PackFlowTry = {
     notice: "A try of your Pack, with made-up people. Nothing is saved, made or sent.",
     onClose,
     end: (choices: StartChoices) => <TryEnd plan={planStart(made.declarations, ROOM, choices, PEOPLE)} data={data} onAgain={() => setRound((n) => n + 1)} onClose={onClose} />,
