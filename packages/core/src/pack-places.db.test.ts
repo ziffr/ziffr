@@ -4,6 +4,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { installPackFile, listInstalledPacks } from "./packs";
+import { readPlaces } from "./pack-places";
+import { installIncludedPack } from "./included-packs";
 import { updatePackFile } from "./pack-updates";
 import { SALES_TEAM, salesTeamText } from "./test/sales-team-pack";
 import { workspace } from "./test/db-fixtures";
@@ -23,6 +25,19 @@ describe("an installed Pack with Positions", () => {
     expect(pack.people!.positions[2].does).toContain("Submits Commit.");
     expect(pack.people!.repeats).toEqual([expect.objectContaining({ name: "Salesperson", max: 12 })]);
     expect(await listInstalledPacks(w.actor(gus, "guest"))).toEqual([]);
+  });
+
+  it("keeps what a /3 Pack's set-up shows and asks", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("owner");
+    const install = await installIncludedPack(w.actor(sara), "ziffr/sales-forecast");
+    const { data } = await db().from("pack_installs").select("manifest").eq("id", install).single();
+    const manifest = data!.manifest as { setUp?: { line?: string }; places?: unknown };
+    expect(manifest.setUp?.line).toBe("A weekly forecast meeting, prepared for you.");
+    const places = readPlaces(manifest.places)!;
+    expect(places.positions.find((p) => p.key === "sales-lead")).toMatchObject({ question: "Who approves the figures?", hint: "This person checks the numbers each week and sees the whole team." });
+    expect(places.repeats[0].question).toBe("Who is in your sales team?");
+    expect(places.metrics.find((m) => m.key === "commit")!.ask).toEqual({ question: "What is each quota this quarter?", name: "Quota", every: "quarter" });
   });
 
   it("names items as they are named now, leaves removed ones out, and follows an update", async () => {
