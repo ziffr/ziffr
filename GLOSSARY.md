@@ -154,7 +154,7 @@ A scheduled message asking a submitter for a metric's value for the current peri
 _Avoid_: Reminder, nudge
 
 **Combined Prompt**:
-One message that carries several Prompts to one person, with one form for all of them. Each value still answers its own Prompt. One run of asking (the Workspace's run, running Workflows by hand, Ask for missing values or one Set up from a Pack) puts what it asks one person by one way into one, new numbers and, in a reminder, those still missing. Its words are written when it is sent, from the numbers still open that the person is still asked for. One number is asked as an ordinary Prompt. The owner says "one request"; screens may say "your numbers". Not switched on yet.
+One message that carries several Prompts to one person, with one form for all of them. Each value still answers its own Prompt. One run of asking (the Workspace's run, running Workflows by hand, Ask for missing values or one Set up from a Pack) puts what it asks one person by one way into one, new numbers and, in a reminder, those still missing. Its words are written when it is sent, from the numbers still open that the person is still asked for. One number is asked as an ordinary Prompt. Its link opens the **combined form**: one page, without sign-in, with a field for each number the message listed, for 30 days. That link is no Token: every number is still checked against its own. The owner says "one request"; screens may say "your numbers". Not switched on yet.
 _Avoid_: Digest, batch, bundle, summary
 
 **Workflow**:
@@ -303,7 +303,7 @@ A widget that holds an artboard of its own, laid out like a slide: widgets from 
 _Avoid_: Canvas, drawing, board, freeform widget
 
 **Pool**:
-The side panel that holds everything a user can drag onto a canvas: the metrics they can see, their saved widgets and the Widget Templates.
+The panel that holds everything a user can put on a canvas: the metrics they can see, their saved widgets and the Widget Templates. On a deck, a Free Layout and the Analysis Canvas it is a list titled Pool; on a dashboard it opens with **Add widget** and shows them as cards drawn with a Metric, as the Gallery does.
 _Avoid_: Library, palette, sidebar
 
 **Preview**:

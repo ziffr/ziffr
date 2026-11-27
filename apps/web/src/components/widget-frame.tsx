@@ -293,7 +293,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
         onAddToDeck={() => setTimeout(() => setDeckOpen(true), 0)}
         onSaveWidget={() => {
           const name = window.prompt("Save to your widgets as:", title ?? "My widget");
-          if (name) start(async () => { if (told(await saveToPool(source, name), "Not saved")) return; toast.success("Saved to My Widgets", { description: "Drag it from the Pool onto any dashboard." }); });
+          if (name) start(async () => { if (told(await saveToPool(source, name), "Not saved")) return; toast.success("Saved to My Widgets", { description: "Add it to any dashboard with Add widget." }); });
         }}
         onSaveTemplate={() => setTimeout(() => setSaveTemplateOpen(true), 0)}
         onSaveDesign={() => ownDesign && downloadDesign(duplicateAsDesign(widget, ownDesign))}

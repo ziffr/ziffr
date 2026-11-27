@@ -2,12 +2,17 @@
 // how to answer them, and how many figures one message may hold. Pure: whoever calls decides which figures the reader
 // may be told about.
 import { format, parseISO } from "date-fns";
+import { slackEscape } from "./connectors/slack";
 import type { ConnectorId } from "./connectors/index";
 
 /** The most figures one Combined Prompt holds. */
 export const COMBINED_MAX = 50;
 /** The most figures a chat message (Slack, Telegram) lists; the others are on the form. */
 export const COMBINED_CHAT_LISTED = 20;
+
+/** The most characters of a chat message's words. Slack shows 2,900 of a message and the link comes last, so the list
+ * gets shorter before the end could be cut off. */
+const CHAT_ROOM = 2600;
 
 const isChat = (via: ConnectorId) => via === "slack" || via === "telegram";
 
@@ -64,13 +69,25 @@ function lineWords(l: CombinedLine & { position: number }, parts: boolean, today
     .filter(Boolean).join(", ");
 }
 
+/** What a Combined Prompt's words are written from. */
+type WordsFor = { via: ConnectorId; firstName: string; lines: (CombinedLine & { position: number })[]; link: string | null; today: string };
+
 /** The subject and text of a Combined Prompt. The lines come numbered and in order; `link` is the combined form's
  * address, left out while there is none. */
-export function combinedWords(i: { via: ConnectorId; firstName: string; lines: (CombinedLine & { position: number })[]; link: string | null; today: string }): { subject: string; body: string } {
+export function combinedWords(i: WordsFor): { subject: string; body: string } {
+  if (!isChat(i.via)) return wordsListing(i, i.lines.length);
+  for (let most = Math.min(COMBINED_CHAT_LISTED, i.lines.length); ; most--) {
+    const out = wordsListing(i, most);
+    if (most <= 1 || (i.via === "slack" ? slackEscape(out.body) : out.body).length <= CHAT_ROOM) return out;
+  }
+}
+
+/** The words with at most `most` figures listed. */
+function wordsListing(i: WordsFor, most: number): { subject: string; body: string } {
   const { lines } = i;
   const open = lines.filter((l) => !l.closed);
   const parts = open.some((l) => l.stillMissing) && open.some((l) => !l.stillMissing);
-  const listed = isChat(i.via) ? lines.slice(0, COMBINED_CHAT_LISTED) : lines;
+  const listed = lines.slice(0, most);
   const out = [`Hi ${i.firstName},`];
   let heading: string | null = null;
   for (const l of listed) {
