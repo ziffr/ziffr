@@ -422,7 +422,7 @@ One team's own space in Ziffr, with its people, metrics, dashboards, decks, them
 _Avoid_: Tenant, organisation, account, company
 
 **Trial Workspace**:
-A Workspace on hosted Ziffr that a person or a team makes to try Ziffr for a set number of days; only an Installation with Ziffr Cloud offers them. Its Owner may invite colleagues within the Trial Limits, and every Connector reaches those who accepted, but Contacts stay simulated. At its end it is subscribed to (a Size, everything kept) or closed, its Owner takes a Workspace Export, and it is deleted after a set number of days. It starts with the Test Metric only, a Workflow that asks its Owner for it each day and a small dashboard showing it: nothing made up, so its first value is the Owner's own.
+A Workspace on hosted Ziffr that a person or a team makes to try Ziffr for a set number of days; only an Installation with Ziffr Cloud offers them. Its Owner may invite colleagues within the Trial Limits, and every Connector reaches those who accepted, but Contacts stay simulated. At its end it is subscribed to (a Size, everything kept) or closed, its Owner takes a Workspace Export, and it is deleted after a set number of days. It starts without any Metric or dashboard; its Owner makes a Metric, installs a Pack or tries the example (the Test Metric): nothing made up, so its first value is the Owner's own.
 _Avoid_: Sandbox, test workspace, free trial
 
 **Trial Limit**:
@@ -450,7 +450,7 @@ The five steps that set up a Workspace (About you, Starting point, Ways in and o
 _Avoid_: Wizard, onboarding, tour, checklist
 
 **Trial Guide**:
-The Setup Guide as a Trial Workspace has it: the same steps, with the Test Metric as its First Metric and the Trial Limits on the steps that count something. Try it stays as the reference of every way.
+The Setup Guide as a Trial Workspace has it: the same steps, with the Test Metric as its First Metric while the Workspace has no Metric of its own choosing, and the Trial Limits on the steps that count something. Try it stays as the reference of every way.
 _Avoid_: Wizard, onboarding, tour
 
 **Business Function**:
@@ -466,7 +466,7 @@ A Delivery a person sends to themselves through one Connector (email, Slack or T
 _Avoid_: Ping, test notification
 
 **Test Metric**:
-The Metric a Trial Workspace has for the Setup Guide of a trial to ask for: Cups of coffee, asked of the Owner daily, answered by hand and without history, so the first value it holds is the Owner's own.
+The Metric of a Trial Workspace's example, made only when its Owner chooses to try the example or reaches the Setup Guide's First Metric step without a Metric: Cups of coffee, asked of the Owner daily, answered by hand and without history, so the first value it holds is the Owner's own. With it come the Workflow Ask me each day and the dashboard Your coffee, which its owner may remove while saying what happens to recorded values.
 _Avoid_: Demo metric, sample metric
 
 **Installation**:

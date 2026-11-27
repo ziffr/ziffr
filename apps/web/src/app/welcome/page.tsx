@@ -25,7 +25,7 @@ export default async function WelcomePage({ searchParams }: { searchParams: Prom
     return (
       <AuthShell>
         <AuthHeading title="Start your trial">
-          A Trial Workspace for you alone. It starts with one Metric, Cups of coffee, a Workflow that asks you for it each day and a small dashboard, so you can try how values arrive by email, Slack, Telegram, an assistant or a program. Nothing in it is made up: the first value is yours. Nobody else can be invited, and nothing is sent to anyone but you. It ends after {trial.days} days and is then deleted with everything in it.
+          A Trial Workspace of your own. It starts empty: you create your first figure, install a Pack, or try an example in which Ziffr asks you once a day how many cups of coffee you drank. Then you see how values arrive by email, Slack, Telegram, an assistant or a program. Nothing in it is made up: the first value is yours. You can invite colleagues once you have recorded a value. It ends after {trial.days} days and is then deleted with everything in it.
         </AuthHeading>
         <WelcomeForm />
       </AuthShell>

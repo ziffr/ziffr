@@ -10,7 +10,7 @@ import { installIncludedPack, recommendedPacks } from "./included-packs";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { chooseExploreOnMyOwn, setupGuide } from "./setup-guide";
 import { adoptSetupFirstMetric, setUpGuideFromPack } from "./setup-from-pack";
-import { seedTrialWorkspace } from "./trial-seed";
+import { startTrialWorkspace } from "./trial-seed";
 import { opened, workspace } from "./test/db-fixtures";
 
 const made: Awaited<ReturnType<typeof workspace>>[] = [];
@@ -125,13 +125,13 @@ describe("the ranked list names the install", () => {
 });
 
 describe("a trial's start", () => {
-  it("ticks by itself: the Test Metric is the starting point", async () => {
+  it("ticks by itself, and makes no Metric", async () => {
     const { w, o } = await fresh();
-    await seedTrialWorkspace(o);
+    await startTrialWorkspace(o);
     const g = (await setupGuide(o))!;
     expect(g.startingPoint).toBe("scratch");
     expect(g.steps.find((s) => s.id === "start")).toMatchObject({ ticked: true });
-    expect(await count("metrics", w.id)).toBe(1);
+    expect(await count("metrics", w.id)).toBe(0);
   });
 });
 

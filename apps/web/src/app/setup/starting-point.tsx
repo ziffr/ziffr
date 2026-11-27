@@ -48,8 +48,8 @@ type Props = {
   metrics: number;
   /** The guide's Metric, when the viewer may see it. */
   firstMetric: { id: number; name: string } | null;
-  /** In a trial: the Test Metric's name; the step is ticked by itself. */
-  trial: { testMetric: string } | null;
+  /** A trial, where the step is ticked by itself. */
+  trial: boolean;
   /** The viewer's own Business Function from About you, in words, to name in the Pack card; null when not answered. */
   functionLabel?: string | null;
   /** Whether the viewer is an Owner (a Pack that holds a Theme is for Owners). */
@@ -84,7 +84,7 @@ export function StartingPoint(p: Props) {
     <div className="space-y-6">
       {p.trial && (
         <p role="status" className="rounded-[var(--radius-card)] border border-border bg-card p-4 text-sm">
-          <strong className="font-medium">{p.trial.testMetric}</strong> is a sample Metric: a number Ziffr keeps and asks you for over time. We made it so you can try things, and you can delete it any time. This step is done; a Pack still fits within the trial&rsquo;s limits.
+          In a trial this step is done. Start from a Pack, within the trial&rsquo;s limits, or build your own. To see first how Ziffr asks for a Metric, try the example in the First Metric step.
         </p>
       )}
       {!p.trial && p.metrics > 0 && p.startingPoint !== "pack" && (
@@ -101,7 +101,7 @@ export function StartingPoint(p: Props) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="stock flex flex-col rounded-[var(--radius-card)] p-4">
             <p className="font-medium">Explore on my own</p>
-            <p className="mt-1 flex-1 text-sm text-muted-foreground">{p.trial ? "Stay with the sample Metric and build your own step by step, from the Metric Catalog or from scratch." : "An empty Workspace. Describe your first Metric from the Metric Catalog or from scratch."}</p>
+            <p className="mt-1 flex-1 text-sm text-muted-foreground">{p.trial ? "Build your own step by step, from the Metric Catalog or from scratch." : "An empty Workspace. Describe your first Metric from the Metric Catalog or from scratch."}</p>
             <Button type="button" variant="outline" className="mt-3 h-11 w-full sm:h-9 sm:w-auto sm:self-start" disabled={pending} onClick={() => run(() => chooseExplore(), () => router.push("/metrics/new?setup=1"))}>
               Explore on my own
             </Button>

@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { createWorkspace } from "./page-data";
+import { makeTrialExample } from "./trial-seed";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
 import { setActionStatus } from "./questions";
 import { openRows } from "./sealed-columns";
@@ -225,6 +226,7 @@ describe("Every value in a Trial Workspace", () => {
       await db().from("profiles").delete().eq("id", owner);
     });
     const actor = { personId: owner, workspaceId: ws, role: "owner" as const };
+    await makeTrialExample(actor);
     const { data: wf } = await db().from("workflows").select("id, name, config").eq("workspace_id", ws).single();
     const config = wf!.config as WorkflowConfig;
     // The only Approver the editor can offer here is the Owner: Every value, approved by them.
