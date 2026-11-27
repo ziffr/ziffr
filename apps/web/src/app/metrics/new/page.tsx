@@ -25,6 +25,8 @@ import { SOURCES } from "@/sources";
 import { isDemo } from "@/lib/auth";
 import { NameField } from "../name-field";
 import { CalculationNoteField } from "../calculation-note-field";
+import { AskNoteField } from "../ask-note-field";
+import { ASK_NOTE_DEFAULT } from "@ziffr/core/ask-note";
 import { CatalogBrowser } from "./catalog-browser";
 import { GuidedPick } from "./guided-pick";
 import { suggestMetrics } from "@/lib/metric-suggestions";
@@ -222,7 +224,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
           </Section>
 
           <MoreOptions
-            initial={{ unit: d.unit, unit_position: d.unit_position, decimals: d.decimals, submission_rule: d.submission_rule, aggregation: d.aggregation, sources: d.sources as string[], attainment_method: d.attainment_method ?? "" }}
+            initial={{ unit: d.unit, unit_position: d.unit_position, decimals: d.decimals, submission_rule: d.submission_rule, aggregation: d.aggregation, sources: d.sources as string[], attainment_method: d.attainment_method ?? "", ask_note: d.ask_note ?? ASK_NOTE_DEFAULT }}
             sourceLabels={Object.fromEntries(SOURCES.map((s) => [s.id, s.label]))}
             attainmentLabels={ATTAINMENT_METHOD_LABEL}
           >
@@ -253,6 +255,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
                 </div>
               </F>
               <AttainmentMethodField id="new-attainment" value={d.attainment_method} workspaceMethod={attainmentMethod} className="sm:col-span-2" />
+              <AskNoteField id="new-ask-note" value={d.ask_note} className="sm:col-span-2" />
             </div>
           </MoreOptions>
         </div>

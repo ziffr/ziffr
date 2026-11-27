@@ -1,6 +1,7 @@
 // What a program reads and does through the API with an Access Key (spec 0002, GLOSSARY: Access Key). Each function
 // takes a KeyActor (or a person's Actor, for tests and tools), checks its scope, and returns only what the key's
 // creator sees, in plain shapes made for programs: no contact details, no internal rows.
+import { ASK_NOTE_DEFAULT, type AskNote } from "./ask-note";
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, peopleFor, systemTextFor, threadReader, visibleMetricIds } from "./access";
 import { inCondensed, partOfCondensed, valueOfParts, type CondensedPoint } from "./condensed-parts";
@@ -30,6 +31,9 @@ export type Page<T, C = number> = { items: T[]; next: C | null };
 export type ApiMetric = Pick<Metric, "slug" | "name" | "description" | "period" | "format" | "unit" | "unit_position" | "decimals" | "polarity" | "aggregation" | "target_min" | "target_max" | "attainment_method" | "sources"> & {
   /** How it is calculated (GLOSSARY: Calculation Note); empty where nothing is written. */
   calculation_note: string;
+  /** **Ask for a note** (spec 0064): when it asks for a Value Note after only a number came in; null for a Derived
+   * Metric or Total, which nobody sends values. */
+  ask_for_note: AskNote | null;
   derived: boolean; archived: boolean; tags: string[];
 } & ApiRetention;
 
@@ -39,6 +43,7 @@ export const toApi = (m: Metric, stored?: { retention?: unknown; retention_pendi
   slug: m.slug, name: m.name, description: m.description, calculation_note: m.calculation_note ?? "", period: m.period, format: m.format, unit: m.unit, unit_position: m.unit_position,
   decimals: m.decimals, polarity: m.polarity, aggregation: m.aggregation, target_min: m.target_min, target_max: m.target_max,
   attainment_method: m.attainment_method ?? null, sources: [...(m.sources ?? [])], derived: Boolean(m.formula),
+  ask_for_note: m.formula || m.total ? null : (m.ask_note ?? ASK_NOTE_DEFAULT),
   archived: Boolean(m.archived_at), tags, ...retentionForApi(stored?.retention, stored?.retention_pending),
 });
 

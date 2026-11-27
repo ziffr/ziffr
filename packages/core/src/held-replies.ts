@@ -16,7 +16,8 @@ import { deliverNotice, refFor } from "./deliveries";
 import { addressIn } from "./mail";
 import { recordAudit } from "./audit-log";
 import { asksForValues, REPLY_DAYS, routeReply, type RepliedDelivery } from "./reply-routing";
-import { takePromptReply, withoutFormLinks, type OfferChoice } from "./prompt-reply";
+import { NOTE_FIELD_QUESTION } from "./ask-note";
+import { takePromptReply, withoutFormLinks, type NoteField, type OfferChoice } from "./prompt-reply";
 import { submissionEffects } from "./submissions";
 import { answerSourceOf } from "./prompt-ways";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -175,8 +176,9 @@ function equal(a: string, b: string): boolean {
 }
 
 /** What the confirm page shows: the kind of reply, its words, what confirming would do (one line for each figure of a
- * reply to a request, with its note), and the change a note offers, as a second button. */
-export type HeldReplyView = { kind: "value" | "reply"; text: string; effect: string; offer?: { take: string; label: string } };
+ * reply to a request, with its note), the change a note offers, as a second button, and a note field for each value
+ * that carries none, with the question where a Metric asks (whatever the value: this page is no sign-in). */
+export type HeldReplyView = { kind: "value" | "reply"; text: string; effect: string; offer?: { take: string; label: string }; notes?: NoteField[]; question?: string };
 
 /** What a token's held reply says and would do, for the page that asks first. Changes nothing. Null when the link
  * does not work, whatever the reason. Carries only what the person who holds the link needs. */
@@ -188,7 +190,8 @@ export async function heldReplyView(token: string): Promise<HeldReplyView | null
     if (!asksForValues(f.d)) return null;
     const would = await lookAt(f.d, f.text, f.address);
     if (would.outcome === "unknown_token") return null;
-    return { kind: "value", text: f.text, effect: would.text || "Nothing would change.", ...(would.offer ? { offer: would.offer } : {}) };
+    const notes = would.noteFields;
+    return { kind: "value", text: f.text, effect: would.text || "Nothing would change.", ...(would.offer ? { offer: would.offer } : {}), ...(notes ? { notes, ...(notes.some((n) => n.asks) ? { question: NOTE_FIELD_QUESTION } : {}) } : {}) };
   }
   // The whole text as it will be taken, and the Correction's number in words, so nothing taken is hidden from the person.
   return { kind: "reply", text: f.text, effect: correction === null ? `Posted as your reply in the Thread of ${refFor(f.d.action_id!)}.` : `${body ? "Posted as your reply, and proposes" : "Proposes"} a Correction to ${correction} in the Thread of ${refFor(f.d.action_id!)}.` };
@@ -196,9 +199,10 @@ export async function heldReplyView(token: string): Promise<HeldReplyView | null
 
 /** Confirms a held reply: it is claimed first (deleted, so a second use finds nothing), then taken the way a reply
  * the provider vouched for is. `take` is the offered change the person pressed, as the page showed it (from a browser:
- * it takes effect only when the reply still offers exactly that). Returns what became of it in words for the page, or
- * null when the link does not work. */
-export async function confirmHeldReply(token: string, take?: string): Promise<{ ok: boolean; detail: string } | null> {
+ * it takes effect only when the reply still offers exactly that). `notes` are the words typed in the page's fields, by
+ * figure number, from a browser too: each goes only with a value this reply records without a note, and the intake
+ * checks and cuts it. Returns what became of it in words for the page, or null when the link does not work. */
+export async function confirmHeldReply(token: string, take?: string, notes?: Record<number, string>): Promise<{ ok: boolean; detail: string } | null> {
   const f = await find(token);
   if (!f) return null;
   const { data: claimed } = await db().from("held_replies").delete().eq("id", f.id).select("id");
@@ -206,7 +210,7 @@ export async function confirmHeldReply(token: string, take?: string): Promise<{ 
   let said = "";
   // No offer is left open: there is no message the person could say "yes" to.
   const offers: OfferChoice = take ? { take: String(take).slice(0, 80) } : "none";
-  const outcome = await routeReply(f.d, f.text, { source: "mail", sender: f.address, onPage: true, answer: async (_subject, text) => { said = text; } }, submissionEffects, offers);
+  const outcome = await routeReply(f.d, f.text, { source: "mail", sender: f.address, onPage: true, notes, answer: async (_subject, text) => { said = text; } }, submissionEffects, offers);
   const ok = outcome === "recorded" || outcome === "noted" || outcome === "replied" || outcome === "corrected";
   await recordAudit(f.d.workspace_id, f.d.recipient_id, { kind: "email_reply.confirmed", details: { kind: f.kind, outcome } });
   return { ok, detail: said || (ok ? "Your reply was added." : "Nothing was recorded.") };

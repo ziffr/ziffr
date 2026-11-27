@@ -11,7 +11,7 @@ A named, fully described number tracked over time. It must be defined before any
 _Avoid_: Number, KPI, measure, series
 
 **Metric Description**:
-Everything that defines a metric: name, description, Calculation Note, unit and which side of the number it stands on, format, period, submission rule, sources, target range, polarity, how its Attainment is computed (or the Workspace's way), owner, its Tags and, for a derived metric, its formula.
+Everything that defines a metric: name, description, Calculation Note, unit and which side of the number it stands on, format, period, submission rule, sources, target range, polarity, how its Attainment is computed (or the Workspace's way), owner, its Tags, when it asks for a Value Note (**Ask for a note**: always, which is the default, only when off target or unusual, or never; not for a derived metric) and, for a derived metric, its formula.
 _Avoid_: Settings, config, schema
 
 **Calculation Note**:
@@ -19,7 +19,7 @@ How a Metric is calculated, in words; screens call it **How it is calculated**: 
 _Avoid_: Methodology, counting rules, business logic
 
 **Value Note**:
-Words about one period's value of a Metric saying what is behind it, written by who sent the value or by who looks after the Metric. It never changes a number and is seen by whoever sees the value. Not the Calculation Note (how a Metric is calculated) and not a Thread.
+Words about one period's value of a Metric saying what is behind it, written by who sent the value or by who looks after the Metric. It never changes a number and is seen by whoever sees the value. Where a person sends only a number by a reply or a form, Ziffr may ask once, inside the confirmation, whether anything is behind it, as the Metric's **Ask for a note** says. It sends no message of its own for that and gives no reason; whoever may not see the Metric, or types into a form without signing in, is asked every time unless the setting is never. Not the Calculation Note (how a Metric is calculated) and not a Thread.
 _Avoid_: comment, annotation, remark, commentary
 
 **Period**:
@@ -154,7 +154,7 @@ A scheduled message asking a submitter for a metric's value for the current peri
 _Avoid_: Reminder, nudge
 
 **Combined Prompt**:
-One message that carries several Prompts to one person, with one form for all of them. Each value still answers its own Prompt. One run of asking (the Workspace's run, running Workflows by hand, Ask for missing values or one Set up from a Pack) puts what it asks one person by one way into one, new numbers and, in a reminder, those still missing. Its words are written when it is sent, from the numbers still open that the person is still asked for. One number is asked as an ordinary Prompt. Its link opens the **combined form**: one page, without sign-in, with a field for each number the message listed, for 30 days. That link is no Token: every number is still checked against its own. The owner says "one request"; screens may say "your numbers". A text reply answers it with one line for each number ("1: 45").
+One message that carries several Prompts to one person, with one form for all of them. Each value still answers its own Prompt. One run of asking (the Workspace's run, running Workflows by hand, Ask for missing values or one Set up from a Pack) puts what it asks one person by one way into one, new numbers and, in a reminder, those still missing. Its words are written when it is sent, from the numbers still open that the person is still asked for. One number is asked as an ordinary Prompt. Its link opens the **combined form**: one page, without sign-in, with a field for each number the message listed, for 30 days. That link is no Token: every number is still checked against its own. On Slack the message also has **Enter all**, a window with a number and a note for each (up to 40). The owner says "one request"; screens may say "your numbers". A text reply answers it with one line for each number ("1: 45").
 _Avoid_: Digest, batch, bundle, summary
 
 **Workflow**:
@@ -753,7 +753,7 @@ A change to an observation proposed in an action's thread, which takes effect on
 _Avoid_: Fix, edit, amendment
 
 **Held Reply**:
-A reply by email that no provider vouched for, which changes nothing until the person it went to confirms it with a one-time link Ziffr emails to the address the Workspace keeps for them (never the address it came from). The link works once, for 48 hours, and shows the reply and what it would do before its Confirm button takes it. Replies a provider vouched for are taken at once. Not an Approval, which is never taken by email unvouched.
+A reply by email that no provider vouched for, which changes nothing until the person it went to confirms it with a one-time link Ziffr emails to the address the Workspace keeps for them (never the address it came from). The link works once, for 48 hours, and shows the reply and what it would do before its Confirm button takes it, with a field for a note on each value that came without one. Replies a provider vouched for are taken at once. Not an Approval, which is never taken by email unvouched.
 _Avoid_: Quarantined reply, pending reply
 
 **Delivery**:

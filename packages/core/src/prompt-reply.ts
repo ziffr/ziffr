@@ -5,17 +5,22 @@
 // Held Reply would do before it is confirmed. Security: the Connector has proved that the reply is from the person the
 // message went to; this decides, figure by figure, whether they are still asked (their own Token, the Metric in use and
 // taking this way), and writes a note only on a value of their own. A figure no longer asked is not named. The words
-// of a note never go into the intake log.
+// of a note never go into the intake log. Where a value came without a note, the answer may end with the question
+// "anything behind it?" (note-question.ts), which never says why it is asked. A chat window's fields come here too
+// (slack-window.ts) and go the same way.
 import { ARCHIVED_REFUSAL } from "./archived-metrics";
+import { ASK_NOTE_DEFAULT, noteQuestion } from "./ask-note";
 import { condensedOn, condensedRefusal } from "./condensed-values";
 import { db } from "./db";
 import { linkTo } from "./deliveries";
+import { withoutAddresses } from "./file-text";
 import { yearStartFor, yearStartOf } from "./fiscal-year";
-import { withNoteWords } from "./form-submit";
-import { formatValue, SOURCE_LABEL } from "./format";
+import { noteFieldsOn, withNoteWords } from "./form-submit";
+import { formatValue, RULE_LABEL, SOURCE_LABEL } from "./format";
 import { numberedFigures, type NumberedFigure } from "./internal/combined-delivery";
-import { unlinked } from "./mail-links";
+import { inboundOn, mailOn } from "./mail";
 import { normalizeMetric } from "./metric-row";
+import { askOnReply, closeQuestions, openProposals } from "./note-question";
 import { periodLabel } from "./periods";
 import { claimOffer, keepOffer, offeredValue, peekOffer, valueStamp, type StoredOffer } from "./reply-offers";
 import { readReply, type ReplyContext, type ReplyFigure, type ReplyOffer, type ReplyReading, type ReplyValue } from "./reply-reader";
@@ -23,7 +28,8 @@ import type { ReplyNote } from "./reply-cleaning";
 import { openNames, openRows } from "./sealed-columns";
 import { isLocked, previewValue, submitValue, type SubmissionEffects, type SubmissionInput, type SubmissionResult } from "./submissions";
 import { tokenValid, type TokenRow } from "./tokens";
-import { addReplyNote, retireNote, type ReplyNoteSaved } from "./value-note-store";
+import { addReplyNote, replaceProposedNote, retireNote, type NumberOnly, type ReplyNoteSaved } from "./value-note-store";
+import { isPracticeWorkspace } from "./practice";
 import { isAfterApprovalOrLock } from "./value-notes";
 import { answerReadingOf, numberStyleOf } from "./workspace-settings";
 import { answerSourceOf } from "./prompt-ways";
@@ -32,15 +38,21 @@ import type { Metric } from "./types";
 /** The Delivery a reply to a request came back for: of one Prompt, or a Combined Prompt. */
 type PromptDelivery = { id: number; workspace_id: string; recipient_id: string; prompt_id: number | null; combined?: boolean | null };
 
-/** Where the reply came from: its Source, the sender as that Source knows them, and the person the Connector proved. */
-type ReplyFrom = { source: "mail" | "slack" | "telegram"; sender: string; provenPersonId?: string };
+/** Where the reply came from: its Source, the sender as that Source knows them, and the person the Connector proved.
+ * `about` names the Prompts of the question the reply answers, where the way says which message it replies to. */
+type ReplyFrom = { source: "mail" | "slack" | "telegram"; sender: string; provenPersonId?: string; about?: number[] };
 
 /** What is done with an offer the reply's note makes: kept for a "yes" in the same place, taken at once because the
  * person pressed it on a Held Reply's page (`take` is what that page showed), or neither. */
 export type OfferChoice = "keep" | "none" | { take: string };
 
-/** Whether the reply is only looked at (a Held Reply before it is confirmed) or acted on. */
-type ReplyMode = { dry: true } | { dry?: false; submission: SubmissionEffects; offers: OfferChoice };
+/** Whether the reply is only looked at (a Held Reply before it is confirmed) or acted on. `ask`: the answer may end
+ * with the question for a note. `typed`: notes typed beside the reply, by figure number, for values that carry none
+ * (the fields of a Held Reply's page). */
+type ReplyMode = { dry: true; typed?: undefined } | { dry?: false; submission: SubmissionEffects; offers: OfferChoice; ask?: boolean; typed?: Record<number, string> };
+
+/** A value a looked-at reply would record without a note: the page offers a field for it, and asks where `asks`. */
+export type NoteField = { position: number; label: string; asks: boolean };
 
 /** What became of a reply to a request. `noted`: a note was saved and no value. `closed`: thanks or a refusal once a
  * value is in. */
@@ -65,6 +77,10 @@ type PromptReplyReport = {
   offer?: { take: string; label: string };
   /** An offer was kept, so the chat message answering it is remembered. */
   offered?: boolean;
+  /** The words end with the question for a note on these Prompts' values; the message carrying it is remembered. */
+  asked?: number[];
+  /** Only of a look: the values that could take a note. */
+  noteFields?: NoteField[];
 };
 
 /** A value of this person's that is in for a Prompt's period. */
@@ -78,6 +94,8 @@ type InValue = {
   shared: boolean;
   /** Entered in someone's place by a Stand-in: a further value is refused, as the intake does, so none is offered. */
   forAnother?: boolean;
+  /** Not in yet: proposed for a locked period, and asked about. Words travel with this proposal. */
+  proposal?: number;
 };
 
 type PromptRow = { id: number; metric_id: number; period_start: string; submitter_id: string; stands_in_for: string | null; answered_at: string | null };
@@ -140,6 +158,7 @@ async function figuresFor(d: PromptDelivery, source: ReplyFrom["source"]): Promi
   ]);
   const metrics = (await openRows("metrics", ws, metricRows)).map(normalizeMetric) as Metric[];
   const all = (tokens ?? []) as TokenRow[];
+  const proposals = await openProposals(ws, d.id);
   const out: Figure[] = [];
   // A message's numbers may have gaps (a Metric deleted since): each number stays where it was sent, and there are as
   // many as the message numbered.
@@ -153,8 +172,10 @@ async function figuresFor(d: PromptDelivery, source: ReplyFrom["source"]): Promi
     }
     // The Token the intake would take: the person's own, or for a Prompt sent in someone's place, the one for that person.
     const holds = all.some((t) => t.metric_id === metric.id && t.submitter_id === d.recipient_id && (t.stands_in_for ?? null) === (prompt.stands_in_for ?? null) && tokenValid(t, all));
+    const proposed = proposals.get(prompt.id);
     out.push({
-      position, prompt, metric, held: await valueIn(ws, d.recipient_id, prompt, metric.submission_rule), locked: await isLocked(metric.id, prompt.period_start),
+      position, prompt, metric, locked: await isLocked(metric.id, prompt.period_start),
+      held: proposed ? { value: proposed.value, observationId: 0, replaced: false, shared: false, proposal: proposed.messageId } : await valueIn(ws, d.recipient_id, prompt, metric.submission_rule),
       closedWhy: !l.byReply ? `${metric.name} takes values only on the form` : holds ? null : NOT_ASKED,
     });
   }
@@ -181,14 +202,13 @@ function readerFigure(f: Figure, combined: boolean): ReplyFigure {
 /** What a run of one reply works with. */
 type Run = Message & { text: string; mode: ReplyMode; context: Omit<ReplyContext, "figures" | "email"> };
 
-const yearFor = (r: Run, f: Figure) => yearStartFor(r.d.workspace_id, f.metric!.period);
-const labelOf = async (r: Run, f: Figure) => `${f.metric!.name}, ${periodLabel(f.prompt!.period_start, f.metric!.period, await yearFor(r, f)).replace(/^Week of/, "week of")}`;
+const labelOf = async (r: Pick<Run, "d">, f: Figure) => `${f.metric!.name}, ${periodLabel(f.prompt!.period_start, f.metric!.period, await yearStartFor(r.d.workspace_id, f.metric!.period)).replace(/^Week of/, "week of")}`;
 const written = (r: Run, f: Figure, value: number) => formatValue(f.metric!, value, r.context.style);
 
 /** Words of a person's quoted in an answer: on one line, cut short, and never a link. */
 const quoted = (words: string) => {
   const line = [...words.replace(/\s+/g, " ")];
-  return `“${unlinked(line.length > 100 ? `${line.slice(0, 100).join("")}…` : line.join(""))}”`;
+  return `“${withoutAddresses(line.length > 100 ? `${line.slice(0, 100).join("")}…` : line.join(""))}”`;
 };
 
 // One value through the intake, or what the intake would answer.
@@ -198,13 +218,28 @@ function intake(r: Run, f: Figure, input: Pick<SubmissionInput, "text" | "valueN
   return r.mode.dry ? previewValue(full) : submitValue(full, r.mode.submission, r.from.provenPersonId);
 }
 
+/** A value that came without a note, for the figure it answered. */
+type WithoutNote = { promptId: number; at: NumberOnly };
+
 // A value the reply gives for a figure, with its note.
-async function recordValue(r: Run, f: Figure, v: ReplyValue): Promise<{ ok: boolean; proposed: boolean; detail: string }> {
+async function recordValue(r: Run, f: Figure, v: Pick<ReplyValue, "answer" | "note">): Promise<{ ok: boolean; proposed: boolean; detail: string; without: WithoutNote[] }> {
   const result = await intake(r, f, { text: v.answer, ...(v.note ? { valueNote: v.note.text } : {}) });
   const saved = result.valueNote;
   const told = withNoteWords(saved?.saved && v.note?.cut ? { ...result, valueNote: { saved: true, cut: true } } : result);
   const note = !v.note || !(result.ok || result.outcome === "proposed_locked") ? "" : r.mode.dry ? ` With it, your note: ${quoted(v.note.text)}` : r.combined && saved?.saved ? ` Note: ${quoted(v.note.text)}` : "";
-  return { ok: result.ok, proposed: result.outcome === "proposed_locked", detail: `${told.detail}${note}` };
+  const without = result.numberOnly ? [{ promptId: f.prompt!.id, at: result.numberOnly }] : [];
+  return { ok: result.ok, proposed: result.outcome === "proposed_locked", detail: `${told.detail}${note}`, without };
+}
+
+// The question that ends an answer, for the values that came without a note, or null where none is asked. By email only
+// where a reply to the answer arrives: a question nobody can answer is not put.
+async function question(r: Run, without: WithoutNote[]): Promise<{ text: string; asked: number[] } | null> {
+  if (r.mode.dry || !r.mode.ask || !without.length) return null;
+  const ws = r.d.workspace_id;
+  if (r.from.source === "mail" && !((await mailOn()) && (await inboundOn()) && !(await isPracticeWorkspace(ws)))) return null;
+  const asked = await askOnReply(ws, r.d.id, r.d.recipient_id, without);
+  if (!asked.length) return null;
+  return { text: noteQuestion(r.combined, r.figures.filter((f) => f.prompt && asked.includes(f.prompt.id)).map((f) => f.position)), asked };
 }
 
 // Why this person may not write a note on this figure's value now, or null.
@@ -224,6 +259,10 @@ async function saveNote(r: Run, f: Figure, note: ReplyNote): Promise<ReplyNoteSa
   const held = f.held!;
   // A number that does not open cannot be said to have been commented on.
   if (Number.isNaN(held.value)) return { saved: false, reason: "The note could not be saved." };
+  if (held.proposal) {
+    const kept = await replaceProposedNote(ws, { messageId: held.proposal, metricId: f.metric!.id, period: f.prompt!.period_start, value: held.value }, { words: note.text, authorId: r.d.recipient_id, source: r.from.source, tooLong: "cut" });
+    return kept.saved ? { saved: true, noteId: 0, inPlace: Boolean(kept.inPlace) } : kept;
+  }
   return addReplyNote(ws, {
     metricId: f.metric!.id, period: f.prompt!.period_start, authorId: r.d.recipient_id, source: r.from.source, observationId: held.observationId, saidOf: held.value,
     replaced: held.replaced, addedLater: await isAfterApprovalOrLock(ws, f.metric!.id, f.prompt!.period_start),
@@ -237,7 +276,8 @@ function noteWords(r: Run, f: Figure, note: ReplyNote, saved: ReplyNoteSaved): s
   const quote = r.combined ? ` ${quoted(note.text)}` : "";
   const cut = note.cut ? " It was cut to 1,000 characters." : "";
   const filed = f.held!.replaced ? " Your value was replaced meanwhile, so the note is filed under your earlier value." : "";
-  return `${where}${quote}${cut}${filed}`;
+  const proposal = f.held!.proposal ? " It goes with your proposed correction." : "";
+  return `${where}${quote}${cut}${filed}${proposal}`;
 }
 
 const SEND_ALONE = "To change the value, send the number alone.";
@@ -282,8 +322,9 @@ async function noteReport(r: Run, i: number, reading: Extract<ReplyReading, { ki
   const lines = [noteWords(r, f, note, saved)];
   const report: Omit<PromptReplyReport, "text"> = { outcome: saved.saved ? "noted" : "refused", subject: saved.saved ? "Your note" : "Not recorded", bare: saved.saved, changes: saved.saved };
   const quiet = saved.saved && !reading.holdsNumber && !note.cut && !f.held!.replaced;
-  // No offer from words that were cut (the number may be cut too) or filed under a value that is no longer there.
-  const offer = saved.saved && !note.cut && !f.held!.replaced ? reading.offer : null;
+  // No offer from words that were cut (the number may be cut too), filed under a value that is no longer there, or
+  // travelling with a proposal.
+  const offer = saved.saved && !note.cut && !f.held!.replaced && !f.held!.proposal ? reading.offer : null;
   const choice = r.mode.dry ? null : r.mode.offers;
   if (offer && saved.saved) {
     const words = offerWords(r, f, offer);
@@ -300,7 +341,11 @@ async function noteReport(r: Run, i: number, reading: Extract<ReplyReading, { ki
       lines.push(done.detail);
       if (done.ok) report.outcome = "recorded";
     }
-  } else if (reading.sendAlone && saved.saved) lines.push(SEND_ALONE);
+  } else if (saved.saved && (reading.sendAlone || (f.held!.proposal && reading.holdsNumber))) {
+    lines.push(SEND_ALONE);
+    report.invites = true;
+  }
+  if (saved.saved && !r.mode.dry) await closeQuestions(r.d.workspace_id, r.d.id, [f.prompt!.id]);
   const prefix = r.combined ? `${f.position}. ${await labelOf(r, f)}: ` : "";
   return { ...report, text: `${prefix}${lines.join(" ")}`, noEmail: quiet };
 }
@@ -320,13 +365,23 @@ async function valuesReport(r: Run, reading: Extract<ReplyReading, { kind: "valu
   let proposed = false;
   let noted = false;
   let quiet = reading.values.length === 0 && reading.unread.length === 0 && reading.closed.length === 0 && !reading.skipped?.length && reading.notes.length > 0;
+  let invites = false;
+  const without: WithoutNote[] = [];
+  const noteFields: NoteField[] = [];
   const say = (f: Figure, text: string) => lines.push({ position: f.position, text: r.combined ? `${f.position}. ${text}` : text });
   // One after the other: two figures of one Metric and period would otherwise race each other's Submission Rule.
   for (const v of reading.values) {
     const f = r.figures[v.figure];
-    const done = await recordValue(r, f, v);
+    // Typed beside the reply, on the page that confirms a Held Reply: the note of a value that carries none.
+    const typed = r.mode.typed?.[f.position]?.trim();
+    const note = v.note ?? (typed ? { text: withoutFormLinks(typed), cut: false } : null);
+    const done = await recordValue(r, f, { answer: v.answer, note });
     recorded ||= done.ok;
     proposed ||= done.proposed;
+    without.push(...done.without);
+    if (r.mode.dry && !note && (done.ok || done.proposed) && noteFieldsOn(r.d.workspace_id)) {
+      noteFields.push({ position: f.position, label: `${r.combined ? `${f.position}. ` : ""}${await labelOf(r, f)}`, asks: (f.metric!.ask_note ?? ASK_NOTE_DEFAULT) !== "never" });
+    }
     say(f, done.detail);
   }
   for (const u of reading.unread) {
@@ -339,7 +394,10 @@ async function valuesReport(r: Run, reading: Extract<ReplyReading, { kind: "valu
     const saved = await saveNote(r, f, n.note);
     noted ||= saved.saved;
     quiet &&= saved.saved && !n.holdsNumber && !n.note.cut && !f.held!.replaced;
-    say(f, `${await labelOf(r, f)}: ${noteWords(r, f, n.note, saved)}${n.holdsNumber && saved.saved && !r.mode.dry ? ` ${SEND_ALONE}` : ""}`);
+    const alone = n.holdsNumber && saved.saved && !r.mode.dry;
+    invites ||= alone;
+    if (saved.saved && !r.mode.dry) await closeQuestions(r.d.workspace_id, r.d.id, [f.prompt!.id]);
+    say(f, `${await labelOf(r, f)}: ${noteWords(r, f, n.note, saved)}${alone ? ` ${SEND_ALONE}` : ""}`);
   }
   for (const i of reading.closed) {
     const f = r.figures[i];
@@ -352,7 +410,6 @@ async function valuesReport(r: Run, reading: Extract<ReplyReading, { kind: "valu
   }
   if (reading.unplaced) return unplacedReport(r);
   const text = lines.sort((a, b) => a.position - b.position).map((l) => l.text);
-  let invites = false;
   const open = reading.open.map((i) => r.figures[i]);
   if (r.combined && !r.mode.dry) {
     const nothing = !text.length;
@@ -363,9 +420,11 @@ async function valuesReport(r: Run, reading: Extract<ReplyReading, { kind: "valu
     }
   }
   const outcome = recorded ? "recorded" : noted ? "noted" : "refused";
+  const ask = await question(r, without);
   return {
     outcome, subject: recorded ? "Recorded" : noted && !reading.unread.length ? "Your note" : "Not recorded", bare: outcome === "noted",
-    text: text.join(r.combined ? "\n" : " "), invites, noEmail: quiet, changes: recorded || proposed || noted,
+    text: [text.join(r.combined ? "\n" : " "), ...(ask ? [ask.text] : [])].join("\n\n"), invites: invites || Boolean(ask), noEmail: quiet, changes: recorded || proposed || noted,
+    ...(ask ? { asked: ask.asked } : {}), ...(noteFields.length ? { noteFields } : {}),
   };
 }
 
@@ -387,6 +446,7 @@ async function report(r: Run): Promise<PromptReplyReport> {
   const reading = readReply(r.text, {
     ...r.context, figures: r.figures.map((f) => readerFigure(f, r.combined)), email: r.from.source === "mail", numbered: r.combined,
     openOffer: offer && { figure: offer.figure, value: offer.value },
+    ...(r.from.about?.length === 1 ? { meant: r.figures.findIndex((f) => f.prompt?.id === r.from.about![0]) } : {}),
   });
   switch (reading.kind) {
     case "values": return valuesReport(r, reading);
@@ -404,9 +464,84 @@ async function report(r: Run): Promise<PromptReplyReport> {
       const done = await takeOffered(r, r.figures[reading.figure], offer!);
       return { outcome: done.ok ? "recorded" : "refused", subject: done.ok ? "Recorded" : "Not recorded", text: done.detail, changes: done.ok };
     }
-    case "closed": return nothing("closed");
+    case "closed": {
+      // "No" or thanks: the question is answered, and nothing is saved.
+      if (!r.mode.dry) await closeQuestions(r.d.workspace_id, r.d.id);
+      return nothing("closed");
+    }
     case "nothing": return reading.yes ? nothing("empty", "Nothing was changed", "Nothing was changed: there is no open offer to say yes to.") : nothing("empty");
   }
+}
+
+/** A number and a note typed into a chat window's fields for one figure of the message. */
+export type ReplyEntry = { position: number; value: string; note: string };
+
+// The figures of a message a window may write on, or null when this way does not answer it for this person.
+async function windowOf(d: PromptDelivery, source: ReplyFrom["source"]): Promise<Figure[] | null> {
+  if (!d.combined) {
+    const { data: prompt } = await db().from("prompts").select("source, submitter_id").eq("id", d.prompt_id!).eq("workspace_id", d.workspace_id).maybeSingle();
+    if (!prompt || prompt.submitter_id !== d.recipient_id || (await answerSourceOf(d, prompt.source)) !== source) return null;
+  }
+  return figuresFor(d, source);
+}
+
+/** One figure a window shows a field for: its number in the message, its Prompt, what it is called, and, where the
+ * person's value is in already, what a further number would do. No value and no note. */
+export type WindowFigure = { position: number; promptId: number; label: string; rule: string | null };
+
+/** The figures of a message that a window may take answers for, as they stand now: only those the person is still asked
+ * for and may answer this way. */
+export async function windowFigures(d: PromptDelivery, source: ReplyFrom["source"]): Promise<WindowFigure[]> {
+  const out: WindowFigure[] = [];
+  for (const f of (await windowOf(d, source)) ?? []) {
+    if (f.closedWhy !== null || !f.prompt || !f.metric) continue;
+    out.push({ position: f.position, promptId: f.prompt.id, label: `${d.combined ? `${f.position}. ` : ""}${await labelOf({ d }, f)}`, rule: f.held ? RULE_LABEL[f.metric.submission_rule] : null });
+  }
+  return out;
+}
+
+// What one filled row of a window does, in words.
+async function entryLine(r: Run, f: Figure, e: ReplyEntry): Promise<{ line: string; recorded: boolean; noted?: boolean; without: WithoutNote[] }> {
+  const prefix = r.combined ? `${e.position}. ` : "";
+  if (!f.prompt || !f.metric || f.closedWhy !== null) return { line: `${prefix}Not recorded: ${f.closedWhy ?? NOT_ASKED}.`, recorded: false, without: [] };
+  const words = withoutFormLinks(e.note).trim();
+  const note = words ? { text: words, cut: false } : null;
+  if (e.value.trim()) {
+    const done = await recordValue(r, f, { answer: withoutFormLinks(e.value).trim(), note });
+    return { line: `${prefix}${done.detail}`, recorded: done.ok, without: done.without };
+  }
+  const label = `${prefix}${await labelOf(r, f)}: `;
+  if (!f.held) return { line: `${label}Not saved: type the number too. A note goes with its number.`, recorded: false, without: [] };
+  const saved = await saveNote(r, f, note!);
+  if (saved.saved) await closeQuestions(r.d.workspace_id, r.d.id, [f.prompt.id]);
+  return { line: `${label}${noteWords(r, f, note!, saved)}`, recorded: false, noted: saved.saved, without: [] };
+}
+
+/** Takes what a person typed into a chat window for a message that went to them: a number goes through the intake like
+ * any reply, a note alone onto their value that is in. Every figure is checked again as it is taken. Answers what
+ * became of each, with the question where a number came without a note; null when nothing was filled in or this way
+ * does not answer the message. */
+export async function takeEntries(d: PromptDelivery, entries: readonly ReplyEntry[], from: ReplyFrom, submission: SubmissionEffects): Promise<PromptReplyReport | null> {
+  const figures = await windowOf(d, from.source);
+  const filled = entries.filter((e) => e.value.trim() || e.note.trim()).sort((a, b) => a.position - b.position);
+  if (!figures || !filled.length) return null;
+  const r: Run = { d, from, figures, combined: Boolean(d.combined), text: "", mode: { submission, offers: "none", ask: true }, context: await contextOf(d) };
+  const lines: string[] = [];
+  const without: WithoutNote[] = [];
+  let recorded = false;
+  let noted = false;
+  // One after the other, as lines of a reply are.
+  for (const e of filled) {
+    const f = figures.find((x) => x.position === e.position);
+    if (!f) continue;
+    const done = await entryLine(r, f, e);
+    lines.push(done.line);
+    recorded ||= done.recorded;
+    noted ||= Boolean(done.noted);
+    without.push(...done.without);
+  }
+  const ask = await question(r, without);
+  return { outcome: recorded ? "recorded" : noted ? "noted" : "refused", subject: "Your values", bare: true, changes: recorded || noted, text: [lines.join("\n"), ...(ask ? [ask.text] : [])].join("\n\n"), ...(ask ? { asked: ask.asked } : {}) };
 }
 
 /** Reads a reply to a request from the person it went to and acts on it, or, with `dry`, says what it would do and

@@ -148,8 +148,10 @@ const shownNote = (s: Sight, t: NoteThread, { me, who, hide }: Awaited<ReturnTyp
 });
 
 /** The notes of one Metric's period for a person who sees its value; null for anyone else, so that a period that is
- * not theirs reads like one that is not there. A Guest reads no names, neither as authors nor in the words. */
-export async function periodValueNotes(actor: Actor, metricId: number, period: string): Promise<PeriodNotes | null> {
+ * not theirs reads like one that is not there. A Guest reads no names, neither as authors nor in the words. With
+ * `currentOnly` the history is left empty, for a page that shows the current notes alone: what it does not show is not
+ * sent to its browser. */
+export async function periodValueNotes(actor: Actor, metricId: number, period: string, { currentOnly = false } = {}): Promise<PeriodNotes | null> {
   const s = await sightOf(actor, metricId, period);
   if (!s) return null;
   const ws = actor.workspaceId;
@@ -166,7 +168,7 @@ export async function periodValueNotes(actor: Actor, metricId: number, period: s
     const may = writable && (s.editor || t.first.author_id === actor.personId);
     return { ...shownNote(s, t, reader), source: t.latest.source, mayCorrect: may, mayRemove: may, mayDeleteForGood: owner };
   });
-  const history = threads.flatMap((t) => t.entries.map((e): ValueNoteEntry => {
+  const history = currentOnly ? [] : threads.flatMap((t) => t.entries.map((e): ValueNoteEntry => {
     const words = wordsShown(e, t);
     return { noteId: t.first.id, kind: e.kind, words: words === null ? null : reader.hide(words), saidOf: toldNumbers(s, actor.personId) ? e.said_of : null, author: reader.who(e.author_id), at: e.created_at, source: e.source, addedLater: e.added_later, replaced: t.replaced, deletedForGood: t.erased };
   }));

@@ -8,6 +8,7 @@ import { submitCombinedWebForm } from "@/app/actions";
 import { StandInNote } from "@/app/submit/stand-in-note";
 import { BreakdownField } from "@/app/submit/[code]/breakdown-field";
 import { Button } from "@/components/ui/button";
+import { AskedNote } from "@/components/asked-note";
 import { Input } from "@/components/ui/input";
 import { TuckedNote } from "@/components/value-note-tuck";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,8 @@ export function CombinedFields({ code, rows, numberStyle, notes }: Props) {
                 {row.name !== null && <p className="mt-1.5 text-sm">{row.words}</p>}
               </>
             )}
+            {/* Outside the row's own fields, which start anew once a number was taken, and also once the row closes. */}
+            {shown[row.position]?.ask && <AskedNote key={shown[row.position].ask} code={shown[row.position].ask!} about={row.name === null ? undefined : `for ${row.name}, ${row.periodLabel}`} className="mt-3" />}
           </li>
         ))}
       </ol>
@@ -131,7 +134,8 @@ function OpenRow({ row, said, typed, onType, numberStyle, notes }: RowProps) {
         // Important: on a touch screen every field is otherwise set to 16px (globals.css).
         className="mt-2 h-10 text-base max-sm:h-12 max-sm:text-xl! max-sm:dark:bg-card"
       />
-      {notes && <div className="mt-1 sm:mt-3"><TuckedNote name={`note-${p}`} about={about} value={typed.note} onChange={(note) => onType({ note })} /></div>}
+      {/* While the question stands the row's own note field gives way, until a further number is typed. */}
+      {notes && (!said?.ask || typed.value !== "") && <div className="mt-1 sm:mt-3"><TuckedNote name={`note-${p}`} about={about} value={typed.note} onChange={(note) => onType({ note })} /></div>}
       <Button type="button" variant="ghost" className="mt-1 -ml-2 px-2 underline underline-offset-4" aria-expanded={breakdown} aria-controls={`breakdown-part-${p}`} onClick={() => setBreakdown(!breakdown)}>
         {breakdown ? "Hide the breakdown" : "Add a breakdown (optional)"}<span className="sr-only"> for {about}</span>
       </Button>

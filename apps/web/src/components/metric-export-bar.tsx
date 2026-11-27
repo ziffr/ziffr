@@ -1,12 +1,14 @@
 "use client";
-// Ticking Metrics in the Metrics list to download their values (spec 0056) or to delete them (spec 0065; GLOSSARY:
-// Metric). The checkboxes belong to the bar's form through their `form` attribute, so the page stays a server page and
+// Ticking Metrics in the Metrics list to download their values (spec 0056), to delete them (spec 0065) or to say when
+// they ask for a note (spec 0064; GLOSSARY: Metric). The checkboxes belong to the bar's form through their `form` attribute, so the page stays a server page and
 // the download is a plain GET to /metric-values, which the core checks. Only slugs and ids are sent; the server decides
 // what is in the file and what may be deleted.
-import { Download, Trash2 } from "lucide-react";
+import { Download, MessageSquarePlus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AskNoteMetrics } from "@/components/ask-note-metrics";
 import { DeleteMetrics } from "@/components/delete-metrics";
 import { Button } from "@/components/ui/button";
+import { ASK_NOTE_MANY } from "@ziffr/core/ask-note";
 
 /** The id the checkboxes name in their `form` attribute. */
 const FORM = "metrics-export";
@@ -66,13 +68,15 @@ function words(picked: number, derived: string[], max: number) {
   return { count, note };
 }
 
-/** The bar that appears at the foot of the screen when something is ticked: how many, "Delete…" (for who may create,
- * so never a Guest), "Download values" and "Clear"; `max` is the most one download or deletion holds. Its form and its
+/** The bar that appears at the foot of the screen when something is ticked: how many, "Ask for a note…" and "Delete…"
+ * (for who may create, so never a Guest), "Download values" and "Clear"; `max` is the most one download or deletion
+ * holds. Its form and its
  * status line are always there, only out of sight, so a screen reader hears the count when the first Metric is ticked. */
 export function MetricExportBar({ max, list, canDelete }: { max: number; list: string; canDelete: boolean }) {
   const { picked, shown, ids, derived } = useTicks(list);
   // The Metrics the dialog is about: taken when it opens, so the list changing under it does not change them.
   const [deleting, setDeleting] = useState<number[] | null>(null);
+  const [asking, setAsking] = useState<number[] | null>(null);
   const { count, note } = words(picked, derived, max);
   const link = "min-h-11 min-w-11 px-1 text-sm underline";
   return (
@@ -88,6 +92,11 @@ export function MetricExportBar({ max, list, canDelete }: { max: number; list: s
         {picked > 0 && picked < shown && <button type="button" onClick={() => tickAll(true)} className={`${link} sm:hidden`}>Select all</button>}
         {picked > 0 && <button type="button" onClick={() => { tickAll(false); boxes()[0]?.focus(); }} className={link}>Clear</button>}
         {picked > 0 && canDelete && (
+          <Button type="button" variant="outline" className="min-h-11 sm:min-h-9" disabled={picked > ASK_NOTE_MANY} onClick={() => setAsking(ids)}>
+            <MessageSquarePlus aria-hidden /> Ask for a note…
+          </Button>
+        )}
+        {picked > 0 && canDelete && (
           <Button type="button" variant="outline" className="min-h-11 sm:min-h-9" disabled={picked > max} onClick={() => setDeleting(ids)}>
             <Trash2 aria-hidden /> Delete…
           </Button>
@@ -99,6 +108,7 @@ export function MetricExportBar({ max, list, canDelete }: { max: number; list: s
       </span>
     </form>
     {/* Outside the form: its fields and its Enter are not the download's. */}
+    <AskNoteMetrics ids={asking} onClose={() => setAsking(null)} />
     <DeleteMetrics ids={deleting ?? []} open={deleting !== null} onOpenChange={(o) => { if (!o) setDeleting(null); }} onDeleted={() => tickAll(false)} />
     </>
   );

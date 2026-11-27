@@ -7,7 +7,7 @@ import { TuckedNote } from "@/components/value-note-tuck";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import { Input } from "@/components/ui/input";
 
-export type Answer = { ok: boolean; detail: string; /** The note was not saved, so its field keeps the words. */ noteKept?: boolean } | null;
+export type Answer = { ok: boolean; detail: string; /** The note was not saved, so its field keeps the words. */ noteKept?: boolean; /** The code under which a note asked for after the value is saved. */ ask?: string } | null;
 
 /** What the last try said, in the intake's own words. */
 export function AnswerBox({ answer }: { answer: Answer }) {

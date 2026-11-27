@@ -610,8 +610,9 @@ export async function closePeriod(ws: string, workflowId: number, asOf: string, 
 /** What a program's key that may read is told after a value (GLOSSARY: Unusual Value): why it looks unusual and what was
  * expected, in words. Only a warning the person can overrule (the value is recorded, or waits for Approval, as the
  * Workflow says). It uses the Workflow's check step, or a change of more than 100 % on the period before for a Metric
- * without one; it reads only this Metric's own earlier value, which the key already sees. Null when nothing is unusual. */
-export async function unusualWarning(metricId: number, period: string): Promise<{ reasons: string[]; expected: string } | null> {
+ * without one; it reads only this Metric's own earlier value, which the key already sees. Null when nothing is unusual. `of` judges a number that is
+ * not in, such as a proposed Correction, in the place of the period's value. */
+export async function unusualWarning(metricId: number, period: string, of?: number): Promise<{ reasons: string[]; expected: string } | null> {
   const { data: sealedRow } = await db().from("metrics").select("*").eq("id", metricId).single();
   const row = await openOne("metrics", String(sealedRow?.workspace_id), sealedRow);
   if (!row) return null;
@@ -619,7 +620,7 @@ export async function unusualWarning(metricId: number, period: string): Promise<
   const m = normalizeMetric(row) as Metric;
   const wf = row.workflow_id ? await openWorkflowRow(ws, (await db().from("workflows").select("*").eq("id", row.workflow_id).single()).data) : null;
   const check = (wf as Workflow | null)?.config.steps.find((s): s is Extract<WorkflowStep, { type: "check" }> => s.type === "check") ?? { type: "check" as const, changePct: 100, outsideTarget: false };
-  const value = await latestValue(ws, metricId, period);
+  const value = of === undefined ? await latestValue(ws, metricId, period) : { value: of };
   if (!value) return null;
   const before = shiftPeriod(period, m.period, -1);
   const prev = await latestValue(ws, metricId, before);

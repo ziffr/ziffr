@@ -1,6 +1,7 @@
 // Version history (GLOSSARY: Version): seeing, naming and restoring earlier states of what people build. Who may
 // see and restore follows who may see and edit the object; a restore brings back only what the restorer may show.
 // Every function takes the Actor first and works only inside the actor's Workspace.
+import { ASK_NOTE_DEFAULT, isAskNote } from "./ask-note";
 import { assertSettingsDesigns, assertWidgetDesigns } from "./widget-designs";
 import { db } from "./db";
 import { can, Forbidden, Refused, type Actor } from "./actor";
@@ -245,6 +246,8 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
       const patch = Object.fromEntries(fields.filter((f) => f in kept).map((f) => [f, kept[f]]));
       // A Version without a Calculation Note had none, so a restore takes today's away (spec 0060).
       patch.calculation_note = calculationNoteFrom(kept.calculation_note);
+      // Likewise a Version without **Ask for a note** had the default (spec 0064).
+      patch.ask_note = isAskNote(kept.ask_note) ? kept.ask_note : ASK_NOTE_DEFAULT;
       if (now?.total_targets) {
         // A Total keeps what its parts share, has no formula to bring back, and takes no range where its target is theirs.
         for (const k of ["formula", "sources", "period", "aggregation", "unit", "format", ...(now.total_targets === "parts" ? ["target_min", "target_max"] : [])]) delete patch[k];

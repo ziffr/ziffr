@@ -4,6 +4,7 @@
 // what it held, and the deletion asks for that fingerprint again, so it is allowed only while nothing changed.
 // Visibility: only the Metric Owner gets it, and of it only what they may see (an input of a formula or a part of a
 // Total that is not theirs to see stays unnamed; calculated numbers are what the app shows them).
+import { ASK_NOTE_DEFAULT, ASK_NOTE_LABEL, isAskNote } from "./ask-note";
 import { noteEntries, noteThreads, wordsShown } from "./value-note-store";
 import { createHash } from "node:crypto";
 import { getCanvasData, visibleMetricIds } from "./access";
@@ -135,7 +136,7 @@ async function definitionFile(s: Shared, m: Metric & Row): Promise<RecordFile> {
     ["name", word(m.name)], ["short name", word(m.slug)], ["description", word(m.description)], ["how it is calculated", word(m.calculation_note)],
     ["owner", name(m.owner_id)], ["period", word(m.period)], ["unit", word(m.unit)], ["unit stands", word(m.unit_position)], ["format", word(m.format)], ["decimals", word(m.decimals)],
     ["submission rule", word(m.submission_rule)], ["good direction", word(m.polarity)], ["aggregation", word(m.aggregation)],
-    ["target from", value(m.target_min)], ["target to", value(m.target_max)], ["attainment", word(m.attainment_method ?? "as the Workspace computes it")],
+    ["target from", value(m.target_min)], ["target to", value(m.target_max)], ["attainment", word(m.attainment_method ?? "as the Workspace computes it")], ["ask for a note", word(m.formula || m.total_targets ? "" : ASK_NOTE_LABEL[isAskNote(m.ask_note) ? m.ask_note : ASK_NOTE_DEFAULT])],
     ["sources", (m.sources ?? []).join(", ")], ["tags", [...(s.tags.get(m.id) ?? [])].sort().join(", ")],
     ["workflow", word((workflow as { name?: string } | null)?.name)], ["retention", retentionWords(m.retention)], ["archived on", word(m.archived_at)],
   ];

@@ -9,9 +9,9 @@ import { inDemoVisit } from "@/lib/demo-visit-action";
 import { demoTextForVisit } from "@ziffr/core/demo-text";
 import { fillInValue } from "@ziffr/core/fill-in";
 
-/** What the form shows after a try: whether it was recorded, the intake's own words, and `noteKept` when the note was
- * not saved. */
-type FilledInAnswer = { ok: boolean; detail: string; noteKept?: boolean };
+/** What the form shows after a try: whether it was recorded, the intake's own words, `noteKept` when the note was not
+ * saved, and `ask`, the code under which a note asked for after the value is saved. */
+type FilledInAnswer = { ok: boolean; detail: string; noteKept?: boolean; ask?: string };
 
 /** The signed-in Metric owner or Workflow owner enters a value for a Submitter of the Metric, marked as entered by them. */
 export async function fillInForSubmitter(input: { metricId: number; period: string; for: string; value: string; breakdown?: string; note?: string }): Promise<FilledInAnswer | { error: string }> {
@@ -25,8 +25,8 @@ export async function fillInForSubmitter(input: { metricId: number; period: stri
     });
     const noteKept = r.valueNote?.saved === false;
     // Redrawing the page takes the panel away once nobody is left to fill in for, and with it the answer. While it says
-    // that a note was not saved, the panel redraws the page itself, when it is closed.
-    if (!noteKept) revalidatePath("/", "layout");
-    return { ok: r.ok, detail: r.detail, ...(noteKept ? { noteKept } : {}) };
+    // that a note was not saved, or asks for one, the panel redraws the page itself, when it is closed.
+    if (!noteKept && !r.ask) revalidatePath("/", "layout");
+    return { ok: r.ok, detail: r.detail, ...(noteKept ? { noteKept } : {}), ...(r.ask ? { ask: r.ask } : {}) };
   }));
 }

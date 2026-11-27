@@ -19,6 +19,7 @@ import type { Metric, Period, Polarity, SubmissionRule, UnitPosition } from "@zi
 import { NameField } from "../name-field";
 import { UnitFields } from "../unit-fields";
 import { CalculationNoteField } from "../calculation-note-field";
+import { AskNoteField } from "../ask-note-field";
 import { AttainmentMethodField } from "../attainment-method-field";
 import type { AttainmentMethod } from "@ziffr/core/attainment-method";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
@@ -26,7 +27,7 @@ import { NUMBER_STYLE_MARKS, type NumberStyle } from "@ziffr/core/number-style";
 import { readNumber } from "@ziffr/core/numbers";
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
-type M = Pick<Metric, "id" | "name" | "description" | "calculation_note" | "unit" | "unit_position" | "format" | "decimals" | "period" | "submission_rule" | "polarity" | "aggregation" | "target_min" | "target_max" | "formula" | "attainment_method">;
+type M = Pick<Metric, "id" | "name" | "description" | "calculation_note" | "unit" | "unit_position" | "format" | "decimals" | "period" | "submission_rule" | "polarity" | "aggregation" | "target_min" | "target_max" | "formula" | "total" | "attainment_method" | "ask_note">;
 
 /** "Edit details…" with the Metric's description as a form. `fixed` keeps the period as it is, and says why: the
  * Metric has values, or targets or projections by period. */
@@ -62,6 +63,7 @@ export function EditDetails({ metric, fixed, money, numberStyle, attainmentMetho
                   submissionRule: metric.formula ? undefined : String(f.get("submission_rule")), polarity: String(f.get("polarity")),
                   aggregation: String(f.get("aggregation")), targetMin: num(f.get("target_min")), targetMax: num(f.get("target_max")),
                   attainmentMethod: String(f.get("attainment_method") ?? ""),
+                  askNote: metric.formula || metric.total ? undefined : String(f.get("ask_note")),
                 });
                 if (isActionError(r)) { toast.error("Not saved", { description: r.error }); return; }
                 toast.success("Saved");
@@ -108,6 +110,7 @@ export function EditDetails({ metric, fixed, money, numberStyle, attainmentMetho
               </select>
             </div>
           )}
+          {!metric.formula && !metric.total && <AskNoteField id="ed-ask-note" value={metric.ask_note} className="sm:col-span-2" />}
           <div className="flex justify-end gap-2 sm:col-span-2">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
             <Button type="submit" disabled={pending}>Save</Button>

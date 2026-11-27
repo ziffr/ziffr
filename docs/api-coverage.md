@@ -77,6 +77,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `updateIncludedPack` (included-packs.ts): Ziffr's own Packs, installed by a person at the Packs page
 - `saveSeriesRows` (metrics.ts): editing Target Series and Projections in a table (the API has its own)
 - `removeSeriesRows` (metrics.ts): editing Target Series and Projections in a table (the API has its own)
+- `setAskNote` (metrics.ts): setting Ask for a note on the Metrics ticked in the app's list; a program changes it one Metric at a time through the API's update (ask_for_note)
 - `packSetupOptions` (pack-setup.ts): Packs
 - `planPackSetup` (pack-setup-plan.ts): Packs
 - `buildSetup` (pack-setup-build.ts): Packs

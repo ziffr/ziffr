@@ -1,7 +1,8 @@
 // How a message quotes a Value Note (GLOSSARY: Value Note, Delivery; spec 0064, "Untrusted input"). The words and the
 // author's name are somebody's own: every line of theirs is a quoted line ("> "), which an email never reads as its
-// link or its button (mail-links.ts), no address in them is a link, and Slack shows them literally. Pure.
-import { unlinked } from "./mail-links";
+// link or its button (mail-links.ts), no address in them is a link, a bare one such as "evil.example/x" included
+// (broken as a Pack's text refuses it, file-text.ts), and Slack shows them literally. Pure.
+import { withoutAddresses } from "./file-text";
 import { slackEscape } from "./connectors/slack";
 import type { ConnectorId } from "./connectors/index";
 
@@ -11,7 +12,7 @@ const QUOTED = 300;
 /** A message's words with a note quoted above its last line, which is the link Ziffr appended and stays last. `more`
  * counts the period's other notes: they are only said to be there. */
 export function withQuotedNote(body: string, via: ConnectorId, note: { author: string; words: string; more: number }): string {
-  const safe = (text: string) => (via === "slack" ? slackEscape(unlinked(text)) : unlinked(text));
+  const safe = (text: string) => (via === "slack" ? slackEscape(withoutAddresses(text)) : withoutAddresses(text));
   const characters = [...note.words];
   const words = characters.length > QUOTED ? `${characters.slice(0, QUOTED).join("").trimEnd()}…` : note.words;
   const quoted = words.split(/[\n\r\u2028\u2029]+/).filter((line) => line.trim()).map((line) => `> ${safe(line)}`).join("\n");

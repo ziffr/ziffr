@@ -6,6 +6,7 @@
 // way: only the Metric's owner and its Editors change it (only its owner its Workflow), and only while the creator's
 // role may create. Not writable by a key: sharing, Submitters beyond those named at creation, or a Catalog entry. A formula only for
 // a Derived Metric (ticket #619): made with it, changed by its owner and Editors, same checks. Each change names the key: in the Metric's history, and in the note of each Target Series or Projection value.
+import { ASK_NOTE } from "./ask-note";
 import { openWorkflowRow } from "./workflow-rows";
 import { assertScope, can, Forbidden, Refused, type Actor, type KeyActor } from "./actor";
 import { createDerivedMetric, setMetricFormula } from "./derived-metrics";
@@ -54,6 +55,8 @@ export type ApiMetricInput = {
   target_min?: number | null;
   target_max?: number | null;
   attainment_method?: string | null;
+  /** **Ask for a note** (spec 0064): "always" (left out), "off_target_or_unusual" or "never". */
+  ask_for_note?: string;
   submit?: boolean;
   /** Its Sources; left out, every one, as in the form. */
   sources?: string[];
@@ -137,7 +140,7 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
     name: String(input?.name ?? ""),
     description: input.description, calculationNote: input.calculation_note, unit: input.unit, unitPosition: input.unit_position, format: input.format, decimals: input.decimals, period: input.period,
     submissionRule: input.submission_rule, polarity: input.polarity, aggregation: input.aggregation,
-    targetMin: input.target_min, targetMax: input.target_max, attainmentMethod: input.attainment_method,
+    targetMin: input.target_min, targetMax: input.target_max, attainmentMethod: input.attainment_method, askNote: input.ask_for_note,
     // Left out, as in the form: every way Ziffr knows, the API among them, so the key can submit to it at once.
     sources,
     submitters: [...new Set([...(input.submit ? [actor.personId] : []), ...people])],
@@ -179,8 +182,8 @@ async function tagNewMetric(creator: Actor, metricId: number, tags: string[]): P
  * refused rather than ignored, so a program never believes it set a Submitter or a Workflow. */
 async function createDerivedWithKey(actor: Actor | KeyActor, creator: Actor, input: ApiMetricInput, effects: MetricEffects, tags: string[]): Promise<ApiMetricDetail> {
   assertScope(actor, "metrics:read");
-  if (input.submit || input.submitters?.length || input.workflow != null || input.sources !== undefined || input.aggregation !== undefined || input.submission_rule !== undefined) {
-    throw new MetricChangeRefused("A Derived Metric is computed from other Metrics: it takes no values, so no submit, submitters, sources, aggregation, submission_rule or workflow.");
+  if (input.submit || input.submitters?.length || input.workflow != null || input.sources !== undefined || input.aggregation !== undefined || input.submission_rule !== undefined || input.ask_for_note !== undefined) {
+    throw new MetricChangeRefused("A Derived Metric is computed from other Metrics: it takes no values, so no submit, submitters, sources, aggregation, submission_rule, ask_for_note or workflow.");
   }
   const keyName = actor.key ? await nameOf(actor) : null;
   const made = await createDerivedMetric(creator, {
@@ -250,6 +253,8 @@ export type ApiMetricPatch = {
   target_min?: number | null;
   target_max?: number | null;
   attainment_method?: "ratio" | "distance" | null;
+  /** **Ask for a note** (spec 0064); not for a Derived Metric or Total. */
+  ask_for_note?: "always" | "off_target_or_unusual" | "never";
   /** One of the creator's own Workflows by id or exact name, or null for none; only the Metric's owner. */
   workflow?: WorkflowRef | null;
   /** A Derived Metric's new formula, checked as when creating one (needs metrics:read as well). */
@@ -281,6 +286,7 @@ function assertPatchWords(p: ApiMetricPatch): void {
   word(p.period, PERIOD_WORDS, "The period");
   word(p.submission_rule, RULE_WORDS, "The submission rule");
   word(p.polarity, POLARITY_WORDS, "The polarity");
+  word(p.ask_for_note, [...ASK_NOTE], "ask_for_note");
 }
 
 /** The Metric a key with metrics:edit is about to change, and its creator as a person's Actor. A Metric that is
@@ -314,7 +320,7 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
   // Only these parts, whatever else the patch holds: never the unit's side, the decimals or the Aggregation.
   const details = {
     name: p.name, description: p.description, calculationNote: p.calculation_note, unit: p.unit, format: p.format, period: p.period, submissionRule: p.submission_rule,
-    polarity: p.polarity, targetMin: p.target_min, targetMax: p.target_max, attainmentMethod: p.attainment_method,
+    polarity: p.polarity, targetMin: p.target_min, targetMax: p.target_max, attainmentMethod: p.attainment_method, askNote: p.ask_for_note,
   };
   const sources = p.sources === undefined ? undefined : sourcesFrom(p.sources);
   if (sources && metric.formula) throw new MetricChangeRefused("A Derived Metric is computed; values do not arrive for it.");
@@ -329,7 +335,7 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
     await updateMetricDetails(creator, metric.id as number, details).catch(refusedWithReason);
     // A key's change of what a Metric is called or says is read by other people and their assistants: the Audit Log names
     // the key and the fields (never the words, which are sealed).
-    const fields = (["name", "description", "calculation_note", "unit", "format", "period", "submission_rule"] as const).filter((f) => p[f] !== undefined);
+    const fields = (["name", "description", "calculation_note", "unit", "format", "period", "submission_rule", "ask_for_note"] as const).filter((f) => p[f] !== undefined);
     if (fields.length && actor.key) await audit(creator, { kind: "metric.details_changed", object: { type: "metric", id: metric.id as number, name: metric.name }, details: { fields } });
     if (sources) await setMetricSources(creator, metric.id as number, sources);
     if (workflow !== undefined) await setMetricWorkflow(creator, metric.id as number, workflow.id, { from: workflow.from });

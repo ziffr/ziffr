@@ -40,6 +40,9 @@ export type ReplyContext = Pick<AnswerContext, "style" | "today" | "yearStart" |
   senderName?: string | null;
   /** The offer made to this person in this place that is still open, if any. */
   openOffer?: { figure: number; value: number } | null;
+  /** The one figure the reply answers by where it was sent, as a reply to the question about it: words that could mean
+   * several figures mean this one. */
+  meant?: number;
 };
 
 /** Why a number was not read: readAnswer's refusals. */
@@ -415,8 +418,10 @@ function severalFigures(lines: Line[], r: Reader): ReplyReading {
   }
   const filled = figures.flatMap((f, i) => (f.value === null ? [] : [i]));
   if (!filled.length) return nothingRead;
-  if (filled.length > 1) return { kind: "which_figure", figures: filled };
-  return noteReading(filled[0], wordsOf(texts, r), r);
+  const { meant } = r.ctx;
+  const one = meant !== undefined && filled.includes(meant) ? meant : filled.length === 1 ? filled[0] : null;
+  if (one === null) return { kind: "which_figure", figures: filled };
+  return noteReading(one, wordsOf(texts, r), r);
 }
 
 /** Whether a reply is one of these words and nothing else (an email's signature aside). */

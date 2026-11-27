@@ -32,6 +32,7 @@ export const MetricDescription = z.object({
   target_min: z.number().nullable().describe("The low end of its target, if any."),
   target_max: z.number().nullable().describe("The high end of its target, if any."),
   attainment_method: z.enum(["ratio", "distance"]).nullable().describe("How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default."),
+  ask_for_note: z.enum(["always", "off_target_or_unusual", "never"]).nullable().describe("Ask for a note: when Ziffr asks whoever sent only a number to say what is behind it; null for a Derived Metric, which nobody sends values."),
   sources: z.array(SourceId).describe("Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric."),
   derived: z.boolean().describe("A Derived Metric: computed from others, takes no values."),
   archived: z.boolean().describe("An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true."),
@@ -137,6 +138,8 @@ const TAGS_TEXT = "Its Tags, the whole set (at most 10 words of at most 32 chara
 
 const submitterIds = z.array(z.string().min(1).max(64)).max(20);
 
+const ASK_FOR_NOTE_TEXT = "Ask for a note: when Ziffr asks whoever sent only a number to say what is behind it, inside the confirmation: always, off_target_or_unusual (only when the value is off target or unusual; someone who may not see the Metric is asked every time) or never.";
+
 /** POST /api/v1/metrics takes this (spec 0003): a Metric's description, as GET /api/v1/metrics/{slug} shows one. */
 export const CreateMetric = z.object({
   name: z.string().trim().min(1).max(120).describe("What it is called; its slug is made from it."),
@@ -153,6 +156,7 @@ export const CreateMetric = z.object({
   target_min: z.number().nullable().optional(),
   target_max: z.number().nullable().optional(),
   attainment_method: z.enum(["ratio", "distance"]).nullable().optional().describe("ratio or distance for an Attainment method of its own; left out or null, it follows the workspace's default."),
+  ask_for_note: z.enum(["always", "off_target_or_unusual", "never"]).optional().describe(`${ASK_FOR_NOTE_TEXT} Left out, always.`),
   submit: z.boolean().optional().describe("Make the key's creator its Submitter, so the key can submit values to it at once."),
   sources: z.array(SourceId).min(1).max(5).optional().describe("Its Sources, the ways values may arrive; left out, every one."),
   submitters: submitterIds.optional().describe("Who submits: ids from GET /people (people, Contacts) and GET /feeds (Feeds), at most 20. Each gets a first Prompt. Needs metrics:edit as well."),
@@ -179,6 +183,7 @@ export const UpdateMetric = z.object({
   target_min: seriesValue.nullable().optional().describe("The low end of its Target Range; null for none."),
   target_max: seriesValue.nullable().optional().describe("The high end of its Target Range; null for none."),
   attainment_method: z.enum(["ratio", "distance"]).nullable().optional().describe("ratio or distance for an Attainment method of its own; null follows the workspace's default."),
+  ask_for_note: z.enum(["always", "off_target_or_unusual", "never"]).optional().describe(`${ASK_FOR_NOTE_TEXT} Not for a Derived Metric.`),
   workflow: workflowRef.nullable().optional().describe("One of your own Workflows, by id or exact name (GET /workflows), or null for none. Only the Metric's owner; not for a Derived Metric. A Workflow with an Approve or Tell step, or leaving one, only with workflows:people on a program's key."),
   tags: tagWords.optional().describe(TAGS_TEXT + " [] takes all of them off."),
 }).strict().refine((p) => Object.keys(p).length > 0, "Name at least one part to change.");

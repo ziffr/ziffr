@@ -38,7 +38,7 @@ Each row also has a **Quick look** button beside the Metric's name (it shows on 
 
 ### Download values
 
-Each row has a checkbox (on a phone, in the card's top right corner). Tick the Metrics you want and a bar appears at the foot of the screen with how many are selected, **Delete…** (not for a Guest; see [Deleting a Metric](#deleting-a-metric)), **Download values** and **Clear**. **Download values** gives you one CSV file with every value of those Metrics, one row per value, oldest first for each Metric. The box at the head of the table (on a phone, **Select all** in the bar) ticks every Metric the list shows, after the Tag and Archived filters; under **Archived** you can download Archived Metrics, whose values are kept. One file holds at most 50 Metrics and 250,000 values; over that, Ziffr says so, you download them in parts, and nothing is cut short.
+Each row has a checkbox (on a phone, in the card's top right corner). Tick the Metrics you want and a bar appears at the foot of the screen with how many are selected, **Ask for a note…** (not for a Guest; see [Asking for a note](#asking-for-a-note)), **Delete…** (not for a Guest; see [Deleting a Metric](#deleting-a-metric)), **Download values** and **Clear**. **Download values** gives you one CSV file with every value of those Metrics, one row per value, oldest first for each Metric. The box at the head of the table (on a phone, **Select all** in the bar) ticks every Metric the list shows, after the Tag and Archived filters; under **Archived** you can download Archived Metrics, whose values are kept. One file holds at most 50 Metrics and 250,000 values; over that, Ziffr says so, you download them in parts, and nothing is cut short.
 
 The columns are `metric` (the Metric's slug), `name`, `period`, `period_start`, `value`, `unit`, `source`, `recorded_at`, `period_end`, `condensed_from` and `state`; `period_end` and `condensed_from` are filled only for a [Condensed Value](#retention), which is one row for its span. Numbers are written in your Workspace's **Number Style** without group marks, and where that style writes a decimal comma the columns are separated by semicolons, as a spreadsheet there expects. The file is UTF-8 and starts with a byte-order mark, as every CSV file Ziffr gives you does, so Excel shows umlauts and other letters rightly; a program of your own that reads it should skip that mark. `state` says **final** or **not approved yet**: a value that waits for **Approval**, or was sent back to its Submitter, is in the file and reads **not approved yet**, as does every other value of that period. Filter on **final** to work with final values only. A Metric without a **Workflow** has final values. Where a Metric keeps both values of a period, both are rows; of a corrected value only the corrected number is in the file. A Derived Metric has no values of its own and adds no rows, and the bar says so when one is ticked.
 
@@ -203,8 +203,9 @@ A folded section below Target. Opening it shows the fields below; leave it close
 | **Aggregation** | How values combine into a longer period, for comparisons such as QoQ or YoY and for Widgets shown by quarter or year (**Show by**, see the Dashboards chapter): **Sum** (counts and amounts, such as revenue or deals), **Average** (levels, such as a score or a delivery time), **Last value** (stocks, such as a balance or headcount) or **Does not combine** (rates and ratios). |
 | **Sources** | The ways values may arrive: **Slack**, **Mail**, **Telegram**, **Web form** and **API and Feeds**. All are ticked for a new Metric, so each Submitter can use what suits them. A value that arrives another way is refused. In the demo, Slack and Mail are marked "(played in the demo)": nothing is really sent. |
 | **Attainment** | How the percentage of target is computed: **As the workspace** (the default, set on **Workspace → General**), **By ratio** or **By distance**. See [Comparisons](#comparisons). |
+| **Ask for a note** | When Ziffr asks whoever sent only a number what is behind it: **Always** (the default), **Only when off target or unusual** or **Never**. See [Asking for a note](#asking-for-a-note). |
 
-Defaults: the unit stands where its sign suggests (before a "$", after a "%" or "d"), **Decimals** 0, **A second value** overwrites, **Aggregation** is Sum, all **Sources** are ticked, and **Attainment** follows the Workspace.
+Defaults: the unit stands where its sign suggests (before a "$", after a "%" or "d"), **Decimals** 0, **A second value** overwrites, **Aggregation** is Sum, all **Sources** are ticked, **Attainment** follows the Workspace, and **Ask for a note** is **Always**.
 
 The four Submission Rules:
 
@@ -386,6 +387,31 @@ On the period's page, under **Notes**:
 - Where the values of several people are added up, the one shared value belongs to whoever sent first: someone who adds to it later cannot write a note here afterwards, unless they are the Metric's owner or an Editor.
 - Nobody writes a note on an Archived Metric or on a value that was condensed by Retention, and the demo takes no notes.
 
+### Asking for a note
+
+When only a number comes in, Ziffr can ask once whether anything is behind it: "Anything behind it? Reply with a few words, or leave it. Everyone who sees this Metric can read them." The question is part of the confirmation you get anyway, so it never costs a further message, it is never repeated as a reminder, and leaving it is fine.
+
+**Ask for a note** is set for each Metric, by its owner and Editors: under **More options** on **New metric**, with **Edit details…** on the Description tab, or for several at once: tick them in the Metrics list and choose **Ask for a note…**. Those you may not change, and calculated ones, are left as they are and counted. Each change is a [Version](#versions).
+
+| Choice | When Ziffr asks |
+| --- | --- |
+| **Always** (the default) | Whenever only a number came in |
+| **Only when off target or unusual** | When the value is off its target for that period (its own target first, else the Target Range) or unusual (the Workflow's check, or without one a change of more than 100 % on the period before). Someone who may not see the Metric, such as a Contact, and anyone typing into a form without signing in, is asked every time, so that being asked tells them nothing |
+| **Never** | Never. A note can still be sent, and forms still offer the field |
+
+The question never says why it is asked.
+
+| Where the number came from | Where the question stands | How you answer |
+| --- | --- | --- |
+| A reply by email | At the end of the "Recorded" email | Reply with a few words. Ziffr sends nothing back unless it has something to tell you. Where Ziffr cannot receive replies, it does not ask |
+| A reply that has to be confirmed first | On the confirmation page, with a field above **Confirm** | Type into the field, then **Confirm** |
+| Slack | At the end of the answer in the thread, with **Add a note** and **No note** | Reply in the thread, or use the window **Add a note** opens |
+| Telegram | At the end of the confirmation, which opens your reply box | Reply to it, or to the request |
+| A personal form link, the one page for several numbers | Under the result, as a note field | Type, then **Save note** |
+| **Record a value**, **Fill in for …** | Under the result, in the panel | Type, then **Save note** |
+
+A message with several numbers asks one question for all of them: reply "1: your words" with the number of the one you mean. "no", "thanks" or "-" alone saves nothing and closes the question. The field under a form's result takes one note, for a day, on the value just sent; if that value has been replaced meanwhile, your words are filed in the history under it. For a locked period your words travel with the proposed Correction and become the note only if it is accepted. Programs, Feeds and pasted values are never asked.
+
 ## The Description tab
 
 The Description tab has four boxes: the Metric Description, the Retention, the Workflow, and who submits. A Derived Metric shows only its description.
@@ -412,6 +438,7 @@ When you name a new Metric, or rename one, and a Metric you can see already has 
 | **Target from**, **Target up to** | The Target Range, for every period without its own target. The lower end may not be above the upper one. A value Ziffr cannot read as a number is not saved, and Ziffr says so. |
 | **Attainment** | **As the workspace**, **By ratio** or **By distance**. Snapshots taken earlier keep the method they were taken with. |
 | **A second value for a period** | The Submission Rule. Not shown for a Derived Metric. |
+| **Ask for a note** | When it [asks for a note](#asking-for-a-note). Changed with **Edit details…** by the owner and Editors. Not shown for a Derived Metric or a Total. |
 
 **Save** keeps the change as a new **Version**.
 
@@ -773,7 +800,7 @@ Anyone answering a question or task about a value can also propose a Correction 
 
 When Ziffr asks you for more than one number at the same time, by the same way, it sends **one message** that lists them, numbered, with each period and Due Date. This is a **Combined Prompt**. It comes from a day's Workflow run, **Run workflows**, **Ask for missing values now** or a set-up from a Pack. **Ask me now**, a new Metric and a newly added Submitter still ask for one number in a message of its own. A reminder lists everything that is still missing; when new numbers are due at the same time, one message holds both, as **New** and **Still missing**. Numbers you answer for someone as their **Stand-in** are marked "for Sara". A message holds at most 50 numbers; on Slack and Telegram it lists the first 20 and says how many more are on the form. A number answered another way is marked in your Slack or Telegram message ("Answered on email"); an email cannot be changed.
 
-You can answer by replying (see [Answering by reply](#answering-by-reply)) or on **one page for all of them**, the link in the message. That page opens without signing in, for 30 days: anyone who has the link can enter these numbers, so keep it to yourself. It shows for each number what its own form link shows (name, description, period, the value already there and the Submission Rule), a field for the number, **Add a note** and a **Breakdown** behind a button, and one **Submit**. Rows you leave empty are skipped, each row says what became of it, and you can open the page again for the rest. Each value goes its own Metric's way: Submission Rule, Lock, Workflow and Approval.
+You can answer by replying (see [Answering by reply](#answering-by-reply)) or on **one page for all of them**, the link in the message. That page opens without signing in, for 30 days: anyone who has the link can enter these numbers, so keep it to yourself. It shows for each number what its own form link shows (name, description, period, the value already there and the Submission Rule), a field for the number, **Add a note** and a **Breakdown** behind a button, and one **Submit**. Rows you leave empty are skipped, each row says what became of it, and you can open the page again for the rest. On Slack the message also has **Enter all**: a window with a number and a note for each (up to 40; the rest are on the page), whose results Ziffr posts in the message's thread. Each value goes its own Metric's way: Submission Rule, Lock, Workflow and Approval.
 
 ## Answering by reply
 
@@ -781,7 +808,7 @@ Reply to the email, in the thread of the Slack message, or to the Telegram messa
 
 **One number.** Send the number, such as "45". Lines under it are its **Value Note**: words saying what is behind the number, which everyone who sees the Metric can read. In an email, the note ends at the first empty line, at a closing such as "Best regards", or at your signature; quoted text is left out. A note has at most 1,000 characters; a longer one is cut, and Ziffr says so. Words with no number record nothing.
 
-**Several numbers.** Send one line for each, with its number from the message or the Metric's full name: "1: 45". Words under a line are that number's note. Numbers without "1:" are taken in order only when there is exactly one for every number the message listed, also those answered meanwhile or no longer asked: their lines are skipped, and Ziffr says so. With any other count, also a single number while one is still open, nothing is recorded and Ziffr asks which number is which. Ziffr answers with what it recorded and what is still open.
+**Several numbers.** Send one line for each, with its number from the message or the Metric's full name: "1: 45". Words under a line are that number's note. Numbers without "1:" are taken in order only when there is exactly one for every number the message listed, also those answered meanwhile or no longer asked: their lines are skipped, and Ziffr says so. With any other count, also a single number while one is still open, nothing is recorded and Ziffr asks which number is which. Ziffr answers with what it recorded and what is still open. Where only a number came, the answer may end with [a question for a note](#asking-for-a-note).
 
 **Replying again,** once your value for that period is in, by whichever way you sent it:
 

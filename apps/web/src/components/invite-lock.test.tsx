@@ -11,6 +11,7 @@ import type { InviteGate } from "@ziffr/core/invite-gate";
 const { gateNow } = vi.hoisted(() => ({ gateNow: vi.fn() }));
 vi.mock("@/app/team-actions", () => ({ inviteGateNow: gateNow }));
 vi.mock("@/app/series-actions", () => ({ askMeNow: async () => ({}), recordValue: async () => ({}) }));
+vi.mock("@/app/value-note-actions", () => ({ saveFormNote: async () => ({ saved: true, detail: "Your note was saved." }) }));
 vi.mock("sonner", () => ({ toast: { success() {}, error() {}, message() {} } }));
 import { InviteLock, seeGate, useInviteGate } from "./invite-lock";
 

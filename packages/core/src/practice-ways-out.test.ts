@@ -23,6 +23,7 @@ const KEPT_BY: Record<string, string> = {
   "packages/core/src/slack-send.ts": "sendSlackDelivery asks heldBack with the very account it sends to",
   "packages/core/src/slack-people.ts": "needs a bot from slackBot, and looks nobody up for a Practice Workspace",
   "packages/core/src/slack-inbound.ts": "say() asks mayAnswer with the account it answers",
+  "packages/core/src/slack-window.ts": "slackSay asks mayAnswer with the account it answers; its windows need a bot from slackBot, which hands none out for a Practice Workspace unless Slack is switched on there",
   "packages/core/src/slack-connection.ts": "an install starts, and slackBot hands out a bot, only where Slack is switched on",
   "packages/core/src/prompt-ways.ts": "a Practice Workspace edits nothing it sent",
   // Telegram. It is on in a Workspace by telegramOnIn alone, and never in a Practice Workspace.

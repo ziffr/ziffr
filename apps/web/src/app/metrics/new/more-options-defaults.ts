@@ -1,11 +1,12 @@
 // The values of the new-Metric form's "More options" and what counts as left alone (GLOSSARY: Metric Description,
 // Submission Rule, Aggregation, Source, Attainment). The defaults are exactly what the form submitted before the
 // options were folded away, so a person who never opens them creates the same Metric as before.
+import { ASK_NOTE_DEFAULT, ASK_NOTE_LABEL, ASK_NOTE_SETTING, isAskNote } from "@ziffr/core/ask-note";
 import { suggestedSide } from "@ziffr/core/units";
 import { RULE_LABEL } from "@ziffr/core/format";
 import type { SubmissionRule } from "@ziffr/core/types";
 
-/** The six fields behind "More options", as the form holds them. `attainment_method` is "" to follow the Workspace. */
+/** The fields behind "More options", as the form holds them. `attainment_method` is "" to follow the Workspace. */
 export type MoreOptionValues = {
   unit: string;
   unit_position: string;
@@ -14,6 +15,7 @@ export type MoreOptionValues = {
   aggregation: string;
   sources: string[];
   attainment_method: string;
+  ask_note: string;
 };
 
 /** What a new Metric starts with when the options are left alone (the form's blank description). */
@@ -23,6 +25,7 @@ export const MORE_DEFAULTS = {
   aggregation: "sum",
   sources: ["web_form", "mail", "slack", "telegram", "api"],
   attainment_method: "",
+  ask_note: ASK_NOTE_DEFAULT,
 } as const;
 
 const AGGREGATION_LABEL: Record<string, string> = { sum: "Sum", average: "Average", last: "Last value", none: "Does not combine" };
@@ -43,5 +46,6 @@ export function nonDefaultOptions(v: MoreOptionValues, sourceLabels: Record<stri
   const same = v.sources.length === MORE_DEFAULTS.sources.length && MORE_DEFAULTS.sources.every((s) => v.sources.includes(s));
   if (!same) out.push(`Sources: ${v.sources.length ? v.sources.map((s) => sourceLabels[s] ?? s).join(", ") : "none"}`);
   if (v.attainment_method !== MORE_DEFAULTS.attainment_method) out.push(`Attainment: ${attainmentLabel || v.attainment_method}`);
+  if (v.ask_note !== MORE_DEFAULTS.ask_note) out.push(`${ASK_NOTE_SETTING}: ${isAskNote(v.ask_note) ? ASK_NOTE_LABEL[v.ask_note] : v.ask_note}`);
   return out;
 }

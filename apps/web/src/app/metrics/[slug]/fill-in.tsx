@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { UserPen } from "lucide-react";
 import { fillInForSubmitter } from "@/app/fill-in-actions";
 import { AnswerBox, ValueEntry, sendValue, type Answer } from "./value-entry";
+import { AskedNote } from "@/components/asked-note";
 import type { FillInOffer } from "@ziffr/core/fill-in-offer";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -64,7 +65,7 @@ function FillInForm({ offer, people, placeholder, numberStyle, onStale }: { offe
         start(async () => {
           const r = await sendValue(() => fillInForSubmitter({ metricId: offer.metricId, period: offer.period, for: target.id, value, breakdown: String(data.get("breakdown") ?? ""), ...(note ? { note } : {}) }));
           setAnswer(r);
-          if (r?.noteKept) onStale();
+          if (r?.noteKept || r?.ask) onStale();
           if (r?.ok) { setValue(""); setBreakdown(false); if (!r.noteKept) setNote(""); }
         });
       }}
@@ -78,7 +79,9 @@ function FillInForm({ offer, people, placeholder, numberStyle, onStale }: { offe
           </select>
         </label>
       ) : <p className="text-sm">For <span className="font-medium">{target.name}</span></p>}
-      <ValueEntry value={value} setValue={setValue} breakdown={breakdown} setBreakdown={setBreakdown} placeholder={placeholder} numberStyle={numberStyle} note={offer.notes ? { words: note, setWords: setNote } : undefined} />
+      {answer?.ask && <AskedNote key={answer.ask} code={answer.ask} />}
+      {/* While the question stands the form's own note field gives way, until a further number is typed. */}
+      <ValueEntry value={value} setValue={setValue} breakdown={breakdown} setBreakdown={setBreakdown} placeholder={placeholder} numberStyle={numberStyle} note={offer.notes && (!answer?.ask || value) ? { words: note, setWords: setNote } : undefined} />
       <Button type="submit" size="lg" disabled={pending}>{pending ? "Recording…" : `Enter it for ${first(target.name)}`}</Button>
     </form>
   );
