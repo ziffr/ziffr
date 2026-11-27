@@ -8,8 +8,9 @@ import { switchWorkspace } from "@/app/auth-actions";
 import { makePracticeWorkspace, startOverPracticeWorkspace } from "@/app/installation-actions";
 import type { PracticeWorkspaceState } from "@ziffr/core/practice-workspace";
 
-/** The section: what it is, and the buttons for how it stands. */
-export function PracticeWorkspaceSection({ state }: { state: PracticeWorkspaceState }) {
+/** The section: what it is, and the buttons for how it stands. `app` is Ziffr's address where this page is at the
+ * Admin Address, which shows no Workspace: the Practice Workspace is then opened there. */
+export function PracticeWorkspaceSection({ state, app }: { state: PracticeWorkspaceState; app: string | null }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
@@ -33,9 +34,10 @@ export function PracticeWorkspaceSection({ state }: { state: PracticeWorkspaceSt
           {demoEndsOn && <p className="text-sm">The demo is not being refreshed here: its numbers end on {demoEndsOn}, and so do those of a fresh copy.</p>}
           <div className="flex flex-wrap items-center gap-3">
             {!workspace && <Button disabled={pending} onClick={() => run(makePracticeWorkspace)} className="min-h-11 sm:min-h-0">Make a Practice Workspace</Button>}
-            {workspace?.ready && <Button disabled={pending} onClick={() => run(() => switchWorkspace(workspace.id))} className="min-h-11 sm:min-h-0">Open it</Button>}
+            {workspace?.ready && !app && <Button disabled={pending} onClick={() => run(() => switchWorkspace(workspace.id))} className="min-h-11 sm:min-h-0">Open it</Button>}
             {workspace && <Button variant="outline" disabled={pending} onClick={() => startOver(workspace.id)} className="min-h-11 sm:min-h-0">Start over</Button>}
           </div>
+          {app && <p className="text-sm">Open it in <a href={app} className="underline underline-offset-2">Ziffr</a>: choose it in the Workspace switcher.</p>}
           {workspace && !workspace.ready && !pending && <p className="text-sm">It is being made. Reload the page in a minute. If it stays like this, Start over works after 15 minutes.</p>}
         </>
       )}

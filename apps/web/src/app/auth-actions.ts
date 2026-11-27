@@ -10,7 +10,8 @@ import { acceptInvitation, requestToJoin } from "@ziffr/core/invitations";
 import { createWorkspace as coreCreateWorkspace, isMemberOf } from "@ziffr/core/page-data";
 import { currentActor, WORKSPACE_COOKIE } from "@/lib/viewer";
 import { endTrialNow as coreEndTrialNow } from "@ziffr/core/trial-end";
-import { safeNext, SITE_URL, enabledProviders, type Provider } from "@/lib/sign-in";
+import { safeNext, enabledProviders, type Provider } from "@/lib/sign-in";
+import { signInBase } from "@/lib/sign-in-base";
 import { turnstilePassed } from "@/lib/turnstile";
 import { attempt, forPeople } from "@/lib/action-result";
 import { UNEXPECTED } from "@/lib/action-error";
@@ -38,7 +39,7 @@ export async function sendSignInLink(email: string, next?: string, check?: strin
   if (!(await claimSignInLink(address, place))) return { error: TOO_MANY };
   const { error } = await (await authClient()).auth.signInWithOtp({
     email: address,
-    options: { emailRedirectTo: `${SITE_URL}/auth/callback?next=${encodeURIComponent(safeNext(next))}` },
+    options: { emailRedirectTo: `${signInBase(await headers())}/auth/callback?next=${encodeURIComponent(safeNext(next))}` },
   });
   if (error) return { error: error.status === 429 ? TOO_MANY : "The link could not be sent. Try again." };
 }
@@ -51,7 +52,7 @@ export async function signInWith(provider: Provider, next?: string, check?: stri
   if (!enabledProviders().includes(provider)) return { error: "This way of signing in is not set up." };
   const { data, error } = await (await authClient()).auth.signInWithOAuth({
     provider,
-    options: { redirectTo: `${SITE_URL}/auth/callback?next=${encodeURIComponent(safeNext(next))}` },
+    options: { redirectTo: `${signInBase(await headers())}/auth/callback?next=${encodeURIComponent(safeNext(next))}` },
   });
   if (error || !data.url) return { error: "Could not start signing in. Try again." };
   redirect(forBrowser(data.url));

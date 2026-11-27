@@ -81,7 +81,7 @@ describe("demoAllows", () => {
     // Ticket 11 keeps these blocked: a person outside the demo, a deletion and a hand-over, Workflows, the Setup Guide's way of being asked.
     expect(demoClassOf("team-actions:addContact")).toEqual({ class: "blocked", reason: "reaches-outside" });
     expect(demoClassOf("team-actions:removeContact")).toEqual({ class: "blocked", reason: "reaches-outside" });
-    for (const k of ["series-actions:deleteMetric", "series-actions:handOverMetricTo", "workflow-actions:setMetricWorkflow", "workflow-actions:saveWorkflow"]) expect(demoClassOf(k), k).toEqual({ class: "blocked", reason: "not-yet" });
+    for (const k of ["metric-delete-actions:deleteMetrics", "series-actions:handOverMetricTo", "workflow-actions:setMetricWorkflow", "workflow-actions:saveWorkflow"]) expect(demoClassOf(k), k).toEqual({ class: "blocked", reason: "not-yet" });
     expect(demoClassOf("setup/ways-actions:saveAskMeBy")).toEqual({ class: "blocked", reason: "does-nothing" });
     // Nothing that sends, keys, feeds, invites or installs is opened by the sharing and Metrics ticket.
     for (const k of ["feed-actions:createFeed", "key-actions:createKey", "webhook-actions:createWebhook", "team-actions:inviteMember", "pack-actions:installPack"]) expect(demoClassOf(k)?.class, k).toBe("blocked");
@@ -134,7 +134,7 @@ describe("refuseInDemo", () => {
     vi.stubEnv("ZIFFR_DEMO_CHANGES", "1");
     expect(() => refuseInDemo(demo, "series-actions:recordValue")).not.toThrow();
     expect(() => refuseInDemo(demo, "canvas-actions:setShare")).not.toThrow();
-    expect(() => refuseInDemo(demo, "series-actions:deleteMetric")).toThrow(DemoReadOnly);
+    expect(() => refuseInDemo(demo, "metric-delete-actions:deleteMetrics")).toThrow(DemoReadOnly);
     expect(() => refuseInDemo(demo, "made-up-actions:doSomething")).toThrow(DemoReadOnly);
     // A place that cannot name its operation always refuses, whatever the list says.
     expect(() => refuseInDemo(demo)).toThrow(DemoReadOnly);

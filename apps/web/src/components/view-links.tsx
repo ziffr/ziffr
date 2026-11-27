@@ -8,11 +8,20 @@ import { Copy } from "lucide-react";
 import { useSlideOver } from "@/components/slide-over-host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createViewLink, emptyInLink, fixListsForLink, listViewLinks, revokeViewLink, setViewLinkNames, shownSnapshots, tagListsToFix } from "@/app/view-link-actions";
+import { createViewLink, deletedInLink, emptyInLink, fixListsForLink, listViewLinks, revokeViewLink, setViewLinkNames, shownSnapshots, tagListsToFix } from "@/app/view-link-actions";
 import { formatDate } from "@ziffr/core/format";
 
 type Link = Awaited<ReturnType<typeof listViewLinks>>[number];
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+
+/** What is said before a link to a Snapshot is made when Metrics it shows were deleted since (spec 0065). */
+export function DeletedLeftOut({ names }: { names: string[] }) {
+  return (
+    <p role="status" className="rounded-[var(--radius-input)] border border-input bg-muted/40 p-2.5 text-xs [overflow-wrap:anywhere]">
+      Left out of the link: {names.join(", ")}. A link shows nothing of a deleted Metric, so every widget that draws one stays out. People who sign in still see it in the Snapshot as before.
+    </p>
+  );
+}
 
 /** Opens View Links in the side panel (a Slide-over); the panel loads the links when it opens. Owner only. A
  * dashboard's link shows live numbers or one of its shown Snapshots (spec 0013); `snapshot` picks that one first.
@@ -39,6 +48,8 @@ function ViewLinksBody({ type, id, snapshot, leftOut }: { type: "dashboard" | "d
   const [toFix, setToFix] = useState(0);
   // Totals the link would show with no number, said before it is made (spec 0058).
   const [empty, setEmpty] = useState<string[]>([]);
+  // Metrics deleted since the picked Snapshot, which a link leaves out, said before it is made (spec 0065).
+  const [deleted, setDeleted] = useState<string[]>([]);
   const [pending, start] = useTransition();
   const load = () => listViewLinks(type, id).then(setLinks);
   const url = (token: string) => `${window.location.origin}/v/${token}`;
@@ -51,6 +62,8 @@ function ViewLinksBody({ type, id, snapshot, leftOut }: { type: "dashboard" | "d
   useEffect(() => {
     let current = true;
     emptyInLink(type, id, shows === "live" ? null : Number(shows)).then((names) => { if (current) setEmpty(names); }).catch(() => {});
+    setDeleted([]);
+    if (type === "dashboard" && shows !== "live") deletedInLink(id, Number(shows)).then((names) => { if (current) setDeleted(names); }).catch(() => {});
     return () => { current = false; };
   }, [type, id, shows]);
   const input = () => (type === "dashboard" ? { label, expires, frozen: false, snapshotId: shows === "live" ? null : Number(shows), showNames } : { label, expires, frozen, showNames });
@@ -85,6 +98,7 @@ function ViewLinksBody({ type, id, snapshot, leftOut }: { type: "dashboard" | "d
                   {leftOut === 1 ? "One part of this deck is" : `${leftOut} parts of this deck are`} left out of View Links: someone with a link sees no Snapshot&rsquo;s numbers. Send them a PDF or PowerPoint file instead.
                 </p>
               )}
+              {deleted.length > 0 && <DeletedLeftOut names={deleted} />}
               {empty.length > 0 && (
                 <p role="status" className="rounded-[var(--radius-input)] border border-input bg-muted/40 p-2.5 text-xs [overflow-wrap:anywhere]">
                   Shown with no number: {empty.join(", ")}. A link shows a Total&rsquo;s numbers only while the Total is open, or where the link shows every Metric it adds up.

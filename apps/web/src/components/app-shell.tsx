@@ -230,7 +230,7 @@ function UserMenu({ account }: { account: Account }) {
         <DropdownMenuGroup>
           <DropdownMenuLabel>Your settings</DropdownMenuLabel>
           {yourPages(account).map((l) => <DropdownMenuItem key={l.href} render={<Link href={l.href} />}>{l.label}</DropdownMenuItem>)}
-          {account.installationAdmin && <DropdownMenuItem render={<Link href={INSTALLATION.href} />}><ShieldCheck aria-hidden /> {INSTALLATION.label}</DropdownMenuItem>}
+          {account.installationAdmin && <DropdownMenuItem render={<Link href={account.installationHref ?? INSTALLATION.href} />}><ShieldCheck aria-hidden /> {INSTALLATION.label}</DropdownMenuItem>}
           {/* Reopens the Setup Guide (and its line) for this person, where it applies to them (spec 0052). */}
           {setup.applies && <DropdownMenuItem onClick={() => openSetup(true)}><ListChecks aria-hidden /> Setup Guide</DropdownMenuItem>}
         </DropdownMenuGroup>
@@ -324,7 +324,7 @@ function MoreRows({ pinned, workspace, account, guide, demoPages, onHelp }: { pi
   const link = (l: NavItem, icon?: React.ReactNode, note?: React.ReactNode) => (
     <li key={l.href}><Link href={l.href} aria-current={isOn(path, l.href) ? "page" : undefined} className={cn(row, isOn(path, l.href) && "bg-muted font-medium")}>{icon}{l.label}{note}</Link></li>
   );
-  const yours = [...(account ? yourPages(account) : YOUR_PAGES), ...(account?.installationAdmin ? [INSTALLATION] : [])];
+  const yours = [...(account ? yourPages(account) : YOUR_PAGES), ...(account?.installationAdmin ? [{ ...INSTALLATION, href: account.installationHref ?? INSTALLATION.href }] : [])];
   return (
     <>
       {pinned.length > 0 && (

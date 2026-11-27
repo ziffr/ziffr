@@ -8,9 +8,9 @@ import type { WayState } from "@ziffr/core/what-works-here";
 
 export const ICON: Record<ConnectorId, typeof Mail> = { slack: MessageSquare, email: Mail, telegram: Send, whatsapp: MessageCircle, tickets: Ticket };
 
-/** One card per Connector. `email`, `slack` and `telegram` say whether it really sends (spec 0004, 0007); `installationAdmin`
- * adds the link to Installation settings on a card whose way is not real. */
-export function ChannelCards({ demo, email, slack, telegram, ways, installationAdmin }: { demo: boolean; email: "off" | "send" | "both"; slack: "off" | "connected"; telegram: "off" | "on"; ways: WayState[]; installationAdmin: boolean }) {
+/** One card per Connector. `email`, `slack` and `telegram` say whether it really sends (spec 0004, 0007);
+ * `installationHref`, for Installation Admins only, adds the link to Installation settings on a card whose way is not real. */
+export function ChannelCards({ demo, email, slack, telegram, ways, installationHref }: { demo: boolean; email: "off" | "send" | "both"; slack: "off" | "connected"; telegram: "off" | "on"; ways: WayState[]; installationHref: string | null }) {
   return (
     <section aria-labelledby="c-h">
       <h2 id="c-h" className="mb-3 text-[length:var(--text-lg)]">Connected systems</h2>
@@ -30,7 +30,7 @@ export function ChannelCards({ demo, email, slack, telegram, ways, installationA
             {ways.find((w) => w.way === id) ? <WayLine way={ways.find((w) => w.way === id)!} className="mt-3" /> : (
               <p className="mt-3 text-xs text-muted-foreground">{id === "email" && email !== "off" ? (email === "both" ? "Sends real email; replies come back." : "Sends real email; answers are given in Ziffr.") : id === "slack" && slack === "connected" ? "Sends real direct messages; answers in the thread come back." : id === "telegram" && telegram === "on" ? "Sends real messages to everyone who connected their Telegram; replies come back." : demo ? "Played in the demo: answer in the Outbox as the recipient." : "Not connected yet. Ziffr keeps what it would send in the Outbox."}</p>
             )}
-            {installationAdmin && (id === "email" || id === "slack" || id === "telegram") && ways.find((w) => w.way === id)?.state === "simulated" && <Link href="/installation" className="mt-2 inline-flex min-h-8 items-center text-xs underline">Set it up on Installation settings</Link>}
+            {installationHref && (id === "email" || id === "slack" || id === "telegram") && ways.find((w) => w.way === id)?.state === "simulated" && <Link href={installationHref} className="mt-2 inline-flex min-h-8 items-center text-xs underline">Set it up on Installation settings</Link>}
           </li>
         );
       })}

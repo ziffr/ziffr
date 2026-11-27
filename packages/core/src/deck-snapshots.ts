@@ -8,6 +8,7 @@
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { getGroups, visibilityOfMany, visibleDecks } from "./access";
 import { createDeck } from "./decks";
+import { deletedKept } from "./deleted-metrics";
 import { db } from "./db";
 import { refuseSeeded } from "./demo-seeded-rows";
 import { correctedSince, recordedNow, shownForReader, snapshotAccess, type ShownSnapshot } from "./snapshots";
@@ -184,10 +185,14 @@ export async function deckShareGaps(actor: Actor, deckId: number): Promise<DeckS
   const ws = actor.workspaceId;
   const [people, groups, metrics] = await Promise.all([peopleIn(ws), getGroups(ws), getMetrics(ws)]);
   const seesAs = await visibilityOfMany(ws, metrics);
+  // A Metric deleted since is still shown, on kept slides only, to who saw it when it was deleted (spec 0065).
+  const existing = new Set(metrics.map((m) => m.id));
+  const goneNamed = named.some((n) => n.metricIds.some((m) => !existing.has(m)));
+  const keeps = new Map(goneNamed ? await Promise.all(people.map(async (p) => [p.id, await deletedKept(ws, p.id, existing)] as const)) : []);
   const opened = new Set(deckMetricIds(deck.document));
   const missing = new Map(people.filter((p) => p.id !== actor.personId).map((p) => {
     const sees = seesAs(p.id);
-    return [p.id, named.filter((n) => !sees.dashboards.has(n.dashboardId) || !n.metricIds.every((m) => sees.metrics.has(m) || opened.has(m)))] as const;
+    return [p.id, named.filter((n) => !sees.dashboards.has(n.dashboardId) || !n.metricIds.every((m) => sees.metrics.has(m) || opened.has(m) || keeps.get(p.id)?.has(m)))] as const;
   }));
   const gaps = (lost: Iterable<Named>): ShareGap[] => {
     const per = new Map<number, ShareGap>();

@@ -24,8 +24,15 @@ export async function workspaceLimitRows(actor: InstallationActor): Promise<Work
   await syncDefaultLimit();
   const { data, error } = await db().rpc("workspace_limits_overview");
   if (error) throw new Error("The Workspaces could not be read.");
-  const rows = (data ?? []) as { workspace_id: string; name: string; metrics: number; limit_metrics: number | null; label: string | null; own: boolean; set_by: string | null; set_by_person: string | null; set_at: string | null; over_limit_since: string | null }[];
-  // The name of whoever set a limit, only for limits set by an Installation Admin.
+  return limitRows((data ?? []) as FoundLimit[]);
+}
+
+/** A Workspace's numbers and limit as the database's functions answer them. */
+export type FoundLimit = { workspace_id: string; name: string; metrics: number; limit_metrics: number | null; label: string | null; own: boolean; set_by: string | null; set_by_person: string | null; set_at: string | null; over_limit_since: string | null };
+
+/** The rows a list shows for what the database found, with the name of whoever set a limit, only for limits set by an
+ * Installation Admin. For callers that checked the Installation Admin. */
+export async function limitRows(rows: FoundLimit[]): Promise<WorkspaceLimitRow[]> {
   const ids = [...new Set(rows.map((r) => r.set_by_person).filter((x): x is string => Boolean(x)))];
   const { data: people } = ids.length ? await db().from("profiles").select("id, name").in("id", ids) : { data: [] };
   const names = new Map((people ?? []).map((p) => [p.id as string, p.name as string]));

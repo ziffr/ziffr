@@ -6,15 +6,17 @@ import { NextResponse } from "next/server";
 import { isInstallationAdmin } from "@ziffr/core/installation-admins";
 import { settingsInEffect } from "@ziffr/core/settings-in-effect";
 import { slideEditorLicenseKey } from "@ziffr/core/slide-editor-license";
-import { installationActor } from "@/lib/installation";
+import { signedInActor } from "@/lib/installation";
+import { installationHref } from "@ziffr/core/admin-address";
 
 /** Read on every request: a saved key works without a restart or a new build. */
 export const dynamic = "force-dynamic";
 
-/** `{ key, admin }`: the key in effect or null, and whether to offer the way to the setting. */
+/** `{ key, admin, settings }`: the key in effect or null, whether to offer the way to the setting, and that way (only
+ * to an Installation Admin). */
 export async function GET() {
   const key = slideEditorLicenseKey((await settingsInEffect()).ZIFFR_TLDRAW_LICENSE_KEY);
   // Who asks matters only for the link; when that cannot be told, no link.
-  const admin = await installationActor().then((a) => (a ? isInstallationAdmin(a) : false)).catch(() => false);
-  return NextResponse.json({ key, admin }, { headers: { "Cache-Control": "no-store" } });
+  const admin = await signedInActor().then((a) => (a ? isInstallationAdmin(a) : false)).catch(() => false);
+  return NextResponse.json({ key, admin, ...(admin ? { settings: installationHref("/installation#slides") } : {}) }, { headers: { "Cache-Control": "no-store" } });
 }

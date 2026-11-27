@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Tldraw, type TldrawProps } from "tldraw";
 import { needsLicenseKey } from "./slide-license-rules";
 
-type License = { key: string | null; admin: boolean; failed?: boolean };
+type License = { key: string | null; admin: boolean; settings?: string; failed?: boolean };
 
 // Distributed over tldraw's union of props (a snapshot or a store), which a plain Omit would flatten.
 type SlideCanvasProps = (TldrawProps extends infer P ? (P extends unknown ? Omit<P, "licenseKey"> : never) : never) & { onRefused?: () => void };
@@ -53,6 +53,7 @@ export function SlideCanvas({ onRefused, ...props }: SlideCanvasProps) {
           ? "tldraw did not accept this Ziffr's license key for the slide editor. It may have ended, or not list this address."
           : "This Ziffr has no license key for tldraw, the slide editor that draws it."}
         admin={license.admin}
+        settings={license.settings}
         missing={!license.key}
       />
     );
@@ -66,13 +67,13 @@ export function SlideCanvas({ onRefused, ...props }: SlideCanvasProps) {
 
 /** What stands in the canvas's place. `admin` set (either way) adds who can change it. It stays clickable where the
  * canvas around it takes no pointer, and above a presentation's click areas. */
-function Notice({ words, admin, missing }: { words: string; admin?: boolean; missing?: boolean }) {
+function Notice({ words, admin, settings, missing }: { words: string; admin?: boolean; settings?: string; missing?: boolean }) {
   return (
     <div role="status" className="pointer-events-auto relative z-10 flex h-full w-full overflow-auto bg-card p-3 text-center text-sm text-card-foreground">
       <div className="m-auto max-w-[48ch] space-y-1">
         <p className="font-medium">Slides and free layouts cannot be shown here</p>
         <p>{words}</p>
-        {admin === true && <p><Link href="/installation#slides" className="inline-flex min-h-11 items-center underline underline-offset-2">{missing ? "Add the license key" : "Check the license key"}</Link></p>}
+        {admin === true && <p><Link href={settings ?? "/installation#slides"} className="inline-flex min-h-11 items-center underline underline-offset-2">{missing ? "Add the license key" : "Check the license key"}</Link></p>}
         {admin === false && <p className="text-muted-foreground">The person who runs this Ziffr can {missing ? "add one" : "change it"}.</p>}
       </div>
     </div>

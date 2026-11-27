@@ -25,6 +25,7 @@ import { settlePrompts } from "./prompt-ways";
 import { audit } from "./audit-log";
 import { ownerFillStage, standInFillStage, standInLateRefusal, type Filled } from "./fill-in-check";
 import { enteredByWords, settleFilled } from "./fill-in-tell";
+import { personBlocked } from "./user-block";
 import { ARCHIVED_CODE, ARCHIVED_REFUSAL } from "./archived-metrics";
 import { CONDENSED_CODE, condensedOn, condensedRefusal, condensedWords } from "./condensed-values";
 import type { Metric, Profile, SourceId, Token } from "./types";
@@ -147,6 +148,8 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   if ("refused" in found) return log({ ok: false, ...found.refused });
   const { sender, feed, candidates } = found;
   const senderId: string = sender.id;
+  // A Blocked User records nothing, by any way in (spec 0066). A value someone else enters for them is that person's act.
+  if (!feed && !input.filledIn && (await personBlocked(senderId))) return log({ ok: false, senderId, outcome: "rejected_no_token", detail: "This account is blocked, so nothing was recorded." });
   if (candidates.length === 0) return log({ ok: false, senderId, outcome: "rejected_no_token", detail: `${sender?.name} has no Token for any metric, so nothing can be recorded.` });
 
   // 2. Which metric? Prompt reply > metric named in the message (among the sender's own Tokens) > the only Token.

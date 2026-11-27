@@ -37,6 +37,7 @@ import { yearStartFor, yearStartOf } from "./fiscal-year";
 import { numberStyleOf } from "./workspace-settings";
 import { ensureWorkspaceKey } from "./workspace-keys";
 import { resolveTagWidgets } from "./tag-widgets";
+import { personBlocked } from "./user-block";
 
 const inDemo = (actor: Actor) => actor.workspaceId === DEMO_WORKSPACE_ID;
 const isAdmin = async (actor: Actor) => actor.role === "owner" || actor.role === "admin";
@@ -402,6 +403,8 @@ export async function submissionForm(code: string, demoVisit = false) {
   if (token.workspace_id === DEMO_WORKSPACE_ID && (!demoVisit || !(await madeBySeed("metrics", Number(token.metric_id))))) return null;
   // A Feed's Token opens no form: a Feed presents its key, and its form would show the period's value (spec 0012).
   if ((await feedIdsAmong([token.submitter_id as string])).size) return null;
+  // Nor does the link of a Blocked User (spec 0066).
+  if (await personBlocked(token.submitter_id as string)) return null;
   if (token.stands_in_for) {
     const { data: theirs } = await db().from("tokens").select("metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("metric_id", token.metric_id);
     if (!tokenValid(token, theirs ?? [])) return null;

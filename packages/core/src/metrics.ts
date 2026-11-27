@@ -18,6 +18,7 @@ import { formulaInputs } from "./formula";
 import { widgetMetricIds } from "./widget-metrics";
 import { allDeckMetricIds } from "./visibility";
 import { allRows, getMetrics } from "./workspace-data";
+import { keepForSnapshots, readersNow } from "./deleted-metrics";
 import { getShares, visibilityOfMany } from "./access";
 import { feedIdsAmong } from "./feed-people";
 import { periodStart } from "./periods";
@@ -239,11 +240,13 @@ export class MetricKept extends Error {
 /** Deletes a Metric with its values, Tokens, Prompts, Actions, targets and Locks, for its owner only. The owner types
  * its name to confirm. Refused while anything else uses it (a Derived Metric's formula, a widget, a deck, a View Link
  * that still works), so nothing people built breaks or silently shows less; in the demo too, which every visitor shares.
+ * Past Snapshots keep their copy for who sees the Metric now (spec 0065); `origin.keptFor` names them instead when the
+ * core saw them before it took the Metric off dashboards (metric-delete.ts), and never comes from a browser or a program.
  * The Audit Log keeps who deleted it and its name. Returns how many values went with it. */
-export async function deleteMetric(actor: Actor, metricId: number, confirmName: string, origin: { accessKeyId?: number } = {}): Promise<{ values: number }> {
+export async function deleteMetric(actor: Actor, metricId: number, confirmName: string, origin: { accessKeyId?: number; keptFor?: readonly string[] } = {}): Promise<{ values: number }> {
   if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
   const ws = actor.workspaceId;
-  const m = await openOne("metrics", ws, (await db().from("metrics").select("id, slug, name, owner_id").eq("id", metricId).eq("workspace_id", ws).maybeSingle()).data);
+  const m = await openOne("metrics", ws, (await db().from("metrics").select("id, slug, name, owner_id, total_opened_at").eq("id", metricId).eq("workspace_id", ws).maybeSingle()).data);
   if (!m || m.owner_id !== actor.personId) throw new Forbidden("Only the Metric's owner deletes it.");
   if (String(confirmName ?? "").trim() !== m.name) throw new MetricKept("Type the Metric's name to delete it.");
   const today = new Date().toISOString().slice(0, 10);
@@ -265,6 +268,8 @@ export async function deleteMetric(actor: Actor, metricId: number, confirmName: 
   if (inWidgets || inDecks) throw new MetricKept(`It is shown in ${inWidgets} widget${inWidgets === 1 ? "" : "s"} and ${inDecks} deck${inDecks === 1 ? "" : "s"}. Take it out of them first.`);
   if ((links ?? []).some((l) => (l.metric_ids ?? []).map(Number).includes(metricId))) throw new MetricKept("A View Link that still works shows it. Revoke the link first.");
   const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("metric_id", metricId);
+  const readers = origin.keptFor ?? (await readersNow(ws, await getMetrics(ws), [metricId])).get(metricId) ?? [];
+  await keepForSnapshots(ws, { id: metricId, totalOpen: Boolean(m.total_opened_at) }, readers);
   // Its open Actions are closed first, with their events sent now: the send rows would go with the Metric.
   await closeForSystem(ws, { metricId, statuses: ["open", "answered"] }, "metric_deleted", { beforeDelete: true });
   // The intake log keeps what arrived, without the Metric it was for.

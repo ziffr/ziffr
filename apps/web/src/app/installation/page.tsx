@@ -2,6 +2,9 @@
 // the people who run this Installation and nobody else. While it has no Installation Admin, a signed-in person can
 // claim it here with the setup code from the server log; once it has one, anyone else gets "not found".
 import { notFound, redirect } from "next/navigation";
+import { PanelNav } from "./panel-nav";
+import { atAdminAddress, panelAnswersHere } from "@/lib/installation";
+import { SITE_URL } from "@/lib/sign-in";
 import { installationAdmins, installationClaimed, installationEvents, isInstallationAdmin, prepareSetupCode } from "@ziffr/core/installation-admins";
 import { installationAnnouncements } from "@ziffr/core/installation-announcements";
 import { installationSettingsView } from "@ziffr/core/installation-settings";
@@ -19,6 +22,7 @@ import { practiceWorkspaceState } from "@ziffr/core/practice-workspace";
 import { optionalActor } from "@/lib/viewer";
 
 export default async function InstallationPage() {
+  if (!(await panelAnswersHere())) notFound();
   const actor = await installationActor();
   if (!actor) redirect("/login?next=/installation");
   if (await isInstallationAdmin(actor)) {
@@ -27,11 +31,15 @@ export default async function InstallationPage() {
     const feedback = await feedbackPromptWords(actor);
     const announcements = await installationAnnouncements(actor);
     const practice = await practiceWorkspaceState(actor, (await optionalActor())?.workspaceId ?? null);
+    // At the Admin Address there is no app around the page: the Practice Workspace opens in Ziffr, and the
+    // note that a larger screen is easier, whose link leads into the app, is left out.
+    const admin = await atAdminAddress();
     return (
       <>
         <PageHeader title="Installation settings" sub={`What this Ziffr talks to, set up here instead of in the server's settings file. Only Installation Admins see this page.${version ? ` This is Ziffr ${version}.` : ""}`} />
-        <DesktopOnly path="/installation" />
-        <InstallationScreen view={view} admins={admins} events={events} limits={limits} replies={{ mx, test: replyTest }} usage={{ key: usageKey, days: usageDays, leaveOut }} encryption={encryption} feedback={feedback} announcements={announcements} practice={practice} />
+        <PanelNav current="settings" />
+        {!admin && <DesktopOnly path="/installation" />}
+        <InstallationScreen view={view} admins={admins} events={events} limits={limits} replies={{ mx, test: replyTest }} usage={{ key: usageKey, days: usageDays, leaveOut }} encryption={encryption} feedback={feedback} announcements={announcements} practice={practice} app={admin ? SITE_URL : null} />
       </>
     );
   }

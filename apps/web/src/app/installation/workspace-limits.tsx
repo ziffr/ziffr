@@ -14,7 +14,7 @@ import type { WorkspaceLimitRow } from "@ziffr/core/workspace-limits-admin";
 const n = (x: number) => x.toLocaleString("en-US");
 
 /** "50 (Small)", "No limit", with whether it is the Workspace's own or the default. */
-function limitWords(r: WorkspaceLimitRow): string {
+export function limitWords(r: WorkspaceLimitRow): string {
   const value = r.limit === null ? "No limit" : `${n(r.limit)}${r.label ? ` (${r.label})` : ""}`;
   return r.own ? value : `${value}, the default`;
 }
@@ -36,17 +36,6 @@ export function WorkspaceLimits({ rows, pinned = false }: { rows: WorkspaceLimit
 /** One Workspace: its numbers, who set its limit, and the form. */
 function LimitRow({ row: r, pinned }: { row: WorkspaceLimitRow; pinned: boolean }) {
   const [open, setOpen] = useState(false);
-  const [metrics, setMetrics] = useState(r.own && r.limit !== null ? String(r.limit) : "");
-  const [label, setLabel] = useState(r.own ? r.label ?? "" : "");
-  const [pending, start] = useTransition();
-  const router = useRouter();
-  const save = (value: { metrics: string; label: string } | null) => start(async () => {
-    const res = await setWorkspaceLimit(r.workspaceId, value);
-    if ("error" in res) { toast.error("Not saved", { description: res.error }); return; }
-    toast.success(value === null ? `${r.name} has the default limit again` : `Limit of ${r.name} saved`);
-    setOpen(false);
-    router.refresh();
-  });
   return (
     <li className="space-y-2 p-3">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -56,28 +45,47 @@ function LimitRow({ row: r, pinned }: { row: WorkspaceLimitRow; pinned: boolean 
         {r.overSince && <span className="text-[var(--color-ink-2)]">Over its limit since <RelativeTime at={r.overSince} /></span>}
         {pinned ? <span className="ml-auto text-xs text-muted-foreground">Set by Ziffr Cloud</span> : <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setOpen(!open)} aria-expanded={open}>Change</Button>}
       </div>
-      {r.own && r.setAt && (
-        <p className="text-xs text-muted-foreground">
-          Set by {r.setBy === "cloud" ? "Ziffr Cloud" : r.setByName ?? "an Installation Admin"} <RelativeTime at={r.setAt} />{r.setBy === "cloud" && ". Saving here overrides it until Ziffr Cloud sets it again"}
-        </p>
-      )}
-      {open && !pinned && (
-        <form
-          className="flex flex-wrap items-end gap-2"
-          onSubmit={(e) => { e.preventDefault(); save({ metrics, label }); }}
-        >
-          <label className="text-xs">
-            <span className="mb-1 block">Most Metrics</span>
-            <Input inputMode="numeric" value={metrics} onChange={(e) => setMetrics(e.target.value)} placeholder="No limit" className="w-28" />
-          </label>
-          <label className="text-xs">
-            <span className="mb-1 block">Name</span>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={30} placeholder="Such as Team" className="w-40" />
-          </label>
-          <Button type="submit" size="sm" disabled={pending}>{pending ? "Saving…" : "Save"}</Button>
-          {r.own && <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => save(null)}>Use the default</Button>}
-        </form>
-      )}
+      <LimitSetBy row={r} />
+      {open && !pinned && <LimitForm row={r} onSaved={() => setOpen(false)} />}
     </li>
+  );
+}
+
+/** Who set a Workspace's own limit and when; nothing for the default. */
+export function LimitSetBy({ row: r }: { row: WorkspaceLimitRow }) {
+  if (!r.own || !r.setAt) return null;
+  return (
+    <p className="text-xs text-muted-foreground">
+      Set by {r.setBy === "cloud" ? "Ziffr Cloud" : r.setByName ?? "an Installation Admin"} <RelativeTime at={r.setAt} />{r.setBy === "cloud" && ". Saving here overrides it until Ziffr Cloud sets it again"}
+    </p>
+  );
+}
+
+/** The form that gives a Workspace a limit of its own, or the default again; the core checks every value. */
+export function LimitForm({ row: r, onSaved }: { row: WorkspaceLimitRow; onSaved: () => void }) {
+  const [metrics, setMetrics] = useState(r.own && r.limit !== null ? String(r.limit) : "");
+  const [label, setLabel] = useState(r.own ? r.label ?? "" : "");
+  const [pending, start] = useTransition();
+  const router = useRouter();
+  const save = (value: { metrics: string; label: string } | null) => start(async () => {
+    const res = await setWorkspaceLimit(r.workspaceId, value);
+    if ("error" in res) { toast.error("Not saved", { description: res.error }); return; }
+    toast.success(value === null ? `${r.name} has the default limit again` : `Limit of ${r.name} saved`);
+    onSaved();
+    router.refresh();
+  });
+  return (
+    <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); save({ metrics, label }); }}>
+      <label className="text-xs">
+        <span className="mb-1 block">Most Metrics</span>
+        <Input inputMode="numeric" value={metrics} onChange={(e) => setMetrics(e.target.value)} placeholder="No limit" className="w-28" />
+      </label>
+      <label className="text-xs">
+        <span className="mb-1 block">Name</span>
+        <Input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={30} placeholder="Such as Team" className="w-40" />
+      </label>
+      <Button type="submit" size="sm" disabled={pending}>{pending ? "Saving…" : "Save"}</Button>
+      {r.own && <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => save(null)}>Use the default</Button>}
+    </form>
   );
 }
