@@ -128,10 +128,10 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
   const [row, setRow] = useState<string | null>(null);
   // A story carries its own headline, so its frame header stays quiet.
   const isLayout = templateOf(widget).kind === "layout";
-  // Whether Free Layouts are offered here, asked once a menu is opened. Where they are not, one is only kept: nothing in
-  // its menu changes it or makes another.
+  // Whether Free Layouts are offered here, asked for a Free Layout and once a menu is opened. Where they are not, one is
+  // only kept: nothing in its menu changes it or makes another.
   const [menuOpened, setMenuOpened] = useState(false);
-  const freeLayouts = useFreeLayouts(menuOpened);
+  const freeLayouts = useFreeLayouts(menuOpened || isLayout);
   const keptOnly = isLayout && !freeLayouts;
   // The View Design the widget is drawn with, to take away as a file: none for a Finding or a Free layout.
   const ownDesign = designOf(widget);
