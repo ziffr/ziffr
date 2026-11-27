@@ -44,8 +44,11 @@ type PackConfirmed = { unsigned: boolean; assistantTexts: boolean };
 
 /** What a guided set-up puts into the Preview in place of its own parts. */
 export type PackUse = {
-  /** What is drawn instead of the first Dashboard Template, and that template's key when it draws one. */
-  drawing: React.ReactNode; drawn?: string;
+  /** What is drawn instead of the first Dashboard Template, and that template's key when it draws one. Left out, the
+   * Preview draws that template itself. */
+  drawing?: React.ReactNode; drawn?: string;
+  /** The words under the Preview's own drawing, where the usual ones do not fit. */
+  caption?: string;
   /** "Use this pack" and what stands with it, in place of Install and its confirmations. */
   actions: React.ReactNode;
 };
@@ -76,6 +79,8 @@ export function PackPreviewView({ preview, viewer, numberStyle, install, use }: 
   const [box, { w }] = useBoxSize<HTMLDivElement>();
   const own = useMemo(() => packSample(preview.sample.pack, preview.sample.metrics), [preview.sample]);
   const dashboard = preview.items.find((i) => i.kind === "dashboard");
+  // A set-up may bring a drawing of its own; every other view draws the first dashboard.
+  const theirs = use?.drawing !== undefined;
   const ready = !preview.blocked && (okUnsigned || !preview.unsigned) && (okAssistant || !preview.assistantTexts.length);
   const press = () => start(async () => {
     const view = box.current;
@@ -100,9 +105,9 @@ export function PackPreviewView({ preview, viewer, numberStyle, install, use }: 
         )}
         <Publisher author={manifest.author.name} logo={preview.logo} id={manifest.id} signed={!preview.unsigned} fromMarketplace={preview.source === "marketplace"} included={preview.source === "included"} reviewed={preview.reviewed} />
       </div>
-      {use ? use.drawing : dashboard && (
+      {theirs ? use!.drawing : dashboard && (
         <figure className="space-y-1.5">
-          <figcaption className="text-xs text-muted-foreground">The dashboard &ldquo;{dashboard.name}&rdquo;, drawn with Sample Data.</figcaption>
+          <figcaption className="text-xs text-muted-foreground">{use?.caption ?? <>The dashboard &ldquo;{dashboard.name}&rdquo;, drawn with Sample Data.</>}</figcaption>
           <DashboardTemplatePreview template={dashboard} viewer={viewer} numberStyle={numberStyle} width={w || undefined} pack={own} stacked={w > 0 && w < SCALED_FROM ? STACKED_WIDGETS : undefined} />
         </figure>
       )}
@@ -148,7 +153,7 @@ export function PackPreviewView({ preview, viewer, numberStyle, install, use }: 
       <Brings closed={Boolean(use)} count={preview.items.length}>
         <PackNumbersView overview={preview.overview} />
         {preview.people && <PackPeopleList people={preview.people} />}
-        <PackItems items={preview.items} drawn={use ? use.drawn : dashboard?.key} pack={own} viewer={viewer} numberStyle={numberStyle} width={w ? Math.min(ITEM_WIDTH, w - ITEM_FRAME) : ITEM_WIDTH} />
+        <PackItems items={preview.items} drawn={theirs ? use!.drawn : dashboard?.key} pack={own} viewer={viewer} numberStyle={numberStyle} width={w ? Math.min(ITEM_WIDTH, w - ITEM_FRAME) : ITEM_WIDTH} />
       </Brings>
     </div>
   );
