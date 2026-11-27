@@ -9,7 +9,6 @@ import { db } from "./db";
 import { DemoLimit, DemoReadOnly, DemoSeededWords, DemoShowcase, DemoStale } from "./demo";
 import { DemoTextRefused } from "./demo-visitor-words";
 import { visitingDemo } from "./demo-visiting";
-import { resetDemoWorkspace } from "./demo-reset";
 import { forgetStoredSettings } from "./settings-in-effect";
 import * as dash from "./dashboards";
 import { createDashboardFromTemplate } from "./dashboard-templates";
@@ -17,7 +16,7 @@ import { nameVersion, restoreVersion, saveNamedVersion } from "./version-history
 import { deleteTheme, duplicateTheme, saveTheme } from "./workspace-themes";
 import { deleteTemplate, renameTemplate, saveDashboardTemplate, saveTemplate } from "./templates";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { demoBackToSeed } from "./test/demo-walk";
+import { demoBackToSeed, demoOpenForVisitors } from "./test/demo-walk";
 import { DemoSizeRefused } from "./demo-visitor-limits";
 import type { Actor } from "./actor";
 import type { ThemeSlides, ThemeTokens } from "./types";
@@ -37,10 +36,14 @@ async function asVisit<T>(work: () => Promise<T>, generationOffset = 0, visit = 
 }
 
 let metric = 0;
+/** The dashboards there were before any visit of this file wrote: the seed's. */
+let fromSeed: number[] = [];
 beforeAll(async () => {
   await assertDemoIsOnlyWorkspace();
   // A fresh demo that is open to visitors, with its showcase recorded and its seed marked done.
-  await resetDemoWorkspace({ openToVisitors: true });
+  // Whenever the last reset was: one skipped as too soon would leave an earlier file's demo to be taken for the seed.
+  await demoOpenForVisitors();
+  fromSeed = ((await db().from("dashboards").select("id").eq("workspace_id", DEMO_WORKSPACE_ID).throwOnError()).data ?? []).map((d) => d.id as number);
   metric = Number((await db().from("metrics").select("id").eq("workspace_id", DEMO_WORKSPACE_ID).limit(1).single()).data?.id);
 }, 180_000);
 
@@ -51,7 +54,9 @@ afterAll(async () => { await demoBackToSeed(); }, 180_000);
 async function seededDashboard(): Promise<{ id: number; widget: number; owner: Actor }> {
   const { data: showcase } = await db().from("demo_showcase").select("row_key").eq("table_name", "dashboards");
   const keep = new Set((showcase ?? []).map((r) => r.row_key as string));
-  const { data } = await db().from("dashboards").select("id, owner_id, widgets!inner(id)").eq("workspace_id", DEMO_WORKSPACE_ID);
+  // Only among the seed's: the tests before this one make dashboards with widgets too, and those a visitor may rename. Not
+  // read from `demo_seeded_rows`, which the protection under test reads itself.
+  const { data } = await db().from("dashboards").select("id, owner_id, widgets!inner(id)").eq("workspace_id", DEMO_WORKSPACE_ID).in("id", fromSeed).order("id");
   const row = (data ?? []).find((d) => !keep.has(String(d.id)));
   expect(row, "the seed has a dashboard with widgets outside the showcase").toBeDefined();
   return { id: row!.id as number, widget: (row!.widgets as { id: number }[])[0].id, owner: { ...sara, personId: row!.owner_id as string } };
