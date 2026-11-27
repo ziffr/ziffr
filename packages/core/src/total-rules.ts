@@ -1,9 +1,23 @@
 // What may be added up into a Total, and what is said where one shows no number (GLOSSARY: Total; spec 0058, "Team
 // totals"). Pure, so the form can leave out what the core would refuse and a view can say why it is empty.
-import type { Metric } from "./types";
+import { periodStart, shiftPeriod, type YearStart } from "./periods";
+import type { Metric, Period } from "./types";
 
 /** The most Metrics one Total adds up. */
 export const TOTAL_MAX_PARTS = 50;
+
+// Where "from its first value" begins: no value is entered for a day before it.
+const EARLIEST_DAY = "1900-01-01";
+
+/** What is stored as the first period of a Metric a Total counts from its first value, whenever that value comes (history
+ * pasted later included): the first period of this length that starts in the earliest year Ziffr takes. */
+export function firstValueMark(period: Period, yearStart: YearStart): string {
+  const start = periodStart(EARLIEST_DAY, period, yearStart);
+  return start < EARLIEST_DAY ? shiftPeriod(start, period, 1) : start;
+}
+
+/** Whether a first period says "from its first value" rather than naming a period. */
+export const countsFromFirstValue = (first: string): boolean => first < "1901-01-01";
 
 /** What stands for a period a person is not given. */
 export const NOT_SHOWN = "Not shown: you do not see every Metric it adds up.";

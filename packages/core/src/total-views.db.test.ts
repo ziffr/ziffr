@@ -51,7 +51,7 @@ describe("a gap table of a Total", () => {
     const listed = async (actor: Parameters<typeof canvasSeries>[0]) => (await canvasSeries(actor, [total.id])).totalLists?.[total.id];
     expect(await listed(owner)).toMatchObject({ parts: [{ part: ana.id }, { part: eva.id }], others: [], hidden: false });
     const bens = await canvasSeries(w.actor(ben, "member"), [total.id]);
-    expect(bens.totalLists![total.id]).toEqual({ parts: [{ part: ana.id, first: "2026-01-01", last: null }], others: ["2026-01-01"], hidden: true });
+    expect(bens.totalLists![total.id]).toEqual({ parts: [{ part: ana.id, first: "1900-01-01", last: null }], others: ["2026-01-01"], hidden: true });
     expect(JSON.stringify(bens)).not.toContain(eva.slug);
     // A person who does not see the Total gets no list of it.
     const cleo = await w.person("member");
@@ -70,7 +70,7 @@ describe("a gap table of a Total", () => {
     await saveDeck(w.actor(sara), deck, { store: { ...table, "shape:2": shape(ana.id, { kind: "figure" }) } });
     for (const frozen of [false, true]) {
       const both = await view(frozen);
-      expect(both.data.totalLists![total.id]).toEqual({ parts: [{ part: ana.id, first: "2026-01-01", last: null }], others: ["2026-01-01"], hidden: true });
+      expect(both.data.totalLists![total.id]).toEqual({ parts: [{ part: ana.id, first: "1900-01-01", last: null }], others: ["2026-01-01"], hidden: true });
       expect(JSON.stringify(both)).not.toMatch(new RegExp(`Commit Eva|${eva.slug}`));
     }
   });

@@ -10,6 +10,7 @@ import { planPackSetup } from "./pack-setup-plan";
 import { closeTotal, openTotal, totalOpening } from "./total-opening";
 import { setTotalPartPeriods } from "./total-changes";
 import { exportPack } from "./pack-export";
+import { share } from "./sharing";
 import { SALES_TEAM } from "./test/sales-team-pack";
 import { salesTeam } from "./test/sales-team-people";
 import type { PackSetupInput } from "./pack-setup-build";
@@ -87,6 +88,36 @@ describe("setting up a Pack with a Total", () => {
     const seen = await allSeriesFor(t.w.actor(t.lena, "member"));
     expect(seen.metrics.map((m) => m.name)).toContain("Team commit");
     expect(seen.series[total.slug] ?? []).toEqual([]);
+  });
+});
+
+describe("history for a Total made by Set up", () => {
+  it("counts values from before the Set up as they come, and a line that joins later changes no earlier sum, nor who sees it", async () => {
+    const t = await setUp();
+    await setUpFromPack(t.by, t.install, t.input);
+    const total = await t.metric("Team commit");
+    const [anna, ben] = [await t.metric("Commit, Anna"), await t.metric("Commit, Ben")];
+    expect((await t.parts(total.id)).map((p) => p.first_period)).toEqual(["1900-01-01", "1900-01-01"]);
+    const sums = async (as = t.by) => (await allSeriesFor(as)).series[total.slug] ?? [];
+    await t.w.value(anna.id, "2026-03-02", 5);
+    expect(await sums()).toEqual([]);
+    await t.w.value(ben.id, "2026-03-02", 7);
+    expect(await sums()).toEqual([{ period: "2026-03-02", value: 12 }]);
+    const offer = (await planPackSetup(t.by, t.install, await t.line())).offers.find((o) => o.id === `total:${total.id}`)!;
+    await setUpFromPack(t.by, t.install, await t.line([offer.id]));
+    expect(await t.parts(total.id)).toHaveLength(3);
+    // History pasted after she joined counts those who were there then.
+    await t.w.value(anna.id, "2026-02-23", 1);
+    await t.w.value(ben.id, "2026-02-23", 2);
+    const past = [{ period: "2026-02-23", value: 3 }, { period: "2026-03-02", value: 12 }];
+    expect(await sums()).toEqual(past);
+    // The same rule of sight: a past sum is for who sees every Metric counted in it, and the newcomer is not one of them.
+    const lena = t.w.actor(t.lena, "member");
+    await share(t.by, "metric", total.id, t.lena, "viewer");
+    await share(t.by, "metric", anna.id, t.lena, "viewer");
+    expect(await sums(lena)).toEqual([]);
+    await share(t.by, "metric", ben.id, t.lena, "viewer");
+    expect(await sums(lena)).toEqual(past);
   });
 });
 

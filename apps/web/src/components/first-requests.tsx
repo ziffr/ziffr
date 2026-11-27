@@ -34,7 +34,7 @@ export function SendFirstRequests({ to, checked, onChange, followed }: { to: Rec
   return (
     <label className="flex items-start gap-2">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 shrink-0 accent-[var(--color-ink)]" />
-      <span className="[overflow-wrap:anywhere]">Send the first requests now: {toWhom(to)}<span className="block text-xs text-muted-foreground">{checked ? "One message for each Metric and person." : `Unticked, setting up sends no request.${otherwise}`}</span></span>
+      <span className="[overflow-wrap:anywhere]">Send the first requests now: {toWhom(to)}<span className="block text-xs text-muted-foreground">{checked ? "One message for each Metric and person, for the period that ended last." : `Unticked, setting up sends no request.${otherwise}`}</span></span>
     </label>
   );
 }

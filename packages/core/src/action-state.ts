@@ -75,7 +75,7 @@ export async function changeActionState(workspaceId: string, actionId: number, c
 }
 
 /** The Actions a system or Workflow close applies to. */
-export type CloseWhere = { ids?: number[]; metricId?: number; period?: string; kind?: "task" | "question"; purposes?: ("approval" | "self_check")[]; /** The states that count as not closed yet; only `open` when left out. */ statuses?: ("open" | "answered")[] };
+export type CloseWhere = { ids?: number[]; metricId?: number; period?: string; kind?: "task" | "question"; purposes?: ("approval" | "self_check" | "escalation")[]; /** The states that count as not closed yet; only `open` when left out. */ statuses?: ("open" | "answered")[] };
 
 /** Closes every Action of a Workspace that is not closed yet (open, unless `where.statuses` says more) and fits `where`, one by one
  * through `changeActionState`, so each fires its own event once. Returns how many it closed. */

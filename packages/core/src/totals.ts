@@ -4,7 +4,7 @@
 // unless the Total's owner opened it, so a part is never given away by subtraction. Pure.
 import { exactTotal } from "./exact";
 import { targetReader } from "./formula";
-import { NOT_ALL_IN, NOT_SHOWN, OWNER_CANNOT_SHARE } from "./total-rules";
+import { countsFromFirstValue, NOT_ALL_IN, NOT_SHOWN, OWNER_CANNOT_SHARE } from "./total-rules";
 import type { Metric, Point } from "./types";
 
 /** One part of a Total: the Metric, the first day of the first period it counts in and, once it has left, of the last. */
@@ -58,6 +58,16 @@ export function totalSeries(total: Pick<Metric, "id" | "total">, read: TotalsRea
  * sent back. `open` holds each part's such periods by its id; only periods among the Total's own are named. */
 export function totalUnapproved(parts: readonly TotalPart[], open: Record<number, readonly string[]>, periods: readonly Point[]): string[] {
   return periods.map((p) => p.period).filter((period) => countedParts(parts, period).some((part) => open[part]?.includes(period)));
+}
+
+/** Of the standings of the latest periods, those a Total's page lists. A Metric that counts from its first value counts in
+ * every earlier period too, so those before any value are left out: the list starts at `previous` (the period before the
+ * running one), or earlier at the first of `known`, the periods of values the reader sees. A period with a sum they are
+ * shown, or counting a Metric from a named period, is always listed. So the list says nothing of what a hidden one has. */
+export function listedStanding(standing: readonly TotalStanding[], parts: readonly TotalPart[], previous: string, known: readonly string[]): TotalStanding[] {
+  const start = [previous, ...known].sort()[0];
+  const named = new Set(parts.filter((p) => !countsFromFirstValue(p.first)).map((p) => p.part));
+  return standing.filter((s) => s.state === "shown" || s.period >= start || countedParts(parts, s.period).some((id) => named.has(id)));
 }
 
 /** The Metrics whose numbers rest on a Total: the Totals themselves and the formulas that read one (`reads_total`). */

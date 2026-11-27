@@ -32,7 +32,7 @@ describe("the tick that sends the first requests", () => {
     const to = [{ name: "you", count: 2, you: true }];
     expect(tick(to, { followed: true })).toContain("The Workflow asks at its next run.");
     expect(tick(to, { followed: false })).toContain("nothing asks by itself");
-    expect(tick(to, { checked: true, followed: true })).toContain("One message for each Metric and person.");
+    expect(tick(to, { checked: true, followed: true })).toContain("One message for each Metric and person, for the period that ended last.");
   });
   it("counts people instead of naming a long list, and is not shown with nobody to ask", () => {
     expect(tick(Array.from({ length: 7 }, (_, i) => ({ name: `P${i}`, count: 2, you: false })))).toContain("14 messages to 7 people");
