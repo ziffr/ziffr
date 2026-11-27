@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, type KeyActor } from "./actor";
 import { db } from "./db";
+import { insertSealed } from "./sealed-columns";
 import { entryTitle, ownFormCode, schedule, type Schedule } from "./schedule";
 import { opened, workspace } from "./test/db-fixtures";
 
@@ -49,6 +50,20 @@ describe("values due", () => {
     expect(s.days).toEqual([{ date: "2026-12-03", entries: [expect.objectContaining({ noDueDate: false, dueWorkingDays: 3, remindDaysBefore: 2, standingInFor: null, path: `/schedule/submit/${m.slug}`, period: { start: "2026-11-01", label: "November 2026" } })] }]);
     await w.value(m.id, "2026-10-01", 12, ben);
     expect(brief(await schedule(w.actor(ben, "member"), { from: "2026-11-16", to: "2026-12-06" }, NOW))).toEqual(["value_due Revenue 2026-11-01 2026-12-03"]);
+  });
+
+  it("lists a period that ended before the Metric existed where the person was asked for it", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
+    const m = await w.metric(sara, { name: "Commit", period: "week", created_at: "2026-11-18T00:00:00Z", workflow_id: await workflow(w, sara, { dueWorkingDays: 2, steps: [] }) });
+    await token(m.id, ben, { created_at: "2026-11-18T00:00:00Z" });
+    const span = { from: "2026-11-16", to: "2026-11-29" };
+    const due = async () => brief(await schedule(w.actor(ben, "member"), span, NOW));
+    expect(await due()).toEqual(["value_due Commit 2026-11-16 2026-11-24"]);
+    const [asked] = await insertSealed("prompts", w.id, [{ metric_id: m.id, submitter_id: ben, source: "web_form", text: "?", period_start: "2026-11-09" }]) as { id: number }[];
+    expect(await due()).toEqual(["value_due Commit 2026-11-09 2026-11-17 overdue 2", "value_due Commit 2026-11-16 2026-11-24"]);
+    // An answered request asks for nothing.
+    await db().from("prompts").update({ answered_at: NOW.toISOString() }).eq("id", asked.id);
+    expect(await due()).toEqual(["value_due Commit 2026-11-16 2026-11-24"]);
   });
 
   it("counts working days from a period ending on a Friday, a Saturday and a Sunday", async () => {

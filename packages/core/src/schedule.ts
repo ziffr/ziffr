@@ -11,7 +11,7 @@ import { audit } from "./audit-log";
 import { openNames, openRows } from "./sealed-columns";
 import { feedIdsAmong } from "./feed-people";
 import { yearStartOf } from "./fiscal-year";
-import { periodEnd, periodLabel, periodStart, shiftPeriod, type YearStart } from "./periods";
+import { isPeriodStart, periodEnd, periodLabel, periodStart, shiftPeriod, type YearStart } from "./periods";
 import { addWorkingDays, dueDate, workingPeriod } from "./workflow-rules";
 import { allRows, getMetrics } from "./workspace-data";
 import { localTime, workspaceClock } from "./workspace-clock";
@@ -199,14 +199,16 @@ async function valuesDue(ws: string, person: string, metrics: Map<number, Metric
   ]);
   const away = new Map((awayRows ?? []).map((a) => [a.user_id as string, { starts: String(a.starts), ends: String(a.ends) }]));
   const has = new Set(values.map((v) => `${v.metric_id}:${v.period_start}`));
+  const requested = await openRequests(ws, ids, plusDays(ctx.lo, -420), ctx.today);
   const nameOf = new Map((await openNames(ws, names)).map((p) => [p.id as string, p.name as string]));
   const out = new Map<string, ScheduleEntry>();
   for (const t of tokens) {
     const m = metrics.get(t.metric_id)!;
     const cfg = (m as Metric & { workflow_id?: number | null }).workflow_id ? ctx.workflows.get((m as Metric & { workflow_id: number }).workflow_id) : undefined;
-    // Nobody owes a value for a period that ended before the Metric, or their Token, existed.
+    // Nobody owes a value for a period that ended before the Metric, or their Token, existed, unless they were asked for it.
     const since = [m.created_at, t.created_at].map((s) => localTime(new Date(s), ctx.timeZone).day).sort().at(-1)!;
-    const candidates = cfg ? periodsDue(m, cfg, since, ctx) : noDueDatePeriod(m, since, ctx);
+    const asked = askedBefore(m, cfg, requested.get(`${m.id}:${t.submitter_id}`) ?? [], since, ctx);
+    const candidates = [...asked, ...(cfg ? periodsDue(m, cfg, since, ctx) : noDueDatePeriod(m, since, ctx))];
     for (const { start, due } of candidates) {
       if (has.has(`${m.id}:${start}`) || askedOn(t, due, away) !== person) continue;
       const key = `${m.id}:${start}`;
@@ -230,18 +232,49 @@ function noDueDatePeriod(m: Metric, since: string, ctx: Ctx): { start: string; d
   return due >= ctx.lo && due <= ctx.hi ? [{ start, due }] : [];
 }
 
+/** The periods Ziffr asked for and has no answer to, by Metric and by the Submitter whose value it is (the one stood in
+ * for, where a Stand-in was asked). Only the first days of the periods are read. */
+async function openRequests(ws: string, metricIds: number[], from: string, today: string): Promise<Map<string, string[]>> {
+  const rows = await allRows<{ metric_id: number; submitter_id: string; stands_in_for: string | null; period_start: string }>((a, b) => db().from("prompts").select("metric_id, submitter_id, stands_in_for, period_start").eq("workspace_id", ws).in("metric_id", metricIds).is("answered_at", null).gte("period_start", from).lt("period_start", today).order("id").range(a, b));
+  const out = new Map<string, string[]>();
+  for (const r of rows) {
+    const key = `${r.metric_id}:${r.stands_in_for ?? r.submitter_id}`;
+    out.set(key, [...(out.get(key) ?? []), String(r.period_start)]);
+  }
+  return out;
+}
+
+/** Of the periods asked for, those that ended before `since` and are due between ctx.lo and ctx.hi: a Workflow asks for
+ * the period that ended last, also of a Metric made after it ended. Without a Workflow only the latest ended one. */
+function askedBefore(m: Metric, cfg: WorkflowConfig | undefined, asked: string[], since: string, ctx: Ctx): { start: string; due: string }[] {
+  const latest = workingPeriod(ctx.today, m.period, ctx.yearStart);
+  return [...new Set(asked)].sort().flatMap((start) => {
+    if (!isPeriodStart(start, m.period, ctx.yearStart) || periodEnd(start, m.period) >= since || (!cfg && start !== latest)) return [];
+    const due = cfg ? dueDate(start, m.period, cfg) : addWorkingDays(periodEnd(start, m.period), 1);
+    return due >= ctx.lo && due <= ctx.hi ? [{ start, due }] : [];
+  });
+}
+
+/** Whether a Schedule still reaches a period that was asked for: a Due Date at most OVERDUE_DAYS_BACK days ago or,
+ * without a Workflow, no earlier than the latest period that ended. Internal to the core; `now` is for tests. */
+export async function scheduleReach(ws: string, now = new Date()): Promise<(m: Metric, start: string) => boolean> {
+  const ctx = await loadContext(ws, now);
+  const oldestDue = plusDays(ctx.today, -OVERDUE_DAYS_BACK);
+  return (m, start) => {
+    const workflowId = (m as Metric & { workflow_id?: number | null }).workflow_id;
+    const cfg = workflowId ? ctx.workflows.get(workflowId) : undefined;
+    return cfg ? dueDate(start, m.period, cfg) >= oldestDue : start >= workingPeriod(ctx.today, m.period, ctx.yearStart);
+  };
+}
+
 /** Of some periods of one Metric that were asked for, those whose value is still due as a Schedule means it, in the
- * order given: no value is in (one sent back at Approval is in), and the Schedule still reaches the period, which is a
- * Due Date at most OVERDUE_DAYS_BACK days ago or, without a Workflow, no earlier than the latest period that ended. A
- * request is a record of its own, so a period that ended before the Metric or the Token existed counts here, unlike in
- * a Schedule. Internal to the core: it checks no Actor and returns no value. `now` is for tests. */
+ * order given: no value is in (one sent back at Approval is in), and the Schedule still reaches the period
+ * (scheduleReach). A request is a record of its own, so a period that ended before the Metric or the Token existed
+ * counts. Internal to the core: it checks no Actor and returns no value. `now` is for tests. */
 export async function periodsStillDue(ws: string, m: Metric, starts: string[], now = new Date()): Promise<string[]> {
   if (!starts.length) return [];
-  const ctx = await loadContext(ws, now);
-  const workflowId = (m as Metric & { workflow_id?: number | null }).workflow_id;
-  const cfg = workflowId ? ctx.workflows.get(workflowId) : undefined;
-  const oldestDue = plusDays(ctx.today, -OVERDUE_DAYS_BACK);
-  const reached = starts.filter((s) => (cfg ? dueDate(s, m.period, cfg) >= oldestDue : s >= workingPeriod(ctx.today, m.period, ctx.yearStart)));
+  const reaches = await scheduleReach(ws, now);
+  const reached = starts.filter((s) => reaches(m, s));
   if (!reached.length) return [];
   const values = await allRows<{ period_start: string }>(async (from, to) => {
     const page = await db().from("observations").select("period_start").eq("workspace_id", ws).eq("metric_id", m.id).in("period_start", reached).order("id").range(from, to);

@@ -8,6 +8,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
 import { dueDate } from "./workflow-rules";
+import { onValue } from "./workflow-engine";
 import { shiftPeriod } from "./periods";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -60,6 +61,10 @@ describe("the scheduled run", () => {
     expect(prompts).toHaveLength(2);
     const { data: escalation } = await db().from("actions").select("assignee_id, purpose").eq("metric_id", m.id).eq("purpose", "escalation");
     expect(escalation).toEqual([{ assignee_id: sara, purpose: "escalation" }]);
+    // The value arrives: the owner has nothing left to follow up.
+    await w.value(m.id, "2026-11-01", 5, ann);
+    await onValue(m.id, "2026-11-01", ann);
+    expect((await db().from("actions").select("status").eq("metric_id", m.id).eq("purpose", "escalation")).data).toEqual([{ status: "closed" }]);
   });
   it("never runs the demo, and a failing workspace stops no other", async () => {
     expect(await runWorkspaceIfDue({ id: DEMO_WORKSPACE_ID, time_zone: "UTC", run_hour: 0 }, new Date())).toBe("not_yet");

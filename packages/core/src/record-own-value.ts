@@ -7,6 +7,7 @@
 // recorded in a demo.
 import { Forbidden, type Actor } from "./actor";
 import { assertSeesMetrics } from "./sharing";
+import { oldestAsked } from "./asked-periods";
 import { visibleMetricIds } from "./access";
 import { db } from "./db";
 import { refuseInDemo } from "./demo";
@@ -39,9 +40,18 @@ export type RecordingOffer = {
   numberStyle: NumberStyle;
   /** The newest period first; `has` is the value it holds now, written the way the Workspace writes values. */
   periods: { start: string; label: string; has: string | null }[];
+  /** The oldest of these periods they were asked for and still owe, where the form starts; null: the current one. */
+  asked: string | null;
 };
 
 type Own = { metric: Metric; code: string; yearStart: YearStart };
+
+/** The Token a person records a Metric's value with, among the Metric's Tokens: their own first, a Stand-in's only when
+ * they hold no valid Token of their own. */
+function recordingToken<T extends TokenRow>(all: T[], person: string): T | undefined {
+  const mine = all.filter((t) => t.submitter_id === person).sort((a, b) => Number(Boolean(a.stands_in_for)) - Number(Boolean(b.stands_in_for)));
+  return mine.find((t) => tokenValid(t, all));
+}
 
 /** The Metric and the Token code the actor records with, or null: a signed-in person, a Metric they see that takes
  * values on the web form and is neither Derived nor archived, and a valid Token of theirs for it. */
@@ -51,11 +61,7 @@ async function ownToken(actor: Actor, metricId: number): Promise<Own | null> {
   if (!metric || metric.formula || metric.archived_at || !metric.sources.includes("web_form")) return null;
   try { await assertSeesMetrics(actor, [metricId]); } catch (e) { if (e instanceof Forbidden) return null; throw e; }
   const { data } = await db().from("tokens").select("code, metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("workspace_id", actor.workspaceId).eq("metric_id", metricId);
-  const all = (data ?? []) as (TokenRow & { code: string })[];
-  const mine = all.filter((t) => t.submitter_id === actor.personId);
-  // Their own Token first: a Stand-in's is used only when they hold no Token of their own for the Metric.
-  const ordered = [...mine].sort((a, b) => Number(Boolean(a.stands_in_for)) - Number(Boolean(b.stands_in_for)));
-  const token = ordered.find((t) => tokenValid(t, all));
+  const token = recordingToken((data ?? []) as (TokenRow & { code: string })[], actor.personId);
   if (!token) return null;
   const ys = metric.period === "quarter" || metric.period === "year" ? await yearStartOf(actor.workspaceId) : JANUARY;
   return { metric, code: token.code, yearStart: ys };
@@ -79,7 +85,8 @@ export async function recordingOffers(actor: Actor, metricIds: number[]): Promis
   if (!candidates.length) return {};
   const { data } = await db().from("tokens").select("code, metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("workspace_id", ws).in("metric_id", candidates.map((m) => m.id));
   const tokens = (data ?? []) as (TokenRow & { code: string })[];
-  const submits = candidates.filter((m) => tokens.some((t) => t.metric_id === m.id && t.submitter_id === person && tokenValid(t, tokens.filter((o) => o.metric_id === m.id))));
+  const mine = new Map(candidates.flatMap((m) => { const token = recordingToken(tokens.filter((t) => t.metric_id === m.id), person); return token ? [[m.id, token] as const] : []; }));
+  const submits = candidates.filter((m) => mine.has(m.id));
   if (!submits.length) return {};
   const [style, yearStart] = await Promise.all([numberStyleOf(ws), yearStartOf(ws)]);
   const spans = submits.map((metric) => {
@@ -90,9 +97,11 @@ export async function recordingOffers(actor: Actor, metricIds: number[]): Promis
   // One read of the values for all: from the oldest period offered to the newest, then each Metric takes its own.
   const all = spans.flatMap((s) => s.starts).sort();
   const found = await getLatestObservations(ws, { metricIds: submits.map((m) => m.id), from: all[0], to: all[all.length - 1] });
+  const values = new Map(spans.map(({ metric }) => [metric.id, new Map(found.filter((o) => o.metric_id === metric.id).map((o) => [o.period_start, Number(o.value)]))]));
+  const asked = await oldestAsked(ws, person, spans.map(({ metric, starts }) => ({ metric, token: mine.get(metric.id)!, starts, has: values.get(metric.id)! })));
   const offers: Record<number, RecordingOffer> = {};
   for (const { metric, ys, starts } of spans) {
-    const have = new Map(found.filter((o) => o.metric_id === metric.id).map((o) => [o.period_start, Number(o.value)]));
+    const have = values.get(metric.id)!;
     offers[metric.id] = {
       metricId: metric.id,
       name: metric.name,
@@ -100,6 +109,7 @@ export async function recordingOffers(actor: Actor, metricIds: number[]): Promis
       placeholder: metric.unit || (metric.format === "currency" ? "€" : metric.format === "percent" ? "%" : "Value"),
       numberStyle: style,
       periods: starts.map((start) => ({ start, label: periodLabel(start, metric.period, ys), has: have.has(start) ? formatValue(metric, have.get(start)!, style) : null })),
+      asked: asked.get(metric.id) ?? null,
     };
   }
   return offers;

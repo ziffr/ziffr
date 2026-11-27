@@ -4,6 +4,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
+import { insertSealed } from "./sealed-columns";
 import { DemoReadOnly } from "./demo";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
 import { RECORDABLE_PERIODS, recordingOffer, recordingOffers, recordOwnValue } from "./record-own-value";
@@ -71,6 +72,29 @@ describe("who is offered the form", () => {
     expect(offer.periods[1].start).toBe(ago(1));
     expect(offer.periods[1].has).toContain("1");
     expect(offer.placeholder).toBe("visits");
+  });
+});
+
+describe("where the form starts", () => {
+  it("is the oldest period asked of them that still waits, and the current one when none does", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("member"); const ben = await w.person("member");
+    const m = await w.metric(sara); await w.token(m.id, ann); await w.token(m.id, ben); await w.share(m.id, ann);
+    await setMetricWorkflow(w.actor(sara), m.id, await saveWorkflow(w.actor(sara), null, "Close", { dueWorkingDays: 2, steps: [] }));
+    const act = w.actor(ann, "member");
+    const asked = async () => (await recordingOffer(act, m.id))!.asked;
+    const ask = (submitter: string, period: string) => insertSealed("prompts", w.id, [{ metric_id: m.id, submitter_id: submitter, source: "web_form", text: "?", period_start: period }]);
+    // Another person's request is not theirs.
+    await ask(ben, ago(2));
+    expect(await asked()).toBeNull();
+    await ask(ann, ago(1));
+    await ask(ann, ago(2));
+    expect(await asked()).toBe(ago(2));
+    // Answered here, the next one waits.
+    await recordOwnValue(act, m.id, { value: "5", period: ago(2) }, quiet());
+    expect(await asked()).toBe(ago(1));
+    // A value that came another way answers it too.
+    await w.value(m.id, ago(1), 6, ben);
+    expect(await asked()).toBeNull();
   });
 });
 
