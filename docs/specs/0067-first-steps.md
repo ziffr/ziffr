@@ -14,7 +14,7 @@ The most important requirement: where something needs a first number first, say 
 
 **First Steps**: one question per screen in three chapters (About you, Your Workspace, Your numbers). A side panel shows the chapters and the answers so far; on a phone it is a top bar. The route is `/first-steps`, Route Tier phone-first.
 
-**One design for the whole app** (the owner, 2026-11-27: "we should not have two different looks, there must be one design for the entire app"). The screens are built only from the app's shared tokens and components: the same cards, buttons, fields, side navigation style and chart renderer, with no colours, radii, shadows, fonts or components of their own. A piece that is missing is added to the shared components, in the app's style. A later restyle of the whole app (spec 0047) then carries these screens with it. **Open, the owner's to decide:** which look the entire app gets. Nothing here waits for it.
+**One design for the whole app** (the owner, 2026-11-27: "we should not have two different looks, there must be one design for the entire app"). The screens are built only from the app's shared tokens and components: the same cards, buttons, fields, side navigation style and chart renderer, with no colours, radii, shadows, fonts or components of their own. A piece that is missing is added to the shared components, in the app's style. **Decided by the owner on 2026-11-27:** the app keeps its look of today, and these screens look like the rest of it. The darker styling of the clickable draft is not used.
 
 ### Screens and words
 
@@ -141,4 +141,4 @@ From #1321 (`feat/1321-guided-first-number`) ticket 3 reuses `suggestMetrics`, i
 
 ## Out of scope
 
-A new look for the app (spec 0047, undecided), a server-side draft, calculated Metrics, CSV upload, changes to any limit or to who may invite.
+A new look for the app, a server-side draft, calculated Metrics, CSV upload, changes to any limit or to who may invite.
