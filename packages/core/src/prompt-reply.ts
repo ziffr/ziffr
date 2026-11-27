@@ -128,9 +128,9 @@ async function valueIn(ws: string, person: string, prompt: PromptRow, rule: Metr
 // The figures of the message as they stand now, by number; null when the Delivery is not this person's request.
 async function figuresFor(d: PromptDelivery, source: ReplyFrom["source"]): Promise<Figure[] | null> {
   const ws = d.workspace_id;
-  const listed: NumberedFigure[] = d.combined
+  const { count, listed }: { count: number; listed: NumberedFigure[] } = d.combined
     ? await numberedFigures(ws, d.id, d.recipient_id, source)
-    : [{ position: 1, promptId: d.prompt_id!, name: "", allowed: true, byReply: true }];
+    : { count: 1, listed: [{ position: 1, promptId: d.prompt_id!, name: "", allowed: true, byReply: true }] };
   const { data: prompts, error } = await db().from("prompts").select("id, metric_id, period_start, submitter_id, stands_in_for, answered_at").eq("workspace_id", ws).in("id", listed.map((l) => l.promptId));
   if (error) throw new Error("The request could not be read.");
   const ids = [...new Set((prompts ?? []).map((p) => p.metric_id as number))];
@@ -141,9 +141,9 @@ async function figuresFor(d: PromptDelivery, source: ReplyFrom["source"]): Promi
   const metrics = (await openRows("metrics", ws, metricRows)).map(normalizeMetric) as Metric[];
   const all = (tokens ?? []) as TokenRow[];
   const out: Figure[] = [];
-  // A message's numbers may have gaps (a Metric deleted since): each number stays where it was sent.
-  const highest = Math.max(0, ...listed.map((l) => l.position));
-  for (let position = 1; position <= highest; position++) {
+  // A message's numbers may have gaps (a Metric deleted since): each number stays where it was sent, and there are as
+  // many as the message numbered.
+  for (let position = 1; position <= count; position++) {
     const l = listed.find((x) => x.position === position);
     const prompt = (prompts?.find((p) => p.id === l?.promptId) as PromptRow | undefined) ?? null;
     const metric = metrics.find((m) => m.id === prompt?.metric_id) ?? null;
@@ -151,7 +151,8 @@ async function figuresFor(d: PromptDelivery, source: ReplyFrom["source"]): Promi
       out.push({ position, prompt: null, metric: null, held: null, locked: false, closedWhy: NOT_ASKED });
       continue;
     }
-    const holds = all.some((t) => t.metric_id === metric.id && t.submitter_id === d.recipient_id && (!prompt.stands_in_for || t.stands_in_for === prompt.stands_in_for) && tokenValid(t, all));
+    // The Token the intake would take: the person's own, or for a Prompt sent in someone's place, the one for that person.
+    const holds = all.some((t) => t.metric_id === metric.id && t.submitter_id === d.recipient_id && (t.stands_in_for ?? null) === (prompt.stands_in_for ?? null) && tokenValid(t, all));
     out.push({
       position, prompt, metric, held: await valueIn(ws, d.recipient_id, prompt, metric.submission_rule), locked: await isLocked(metric.id, prompt.period_start),
       closedWhy: !l.byReply ? `${metric.name} takes values only on the form` : holds ? null : NOT_ASKED,
@@ -304,13 +305,21 @@ async function noteReport(r: Run, i: number, reading: Extract<ReplyReading, { ki
   return { ...report, text: `${prefix}${lines.join(" ")}`, noEmail: quiet };
 }
 
+/** Plain numbers whose order does not say which figure each is for: nothing is taken, and Ziffr asks. */
+async function unplacedReport(r: Run): Promise<PromptReplyReport> {
+  const asked = r.figures.filter((f) => f.closedWhy === null);
+  const names = await Promise.all(asked.map(async (f) => `${f.position}. ${await labelOf(r, f)}${f.held ? " (in already)" : ""}`));
+  const first = (asked.find((f) => !f.held) ?? asked[0]).position;
+  return { outcome: "refused", subject: "Which numbers?", text: `Nothing was recorded: which figure is each number for? ${r.from.source === "telegram" ? "Reply to the request with" : "Send"} a line for each with its number in front, such as "${first}: 45". ${names.join("; ")}.`, invites: true, changes: false };
+}
+
 /** Values, and in a Combined Prompt also notes, lines that could not be read and what is still open. */
 async function valuesReport(r: Run, reading: Extract<ReplyReading, { kind: "values" }>): Promise<PromptReplyReport> {
   const lines: { position: number; text: string }[] = [];
   let recorded = false;
   let proposed = false;
   let noted = false;
-  let quiet = reading.values.length === 0 && reading.unread.length === 0 && reading.closed.length === 0 && reading.notes.length > 0;
+  let quiet = reading.values.length === 0 && reading.unread.length === 0 && reading.closed.length === 0 && !reading.skipped?.length && reading.notes.length > 0;
   const say = (f: Figure, text: string) => lines.push({ position: f.position, text: r.combined ? `${f.position}. ${text}` : text });
   // One after the other: two figures of one Metric and period would otherwise race each other's Submission Rule.
   for (const v of reading.values) {
@@ -336,6 +345,12 @@ async function valuesReport(r: Run, reading: Extract<ReplyReading, { kind: "valu
     const f = r.figures[i];
     say(f, `Not recorded: ${f.closedWhy}.`);
   }
+  // A plain number taken in order for a figure that is in changes nothing: said, never dropped without a word.
+  for (const i of reading.skipped ?? []) {
+    const f = r.figures[i];
+    say(f, `${await labelOf(r, f)}: nothing saved, your value is in already. To change it, send the number as "${f.position}: 45".`);
+  }
+  if (reading.unplaced) return unplacedReport(r);
   const text = lines.sort((a, b) => a.position - b.position).map((l) => l.text);
   let invites = false;
   const open = reading.open.map((i) => r.figures[i]);

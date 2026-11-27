@@ -15,9 +15,13 @@ import type { SubmissionRule } from "./types";
 const PURPOSE = "reply_offers.value";
 
 /** An open offer as it is kept. */
-export type StoredOffer = { prompt_id: number; metric_id: number; note_id: number; value_mark: string; number_style: string; value_stamp: string };
+export type StoredOffer = { delivery_id: number; prompt_id: number; metric_id: number; note_id: number; value_mark: string; number_style: string; value_stamp: string };
 
-const COLUMNS = "prompt_id, metric_id, note_id, value_mark, number_style, value_stamp";
+const COLUMNS = "delivery_id, prompt_id, metric_id, note_id, value_mark, number_style, value_stamp";
+
+// A mark of the number, never the number: keyed with the Workspace Key, and where the Workspace has none, a hash bound
+// to the message.
+const plainMark = (deliveryId: number, value: number) => createHash("sha256").update(`${PURPOSE}:${deliveryId}:${value}`).digest("hex");
 
 /** The state of a period's values that an offer holds for: any value added, replaced or corrected, a changed
  * Submission Rule and a Lock set or lifted give another stamp, and so close the offer: "yes" does what was asked or
@@ -36,7 +40,7 @@ export async function keepOffer(ws: string, deliveryId: number, o: { promptId: n
   const cipher = await workspaceCipher(ws);
   const { error } = await db().from("reply_offers").upsert({
     delivery_id: deliveryId, workspace_id: ws, prompt_id: o.promptId, metric_id: o.metricId, note_id: o.noteId,
-    value_mark: cipher.blindIndex(PURPOSE, String(o.value)) ?? String(o.value), number_style: o.style, value_stamp: o.stamp, answer_message_id: null,
+    value_mark: cipher.blindIndex(PURPOSE, String(o.value)) ?? plainMark(deliveryId, o.value), number_style: o.style, value_stamp: o.stamp, answer_message_id: null,
   }, { onConflict: "delivery_id" });
   if (error) throw new Error("The offer could not be kept.");
 }
@@ -79,6 +83,6 @@ export async function offeredValue(ws: string, o: StoredOffer, period: string, r
   const value = loneNumber(note.latest.words, { ...reading, style: o.number_style as NumberStyle });
   if (value === null) return null;
   const cipher = await workspaceCipher(ws);
-  const marks = [...cipher.blindIndexes(PURPOSE, String(value)), String(value)];
+  const marks = [...cipher.blindIndexes(PURPOSE, String(value)), plainMark(Number(o.delivery_id), value)];
   return marks.includes(o.value_mark) ? { value, words: note.latest.words, noteId: note.first.id } : null;
 }

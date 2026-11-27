@@ -267,6 +267,28 @@ describe("the offer", () => {
   });
 });
 
+describe("a request of someone who now only stands in", () => {
+  it("records nothing as the colleague's, and saves no note", async () => {
+    const s = await setup();
+    // Ben submits too and is asked for his own value; then he is no Submitter any more and stands in for Ann, which
+    // gives him a Token for her value (a person holds one Token for a Metric).
+    await s.w.token(s.m.id, s.ben);
+    await deliverPrompt({ metricId: s.m.id, submitterId: s.ben, senderId: s.sara });
+    const [own] = (await rowsOf("deliveries", { workspace_id: s.w.id, recipient_id: s.ben })) as { id: number }[];
+    await removeSubmitters(s.w.actor(s.sara), s.m.id, [s.ben]);
+    await db().from("tokens").update({ stand_in_id: s.ben }).eq("metric_id", s.m.id).eq("submitter_id", s.ann);
+    const today = new Date().toISOString().slice(0, 10);
+    await db().from("away").insert({ user_id: s.ann, starts: today, ends: today, set_by: s.ann });
+    await deliverPrompt({ metricId: s.m.id, submitterId: s.ben, standingInFor: s.ann, senderId: s.sara });
+    expect(await rowsOf("tokens", { metric_id: s.m.id, submitter_id: s.ben, stands_in_for: s.ann })).toHaveLength(1);
+    const [ben] = await rowsOf("profiles", { id: s.ben });
+    const reply = replier(own!.id, String(ben!.email));
+    expect(await reply("45")).toMatchObject({ outcome: "refused", said: expect.stringContaining("no Token") });
+    expect(await s.values()).toEqual([]);
+    expect(await s.notes()).toEqual([]);
+  });
+});
+
 describe("a Stand-in's reply", () => {
   /** Ben stands in for Ann, who is Away, and is asked for her value. */
   async function standingIn() {
@@ -334,14 +356,40 @@ describe("a reply to a message with several figures", () => {
     expect((await s.row()).status).toBe("sent");
   });
 
-  it("takes numbers alone in order only when there is one for each open figure", async () => {
+  it("takes numbers alone in order only when there is one for each figure the message numbered", async () => {
     const s = await several();
-    expect(await s.reply("45\r\n7")).toMatchObject({ outcome: "refused", said: expect.stringContaining("Nothing was recorded") });
-    expect(await s.values(0)).toEqual([]);
-    expect((await s.reply("45\r\n7\r\n9")).outcome).toBe("recorded");
-    const recorded = [await s.values(0), await s.values(1), (await valuesOf(s.leads.id)).map((v) => v.value)];
-    expect(recorded.flat().sort()).toEqual([45, 7, 9].sort());
-    expect(await s.values(2)).toEqual([]);
+    // Four figures are numbered, the form-only one included: three numbers, and one, are asked back.
+    for (const text of ["45\r\n7\r\n9", "45"]) expect(await s.reply(text)).toMatchObject({ outcome: "refused", said: expect.stringContaining("which figure is each number for") });
+    expect([await s.values(0), await s.values(1)]).toEqual([[], []]);
+    const r = await s.reply("1\r\n2\r\n3\r\n4");
+    expect(r.outcome).toBe("recorded");
+    expect(r.said).toContain("takes values only on the form");
+    const p = s.positions;
+    expect([await s.values(0), await s.values(1), await s.values(2), (await valuesOf(s.leads.id)).map((v) => v.value)]).toEqual([[p.revenue], [p.costs], [], [p.leads]]);
+  });
+
+  it("never gives a number meant for an answered figure to the next one", async () => {
+    const s = await several();
+    const p = s.positions;
+    await s.reply(`${p.revenue}: 45\r\n${p.costs}: 7`);
+    // One figure is still open for replies: a lone number is not taken for it.
+    expect((await s.reply("60")).said).toContain("which figure is each number for");
+    const lines = Array.from({ length: 4 }, (_, i) => String(100 + i + 1));
+    const r = await s.reply(lines.join("\r\n"));
+    expect(r.said).toContain("your value is in already");
+    expect([await s.values(0), await s.values(1)]).toEqual([[45], [7]]);
+    expect((await valuesOf(s.leads.id)).map((v) => v.value)).toEqual([100 + p.leads]);
+  });
+
+  it("counts a figure whose Metric was deleted since, also the last one", async () => {
+    const s = await several();
+    await db().from("deliveries").update({ mail_state: "sent" }).eq("id", s.deliveryId);
+    const last = Object.entries(s.positions).sort((a, b) => b[1] - a[1])[0]![0];
+    const gone = { revenue: s.metrics[0]!, costs: s.metrics[1]!, visits: s.metrics[2]!, leads: s.leads }[last as keyof typeof s.positions];
+    const name = { revenue: "Revenue", costs: "Costs", visits: "Visits", leads: "Leads" }[last as keyof typeof s.positions];
+    await deleteMetric(s.w.actor(s.sara), gone.id, name);
+    expect((await s.reply("1\r\n2\r\n3")).said).toContain("which figure is each number for");
+    expect(await rowsOf("observations", { workspace_id: s.w.id })).toEqual([]);
   });
 
   it("asks which figure words are about, and takes them with a number in front", async () => {

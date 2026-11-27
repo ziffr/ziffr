@@ -64,8 +64,10 @@ export type ReplyOffer = { figure: number; value: number; how: "overwrite" | "ad
 /** What a reply says. */
 export type ReplyReading =
   /** Values to record; in a message for several figures also notes for figures already in, lines that named a figure
-   * but could not be read, figures named that take nothing by reply, and the figures still open afterwards. */
-  | { kind: "values"; values: ReplyValue[]; notes: { figure: number; note: ReplyNote; holdsNumber: boolean }[]; unread: { figure: number; reading: Unread; answer: string }[]; closed: number[]; open: number[] }
+   * but could not be read, figures named that take nothing by reply, and the figures still open afterwards. `skipped`
+   * are figures already in whose plain number, taken in order, is left aside; `unplaced` says the reply holds plain
+   * numbers that cannot be told apart by their order, so nothing of it is taken and Ziffr asks which is which. */
+  | { kind: "values"; values: ReplyValue[]; notes: { figure: number; note: ReplyNote; holdsNumber: boolean }[]; unread: { figure: number; reading: Unread; answer: string }[]; closed: number[]; open: number[]; skipped?: number[]; unplaced?: boolean }
   /** One figure: nothing is recorded, and `reading` says what to answer or ask back. */
   | { kind: "not_read"; figure: number; reading: Unread }
   /** A note for a value that is in. `holdsNumber` says whether its words hold any number; `sendAlone` asks for the
@@ -391,21 +393,26 @@ function severalFigures(lines: Line[], r: Reader): ReplyReading {
   const open = stillOpen(figures, []);
   const units = unitsOf(figures);
   const alone = lines.flatMap((l, i) => (bare(l, r, units) ? [i] : []));
-  // Numbers alone are taken in order, and only when there is exactly one for every open figure (decision 3).
-  if (open.length && alone.length === open.length) {
+  const nothingRead = { kind: "values" as const, values: [], notes: [], unread: [], closed: [], open };
+  // Numbers alone are taken in order only when there is exactly one for every figure the message numbered, those since
+  // answered or closed included, whose numbers are left aside (decision 3). Any other count could mean other figures
+  // than the order says, a lone number with one figure open too, so Ziffr asks.
+  if (alone.length) {
+    if (alone.length !== figures.length) return { ...nothingRead, unplaced: true };
     const values: ReplyValue[] = [];
     const unread: { figure: number; reading: Unread; answer: string }[] = [];
-    alone.forEach((at, i) => {
-      const figure = open[i];
+    const closed: number[] = [];
+    const skipped: number[] = [];
+    alone.forEach((at, figure) => {
+      if (figures[figure].closed) { closed.push(figure); return; }
+      if (figures[figure].value !== null) { skipped.push(figure); return; }
       const reading = r.answerFor(figures[figure], texts[at]);
       if (!reading.ok) { unread.push({ figure, reading, answer: texts[at] }); return; }
-      const note = noteFrom(noteUnder(texts.slice(at + 1, alone[i + 1] ?? texts.length), r.ctx, r.languages));
+      const note = noteFrom(noteUnder(texts.slice(at + 1, alone[figure + 1] ?? texts.length), r.ctx, r.languages));
       values.push({ figure, value: reading.value, period: reading.period, named: reading.named, answer: texts[at], rows: null, note });
     });
-    return { kind: "values", values, notes: [], unread, closed: [], open: stillOpen(figures, values) };
+    return { kind: "values", values, notes: [], unread, closed, skipped, open: stillOpen(figures, values) };
   }
-  const nothingRead: ReplyReading = { kind: "values", values: [], notes: [], unread: [], closed: [], open };
-  if (open.length && alone.length) return nothingRead;
   const filled = figures.flatMap((f, i) => (f.value === null ? [] : [i]));
   if (!filled.length) return nothingRead;
   if (filled.length > 1) return { kind: "which_figure", figures: filled };

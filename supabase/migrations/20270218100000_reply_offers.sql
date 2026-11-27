@@ -1,7 +1,7 @@
 -- The open offer after a reply's note (spec 0064, ticket 5; GLOSSARY: Value Note, Correction): a note that held one
 -- other number was answered with "to change it to 47, reply yes". The row is what lets that "yes" act, in the same
 -- place, as the person's next reply. It holds no words and no number: the words stay in the note, sealed, and the number
--- is read from them again and checked against a keyed mark. One offer at most for a message; the next reply that is
+-- is read from them again and checked against a hash of it. One offer at most for a message; the next reply that is
 -- read removes it. Adds only.
 create table reply_offers (
   delivery_id bigint primary key references deliveries(id) on delete cascade,
@@ -9,10 +9,12 @@ create table reply_offers (
   prompt_id int not null references prompts(id) on delete cascade,
   metric_id int not null references metrics(id) on delete cascade,
   note_id bigint not null references value_notes(id) on delete cascade,
-  -- A keyed hash of the offered number (the Workspace Key's blind index), and the Number Style it was read in.
+  -- A hash of the offered number, never the number: keyed with the Workspace Key (its blind index) where there is one,
+  -- else bound to the message. And the Number Style the number was read in.
   value_mark text not null,
   number_style text not null,
-  -- A hash of the period's values and the Submission Rule as they were when the offer was made: any change closes it.
+  -- A hash of the period's values, the Submission Rule and the Lock as they were when the offer was made: any change
+  -- closes it.
   value_stamp text not null,
   -- The chat message that made the offer, where a reply may answer that message itself (Telegram).
   answer_message_id bigint,

@@ -319,9 +319,10 @@ async function chooseToken(input: SubmissionInput, ws: string, sender: Profile, 
     // A Prompt is answered by the person it asked only (a Stand-in has Prompts of their own): its id is no key to another's.
     if (!prompt || prompt.submitter_id !== sender.id) return { refused: { outcome: "rejected_no_token", detail: "That Prompt is not known here." } };
     // A Prompt sent in someone's place is answered by the Token of that Stand-in, whatever other Tokens they hold: the
-    // answer records under the right name (spec 0046). An older Prompt without it takes whichever Token fits.
+    // answer records under the right name (spec 0046). Any other Prompt is answered by the person's own Token only,
+    // never by one that stands in for someone, which would record the answer as that person's.
     const forMetric = candidates.filter((t) => t.metric_id === prompt.metric_id);
-    const token = prompt.stands_in_for ? forMetric.find((t) => t.stands_in_for === prompt.stands_in_for) : (forMetric.find((t) => !t.stands_in_for) ?? forMetric[0]);
+    const token = forMetric.find((t) => (t.stands_in_for ?? null) === (prompt.stands_in_for ?? null));
     if (!token) return { refused: { metricId: prompt.metric_id, outcome: "rejected_no_token", detail: `${sender.name} has no Token for ${metricById[prompt.metric_id]?.name ?? "that metric"}.` } };
     return { token, prompt, how: "reply to a Prompt" };
   }

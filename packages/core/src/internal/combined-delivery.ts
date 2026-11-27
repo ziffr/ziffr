@@ -168,12 +168,15 @@ function numbered(via: ConnectorId, figures: CombinedFigure[]): (CombinedFigure 
  * is not named. */
 export type NumberedFigure = { position: number; promptId: number; name: string; allowed: boolean; byReply: boolean };
 
-/** The numbers a Combined Prompt carries, in order, as they stand now; `source` is the way a reply came. The caller has
- * checked that the reply is from the person the message went to. */
-export async function numberedFigures(ws: string, deliveryId: number, recipientId: string, source: string): Promise<NumberedFigure[]> {
-  const { figures } = await figuresOf(ws, deliveryId, recipientId);
-  return figures.filter((f): f is CombinedFigure & { position: number } => f.position !== null).sort((a, b) => a.position - b.position)
+/** The numbers a Combined Prompt carries, in order, as they stand now, and how many it numbered (`count`, which stays
+ * when a figure is gone); `source` is the way a reply came. The caller has checked that the reply is from the person the
+ * message went to. */
+export async function numberedFigures(ws: string, deliveryId: number, recipientId: string, source: string): Promise<{ count: number; listed: NumberedFigure[] }> {
+  const [{ figures }, { data: d, error }] = await Promise.all([figuresOf(ws, deliveryId, recipientId), db().from("deliveries").select("figures_numbered").eq("id", deliveryId).eq("workspace_id", ws).maybeSingle()]);
+  if (error) throw new Error("The message could not be read.");
+  const listed = figures.filter((f): f is CombinedFigure & { position: number } => f.position !== null).sort((a, b) => a.position - b.position)
     .map((f) => ({ position: f.position, promptId: f.promptId, name: f.allowed ? f.line.metric : "", allowed: f.allowed, byReply: f.allowed && f.line.replyHere && f.answerSource === source }));
+  return { count: Math.max((d?.figures_numbered as number | null) ?? 0, ...listed.map((l) => l.position)), listed };
 }
 
 /** Writes a Combined Prompt's words from its figures as they stand, sealed. With `fix`, the numbers are recorded too.
@@ -187,6 +190,11 @@ export async function storeCombinedWords(ws: string, deliveryId: number, fix = f
   if (fix) for (const f of list) {
     if (figures.find((x) => x.promptId === f.promptId)?.position !== null) continue;
     const { error } = await db().from("delivery_prompts").update({ position: f.position }).eq("workspace_id", ws).eq("delivery_id", deliveryId).eq("prompt_id", f.promptId);
+    if (error) throw new Error("A message's numbers could not be recorded.");
+  }
+  // How many it numbered is kept with the message, once: a figure's row goes with its Metric, the count must not.
+  if (fix) {
+    const { error } = await db().from("deliveries").update({ figures_numbered: Math.max(...list.map((f) => f.position), ...figures.map((f) => f.position ?? 0)) }).eq("id", deliveryId).eq("workspace_id", ws).is("figures_numbered", null);
     if (error) throw new Error("A message's numbers could not be recorded.");
   }
   const plain = wordsOf(of.via, hello, list.map((f) => ({ ...f.line, position: f.position })));

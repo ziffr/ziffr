@@ -757,7 +757,7 @@ Reply to the email, in the thread of the Slack message, or to the Telegram messa
 
 **One number.** Send the number, such as "45". Lines under it are its **Value Note**: words saying what is behind the number, which everyone who sees the Metric can read. In an email, the note ends at the first empty line, at a closing such as "Best regards", or at your signature; quoted text is left out. A note has at most 1,000 characters; a longer one is cut, and Ziffr says so. Words with no number record nothing.
 
-**Several numbers.** Send one line for each, with its number from the message or the Metric's full name: "1: 45". Words under a line are that number's note. Numbers without "1:" are taken in order only when there is exactly one for every number still open; otherwise nothing is guessed. Ziffr answers with what it recorded and what is still open.
+**Several numbers.** Send one line for each, with its number from the message or the Metric's full name: "1: 45". Words under a line are that number's note. Numbers without "1:" are taken in order only when there is exactly one for every number the message listed, also those answered meanwhile or no longer asked: their lines are skipped, and Ziffr says so. With any other count, also a single number while one is still open, nothing is recorded and Ziffr asks which number is which. Ziffr answers with what it recorded and what is still open.
 
 **Replying again,** once your value for that period is in, by whichever way you sent it:
 
