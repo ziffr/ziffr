@@ -404,7 +404,7 @@ An ordered set of slides about Metrics. Ziffr **makes** it from them, **shows** 
 _Avoid_: Presentation, slideshow, report
 
 **Slide**:
-One 16:9 page of a deck. In a deck Ziffr makes, each slide has a Slide Type, and the slides stand in the order of the deck description's list. In a deck made with the slide editor, the order follows a slide's position on the deck canvas, left to right and top to bottom, and a **cover slide** shows no logo, footer or number of the Theme and is not counted in page numbers.
+One 16:9 page of a deck. In a deck Ziffr makes, each slide has a Slide Type, and the slides stand in the order of the deck description's list. Its headline is a person's own or Ziffr's, which proposes up to three from the slide's numbers, best first: they say what the numbers say, in a Takeaway's wording and Number Style, and never a cause or a recommendation; where there is nothing to say, a plain title names the Metrics. In a deck made with the slide editor, the order follows a slide's position on the deck canvas, left to right and top to bottom, and a **cover slide** shows no logo, footer or number of the Theme and is not counted in page numbers.
 _Avoid_: Page, frame, board
 
 **Slide Type**:
