@@ -45,12 +45,13 @@ function Named({ metrics }: { metrics: PackSetupResult["later"]["noWorkflow"] })
 }
 
 /** After Set up: how many requests went out, and when what was not asked yet is asked. */
-export function RequestsAfterSetUp({ made }: { made: Pick<PackSetupResult, "messages" | "later"> }) {
+export function RequestsAfterSetUp({ made }: { made: Pick<PackSetupResult, "messages" | "later" | "stoppedNote"> }) {
   const { nextRun, noWorkflow } = made.later;
   const mine = noWorkflow.filter((m) => m.mine), theirs = noWorkflow.filter((m) => !m.mine);
   return (
     <div className="space-y-1 text-xs [overflow-wrap:anywhere]">
       <p>{made.messages ? `${many(made.messages, "request")} for values sent now.` : "No request for values was sent."}</p>
+      {made.stoppedNote && <p className="font-medium">{made.stoppedNote}</p>}
       {nextRun > 0 && <p>{many(nextRun, "Metric")} {nextRun === 1 ? "is" : "are"} asked for at the Workflow&rsquo;s next run.</p>}
       {mine.length > 0 && <p>No Workflow asks you for <Named metrics={mine} />. To be asked, open the Metric and choose Ask me now in its menu, or give it a Workflow.</p>}
       {theirs.length > 0 && <p>Nothing asks for <Named metrics={theirs} /> by itself. A Workflow on the Metric asks for its values.</p>}

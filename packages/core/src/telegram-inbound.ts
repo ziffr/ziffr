@@ -248,7 +248,7 @@ async function pressed(cq: Obj, userId: number): Promise<Handled> {
   }
   if (m[1] === TELEGRAM_BUTTONS.stop && OPT_OUT_KINDS.includes(d.kind)) {
     const { data: added } = await db().from("telegram_opt_outs").upsert({ workspace_id: d.workspace_id, person_id: d.recipient_id }, { onConflict: "workspace_id,person_id", ignoreDuplicates: true }).select("person_id");
-    if (added?.length) await tellOwnersOfStop(d.workspace_id, d.recipient_id, "on Telegram");
+    if (added?.length) await tellOwnersOfStop(d.workspace_id, d.recipient_id, "telegram");
     await answerIn(d.workspace_id as string, chatId, "Stopped: no more requests for numbers or reminders on Telegram from this workspace. Turn them on again on the Connectors page in Ziffr.", messageId);
     return at("stopped", "Stopped.");
   }

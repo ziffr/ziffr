@@ -11,7 +11,7 @@ import type { Offer } from "./pack-setup-adding";
 import { fromDashboardTemplate } from "./team-templates";
 import { widgetMetricIds } from "./widget-metrics";
 import { listed } from "./pack-places";
-import { buildSetup, SETUP_METRICS_MAX, tickedShares, type Blueprint, type PackSetupInput, type PlannedDashboard, type ProposedShare } from "./pack-setup-build";
+import { buildSetup, SETUP_METRICS_MAX, tickedShares, unsubscribedNote, type Blueprint, type PackSetupInput, type PlannedDashboard, type ProposedShare } from "./pack-setup-build";
 import { installedForSetup, assertSetsUp, roomNow, type PackSetupRoom } from "./pack-setup-install";
 import { PLACE_WORDS, whyNot, type PersonKind } from "./pack-setup-who";
 import { isComputed, plannedSums } from "./pack-setup-totals";
@@ -216,7 +216,7 @@ export async function planPackSetup(actor: Actor, installId: number, input: Pack
     askMeAlso: [...new Set(b.metrics.filter((m) => m.elsewhere && [...m.left, ...m.submitters].includes(actor.personId)).map((m) => m.entry.name))],
     offers: await offersOf(actor, b, (id) => before(id).metrics),
     byHand: b.additions.byHand,
-    notes: [...b.notes, ...sightNotes(actor, b, (id) => after(id).metrics, ticked)],
+    notes: [...b.notes, ...[await unsubscribedNote(actor, b)].filter((n) => n !== null), ...sightNotes(actor, b, (id) => after(id).metrics, ticked)],
     problems: b.problems,
     room: await roomNow(actor, SETUP_METRICS_MAX),
   };
