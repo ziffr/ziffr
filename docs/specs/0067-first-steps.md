@@ -81,6 +81,8 @@ Every closed invite form already says why (`InviteLock`). Its "Go to the First M
 
 ## The two ways in
 
+**Changed by [spec 0068](0068-guided-pack-set-up.md):** **Use this set** opens its guided Pack set-up; the one-press operation described here is not built, and no Pack is left out for having Positions or Repeats.
+
 **Ready-made set.** Offered: Ziffr's own Packs except `board-meeting`, `workspace-usage` and `ziffr-operations`; for just me only `sports-club`. Order and reasons from `recommendedPacks`; the dashboard from `readIncludedPack` and the Packs page's own preview. **Use this set** is one press and one core operation: `installIncludedPack`, then `setUpFromPack` with every entry, the dashboard, and the Workflow when it asks for at most one Approver (the Owner), **no Submitters, nothing sent, nothing shared**. Kept: the box "I read the words aimed at assistants" with the texts, shown only when there are any; Owner for a Pack with Themes; Workspace Limit and trial Metric limit, in their own words. A press that failed half way can be pressed again and makes nothing twice. A Pack with Positions or Repeats is offered only if it sets up whole without lines; ticket 2 checks and otherwise leaves it out.
 
 **Clean slate.** Suggestions are Metric Catalog entries: by role and industry for a team (#1321's `suggestMetrics`), by topic for just me (Health: Running distance, Body weight, Hours of sleep. Money: Money saved, Spending, Account balance. Habits: Cups of coffee, Pages read, Screen time. Club: Club members, Training attendance, Fees received. None or other: Running distance, Money saved, Cups of coffee). Picking one makes it at once from the entry; own metric defaults: higher is better, overwrite, no target; Number 0 decimals, adds up; Money in the Workspace currency, adds up; Percent 1 decimal, average; Hours unit "h", adds up. In both cases every Source is open (so a reply by email counts), no Submitter, nothing sent, and a dashboard named after the Workspace is made with the Metric on it.
@@ -130,7 +132,7 @@ The coffee example is no longer offered to new Owners (Cups of coffee remains a 
 Built behind `/first-steps`, which answers "not found" while one constant is off; nothing links to it. Only ticket 5 turns it on.
 
 1. #1326 Shell, About you, Workspace, How to start. Needs nothing. Opus security review.
-2. #1327 Ready-made set. Needs 1. Opus security review.
+2. #1327 Ready-made set: the two screens (rewritten by spec 0068). Needs 1. Sonnet review.
 3. #1328 Clean slate. Needs 1 and #1321 merged. Sonnet review.
 4. #1330 First value, who provides, done. Needs 1. Opus security review.
 5. #1331 Switch over and remove the old guide. Needs 2, 3, 4. Sonnet review; Opus if it changes who may call anything.

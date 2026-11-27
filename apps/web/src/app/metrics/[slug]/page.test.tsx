@@ -43,7 +43,7 @@ vi.mock("./alert-me", () => ({ alertMeData: async () => null }));
 vi.mock("@ziffr/core/fill-in-offer", () => ({ fillInOffer: async () => null, guestStandIns: async () => [] }));
 vi.mock("@ziffr/core/paste-values", () => ({ pastedValueIds: async () => [] }));
 vi.mock("@ziffr/core/metrics", () => ({ canEditMetric: async () => true }));
-vi.mock("@ziffr/core/prompt-preview", () => ({ nextPromptWays: async () => ({}) }));
+vi.mock("@ziffr/core/prompt-preview", () => ({ nextPromptWays: async () => ({}), askingStops: async () => ({ mine: [], people: [], nobody: false }) }));
 vi.mock("@ziffr/core/metric-owner", () => ({ handOverChoices: async () => [] }));
 vi.mock("@ziffr/core/feed-template-download", () => ({ feedTemplates: () => [] }));
 vi.mock("@ziffr/core/who-submits", () => ({ submitterChoices: async () => [] }));

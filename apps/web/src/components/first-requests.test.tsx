@@ -41,7 +41,7 @@ describe("the tick that sends the first requests", () => {
 });
 
 describe("after Set up", () => {
-  const after = (messages: number, later: Parameters<typeof RequestsAfterSetUp>[0]["made"]["later"]) => renderToStaticMarkup(<RequestsAfterSetUp made={{ messages, later }} />);
+  const after = (messages: number, later: Parameters<typeof RequestsAfterSetUp>[0]["made"]["later"], stoppedNote: string | null = null) => renderToStaticMarkup(<RequestsAfterSetUp made={{ messages, later, stoppedNote }} />);
 
   it("says that nothing was sent and that the Workflow asks", () => {
     const h = after(0, { nextRun: 13, noWorkflow: [] });
@@ -55,6 +55,9 @@ describe("after Set up", () => {
     expect(h).toContain("choose Ask me now");
     expect(h).toContain('href="/metrics/arr"');
     expect(h).toContain("A Workflow on the Metric asks for its values.");
+  });
+  it("says who unsubscribed, so that nothing seems to be on its way to them", () => {
+    expect(after(0, { nextRun: 0, noWorkflow: [] }, "Sara unsubscribed from requests by email, so no email asks them.")).toContain("Sara unsubscribed from requests by email");
   });
   it("counts what went out", () => {
     expect(after(1, { nextRun: 0, noWorkflow: [] })).toContain("1 request for values sent now.");

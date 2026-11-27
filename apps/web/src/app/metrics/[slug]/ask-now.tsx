@@ -10,6 +10,12 @@ export async function askNow(metricId: number): Promise<void> {
   try {
     const r = await askMeNow(metricId);
     if (isActionError(r)) { toast.error(r.error); return; }
+    // Nothing leaves by a way they stopped: say so, with the way to switch it on.
+    if (r.stopped) {
+      const [place, href] = r.connector === "email" ? ["Your Deliveries", "/settings/deliveries"] : ["Connectors", "/connectors"];
+      toast.error(`Not sent. ${r.note}`, { description: `Switch them on under ${place}, then ask again.`, action: { label: place, onClick: () => window.location.assign(href) } });
+      return;
+    }
     // Where it went, and when that is not the way the person chose, that the Metric's Sources decided.
     const reason = r.chosen ? "" : " That is not your usual way: this Metric does not take values that way, or it does not reach you.";
     if (r.state === "sent" || r.state === "queued") toast.success(`Sent to you ${r.connector === "email" ? "by email" : `on ${r.label}`}.${reason}`);

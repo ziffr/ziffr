@@ -104,7 +104,11 @@ Every email Ziffr sends has an HTML part and a plain-text part. In the HTML part
 
 ## Opting out
 
-Every Prompt and reminder email has a one-click link, worded at the foot of the email and also in the `List-Unsubscribe` header that mail clients show. Using it stops Prompts and reminders by email for that person in that workspace, and the owners of the Metrics they submit to are told. Questions, tasks and replies in their Threads keep coming. A member can turn them on again on the Connectors page.
+Every Prompt and reminder email has a one-click link, worded at the foot of the email and also in the `List-Unsubscribe` header that mail clients show. Using it stops Prompts and reminders by email for that person in that workspace, and the owners of the Metrics they are asked for are told which of their numbers it concerns. Questions, tasks and replies in their Threads keep coming. Only the person turns them on again, one of three ways:
+
+- Signed in: **Your Deliveries**, the Connectors page, or a Metric they send values for.
+- **Undo** on the page that has just stopped them (`undoEmailStop`): a secret made by that stop alone, valid 30 minutes and once. A link used again gets none.
+- The email the Metric's owner may have sent to them (`email-resume.ts`, `/api/unsubscribe/again/{token}`): a notice Delivery under the usual sending limits and trial, Practice, demo and Blocked rules, at most once in 30 days per person and Workspace, only to the mailbox they unsubscribed from. Its link is made as it is sent (only its hash is kept), has no reply address, works once for seven days and only on the page's button.
 
 ## Trying it locally
 

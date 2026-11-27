@@ -5,7 +5,8 @@ import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { peopleFor } from "./access";
 import { addSubmitters, claimFirstPrompt, editableMetric, metricEffects, peopleSeeing, type MetricEffects } from "./metrics";
-import { firstAsksMessage } from "./asked-message";
+import { firstAsksMessage, stoppedAskWords } from "./asked-message";
+import type { PromptWay } from "./prompt-route";
 import { CONNECTORS } from "./connectors/index";
 import type { PromptOutcome } from "./deliveries";
 
@@ -64,6 +65,7 @@ export async function addSubmitterWithAnswer(actor: Actor, metricId: number, per
   const [ask] = asks;
   if (!ask) return "No request was sent to them.";
   const name = (await peopleFor(actor)).find((p) => p.id === added[0])?.name ?? "They";
+  if (ask.stopped) return stoppedAskWords(name, ask.connector as PromptWay, added[0] === actor.personId);
   // No way the Metric accepts reaches them: the reason is one of Ziffr's own sentences, never a provider's words.
   if (ask.notSent) return `${name} was not asked: the request waits in the Outbox. ${ask.notSent}`;
   return firstAsksMessage({ submitters: 1, asked: [{ personId: added[0], name, connector: ask.connector, label: CONNECTORS[ask.connector].label, state: ask.state }] });

@@ -57,6 +57,7 @@ ${block(code)}
     fiscalYear: [],
     ordinal: [],
     dateWords: [],
+    reply: { yes: [], no: [], greetings: [], closings: [], sentFrom: [] },
   },
 };
 `;
