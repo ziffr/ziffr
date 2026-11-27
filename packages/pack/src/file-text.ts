@@ -37,15 +37,51 @@ export function textPasses(pattern: string, text: string): boolean {
   return new RegExp(pattern, "u").test(text) && (!pattern.startsWith(`^${NO_ADDRESS}`) || NO_ADDRESS_READ.test(asRead(text)));
 }
 
-// Where such a text would still be read as an address: before the dot of a name and a top-level domain (or a path),
-// after "www", and after a scheme's colon. The ideographic and fullwidth full stops count as dots, as mail and chat
-// apps read them.
-const ADDRESS_DOT = new RegExp(`(?<=[\\p{L}\\p{M}\\p{N}\\-])[.\u3002\uFF0E\uFF61](?=(?:${TLDS})(?![\\p{L}\\p{N}])|${anyCase("xn--")}|[\\p{L}\\p{M}]{2,}/)`, "gu");
-const ADDRESS_START = new RegExp(`(?<![\\p{L}\\p{N}])(${anyCase("www")}\\.)(?=\\S)|\\b((?:${SCHEMES}|${anyCase("javascript")}|${anyCase("data")}):)(?!\\s)|(:)(?=//)`, "gu");
+// Where a message's words would be read as an address, each match ending where a space breaks it: the dot between a
+// name and a top-level domain, or a name followed by a path, a port, a query or a fragment; "www" before its dot; and
+// the colon of a scheme. The ideographic full stop counts as a dot, as chat apps read it. This only ever breaks more than the plain
+// text above refuses.
+const ADDRESS_BREAKS = [
+  new RegExp(`(?<=[\\p{L}\\p{M}\\p{N}\\-_])[.\u3002](?=(?:${TLDS})(?![\\p{L}\\p{N}])|${anyCase("xn--")}|[\\p{L}\\p{M}]{2,}[/:?#])`, "gu"),
+  new RegExp(`(?<![\\p{L}\\p{N}])${anyCase("www")}(?=[.\u3002]\\S)|\\b(?:${SCHEMES}|${anyCase("javascript")}|${anyCase("data")}):(?!\\s)|:(?=//)`, "gu"),
+];
+
+// One character with the marks and invisible characters after it, or a run of those alone.
+const CLUSTERS = /[^\p{M}\p{Default_Ignorable_Code_Point}][\p{M}\p{Default_Ignorable_Code_Point}]*|[\p{M}\p{Default_Ignorable_Code_Point}]+/gu;
+
+// The text as `textPasses` reads it, and for each of its code units the place in the original right after the character
+// it came from.
+function asReadWithPlaces(text: string): { read: string; after: number[] } {
+  let read = "";
+  const after: number[] = [];
+  for (const found of text.matchAll(CLUSTERS)) {
+    const shown = asRead(found[0]);
+    read += shown;
+    const end = found.index + String.fromCodePoint(found[0].codePointAt(0)!).length;
+    for (let i = 0; i < shown.length; i++) after.push(end);
+  }
+  return { read, after };
+}
 
 /** A person's words as they may go into a message: every web address this module's plain text would refuse, bare ones
- * such as "evil.example/x" included, is broken with a space, so that mail and chat apps make no link of it. */
-export const withoutAddresses = (text: string): string => text.replace(ADDRESS_START, (found) => `${found} `).replace(ADDRESS_DOT, (dot) => `${dot} `);
+ * such as "evil.example/x" included, gets a space, so that mail and chat apps make no link of it. Addresses are looked
+ * for in the text as written and as it reads (`textPasses`: compatibility forms as plain characters, marks and
+ * invisible characters left out); the words themselves stay as written, only spaces are added. */
+export function withoutAddresses(text: string): string {
+  const { read, after } = asReadWithPlaces(text);
+  const places = new Set<number>();
+  for (const pattern of ADDRESS_BREAKS) {
+    for (const found of text.matchAll(pattern)) places.add(found.index + found[0].length);
+    for (const found of read.matchAll(pattern)) places.add(after[found.index + found[0].length - 1]!);
+  }
+  let out = "";
+  let from = 0;
+  for (const at of [...places].sort((a, b) => a - b)) {
+    out += `${text.slice(from, at)} `;
+    from = at;
+  }
+  return out + text.slice(from);
+}
 
 // The Placeholders every text knows. How a Metric is calculated (spec 0060) is added where a format says so: widgets,
 // Slide Elements and, from ziffr.deck-template/3 on, a slide's text and boxes.
