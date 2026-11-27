@@ -519,13 +519,43 @@ The **Submitters** of this Metric: who may send values for it. Ziffr recognises 
 
 Under each person a line says where their next **Prompt** will go and why, for example "Next request: by Slack", or "Can't reach: link Slack" when none of the ways this Metric accepts reaches them. The owner and Editors see it for everyone; anyone else who submits sees their own line. On your own line the fix is a link: **Link Slack** or **Connect Telegram** on **Connectors**, or **Add an email address** in your profile. A request goes only by a way the Metric accepts values by (see **Values arrive by**) and that reaches the person: if your usual way is not one, the line names the way it goes instead and why. When nothing reaches the person the request waits in the **Outbox** as "Not sent: …", is never sent by email or anywhere else instead, and the owner gets one message about it.
 
-A Feed is listed with the word "Feed". The owner and Editors see **Remove** next to it, which stops that Feed sending values. The values it already sent stay.
+A Feed is listed with the word "Feed". The owner and Editors see **Remove** next to it; after you confirm, that Feed can no longer send values for the Metric. The values it already sent stay.
 
 **Fill from n8n** is under the Feeds, for Owners and Admins who may change this Metric's Submitters (not in the demo, and not for a Derived Metric). Choose which template to read from (**Google Sheets**, **Microsoft Excel**, **Stripe**, **HubSpot**, **BigQuery**, **Snowflake**, or for a weekly sales forecast **HubSpot forecast**, **Salesforce forecast** or **Pipedrive forecast**), which Feed sends the values (one you have, or **A new Feed…** with a name), and whether to **Make a Feed Key for it and show it once**, then **Download the workflow**. You get an n8n workflow with your Ziffr's address already in it, and the Feed becomes a Submitter of the Metric. The Stripe and HubSpot templates send a few fixed figures once a month, for the month that has ended, so you type the slug of the Metric each figure is for into the workflow's Settings node (the page lists the slugs of the Metrics you picked). The three forecast templates add up your CRM's deals every Monday into **Closed this quarter** and **Pipeline value** (HubSpot and Salesforce also **Commit** and **Best case**, if you like), for the team and for each salesperson who has Metrics of their own; their Metrics are weekly ([what they send and when](../automations/crm-forecast-feeds.md)). The BigQuery and Snowflake templates run a query once a month for the month that has ended; you write that query in the workflow's **Your query** node, returning a row with the columns `metric` (a slug from that list), `value` and `period` for each figure. For a template that reads rows from a sheet or an Excel table, the page also offers a **starter sheet**: a `metric,value,period` header with this Metric's slug, to paste into your sheet. The key is shown once, beside the download, and is never written into the file: n8n keeps it in a credential named Ziffr Feed Key, as the template's guide says ([Google Sheets](../automations/google-sheets-feed.md), [Microsoft Excel](../automations/excel-feed.md), [Stripe](../automations/stripe-feed.md), [HubSpot](../automations/hubspot-feed.md), [BigQuery](../automations/bigquery-feed.md), [Snowflake](../automations/snowflake-feed.md), [HubSpot forecast](../automations/hubspot-forecast-feed.md), [Salesforce forecast](../automations/salesforce-forecast-feed.md), [Pipedrive forecast](../automations/pipedrive-forecast-feed.md)). You add the other system's login in n8n; Ziffr never sees it and never runs the workflow. The Audit log records that the template was downloaded, never the file.
 
 **Values from a Feed** (for the owner and Editors) adds one of the Workspace's Feeds as a Submitter: pick it and choose **Add**. Its values arrive through the API, so the **API and Feeds** Source is turned on by itself. Owners and Admins create Feeds (see [Connecting Ziffr](04-connecting.md#feeds-numbers-from-other-systems)); a Feed is never sent Prompts. The choice only appears when there is a Feed not yet on the list.
 
-People are chosen as Submitters when the Metric is created or duplicated. This box has no way yet to add or remove a person later.
+#### Adding and removing a person
+
+People are chosen as Submitters when the Metric is created or duplicated, and the Metric's owner and its Editors can change them here at any time. Neither is offered in the demo, and a Derived Metric or a Total takes no Submitters.
+
+Who you can add depends on who you are, because a Submitter sees the Metric:
+
+| You are | You can add |
+| --- | --- |
+| The **Metric Owner** | Any member, Guest or Contact of the Workspace |
+| An **Editor** | Only people who see the Metric already, for instance through a **Share** or a dashboard shared with them. For anyone else, ask the owner to add them: "Only the owner can add someone who does not see this Metric yet." |
+
+The same holds in the Setup Guide and through the API and assistants. An Editor who removes someone who then no longer sees the Metric cannot add them again; the box says so before you confirm.
+
+**Add a person** lists the people you can add who do not submit this Metric yet. Pick one and choose **Add…**. A box says what will happen before anything does:
+
+- A member or Guest will see the Metric, with its values and history, and can send in its values. You do not have to share it with them as well. A Contact does not sign in: their personal form link shows the Metric's name and description and the current value, and takes theirs.
+- Ziffr makes them a personal form link for this Metric (usable when it takes values by **Web form**).
+- **Ask them for the current value now** is ticked: a **Prompt** goes out at once, by a way that reaches them. Ziffr makes at most one such first request a day for a person and a Metric: someone asked for it in the last day, for instance removed and added again, is added without a new one, and the message says so. Untick it to send nothing now. They are then asked when the Metric's Workflow next asks or reminds; a Metric without a Workflow asks nobody by itself. A Contact receives their form link only with a request. An archived Metric asks nobody.
+
+Choose **Add as Submitter**. The message that follows says what was sent, or that the request waits in the **Outbox** and why.
+
+**Remove** is next to each person. After you confirm:
+
+- Their own form link for this Metric stops working. Requests to it that wait to go out or are kept in the **Outbox** are not sent. The values they sent stay.
+- Their **Stand-in** for this Metric ends, and the Stand-in's form link for them stops working too. If the person removed stands in for someone else here, they stay that person's Stand-in until the Metric's owner chooses another.
+- Unless they own the Metric, it is shared with them, or it reaches them another way (such as a dashboard shared with them, or as a Stand-in), they no longer see it.
+- If nobody else submits it, nobody is asked for its values any more.
+
+Questions and Tasks already open stay as they are: a removed person goes on reading the Threads they are on, and Tasks and the **Approver** steps of a Workflow that name them stay until somebody changes them.
+
+Each person added or removed later, here or through the API, is written in the [Audit Log](16-workspace-settings.md#audit-log), with whether a first request was made for them.
 
 #### Fill from a data warehouse
 
@@ -606,7 +636,7 @@ The Feed's [README](../../packages/feed-sql/README.md) has every setting of the 
 | Role | What they can do |
 | --- | --- |
 | **Viewer** | See the Metric, its history and comparisons, use it on their own dashboards and analyses, and assign questions and tasks about it. |
-| **Editor** | Everything a Viewer can, and change its description, its Sources, its Target Series and Projections, and which Feeds submit to it. A Guest is never an Editor of a Metric. |
+| **Editor** | Everything a Viewer can, and change its description, its Sources, its Target Series and Projections, and [who submits it](#who-submits): which Feeds, and people who see the Metric already. A Guest is never an Editor of a Metric. |
 
 Deleting the Metric, sharing it, choosing its Workflow and Stand-ins, locking periods, accepting **Corrections** and restoring Versions stay with the Metric Owner. Sharing a dashboard also lets everyone on that Share see the Metrics on it (see [The Dashboard screens](12-dashboards.md)).
 

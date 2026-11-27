@@ -13,8 +13,9 @@ export const GET = metricRoute("metrics:read", async (actor, _req, slug) => {
   return json(SubmitterList.parse({ items: await listSubmittersWithKey(actor, slug) }));
 });
 
-/** Adds and removes Submitters. 200 with who submits now; 403 when the creator may not change the Metric; 422 when an
- * id is not one of the workspace's people, Contacts or Feeds, or the Metric is Derived, and then nothing changed. */
+/** Adds and removes Submitters. 200 with who submits now; 403 when the creator may not change the Metric, or as its
+ * Editor names someone who does not see it; 422 when an id is not one of the workspace's people, Contacts or Feeds, or
+ * the Metric is Derived. A refused call changes nothing. */
 export const POST = metricRoute("metrics:edit", async (actor, req, slug) => {
   const change = ChangeSubmitters.parse(await jsonBody(req));
   try {

@@ -17,8 +17,8 @@ import { audit } from "./audit-log";
 import { formulaInputs } from "./formula";
 import { widgetMetricIds } from "./widget-metrics";
 import { allDeckMetricIds } from "./visibility";
-import { allRows } from "./workspace-data";
-import { getShares } from "./access";
+import { allRows, getMetrics } from "./workspace-data";
+import { getShares, visibilityOfMany } from "./access";
 import { feedIdsAmong } from "./feed-people";
 import { periodStart } from "./periods";
 import { yearStartFor } from "./fiscal-year";
@@ -34,6 +34,7 @@ import { DemoTextRefused, inDemoVisit, visitorOptionalText, visitorText } from "
 import { visitorMembersOnly, visitorNumber, visitorSeries, visitorSlug } from "./demo-visitor-metrics";
 import { DEMO_METRIC_WORDS } from "./demo-words";
 import { calculationNoteFrom } from "./calculation-note";
+import { REMOVED_BEFORE_SENT } from "./asked-message";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month", "quarter", "year"];
@@ -382,6 +383,34 @@ export async function sealedSeriesSaves(ws: string, metricId: number, kind: "tar
 /** Most Submitters one change adds or removes: each one added gets a first Prompt, so a change never floods people. */
 export const SUBMITTERS_PER_CHANGE = 20;
 
+/** Reserves a first Prompt for a person and a Metric (claim_first_prompt, one step under a lock): false when they were
+ * asked for it in the last day, or had `perDay` first Prompts claimed today in this workspace. So adding someone,
+ * removing and adding them again asks them once. */
+export async function claimFirstPrompt(workspaceId: string, metricId: number, submitterId: string, perDay: number): Promise<boolean> {
+  const { data, error } = await db().rpc("claim_first_prompt", { p_workspace: workspaceId, p_submitter: submitterId, p_metric: metricId, p_limit: perDay });
+  if (error) throw new Error("The first Prompt could not be checked.");
+  return data === true;
+}
+
+/** Writes who was added to or removed from a Metric's Submitters in the Audit Log, a line for each person, as Shares are. */
+async function auditSubmitters(actor: Actor, metric: { id: number; name: string }, kind: "metric.submitter_added" | "metric.submitter_removed", ids: string[], about: (id: string) => { ask_now?: boolean } = () => ({})) {
+  if (!ids.length) return;
+  const { data } = await db().from("profiles").select("id, name").in("id", ids);
+  const people = await openNames(actor.workspaceId, (data ?? []) as { id: string; name: string }[]);
+  for (const id of ids) {
+    await audit(actor, { kind, object: { type: "metric", id: metric.id, name: metric.name }, details: { person_id: id, person_name: people.find((p) => p.id === id)?.name ?? null, ...about(id) } });
+  }
+}
+
+/** Said to an Editor who names someone as a Submitter who does not see the Metric. */
+export const ONLY_OWNER_ADDS_UNSEEN = "Only the owner can add someone who does not see this Metric yet.";
+
+/** Of these people, those who see the Metric already, by the core's one rule of who sees what. */
+export async function peopleSeeing(ws: string, metricId: number, ids: readonly string[]): Promise<Set<string>> {
+  const sees = await visibilityOfMany(ws, await getMetrics(ws));
+  return new Set(ids.filter((id) => sees(id).metrics.has(metricId)));
+}
+
 /** Person ids as a browser or a program sends them: strings, each once, at most SUBMITTERS_PER_CHANGE. */
 function submitterIds(ids: unknown): string[] {
   if (!Array.isArray(ids) || ids.length > SUBMITTERS_PER_CHANGE || !ids.every((x) => typeof x === "string" && x.length > 0 && x.length <= 64)) {
@@ -391,8 +420,10 @@ function submitterIds(ids: unknown): string[] {
 }
 
 /** Makes people Submitters of a Metric, for its owner and its Editors (GLOSSARY: Submitter): Members, Guests or
- * Contacts of the workspace, each with a Token and a first Prompt, as when a Metric is created with them. Someone who
- * already submits is left alone. Feeds are added with addFeedToMetric. Returns who was added. */
+ * Contacts of the workspace, each with a Token and a first Prompt, as when a Metric is created with them. Submitting
+ * shows a Metric, so only its owner adds someone who does not see it yet: an Editor adds people who see it already, and
+ * one who does not among them refuses the whole change. Someone who already submits is left alone. Feeds are added with
+ * addFeedToMetric. Returns who was added. */
 export async function addSubmitters(actor: Actor, metricId: number, personIds: unknown, effects: MetricEffects = metricEffects): Promise<string[]> {
   const m = await editableMetric(actor, metricId, "who submits");
   if (m.formula) throw new Error("A Derived Metric is computed; it takes no values.");
@@ -402,22 +433,63 @@ export async function addSubmitters(actor: Actor, metricId: number, personIds: u
   const already = new Set((has ?? []).map((t) => t.submitter_id as string));
   const added = ids.filter((id) => !already.has(id));
   if (!added.length) return [];
+  // Who gets to see a Metric is its owner's to say.
+  if (m.owner_id !== actor.personId && (await peopleSeeing(actor.workspaceId, m.id as number, added)).size < added.length) throw new Forbidden(ONLY_OWNER_ADDS_UNSEEN);
   // A Token code opens the submission form without signing in: random, never derived from names.
   const { error } = await db().from("tokens").insert(added.map((s) => ({ code: `tk-${randomBytes(18).toString("base64url")}`, metric_id: m.id, submitter_id: s })));
   if (error) throw new Error("The Submitters could not be added.");
-  for (const s of added) await effects.promptSubmitter(m.id, s, actor.personId);
+  // Who a first request was made for goes in the Audit Log, which is written also when asking fails: they are added.
+  const asked = new Set<string>();
+  try {
+    for (const s of added) if (await effects.promptSubmitter(m.id, s, actor.personId)) asked.add(s);
+  } finally {
+    await auditSubmitters(actor, { id: m.id as number, name: m.name as string }, "metric.submitter_added", added, (id) => ({ ask_now: asked.has(id) }));
+  }
   await recordVersion("metric", m.id, actor.personId, { message: added.length === 1 ? "Added a Submitter" : `Added ${added.length} Submitters` });
   return added;
 }
 
+/** Marks Prompt Deliveries of a Metric that wait to go out, or are kept in the Outbox, as not sent. */
+async function holdPrompts(ws: string, by: "form_token_id" | "prompt_id", ids: number[]): Promise<void> {
+  for (let i = 0; i < ids.length; i += 500) {
+    const { error } = await db().from("deliveries").update({ mail_state: "failed", last_error: REMOVED_BEFORE_SENT })
+      .eq("workspace_id", ws).eq("kind", "prompt").in("mail_state", ["queued", "outbox"]).in(by, ids.slice(i, i + 500));
+    if (error) throw new Error("The Submitters could not be removed.");
+  }
+}
+
+/** The Prompts to these people's Tokens, and to anyone standing in for them, are not sent any more. Called before the
+ * Tokens go: a Delivery loses the mark of its Token with it. */
+async function holdPromptsOfRemoved(ws: string, metricId: number, ids: string[]): Promise<void> {
+  const tokens = () => db().from("tokens").select("id").eq("metric_id", metricId).eq("workspace_id", ws);
+  const found = await Promise.all([tokens().in("submitter_id", ids).is("stands_in_for", null), tokens().in("stands_in_for", ids)]);
+  if (found.some((r) => r.error)) throw new Error("The Submitters could not be removed.");
+  await holdPrompts(ws, "form_token_id", found.flatMap((r) => (r.data ?? []).map((t) => t.id as number)));
+}
+
+/** After the Tokens went: a Prompt made while they were going is found by its own row, as its Delivery has no Token any
+ * more. Only those of the last hour: older ones were held with their Token. */
+async function holdLatePrompts(ws: string, metricId: number, ids: string[]): Promise<void> {
+  const since = new Date(Date.now() - 3_600_000).toISOString();
+  const prompts = () => db().from("prompts").select("id").eq("workspace_id", ws).eq("metric_id", metricId).is("answered_at", null).gt("sent_at", since);
+  // Their own Prompts, and a Stand-in's asked in their place; never one they got as someone else's Stand-in.
+  const found = await Promise.all([prompts().in("submitter_id", ids).is("stands_in_for", null), prompts().in("stands_in_for", ids)]);
+  if (found.some((r) => r.error)) throw new Error("The Submitters could not be removed.");
+  await holdPrompts(ws, "prompt_id", found.flatMap((r) => (r.data ?? []).map((p) => p.id as number)));
+}
+
 /** Stops people submitting to a Metric, for its owner and its Editors: their Tokens go, and those of anyone standing
- * in for them on it. Their earlier values stay. Returns who was removed. */
+ * in for them on it, and Prompts to those Tokens that wait or are kept in the Outbox are not sent. Their earlier values
+ * stay, as do the Threads, Tasks and Approver steps they are in. Returns who was removed. */
 export async function removeSubmitters(actor: Actor, metricId: number, personIds: unknown): Promise<string[]> {
   const m = await editableMetric(actor, metricId, "who submits");
   const ids = submitterIds(personIds);
+  await holdPromptsOfRemoved(actor.workspaceId, m.id, ids);
   const { data: gone } = await db().from("tokens").delete().eq("metric_id", m.id).eq("workspace_id", actor.workspaceId).in("submitter_id", ids).is("stands_in_for", null).select("submitter_id");
   await db().from("tokens").delete().eq("metric_id", m.id).eq("workspace_id", actor.workspaceId).in("stands_in_for", ids);
   const removed = [...new Set((gone ?? []).map((t) => t.submitter_id as string))];
+  await holdLatePrompts(actor.workspaceId, m.id as number, ids);
+  await auditSubmitters(actor, { id: m.id as number, name: m.name as string }, "metric.submitter_removed", removed);
   if (removed.length) await recordVersion("metric", m.id, actor.personId, { message: removed.length === 1 ? "Removed a Submitter" : `Removed ${removed.length} Submitters` });
   return removed;
 }

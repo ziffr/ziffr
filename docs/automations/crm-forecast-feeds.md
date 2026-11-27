@@ -4,14 +4,14 @@ Three [Automation Templates](../../GLOSSARY.md) send the weekly figures of the *
 
 ## The figures
 
-| Setting | Metric in the Pack | What is added up |
+| Setting | Figure | What is added up |
 |---|---|---|
 | `closedMetric` | Closed this quarter | Deals won since the quarter began, up to the end of the week. |
 | `pipelineMetric` | Pipeline value | Open deals that close in this quarter, those in the commit included, those won not. |
 | `commitMetric` (optional) | Commit | Closed this quarter, plus the open deals in the forecast category **Commit**. HubSpot and Salesforce only. |
 | `bestCaseMetric` (optional) | Best case | Closed this quarter, plus the open deals in **Commit**, **Best case** and **Most likely**. HubSpot and Salesforce only. |
 
-Commit and best case are off until you put a slug in their settings. In the Pack, **Commit** is the call a person makes. A sum from the CRM replaces that call with what the deals' categories say, so send it only if that is how your team calls its quarter. **Quota split** is not filled, and the calculated Metrics need nothing.
+Commit and best case are off until you put a slug in their settings. In the Pack, **Commit** is the call each salesperson makes. A sum from the CRM replaces that call with what the deals' categories say, so send it only if that is how your team calls its quarter. In the Pack, the team's figures are [Totals](../user-guide/10-metrics.md#adding-up-metrics-a-total), which take no values: leave the team's settings empty and list each salesperson under [Owners](#each-salespersons-own-figures). The calculated Metrics need nothing.
 
 Only a Metric's slug, the week and a number are sent to Ziffr: no deal, company, contact, name or email. The CRM is only read. The figures are worked out from amounts, owner ids and, to choose what counts, each deal's state, dates, currency and forecast category. Ids you put in the **Owners** node stay in n8n. **What n8n receives from the CRM can be more than the figures need:**
 
@@ -52,13 +52,13 @@ const OWNERS = [
 ];
 ```
 
-Use the slugs of your own Metrics (the last part of a Metric's address): from a Pack that makes one Metric per salesperson, or from **Duplicate** on the team's Metrics. A figure you leave out is not sent. The team's figures still add up **all** deals, also those of owners with no line, and the run's output lists the ids of such owners. Leave a team slug empty if your team figure is calculated from the salespeople's Metrics.
+Use the slugs of your own Metrics (the last part of a Metric's address), such as those the Pack made for each salesperson. A figure you leave out is not sent. Leave a team slug empty if your team figure is added up from the salespeople's Metrics, as in the Pack: that sum counts only the salespeople with Metrics, so deals of owners with no line are not in it, and the run's output lists their ids. A team slug you do fill adds up **all** deals.
 
 One Feed fills at most 100 Metrics with these templates: with four figures each, the team and 24 salespeople. For more, import the template a second time with a second Feed.
 
 ## Set up, the part in Ziffr
 
-1. Install and set up the **Sales forecast** Pack, or make the Metrics yourself. They must be **weekly**, and their unit should be the currency the template adds up.
+1. Install and set up the **Sales forecast** Pack, with a line for each salesperson, or make the Metrics yourself. They must be **weekly**, and their unit should be the currency the template adds up.
 2. **Settings → Feeds**: make a Feed, and a Feed Key with an end date within a year. Copy the key (shown once).
 3. On each Metric the template fills, add the Feed under **Who submits**. A person who stays a Submitter is still asked on Monday while the week has no value: take them off to stop that, and keep (or add) whoever should be able to correct a figure. **Fill from n8n** on a Metric makes the Feed a Submitter, does step 2 if you like, and hands you the file with your Ziffr address in it.
 4. In n8n, add a credential of the type **Header Auth** named `Ziffr Feed Key`: name `Authorization`, value `Bearer ` followed by your key. Choose it in **What is filled** and **Send to Ziffr**. Keep the key in the credential, never in the workflow. Where your n8n offers **Allowed HTTP Request Domains** on the credential, choose **Specific Domains** and enter your Ziffr's host name only.

@@ -118,7 +118,7 @@ A Connector used to receive observations, such as mail, a messenger, Slack or a 
 _Avoid_: Input, integration
 
 **Submitter**:
-A person allowed to record observations for a given metric: a Member, a Guest, a Contact without a login, or a Feed.
+A person allowed to record observations for a given metric: a Member, a Guest, a Contact without a login, or a Feed. A person who submits a Metric sees it, so its owner adds anyone, and an Editor adds only people who see it already.
 _Avoid_: Reporter, contributor
 
 **Feedback Prompt**:

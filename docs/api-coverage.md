@@ -9,6 +9,8 @@ Permission checks (`assert…`, `can…`) are guards, not operations, and are le
 Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are built by a person at the screen. Programs build Metrics and dashboards through the API.
 
 - `firstAsksFor` (first-asks.ts): the sentence under a new Metric on the Metric page in the app, read from the Outbox; the API has no such page
+- `addSubmitterWithAnswer` (who-submits.ts): adding one person under Who submits on the Metric page, with the sentence of what was sent; a program changes Submitters with set_submitters
+- `submitterChoices` (who-submits.ts): the list of people to add under Who submits on the Metric page in the app; a program names them from its list of people
 - `nextPromptWays` (prompt-preview.ts): the line under each submitter on the Metric page in the app, where their next Prompt goes and why; a program sets Sources and reads Metrics through the API
 - `metricQuickLook` (quick-look.ts): the slide-over beside a list or Widget in the app; a program reads a Metric through the API
 - `openActionsAboutMetrics` (metric-actions.ts): the panel a Widget's "N open" mark opens in the app; a program lists Actions through the API's actions endpoint
