@@ -5,7 +5,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 vi.mock("next/navigation", () => ({ unstable_rethrow() {}, useSearchParams: () => new URLSearchParams(), usePathname: () => "/first-steps" }));
-vi.mock("./set-actions", () => ({ readSet: async () => ({}), readSets: async () => ({}) }));
+vi.mock("./actions", () => ({ readSet: async () => ({}), readSets: async () => ({}) }));
 vi.mock("@/app/pack-actions", () => ({}));
 import { PackPreviewView } from "@/app/settings/packs/preview-view";
 import { packRefOf, packSetUpPath } from "@/app/use-pack/switch";

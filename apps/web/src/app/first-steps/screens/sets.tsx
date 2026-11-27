@@ -3,9 +3,9 @@
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import type { FirstStepsSet, FirstStepsSets } from "@ziffr/core/first-steps-sets";
+import { readSets } from "../actions";
 import { Quiet, Reading, useShown } from "../closing-parts";
 import { Choice, Choices, ScreenHeading } from "../parts";
-import { readSets } from "../set-actions";
 import type { ScreenProps } from "./types";
 
 /** How many sets show before "Show all". */

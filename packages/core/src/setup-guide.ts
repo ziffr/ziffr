@@ -119,8 +119,9 @@ export async function setupGuide(actor: Actor): Promise<SetupGuide | null> {
   };
 }
 
-// The guide's Metric, only when the viewer may see it (visibility is the product); never an archived one's name wrongly.
-async function seenFirstMetric(actor: Actor, id: number | null): Promise<{ id: number; name: string } | null> {
+/** The Metric with that id as the guide's first: only when the viewer may see it (visibility is the product) and it
+ * is not archived. */
+export async function seenFirstMetric(actor: Actor, id: number | null): Promise<{ id: number; name: string } | null> {
   if (id === null || !(await canSee(actor, "metric", id))) return null;
   const { data } = await db().from("metrics").select("id, name").eq("id", id).eq("workspace_id", actor.workspaceId).is("archived_at", null).maybeSingle();
   const m = await openOne("metrics", actor.workspaceId, data);

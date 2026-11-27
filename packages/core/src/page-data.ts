@@ -240,7 +240,7 @@ export async function workflowsView(actor: Actor) {
 export async function metricCatalog(actor: Pick<Actor, "workspaceId">) {
   const cols = "id, category, name, description, calculation_note, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, tags, pack_install_id";
   const [shared, own] = await Promise.all([
-    db().from("catalog_metrics").select(cols).is("workspace_id", null).order("category").order("id"),
+    db().from("catalog_metrics").select(cols).is("workspace_id", null).is("formula", null).is("total", null).order("category").order("id"),
     db().from("catalog_metrics").select(cols).eq("workspace_id", actor.workspaceId).is("formula", null).is("total", null).order("category").order("id"),
   ]);
   return [...(shared.data ?? []), ...(own.data ?? [])];

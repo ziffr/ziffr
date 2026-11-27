@@ -3,9 +3,24 @@
 // what the browser sent to the core unread: it checks that the person is the Owner of a Workspace First Steps made, reads
 // every input, and keeps the limits on asking and inviting. None redraws the page: a finished First Steps would then
 // lead Home before the person has read that their number arrived.
+import { notFound } from "next/navigation";
+import type { Actor } from "@ziffr/core/actor";
 import { chooseProviders, firstStepsDone, firstStepsSender } from "@ziffr/core/first-steps-providers";
+import { FIRST_STEPS_ON } from "@ziffr/core/first-steps-screens";
 import { allowFirstStepsEmail, askFirstStepsByEmail, firstStepsProgress, firstStepsValue, pickFirstStepsMetric, sendFirstStepsValue } from "@ziffr/core/first-steps-value";
-import { inWorkspace } from "./in-workspace";
+import { attempt } from "@/lib/action-result";
+import { currentActor } from "@/lib/viewer";
+
+// `workspaceId` is the one the screen was drawn for: a tab left open while another switched Workspaces must neither read
+// nor write the other one.
+async function inWorkspace<T>(workspaceId: string, work: (actor: Actor) => Promise<T>) {
+  if (!FIRST_STEPS_ON) notFound();
+  return attempt(async () => {
+    const actor = await currentActor();
+    if (actor.workspaceId !== workspaceId) throw new Error("You switched Workspaces in another tab. Reload this page.");
+    return work(actor);
+  });
+}
 
 /** What the first value screen shows. */
 export async function readFirstValue(workspaceId: string) {

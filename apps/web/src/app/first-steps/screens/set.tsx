@@ -9,9 +9,9 @@ import { packSetUpPath } from "@/app/use-pack/switch";
 import { Button } from "@/components/ui/button";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { PackPreview } from "@ziffr/core/packs";
+import { readSet } from "../actions";
 import { Quiet, Reading, useShown } from "../closing-parts";
 import { ScreenHeading } from "../parts";
-import { readSet } from "../set-actions";
 import { SetsScreen } from "./sets";
 import type { ScreenProps } from "./types";
 
