@@ -369,6 +369,7 @@ describe("every reader of actions.metric_id", () => {
       "handover.ts": "the Webhook event of a handed-over Action skips a null Metric",
       "held-replies.ts": "reads the purpose only",
       "inbound-email.ts": "reads the purpose only",
+      "internal/approval-note.ts": "quotes a note only for an open Approval, which is about one Metric: a Checklist Task's purpose stops it before the Metric is read",
       "internal/delivery-send.ts": "no Metric: nothing archived holds a reminder of a Checklist Task",
       "observation-details.ts": "reads the Actions of one Metric",
       "page-data.ts": "the action page shows the Workflow and period, no chart; the Outbox lists a Delivery by readableActions",
