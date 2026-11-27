@@ -40,6 +40,7 @@ import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
 import { mcpAddress } from "@/lib/remote-mcp";
 import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
+import { ASK_NOTE_DEFAULT, ASK_NOTE_LABEL, ASK_NOTE_SETTING } from "@ziffr/core/ask-note";
 import { FORECAST_MIN_POINTS } from "@ziffr/core/forecast";
 import { bestForecast, forecastTooWide, NO_FORECAST_WIDE, withTakeawayBand } from "@ziffr/core/methods/forecast-choice";
 import { SEASON_LENGTH } from "@ziffr/core/suitability";
@@ -427,6 +428,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 <>
                   <Row k="Values arrive by">{canEdit ? <SourcesEditor metricId={metric.id} sources={metric.sources} /> : metric.sources.map((s) => SOURCE_LABEL[s]).join(", ") || "None"}<p className="mt-1 text-xs text-muted-foreground">The ways an answer is accepted. A request for a value goes only by a way ticked here; which of them is each person’s choice under <Link href="/connectors/who-gets-what" className="underline">Who gets what, where</Link>.</p></Row>
                   <Row k="A second value">{RULE_LABEL[metric.submission_rule]}</Row>
+                  <Row k={ASK_NOTE_SETTING}>{ASK_NOTE_LABEL[metric.ask_note ?? ASK_NOTE_DEFAULT]}</Row>
                 </>
               )}
             </dl>

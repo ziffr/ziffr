@@ -52,6 +52,34 @@ async function linksTo(to: string): Promise<string[]> {
 }
 const heldRows = async (deliveryId: number) => (await db().from("held_replies").select("*").eq("delivery_id", deliveryId)).data ?? [];
 
+describe("the note on a Held Reply's page (spec 0064)", () => {
+  it("offers a field with the question above Confirm, saves what is typed with the value, and sends no further email", async () => {
+    const { w, m, d, annMail } = await promptFor();
+    expect(await receive({ from: annMail, token: d.reply_token!, text: "42" })).toBe("held");
+    const [token] = await linksTo(annMail);
+    expect(await heldReplyView(token!)).toMatchObject({ question: "Anything behind it?", notes: [{ position: 1, asks: true }] });
+    const before = (await rowsOf("deliveries", { workspace_id: w.id })).length;
+    const done = await confirmHeldReply(token!, undefined, { 1: "Two visits moved.", 2: "Nobody's" });
+    expect(done).toMatchObject({ ok: true, detail: expect.stringContaining("Your note was saved.") });
+    expect(done!.detail).not.toContain("Anything behind");
+    expect((await rowsOf("deliveries", { workspace_id: w.id })).length).toBe(before);
+    expect(await rowsOf("value_notes", { metric_id: m.id })).toHaveLength(1);
+    expect(await rowsOf("note_questions", { workspace_id: w.id })).toEqual([]);
+  });
+
+  it("keeps the field without the question where the Metric never asks, and none where the reply holds a note", async () => {
+    const { m, d, annMail } = await promptFor();
+    await db().from("metrics").update({ ask_note: "never" }).eq("id", m.id);
+    expect(await receive({ from: annMail, token: d.reply_token!, text: "42" })).toBe("held");
+    expect(await receive({ from: annMail, token: d.reply_token!, text: "43\r\nCounted twice." })).toBe("held");
+    const [first, second] = await linksTo(annMail);
+    const plain = await heldReplyView(first!);
+    expect(plain!.notes).toEqual([expect.objectContaining({ position: 1, asks: false })]);
+    expect(plain).not.toHaveProperty("question");
+    expect(await heldReplyView(second!)).not.toHaveProperty("notes");
+  });
+});
+
 describe("held replies", () => {
   it("holds an unvouched reply, mails the link to the address on file, and records it only when confirmed, once", async () => {
     const { w, m, d, annMail } = await promptFor();

@@ -1,4 +1,5 @@
 /** The shapes of Ziffr's domain objects, shared by the core, the web app, the API and the MCP server (GLOSSARY.md). */
+import type { AskNote } from "./ask-note";
 import type { NumberStyle } from "./number-style";
 import type { AttainmentMethod } from "./attainment-method";
 
@@ -60,6 +61,9 @@ export type MetricDescription = {
   sources: SourceId[];
   /** How its Attainment is computed (GLOSSARY: Attainment); null follows the Workspace's default. */
   attainment_method: AttainmentMethod | null;
+  /** When it asks for a Value Note after only a number came in (spec 0064); missing where a description carries none,
+   * which is the default. A Derived Metric has no such setting: nobody sends it values. */
+  ask_note?: AskNote;
 };
 
 /** A metric with its owner and, for a Derived Metric, its formula. */

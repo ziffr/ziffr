@@ -7,6 +7,7 @@ import { useState, useTransition, type ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { recordValue } from "@/app/series-actions";
 import { AnswerBox, ValueEntry, sendValue, type Answer } from "./value-entry";
+import { AskedNote } from "@/components/asked-note";
 import type { RecordingOffer } from "@ziffr/core/record-own-value";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -65,7 +66,9 @@ function RecordForm({ offer }: { offer: RecordingOffer }) {
         </select>
         {chosen.has !== null && <span className="mt-1 block text-xs text-muted-foreground">Already has <span className="fig">{chosen.has}</span>.</span>}
       </label>
-      <ValueEntry value={value} setValue={setValue} breakdown={breakdown} setBreakdown={setBreakdown} placeholder={offer.placeholder} numberStyle={offer.numberStyle} note={offer.notes ? { words: note, setWords: setNote } : undefined} />
+      {answer?.ask && <AskedNote key={answer.ask} code={answer.ask} redraw />}
+      {/* While the question stands the form's own note field gives way, until a further number is typed. */}
+      <ValueEntry value={value} setValue={setValue} breakdown={breakdown} setBreakdown={setBreakdown} placeholder={offer.placeholder} numberStyle={offer.numberStyle} note={offer.notes && (!answer?.ask || value) ? { words: note, setWords: setNote } : undefined} />
       <Button type="submit" size="lg" disabled={pending}>{pending ? "Recording…" : "Record the value"}</Button>
     </form>
   );

@@ -171,8 +171,9 @@ export async function combinedForm(code: unknown): Promise<CombinedForm | null> 
   return { firstName: String(person?.name ?? "").trim().split(/\s+/)[0] ?? "", rows, numberStyle, notes: noteFieldsOn(m.ws), look: publicLook(m.ws, look) };
 }
 
-/** What became of one row that was sent. `noteKept` when its note was not saved, so the field keeps the words. */
-export type CombinedRowResult = { ok: boolean; detail: string; noteKept?: boolean };
+/** What became of one row that was sent. `noteKept` when its note was not saved, so the field keeps the words; `ask`
+ * the code under which a note asked for after it is saved (note-question.ts). */
+export type CombinedRowResult = { ok: boolean; detail: string; noteKept?: boolean; ask?: string };
 /** What became of a submission: each filled row's answer by its number, or why nothing was looked at. */
 export type CombinedResult = { rows: Record<number, CombinedRowResult>; refused?: string };
 
@@ -206,7 +207,7 @@ async function submitRow(f: Figure | undefined, entry: Entry, effects: Submissio
     // The intake's words for another period speak of a list of periods, which this form does not have, and its words
     // for how a value came speak of a personal link, which this one is not.
     const detail = r.outcome === "rejected_other_period" ? "Not recorded: type the number alone." : r.detail.replace(" (via personal form link)", "");
-    return { ok: !r.outcome.startsWith("rejected"), detail, ...(r.valueNote?.saved === false || (r.outcome.startsWith("rejected") && entry.note) ? { noteKept: true } : {}) };
+    return { ok: !r.outcome.startsWith("rejected"), detail, ...(r.valueNote?.saved === false || (r.outcome.startsWith("rejected") && entry.note) ? { noteKept: true } : {}), ...(r.ask ? { ask: r.ask } : {}) };
   } catch (e) {
     // The error's own words only, never what was typed; the other rows go on.
     console.error("A value from the combined form could not be recorded:", e instanceof Error ? e.message : "unknown");

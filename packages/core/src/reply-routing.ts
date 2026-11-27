@@ -5,6 +5,7 @@
 // proposed Correction.
 import { parseReply } from "./connectors/index";
 import { db } from "./db";
+import { questionsSentAs } from "./note-question";
 import { takePromptReply, withoutFormLinks, type OfferChoice, type PromptReplyOutcome } from "./prompt-reply";
 import { offerAnsweredAs } from "./reply-offers";
 import { submissionEffects, type SubmissionEffects } from "./submissions";
@@ -24,12 +25,18 @@ export type ReplyChannel = {
   /** The recipient, when the Connector proved who wrote (Slack signs it, Telegram sends it with the webhook's
    * secret); else they are recognised by `sender`. */
   provenPersonId?: string;
-  /** The answer is read on the page that confirms a Held Reply, not sent: it is given also where an email would not be. */
+  /** The answer is read on the page that confirms a Held Reply, not sent: it is given also where an email would not
+   * be, and asks for no note, since that page had a field for it. */
   onPage?: boolean;
+  /** The notes typed on that page, by figure number: untrusted. */
+  notes?: Record<number, string>;
+  /** The Prompts of the question this reply answers, where the way says which message it replies to. */
+  about?: number[];
   /** `link` is the address Ziffr put at the end of its answer, which an email draws as its button. `bare` says a chat
-   * shows the words alone, `invites` that they ask for a further reply (an email then carries the reply address). A
-   * chat may answer with the id of the message it sent, where a reply can name it. */
-  answer: (subject: string, text: string, link?: string, how?: { bare?: boolean; invites?: boolean }) => Promise<number | void>;
+   * shows the words alone, `invites` that they ask for a further reply (an email then carries the reply address), and
+   * `ask` that they end with the question for a note, which a chat gives its reply box or buttons. A chat may answer
+   * with the id of the message it sent, where a reply or a button can name it. */
+  answer: (subject: string, text: string, link?: string, how?: { bare?: boolean; invites?: boolean; ask?: boolean }) => Promise<number | string | void>;
 };
 
 /** What became of a reply. */
@@ -64,13 +71,14 @@ export async function routeReply(d: RepliedDelivery, reply: string, via: ReplyCh
     return "refused";
   }
   if (asksForValues(d)) {
-    const done = await takePromptReply(d, text, via, { submission, offers });
+    const done = await takePromptReply(d, text, via, { submission, offers, ask: !via.onPage, typed: via.notes });
     // A message with several figures counts as answered once each is in, which closing its Prompts sees to.
     if (done.outcome === "recorded" && !d.combined) await db().from("deliveries").update({ status: "answered" }).eq("id", d.id);
     // The person learns what became of their reply. A saved note with nothing else to say sends no email back.
     if (done.text && !(via.source === "mail" && done.noEmail && !via.onPage)) {
-      const sent = await via.answer(done.subject, done.text, done.link, { bare: done.bare, invites: done.invites });
+      const sent = await via.answer(done.subject, done.text, done.link, { bare: done.bare, invites: done.invites, ask: Boolean(done.asked) });
       if (done.offered && typeof sent === "number") await offerAnsweredAs(d.workspace_id, d.id, sent);
+      if (done.asked && sent !== undefined && sent !== null) await questionsSentAs(d.workspace_id, d.id, done.asked, String(sent));
     }
     return done.outcome;
   }

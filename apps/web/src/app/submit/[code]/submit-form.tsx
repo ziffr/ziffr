@@ -10,6 +10,7 @@ import { recordValue } from "@/app/series-actions";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AskedNote } from "@/components/asked-note";
 import { TuckedNote } from "@/components/value-note-tuck";
 import { cn } from "@/lib/utils";
 import { BreakdownField } from "./breakdown-field";
@@ -95,6 +96,8 @@ export function SubmitForm({ code, label, placeholder, numberStyle, named = null
       {result?.ok && (
         <div role="status" className="mt-4 rounded-lg border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] px-3 py-2 text-sm">{result.detail}</div>
       )}
+      {/* Also after a value proposed for a locked period, which the form counts as taken. */}
+      {result?.ask && <AskedNote key={result.ask} code={result.ask} className="mt-3" />}
       {done && (
         <div ref={after} tabIndex={-1} className="mt-3 flex flex-col gap-2 outline-none sm:hidden">
           {next ? (
@@ -131,7 +134,8 @@ export function SubmitForm({ code, label, placeholder, numberStyle, named = null
         <div id="breakdown-part" className={breakdown ? undefined : "max-sm:hidden"}>
           <BreakdownField numberStyle={numberStyle} />
         </div>
-        {notes && <div className="mt-1 sm:mt-4"><TuckedNote value={note} onChange={setNote} /></div>}
+        {/* While the question stands the form's own note field gives way, until a further number is typed. */}
+        {notes && (!result?.ask || value !== "") && <div className="mt-1 sm:mt-4"><TuckedNote value={note} onChange={setNote} /></div>}
         <Button type="submit" size="lg" className="mt-4 w-full max-sm:h-12 max-sm:text-base" disabled={pending}>Submit</Button>
       </form>
     </>

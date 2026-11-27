@@ -5,6 +5,9 @@
 /** How often a Metric has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year. */
 export type Period = "day" | "week" | "month" | "quarter" | "year";
 
+/** When a Metric asks for a note after only a number came in. */
+export type AskForNote = "always" | "off_target_or_unusual" | "never";
+
 /** A Metric's description, as `GET /metrics/{slug}` answers it. */
 export type Metric = {
   slug: string;
@@ -24,6 +27,8 @@ export type Metric = {
   target_max: number | null;
   /** How its Attainment is computed: by ratio or by distance to the target; null follows the workspace's default. */
   attainment_method: "ratio" | "distance" | null;
+  /** Ask for a note: when Ziffr asks whoever sent only a number what is behind it; null for a Derived Metric. */
+  ask_for_note: AskForNote | null;
   /** Its Sources: the ways values may arrive. The personal form link works apart from them. */
   sources: Source[];
   /** A Derived Metric: computed from others, takes no values. */
@@ -141,6 +146,8 @@ export type NewMetric = {
   target_min?: number | null;
   target_max?: number | null;
   attainment_method?: Metric["attainment_method"];
+  /** When Ziffr asks for a note after only a number came in; left out, always. */
+  ask_for_note?: AskForNote;
   submit?: boolean;
   /** Its Sources; left out, every one. */
   sources?: Source[];
@@ -176,6 +183,8 @@ export type MetricPatch = {
   target_min?: number | null;
   target_max?: number | null;
   attainment_method?: "ratio" | "distance" | null;
+  /** When Ziffr asks for a note after only a number came in; not for a Derived Metric. */
+  ask_for_note?: AskForNote;
   /** A Derived Metric's new formula (scope metrics:read too); only its owner and Editors. */
   formula?: string;
   /** All its Tags (at most 10): it carries exactly these afterwards; [] takes them all off. Only its owner and Editors. */

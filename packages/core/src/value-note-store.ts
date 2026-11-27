@@ -228,6 +228,24 @@ export async function noteWithProposal(ws: string, proposal: { messageId: number
   }
 }
 
+/** A person's value that came in an interactive way with no note, or the proposal it went as: what Ziffr may ask a
+ * note about (note-question.ts). For the core alone: no browser and no program is sent it. */
+export type NumberOnly = { metricId: number; period: string; authorId: string; value: number } & ({ observationId: number; proposal?: undefined } | { proposal: number; observationId?: undefined });
+
+/** The note of a proposed Correction, written again: it takes the place of the author's earlier words for that
+ * proposal, so that a second answer replaces the first. It never fails the proposal. */
+export async function replaceProposedNote(ws: string, proposal: { messageId: number; metricId: number; period: string; value: number }, note: NoteArriving): Promise<NoteSaved & { inPlace?: boolean }> {
+  const cleaned = cleanNote(note.words, note.tooLong);
+  if ("problem" in cleaned) return { saved: false, reason: cleaned.problem };
+  const { data: gone, error } = await db().from("value_notes").delete().eq("workspace_id", ws).eq("proposal", proposal.messageId).eq("author_id", note.authorId).select("id");
+  if (error) {
+    console.error("a proposed Value Note could not be replaced:", error.message);
+    return { saved: false, reason: "The note could not be saved. The proposal stands." };
+  }
+  const saved = await noteWithProposal(ws, proposal, note);
+  return saved.saved ? { ...saved, inPlace: Boolean(gone?.length) } : saved;
+}
+
 /** The value an accepted Correction wrote; `sameNumber` when it is the number that stood there before. */
 export type Accepted = { metricId: number; period: string; observationId: number; sameNumber: boolean };
 

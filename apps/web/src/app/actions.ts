@@ -44,7 +44,7 @@ export async function createMetric(form: FormData) {
     name: String(form.get("name") ?? ""), description: String(form.get("description") ?? ""), calculationNote: String(form.get("calculation_note") ?? ""), unit: String(form.get("unit") ?? ""), unitPosition: String(form.get("unit_position") ?? ""),
     format: String(form.get("format") ?? ""), decimals: Number(form.get("decimals") ?? 0), period: String(form.get("period") ?? ""),
     submissionRule: String(form.get("submission_rule") ?? ""), polarity: String(form.get("polarity") ?? ""), aggregation: String(form.get("aggregation") ?? ""),
-    targetMin: num("target_min"), targetMax: num("target_max"), attainmentMethod: String(form.get("attainment_method") ?? ""), fromCatalogId: num("from_catalog_id"),
+    targetMin: num("target_min"), targetMax: num("target_max"), attainmentMethod: String(form.get("attainment_method") ?? ""), askNote: String(form.get("ask_note") ?? ""), fromCatalogId: num("from_catalog_id"),
     workflowId: num("workflow_id"), duplicateOf: num("duplicate_of"),
     sources: form.getAll("sources").map(String), submitters: form.getAll("submitters").map(String),
   }).catch((e) => {
@@ -95,8 +95,9 @@ export async function recordSimulatedMessage(input: { source: SourceId; sender: 
 }
 
 /** What the form shows after a submission: the core's own words, handed back by the action, never through the URL.
- * `noteKept` when the note was not saved, so the field keeps its words. */
-export type WebFormResult = { ok: boolean; detail: string; noteKept?: boolean } | null;
+ * `noteKept` when the note was not saved, so the field keeps its words; `ask` the code under which a note asked for
+ * after the value is saved. */
+export type WebFormResult = { ok: boolean; detail: string; noteKept?: boolean; ask?: string } | null;
 
 /** A personal form link submits a value (or a Breakdown), with the period picked when the form offered a list; the core
  * takes only the running period or one that still waits for this link. The result comes back to the form itself rather
@@ -113,7 +114,7 @@ export async function submitWebForm(code: string, _previous: WebFormResult, form
       const r = await submitFormLink(String(code), { value, breakdown, ...(period === null ? {} : { period: String(period) }), note: visiting ? undefined : form.get("note") });
       revalidatePath("/", "layout");
       const ok = !r.outcome.startsWith("rejected");
-      return { ok, detail: r.detail, ...(r.valueNote?.saved === false ? { noteKept: true } : {}) };
+      return { ok, detail: r.detail, ...(r.valueNote?.saved === false ? { noteKept: true } : {}), ...(r.ask ? { ask: r.ask } : {}) };
     });
   } catch (e) {
     // What a visit's change is refused with says why on the form itself; anything else is thrown on, as it always was.

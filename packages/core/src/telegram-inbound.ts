@@ -11,6 +11,7 @@ import { OPT_OUT_KINDS } from "./mail";
 import { routeReply, type RepliedDelivery } from "./reply-routing";
 import { repliesAllowed } from "./prompt-reply";
 import { offersAnsweredAs } from "./reply-offers";
+import { deliveriesAskedIn, questionsIn } from "./note-question";
 import { chunks } from "./reply-chunks";
 import type { SubmissionEffects } from "./submissions";
 import { TELEGRAM_BUTTONS } from "./telegram-send";
@@ -53,11 +54,14 @@ export async function telegramSecretOk(given: string | null): Promise<boolean> {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+// Opens the reply box on the person's side under a message that asks for a note (spec 0064).
+const NOTE_BOX = { force_reply: true, input_field_placeholder: "What is behind it?" };
+
 /** Says something in a private chat, as plain text, and answers the sent message's id; a lost answer is not worth
- * failing the update for. */
-export async function telegramSay(chatId: number, text: string, replyTo?: number): Promise<number | void> {
+ * failing the update for. With `asks`, the person's reply box opens under it. */
+export async function telegramSay(chatId: number, text: string, replyTo?: number, asks = false): Promise<number | void> {
   try {
-    const sent = await callTelegram<{ message_id?: unknown }>("sendMessage", { chat_id: chatId, text: text.slice(0, 4096), ...(replyTo ? { reply_parameters: { message_id: replyTo, allow_sending_without_reply: true } } : {}), link_preview_options: { is_disabled: true } });
+    const sent = await callTelegram<{ message_id?: unknown }>("sendMessage", { chat_id: chatId, text: text.slice(0, 4096), ...(replyTo ? { reply_parameters: { message_id: replyTo, allow_sending_without_reply: true } } : {}), ...(asks ? { reply_markup: NOTE_BOX } : {}), link_preview_options: { is_disabled: true } });
     if (typeof sent?.message_id === "number" && Number.isSafeInteger(sent.message_id)) return sent.message_id;
   } catch {
     // The update itself was handled.
@@ -155,23 +159,25 @@ async function handle(u: Obj, userId: number | null, effects: { submission?: Sub
 }
 
 /** Answers about a Workspace's message in a chat: in a Practice Workspace (spec 0063) only in its person's recorded
- * chat. A long answer goes in several messages; the last one's id is returned. */
-async function answerIn(workspaceId: string, chatId: number, text: string, replyTo?: number): Promise<number | void> {
+ * chat. A long answer goes in several messages; the last one, which ends with a question for a note where `asks`,
+ * opens the reply box then, and its id is returned. */
+async function answerIn(workspaceId: string, chatId: number, text: string, replyTo?: number, asks = false): Promise<number | void> {
   if (!(await mayAnswer(workspaceId, "telegram", String(chatId)))) return;
   let last: number | void = undefined;
-  for (const part of chunks(text, 4000)) last = await telegramSay(chatId, part, replyTo);
+  const parts = chunks(text, 4000);
+  for (const [i, part] of parts.entries()) last = await telegramSay(chatId, part, replyTo, asks && i === parts.length - 1);
   return last;
 }
 
-/** The Delivery a reply in this chat answers: the one sent as the replied-to message, or the one whose open offer that
- * message made ("reply yes"). */
+/** The Delivery a reply in this chat answers: the one sent as the replied-to message, or the one whose open offer
+ * ("reply yes") or question for a note that message made. */
 async function repliedDelivery(chatId: number, repliedTo: number) {
   const columns = "id, workspace_id, recipient_id, kind, action_id, prompt_id, combined, created_at";
   const chat = () => db().from("deliveries").select(columns).eq("connector", "telegram").eq("telegram_chat_id", chatId);
   const { data: sent } = await chat().eq("telegram_message_id", repliedTo).maybeSingle();
   if (sent) return sent;
-  const offered = await offersAnsweredAs(repliedTo);
-  return offered.length ? (await chat().in("id", offered).limit(1)).data?.[0] ?? null : null;
+  const answered = [...(await offersAnsweredAs(repliedTo)), ...(await deliveriesAskedIn(String(repliedTo)))];
+  return answered.length ? (await chat().in("id", answered).limit(1)).data?.[0] ?? null : null;
 }
 
 /** What the bot says to a /start with a Workspace's code. */
@@ -207,9 +213,11 @@ async function reply(userId: number, chatId: number, repliedTo: number, messageI
   const { count } = await db().from("telegram_updates").select("update_id", { count: "exact", head: true }).eq("delivery_id", d.id).not("outcome", "in", "(expired,wrong_user,too_many)");
   if ((count ?? 0) >= (await repliesAllowed(d.id as number, MAX_TELEGRAM_REPLIES_PER_DELIVERY))) return at("too_many");
   if (!text) return at("empty");
+  // A reply to the question itself says which number its words are about.
+  const about = (await questionsIn(d.workspace_id as string, d.id as number, String(repliedTo))).map((q) => q.promptId);
   const outcome = await routeReply(d as RepliedDelivery, text.slice(0, 5000), {
-    source: "telegram", sender: `telegram:${userId}`, provenPersonId: d.recipient_id,
-    answer: (subject, detail, _link, how) => answerIn(d.workspace_id as string, chatId, how?.bare ? detail : `${subject}: ${detail}`, messageId),
+    source: "telegram", sender: `telegram:${userId}`, provenPersonId: d.recipient_id, about,
+    answer: (subject, detail, _link, how) => answerIn(d.workspace_id as string, chatId, how?.bare ? detail : `${subject}: ${detail}`, messageId, how?.ask),
   }, effects.submission);
   return at(outcome === "unknown_token" ? "unknown_message" : outcome);
 }

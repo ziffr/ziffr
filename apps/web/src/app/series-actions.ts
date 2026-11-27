@@ -13,7 +13,7 @@ import { recordOwnValue } from "@ziffr/core/record-own-value";
 import { handOverMetric } from "@ziffr/core/metric-owner";
 import { archiveMetric as coreArchiveMetric, restoreMetric as coreRestoreMetric } from "@ziffr/core/archived-metrics";
 import { sameNamedMetrics as coreSameNamedMetrics } from "@ziffr/core/metric-name-check";
-import { setMetricSources as coreSetMetricSources, updateMetricDetails as coreUpdateMetricDetails, type MetricDetails, removeSeriesRows as coreRemoveSeriesRows, saveSeriesRows as coreSaveSeriesRows } from "@ziffr/core/metrics";
+import { setAskNote, setMetricSources as coreSetMetricSources, updateMetricDetails as coreUpdateMetricDetails, type MetricDetails, removeSeriesRows as coreRemoveSeriesRows, saveSeriesRows as coreSaveSeriesRows } from "@ziffr/core/metrics";
 
 /** The Metric's owner or an Editor saves rows edited in the targets table; the core checks every row. */
 export async function saveSeriesRows(metricId: number, kind: "target" | "projection", rows: { period: string; value: number }[], note: string) {
@@ -69,6 +69,16 @@ export async function updateMetricDetails(metricId: number, details: MetricDetai
   });
 }
 
+/** **Ask for a note…** on the ticked Metrics of the Metrics list; the core leaves out and counts those the person may
+ * not change. */
+export async function setAskNoteForMetrics(metricIds: number[], askNote: string) {
+  return attempt(async () => {
+    const r = await setAskNote(await currentActor(), Array.isArray(metricIds) ? metricIds.map(Number) : [], String(askNote));
+    revalidatePath("/", "layout");
+    return r;
+  });
+}
+
 /** The Metric's owner, who also submits it, asks for its current Prompt now (spec 0021); the core checks who and how
  * often, and says where the Prompt went. */
 export async function askMeNow(metricId: number): Promise<AskNowResult | { error: string }> {
@@ -81,9 +91,10 @@ export async function askMeNow(metricId: number): Promise<AskNowResult | { error
   }, { askNow: true }));
 }
 
-/** What the Record a value form shows after sending: the intake's own words, whether the value counted, and `noteKept`
- * when its note was not saved, so the field keeps its words. */
-export type RecordedValue = { ok: boolean; detail: string; noteKept?: boolean };
+/** What the Record a value form shows after sending: the intake's own words, whether the value counted, `noteKept`
+ * when its note was not saved, so the field keeps its words, and `ask`, the code under which a note asked for after
+ * the value is saved. */
+export type RecordedValue = { ok: boolean; detail: string; noteKept?: boolean; ask?: string };
 
 /** A Submitter records a value for a Metric from its page, through the same intake as their form link (Submission Rule,
  * Locks, Approvals, Retention); the core checks they submit it and reads the text, so only strings are taken here. */
@@ -96,7 +107,7 @@ export async function recordValue(metricId: number, input: { value: string; brea
       note: !visiting && typeof input?.note === "string" ? input.note : undefined,
     });
     revalidatePath("/", "layout");
-    return { ok: r.ok, detail: r.detail, ...(r.valueNote?.saved === false ? { noteKept: true } : {}) };
+    return { ok: r.ok, detail: r.detail, ...(r.valueNote?.saved === false ? { noteKept: true } : {}), ...(r.ask ? { ask: r.ask } : {}) };
   }));
 }
 

@@ -13,6 +13,7 @@ import { SOURCE_LABEL } from "./format";
 import type { SourceId } from "./types";
 import { isPracticeWorkspace } from "./practice";
 import { combinedAsItStands, combinedListing, withCombinedLink } from "./internal/combined-delivery";
+import { enterAllButton } from "./slack-buttons";
 
 /** What a reply on this Delivery may answer: the Source it was offered on, or `web_form` when only a form link answers.
  * Deliveries made before several ways existed hold none and answer where their Prompt does. */
@@ -61,21 +62,24 @@ async function markCombined(ws: string, deliveryId: number, tell: (answeredOn: (
     if (d.mail_state !== "sent" || !tell(now.answeredOn, CONNECTORS[d.connector as keyof typeof CONNECTORS].sourceId)) return;
     // An edited chat message keeps a way to its form. The earlier code is not kept, so it gets a further one with the same end.
     const linked = () => withCombinedLink(now.text, { id: d.id as number, workspace_id: ws, sent_at: d.sent_at as string | null }, String(process.env.ZIFFR_SITE_URL ?? ""));
-    if (d.connector === "slack" && d.slack_channel && d.slack_ts) await editSlack(ws, d.slack_channel, d.slack_ts, await linked());
+    // **Enter all** stays while a figure is still open.
+    if (d.connector === "slack" && d.slack_channel && d.slack_ts) await editSlack(ws, d.slack_channel, d.slack_ts, await linked(), now.allAnswered ? undefined : d.id as number);
     else if (d.connector === "telegram" && d.telegram_chat_id && d.telegram_message_id) await editTelegram(ws, Number(d.telegram_chat_id), Number(d.telegram_message_id), await linked());
   } catch {
     // Nothing more to do here.
   }
 }
 
-/** The message as Slack shows it after the Prompt is answered: its text, no buttons, no attachment. */
-async function editSlack(ws: string, channel: string, ts: string, text: string): Promise<void> {
+/** The message as Slack shows it after the Prompt is answered: its text, no attachment, and no buttons but **Enter
+ * all** on a Combined Prompt with a figure still open (`entering` names its Delivery). */
+async function editSlack(ws: string, channel: string, ts: string, text: string, entering?: number): Promise<void> {
   // Never from a Practice Workspace (spec 0063): the account it went to may no longer be the one switched on.
   if (await isPracticeWorkspace(ws)) return;
   const bot = await slackBot(ws);
   if (!bot) return;
   const plain = slackEscape(text).slice(0, 2900);
-  await callSlack("chat.update", { channel, ts, text: plain, blocks: [{ type: "section", text: { type: "mrkdwn", text: plain } }], attachments: [] }, bot.token);
+  const more = entering === undefined ? [] : [{ type: "actions", block_id: "ziffr", elements: [enterAllButton(entering)] }];
+  await callSlack("chat.update", { channel, ts, text: plain, blocks: [{ type: "section", text: { type: "mrkdwn", text: plain } }, ...more], attachments: [] }, bot.token);
 }
 
 /** The message as Telegram shows it after the Prompt is answered: plain text, and no keyboard (none is sent with it). */

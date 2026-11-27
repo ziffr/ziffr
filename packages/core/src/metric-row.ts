@@ -1,5 +1,6 @@
 // Metric rows as the database returns them (GLOSSARY: Metric, Archived Metric): numeric columns arrive as strings.
 // Pure, so browser code uses it too.
+import { ASK_NOTE_DEFAULT, isAskNote } from "./ask-note";
 import { isAttainmentMethod } from "./attainment-method";
 import type { Metric } from "./types";
 
@@ -18,6 +19,7 @@ export function normalizeMetric(m: Metric): Metric {
   return {
     ...rest, target_min: m.target_min === null ? null : Number(m.target_min), target_max: m.target_max === null ? null : Number(m.target_max),
     attainment_method: isAttainmentMethod(m.attainment_method) ? m.attainment_method : null,
+    ...(m.ask_note === undefined ? {} : { ask_note: isAskNote(m.ask_note) ? m.ask_note : ASK_NOTE_DEFAULT }),
   };
 }
 

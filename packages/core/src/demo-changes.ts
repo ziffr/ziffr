@@ -279,6 +279,8 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   "does-nothing": [
     // The demo asks for each figure in a message of its own, so no combined form link exists there (spec 0064).
     "actions:submitCombinedWebForm",
+    // The demo takes no note, so it asks for none and no form holds a code to save one with (spec 0064).
+    "value-note-actions:saveFormNote",
     "alert-actions:createAlert",
     "alert-actions:deleteAlert",
     "alert-actions:updateAlert",
@@ -319,6 +321,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "metric-delete-actions:archiveInstead",
     "metric-delete-actions:deleteMetrics",
     "series-actions:handOverMetricTo",
+    "series-actions:setAskNoteForMetrics",
     "submitter-actions:removeSubmitter",
     "value-note-actions:correctNote",
     "value-note-actions:deleteNoteForGood",

@@ -10,7 +10,7 @@
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { refuseInDemo } from "./demo";
-import { formNote, withNoteWords } from "./form-submit";
+import { askedAfter, formNote, withNoteWords, type FormResult } from "./form-submit";
 import { numberStyleOf } from "./workspace-settings";
 import { readNumber } from "./numbers";
 import { parseBreakdown } from "./parse";
@@ -33,7 +33,7 @@ const refused = (outcome: string, detail: string): SubmissionResult => ({ ok: fa
 /** The Metric's owner or its Workflow's owner fills in a value for a Submitter of the Metric (spec 0046). Returns the
  * submission's own words, a refusal in plain words included; throws Forbidden for an Access Key and for a Metric the actor does
  * not see. In the demo it is recorded only where visitors may change it (spec 0051). */
-export async function fillInValue(actor: Actor, input: FillInInput, effects: SubmissionEffects = submissionEffects): Promise<SubmissionResult> {
+export async function fillInValue(actor: Actor, input: FillInInput, effects: SubmissionEffects = submissionEffects): Promise<FormResult> {
   refuseInDemo(actor, "fill-in-actions:fillInForSubmitter");
   // Never an Access Key, so neither the API nor the MCP Server fills in for anyone.
   if (actor.key || !actor.personId) throw new Forbidden("Values for someone else are entered in the app or by answering the Prompt.");
@@ -60,8 +60,9 @@ export async function fillInValue(actor: Actor, input: FillInInput, effects: Sub
   const value = typeof input.value === "number" ? (Number.isFinite(input.value) ? input.value : null) : typed ? readNumber(typed, style) : bd ? (bd.total ?? sum) : null;
   if (value === null) return refused("rejected_no_value", typed ? "Couldn’t read a number in the value." : "Type a value, or paste a breakdown.");
 
-  return withNoteWords(await submitValue({
+  const result = await submitValue({
     source: "web_form", sender: code, workspaceId: actor.workspaceId, text: typed || String(value), typed: true, filledIn: { by: actor.personId },
     value: { value, ...(bd ? { breakdown: bd.rows } : {}) }, period, ...formNote(input.note),
-  }, effects));
+  }, effects);
+  return askedAfter(withNoteWords(result), actor.workspaceId, { personId: actor.personId });
 }

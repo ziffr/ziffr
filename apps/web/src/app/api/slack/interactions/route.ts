@@ -1,13 +1,16 @@
 // POST /api/slack/interactions (spec 0007, ticket #104): Slack calls this when someone presses a button on a Ziffr
 // message ("Approve", "Stop these on Slack"), as a form with one field, `payload`, holding JSON. Only signed by Slack
 // (lib/slack-request.ts); the core checks that the button is on the very message a Delivery was sent as, pressed by
-// its recipient. It answers 200 with no body, so Slack shows nothing more than the bot's reply in the thread.
-import { receiveSlackInteraction } from "@ziffr/core/slack-inbound";
+// its recipient. It answers 200 with no body, so Slack shows nothing more than the bot's reply in the thread, and
+// closes a window that was submitted; what a window holds is taken after that answer, which Slack expects within three
+// seconds.
+import { after } from "next/server";
+import { MAX_SLACK_INTERACTION_BYTES, receiveSlackInteraction } from "@ziffr/core/slack-inbound";
 import { signedSlackBody, slackAnswer } from "@/lib/slack-request";
 
-/** Takes one button press. */
+/** Takes one button press or submitted window. */
 export async function POST(req: Request) {
-  const body = await signedSlackBody(req);
+  const body = await signedSlackBody(req, MAX_SLACK_INTERACTION_BYTES);
   if ("refuse" in body) return body.refuse;
   let payload: unknown;
   try {
@@ -15,6 +18,6 @@ export async function POST(req: Request) {
   } catch {
     return slackAnswer(400);
   }
-  await receiveSlackInteraction(payload);
+  await receiveSlackInteraction(payload, { later: (work) => after(work) });
   return slackAnswer(200);
 }
