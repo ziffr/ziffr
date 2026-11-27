@@ -1,5 +1,6 @@
 {
   "_kinds": ["internal", "redirect-only", "api", "demo-only"],
   "apps/web/src/app/guide/page.tsx": { "kind": "internal", "reason": "the user guide itself" },
-  "apps/web/src/app/guide/[chapter]/page.tsx": { "kind": "internal", "reason": "the user guide itself" }
+  "apps/web/src/app/guide/[chapter]/page.tsx": { "kind": "internal", "reason": "the user guide itself" },
+  "apps/web/src/app/first-steps/page.tsx": { "kind": "internal", "reason": "First Steps is switched off until spec 0067's last ticket (#1331), which describes it in the guide and removes this line" }
 }

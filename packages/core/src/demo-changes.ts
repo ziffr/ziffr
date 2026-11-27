@@ -80,6 +80,8 @@ const OUTSIDE: readonly string[] = [
   "auth-actions:signInWith",
   "auth-actions:signOut",
   "auth-actions:switchWorkspace",
+  "first-steps/actions:makeWorkspace",
+  "first-steps/actions:saveAnswers",
   "installation-actions:addInstallationAdmin",
   "installation-actions:blockUser",
   "installation-actions:extendTrial",

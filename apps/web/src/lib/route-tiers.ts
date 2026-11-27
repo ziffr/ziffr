@@ -35,6 +35,7 @@ export const ROUTE_TIERS = {
   "/login": "phone-first",
   "/invite/[token]": "phone-first",
   "/welcome": "phone-first",
+  "/first-steps": "phone-first",
   "/setup": "phone-first",
   "/try": "phone-first",
   "/try/start": "phone-first",
