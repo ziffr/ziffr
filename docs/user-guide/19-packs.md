@@ -93,7 +93,7 @@ The [Setup Guide](07-getting-started.md#the-setup-guide) offers the same Packs i
 | The dashboard **Weekly forecast meeting** | This week's call against quota and the change on last week, then the last 13 weeks, and each salesperson's commit against their quota. On a phone the call against quota comes first. |
 | The Workflow **Weekly sales forecast** | Asks each salesperson on Monday for the week just ended. The values are due on Tuesday, with a reminder that day; the Metric Owner is told on Wednesday about a value still missing. A change of more than 25 % is marked unusual. The sales lead approves every value, which is then published and locked. Once the week is finished it sends the dashboard's Snapshot to the sales lead. |
 
-That is 4 Metrics for each salesperson and 8 for the team: ten salespeople make 48. All are weekly. Those that people send, and their sums, have the **Aggregation** last value, so a widget shown by quarter shows each quarter's latest figure, never the weeks added up.
+That is 4 Metrics for each salesperson and 8 for the team: ten salespeople make 48. All are weekly. The money figures are in euro: for another currency, change the **Unit** with **Edit details…** on each Metric's **Description** tab. Those that people send, and their sums, have the **Aggregation** last value, so a widget shown by quarter shows each quarter's latest figure, never the weeks added up.
 
 **Who sees what.** Each salesperson sees their own figures. The check before you set up proposes to share every figure with the sales lead: choose **Tick all for** them. A team figure is shown only to someone who sees [every salesperson's figure it adds up](10-metrics.md#who-sees-its-numbers); its owner can show it to others on its page.
 
@@ -142,6 +142,8 @@ Three Themes come with the Pack, **Forecast Navy** (the deck starts with it), **
 
 **From your CRM.** Instead of asking people, n8n can send each salesperson's **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, and from the first two also **Commit** and **Best case** if you like. Choose **Fill from n8n** on one of these Metrics and a forecast template, leave its settings for the team's figures empty, since those are Totals and take no values, and give each salesperson a line in its **Owners** node ([what they send and when](../automations/crm-forecast-feeds.md)). A figure that came from the CRM is approved like any other, but its first value is not checked for being unusual. The Pack marks **Closed this quarter** and **Pipeline value** as sent by a CRM, so **Set up from this Pack** asks nobody for them; a salesperson is proposed as their Viewer instead.
 
+**From a spreadsheet.** **Fill from n8n** also offers Google Sheets and Microsoft Excel templates. Any figure of a salesperson can also be typed by whoever submits it.
+
 **Without a CRM** or a sheet, add a person who sends them: open each **Closed this quarter** and **Pipeline value**, go to the **Description** tab and, under [Who submits](10-metrics.md#adding-and-removing-a-person), choose **Add a person**, pick the salesperson and choose **Add…**.
 
 **The Snapshot.** Set up connects the Workflow's **Send Snapshot** step with the dashboard and the sales lead. To send it to others too, open the Workflow, add them in the step (see [The steps](11-workflows.md#the-steps)) and share the dashboard with them, or the link is not sent to them.
@@ -170,9 +172,9 @@ Both are in Help with an installed Pack, also one without a guide (the Pack then
 
 A Pack may carry a **Pack Guide**: what its creator tells you about it. The Preview holds it under **How it works**, closed until you choose it, for a file, one of Ziffr's own Packs and a Pack from the Marketplace, also in the Setup Guide.
 
-Each of Ziffr's own Packs has one; read **First steps**, which begins with **Start here**. A Pack of one of them installed from an earlier version of Ziffr gets its guide when you update it.
+Each of Ziffr's own Packs has a short one: what it is for, what you need and up to three questions. A Pack of one of them installed from an earlier version of Ziffr gets this guide when you update it.
 
-It has up to five sections, always under these titles: **What it's for**, **Before you start**, **First steps**, **Each part** and **Questions**. A guide shows only the sections its creator filled. **What it's for** and **First steps** are open when the guide appears (when it has neither, its first section is); choose a title to open or close a section.
+It has up to five sections, always under these titles: **What it's for**, **What you need**, **First steps**, **Each part** and **Questions**. A guide shows only the sections its creator filled. **What it's for** and **First steps** are open when the guide appears (when it has neither, its first section is); choose a title to open or close a section.
 
 The words are the creator's, not Ziffr's. They are headings, paragraphs, lists and bold words only: a guide holds no link, picture or code, and Ziffr refuses a file whose guide has one, before it shows anything. Words in a guide that read like instructions to an AI assistant are listed with the others. A Pack without a guide shows none.
 
@@ -274,7 +276,7 @@ For each number that takes values choose **Ask a person** (chosen to begin with,
 
 The guide is optional.
 
-There is a field for each section: **What it's for**, **Before you start**, **First steps**, **Each part** and **Questions**. **Each part** starts with the names of what goes into the file, and only those: write beside them what each does, or replace them. A field you leave empty leaves its section out. When you go back and change what goes into the file, the list follows, unless you changed the field.
+There is a field for each section: **What it's for**, **What you need**, **First steps**, **Each part** and **Questions**. **Each part** starts with the names of what goes into the file, and only those: write beside them what each does, or replace them. A field you leave empty leaves its section out. When you go back and change what goes into the file, the list follows, unless you changed the field.
 
 | You write | The guide shows |
 | --- | --- |

@@ -2,7 +2,7 @@
   "format": "ziffr.pack/3",
   "id": "ziffr/finance",
   "name": "Finance",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "summary": "Revenue, cost of goods sold, operating costs, cash and invoices, with gross margin and net result worked out, a monthly dashboard and a close Workflow that locks the month.",
   "author": {
     "name": "Ziffr"
@@ -33,56 +33,27 @@
     "whatItsFor": [
       {
         "type": "text",
-        "text": "For closing the month: revenue, costs, the margin and result they leave, cash in the bank and the money still to be collected."
+        "text": "For closing the month: revenue, costs, cash and the money still to collect, with gross margin and net result worked out. The figures are due on the fifth working day. Unusual ones are approved, then the month is locked."
       }
     ],
     "beforeYouStart": [
       {
         "type": "list",
         "items": [
-          "The person who sends the month's figures and the person who approves unusual ones.",
-          "Revenue, cost of goods sold, operating costs, cash and the open and overdue invoices.",
-          "Free room for the Metrics in your Workspace's size: the Set up form says how many it makes and how many fit."
-        ]
-      }
-    ],
-    "firstSteps": [
-      {
-        "type": "heading",
-        "text": "Start here"
-      },
-      {
-        "type": "list",
-        "numbered": true,
-        "items": [
-          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
-          "Keep the Metrics you want ticked, up to all 8, with the dashboard **Finance monthly** and the Workflow **Monthly finance close**. Leave **Make me the Submitter of their values** ticked if you send the figures yourself, else untick it. Setting up sends no request unless you tick **Send the first requests now**. Choose **Set up**.",
-          "Pick the **Approver** the Workflow asks for before you choose **Set up**.",
-          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
-          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
-          "Open **Dashboards** and then **Finance monthly**. It fills as values come in."
-        ]
-      }
-    ],
-    "eachPart": [
-      {
-        "type": "list",
-        "items": [
-          "You send **Revenue**, **Cost of goods sold**, **Operating costs**, **Cash balance**, **Open invoices** and **Overdue invoices**.",
-          "Ziffr works out **Gross margin**, revenue less the cost of goods sold as a share of revenue, and **Net result**, revenue less both costs.",
-          "The dashboard **Finance monthly**.",
-          "The Workflow **Monthly finance close**: due on the fifth working day, checked, unusual values approved, then locked. A figure that is still missing after its Due Date is raised with the Metric's owner."
+          "Revenue, cost of goods sold, operating costs, cash, and open and overdue invoices.",
+          "Who sends the figures, and who approves unusual ones.",
+          "Room for 8 Metrics in your Workspace."
         ]
       }
     ],
     "questions": [
       {
         "type": "heading",
-        "text": "Which values need an approval?"
+        "text": "Which figures need an approval?"
       },
       {
         "type": "text",
-        "text": "Those the check marks as unusual: a change of more than 30 % or a value outside its target. Change the Approve step to **Every value** to approve all."
+        "text": "Those marked as unusual: a change of more than 30 % or a value outside its target. To approve all, set the Workflow's **Approve** step to **Every value**."
       }
     ]
   },

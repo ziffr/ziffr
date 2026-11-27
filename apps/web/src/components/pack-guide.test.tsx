@@ -10,15 +10,15 @@ const guide: PackGuide = {
   questions: [{ type: "text", text: "Can I change it?" }],
   firstSteps: [{ type: "heading", text: "Start here" }, { type: "list", numbered: true, items: ["Open **Packs**.", "Choose Set up."] }],
   whatItsFor: [{ type: "text", text: "A weekly **forecast** call." }],
+  beforeYouStart: [{ type: "list", items: ["A quota"] }],
   eachPart: [{ type: "list", items: ["Commit"] }],
 };
 
 describe("a Pack Guide on a page", () => {
   it("shows Ziffr's titles in the guide's order, whatever order the file has, with headings, lists and bold words", () => {
     const html = draw(guide);
-    const at = ["What it&#x27;s for", "First steps", "Each part", "Questions"].map((t) => html.indexOf(`>${t}</summary>`));
+    const at = ["What it&#x27;s for", "What you need", "First steps", "Each part", "Questions"].map((t) => html.indexOf(`>${t}</summary>`));
     expect(at.every((i, n) => i > 0 && (n === 0 || i > at[n - 1]))).toBe(true);
-    expect(html).not.toContain("Before you start");
     expect(html).toContain("<h4 class=\"pt-1 font-semibold\">Start here</h4>");
     expect(html).toMatch(/<ol[^>]*list-decimal/);
     expect(html).toMatch(/<ul[^>]*list-disc/);

@@ -2,7 +2,7 @@
   "format": "ziffr.pack/3",
   "id": "ziffr/agency",
   "name": "Agency or freelancer",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "summary": "Billable hours, utilisation, revenue, the effective hourly rate, open invoices and pipeline, with a monthly dashboard and a Workflow that asks for hours on Fridays.",
   "author": {
     "name": "Ziffr"
@@ -38,44 +38,16 @@
     "whatItsFor": [
       {
         "type": "text",
-        "text": "For an agency or a freelancer who wants to see the hours that can be billed, what they earn, and the money still to come."
+        "text": "For an agency or a freelancer: billable hours, revenue and open money on one dashboard. Every Friday the week's hours are asked for. Money and project figures come in monthly."
       }
     ],
     "beforeYouStart": [
       {
         "type": "list",
         "items": [
-          "The week's billable hours, and for the month: all hours worked, the revenue, the hours on client projects, open invoices and the value of open deals.",
-          "Free room for the Metrics in your Workspace's size: the Set up form says how many it makes and how many fit."
-        ]
-      }
-    ],
-    "firstSteps": [
-      {
-        "type": "heading",
-        "text": "Start here"
-      },
-      {
-        "type": "list",
-        "numbered": true,
-        "items": [
-          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
-          "Keep the Metrics you want ticked, up to all 6, with the dashboard **Agency monthly** and the Workflow **Friday hours**. Leave **Make me the Submitter of their values** ticked if you send the figures yourself, else untick it. Setting up sends no request unless you tick **Send the first requests now**. Choose **Set up**.",
-          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
-          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
-          "Open **Dashboards** and then **Agency monthly**. It fills as values come in."
-        ]
-      }
-    ],
-    "eachPart": [
-      {
-        "type": "list",
-        "items": [
-          "**Billable hours** by week, and **Billable utilisation**: billed hours as a share of all hours worked.",
-          "**Revenue** invoiced in the month, and the **Effective hourly rate**: revenue divided by the hours worked on client projects.",
-          "**Open invoices** and **Pipeline value** at month end.",
-          "The dashboard **Agency monthly** shows them together.",
-          "The Workflow **Friday hours** asks for the week's hours on Friday, due on Monday. A figure that is still missing after its Due Date is raised with the Metric's owner."
+          "The week's billable hours.",
+          "Monthly: hours worked, hours on client projects, revenue, open invoices and open deals.",
+          "Room for 6 Metrics in your Workspace."
         ]
       }
     ],
@@ -86,7 +58,7 @@
       },
       {
         "type": "text",
-        "text": "No. You send all six figures, the utilisation and the hourly rate too."
+        "text": "No. You send all six figures, utilisation and hourly rate too."
       }
     ]
   },

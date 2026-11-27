@@ -2,7 +2,7 @@
   "format": "ziffr.pack/3",
   "id": "ziffr/online-shop",
   "name": "Online shop",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "summary": "Orders, revenue by channel, average order value, conversion, returns and sessions, with a weekly dashboard and a Workflow that asks for the week's numbers on Monday.",
   "author": {
     "name": "Ziffr"
@@ -36,44 +36,15 @@
     "whatItsFor": [
       {
         "type": "text",
-        "text": "For an online shop that looks at its week: orders, revenue by channel, the average order, how many visitors buy and how much comes back."
+        "text": "For an online shop that looks at its week. The figures are due every Monday, and a dashboard shows orders, revenue, the average order, how many visitors buy and how much comes back."
       }
     ],
     "beforeYouStart": [
       {
         "type": "list",
         "items": [
-          "The week's figures from your shop and your analytics: orders, online revenue, conversion rate, return rate and sessions.",
-          "Free room for the Metrics in your Workspace's size: the Set up form says how many it makes and how many fit."
-        ]
-      }
-    ],
-    "firstSteps": [
-      {
-        "type": "heading",
-        "text": "Start here"
-      },
-      {
-        "type": "list",
-        "numbered": true,
-        "items": [
-          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
-          "Keep the Metrics you want ticked, up to all 6, with the dashboard **Shop weekly** and the Workflow **Monday numbers**. Leave **Make me the Submitter of their values** ticked if you send the figures yourself, else untick it. Setting up sends no request unless you tick **Send the first requests now**. Choose **Set up**.",
-          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
-          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
-          "Open **Dashboards** and then **Shop weekly**. It fills as values come in."
-        ]
-      }
-    ],
-    "eachPart": [
-      {
-        "type": "list",
-        "items": [
-          "**Orders**, **Online revenue** and **Sessions** by week.",
-          "**Average order value**, which Ziffr works out as online revenue divided by orders.",
-          "**Conversion rate** and **Return rate** as shares.",
-          "The dashboard **Shop weekly**.",
-          "The Workflow **Monday numbers**: due on Monday, with a reminder that day. A change of more than 40 % or a value outside its target is marked as unusual. A figure that is still missing after its Due Date is raised with the Metric's owner."
+          "From your shop and your analytics: orders, online revenue, visits, conversion rate and return rate.",
+          "Room for 6 Metrics in your Workspace."
         ]
       }
     ],
