@@ -56,6 +56,7 @@ export const SEALED_COLUMNS = {
   // The name of a Repeat's line, such as a salesperson's or a site's, in the record of a Set up (spec 0058), written by
   // pack-setup-record.ts into its row.
   pack_setup_lines: ["name"],
+  value_notes: ["words"],
 } as const;
 
 /** Columns sealed together with a blind index, beside the table above on purpose: the re-encryption job seals every
@@ -78,6 +79,7 @@ export const SEALED_NUMBERS = {
   series_values: ["value"],
   metrics: ["target_min", "target_max"],
   thread_messages: ["correction_value"],
+  value_notes: ["said_of"],
 } as const;
 
 /** A table with sealed numbers. */
@@ -113,7 +115,7 @@ const COLUMNS: Record<string, readonly string[]> = ALL_SEALED_COLUMNS;
 const NUMBERS: Record<string, readonly string[] | undefined> = SEALED_NUMBERS;
 
 /** The column that names a row of each table, which a sealed value is bound to. */
-export const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", prompts: "id", intake_log: "id", audit_events: "id", alerts: "id", tags: "id", pack_setup_lines: "id", webhooks: "id", webhook_external_ids: "id", condensed_values: "id", period_states: "row_key", slack_installations: "workspace_id", breakdown_rows: "id", breakdown_history: "id", dashboards: "id", widgets: "id", metrics: "id", observations: "id", observation_history: "id", series_values: "id" };
+export const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", prompts: "id", intake_log: "id", audit_events: "id", alerts: "id", tags: "id", pack_setup_lines: "id", value_notes: "id", webhooks: "id", webhook_external_ids: "id", condensed_values: "id", period_states: "row_key", slack_installations: "workspace_id", breakdown_rows: "id", breakdown_history: "id", dashboards: "id", widgets: "id", metrics: "id", observations: "id", observation_history: "id", series_values: "id" };
 
 /** The name of a row that its sealed values are bound to: the row's key column, which a period's state has only as the
  * generated `row_key`, made here from its Metric and period when the row is not read from the table yet; a Slack
@@ -135,7 +137,7 @@ export type SealedTable = keyof typeof SEALED_COLUMNS;
 export type OpenedTable = keyof typeof SEALED_COLUMNS | keyof typeof INDEXED_COLUMNS | NumberTable;
 
 /** A table whose new rows insertSealed writes, ids taken from its sequence first. */
-type InsertedTable = "thread_messages" | "actions" | "deliveries" | "prompts" | "intake_log" | "audit_events" | "alerts" | "dashboards" | "widgets" | "metrics";
+type InsertedTable = "thread_messages" | "actions" | "deliveries" | "prompts" | "intake_log" | "audit_events" | "alerts" | "dashboards" | "widgets" | "metrics" | "value_notes";
 
 /** A table whose row ids reserveIds hands out: the ones above, and those whose words sit in a column of their own. */
 export type ReservedTable = InsertedTable | "dashboard_snapshots" | "view_links";
@@ -146,7 +148,9 @@ type Row = Record<string, unknown>;
  * written only by record_observation, which needs each row's blind index too (breakdown-labels.ts). */
 export async function reserveIds(table: ReservedTable | "breakdown_rows" | "observations", count: number): Promise<number[]> {
   const words = table === "widgets" || table === "dashboards" || table === "metrics" || table === "dashboard_snapshots" || table === "view_links";
-  const { data, error } = await db().rpc(words ? "reserve_word_row_ids" : "reserve_row_ids", { p_table: table, p_count: count });
+  // Value Notes reserve their own, so that no change to the shared reservations can take theirs away.
+  const reserve = table === "value_notes" ? "reserve_value_note_ids" : words ? "reserve_word_row_ids" : "reserve_row_ids";
+  const { data, error } = await db().rpc(reserve, { p_table: table, p_count: count });
   if (error || !Array.isArray(data) || data.length !== count) throw new ServerFault("The row could not be prepared.");
   return (data as (number | string)[]).map(Number);
 }
