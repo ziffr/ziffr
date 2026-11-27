@@ -109,6 +109,8 @@ export const AUDIT_KINDS = {
   "self_check.corrected": "corrected, as its submitter, a value of",
   "correction.accepted": "accepted a Correction to",
   "correction.declined": "declined a Correction to",
+  "value_note.removed": "removed a note on",
+  "value_note.deleted": "deleted for good the words of a note on",
   "workspace.quiet_hours_changed": "changed the Workspace's default quiet hours",
   "setup.step_skipped": "skipped a step of the Setup Guide",
   "setup.finished": "finished the Setup Guide",
