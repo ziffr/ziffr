@@ -49,5 +49,12 @@ export const fr: AnswerWords = {
     fiscalYear: ["exercice", "fy"],
     ordinal: ["e", "er", "re", "ème", "eme"],
     dateWords: [],
+    reply: {
+      yes: ["oui", "oui merci", "oui, merci"],
+      no: ["non", "non merci", "non, merci", "merci", "merci beaucoup"],
+      greetings: ["bonjour", "bonsoir", "salut", "cher", "chère"],
+      closings: ["cordialement", "bien cordialement", "bien à vous", "salutations", "bonne journée", "merci", "merci d'avance"],
+      sentFrom: ["envoyé de mon …", "envoyé depuis mon …"],
+    },
   },
 };
