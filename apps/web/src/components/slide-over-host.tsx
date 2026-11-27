@@ -17,6 +17,8 @@ export type SlideOverContent = {
   content: React.ReactNode;
   /** Shows a "Wider" / "Narrower" button in the header (reading panels such as Help); the choice is kept for the session. Other panels keep their one width. */
   widthToggle?: boolean;
+  /** A view of its own, such as a Pack's Preview: the wider width from the start, with no button to choose. */
+  wide?: boolean;
   /** A short panel (Share, Alert me, one choice): on a phone it opens from the bottom and leaves the top of the page in view. Work panels leave this out and cover the screen. */
   short?: boolean;
 };
@@ -86,7 +88,7 @@ export function SlideOverProvider({ children }: { children: React.ReactNode }) {
   // Each step starts at its top: the one box that scrolls is shared, and Share is usually left from its last line.
   const scroller = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => { if (scroller.current) scroller.current.scrollTop = 0; }, [steps.length, current?.title]);
-  const isWide = Boolean(current?.widthToggle) && wide;
+  const isWide = Boolean(current?.wide || (current?.widthToggle && wide));
   const api = useMemo<SlideOverApi>(() => ({ open, replace, back, close, isOpen: steps.length > 0 }), [open, replace, back, close, steps.length]);
 
   return (
