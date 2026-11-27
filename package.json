@@ -56,6 +56,9 @@
         "GHSA-5p2g-fcmc-qvqq",
         "GHSA-w3rx-r6r6-pgpr"
       ]
+    },
+    "patchedDependencies": {
+      "next@15.5.29": "patches/next@15.5.29.patch"
     }
   }
 }
