@@ -6,6 +6,7 @@ import type { NumberStyle } from "@ziffr/core/number-style";
 import type { MetricDescription, Point } from "@ziffr/core/types";
 import type { ForecastPoint } from "@ziffr/core/forecast";
 import { periodLabel, shiftPeriod, type Span, type YearStart } from "@ziffr/core/periods";
+import { NoValuesNote } from "./no-values-note";
 
 type Row = { period: string; value?: number; fc?: number; band?: [number, number]; partial?: number; target?: number };
 
@@ -97,6 +98,9 @@ export function MetricChart({
   const byPeriod = new Map(rows.map((r) => [r.period, r]));
   const mp = by ?? metric.period;
   const label = (p: string) => name?.(p) ?? periodLabel(p, mp, yearStart);
+
+  // No axis without a value on it.
+  if (!points.length) return <div style={{ height }}><NoValuesNote metrics={[metric]} template="line" /></div>;
 
   return (
     <div style={{ height }} role="img" aria-label={`${metric.name}, ${points.length} ${metric.period}s${points.length ? `, latest ${formatValue(metric, points[points.length - 1].value, numberStyle)}` : ""}`}>

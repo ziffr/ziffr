@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { addFeedToMetric, removeFeedFromMetric } from "@/app/feed-actions";
 import { Button } from "@/components/ui/button";
 import { FillFromN8n } from "@/components/fill-from-n8n";
+import { useConfirm } from "@/components/confirm-dialog";
 
 /** A select of the workspace's Feeds not yet submitting to this Metric, with an Add button. */
 function FeedPicker({ metricId, choices }: { metricId: number; choices: { id: string; name: string }[] }) {
@@ -45,18 +46,26 @@ export function FeedControls({ metric, choices, taken, role, demo, templates }: 
   );
 }
 
-/** Stops a Feed submitting to the Metric; its earlier values stay. */
+/** Stops a Feed submitting to the Metric, after asking; its earlier values stay. */
 export function RemoveFeed({ metricId, feedId, name }: { metricId: number; feedId: string; name: string }) {
+  const { confirm, dialog } = useConfirm();
   const [pending, start] = useTransition();
   const router = useRouter();
-  return (
-    <button type="button" disabled={pending} className="text-xs underline" aria-label={`Stop values from ${name}`} onClick={() => start(async () => {
+  const remove = async () => {
+    if (!(await confirm({ title: `Stop values from ${name}?`, description: "What this Feed sends for the Metric is refused from now on. The values it already sent stay.", confirmLabel: "Remove" }))) return;
+    start(async () => {
       try {
         unwrap(await removeFeedFromMetric(metricId, feedId));
         router.refresh();
       } catch (err) {
         toast.error("Not removed", { description: shown(err) });
       }
-    })}>Remove</button>
+    });
+  };
+  return (
+    <>
+      <button type="button" disabled={pending} className="inline-flex items-center text-xs underline max-md:min-h-11 max-md:min-w-11 pointer-coarse:min-h-11 pointer-coarse:min-w-11" aria-label={`Stop values from ${name}`} onClick={remove}>Remove</button>
+      {dialog}
+    </>
   );
 }

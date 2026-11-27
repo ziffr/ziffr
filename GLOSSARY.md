@@ -118,7 +118,7 @@ A Connector used to receive observations, such as mail, a messenger, Slack or a 
 _Avoid_: Input, integration
 
 **Submitter**:
-A person allowed to record observations for a given metric: a Member, a Guest, a Contact without a login, or a Feed.
+A person allowed to record observations for a given metric: a Member, a Guest, a Contact without a login, or a Feed. A person who submits a Metric sees it, so its owner adds anyone, and an Editor adds only people who see it already.
 _Avoid_: Reporter, contributor
 
 **Feedback Prompt**:
@@ -412,7 +412,7 @@ One of the Themes Ziffr delivers (Ziffr Light, Ziffr Dark, Tokyo, Paris, Oslo, P
 _Avoid_: Preset, built-in theme, template theme
 
 **Snapshot**:
-What something showed, fixed so it never changes when observations do. A dashboard's Snapshot keeps the dashboard as it stood for one week, month, quarter, half-year or year (quarters, half-years and years of the Fiscal Year, such as "Q1 FY 2026/27", "H2 2026" or "2026"): its layout and the values of every Metric period complete by the period's last day. Its numbers never change, and a value corrected since is shown with a note of what it is now; its words (the introduction, each Finding's headline and sentences) are written after it is taken, and every change is a Version. It is a draft for the dashboard's owner and Editors until one of them shows it; then whoever may open the dashboard may open it, and sees in it only the Metrics they may see now. Its owner may have the dashboard take one of every week, month, quarter, half-year or year by itself, once every Metric on it is Locked for each of its periods inside it (for a year of a monthly Metric, all twelve months) or a set number of days after it ends. A Workflow's Send Snapshot step takes and shows one when its period is finished. A deck's Snapshot is the values its widgets show at the moment it is exported, stamped with that date.
+What something showed, fixed so it never changes when observations do. A dashboard's Snapshot keeps the dashboard as it stood for one week, month, quarter, half-year or year (quarters, half-years and years of the Fiscal Year, such as "Q1 FY 2026/27", "H2 2026" or "2026"): its layout and the values of every Metric period complete by the period's last day. Its numbers never change, and a value corrected since is shown with a note of what it is now; its words (the introduction, each Finding's headline and sentences) are written after it is taken, and every change is a Version. It is a draft for the dashboard's owner and Editors until one of them shows it; then whoever may open the dashboard may open it, and sees in it only the Metrics they may see now. A Metric deleted since stays in it, marked as deleted, for the Members and Guests who saw it when it was deleted, and never in a View Link to it. Its owner may have the dashboard take one of every week, month, quarter, half-year or year by itself, once every Metric on it is Locked for each of its periods inside it (for a year of a monthly Metric, all twelve months) or a set number of days after it ends. A Workflow's Send Snapshot step takes and shows one when its period is finished. A deck's Snapshot is the values its widgets show at the moment it is exported, stamped with that date.
 _Avoid_: Copy, freeze, archived copy, export data
 
 ### Sharing
@@ -422,7 +422,7 @@ One team's own space in Ziffr, with its people, metrics, dashboards, decks, them
 _Avoid_: Tenant, organisation, account, company
 
 **Trial Workspace**:
-A Workspace on hosted Ziffr that a person or a team makes to try Ziffr for a set number of days; only an Installation with Ziffr Cloud offers them. Its Owner may invite colleagues within the Trial Limits, and every Connector reaches those who accepted, but Contacts stay simulated. At its end it is subscribed to (a Size, everything kept) or closed, its Owner takes a Workspace Export, and it is deleted after a set number of days. It starts with the Test Metric only, a Workflow that asks its Owner for it each day and a small dashboard showing it: nothing made up, so its first value is the Owner's own.
+A Workspace on hosted Ziffr that a person or a team makes to try Ziffr for a set number of days; only an Installation with Ziffr Cloud offers them. Its Owner may invite colleagues within the Trial Limits, and every Connector reaches those who accepted, but Contacts stay simulated. At its end it is subscribed to (a Size, everything kept) or closed, its Owner takes a Workspace Export, and it is deleted after a set number of days. It starts without any Metric or dashboard; its Owner makes a Metric, installs a Pack or tries the example (the Test Metric): nothing made up, so its first value is the Owner's own.
 _Avoid_: Sandbox, test workspace, free trial
 
 **Trial Limit**:
@@ -445,12 +445,16 @@ _Avoid_: Backup, dump, archive
 The CSV file of the values of the Metrics a person ticked in the Metrics list (or of one Metric, from its History tab): one row per value, written in the Workspace's Number Style as the Workspace's own download is. Any signed-in person gets it for the Metrics they may see, a Guest for what is shared with them; a Metric they may not see is left out as if it did not exist, at most 50 Metrics and 250,000 rows go in one file, and each download is written in the Audit Log in counts. Never for an Access Key, a View Link or the demo. Not a Workspace Export (the Owner's file for another Ziffr to read), and not the Workspace's download of every Metric for Owners and Admins (spec 0056).
 _Avoid_: Bulk export, data dump
 
+**Metric Record**:
+The ZIP file of everything Ziffr keeps about some Metrics, which their Metric Owner downloads before deleting them in the app: for each its Metric Description and settings, values with their history, Breakdowns, Target Series, Projections, and the Questions, Tasks and replies about it, as CSV files. Only the Metric Owner gets it, holding only what they may see. Deleting unlocks once the record of exactly the Metrics to be deleted, as they are then, was downloaded within the last 24 hours; the download is written in the Audit Log. Programs deleting a Metric through the API or the MCP Server are not asked for it. Not a Values Download (values only, for anyone who sees the Metrics), not a Period Record, and Ziffr never reads it back in.
+_Avoid_: Backup, dump, archive, full export
+
 **Setup Guide**:
 The five steps that set up a Workspace (About you, Starting point, Ways in and out, First Metric, Team), opened by itself at a person's first sign-in and reopened from Help or the Setup line at the top of each page. Each step ticks from what the Workspace has, never from a flag a click sets, and each can be skipped. Its progress is the Workspace's, shared by its Owners and Admins; hiding it is each person's own. A Member sees the steps about themselves, a Guest none, and the demo never. What a person answers in it stays in the Workspace and is sent nowhere.
 _Avoid_: Wizard, onboarding, tour, checklist
 
 **Trial Guide**:
-The Setup Guide as a Trial Workspace has it: the same steps, with the Test Metric as its First Metric and the Trial Limits on the steps that count something. Try it stays as the reference of every way.
+The Setup Guide as a Trial Workspace has it: the same steps, with the Test Metric as its First Metric while the Workspace has no Metric of its own choosing, and the Trial Limits on the steps that count something. Try it stays as the reference of every way.
 _Avoid_: Wizard, onboarding, tour
 
 **Business Function**:
@@ -466,7 +470,7 @@ A Delivery a person sends to themselves through one Connector (email, Slack or T
 _Avoid_: Ping, test notification
 
 **Test Metric**:
-The Metric a Trial Workspace has for the Setup Guide of a trial to ask for: Cups of coffee, asked of the Owner daily, answered by hand and without history, so the first value it holds is the Owner's own.
+The Metric of a Trial Workspace's example, made only when its Owner chooses to try the example or reaches the Setup Guide's First Metric step without a Metric: Cups of coffee, asked of the Owner daily, answered by hand and without history, so the first value it holds is the Owner's own. With it come the Workflow Ask me each day and the dashboard Your coffee, which its owner may remove while saying what happens to recorded values.
 _Avoid_: Demo metric, sample metric
 
 **Installation**:

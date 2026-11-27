@@ -68,6 +68,7 @@ export function SnapshotScreen({ snapshot: s, people, takenBy, canCreate = false
         {s.shownAt && s.wordsChangedAt && <span className="text-xs text-muted-foreground">Words changed after it was shown, last on {formatDate(s.wordsChangedAt)}</span>}
         <Link href={`/dashboards/${s.dashboardId}`} className="ml-auto flex items-center gap-1 max-md:min-h-11">See it live <ArrowRight aria-hidden className="size-3.5" /></Link>
         {s.hiddenParts > 0 && <p className="w-full text-xs text-muted-foreground">{s.hiddenParts === 1 ? "One part is" : `${s.hiddenParts} parts are`} not shown: {s.hiddenParts === 1 ? "it draws" : "they draw"} Metrics you may not see.</p>}
+        {s.deletedMetrics.length > 0 && <p className="w-full text-xs text-muted-foreground [overflow-wrap:anywhere]">Deleted since: {s.deletedMetrics.join(", ")}. This Snapshot keeps {s.deletedMetrics.length === 1 ? "its" : "their"} numbers.</p>}
         {s.corrections.length > 0 && <Corrections snapshot={s} />}
       </div>
 

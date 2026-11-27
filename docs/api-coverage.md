@@ -9,6 +9,8 @@ Permission checks (`assert…`, `can…`) are guards, not operations, and are le
 Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are built by a person at the screen. Programs build Metrics and dashboards through the API.
 
 - `firstAsksFor` (first-asks.ts): the sentence under a new Metric on the Metric page in the app, read from the Outbox; the API has no such page
+- `addSubmitterWithAnswer` (who-submits.ts): adding one person under Who submits on the Metric page, with the sentence of what was sent; a program changes Submitters with set_submitters
+- `submitterChoices` (who-submits.ts): the list of people to add under Who submits on the Metric page in the app; a program names them from its list of people
 - `nextPromptWays` (prompt-preview.ts): the line under each submitter on the Metric page in the app, where their next Prompt goes and why; a program sets Sources and reads Metrics through the API
 - `metricQuickLook` (quick-look.ts): the slide-over beside a list or Widget in the app; a program reads a Metric through the API
 - `openActionsAboutMetrics` (metric-actions.ts): the panel a Widget's "N open" mark opens in the app; a program lists Actions through the API's actions endpoint
@@ -262,6 +264,9 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `setTelegramEnabled` (telegram-connection.ts): the Telegram connection
 - `trialFeedKey` (trial-feed-key.ts): a Trial's key for n8n
 - `makeGuideFeedKey` (trial-feed-key.ts): a Trial's key for n8n
+- `makeTrialExample` (trial-seed.ts): a Trial's example, made when its Owner chooses it in the app; a program makes Metrics and dashboards of its own (#1292)
+- `chooseTrialExample` (trial-example.ts): "Try the example" on Home, which also sets the person's own Home (#1292)
+- `removeTrialExample` (trial-example.ts): Remove on the example's dashboard, asked and answered in the app; a program deletes a Metric with delete_metric (#1292)
 - `archiveMetrics` (usage-report.ts): the Usage page
 - `createWebhook` (webhooks.ts): Webhooks settings (#401)
 - `listWebhooks` (webhooks.ts): Webhooks settings (#401)
@@ -366,6 +371,8 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `deckTemplateSeed` (deck-templates.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `switchableDashboards` (home.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `homeDashboard` (home.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `startChoices` (trial-example.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `exampleNote` (trial-example.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `makeRoomPlan` (make-room.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `metricDraftFrom` (metrics.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `exportOptions` (pack-export.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
@@ -387,6 +394,15 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `dashboardTemplateDraft` (templates.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `workspaceValuesCsv` (unused-workspaces.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `exportMetricValues` (metric-values-export.ts): the CSV download of chosen Metrics for a signed-in person (spec 0056); a program reads values through the API with its scopes and its own log, and the function refuses an Access Key
+- `exportMetricRecord` (metric-record.ts): the ZIP a Metric Owner downloads before deleting Metrics in the app (spec 0065); the function refuses an Access Key
+- `deleteChosenMetrics` (metric-delete.ts): the app's deletion, behind the record download and typed words (spec 0065); a program deletes one unused Metric with `deleteMetricWithKey`
+- `archiveChosenMetrics` (metric-delete.ts): "Archive instead" in the app's deletion window; a program archives one Metric at a time
+- `archiveEach` (archived-metrics.ts): several Metrics at once, for the app's Usage page and deletion window; a program archives one at a time
+- `deletedInLink` (view-links.ts): what the app says before a View Link to a Snapshot is made (spec 0065); reads Workspace words, which opening needs the Workspace's key for (spec 0028)
+- `planMetricDelete` (metric-delete.ts): the preview of the app's deletion window; reads Workspace words, which opening needs the Workspace's key for (spec 0028)
+- `ownedForRecord` (metric-record.ts): who may have a record, asked by the app's download and its check; reads Workspace words, which opening needs the Workspace's key for (spec 0028)
+- `buildMetricRecord` (metric-record.ts): the contents of the app's record download; reads Workspace words, which opening needs the Workspace's key for (spec 0028)
+- `recordDownloaded` (metric-record.ts): the app's check that the record was downloaded, read from the Audit Log for the signed-in Metric Owner
 - `versionAccess` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `listVersions` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `trialUsage` (trial-usage.ts): the trial bar and Try it show an Owner or Admin what the trial has used; the API has no such page
@@ -444,7 +460,7 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `noticeEffectsFor` (sharing.ts): what the Share functions use to tell people
 - `endTrialNow` (trial-end.ts): ends a Trial Workspace
 - `trialValuesCsv` (trial-end.ts): ends a Trial Workspace
-- `seedTrialWorkspace` (trial-seed.ts): makes a Trial Workspace
+- `startTrialWorkspace` (trial-seed.ts): prepares a new Trial Workspace
 - `runWorkflowsAsOf` (workflows.ts): what the schedule runs
 - `newMetricRefusal` (workspace-limits.ts): what the Metric functions use to refuse at a limit
 

@@ -38,7 +38,7 @@ Each row also has a **Quick look** button beside the Metric's name (it shows on 
 
 ### Download values
 
-Each row has a checkbox (on a phone, in the card's top right corner). Tick the Metrics you want and a bar appears at the foot of the screen with how many are selected, **Download values** and **Clear**. **Download values** gives you one CSV file with every value of those Metrics, one row per value, oldest first for each Metric. The box at the head of the table (on a phone, **Select all** in the bar) ticks every Metric the list shows, after the Tag and Archived filters; under **Archived** you can download Archived Metrics, whose values are kept. One file holds at most 50 Metrics and 250,000 values; over that, Ziffr says so, you download them in parts, and nothing is cut short.
+Each row has a checkbox (on a phone, in the card's top right corner). Tick the Metrics you want and a bar appears at the foot of the screen with how many are selected, **Delete…** (not for a Guest; see [Deleting a Metric](#deleting-a-metric)), **Download values** and **Clear**. **Download values** gives you one CSV file with every value of those Metrics, one row per value, oldest first for each Metric. The box at the head of the table (on a phone, **Select all** in the bar) ticks every Metric the list shows, after the Tag and Archived filters; under **Archived** you can download Archived Metrics, whose values are kept. One file holds at most 50 Metrics and 250,000 values; over that, Ziffr says so, you download them in parts, and nothing is cut short.
 
 The columns are `metric` (the Metric's slug), `name`, `period`, `period_start`, `value`, `unit`, `source`, `recorded_at`, `period_end`, `condensed_from` and `state`; `period_end` and `condensed_from` are filled only for a [Condensed Value](#retention), which is one row for its span. Numbers are written in your Workspace's **Number Style** without group marks, and where that style writes a decimal comma the columns are separated by semicolons, as a spreadsheet there expects. The file is UTF-8 and starts with a byte-order mark, as every CSV file Ziffr gives you does, so Excel shows umlauts and other letters rightly; a program of your own that reads it should skip that mark. `state` says **final** or **not approved yet**: a value that waits for **Approval**, or was sent back to its Submitter, is in the file and reads **not approved yet**, as does every other value of that period. Filter on **final** to work with final values only. A Metric without a **Workflow** has final values. Where a Metric keeps both values of a period, both are rows; of a corrected value only the corrected number is in the file. A Derived Metric has no values of its own and adds no rows, and the bar says so when one is ticked.
 
@@ -214,6 +214,8 @@ The top of the page shows the Metric's name, a **Derived** badge if it is calcul
 - **Latest**: the most recent value with its period and on-target label.
 - **Change vs. previous period**: an arrow and a percentage.
 - **Target**: which way is good, and the target that counts for the latest period. If that period has its own value in the **Target Series**, the box shows it and says so; other periods use the Target Range.
+
+A Metric with no values says so where its chart would be. If you submit it on the web form, the page says "The line appears after your first value." and offers **Record today's value** (**Record a value** for a Metric that is not daily).
 
 Then come five tabs: **Overview**, **Analysis**, **Targets**, **History** and **Description**. On a phone the three boxes sit two to a row, and the tabs do not all fit: swipe them sideways, a fade at the edge shows where more are, and the open tab is brought into view.
 
@@ -517,13 +519,43 @@ The **Submitters** of this Metric: who may send values for it. Ziffr recognises 
 
 Under each person a line says where their next **Prompt** will go and why, for example "Next request: by Slack", or "Can't reach: link Slack" when none of the ways this Metric accepts reaches them. The owner and Editors see it for everyone; anyone else who submits sees their own line. On your own line the fix is a link: **Link Slack** or **Connect Telegram** on **Connectors**, or **Add an email address** in your profile. A request goes only by a way the Metric accepts values by (see **Values arrive by**) and that reaches the person: if your usual way is not one, the line names the way it goes instead and why. When nothing reaches the person the request waits in the **Outbox** as "Not sent: …", is never sent by email or anywhere else instead, and the owner gets one message about it.
 
-A Feed is listed with the word "Feed". The owner and Editors see **Remove** next to it, which stops that Feed sending values. The values it already sent stay.
+A Feed is listed with the word "Feed". The owner and Editors see **Remove** next to it; after you confirm, that Feed can no longer send values for the Metric. The values it already sent stay.
 
 **Fill from n8n** is under the Feeds, for Owners and Admins who may change this Metric's Submitters (not in the demo, and not for a Derived Metric). Choose which template to read from (**Google Sheets**, **Microsoft Excel**, **Stripe**, **HubSpot**, **BigQuery**, **Snowflake**, or for a weekly sales forecast **HubSpot forecast**, **Salesforce forecast** or **Pipedrive forecast**), which Feed sends the values (one you have, or **A new Feed…** with a name), and whether to **Make a Feed Key for it and show it once**, then **Download the workflow**. You get an n8n workflow with your Ziffr's address already in it, and the Feed becomes a Submitter of the Metric. The Stripe and HubSpot templates send a few fixed figures once a month, for the month that has ended, so you type the slug of the Metric each figure is for into the workflow's Settings node (the page lists the slugs of the Metrics you picked). The three forecast templates add up your CRM's deals every Monday into **Closed this quarter** and **Pipeline value** (HubSpot and Salesforce also **Commit** and **Best case**, if you like), for the team and for each salesperson who has Metrics of their own; their Metrics are weekly ([what they send and when](../automations/crm-forecast-feeds.md)). The BigQuery and Snowflake templates run a query once a month for the month that has ended; you write that query in the workflow's **Your query** node, returning a row with the columns `metric` (a slug from that list), `value` and `period` for each figure. For a template that reads rows from a sheet or an Excel table, the page also offers a **starter sheet**: a `metric,value,period` header with this Metric's slug, to paste into your sheet. The key is shown once, beside the download, and is never written into the file: n8n keeps it in a credential named Ziffr Feed Key, as the template's guide says ([Google Sheets](../automations/google-sheets-feed.md), [Microsoft Excel](../automations/excel-feed.md), [Stripe](../automations/stripe-feed.md), [HubSpot](../automations/hubspot-feed.md), [BigQuery](../automations/bigquery-feed.md), [Snowflake](../automations/snowflake-feed.md), [HubSpot forecast](../automations/hubspot-forecast-feed.md), [Salesforce forecast](../automations/salesforce-forecast-feed.md), [Pipedrive forecast](../automations/pipedrive-forecast-feed.md)). You add the other system's login in n8n; Ziffr never sees it and never runs the workflow. The Audit log records that the template was downloaded, never the file.
 
 **Values from a Feed** (for the owner and Editors) adds one of the Workspace's Feeds as a Submitter: pick it and choose **Add**. Its values arrive through the API, so the **API and Feeds** Source is turned on by itself. Owners and Admins create Feeds (see [Connecting Ziffr](04-connecting.md#feeds-numbers-from-other-systems)); a Feed is never sent Prompts. The choice only appears when there is a Feed not yet on the list.
 
-People are chosen as Submitters when the Metric is created or duplicated. This box has no way yet to add or remove a person later.
+#### Adding and removing a person
+
+People are chosen as Submitters when the Metric is created or duplicated, and the Metric's owner and its Editors can change them here at any time. Neither is offered in the demo, and a Derived Metric or a Total takes no Submitters.
+
+Who you can add depends on who you are, because a Submitter sees the Metric:
+
+| You are | You can add |
+| --- | --- |
+| The **Metric Owner** | Any member, Guest or Contact of the Workspace |
+| An **Editor** | Only people who see the Metric already, for instance through a **Share** or a dashboard shared with them. For anyone else, ask the owner to add them: "Only the owner can add someone who does not see this Metric yet." |
+
+The same holds in the Setup Guide and through the API and assistants. An Editor who removes someone who then no longer sees the Metric cannot add them again; the box says so before you confirm.
+
+**Add a person** lists the people you can add who do not submit this Metric yet. Pick one and choose **Add…**. A box says what will happen before anything does:
+
+- A member or Guest will see the Metric, with its values and history, and can send in its values. You do not have to share it with them as well. A Contact does not sign in: their personal form link shows the Metric's name and description and the current value, and takes theirs.
+- Ziffr makes them a personal form link for this Metric (usable when it takes values by **Web form**).
+- **Ask them for the current value now** is ticked: a **Prompt** goes out at once, by a way that reaches them. Ziffr makes at most one such first request a day for a person and a Metric: someone asked for it in the last day, for instance removed and added again, is added without a new one, and the message says so. Untick it to send nothing now. They are then asked when the Metric's Workflow next asks or reminds; a Metric without a Workflow asks nobody by itself. A Contact receives their form link only with a request. An archived Metric asks nobody.
+
+Choose **Add as Submitter**. The message that follows says what was sent, or that the request waits in the **Outbox** and why.
+
+**Remove** is next to each person. After you confirm:
+
+- Their own form link for this Metric stops working. Requests to it that wait to go out or are kept in the **Outbox** are not sent. The values they sent stay.
+- Their **Stand-in** for this Metric ends, and the Stand-in's form link for them stops working too. If the person removed stands in for someone else here, they stay that person's Stand-in until the Metric's owner chooses another.
+- Unless they own the Metric, it is shared with them, or it reaches them another way (such as a dashboard shared with them, or as a Stand-in), they no longer see it.
+- If nobody else submits it, nobody is asked for its values any more.
+
+Questions and Tasks already open stay as they are: a removed person goes on reading the Threads they are on, and Tasks and the **Approver** steps of a Workflow that name them stay until somebody changes them.
+
+Each person added or removed later, here or through the API, is written in the [Audit Log](16-workspace-settings.md#audit-log), with whether a first request was made for them.
 
 #### Fill from a data warehouse
 
@@ -604,7 +636,7 @@ The Feed's [README](../../packages/feed-sql/README.md) has every setting of the 
 | Role | What they can do |
 | --- | --- |
 | **Viewer** | See the Metric, its history and comparisons, use it on their own dashboards and analyses, and assign questions and tasks about it. |
-| **Editor** | Everything a Viewer can, and change its description, its Sources, its Target Series and Projections, and which Feeds submit to it. A Guest is never an Editor of a Metric. |
+| **Editor** | Everything a Viewer can, and change its description, its Sources, its Target Series and Projections, and [who submits it](#who-submits): which Feeds, and people who see the Metric already. A Guest is never an Editor of a Metric. |
 
 Deleting the Metric, sharing it, choosing its Workflow and Stand-ins, locking periods, accepting **Corrections** and restoring Versions stay with the Metric Owner. Sharing a dashboard also lets everyone on that Share see the Metrics on it (see [The Dashboard screens](12-dashboards.md)).
 
@@ -640,13 +672,34 @@ Duplicating is also the way to count a number in a different period, since a Met
 
 ## Deleting a Metric
 
-**Delete…** is for the Metric Owner. To confirm, type the Metric's name and choose **Delete the Metric**. Its values, targets, questions, tasks and form links go with it, and this cannot be undone. The **Audit Log** keeps that you deleted it.
+Only the **Metric Owner** deletes a Metric. Deleting is for good: its values and their history, Breakdowns, targets, Projections, questions, tasks and form links go with it. If you only want the requests to stop, [archive it](#archiving-a-metric) instead; **Archive instead** is in the same window.
 
-Ziffr refuses to delete a Metric while something still uses it, and says what:
+Open the Metric and choose **⋯** → **Delete…**. To delete several at once, tick them in the Metrics list and choose **Delete…** in the bar beside **Download values** (at most 50 at once).
 
-- another Metric is calculated from it (change that formula first),
-- it is shown in a widget or a deck (take it out first),
-- a **View Link** that still works shows it (revoke the link first).
+**1. Look at what can be deleted.** The window lists the Metrics that can go and those that stay, each with the reason:
+
+- you are not its Metric Owner;
+- another Metric is calculated from it, or a [Total](#adding-up-metrics-a-total) adds it up. Tick that Metric too, and Ziffr deletes them in the right order. Otherwise change the formula, or remove it from the Total, first;
+- it is on a dashboard or in a deck you cannot change, or in someone else's saved widgets;
+- a **View Link** that still works shows it and only someone else can revoke it.
+
+Dashboards, decks and Metrics you may not see are counted, never named.
+
+**2. Tick the changes Ziffr may make for you.** Nothing is ticked at first, and each tick lists what it changes:
+
+- **Take them off dashboards**: a widget that shows one list of Metrics keeps the others; any other widget that shows a picked Metric is removed, with everything in it. Your saved widgets are changed the same way.
+- **Take them out of decks**: the same for widgets on slides, also on slides that keep a Snapshot's numbers. A text box keeps its words, and the [live values](14-decks-and-themes.md#live-values-in-text-boxes) of a deleted Metric are left empty. Snapshot Parts stay.
+- **Revoke these View Links**: each listed link stops working as a whole, not only for these Metrics.
+
+Dashboards and decks keep their Versions, but a Version that showed a deleted Metric cannot bring its numbers back.
+
+**3. Download the record.** **Download the record** saves a ZIP file with one folder per Metric: `definition.csv` (what it is, how it is calculated, its owner and settings), `values.csv`, `value-history.csv`, `breakdowns.csv`, `breakdown-history.csv`, `targets.csv`, `projections.csv`, `questions-and-tasks.csv` and, for a calculated Metric or a Total, `calculated-values.csv` with its numbers as you see them. The files are written like [Download values](#download-values): numbers in the Workspace's Number Style, semicolons where it writes a decimal comma, UTF-8 with a byte-order mark, and a text that starts like a formula gets an apostrophe. Ziffr cannot read the file back in. One record holds at most 500,000 values, earlier values included; over that, delete in parts. The download is written in the **Audit Log**.
+
+**4. Confirm.** Delete unlocks once you have downloaded the record of exactly the Metrics that can be deleted. Type the Metric's name, or for several the words shown, such as `delete 3 Metrics`, and choose **Delete … for good**. If something changed in between, such as a new value or reply, Ziffr deletes nothing and asks you to download the record again. The download unlocks deleting for 24 hours. The **Audit Log** keeps that you deleted each Metric.
+
+**Past Snapshots keep their numbers.** A [Snapshot](12-dashboards.md#snapshots) that showed a deleted Metric still shows it, marked **(deleted)**, to the people who could see the Metric when it was deleted and may still open the Snapshot; also on slides that show its Snapshot Parts. Nobody else gets it, and someone who leaves the Workspace loses it. A View Link that shows a Metric has to be revoked before the Metric goes, and a View Link to a Snapshot made afterwards shows nothing of it: every widget that draws it is left out, and Ziffr says so before you make the link. Metrics deleted before this version of Ziffr are not shown in Snapshots.
+
+Programs and AI assistants that delete a Metric (the API and the MCP Server) are not asked for the record, and are refused while anything uses the Metric.
 
 The demo's Metrics cannot be deleted: the demo can't be changed. Where visitors may change the demo, they can define Metrics of their own, change their details, Sources, targets and projections, tag, archive and bring them back, but not delete or hand them over, and not change the names and descriptions of the Metrics the demo started with (see [Trying Metrics, questions and sharing in a demo that can be changed](07-getting-started.md#trying-metrics-questions-and-sharing-in-a-demo-that-can-be-changed)).
 

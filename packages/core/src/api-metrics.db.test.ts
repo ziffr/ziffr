@@ -282,6 +282,19 @@ describe("Sources and Submitters with a key", () => {
     await expect(updateMetricWithKey(key, mine.slug, { sources: [] })).rejects.toBeInstanceOf(MetricChangeRefused);
   });
 
+  it("lets an Editor's key add only people who see the Metric already, and changes nothing otherwise", async () => {
+    const w = await ws(); const ben = await w.person("member"); const sara = await w.person("owner"); const ann = await w.person("member"); const cleo = await w.person("member");
+    const theirs = await w.metric(sara, { name: "Payroll" });
+    await share(w.actor(sara), "metric", theirs.id, ben, "editor");
+    await share(w.actor(sara), "metric", theirs.id, ann, "viewer");
+    await w.token(theirs.id, sara);
+    const effects = fx();
+    const { key } = await keyFor(w, ben, "member", ["metrics:read", "metrics:edit"]);
+    await expect(setSubmittersWithKey(key, theirs.slug, { add: [ann, cleo], remove: [sara] }, effects)).rejects.toThrow(/Only the owner can add someone who does not see this Metric yet/);
+    expect((await listSubmittersWithKey(key, theirs.slug)).map((x) => x.id)).toEqual([sara]);
+    expect(await setSubmittersWithKey(key, theirs.slug, { add: [ann] }, effects)).toMatchObject({ added: 1 });
+  });
+
   it("asks one person at most five times a day through keys, and once per Metric, also for parallel calls", async () => {
     const w = await ws(); const ben = await w.person("member"); const ann = await w.person("member");
     const effects = fx();

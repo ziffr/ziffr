@@ -43,8 +43,13 @@ import { SnapshotMenu } from "@/components/snapshot-menu";
 import type { SnapshotSummary } from "@ziffr/core/snapshots";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RecordActions } from "./record-actions";
+import type { RecordingOffer } from "@ziffr/core/record-own-value";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
+import { StartScreen } from "@/app/dashboards/start-screen";
+import { ExampleNote } from "@/app/dashboards/example-note";
+import type { ExampleNote as Example, StartChoices } from "@ziffr/core/trial-example";
 
 type Props = {
   data: CanvasData;
@@ -74,6 +79,12 @@ type Props = {
   sendLink?: boolean;
   /** The current dashboard's Snapshots the viewer may open (spec 0013). */
   snapshots?: SnapshotSummary[];
+  /** The way to record a value, for the Metrics on this dashboard that have none yet and that the viewer submits. */
+  offers?: Record<number, RecordingOffer>;
+  /** Home's start screen, when the person has nothing but an untouched example or nothing at all (#1292). */
+  start?: StartChoices | null;
+  /** What the current dashboard's line says when it is a trial's example. */
+  example?: Example | null;
 };
 
 const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["templates"]) => {
@@ -90,6 +101,8 @@ const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["te
   return TEMPLATES[DEFAULT_TEMPLATE].size;
 };
 
+const NO_OFFERS: Record<number, RecordingOffer> = {};
+
 /** The Dashboards screen: the Pool, the viewer's dashboards and the canvas of the current one. The page sends the
  * series of the widgets on it; widgets and editors fetch any other they need (ticket #125). */
 export function DashboardScreen(props: Props) {
@@ -97,7 +110,7 @@ export function DashboardScreen(props: Props) {
   return <SeriesProvider ensure={ensure}><DashboardCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, homeId, pinned, demo = false, canCreate, canInvite, dashboardTemplates, reading = false, snapshots = [], sendLink = false }: Props) {
+function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, homeId, pinned, demo = false, canCreate, canInvite, dashboardTemplates, reading = false, snapshots = [], sendLink = false, offers = NO_OFFERS, start: startChoices = null, example = null }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   // A refusal says why in a toast; anything unforeseen says only that it went wrong (lib/action-error.ts).
@@ -177,6 +190,8 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
             <p className="font-medium">This dashboard isn&rsquo;t shared with you</p>
             <RequestAccess type="dashboard" id={closed.id} owner={closed.owner} />
           </div>
+        ) : !current && startChoices ? (
+          <StartScreen choices={startChoices} />
         ) : !current ? (
           <div className="desk rounded-[var(--radius-card)] p-12 text-center">
             <LayoutDashboard className="mx-auto mb-3 size-8 text-muted-foreground" />
@@ -226,6 +241,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 )}
               </ObjectToolbar>
             </div>
+            {example && <ExampleNote key={`example-${current.id}`} dashboardId={current.id} note={example} />}
             {/* The element whose width the grid is laid out by stays in place in both views: the width hook observes the element it
                 first finds, so one that came and went with the Read view left the grid at the width of a removed node (0), and it
                 came back as a narrow single column. It has no padding of its own, so its width is the grid's. */}
@@ -239,6 +255,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
               )}
               {mounted && (
                 <RecipeBudgetProvider data={data}>
+                <RecordActions offers={offers}>
                 <ReactGridLayout
                   layout={narrow ? stacked : layout}
                   width={width}
@@ -274,6 +291,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                     </div>
                   ))}
                 </ReactGridLayout>
+                </RecordActions>
                 </RecipeBudgetProvider>
               )}
             </ThemeScope>

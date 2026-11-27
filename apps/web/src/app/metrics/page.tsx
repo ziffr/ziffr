@@ -122,7 +122,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
                 return (
                   <tr key={m.id} className="group relative cursor-pointer border-b border-border last:border-0 hover:bg-[var(--color-paper-2)] max-sm:flex max-sm:flex-wrap max-sm:items-center max-sm:gap-x-5 max-sm:px-4 max-sm:py-3">
                     {/* Above the row's stretched link; part of the download form below the list (spec 0056). */}
-                    {!demo && <td className="relative z-10 w-12 pl-1 max-sm:absolute max-sm:right-1 max-sm:top-1 max-sm:w-auto max-sm:p-0"><MetricTick slug={m.slug} name={m.name} derived={Boolean(m.formula)} /></td>}
+                    {!demo && <td className="relative z-10 w-12 pl-1 max-sm:absolute max-sm:right-1 max-sm:top-1 max-sm:w-auto max-sm:p-0"><MetricTick id={m.id} slug={m.slug} name={m.name} derived={Boolean(m.formula)} /></td>}
                     <td className={cn("px-4 py-3 max-sm:w-full max-sm:p-0", !demo && "max-sm:pr-12 sm:pl-2")}>
                       <Link href={`/metrics/${m.slug}`} className="font-medium no-underline after:absolute after:inset-0 group-hover:underline">
                         {m.name}
@@ -152,7 +152,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
           </table>
         </div>
         {/* The demo does not offer the download (spec 0056). */}
-        {!demo && <MetricExportBar max={EXPORT_METRICS} list={listed} />}
+        {!demo && <MetricExportBar max={EXPORT_METRICS} list={listed} canDelete={creates} />}
         </>
       )}
     </>

@@ -28,9 +28,13 @@ If there is no dashboard yet, the list says "No dashboards yet" and suggests nam
 
 Ziffr opens on your Home dashboard. You choose it yourself: open the dashboard, open its **⋯** menu and choose **Home dashboard**. The entry then shows a tick until you choose another. If you never chose one, Ziffr opens on the first dashboard you made, or else the first one shared with you. If your Home is no longer shared with you, the same rule picks another. A new Workspace, a trial included, opens on the Setup Guide first.
 
+While you have no dashboard (or only a trial's untouched example that you did not choose as Home) and see no other Metric, Home asks [Where would you like to start?](07-getting-started.md#where-would-you-like-to-start) instead.
+
+A trial's example dashboard, **Your coffee**, has a line above it that says what it is. Its owner can **Remove** it there; see [The example in a trial](16-workspace-settings.md#the-example-in-a-trial).
+
 ### A new Workspace
 
-A new Workspace opens on the Setup Guide, not on an empty dashboard list; see [Getting started](07-getting-started.md#the-setup-line-and-opening-by-itself). Until you make or are shown a dashboard, the list says "No dashboards yet".
+A new Workspace opens on the Setup Guide, not on an empty dashboard list; see [Getting started](07-getting-started.md#the-setup-line-and-opening-by-itself). Until you make or are shown a dashboard, the list says "No dashboards yet", and Home offers [where to start](07-getting-started.md#where-would-you-like-to-start).
 
 ## Opening a dashboard
 
@@ -116,6 +120,8 @@ A dashboard opens for looking. Its owner and Editors switch into editing on purp
 If you may only look, an empty dashboard says "This dashboard is empty." If you may change it, it says "Press Edit to add widgets."
 
 A value that waits for **Approval** shows, marked "not approved yet" next to it, or "unapproved" in a table row; a locked period shows a lock. The Metric's own page marks such a value the same way.
+
+A Widget with no values to draw says so in words in place of an empty chart. If you submit its Metric on the web form, it says what will appear, such as "The line appears after your first value.", with **Record today's value** under it (**Record a value** for a Metric that is not daily), which opens the same form as on the [Metric's page](10-metrics.md#the-buttons-at-the-top). Otherwise it says "No values to show yet." The button is in the grid only: the **Read** view, a Widget opened large, presenting, [View Links](#view-links), [Snapshots](#snapshots) and decks show the words alone. The words are the same whether there are no values or none that you may see. A [Total](10-metrics.md#adding-up-metrics-a-total) with no number still says why, and a View that explains itself (a row per Metric, or "has no breakdown yet.") keeps its own words. A Widget you have just added offers the button after the page is next loaded.
 
 ### What edit mode adds
 
@@ -517,6 +523,7 @@ A band at the top of a Snapshot says which period it is, when and by whom it was
 
 - If you may not see some of its Metrics, the band says how many parts are not shown.
 - If a value was corrected or removed since, the band lists it under "Corrected since this Snapshot was taken; it keeps the values it had", with the value then and what it is now.
+- If a Metric it shows was [deleted](10-metrics.md#deleting-a-metric) since, the band names it. The Snapshot keeps its numbers, marked **(deleted)**, for the people who could see the Metric when it was deleted; for others its parts are not shown. A View Link to the Snapshot shows nothing of it: the **View links** panel says what is **Left out of the link** before you make one.
 - Once its words were changed after it was shown, the band says when.
 
 The owner and Editors have these buttons:

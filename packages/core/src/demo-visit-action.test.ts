@@ -44,7 +44,7 @@ describe("runDemoVisit", () => {
 
   it("does the same for an operation that is blocked or unknown, even with the setting in effect", async () => {
     settings.value = on;
-    await expect(runDemoVisit("series-actions:deleteMetric", who, seen)).resolves.toBe(false);
+    await expect(runDemoVisit("metric-delete-actions:deleteMetrics", who, seen)).resolves.toBe(false);
     await expect(runDemoVisit("made-up-actions:doSomething", who, seen)).resolves.toBe(false);
     expect(calls.budget).toEqual([]);
     expect(calls.visits).toEqual([]);

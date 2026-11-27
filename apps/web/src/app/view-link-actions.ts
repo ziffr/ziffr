@@ -27,6 +27,11 @@ export async function emptyInLink(type: "dashboard" | "deck", id: number, snapsh
   return links.emptyInLink(await currentActor(), type === "deck" ? "deck" : "dashboard", Number(id), snapshotId === null ? null : Number(snapshotId));
 }
 
+/** The Metrics a link to this Snapshot leaves out because they were deleted since (spec 0065). */
+export async function deletedInLink(dashboardId: number, snapshotId: number) {
+  return links.deletedInLink(await currentActor(), Number(dashboardId), Number(snapshotId));
+}
+
 /** A dashboard's Snapshots a View Link may show: those already shown (spec 0013). */
 export async function shownSnapshots(dashboardId: number) {
   return (await listSnapshots(await currentActor(), Number(dashboardId))).filter((s) => s.shownAt).map((s) => ({ id: s.id, label: s.label }));

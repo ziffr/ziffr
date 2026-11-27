@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { refuseInDemo } from "@ziffr/core/demo";
+import { makeTrialExample } from "@ziffr/core/trial-seed";
 import { askForFirstMetric, askMeForFirstMetric, pickFirstMetric, sendFirstMetricValue, setupFirstValue } from "@ziffr/core/setup-first-metric";
 
 /** Ask me now for the guide's Metric by the person's chosen ways; the form link code comes back with the answer. */
@@ -37,6 +38,16 @@ export async function pickMetric(metricId: number) {
     refuseInDemo(actor);
     await pickFirstMetric(actor, metricId);
     revalidatePath("/setup");
+  });
+}
+
+/** Makes the trial's example from the step, when there is no Metric to try (the core lets only a trial's Owner). */
+export async function tryExampleHere() {
+  return attempt(async () => {
+    const actor = await currentActor();
+    refuseInDemo(actor);
+    await makeTrialExample(actor);
+    revalidatePath("/", "layout");
   });
 }
 

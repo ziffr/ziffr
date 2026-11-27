@@ -54,6 +54,24 @@ export async function archiveMetric(actor: Actor, metricId: number, origin: { ac
   return { archived: true };
 }
 
+/** Archives several Metrics, each as `archiveMetric` does. One refused (gone, hidden, not the actor's to archive)
+ * refuses all, before anything changes; if one fails midway, those already archived are brought back. Returns how many
+ * were archived. */
+export async function archiveEach(actor: Actor, ids: readonly number[]): Promise<number> {
+  for (const id of ids) await archivableMetric(actor, id);
+  const done: number[] = [];
+  try {
+    for (const id of ids) if ((await archiveMetric(actor, id)).archived) done.push(id);
+  } catch (e) {
+    let stuck = 0;
+    for (const id of done) await restoreMetric(actor, id).catch(() => { stuck++; });
+    // Said plainly when a Metric could not be brought back, so nobody believes nothing changed.
+    if (stuck > 0) throw new Error(`Archiving stopped, and ${stuck} of the Metrics archived before could not be brought back: look under Archived on the Metrics page.`);
+    throw e;
+  }
+  return done.length;
+}
+
 /** Why a Prompt queued before its Metric was archived did not go out, as the Outbox shows it. */
 export const ARCHIVED_BEFORE_SENT = "The Metric was archived before it went out.";
 

@@ -1,7 +1,7 @@
 "use server";
 // A Metric's Target Series, Projections, description and Sources (GLOSSARY: Target Series, Projection, Metric, Editor),
-// changed by its owner or its Editors through the core; only the owner deletes it. Owners, Admins and the owner
-// archive it and bring it back (GLOSSARY: Archived Metric).
+// changed by its owner or its Editors through the core. Owners, Admins and the owner archive it and bring it back
+// (GLOSSARY: Archived Metric). Deleting is in metric-delete-actions.ts.
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
@@ -13,7 +13,7 @@ import { recordOwnValue } from "@ziffr/core/record-own-value";
 import { handOverMetric } from "@ziffr/core/metric-owner";
 import { archiveMetric as coreArchiveMetric, restoreMetric as coreRestoreMetric } from "@ziffr/core/archived-metrics";
 import { sameNamedMetrics as coreSameNamedMetrics } from "@ziffr/core/metric-name-check";
-import { deleteMetric as coreDeleteMetric, setMetricSources as coreSetMetricSources, updateMetricDetails as coreUpdateMetricDetails, type MetricDetails, removeSeriesRows as coreRemoveSeriesRows, saveSeriesRows as coreSaveSeriesRows } from "@ziffr/core/metrics";
+import { setMetricSources as coreSetMetricSources, updateMetricDetails as coreUpdateMetricDetails, type MetricDetails, removeSeriesRows as coreRemoveSeriesRows, saveSeriesRows as coreSaveSeriesRows } from "@ziffr/core/metrics";
 
 /** The Metric's owner or an Editor saves rows edited in the targets table; the core checks every row. */
 export async function saveSeriesRows(metricId: number, kind: "target" | "projection", rows: { period: string; value: number }[], note: string) {
@@ -29,15 +29,6 @@ export async function saveSeriesRows(metricId: number, kind: "target" | "project
 export async function removeSeriesRows(metricId: number, kind: "target" | "projection", periods: string[]) {
   return attemptAsVisitor("series-actions:removeSeriesRows", async () => {
     const r = await coreRemoveSeriesRows(await currentActor(), Number(metricId), kind, periods);
-    revalidatePath("/", "layout");
-    return r;
-  });
-}
-
-/** The Metric owner deletes it, typing its name to confirm; the core refuses while anything else uses it. */
-export async function deleteMetric(metricId: number, confirmName: string) {
-  return attempt(async () => {
-    const r = await coreDeleteMetric(await currentActor(), Number(metricId), String(confirmName ?? ""));
     revalidatePath("/", "layout");
     return r;
   });
