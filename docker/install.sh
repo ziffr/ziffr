@@ -100,6 +100,6 @@ if ! grep -q '^ZIFFR_SMTP_URL=.' .env; then
   say "No mail server is set: sign-in links land in Mailpit, at http://localhost:8025 on this machine."
 fi
 if ! grep -q '^ZIFFR_TLDRAW_LICENSE_KEY=.' .env; then
-  say "Decks and free layouts are drawn with tldraw. On an https address they show only with a license key from tldraw for your domain (https://tldraw.dev/pricing: 100-day free trial, commercial, hobby). Enter it on ${url:-http://localhost}/installation under Slide editor, or as ZIFFR_TLDRAW_LICENSE_KEY in .env."
+  say "Decks and free layouts are drawn with tldraw. Free layouts are offered only with a license key, and on an https address decks show only with one, from tldraw for your domain (https://tldraw.dev/pricing: 100-day free trial, commercial, hobby). Enter it on ${url:-http://localhost}/installation under Slide editor, or as ZIFFR_TLDRAW_LICENSE_KEY in .env."
 fi
 say "Settings: $(pwd)/.env. Upgrades and backups: https://github.com/ziffr/ziffr/blob/v${ZIFFR_VERSION}/docker/README.md"

@@ -166,7 +166,7 @@ To connect Slack workspaces other than the one that owns the app, turn on **Mana
 
 ## Slide editor
 
-Decks and free layouts are drawn with a program called **tldraw**, which has a license of its own. On an `https://` address they show only with a license key from tldraw. Without one, a notice stands where the slide or free layout would be, with **Add the license key** for Installation Admins.
+Decks and free layouts are drawn with a program called **tldraw**, which has a license of its own. Without a license key, Ziffr offers no free layout: those already made are kept and cannot be shown, added or changed. Decks need the key on an `https://` address. Without one, a notice stands where the slide or free layout would be, with **Add the license key** for Installation Admins.
 
 1. Get a key at <https://tldraw.dev/pricing> (a free trial of 100 days, commercial licenses, a hobby license for non-commercial use). Name the domain people reach this Ziffr at.
 2. Paste the whole key into **tldraw license key** and choose **Save**.

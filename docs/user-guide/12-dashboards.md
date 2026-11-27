@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/page.tsx, apps/web/src/app/dashboards/**, apps/web/src/app/gallery/**, apps/web/src/app/stories/**, apps/web/src/app/v/**, apps/web/src/views/**, apps/web/src/components/dashboard-*.tsx, apps/web/src/components/pool.tsx, apps/web/src/components/add-widget.tsx, apps/web/src/components/dashboard-add.tsx, apps/web/src/components/view-cards.tsx, apps/web/src/components/preview.tsx, apps/web/src/components/widget-frame.tsx, apps/web/src/components/panel-editor.tsx, apps/web/src/components/story-editor.tsx, apps/web/src/components/template-*.tsx, apps/web/src/components/slot-dialog.tsx, apps/web/src/components/save-*.tsx, apps/web/src/components/new-dashboard-dialog.tsx, apps/web/src/components/snapshot-menu.tsx, apps/web/src/components/present-dashboard.tsx, apps/web/src/components/read-only-frame.tsx, apps/web/src/components/share-sheet.tsx, apps/web/src/components/view-links.tsx, apps/web/src/components/who-can-see.tsx, apps/web/src/components/versions-*.tsx, apps/web/src/components/object-toolbar.tsx, apps/web/src/canvas/layout-editor.tsx -->
+<!-- screens: apps/web/src/app/page.tsx, apps/web/src/app/dashboards/**, apps/web/src/app/gallery/**, apps/web/src/app/stories/**, apps/web/src/app/v/**, apps/web/src/views/**, apps/web/src/components/dashboard-*.tsx, apps/web/src/components/pool.tsx, apps/web/src/components/note-editor.tsx, apps/web/src/components/add-widget.tsx, apps/web/src/components/dashboard-add.tsx, apps/web/src/components/view-cards.tsx, apps/web/src/components/preview.tsx, apps/web/src/components/widget-frame.tsx, apps/web/src/components/panel-editor.tsx, apps/web/src/components/story-editor.tsx, apps/web/src/components/template-*.tsx, apps/web/src/components/slot-dialog.tsx, apps/web/src/components/save-*.tsx, apps/web/src/components/new-dashboard-dialog.tsx, apps/web/src/components/snapshot-menu.tsx, apps/web/src/components/present-dashboard.tsx, apps/web/src/components/read-only-frame.tsx, apps/web/src/components/share-sheet.tsx, apps/web/src/components/view-links.tsx, apps/web/src/components/who-can-see.tsx, apps/web/src/components/versions-*.tsx, apps/web/src/components/object-toolbar.tsx, apps/web/src/canvas/layout-editor.tsx -->
 # Dashboards and Findings
 
 A **Dashboard** is where you watch your Metrics as their values come in. This chapter goes through every screen and option that belongs to dashboards: the list of dashboards, building one, the menus of each Widget, Findings, presenting, sharing, View Links, Snapshots and Versions.
@@ -141,12 +141,13 @@ On a phone, edit mode shows a note at the top that this is easier on a larger sc
 
 - **Show:** picks the Metric the cards are drawn with. It starts with the first Metric by name that the dashboard does not show yet. Metrics that share a name show their owner (or, for one owner, the period and unit) next to the name.
 - **Search** narrows everything in the panel by name.
+- **Your words**: the [Note widget](#note-widget), for your own words beside the numbers.
 - **Views**, **Analyses** and **Findings** are the built-in **Widget Templates**, each drawn with the picked Metric. A card that your Metric cannot fill is drawn with **Sample Data**; on a phone the reason is written under it, on a wider screen it shows when you point at the card.
 - **Metrics**: every Metric you can see, except **Archived Metrics**, to add on its own. A derived Metric has a Σ mark. **ⓘ** shows what a Metric is before you add it: how often it is counted and in which unit, its description, its latest value with the period, and a small line of its recent values. If you see no Metric yet, the panel links to **Describe your first one**.
 - **My Widgets**: the Widgets you saved (see [Saving a widget](#saving-a-widget)), drawn with your own values. The bin on a card deletes it from your saved Widgets, without asking; Widgets already placed from it stay.
 - **The team's templates**: Widget Templates colleagues saved, drawn with Sample Data. Each has its own **⋯** menu. Everyone sees **Versions…**, which opens the versions in a panel beside the page. Only the person who saved it sees **Rename…** (its name and "What it is for") and **Delete**. Deleting asks first; Widgets made from it stay as they are.
 - **The Workspace's View Designs**, when Owners or Admins added some (see [View Designs](13-analyze.md#view-designs)).
-- **Layout**: the [Free layout](#free-layout).
+- **Layout**: the [Free layout](#free-layout), only where this Ziffr has a license key for the slide editor.
 
 The full list of built-in templates is in [Templates](05-templates.md#widget-templates). An Analysis on a dashboard reads as it does in [Analyze](13-analyze.md#reading-the-results): Metrics counted at different periods are compared on the longer one, and the result says so.
 
@@ -181,9 +182,10 @@ If a Widget's Metric has open questions or tasks, its title bar shows a speech b
 | **Change view** | The owner and Editors, in edit mode | Draws the Widget another way (see below). Not offered for Analyses. |
 | **Comparisons** | The owner and Editors, in edit mode, for Views | Which Comparisons the Widget shows (see below). |
 | **Show by** | The owner and Editors, in edit mode, for Number + sparkline, Line chart, Bars per period, History table and Forecast | Shows the Metric by a longer period, such as quarters or years (see below). |
-| **Title…** | The owner and Editors, in edit mode | Opens the Widget's title in a panel beside it: the field shows the default title greyed, and under it the title as it will read, with the Placeholders filled in. Leave it empty to get the default back. **Save title** keeps it. Not for a Free layout. |
+| **Edit words…** | The owner and Editors, in edit mode, for a Note widget | Turns the Widget into the form for its heading and words (see [Note widget](#note-widget)). |
+| **Title…** | The owner and Editors, in edit mode | Opens the Widget's title in a panel beside it: the field shows the default title greyed, and under it the title as it will read, with the Placeholders filled in. Leave it empty to get the default back. **Save title** keeps it. Not for a Free layout or a Note widget. |
 | **Edit Finding…** | The owner and Editors, in edit mode, for Findings | Opens the Finding editor (see [Findings](#findings)). |
-| **Edit layout…** | The owner and Editors, in edit mode, for a Free layout | Opens the layout editor (see [Free layout](#free-layout)). |
+| **Edit layout…** | The owner and Editors, in edit mode, for a Free layout, where this Ziffr has a license key for the slide editor | Opens the layout editor (see [Free layout](#free-layout)). |
 | **Versions…** | Everyone | The Widget's own history of changes. |
 | **Takeaway…** | Everyone, for a Widget that says something about its numbers (a forecast, drivers, a link between two Metrics) | Opens the Takeaway in a panel: the sentence first, then how it was worked out, any plain line of caution about the data, how it did on the past, the line that it is not a promise or not a cause, and **Show the numbers**. The Widget itself shows only the chart and its footer line; View Links, Present, Previews and a Snapshot's dashboard show no Takeaway. A Metric's page and a deck's slides keep the words under the chart. |
 | **Add to…** | Everyone | Opens a submenu of the places a copy of the Widget can go: **Dashboard** and **Deck…**, below. |
@@ -203,8 +205,8 @@ Under **Save as…**:
 | Option | Who sees it | What it does |
 | --- | --- | --- |
 | **Widget** | Everyone except Guests | Saves a copy to your Pool. |
-| **Template…** | The owner and Editors | Saves the Widget as a team Widget Template, in a panel beside the page. Not offered for a Free layout. |
-| **View Design** | For a Widget drawn with a View Design (not Findings and Free layouts) | Downloads a View Design file and a Sample Data file to try it with, with this Widget's settings (how many periods, target band, forecast) as the design's defaults, named after the Widget. |
+| **Template…** | The owner and Editors | Saves the Widget as a team Widget Template, in a panel beside the page. Not offered for a Free layout or a Note widget. |
+| **View Design** | For a Widget drawn with a View Design (not Findings, Note widgets and Free layouts) | Downloads a View Design file and a Sample Data file to try it with, with this Widget's settings (how many periods, target band, forecast) as the design's defaults, named after the Widget. |
 | **Download View Design file** | The same | Downloads the View Design the Widget is drawn with, as it is, and a Sample Data file to try it with. |
 
 | Option | Who sees it | What it does |
@@ -240,7 +242,7 @@ Press **Send question** or **Assign task**. A note says "Question put to …" or
 
 - The **Views** (Number + sparkline, Line chart, Bars per period, Gauge vs. target, History table).
 - The **Findings**. Ranked bars, Part of the whole and 7 in 10 are offered only when the Metric has a **Breakdown**.
-- **Free layout**.
+- **Free layout**, where this Ziffr has a license key for the slide editor.
 - The team's Widget Templates, each with "…". Choosing one asks for its Slots, starting with this Widget's Metrics, and then turns the Widget into that template. Its Preview uses Sample Data.
 - For **Line chart** and **Bars per period**: **Show target band**, on by default, draws the Metric's **Target Range** behind the values. For **Line chart** only: **Show forecast** adds Ziffr's projection of the next few periods, with a band of how far it may be off. It is the same forecast the Metric page shows.
 
@@ -389,13 +391,27 @@ Period bars, Bridges, ranked bars and annotated lines can carry **Annotations**.
 
 An Annotation stays with what it is about, not with a place in the chart. "The highest" moves when a new record comes in, and an Annotation on a row disappears when that row is gone.
 
+## Note widget
+
+A **Note widget** holds your own words, to say what is behind the numbers beside it: why a month dipped, what changes next, what to look at first. It draws no Metric and takes no number by itself. It is not the note on a value of a Metric: its words belong to the dashboard.
+
+1. Open [**Add widget**](#adding-a-widget) and add **Note widget** under **Your words**: drag it to its place, press **+**, or tap it on a phone.
+2. Press **Write something** on the new Widget. To change the words later, switch to **Edit** and press the pencil on the Widget, or choose **Edit words…** in its menu.
+3. Write a **Heading** if you want one (up to 120 characters) and **Your words** (up to 2,000 characters and 100 lines). A line that starts with `-` is a point of a list, one that starts with `1.` of a numbered list; a blank line starts a new paragraph.
+4. Tick **Highlight** to draw it as a callout, washed with the Theme's accent colour.
+5. Press **Save**, or **Cancel**. On a keyboard, Ctrl or ⌘ with Enter saves and Escape cancels.
+
+Only the dashboard's owner and its Editors write it; everyone who sees the dashboard reads it, in Grid and Read, when presenting, in a Snapshot, on a View Link and on a deck's slide you add it to. The words are shown exactly as written, as plain text: nothing in them becomes a link or formatting, and Placeholders such as {latest} are not filled in. Where the words are longer than the Widget, it scrolls; in the Read view and in a phone's one column it is as tall as its words need.
+
+A Snapshot keeps the note as it was; its owner and Editors can correct the words under **Write**, like any words of a Snapshot. A Note widget is moved, resized, copied (**Add to…**), saved to **My Widgets** and restored from **Versions** like any other. Templates keep no notes: saving a dashboard as a Dashboard Template, or a slide with a note as a layout, leaves the note out and says so, so no Pack carries one either. The Workspace Export does not carry Note widgets and lists the dashboards that lose them. A program or assistant reads a note with the dashboard and neither adds nor changes one.
+
 ## Free layout
 
-A **Free layout** is a Widget you arrange freely, like a slide: other Widgets, text, arrows and shapes on one artboard the size of the Widget. Add it from the **Layout** group in [Add widget](#adding-a-widget), then choose **Edit layout…** in its menu (in edit mode).
+A **Free layout** is a Widget you arrange freely, like a slide: other Widgets, text, arrows and shapes on one artboard the size of the Widget. It is drawn by the slide editor, which needs a license key (see [Slide editor](18-installation-settings.md#slide-editor)), so it is offered only where this Ziffr has one. Add it from the **Layout** group in [Add widget](#adding-a-widget), then choose **Edit layout…** in its menu (in edit mode). For words beside your numbers, a [Note widget](#note-widget) works everywhere.
 
 The layout editor fills the screen. On the left is a Pool ("Drag widgets onto the artboard; use the toolbar for text, arrows and shapes."). Drag Metrics, saved Widgets and Widget Templates onto the artboard, and use the drawing toolbar for text, arrows and shapes. Links and pages from other sites cannot be placed on it; paste or drop an image file itself instead. Press **Save layout** to keep it, or **Cancel**.
 
-If the notice **Slides and free layouts cannot be shown here** stands in place of a Free layout, this Ziffr has no license key that the slide editor accepts. The person who runs it can [add one](18-installation-settings.md#slide-editor).
+Where this Ziffr has no key, nothing offers a Free layout, and nobody can add, copy or change one. The ones already made are kept as they are: in their place stands **This free layout cannot be shown here**, they can still be moved and removed, and they show again once the person who runs this Ziffr [adds a key](18-installation-settings.md#slide-editor). If the notice **Slides and free layouts cannot be shown here** stands there instead, the slide editor did not accept the key.
 
 A Free layout cannot be saved as a Widget Template, and is left out when a dashboard is saved as a Dashboard Template.
 
@@ -435,7 +451,7 @@ To step through Widgets, use the arrow keys, the space bar, Page Up and Page Dow
 | **What it is for** | One line, such as "The monthly numbers for one region". |
 | **Places to fill** | One Slot for each Metric, however many Widgets show it; a Widget of all Metrics tagged X becomes one "one or more" Slot called "Tagged Metrics" (rename it if you like, but everyone in the Workspace reads the name), since a template names no Tag. "Now:" says which Metric it holds. Give each a name, such as "Revenue metric"; an empty one is called "Metric 1", "Metric 2" and so on. The whole Workspace reads these names, also people who cannot see the Metrics, so the fields start empty. |
 
-A Widget whose Tag you cannot see is left out as well. Free layouts are left out, and the window lists them. Press **Save template**. Anyone in the Workspace can then pick it under **Start from** in the New dashboard window.
+A Widget whose Tag you cannot see is left out as well. Note widgets and Free layouts are left out, and the window lists them. Press **Save template**. Anyone in the Workspace can then pick it under **Start from** in the New dashboard window.
 
 ## Sharing
 
@@ -530,7 +546,7 @@ The owner and Editors have these buttons:
 
 | Button | What it does |
 | --- | --- |
-| **Write** / **Done** | Opens the words to write: the **Introduction** ("What happened in this period, in a sentence or two"), then each part: a **Title** (which may use Placeholders), or for a Finding its **Kicker**, **Headline**, **Subline**, **Footnote** and **Source**. Empty fields fall back to what the data says. **Save words** keeps them. Only the words change; the values, charts and layout stay as they were. |
+| **Write** / **Done** | Opens the words to write: the **Introduction** ("What happened in this period, in a sentence or two"), then each part: a **Title** (which may use Placeholders), or for a Finding its **Kicker**, **Headline**, **Subline**, **Footnote** and **Source**, or for a Note widget its **Heading** and words. Empty fields fall back to what the data says. **Save words** keeps them. Only the words change; the values, charts and layout stay as they were. |
 | **Show to everyone with access** | Ends the draft. From then on, whoever may open the dashboard may open the Snapshot, and sees in it only the Metrics they may see now. |
 | **Versions** | Every change to its words (see [Versions](#versions)). Everyone who can open it sees this. |
 | **Delete** | The owner only. Asks first; the Snapshot's values and words go for good, the dashboard and its values stay. |
@@ -591,6 +607,6 @@ In the demo, where visitors may change it, a dashboard that the demo started fre
 
 ## Trying dashboards in the demo
 
-Where the demo lets visitors change it (a Ziffr that is a demo and nothing else, with the setting **Visitors may change the demo** on), you can make dashboards of your own, also from a template, rename them and write their introduction, place, move and remove widgets, save widgets to your Pool, give a dashboard a Theme, name and restore its Versions, and save a widget or a dashboard as a template. They belong to the made-up person you are looking as, so every visitor who looks as that person sees them, and they are gone when the demo starts fresh, which the line at the top of the page says. Write plain words only: the demo refuses web addresses, email addresses, markup and long texts, and a free layout cannot be saved. The dashboards, words and Themes the demo came with keep their names and, for the ones the landing page points at, their widgets ("Everyone sees this one as it is. Make your own to change it."); you may still move and resize the widgets of the others. The demo holds a limited number of dashboards, widgets and the like at once; past the limit it says so and when it starts fresh. Sharing, View Links, invitations and uploads stay off: "The demo can't be changed." Where the setting is off the demo saves nothing, as before.
+Where the demo lets visitors change it (a Ziffr that is a demo and nothing else, with the setting **Visitors may change the demo** on), you can make dashboards of your own, also from a template, rename them and write their introduction, place, move and remove widgets, save widgets to your Pool, give a dashboard a Theme, name and restore its Versions, and save a widget or a dashboard as a template. They belong to the made-up person you are looking as, so every visitor who looks as that person sees them, and they are gone when the demo starts fresh, which the line at the top of the page says. Write plain words only: the demo refuses web addresses, email addresses, markup and long texts, and the drawing of a free layout cannot be saved. The dashboards, words and Themes the demo came with keep their names and, for the ones the landing page points at, their widgets ("Everyone sees this one as it is. Make your own to change it."); you may still move and resize the widgets of the others. The demo holds a limited number of dashboards, widgets and the like at once; past the limit it says so and when it starts fresh. Sharing, View Links, invitations and uploads stay off: "The demo can't be changed." Where the setting is off the demo saves nothing, as before.
 
 In the same demo you may take a **Snapshot** of a dashboard of your own, write its introduction and words, show it and delete it. Taking one freezes a whole dashboard, so only one is taken at a time in the whole demo: if another visitor is taking one, the demo says "Another visitor is taking a Snapshot. Try again in a moment.", and a visit may take three in a while. A Snapshot of a dashboard the demo came with, and the Snapshots it came with, are kept as they are, and a Snapshot is not taken automatically in the demo.
