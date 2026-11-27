@@ -9,7 +9,7 @@ import type { CatalogMetric, UnitPosition } from "@ziffr/core/types";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { CatalogBrowser, type CatalogFit } from "./catalog-browser";
-import { HOW_OFTEN, type Suggestion } from "./suggestions";
+import { HOW_OFTEN, type Suggestion } from "@/lib/metric-suggestions";
 
 const link = "inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground sm:min-h-0";
 

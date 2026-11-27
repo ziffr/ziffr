@@ -73,7 +73,7 @@ async function entry(workspaceId: string, over: Record<string, unknown> = {}) {
 describe("a metric of one's own", () => {
   const WANTED = {
     number: { format: "number", unit: "", decimals: 0, aggregation: "sum" },
-    money: { format: "currency", unit: "CHF", decimals: 0, aggregation: "sum" },
+    money: { format: "currency", unit: "CHF ", unit_position: "before", decimals: 0, aggregation: "sum" },
     percent: { format: "percent", unit: "%", unit_position: "after", decimals: 1, aggregation: "average" },
     hours: { format: "number", unit: "h", unit_position: "after", decimals: 1, aggregation: "sum" },
   };
@@ -115,7 +115,7 @@ describe("a pick from the catalog", () => {
   it("keeps money in the Workspace's currency", async () => {
     const owner = await made({ who: "me" });
     await makeFirstMetric(owner, { catalogId: await shared("Money saved") });
-    expect((await metrics(owner.workspaceId))[0]).toMatchObject({ format: "currency", unit: "CHF", aggregation: "sum" });
+    expect((await metrics(owner.workspaceId))[0]).toMatchObject({ format: "currency", unit: "CHF ", unit_position: "before", aggregation: "sum" });
   });
 
   it("refuses a calculated entry, another Workspace's entry and one that does not exist, and makes nothing", async () => {

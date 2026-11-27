@@ -27,7 +27,7 @@ import { NameField } from "../name-field";
 import { CalculationNoteField } from "../calculation-note-field";
 import { CatalogBrowser } from "./catalog-browser";
 import { GuidedPick } from "./guided-pick";
-import { suggestMetrics } from "./suggestions";
+import { suggestMetrics } from "@/lib/metric-suggestions";
 import { myBusinessFunction } from "@ziffr/core/business-function";
 import { DesktopOnly } from "@/components/desktop-only";
 import { DerivedForm } from "./derived-form";
