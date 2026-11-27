@@ -39,8 +39,8 @@ export function textPasses(pattern: string, text: string): boolean {
 
 // Where a message's words would be read as an address, each match ending where a space breaks it: the dot between a
 // name and a top-level domain, or a name followed by a path, a port, a query or a fragment; "www" before its dot; and
-// the colon of a scheme. The ideographic full stop counts as a dot, as chat apps read it. This only ever breaks more than the plain
-// text above refuses.
+// the colon of a scheme. The ideographic full stop counts as a dot, as chat apps read it. This only ever breaks more
+// than the plain text above refuses.
 const ADDRESS_BREAKS = [
   new RegExp(`(?<=[\\p{L}\\p{M}\\p{N}\\-_])[.\u3002](?=(?:${TLDS})(?![\\p{L}\\p{N}])|${anyCase("xn--")}|[\\p{L}\\p{M}]{2,}[/:?#])`, "gu"),
   new RegExp(`(?<![\\p{L}\\p{N}])${anyCase("www")}(?=[.\u3002]\\S)|\\b(?:${SCHEMES}|${anyCase("javascript")}|${anyCase("data")}):(?!\\s)|:(?=//)`, "gu"),
