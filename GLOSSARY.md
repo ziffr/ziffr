@@ -545,6 +545,10 @@ _Avoid_: Roll-up, consolidation, group sum
 What a Pack's creator tells people about it, in five set sections whose titles Ziffr writes: What it's for, Before you start, First steps, Each part, and Questions. Headings, paragraphs, lists and bold words only; read before installing and, with the installed Pack, in Help. Not the user guide, which is Ziffr's own, not the Setup Guide, and not the summary of one or two sentences.
 _Avoid_: Readme, manual, documentation, tutorial
 
+**Purchase Receipt**:
+A small signed file that Ziffr Cloud gives the buyer of a paid Pack. An Installation Admin adds it to a self-hosted Installation, which checks its signature offline with a public key that ships in the open code and then lets its Workspaces install that Pack, in updates of the version the receipt covers. It names the Pack, the version, the buying organisation and the date, and nothing about a Workspace, an Installation, a person or a price. It is not copy protection: it is how an Installation without an account at Ziffr can prove a purchase.
+_Avoid_: License key, entitlement, invoice
+
 **Marketplace**:
 Ziffr's catalogue of Packs, checked before they are listed, and of programs outside Ziffr that work with it, such as Feeds. Packs are installed from it into a Workspace; programs outside Ziffr are only listed, and their creators bill for them themselves.
 _Avoid_: Store, app store, gallery, hub
