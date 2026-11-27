@@ -7,8 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let path = "/metrics";
 let panelParam: string | null = null;
+let setupParam: string | null = null;
 const refresh = vi.fn();
-vi.mock("next/navigation", () => ({ usePathname: () => path, useRouter: () => ({ refresh }), useSearchParams: () => new URLSearchParams(panelParam ? { panel: panelParam } : {}) }));
+vi.mock("next/navigation", () => ({ usePathname: () => path, useRouter: () => ({ refresh }), useSearchParams: () => new URLSearchParams({ ...(panelParam ? { panel: panelParam } : {}), ...(setupParam ? { setup: setupParam } : {}) }) }));
 const hideSetup = vi.fn(async () => undefined);
 const reopenSetup = vi.fn(async () => undefined);
 const skipStep = vi.fn(async (step: string) => (step ? undefined : undefined));
@@ -48,7 +49,7 @@ async function show(state: SetupState, line: { done: number; total: number; next
 }
 
 beforeEach(() => {
-  path = "/metrics"; panelParam = null;
+  path = "/metrics"; panelParam = null; setupParam = null;
   for (const f of [hideSetup, reopenSetup, skipStep, readSetupSteps, refresh]) f.mockClear();
   steps = [
     { id: "about", ticked: true, skipped: false, next: false }, { id: "start", ticked: true, skipped: false, next: false },
@@ -78,6 +79,18 @@ describe("the Setup line", () => {
     path = "/setup";
     await show({ applies: true, shown: true }, { done: 2, total: 5, next: "ways" });
     expect(host.querySelector("section")).toBeNull();
+  });
+
+  it("is left off the new Metric page opened from the guide, and only there", async () => {
+    path = "/metrics/new"; setupParam = "1";
+    await show({ applies: true, shown: true }, { done: 2, total: 5, next: "ways" });
+    expect(host.querySelector("section")).toBeNull();
+    setupParam = null;
+    await show({ applies: true, shown: true }, { done: 2, total: 5, next: "ways" });
+    expect(host.querySelector("section")).not.toBeNull();
+    path = "/metrics"; setupParam = "1";
+    await show({ applies: true, shown: true }, { done: 2, total: 5, next: "ways" });
+    expect(host.querySelector("section")).not.toBeNull();
   });
 
   it("opens the steps beside the page with the next one marked and Skip beside the open ones", async () => {
