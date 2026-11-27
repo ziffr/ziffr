@@ -10,14 +10,15 @@ import { keepTopic } from "../draft";
 import { ScreenHeading } from "../parts";
 import type { ScreenProps } from "./types";
 
-/** Adds the first Metric from a pick. `adding` holds the pick from the press until the next screen is loaded, so that
- * a second press does nothing; a refusal comes back as `error`, in words for the person. */
+/** Adds the first Metric from a pick, or with null goes on with the one there is, and loads the value's screen.
+ * `adding` holds the press until then, so that a second one does nothing; a refusal comes back as `error`, in words for
+ * the person. */
 export function useAddMetric({ context, leave }: Pick<ScreenProps, "context" | "leave">) {
-  const [adding, setAdding] = useState<FirstMetricPick | null>(null);
+  const [adding, setAdding] = useState<{ pick: FirstMetricPick | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  async function add(pick: FirstMetricPick) {
+  async function add(pick: FirstMetricPick | null) {
     if (adding || !context.workspace) return;
-    setAdding(pick);
+    setAdding({ pick });
     setError(null);
     try {
       const r = await addFirstMetric(context.workspace.id, pick);
@@ -35,12 +36,14 @@ export function useAddMetric({ context, leave }: Pick<ScreenProps, "context" | "
   return { adding, error, add };
 }
 
-/** The screen once the first Metric is there: its name, and on to its value. */
-export function Added({ name, go }: { name: string; go: ScreenProps["go"] }) {
+/** The screen once the first Metric is there: its name, and on to its value. Going on also gives it a dashboard if it
+ * has none. */
+export function Added({ name, adding, error, add }: { name: string } & ReturnType<typeof useAddMetric>) {
   return (
     <>
-      <ScreenHeading title="Your first metric is added"><span className="break-words">“{name}” is on your dashboard.</span></ScreenHeading>
-      <Button type="button" className="h-11 w-full md:h-10" onClick={() => go("value")}>Continue</Button>
+      <ScreenHeading title="Your first metric is added"><span className="break-words">“{name}” is your first metric.</span></ScreenHeading>
+      <p role="alert" className="mb-4 text-sm text-destructive empty:mb-0">{error}</p>
+      <Button type="button" className="h-11 w-full md:h-10" disabled={adding !== null} onClick={() => void add(null)}>Continue</Button>
     </>
   );
 }

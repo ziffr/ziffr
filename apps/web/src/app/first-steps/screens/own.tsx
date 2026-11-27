@@ -11,12 +11,13 @@ import { Added, useAddMetric } from "./add-metric";
 import type { ScreenProps } from "./types";
 
 /** A Metric of one's own, asked one thing at a time. */
-export function OwnScreen({ context, go, leave }: ScreenProps) {
-  const { adding, error, add } = useAddMetric({ context, leave });
+export function OwnScreen({ context, leave }: ScreenProps) {
+  const press = useAddMetric({ context, leave });
+  const { adding, error, add } = press;
   const [name, setName] = useState("");
   const [unit, setUnit] = useState<OwnUnit | null>(null);
   const [period, setPeriod] = useState<OwnPeriod | null>(null);
-  if (context.clean?.metricName) return <Added name={context.clean.metricName} go={go} />;
+  if (context.clean?.metricName) return <Added name={context.clean.metricName} {...press} />;
   const named = Boolean(name.trim());
   return (
     <form onSubmit={(e) => { e.preventDefault(); if (named && unit && period) void add({ name, unit, period }); }}>

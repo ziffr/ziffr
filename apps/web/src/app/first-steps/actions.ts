@@ -44,7 +44,8 @@ export async function saveAnswers(workspaceId: string, input: unknown): Promise<
 }
 
 /** Adds the first Metric, from a suggestion or from a name, a unit and how often, in the Workspace the screen was drawn
- * for. The core checks the pick and who makes it; the browser is told no more than that it is there. */
+ * for; a pick of null goes on with the one there is. The core checks the pick and who makes it; the browser is told no
+ * more than that it is there. */
 export async function addFirstMetric(workspaceId: string, pick: unknown): Promise<{ added: true } | ActionError> {
   if (!FIRST_STEPS_ON) notFound();
   return attempt(async () => {

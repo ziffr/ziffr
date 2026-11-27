@@ -9,12 +9,14 @@ import type { ScreenProps } from "./types";
 
 /** The suggestions for the first Metric, and the way to define one's own. */
 export function FirstScreen({ context, answers, go, leave }: ScreenProps) {
-  const { adding, error, add } = useAddMetric({ context, leave });
+  const press = useAddMetric({ context, leave });
+  const { adding, error, add } = press;
   const clean = context.clean;
   if (!clean) return null;
-  if (clean.metricName) return <Added name={clean.metricName} go={go} />;
+  if (clean.metricName) return <Added name={clean.metricName} {...press} />;
   const offers = answers.who === "me" ? clean.topics[answers.topic ?? "other"] : clean.team;
-  const pressed = adding && "catalogId" in adding ? offers.find((o) => o.id === adding.catalogId) : null;
+  const picked = adding?.pick;
+  const pressed = picked && "catalogId" in picked ? offers.find((o) => o.id === picked.catalogId) : null;
   return (
     <>
       <ScreenHeading title="Let’s add your first metric together">A metric is one number you follow over time. Pick a suggestion or define your own.</ScreenHeading>
