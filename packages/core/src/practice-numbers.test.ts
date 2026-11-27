@@ -11,7 +11,8 @@ const metric = (over: Partial<MadeUpMetric> = {}): MadeUpMetric => ({ seed: "Rev
 const PERIODS: Period[] = ["day", "week", "month", "quarter", "year"];
 
 describe("the periods filled", () => {
-  it.each([["day", "2025-01-01", "2026-11-26"], ["week", "2024-12-30", "2026-11-23"], ["month", "2025-01-01", "2026-11-01"], ["quarter", "2025-01-01", "2026-10-01"], ["year", "2024-01-01", "2026-01-01"]] as const)("for %s run from %s to the running one", (period, first, last) => {
+  // The last ended period is what a request asks for: it and the running one are left empty.
+  it.each([["day", "2025-01-01", "2026-11-24"], ["week", "2024-12-30", "2026-11-09"], ["month", "2025-01-01", "2026-09-01"], ["quarter", "2024-07-01", "2026-04-01"], ["year", "2022-01-01", "2024-01-01"]] as const)("for %s run from %s to the one before the last that ended", (period, first, last) => {
     const periods = madeUpPeriods(period, TODAY, JANUARY);
     expect([periods[0] <= first, periods.at(-1)]).toEqual([true, last]);
     // Every period between, once, each the first day of one.
@@ -82,7 +83,7 @@ describe("the values", () => {
     for (const [polarity, grows] of [["higher", true], ["lower", false]] as const) {
       for (const seed of ["a", "b", "c", "d"]) {
         const made = madeUpValues(metric({ seed, polarity }), periods, new Map());
-        const sum = (year: string) => [...made].filter(([p]) => p.startsWith(year) && p.slice(5) <= "10-01").reduce((n, [, v]) => n + v, 0);
+        const sum = (year: string) => [...made].filter(([p]) => p.startsWith(year) && p.slice(5) <= "09-01").reduce((n, [, v]) => n + v, 0);
         expect(sum("2026") > sum("2025")).toBe(grows);
       }
     }

@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { shown, unwrap } from "@/lib/action-error";
 import { fillMadeUpNumbers } from "@/app/pack-setup-actions";
 
+/** What is said once it is done: why the latest periods have no values. */
+const LEFT_EMPTY = "The last ended period and the running one are left empty, so you can try asking for their values.";
+
 /** The button, and under it how far it is or what was filled. */
 export function FillMadeUp({ installId }: { installId: number }) {
   const router = useRouter();
@@ -25,7 +28,7 @@ export function FillMadeUp({ installId }: { installId: number }) {
         values += step.values;
         targets += step.targets;
         if (step.done) {
-          setWords(!step.of ? "There is nothing to fill: set this Pack up first." : values || targets ? `Filled ${step.of} Metric${step.of === 1 ? "" : "s"} with ${values.toLocaleString("en")} made-up values and ${targets.toLocaleString("en")} targets.` : "Nothing to add: every period has its numbers.");
+          setWords(!step.of ? "There is nothing to fill: set this Pack up first." : `${values || targets ? `Filled ${step.of} Metric${step.of === 1 ? "" : "s"} with ${values.toLocaleString("en")} made-up values and ${targets.toLocaleString("en")} targets.` : "Nothing to add."} ${LEFT_EMPTY}`);
           break;
         }
         after = step.next;

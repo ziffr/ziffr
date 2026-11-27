@@ -1,7 +1,8 @@
 // Filling Metrics of a Practice Workspace with made-up numbers (spec 0063, #1267; GLOSSARY: Practice Workspace, Import):
 // those a Set up from a Pack made, so its dashboards and slides show something, and what the copy of the demo lacks for
-// year on year and annual progress. Values are written as imports in batches, targets as a Target Series; a period that
-// has a value, and a Metric that has a Target Series, are left as they are.
+// year on year and annual progress. Values are written as imports in batches, targets as a Target Series; nothing that
+// is there is replaced. The last ended period and the running one stay empty, as does a period a Workflow already works
+// on, so asking for values can be tried: made-up numbers start no Approval, task or message.
 // SECURITY: only ever in a Practice Workspace, and asked only by the person it was made for. It writes to Metrics of
 // that Workspace alone, also ones its made-up people own.
 import { Forbidden, type Actor } from "./actor";
@@ -13,7 +14,8 @@ import { scanWorkspace } from "./heads-ups";
 import { sealedSeriesSaves } from "./metrics";
 import { periodEnd } from "./periods";
 import { practiceFor } from "./practice";
-import { madeUpPeriods, madeUpTargets, madeUpValues, type MadeUpMetric } from "./practice-numbers";
+import { madeUpPeriods } from "./practice-numbers";
+import { madeUpLevel, madeUpOf, madeUpRelatives, madeUpTargetsOf, type MadeUpMember } from "./practice-relations";
 import { workspaceToday } from "./retention-setting";
 import { openRows } from "./sealed-columns";
 import type { Metric, YearStart } from "./types";
@@ -33,23 +35,58 @@ const busy = new Set<string>();
 
 type Ground = { workspaceId: string; today: string; yearStart: YearStart; onlyBefore: boolean };
 
-/** The made-up values and targets of one Metric, written. */
-async function fillOne(g: Ground, m: Metric): Promise<{ values: number; targets: number }> {
-  const ws = g.workspaceId;
-  const rows = await allRows<Record<string, unknown>>((from, to) => db().from("observations").select("id, metric_id, period_start, value, value_sealed").eq("workspace_id", ws).eq("metric_id", m.id).order("id").range(from, to));
-  const existing = new Map<string, number>();
-  const taken = new Set<string>();
+/** Which Pack a Metric was set up from: its entry's key and the Repeat's line it was made for. */
+type Origin = { pack: string | null; key: string | null; line: number | null };
+const NO_ORIGIN: Origin = { pack: null, key: null, line: null };
+
+/** What a Metric holds already, by period: its latest values and its targets, and the periods no value may be made up
+ * for: those with one, and those a Workflow works on. */
+async function holdingsOf(ws: string, metricId: number) {
+  const rows = await allRows<Record<string, unknown>>((from, to) => db().from("observations").select("id, metric_id, period_start, value, value_sealed").eq("workspace_id", ws).eq("metric_id", metricId).order("id").range(from, to));
+  const targetRows = await allRows<Record<string, unknown>>((from, to) => db().from("series_values").select("id, metric_id, kind, period_start, value, value_sealed").eq("workspace_id", ws).eq("metric_id", metricId).eq("kind", "target").order("id").range(from, to));
+  const states = await allRows<{ period_start: string }>((from, to) => db().from("period_states").select("period_start").eq("metric_id", metricId).order("period_start").range(from, to));
+  const values = new Map<string, number>();
+  const taken = new Set<string>(states.map((r) => String(r.period_start)));
   for (const r of await openRows("observations", ws, rows)) {
     taken.add(String(r.period_start));
-    if (typeof r.value === "number") existing.set(String(r.period_start), r.value);
+    if (typeof r.value === "number") values.set(String(r.period_start), r.value);
   }
-  const made: MadeUpMetric = { seed: m.name, period: m.period, polarity: m.polarity, unit: m.unit ?? "", format: m.format, decimals: m.decimals, targetMin: m.target_min === null ? null : Number(m.target_min), targetMax: m.target_max === null ? null : Number(m.target_max) };
+  const targets = new Map<string, number>();
+  for (const r of await openRows("series_values", ws, targetRows)) if (typeof r.value === "number") targets.set(String(r.period_start), r.value);
+  return { values, taken, targets };
+}
+
+type Holdings = Awaited<ReturnType<typeof holdingsOf>>;
+
+/** A Metric as the generator reads it. */
+function memberOf(m: Metric, from: Origin, held?: Holdings): MadeUpMember {
+  const made = { seed: m.name, period: m.period, polarity: m.polarity, unit: m.unit ?? "", format: m.format, decimals: m.decimals, targetMin: m.target_min === null ? null : Number(m.target_min), targetMax: m.target_max === null ? null : Number(m.target_max), level: madeUpLevel(from.pack, from.key) };
+  return { key: from.key, line: from.line, metric: made, computed: Boolean(m.formula), values: held?.values ?? new Map(), targets: held?.targets ?? new Map() };
+}
+
+/** The Metrics set up from one Pack, those of one line together and the lines in the order they were made. */
+type Family = { pack: string | null; metrics: { metric: Metric; from: Origin }[] };
+
+/** The made-up values and targets of one Metric, written. */
+async function fillOne(g: Ground, m: Metric, family: Family = { pack: null, metrics: [] }): Promise<{ values: number; targets: number }> {
+  const ws = g.workspaceId;
+  const from = family.metrics.find((x) => x.metric.id === m.id)?.from ?? NO_ORIGIN;
+  const held = await holdingsOf(ws, m.id);
+  const me = memberOf(m, from, held);
+  // What its numbers are worked out from is read too: the others of its line, and those of no line.
+  const related = new Set(madeUpRelatives(family.pack, from.key));
+  const others = await Promise.all(family.metrics.map(async (x) => {
+    if (x.metric.id === m.id) return me;
+    const needed = x.from.key !== null && related.has(x.from.key) && (x.from.line === from.line || x.from.line === null);
+    return memberOf(x.metric, x.from, needed ? await holdingsOf(ws, x.metric.id) : undefined);
+  }));
+  const set = { pack: family.pack, members: others.length ? others : [me], yearStart: g.yearStart };
   const periods = madeUpPeriods(m.period, g.today, g.yearStart);
   // For the copy of the demo only what lies before its first value: what it leaves open at the end is still asked for.
-  const first = [...taken].sort()[0];
-  const wanted = periods.filter((p) => !taken.has(p) && (!g.onlyBefore || (first !== undefined && p < first)));
+  const first = [...held.values.keys()].sort()[0];
+  const wanted = periods.filter((p) => !held.taken.has(p) && (!g.onlyBefore || (first !== undefined && p < first)));
   // A Metric that is calculated takes no values; a Breakdown is never made up.
-  const values = m.formula ? new Map<string, number>() : madeUpValues(made, periods, existing);
+  const values = madeUpOf(set, me, periods);
   const writer = new ValueWriter(ws);
   const now = Date.now();
   let written = 0;
@@ -61,21 +98,17 @@ async function fillOne(g: Ground, m: Metric): Promise<{ values: number; targets:
     written++;
   }
   await writer.flush();
-  return { values: written, targets: await fillTargets(g, m, made, new Map([...existing, ...values])) };
+  const targets = madeUpTargetsOf(set, me, madeUpPeriods(m.period, g.today, g.yearStart, true), new Map([...held.values, ...values]));
+  return { values: written, targets: await saveTargets(ws, m.id, targets) };
 }
 
-/** A Target Series for the previous and the whole current fiscal year, for a Metric that has none. A band to stay inside
- * is left as it is, and so is a calculated Metric without a Target Range, whose level nothing here knows. */
-async function fillTargets(g: Ground, m: Metric, made: MadeUpMetric, values: ReadonlyMap<string, number>): Promise<number> {
-  if (m.polarity === "target" || (m.formula && made.targetMin === null && made.targetMax === null)) return 0;
-  const { count, error } = await db().from("series_values").select("id", { count: "exact", head: true }).eq("workspace_id", g.workspaceId).eq("metric_id", m.id).eq("kind", "target");
-  if (error) throw new Error("The targets could not be read.");
-  if (count) return 0;
-  const points = [...madeUpTargets(made, madeUpPeriods(m.period, g.today, g.yearStart, true), values)].map(([period, value]) => ({ period, value }));
+/** Made-up targets written as a Target Series, for periods that have none. */
+async function saveTargets(ws: string, metricId: number, targets: ReadonlyMap<string, number>): Promise<number> {
+  const points = [...targets].map(([period, value]) => ({ period, value }));
   for (let i = 0; i < points.length; i += SERIES_BATCH) {
-    const saves = await sealedSeriesSaves(g.workspaceId, m.id, "target", points.slice(i, i + SERIES_BATCH));
-    const { error: failed } = await db().rpc("set_series_values", { p_metric: m.id, p_kind: "target", p_saves: saves, p_removes: [], p_note: "Made-up targets" });
-    if (failed) throw new Error("The targets could not be saved.");
+    const saves = await sealedSeriesSaves(ws, metricId, "target", points.slice(i, i + SERIES_BATCH));
+    const { error } = await db().rpc("set_series_values", { p_metric: metricId, p_kind: "target", p_saves: saves, p_removes: [], p_note: "Made-up targets" });
+    if (error) throw new Error("The targets could not be saved.");
   }
   return points.length;
 }
@@ -86,6 +119,19 @@ async function metricsOf(workspaceId: string, ids: ReadonlySet<number> | null): 
 }
 
 const groundOf = async (workspaceId: string, onlyBefore: boolean): Promise<Ground> => ({ workspaceId, today: await workspaceToday(workspaceId), yearStart: await yearStartOf(workspaceId), onlyBefore });
+
+/** The Metrics that Set ups from an installed Pack of this Workspace made, with what each was made from. */
+async function familyOf(ws: string, installId: number): Promise<Family> {
+  const { data: setups, error } = await db().from("pack_setups").select("id").eq("workspace_id", ws).eq("install_id", installId);
+  if (error) throw new Error("The Set up could not be read.");
+  if (!setups?.length) return { pack: null, metrics: [] };
+  const items = await allRows<{ object_id: number; pack_key: string; line_id: number | null }>((from, to) => db().from("pack_setup_items").select("object_id, pack_key, line_id").eq("workspace_id", ws).eq("kind", "metric").in("setup_id", setups.map((s) => s.id as number)).order("id").range(from, to));
+  const { data: install } = await db().from("pack_installs").select("pack_id").eq("workspace_id", ws).eq("id", installId).maybeSingle();
+  const pack = install ? String(install.pack_id) : null;
+  const from = new Map(items.map((i): [number, Origin] => [Number(i.object_id), { pack, key: i.pack_key, line: i.line_id === null ? null : Number(i.line_id) }]));
+  const metrics = (await metricsOf(ws, new Set(from.keys()))).map((metric) => ({ metric, from: from.get(metric.id)! }));
+  return { pack, metrics: metrics.sort((a, b) => (a.from.line ?? 0) - (b.from.line ?? 0) || a.metric.id - b.metric.id) };
+}
 
 /** Whether made-up numbers are offered to this person here: their own Practice Workspace. */
 export async function offersMadeUpNumbers(actor: Actor): Promise<boolean> {
@@ -102,17 +148,15 @@ export async function fillCopiedNumbers(workspaceId: string): Promise<void> {
 
 /**
  * Takes one step of filling the Metrics that Set ups from an installed Pack made, in the actor's own Practice
- * Workspace: from `after`, a few Metrics. Call again with `next` until `done`; running it again later adds only periods
- * that have no value yet.
+ * Workspace: from `after`, a few Metrics, as the Pack's numbers belong together. Call again with `next` until `done`;
+ * running it again later adds only periods that have no value yet.
  */
 export async function fillSetUpNumbers(actor: Actor, installId: number, after = 0): Promise<PracticeFillStep> {
   refuseInDemo(actor);
   if (actor.key || (await practiceFor(actor.workspaceId)) !== actor.personId) throw new Forbidden("Made-up numbers are only for your own Practice Workspace.");
   const ws = actor.workspaceId;
-  const { data: setups, error } = await db().from("pack_setups").select("id").eq("workspace_id", ws).eq("install_id", Number(installId));
-  if (error) throw new Error("The Set up could not be read.");
-  const items = setups?.length ? await allRows<{ object_id: number }>((from, to) => db().from("pack_setup_items").select("object_id").eq("workspace_id", ws).eq("kind", "metric").in("setup_id", setups.map((s) => s.id as number)).order("id").range(from, to)) : [];
-  const metrics = await metricsOf(ws, new Set(items.map((i) => Number(i.object_id))));
+  const family = await familyOf(ws, Number(installId));
+  const metrics = family.metrics.map((x) => x.metric).sort((a, b) => a.id - b.id);
   const start = Number.isSafeInteger(after) && after > 0 ? after : 0;
   if (busy.has(ws)) throw new Error("Numbers are being filled in already.");
   busy.add(ws);
@@ -122,7 +166,7 @@ export async function fillSetUpNumbers(actor: Actor, installId: number, after = 
     let targets = 0;
     const step = metrics.slice(start, start + FILL_METRICS_PER_STEP);
     for (const m of step) {
-      const made = await fillOne(g, m);
+      const made = await fillOne(g, m, family);
       values += made.values;
       targets += made.targets;
     }

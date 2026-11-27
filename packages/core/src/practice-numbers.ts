@@ -1,7 +1,8 @@
 // Made-up numbers for a Practice Workspace (spec 0063, #1267; GLOSSARY: Practice Workspace): believable values and
 // targets for the periods a Metric has none for, so that year on year, year to date against last year, the quarter to
 // date, the period before and Heads-ups have something to show. Pure: the same Metric, periods and values give the same
-// numbers, so a second run adds nothing different. It never gives a number for a period that has one.
+// numbers, so a second run adds nothing different. It never gives a number for a period that has one. How the numbers of
+// one Pack belong together is in practice-relations.ts.
 import { periodStart, shiftPeriod } from "./periods";
 import type { Period, Polarity, YearStart } from "./types";
 
@@ -16,26 +17,32 @@ export type MadeUpMetric = {
   decimals: number;
   targetMin: number | null;
   targetMax: number | null;
+  /** The range its level is picked from, where its unit and format would say something impossible (a rate per hour in
+   * money is not thousands). */
+  level?: readonly [number, number];
 };
 
-/** Periods back from the running one that are always covered, by period: 13 months or more, quarterly 8, yearly 3. */
+/** Periods that are always covered, by period, counted back from the last one filled: 13 months or more, quarterly 8,
+ * yearly 3. */
 const AT_LEAST: Record<Period, number> = { day: 397, week: 58, month: 14, quarter: 8, year: 3 };
 
-/** The first days of every period from the start of the previous fiscal year, or earlier where a period needs more to be
- * compared, up to the running one, oldest first; with `ahead`, on to the last period of the current fiscal year. */
+/** The first days of every period made-up values are for, oldest first: from the start of the previous fiscal year, or
+ * earlier where a period needs more to be compared, up to the one before the last that ended. The last ended period is
+ * the one a request asks for and the running one follows it: both stay empty, so asking can be tried. With `ahead`, for
+ * targets, on to the last period of the current fiscal year. */
 export function madeUpPeriods(period: Period, today: string, yearStart: YearStart, ahead = false): string[] {
-  const running = periodStart(today, period, yearStart);
+  const last = shiftPeriod(periodStart(today, period, yearStart), period, -2);
   const year = periodStart(today, "year", yearStart);
   const lastYear = periodStart(shiftPeriod(year, "year", -1), period, yearStart);
-  const atLeast = shiftPeriod(running, period, 1 - AT_LEAST[period]);
-  const to = ahead ? periodStart(shiftPeriod(shiftPeriod(year, "year", 1), "day", -1), period, yearStart) : running;
+  const atLeast = shiftPeriod(last, period, 1 - AT_LEAST[period]);
+  const to = ahead ? periodStart(shiftPeriod(shiftPeriod(year, "year", 1), "day", -1), period, yearStart) : last;
   const out: string[] = [];
   for (let at = atLeast < lastYear ? atLeast : lastYear; at <= to; at = shiftPeriod(at, period, 1)) out.push(at);
   return out;
 }
 
 /** A number from 0 to 1 that stays the same for the same words (FNV-1a). */
-function chance(words: string): number {
+export function chance(words: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < words.length; i++) h = Math.imul(h ^ words.charCodeAt(i), 0x01000193);
   // Mixed once more, so words that differ at the end differ everywhere.
@@ -52,6 +59,7 @@ function shapeOf(m: MadeUpMetric): Shape {
   const unit = m.unit.trim().toLowerCase();
   const pick = (low: number, high: number) => low + chance(`${m.seed}:level`) * (high - low);
   const perPeriod = { day: 1 / 21, week: 1 / 4.3, month: 1, quarter: 3, year: 12 }[m.period];
+  if (m.level) return { level: pick(m.level[0], m.level[1]), spread: 0.05, max: m.format === "percent" ? 100 : null };
   if (m.format === "percent" || unit === "%") return { level: pick(m.polarity === "lower" ? 2 : 35, m.polarity === "lower" ? 12 : 80), spread: 0.05, max: 100 };
   if (m.format === "currency" || /^(€|\$|£|chf|eur|usd|gbp|k€|k\$)/.test(unit)) return { level: pick(20_000, 200_000) * perPeriod, spread: 0.07, max: null };
   if (/day|hour|minute|second|^h$|^d$|^min$/.test(unit)) return { level: pick(2, 30), spread: 0.08, max: null };
@@ -94,20 +102,19 @@ function fit(value: number, m: MadeUpMetric, shape: Shape, negatives: boolean): 
   return v === 0 ? 0 : v;
 }
 
-/** The level a Metric moves around: what its values say, else its Target Range, else its kind of number. */
-function levelOf(m: MadeUpMetric, shape: Shape, existing: ReadonlyMap<string, number>, periods: string[]): { level: number; at: string } {
+/** The level a Metric moves around: what its values say, else its Target Range, else its kind of number. `along` is the
+ * Metric whose course the values follow: itself, or the one it is a part of. */
+function levelOf(m: MadeUpMetric, shape: Shape, existing: ReadonlyMap<string, number>, periods: string[], along = m): number {
   const known = [...existing].sort((a, b) => a[0].localeCompare(b[0]));
   if (known.length) {
     // The earliest values: what is filled in is mostly before them.
     const first = known.slice(0, Math.min(known.length, m.period === "day" ? 28 : 6));
-    const level = first.reduce((n, [p, v]) => n + v / course(m, p), 0) / first.length;
-    return { level, at: "known" };
+    return first.reduce((n, [p, v]) => n + v / course(along, p), 0) / first.length;
   }
-  const running = periods[periods.length - 1];
   const aim = rangeAim(m);
   // A little short of the aim in some Metrics and past it in others, so Attainment is not the same everywhere.
   const base = aim !== null && aim !== 0 ? aim * (0.92 + chance(`${m.seed}:aim`) * 0.14) : shape.level;
-  return { level: base / course(m, running), at: "now" };
+  return base / course(along, periods[periods.length - 1]);
 }
 
 /** Values for those of the periods that have none: a trend, a season and noise around the Metric's level. */
@@ -115,7 +122,7 @@ export function madeUpValues(m: MadeUpMetric, periods: string[], existing: Reado
   const shape = shapeOf(m);
   const out = new Map<string, number>();
   if (!periods.length) return out;
-  const { level } = levelOf(m, shape, existing, periods);
+  const level = levelOf(m, shape, existing, periods);
   const negatives = [...existing.values()].some((v) => v < 0) || level < 0;
   for (const p of periods) {
     if (existing.has(p)) continue;
@@ -125,18 +132,36 @@ export function madeUpValues(m: MadeUpMetric, periods: string[], existing: Reado
   return out;
 }
 
+/** Values of a Metric that is a share, or a multiple, of another one's: `whole` answers the other's value of the
+ * period that holds `p`, and the factor stays between `low` and `high` in every period. None where the whole has none. */
+export function madeUpShares(m: MadeUpMetric, periods: string[], existing: ReadonlyMap<string, number>, whole: (p: string) => number | undefined, [low, high]: readonly [number, number]): Map<string, number> {
+  const shape = shapeOf(m);
+  const out = new Map<string, number>();
+  const usual = low + (high - low) * (0.25 + chance(`${m.seed}:share`) * 0.5);
+  const places = 10 ** Math.max(0, Math.min(m.decimals, 6));
+  for (const p of periods) {
+    const of = whole(p);
+    if (existing.has(p) || of === undefined) continue;
+    const factor = Math.min(high, Math.max(low, usual + (chance(`${m.seed}:${p}`) - 0.5) * (high - low) * 0.5));
+    // Cut off, not rounded, so that parts which add up to a whole never come to more than it.
+    out.set(p, fit(Math.floor(of * factor * places) / places, m, shape, of < 0));
+  }
+  return out;
+}
+
 /** A Target Series for the previous and the whole current fiscal year, periods still to come included: the course without
- * its noise, a little ahead of it the good way. None for a Metric whose Polarity asks for no direction and has no range. */
-export function madeUpTargets(m: MadeUpMetric, periods: string[], values: ReadonlyMap<string, number>): Map<string, number> {
+ * its noise, a few percent above or below it, so that some Metrics are ahead of their targets and some behind. None for
+ * a Metric whose Polarity asks for no direction and has no range. `along` is the Metric whose course the values follow. */
+export function madeUpTargets(m: MadeUpMetric, periods: string[], values: ReadonlyMap<string, number>, along = m): Map<string, number> {
   const aim = rangeAim(m);
   if (m.polarity !== "higher" && m.polarity !== "lower" && aim === null) return new Map();
   const shape = shapeOf(m);
-  const { level } = levelOf(m, shape, values, periods);
-  const stretch = m.polarity === "higher" ? 1.03 : m.polarity === "lower" ? 0.97 : 1;
+  const level = levelOf(m, shape, values, periods, along);
+  const stretch = 0.95 + chance(`${m.seed}:stretch`) * 0.1;
   const now = periods[periods.length - 1];
   return new Map(periods.map((p) => {
     // With a Target Range, the targets lead up to it; without, they follow the course of the values.
-    const target = aim !== null ? aim * Math.pow(course({ ...m, period: "month" }, p) / course({ ...m, period: "month" }, now), 0.5) : level * course(m, p) * stretch;
+    const target = aim !== null ? aim * Math.pow(course({ ...m, period: "month" }, p) / course({ ...m, period: "month" }, now), 0.5) : level * course(along, p) * stretch;
     return [p, fit(target, m, shape, level < 0)] as const;
   }));
 }
