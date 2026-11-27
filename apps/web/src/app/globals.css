@@ -117,10 +117,13 @@
   background-image: none;
   border-inline-start: 4px solid var(--color-accent-2);
 }
+/* The canvas that dashboards and the Analysis Canvas lie on: one flat tone, a step darker than the page, with a border. A canvas
+ * that fills the whole screen (Present) has no edge to draw. */
 .desk {
   background-color: var(--color-desk);
-  background-image: radial-gradient(90% 120% at 0% 20%, var(--color-cotton), transparent 62%), var(--tex-desk);
+  border: 1px solid var(--color-rule-2);
 }
+.desk.fixed { border: 0; }
 /* Slideshow: slides only, no frame names. */
 .slideshow .tl-frame-heading { display: none; }
 .slideshow .tl-frame__body { stroke: transparent; }

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // The Library (ticket #1030): the way into the Playground is shown to Owners and Admins only, in the Library and at the end of
-// Choose a method; the old addresses of View Designs and the Playground lead on to the Library.
+// Pick a question; the old addresses of View Designs and the Playground lead on to the Library.
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -26,7 +26,7 @@ describe("the Library's Analysis Recipes", () => {
   });
 });
 
-describe("Choose a method", () => {
+describe("Pick a question", () => {
   it("ends with 'Write your own method' for Owners and Admins, and shows nothing of the kind to others", () => {
     expect(renderToStaticMarkup(<MethodPicker ids={[]} writes onResult={() => {}} />)).toContain(`href="${PLAYGROUND}"`);
     expect(renderToStaticMarkup(<MethodPicker ids={[]} writes onResult={() => {}} />)).toContain("Write your own method");

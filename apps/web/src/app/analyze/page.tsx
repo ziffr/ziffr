@@ -16,7 +16,7 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
   const demo = await isDemo();
   // "Analyze" from a metric page drops that metric onto the canvas (the core checks the person sees it). The demo
   // saves nothing, so there it is only drawn on the canvas this time (#827).
-  // `?metric=<slug>` comes from "Choose a method for <Metric>" on a Metric page: that Metric goes on the canvas as the one to explain and the
+  // `?metric=<slug>` comes from "Pick a question for <Metric>" on a Metric page: that Metric goes on the canvas as the one to explain and the
   // picker opens. The slug is looked up among the Metrics this person sees only, so a hidden slug, an unknown one, an archived one and a
   // missing one behave the same (nothing is added, the screen is as it would be without it): the page never says whether a Metric exists.
   const slug = typeof sp.metric === "string" && /^[a-z0-9][a-z0-9-]{0,80}$/.test(sp.metric) ? sp.metric : null;
@@ -32,9 +32,9 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader title="Analyze" sub="Ask a question of your numbers: drop Metrics on the canvas, pick a question, read the answer." />
-      {/* A slim hint says how many Heads-ups there are; the list is in the side panel behind it. In a Workspace over the scan's cap the
-          list scans the person's own Metrics: the page does not wait for it. */}
-      <Suspense fallback={<p className="-mt-4 mb-5 text-sm text-muted-foreground">Looking for Heads-ups…</p>}>
+      {/* How many Heads-ups there are, in a block of its own; the list is in the side panel behind it. In a Workspace over the scan's cap
+          the list scans the person's own Metrics: the page does not wait for it, and shows no block until it knows there is one. */}
+      <Suspense fallback={null}>
         <HeadsUpsSection actor={actor} demo={demo} />
       </Suspense>
       <DesktopOnly path="/analyze" />

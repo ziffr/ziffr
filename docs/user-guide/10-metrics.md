@@ -308,7 +308,7 @@ The tab is what Ziffr already knows about this one Metric, in three parts from t
 
 **What moves with the Metric** lists the five other Metrics you can see that move most like it, each with a strength word (strong, moderate, weak, or can't tell from chance) and what it was compared on, by change or by the values as they are. Choose one to see its Takeaway and a chart with one dot per period. If a few points are far from the rest and stretch the chart, a line under it says so ("Two months are far from the rest and stretch this chart."); the points stay on it. The Takeaway has a sentence first, then what it is based on, then a plain line when the data makes the reading rough, and the footer that this shows what has gone together, not what caused what. Metrics counted at another period are compared at the longer of the two where that can be done; a note names the ones that could not be.
 
-**Ask about the Metric** opens Analyze with this Metric on the canvas as the one to explain and the methods panel open, so you can ask for more: what moves it, what it would take to reach a value, what if it changed. A Metric you cannot see is ignored: Analyze then opens as it would without it.
+**Ask about the Metric** opens Analyze with this Metric on the canvas as the one to explain and the questions of **Pick a question** open, so you can ask for more: what moves it, what it would take to reach a value, what if it changed. A Metric you cannot see is ignored: Analyze then opens as it would without it.
 
 For more, use **Analyze** at the top (see [Analyze](13-analyze.md)).
 

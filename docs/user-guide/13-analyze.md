@@ -4,7 +4,7 @@
 
 **Analyze** in the sidebar opens the **Analysis Canvas**: a place to put a few Metrics side by side and ask simple questions of them. Where is this heading? Do these two move together? What moves Cost? You choose a **method** by what you want to know, and its result can go onto a dashboard.
 
-Three steps are all it takes: drop Metrics on the canvas, pick a question, read the answer. An empty canvas says so, and offers one question to try.
+Three steps are all it takes: drop Metrics on the canvas, pick a question, read the answer. An empty canvas says so.
 
 Everyone in the Workspace can use Analyze, with the Metrics they can see. The page needs no setup and changes nothing for anyone else.
 
@@ -14,9 +14,9 @@ On a phone a note at the top says Analyze is easier on a larger screen; see [Scr
 
 From the top, the screen has these parts:
 
-- **Heads-ups**, one slim line under the title: "3 Heads-ups for you. **Look**", or "No Heads-ups right now." **Look** opens the list in the side panel (see [Heads-ups](#heads-ups)).
+- **Heads-ups**, a block under the title with how many there are for you and **Look**, which opens the list in the side panel (see [Heads-ups](#heads-ups)). With none there is no block.
 - **The Analysis canvas**, large, with the Metrics on it and which of them is the one to explain. Left of it is **The Pool** (below it on a narrow screen), with the Metrics you can see. Here it holds only Metrics, no saved Widgets or Widget Templates. **Filter** narrows it by name.
-- **Choose a method**, the button above the canvas: the one way to run an analysis here. It opens the **methods panel**, a list of questions grouped by what you want to know (see [Choose a method](#choose-a-method)).
+- **Pick a question**, the button at the top right of the canvas once a Metric is on it: the one way to run an analysis here. It opens a side panel with a list of questions grouped by what you want to know (see [Pick a question](#pick-a-question)).
 - **The results**, directly under the canvas: the answer to the question you asked, newest first.
 
 ## The empty canvas
@@ -27,8 +27,6 @@ When nothing is on the canvas, it tells you what to do:
 2. Pick a question.
 3. Read the answer.
 
-Under the steps, **Try: What moves Cost?** is one question picked for you from the Metrics you can see. Choosing it puts those Metrics on the canvas, marks the one to explain and opens the question in the methods panel, ready to **Work it out**. The Metrics in it differ from Workspace to Workspace. When there are too few Metrics, or too few values, for any question to fit, the example is not shown.
-
 ## Putting Metrics on the canvas
 
 Drag a Metric from the Pool onto the canvas, or point at it and press **+**. **Archived Metrics** are not in the Pool, and the Drivers suggestion leaves them out. To see what a Metric is before you drop it, press the **ⓘ** on its row: a small card opens beside it with the Metric's name, how often it is counted and in which unit, its description, its latest value with the period, and a small line of its recent values. The list stays as it is; press **ⓘ** again, press Escape or tap elsewhere to close the card. You can also open a Metric's own page and choose **Analyze** there: Ziffr opens this screen with that Metric already on the canvas.
@@ -37,17 +35,17 @@ Each Metric on the canvas shows its name and how often it is counted, such as "m
 
 The Metrics on your canvas stay there until you take them off, also when you leave and come back. The canvas is yours alone; colleagues have their own. In the demo nothing is saved: the canvas works the same way, but starts over when you leave the page.
 
-The methods panel opens only when you ask for it, or when you come from a Metric's page; once there are Metrics on the canvas it starts with the questions that fit them.
+The side panel with the questions opens only when you ask for it, or when you come from a Metric's page; once there are Metrics on the canvas it starts with the questions that fit them.
 
 ### The Metric to explain
 
 Some questions are about one Metric: **What moves B?**, **What does B need to reach a value?**, **What if A changes?** and **Did it work?**. Ziffr calls it **the one to explain**. When there are two or more Metrics on the canvas, each chip says its role in words: the one to explain carries a filled mark, **The one to explain**, and the others read **Compared with** and have a button, **Make this the one to explain**. The mark is its own choice: the order in which you dropped the Metrics does not decide it. With one Metric on the canvas, it is the one to explain.
 
-Choose another Metric's button and nothing is taken off the canvas; the list starts its questions on the new one. If you take the marked Metric off, the mark moves to the next Metric on the canvas (to the one before it when it was the last). The choice is kept with the canvas. The questions in **Choose a method** start on it: they are worded with its name ("What moves Cost?"), "Which Metric do you want to explain?" shows the marked one, and you can still change it there. The mark is called the one to explain, never the Target, which is the range a Metric aims for.
+Choose another Metric's button and nothing is taken off the canvas; the list starts its questions on the new one. If you take the marked Metric off, the mark moves to the next Metric on the canvas (to the one before it when it was the last). The choice is kept with the canvas. The questions under **Pick a question** start on it: they are worded with its name ("What moves Cost?"), "Which Metric do you want to explain?" shows the marked one, and you can still change it there. The mark is called the one to explain, never the Target, which is the range a Metric aims for.
 
-## Choose a method
+## Pick a question
 
-**Choose a method**, above the canvas, is the one way to run an analysis: it is for when you know what you want to know and not which Method gives it. It opens the **methods panel** at the right of the page. On a wide screen the panel sits beside the canvas, so the canvas and the Pool stay usable while it is open: drag a Metric from the Pool onto the canvas, then pick a question. On a narrow screen it covers the page from the right and closes when you ask a question, so that the answer is in view. **Esc** or the close button closes it, and the address `?panel=methods` opens it from a link.
+**Pick a question**, at the top right of the canvas, is the one way to run an analysis: it is for when you know what you want to know and not which Method gives it. It opens a panel at the right side of the screen, at every width, over the page. It closes when you ask a question, so that the answer under the canvas is in view. To put another Metric on the canvas, close the panel first. **Esc** or the close button closes it, and the address `?panel=methods` opens it from a link.
 
 The panel lists the questions grouped by what you want to know: **Where is it heading?**, **What moves with what?**, **What would it take?**, **What would happen if?**, **What changed?**, **What is usual?** and **Where is it concentrated?**. To start with there are only the headings and the questions under them, in the Metrics' own words ("What moves Cost?").
 
@@ -87,7 +85,7 @@ Under a result, **Save as widget** keeps it in your widgets where the Method has
 
 ### Did it work?
 
-Pick **Did it work?** or **Did something change, and when?** from **What changed?** in **Choose a method**. 
+Pick **Did it work?** or **Did something change, and when?** from **What changed?** under **Pick a question**. 
 The answer is a range, not a verdict: "After 1 Mar 2026, Signups ran about 12.0 % above where its trend pointed (likely between +8.1 % and +16.2 %; that range leaves out zero)." The trend is a straight line through the periods before the day you named, so Ziffr needs at least six of them; the latest 120 are used, and the first 120 periods since the day. A period that began before the day and runs past it is left out, and the result says so. "Likely between" is the range the answer holds about four times in five.
 
 - Both ends of the range on the same side of zero: the Metric did run away from its trend, by about that much. Ziffr does not say why: other things may have changed on the same day.
@@ -100,7 +98,7 @@ The result carries its basis, what it assumes, and the footer "This compares wha
 
 ## Heads-ups
 
-Under the title of Analyze, a slim line says how many **Heads-ups** there are for you: "3 Heads-ups for you." With none it reads "No Heads-ups right now."; with Heads-ups turned off for yourself it says so and where to turn them on; if they cannot be read just now it says that and nothing more. **Look** opens the list in the side panel, so it never pushes the canvas down, and `?panel=headsups` opens it from a link. The list shows what Ziffr noticed in the Metrics you can see, without being asked. There are five kinds:
+Under the title of Analyze, a block headed **Heads-ups** says how many there are for you. With none there is no block; with Heads-ups turned off for yourself it says so and where to turn them on; if they cannot be read just now it says that and nothing more. **Look** opens the list in the side panel, so it never pushes the canvas down, and `?panel=headsups` opens it from a link. The list shows what Ziffr noticed in the Metrics you can see, without being asked. There are five kinds:
 
 - **Two Metrics have started moving together** ("A and B have started moving together: when A rises, B follows one month later (strong, over 18 months)"), or **used to and have stopped** ("A and B used to move together. Over the last 6 months, they have not.").
 - **A Metric turned around** ("Signups turned around in January 2026: up 3 a month before, down 9 a month since").
@@ -109,7 +107,7 @@ Under the title of Analyze, a slim line says how many **Heads-ups** there are fo
 
 Each one reads as a short sentence, says what it is based on, and ends with the line of its kind: "This shows what has gone together, not what caused what." for two Metrics, "This shows when the numbers changed, not what made them change." for a turn, "This carries the past forward; it is not a promise." for a Target, and "This compares the value with the earlier ones at this time of year; it does not show what made it differ." for a season. **Show the numbers** opens the numbers behind it. The strongest come first. See [Reading a Takeaway](../guides/reading-a-takeaway.md#heads-ups).
 
-Ziffr looks again every few hours and says nothing when nothing stands out: then the line reads "No Heads-ups right now." That is a result, not a fault: a Heads-up is only shown when it stands out from what chance alone gives among everything Ziffr looked at, so in a Workspace with many Metrics only a clear link is reported. A Heads-up about two Metrics is shown only if you can see both; one about a Metric, only if you can see it. It never asks anyone to approve anything and never changes a value.
+Ziffr looks again every few hours and says nothing when nothing stands out: then there is no block. That is a result, not a fault: a Heads-up is only shown when it stands out from what chance alone gives among everything Ziffr looked at, so in a Workspace with many Metrics only a clear link is reported. A Heads-up about two Metrics is shown only if you can see both; one about a Metric, only if you can see it. It never asks anyone to approve anything and never changes a value.
 
 Under each Heads-up in the panel:
 
@@ -175,7 +173,7 @@ Owners and Admins see **Add a View Design**: paste the file or upload it. Ziffr 
 
 ## Playground
 
-The **Playground**, opened from the Library (**Open the Playground**, shown to Owners and Admins) or from **Write your own method** at the bottom of **Choose a method** (also Owners and Admins only), is where you work on a View Design's file. The file is on the left, the drawing on the right.
+The **Playground**, opened from the Library (**Open the Playground**, shown to Owners and Admins) or from **Write your own method** at the bottom of the **Pick a question** list (also Owners and Admins only), is where you work on a View Design's file. The file is on the left, the drawing on the right.
 
 - **Start from** loads a built-in View's design; **Upload** loads a file. You can also paste or type.
 - The file is in a code editor with colours. While you type, it offers the fields and values the format allows at the cursor (press Ctrl+Space to ask for them) and says what a field means when you rest the pointer on it or its value. The editor does not take the Tab key, so Tab moves on to the next control. If the editor cannot load, the file stays a plain text box. **How to write a View Design** at the top right of the Library opens the guide in a new tab.
@@ -197,7 +195,7 @@ A recipe can also be written in the newer format, `ziffr.analysis/2`, which adds
 
 ## Saving a result
 
-Results are not kept when you leave the screen; save the ones you want. A result of **Choose a method** has **Save as widget** under it (see [The results](#the-results)). A Widget on a dashboard has a **⋯** menu, which right-clicking also opens:
+Results are not kept when you leave the screen; save the ones you want. A result of **Pick a question** has **Save as widget** under it (see [The results](#the-results)). A Widget on a dashboard has a **⋯** menu, which right-clicking also opens:
 
 | Option | What it does |
 | --- | --- |

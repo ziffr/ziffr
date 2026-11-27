@@ -343,7 +343,7 @@ One statistical calculation in Ziffr's library, such as a rank correlation, a us
 _Avoid_: Algorithm, model, test
 
 **Method picker**:
-The list in the side panel opened by **Choose a method** on the Analysis Canvas, where a person who knows what they want picks a Method by what they want to know (where it is heading, what moves with what, what changed). It shows the questions as titles; choosing one opens it in place with its plain sentence, when to use it and when not (the Methods guide's words) and its fields, and a title is greyed with its reason when the Method cannot work on what is on the canvas. The answer appears under the canvas, not in the panel. A picked Method runs through the same Takeaway layer as its Recipe, with the Slots and settings asked in words, and sees only Metrics the person may see.
+The list in the side panel opened by **Pick a question** on the Analysis Canvas, where a person who knows what they want picks a Method by what they want to know (where it is heading, what moves with what, what changed). It shows the questions as titles; choosing one opens it in place with its plain sentence, when to use it and when not (the Methods guide's words) and its fields, and a title is greyed with its reason when the Method cannot work on what is on the canvas. The answer appears under the canvas, not in the panel. A picked Method runs through the same Takeaway layer as its Recipe, with the Slots and settings asked in words, and sees only Metrics the person may see.
 _Avoid_: Wizard, analysis chooser
 
 **Extension**:

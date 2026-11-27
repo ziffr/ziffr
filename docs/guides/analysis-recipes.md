@@ -137,7 +137,7 @@ Each is the Method of the same name in the [Methods guide](methods.md), with its
 
 ## From the method picker
 
-You do not have to write a recipe from nothing. On the Analysis Canvas, **Choose a method** can give a Method as a file with its Slots left open (**Download as Analysis Recipe**) for rank correlation, partial correlation, lagged correlation, the usual range and What moves B?. The file is a format /2 recipe with one step and one Takeaway output, so the sentence is Ziffr's and you write none. An Owner or Admin adds it to the Workspace from the Playground, and exports it in a Pack.
+You do not have to write a recipe from nothing. On the Analysis Canvas, **Pick a question** can give a Method as a file with its Slots left open (**Download as Analysis Recipe**) for rank correlation, partial correlation, lagged correlation, the usual range and What moves B?. The file is a format /2 recipe with one step and one Takeaway output, so the sentence is Ziffr's and you write none. An Owner or Admin adds it to the Workspace from the Playground, and exports it in a Pack.
 
 ## Forecast and correlation
 
