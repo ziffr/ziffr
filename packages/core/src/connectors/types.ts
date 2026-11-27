@@ -67,10 +67,65 @@ export const PREFERENCE_KIND: Record<DeliveryKind, PreferenceKind> = {
 
 /** "Correction: 1,234" on a line of its own proposes a new value, whatever the system. */
 export function parseReply(text: string): { body: string; correction: number | null } {
-  const m = text.match(/^\s*correction\s*:\s*([-+]?[\d.,\s]+)\s*$/im);
-  const correction = m ? Number(m[1].replace(/[\s,]/g, "")) : null;
-  const body = text.replace(/^\s*correction\s*:.*$/im, "").trim();
+  const lines = correctionLines(text);
+  let correction: number | null = null;
+  for (const line of lines) {
+    const number = correctionNumber(text, line.after);
+    if (number === null) continue;
+    correction = Number(number.replace(/[\s,]/g, ""));
+    break;
+  }
+  // The first such line is not part of the words, whether or not a number reads from it.
+  const first = lines[0];
+  const body = (first ? text.slice(0, first.from) + text.slice(runEnd(text, first.after, /.*/y)) : text).trim();
   return { body, correction: Number.isFinite(correction) ? correction : null };
+}
+
+const LINE_BREAK = /[\n\r\u2028\u2029]/;
+
+/** Where the run that this sticky pattern matches ends, from a position. */
+function runEnd(text: string, from: number, run: RegExp): number {
+  run.lastIndex = from;
+  run.exec(text);
+  return run.lastIndex;
+}
+
+/** Every "Correction:" that opens a line, white space aside: where its match starts (the first line start in the white
+ * space before the word) and the position after its colon. */
+function correctionLines(text: string): { from: number; after: number }[] {
+  const lines: { from: number; after: number }[] = [];
+  for (const word of text.matchAll(/correction/gi)) {
+    let from = word.index;
+    while (from > 0 && /\s/.test(text[from - 1])) from--;
+    if (from > 0) {
+      while (from < word.index && !LINE_BREAK.test(text[from])) from++;
+      if (from === word.index) continue;
+      from++;
+    }
+    const colon = runEnd(text, word.index + word[0].length, /\s*/y);
+    if (text[colon] === ":") lines.push({ from, after: colon + 1 });
+  }
+  return lines;
+}
+
+/** The last position from `from` to `to` at which a line ends, or -1. */
+function lastLineEnd(text: string, from: number, to: number): number {
+  if (to === text.length) return to >= from ? to : -1;
+  for (let i = to - 1; i >= from; i--) if (LINE_BREAK.test(text[i])) return i;
+  return -1;
+}
+
+/** What stands for the number after a Correction's colon: a sign, then digits, points, commas and white space up to a
+ * line's end. Null when nothing there reads so. */
+function correctionNumber(text: string, colon: number): string | null {
+  const figures = /[\d.,\s]*/y;
+  const at = runEnd(text, colon, /\s*/y);
+  const digits = /[-+]/.test(text.charAt(at)) ? at + 1 : at;
+  const end = lastLineEnd(text, digits + 1, runEnd(text, digits, figures));
+  if (end >= 0) return text.slice(at, end);
+  // Else white space alone may stand there, where a line ends in or right after it.
+  const blank = lastLineEnd(text, colon + 1, runEnd(text, at, figures));
+  return blank < 0 || at === colon ? null : text.slice(Math.min(at, blank) - 1, blank);
 }
 
 /** The headline of an event, in plain words, shared by every connector. */

@@ -9,10 +9,50 @@ import type { AnswerWords } from "./numbers/languages";
 export function newText(text: string): string {
   const out: string[] = [];
   for (const line of String(text).replace(/\r\n?/g, "\n").split("\n")) {
-    if (/^>/.test(line) || /^-- ?$/.test(line) || /^-{2,}\s*(Original Message|Ursprüngliche Nachricht)/i.test(line) || /^(On|Am) .+ (wrote|schrieb)\b.*:\s*$/i.test(line) || /^From: .+/i.test(line) && out.length > 0) break;
+    if (/^>/.test(line) || /^-- ?$/.test(line) || /^-{2,}\s*(Original Message|Ursprüngliche Nachricht)/i.test(line) || namesTheQuoted(line) || /^From: .+/i.test(line) && out.length > 0) break;
     out.push(line);
   }
   return out.join("\n").trim().slice(0, 5000);
+}
+
+/** Whether a line says whose message is quoted below: "On … wrote … :" or the German "Am … schrieb … :". */
+function namesTheQuoted(line: string): boolean {
+  if (!/^(On|Am) /i.test(line)) return false;
+  const said = line.trimEnd();
+  const before = said.slice(0, -1);
+  // At least one character stands between the opening word and the verb.
+  return said.endsWith(":") && !/[\u2028\u2029]/.test(before) && / (wrote|schrieb)\b/i.test(before.slice(4));
+}
+
+/** HTML as plain text, for replies that have no text part. */
+export function stripHtml(html: string): string {
+  const lines = withoutBlocks(html).replace(/<br\s*\/?>|<\/p>|<\/div>/gi, "\n");
+  // A tag ends in ">", so none starts after the last one.
+  const end = lines.lastIndexOf(">") + 1;
+  const text = lines.slice(0, end).replace(/<[^>]+>/g, "") + lines.slice(end);
+  return text.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+}
+
+/** The HTML without its scripts and styles, each from where it opens to the first closing tag of its name. One that is
+ * never closed stays. */
+function withoutBlocks(html: string): string {
+  const opening = /<(script|style)/gi;
+  const unclosed = new Set<string>();
+  let out = "";
+  let kept = 0;
+  for (let open = opening.exec(html); open; open = opening.exec(html)) {
+    const name = open[1].toLowerCase();
+    if (unclosed.has(name)) continue;
+    const closing = new RegExp(`</${name}>`, "gi");
+    closing.lastIndex = opening.lastIndex;
+    if (!closing.test(html)) {
+      unclosed.add(name);
+      continue;
+    }
+    out += html.slice(kept, open.index);
+    kept = opening.lastIndex = closing.lastIndex;
+  }
+  return out + html.slice(kept);
 }
 
 const ENDINGS = " ,.!…";

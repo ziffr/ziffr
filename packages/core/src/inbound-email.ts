@@ -16,7 +16,7 @@ import { inboxOf } from "./sign-in-limits";
 import { createHash } from "node:crypto";
 import { takeReplyTest } from "./installation-replies";
 import { holdReply } from "./held-replies";
-import { newText } from "./reply-cleaning";
+import { newText, stripHtml } from "./reply-cleaning";
 
 export { newText };
 
@@ -132,11 +132,6 @@ export async function parseInbound(raw: ArrayBuffer | Uint8Array | string): Prom
   const verified = senderVerified(parts, from, settings.ZIFFR_INBOUND_AUTHSERV_ID);
   const failed = !verified && senderFailed(parts, from, settings.ZIFFR_INBOUND_AUTHSERV_ID);
   return { tokens, from, text, messageId: email.messageId ? headerSafe(email.messageId).slice(0, 300) : null, automatic, verified, failed };
-}
-
-/** HTML as plain text, for replies that have no text part. */
-function stripHtml(html: string): string {
-  return html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, "").replace(/<br\s*\/?>|<\/p>|<\/div>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
 }
 
 /** Whether one more message may be counted against this key this hour, and counts it if so. A database that does not
