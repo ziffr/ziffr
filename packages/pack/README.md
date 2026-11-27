@@ -40,6 +40,8 @@ if (!res.ok) for (const p of res.problems) console.log(p.line, p.path, p.message
 
 Each format has its own check and JSON Schema as well: `checkMetricFile`, `checkDashboardTemplateFile`, `checkDeckTemplateFile`, `checkWorkflowTemplateFile`, `checkThemeFile`, `checkViewDesign`, `checkAnalysisRecipe`, and `PACK_SCHEMA`, `PACK_2_SCHEMA`, `METRIC_FILE_SCHEMA` and the others.
 
+`checkDeckDescription` (with `DECK_DESCRIPTION_SCHEMA`) checks a deck description, `ziffr.deck/1`: what a deck that Ziffr makes stores of itself. It takes a value already read from JSON, not a file's text, and answers with a copy of it; use that copy.
+
 ## Writing one
 
 The format, its rules and the licenses a Pack may carry are in [Writing a Pack](https://github.com/ziffr/ziffr/blob/main/docs/guides/packs.md). The quickest start is **Export as Pack** in Ziffr: pick things of your Workspace and get a Pack of them, with none of your values.
