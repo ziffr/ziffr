@@ -13,6 +13,7 @@ import { getMetrics } from "./workspace-data";
 import { checkPack, PACK_FORMAT, PACK_FORMAT_2, PACK_LICENSES, type Pack } from "./pack";
 import { guideFromText, type PackGuideText } from "./pack-guide-text";
 import { comesFromOf, type ComesFromChoice } from "./pack-export-numbers";
+import { setUpProblems, withSetUp, type PackSetUpChoice, type PackSetUpProblem } from "./pack-export-set-up";
 import { PACK_GUIDE_SECTIONS } from "@ziffr/pack/pack-guide";
 import { checkSchema, type Schema } from "./json-check";
 import { PLAIN, SAVED_WORDS, WORDS, KEY } from "./file-text";
@@ -123,14 +124,25 @@ export async function themeLogoForExport(actor: Actor, themeId: number): Promise
 }
 
 /** What else the person chose about the file: `tags: false` leaves the Tags of Metrics out (they go in by default),
- * `guide` is what they wrote under "Describe your Pack", and `comesFrom` where each number comes from, by what was
- * picked (a number it does not name is typed by a person; without it the file says nothing of numbers). */
-export type ExportOptionsChosen = { tags?: boolean; guide?: PackGuideText; comesFrom?: ComesFromChoice };
+ * `guide` is what they wrote under "Describe your Pack", `comesFrom` where each number comes from, by what was
+ * picked (a number it does not name is typed by a person; without it the file says nothing of numbers), and `setUp`
+ * what they wrote under "Set-up questions". */
+export type ExportOptionsChosen = { tags?: boolean; guide?: PackGuideText; comesFrom?: ComesFromChoice; setUp?: PackSetUpChoice };
+
+// A manifest that passes, so that the checks which need the whole file are reached before the person's own is complete.
+const CHECKED_AS: ExportManifest = { id: "check/set-up", name: "Check", version: "1.0.0", summary: "Check", author: "Check", license: "CC-BY-4.0" };
+
+/** What a Pack may not hold of the set-up questions written for this pick, field by field (anyone who may export);
+ * nothing is written. */
+export async function checkExportSetUp(actor: Actor, choice: ExportChoice, setUp: PackSetUpChoice): Promise<PackSetUpProblem[]> {
+  const { pack, picked } = await gatherPack(actor, CHECKED_AS, choice);
+  return setUpProblems(pack, picked, setUp);
+}
 
 /** Makes a Pack of what the person picked: each item as its format writes it, keyed by its key in the Pack it came
  * from or by its name, in the order of their keys, so exporting what a Pack installed gives the same file again.
- * A guide the person wrote, and where each number comes from, go in with it and make the file ziffr.pack/2; without
- * either it stays ziffr.pack/1.
+ * A guide the person wrote, and where each number comes from, go in with it and make the file ziffr.pack/2; set-up
+ * questions make it ziffr.pack/3; without any of them it stays ziffr.pack/1.
  * Checked as any Pack before it is given out. */
 export async function exportPack(actor: Actor, manifest: ExportManifest, choice: ExportChoice, chosen: ExportOptionsChosen = {}): Promise<ExportResult> {
   assertMayExport(actor);
@@ -140,9 +152,15 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
     const where = PACK_GUIDE_SECTIONS.find((s) => s.key === p.section)?.title;
     throw new Error(`The Pack cannot be made: ${where ? `in “${where}”${p.line ? `, line ${p.line}` : ""}: ` : ""}${p.message}`);
   }
-  const { pack: made, leftOut } = await gatherPack(actor, manifest, choice, chosen);
+  const { pack: made, leftOut, picked } = await gatherPack(actor, manifest, choice, chosen);
   const said = made.contents.metrics?.some((x) => x.comesFrom) ?? false;
-  const pack: Pack = guide || said ? { ...made, format: PACK_FORMAT_2, ...(guide ? { guide } : {}) } : made;
+  const asked = withSetUp(made, picked, chosen?.setUp);
+  // Each format holds all the one before it holds: the newest one needed wins.
+  const pack: Pack = {
+    ...asked.pack,
+    ...(!asked.used && (guide || said) ? { format: PACK_FORMAT_2 } : {}),
+    ...(guide ? { guide } : {}),
+  };
   const text = `${JSON.stringify(pack, null, 2)}\n`;
   const res = checkPack(text);
   if (!res.ok) throw new Error(`The Pack cannot be made: ${res.problems[0].path ? `${res.problems[0].path} ` : ""}${res.problems[0].message}`);

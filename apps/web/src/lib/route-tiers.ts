@@ -38,6 +38,7 @@ export const ROUTE_TIERS = {
   "/welcome": "phone-first",
   "/first-steps": "phone-first",
   "/setup": "phone-first",
+  "/use-pack/[ref]": "phone-first",
   "/try": "phone-first",
   "/try/start": "phone-first",
   "/demo/confirm": "phone-first",

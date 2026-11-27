@@ -289,3 +289,23 @@ There is a field for each section: **What it's for**, **Before you start**, **Fi
 A guide holds no link, web or email address, image, HTML or code, a paragraph or list entry has at most 600 characters, a list 20 entries, a section 60 headings, paragraphs and lists, and the whole guide 32,768 bytes. **Download Pack** names what does not fit under its field, with the line, and makes no file until it is changed.
 
 When what you picked came from an installed Pack that has a guide, or the id you gave is that Pack's, the step offers **Use its guide**: it fills the fields with that guide, for you to change. The words are their author's, so take them over only if you may.
+
+### Set-up questions and Try it
+
+*These two come with the guided set-up of a Pack, which is not switched on yet: until it is, the step does not show them.*
+
+Under **Set-up questions**, at the end of **Describe your Pack**, you write what whoever gets your Pack is asked when they set it up, one question on each screen. Write as you would ask a colleague. Ziffr draws every Pack the same way: you write short plain text only, never a screen, markup, a link or an email address. Everything is optional, and where you write nothing Ziffr uses its own words. Every field says how long it may be.
+
+| Field | What it is |
+| --- | --- |
+| **In one sentence, what does this Pack do for them?** | The line under the Pack's name on the first screen, up to 120 characters |
+| **What happens once it is set up?** | 1 to 4 lines of 90 characters |
+| **What should they have ready?** | Up to 4 lines of 90 characters |
+| **Questions about people** | A question for each place somebody fills and for each list the Pack asks for, with a line under it where it helps. Shown only when the file has any |
+| **Ask a number at set-up** | For a number somebody or something sends, not a calculated one: tick **Ask for a target for …**, write your question (90 characters) and a short name for the field (40), and say whether one answer holds for a month, a quarter or a year. At most 3 in a Pack |
+
+If you write any of the first three, write the sentence and at least one line of what happens. The number a person types becomes the Metric's target for every period in that time, written as typed, not divided. Only times at least as long as the Metric's period are offered. A Pack with any set-up question is written in a newer format, which older versions of Ziffr do not install.
+
+The fields start empty. When what you picked came from an installed Pack with set-up questions, or the id you gave is that Pack's, **Use its set-up questions** takes them over, replacing what you wrote; they are their author's words, so take them over only if you may.
+
+**Try it** checks the file as **Download Pack** would make it and walks you through its set-up as a new person sees it, with made-up people. Nothing is saved, made or sent: no Pack is installed, nobody is added and nobody is asked. **Set it up** ends the try and lists who would be asked. **Close** brings you back to the step with everything you wrote. It works in every Workspace.

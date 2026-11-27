@@ -1,8 +1,9 @@
 "use client";
-// A Pack's Preview (specs 0030 and 0058; GLOSSARY: Pack, Preview, Sample Data, Slide-over): a view of its own, opened
-// over the list it came from, for a file, one of Ziffr's own Packs and a Pack from the Marketplace, on the Packs page
-// and in the Setup Guide. In this order: name and one sentence, the dashboard drawn with Sample Data, Install with
-// everything to confirm first, the guide closed behind "How it works", then what the Pack brings.
+// A Pack's Preview (specs 0030, 0058 and 0068; GLOSSARY: Pack, Preview, Sample Data, Slide-over): a view of its own,
+// opened over the list it came from, for a file, one of Ziffr's own Packs and a Pack from the Marketplace, on the Packs
+// page and in the Setup Guide, and the first screen of a guided set-up, where "Use this pack" takes Install's place.
+// In this order: name and one sentence, the dashboard drawn with Sample Data, Install with everything to confirm first,
+// the guide closed behind "How it works", then what the Pack brings.
 // Everything in a Pack is shown as text or drawn by Ziffr's own renderer; its only links are its listing's, shown as
 // plain links that tell the site nothing. The button only asks: the core checks the file, who installs and every
 // confirmation again.
@@ -41,8 +42,19 @@ const ITEM_FRAME = 34;
 /** What the person ticked before pressing Install. */
 type PackConfirmed = { unsigned: boolean; assistantTexts: boolean };
 
-type ViewProps = {
-  preview: PackPreview; viewer: string; numberStyle: NumberStyle;
+/** What a guided set-up puts into the Preview in place of its own parts. */
+export type PackUse = {
+  /** What is drawn instead of the first Dashboard Template, and that template's key when it draws one. Left out, the
+   * Preview draws that template itself. */
+  drawing?: React.ReactNode; drawn?: string;
+  /** The words under the Preview's own drawing, where the usual ones do not fit. */
+  caption?: string;
+  /** "Use this pack" and what stands with it, in place of Install and its confirmations. */
+  actions: React.ReactNode;
+};
+
+type ViewProps = { preview: PackPreview; viewer: string; numberStyle: NumberStyle };
+type InstallProps = ViewProps & {
   /** Installs the Pack and says so; throws when it is not installed, and the view then stays open. */
   install: (confirmed: PackConfirmed) => Promise<void>;
 };
@@ -51,7 +63,7 @@ type ViewProps = {
 let openings = 0;
 
 /** Opens a Pack's Preview in the side panel, over the list; `title` and `description` replace the panel's usual ones. */
-export function useOpenPackPreview(): (view: ViewProps & { title?: string; description?: string }) => void {
+export function useOpenPackPreview(): (view: InstallProps & { title?: string; description?: string }) => void {
   const panel = useSlideOver();
   return ({ title = "Preview", description = "Drawn with Sample Data. Nothing is installed until you press Install.", ...view }) =>
     panel.open({ title, description, wide: true, content: <PackPreviewView key={++openings} {...view} /> });
@@ -59,7 +71,7 @@ export function useOpenPackPreview(): (view: ViewProps & { title?: string; descr
 
 /** A Pack before it is installed, as the side panel shows it. A file from the Marketplace whose signature held needs no
  * warning about where it came from. */
-export function PackPreviewView({ preview, viewer, numberStyle, install }: ViewProps) {
+export function PackPreviewView({ preview, viewer, numberStyle, install, use }: ViewProps & ({ install: InstallProps["install"]; use?: never } | { use: PackUse; install?: never })) {
   const panel = useSlideOver();
   const [okUnsigned, setOkUnsigned] = useState(false);
   const [okAssistant, setOkAssistant] = useState(false);
@@ -67,11 +79,13 @@ export function PackPreviewView({ preview, viewer, numberStyle, install }: ViewP
   const [box, { w }] = useBoxSize<HTMLDivElement>();
   const own = useMemo(() => packSample(preview.sample.pack, preview.sample.metrics), [preview.sample]);
   const dashboard = preview.items.find((i) => i.kind === "dashboard");
+  // A set-up may bring a drawing of its own; every other view draws the first dashboard.
+  const theirs = use?.drawing !== undefined;
   const ready = !preview.blocked && (okUnsigned || !preview.unsigned) && (okAssistant || !preview.assistantTexts.length);
   const press = () => start(async () => {
     const view = box.current;
     try {
-      await install({ unsigned: okUnsigned, assistantTexts: okAssistant });
+      await install!({ unsigned: okUnsigned, assistantTexts: okAssistant });
       // Only this view goes back: one the person has left meanwhile must not close what they opened since.
       if (view?.isConnected) panel.back();
     } catch (e) {
@@ -82,37 +96,48 @@ export function PackPreviewView({ preview, viewer, numberStyle, install }: ViewP
   return (
     <div ref={box} className="phone-fields @container space-y-4 pb-2 text-sm">
       <div className="break-words">
-        <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold"><Package aria-hidden className="size-4 shrink-0" /> {manifest.name} <span className="fig text-sm font-normal text-muted-foreground">{manifest.version}</span></h3>
-        <p className="text-muted-foreground">{manifest.summary}</p>
-        <div className="mt-2"><Publisher author={manifest.author.name} logo={preview.logo} id={manifest.id} signed={!preview.unsigned} fromMarketplace={preview.source === "marketplace"} included={preview.source === "included"} reviewed={preview.reviewed} /></div>
+        {/* A guided set-up names the Pack in its own heading, above. */}
+        {!use && (
+          <>
+            <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold"><Package aria-hidden className="size-4 shrink-0" /> {manifest.name} <span className="fig text-sm font-normal text-muted-foreground">{manifest.version}</span></h3>
+            <p className="mb-2 text-muted-foreground">{manifest.summary}</p>
+          </>
+        )}
+        <Publisher author={manifest.author.name} logo={preview.logo} id={manifest.id} signed={!preview.unsigned} fromMarketplace={preview.source === "marketplace"} included={preview.source === "included"} reviewed={preview.reviewed} />
       </div>
-      {dashboard && (
+      {theirs ? use!.drawing : dashboard && (
         <figure className="space-y-1.5">
-          <figcaption className="text-xs text-muted-foreground">The dashboard &ldquo;{dashboard.name}&rdquo;, drawn with Sample Data.</figcaption>
+          <figcaption className="text-xs text-muted-foreground">{use?.caption ?? <>The dashboard &ldquo;{dashboard.name}&rdquo;, drawn with Sample Data.</>}</figcaption>
           <DashboardTemplatePreview template={dashboard} viewer={viewer} numberStyle={numberStyle} width={w || undefined} pack={own} stacked={w > 0 && w < SCALED_FROM ? STACKED_WIDGETS : undefined} />
         </figure>
       )}
+      {use?.actions}
       <div className="space-y-3 break-words">
         {preview.unsigned
           ? <p className="flex items-start gap-2 rounded-[var(--radius-input)] bg-muted p-2.5"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> {UNSIGNED}</p>
-          : <p className="rounded-[var(--radius-input)] bg-muted p-2.5">{preview.source === "included" ? "One of Ziffr’s own Packs: it comes with this version of Ziffr. Ziffr checked the whole file as well." : "From the Marketplace: its signature holds. Ziffr checked the whole file as well."}</p>}
-        {preview.assistantTexts.length > 0 && (
+          // A guided set-up has said above who publishes it; a warning is the one thing it repeats.
+          : !use && <p className="rounded-[var(--radius-input)] bg-muted p-2.5">{preview.source === "included" ? "One of Ziffr’s own Packs: it comes with this version of Ziffr. Ziffr checked the whole file as well." : "From the Marketplace: its signature holds. Ziffr checked the whole file as well."}</p>}
+        {!use && preview.assistantTexts.length > 0 && (
           <div className="rounded-[var(--radius-input)] border border-input p-2.5">
             <p className="font-medium">Words aimed at AI assistants</p>
             <p className="text-xs text-muted-foreground">These texts read like instructions to an assistant. Assistants connected to this Workspace read Metric descriptions; they can do only what their key allows, but read these before you install.</p>
             <ul className="mt-1 space-y-1 text-xs">{preview.assistantTexts.map((t) => <li key={t.path}><code>{t.path}</code>: &ldquo;{t.text}&rdquo;</li>)}</ul>
           </div>
         )}
-        {preview.blocked ? <p role="alert" className="font-medium">{preview.blocked}</p> : (
-          <div className="space-y-2">
-            {preview.unsigned && <label className="flex items-start gap-2"><input type="checkbox" checked={okUnsigned} onChange={(e) => setOkUnsigned(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> I install a file the Marketplace did not check.</label>}
-            {preview.assistantTexts.length > 0 && <label className="flex items-start gap-2"><input type="checkbox" checked={okAssistant} onChange={(e) => setOkAssistant(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> I read the words aimed at assistants.</label>}
-          </div>
+        {!use && (
+          <>
+            {preview.blocked ? <p role="alert" className="font-medium">{preview.blocked}</p> : (
+              <div className="space-y-2">
+                {preview.unsigned && <label className="flex items-start gap-2"><input type="checkbox" checked={okUnsigned} onChange={(e) => setOkUnsigned(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> I install a file the Marketplace did not check.</label>}
+                {preview.assistantTexts.length > 0 && <label className="flex items-start gap-2"><input type="checkbox" checked={okAssistant} onChange={(e) => setOkAssistant(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> I read the words aimed at assistants.</label>}
+              </div>
+            )}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={panel.back}><ArrowLeft aria-hidden /> Back to the list</Button>
+              <Button disabled={!ready || pending} onClick={press}>Install</Button>
+            </div>
+          </>
         )}
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button variant="outline" onClick={panel.back}><ArrowLeft aria-hidden /> Back to the list</Button>
-          <Button disabled={!ready || pending} onClick={press}>Install</Button>
-        </div>
         <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground max-md:[&_a]:inline-flex max-md:[&_a]:min-h-11 max-md:[&_a]:min-w-11 max-md:[&_a]:items-center">
           <span>Under {manifest.license}.</span>
           <ListingLink href={manifest.listing?.homepage} unsigned={preview.unsigned}>Its page</ListingLink>
@@ -125,13 +150,32 @@ export function PackPreviewView({ preview, viewer, numberStyle, install }: ViewP
           <PackGuideView guide={manifest.guide} author={manifest.author.name} />
         </details>
       )}
-      <section aria-label="What it brings" className="space-y-4 border-t border-border pt-4">
-        <h3 className="font-semibold">What it brings <span className="fig font-normal text-muted-foreground">{preview.items.length} item{preview.items.length === 1 ? "" : "s"}</span></h3>
+      <Brings closed={Boolean(use)} count={preview.items.length}>
         <PackNumbersView overview={preview.overview} />
         {preview.people && <PackPeopleList people={preview.people} />}
-        <PackItems items={preview.items} drawn={dashboard?.key} pack={own} viewer={viewer} numberStyle={numberStyle} width={w ? Math.min(ITEM_WIDTH, w - ITEM_FRAME) : ITEM_WIDTH} />
-      </section>
+        <PackItems items={preview.items} drawn={theirs ? use!.drawn : dashboard?.key} pack={own} viewer={viewer} numberStyle={numberStyle} width={w ? Math.min(ITEM_WIDTH, w - ITEM_FRAME) : ITEM_WIDTH} />
+      </Brings>
     </div>
+  );
+}
+
+/** What the Pack brings: open on the Preview, closed behind its heading in a guided set-up, which is about the few
+ * questions. */
+function Brings({ closed, count, children }: { closed: boolean; count: number; children: React.ReactNode }) {
+  const heading = <>What it brings <span className="fig font-normal text-muted-foreground">{count} item{count === 1 ? "" : "s"}</span></>;
+  if (closed) {
+    return (
+      <details className="border-t border-border">
+        <summary className="cursor-pointer py-3 font-medium">{heading}</summary>
+        <div className="space-y-4">{children}</div>
+      </details>
+    );
+  }
+  return (
+    <section aria-label="What it brings" className="space-y-4 border-t border-border pt-4">
+      <h3 className="font-semibold">{heading}</h3>
+      {children}
+    </section>
   );
 }
 
