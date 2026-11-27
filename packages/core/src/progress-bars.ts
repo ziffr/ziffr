@@ -56,7 +56,7 @@ function row(m: Metric, data: ProgressData, method: AttainmentMethod, style: Num
   const top = Math.max(value, ...bounds);
   const hi = top > lo ? top + (top - lo) * 0.1 : lo + 1;
   const base = { ...none, value: formatValue(m, value, style), fill: place(value, lo, hi) };
-  if (!bounds.length) return { ...base, words: "No target" };
+  if (!bounds.length) return { ...base, words: data.targets[m.id]?.length ? "No target for this period" : "No target" };
   const status = targetStatus({ target_min: min, target_max: max }, value);
   const att = attainment(m, value, { min, max }, method);
   const gap = targetGap(m, value, { min, max });

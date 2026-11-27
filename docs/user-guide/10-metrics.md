@@ -27,7 +27,7 @@ The list shows every Metric you may see, one row each.
 | **Latest** | The most recent value, its period and its on-target label, marked "not approved yet" while it waits for **Approval**. "No values yet" when nothing has arrived. |
 | **Change** | The change against the period before, as an arrow and a percentage. |
 | **Trend** | A small line of the last 30 periods, on wider screens. |
-| **Target** | Its **Target Range**, such as "≥ 80,000 €", "≤ 5 %", "40 – 60" or "No target". |
+| **Target** | The target that counts for the latest value's period (without a value, the current period): that period's value in the **Target Series** if it has one, such as "≤ 150 €", else the **Target Range**, such as "≥ 80,000 €", "≤ 5 %" or "40 – 60". "Set for other periods" means only other periods have a target; "No target" means there is none. The on-target label and the colour of the trend line follow the same target, here and in the quick look. |
 | **Owner** | The **Metric Owner**, on wide screens. |
 
 Under a Metric's name, its **Tags** show as small chips, at most three and then "+2". Above the list, the **Tag** row offers the Tags of the Metrics you may see, each with how many Metrics of this view carry it (Archived Metrics count under **Archived** only). Click a Tag to show only the Metrics that carry it; click a second one to narrow further, so "finance" and "monthly" show the Metrics that carry both. **Clear** shows all again. The picked Tags are in the page address, so a filtered list can be bookmarked or sent to someone, who sees only the Metrics they may see themselves. You are offered a Tag only through a Metric you may see; a Tag that only Metrics out of your sight carry is not in the row.
@@ -210,7 +210,7 @@ The top of the page shows the Metric's name, a **Derived** badge if it is calcul
 
 - **Latest**: the most recent value with its period and on-target label.
 - **Change vs. previous period**: an arrow and a percentage.
-- **Target**: which way is good, and the target that counts for the latest period. If that period has its own value in the **Target Series**, the box shows it and says so; other periods use the Target Range.
+- **Target**: which way is good, and the target that counts for the latest value's period (without a value, the current period). If that period has its own value in the **Target Series**, the box shows it and says so; other periods use the Target Range. "Set for other periods" means this one has no target but others do. The **Target** line on the **Description** tab says the same.
 
 A Metric with no values says so where its chart would be. If you submit it on the web form, the page says "The line appears after your first value." and offers **Record today's value** (**Record a value** for a Metric that is not daily).
 

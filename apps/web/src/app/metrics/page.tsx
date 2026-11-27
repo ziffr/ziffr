@@ -4,12 +4,13 @@ import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { Person } from "@/components/avatar";
 import { Sparkline } from "@/views/sparkline";
-import { getAllSeries, getNumberStyle, getProfileMap, getYearStart } from "@/lib/data";
+import { getAllSeries, getNumberStyle, getProfileMap, getSeriesValues, getToday, getYearStart } from "@/lib/data";
 import { visibleMetricIds } from "@/lib/access";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { can } from "@ziffr/core/actor";
-import { formatValue, health, SOURCE_LABEL, targetText } from "@ziffr/core/format";
+import { formatValue, health, SOURCE_LABEL } from "@ziffr/core/format";
+import { targetInEffect } from "@ziffr/core/target-in-effect";
 import { Change, COLOUR_LEGEND, TargetChip } from "@/components/target-chip";
 import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 import { inUse, isArchived } from "@ziffr/core/metric-row";
@@ -24,7 +25,7 @@ import { tagFilterHref, tagsFromParam } from "@/lib/tag-filter";
 
 export default async function MetricsPage({ searchParams }: { searchParams: Promise<{ show?: string; tag?: string | string[] }> }) {
   // The list shows the latest value, the change and a trend line of 30 periods: only those are read.
-  const [{ metrics: all, series }, people, viewer, yearStart, numberStyle, sp, actor] = await Promise.all([getAllSeries({ points: 30 }), getProfileMap(), viewerId(), getYearStart(), getNumberStyle(), searchParams, currentActor()]);
+  const [{ metrics: all, series, targets: aimed }, people, viewer, yearStart, numberStyle, sp, actor] = await Promise.all([getAllSeries({ points: 30 }), getProfileMap(), viewerId(), getYearStart(), getNumberStyle(), searchParams, currentActor()]);
   // The demo does not offer the download (spec 0056): the core refuses it there.
   const demo = await isDemo();
   // One source for who may start things: the core's `can`. A Guest sees no button that would be refused.
@@ -41,6 +42,8 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
   const sight = await tagSight(actor);
   const tagged = picked.length ? new Set(await metricIdsWithTags(actor, picked)) : null;
   const metrics = tagged ? byView.filter((m) => tagged.has(m.id)) : byView;
+  // The Target Series of the listed Metrics only, all of which this person sees.
+  const [{ targets: own }, today] = await Promise.all([getSeriesValues(metrics.map((m) => m.id)), getToday()]);
   const pickedKeys = new Set(picked.map((t) => t.toLowerCase()));
   // A Tag's count is what this view lists: Archived Metrics count under Archived only.
   const offered = sight.tags.map((t) => ({ name: t.name, n: showArchived ? t.archived : t.metrics - t.archived })).filter((t) => t.n > 0 || pickedKeys.has(t.name.toLowerCase()));
@@ -117,7 +120,10 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
                 const pts = series[m.slug] ?? [];
                 const last = pts[pts.length - 1];
                 const prev = pts[pts.length - 2];
-                const tone = health(m, last?.value);
+                // A Total that takes its Metrics' targets has those, added up for this person.
+                const target = targetInEffect(m, { latest: last?.period, today, yearStart }, (m.total?.targets === "parts" ? aimed : own)[m.id], numberStyle);
+                const against = { ...m, target_min: target.min, target_max: target.max };
+                const tone = health(against, last?.value);
                 const change = last && prev && prev.value ? (last.value - prev.value) / Math.abs(prev.value) : null;
                 return (
                   <tr key={m.id} className="group relative cursor-pointer border-b border-border last:border-0 hover:bg-[var(--color-paper-2)] max-sm:flex max-sm:flex-wrap max-sm:items-center max-sm:gap-x-5 max-sm:px-4 max-sm:py-3">
@@ -131,19 +137,19 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
                       <div className="mt-0.5 text-xs text-muted-foreground max-sm:text-sm">
                         {PERIOD_LABEL[m.period]}, {m.total ? "adds up other metrics" : m.formula ? "derived from other metrics" : `via ${m.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}`}
                       </div>
-                      <div className="fig mt-0.5 text-sm text-[var(--color-ink-2)] sm:hidden">Target {targetText(m, numberStyle)}</div>
+                      <div className="fig mt-0.5 text-sm text-[var(--color-ink-2)] sm:hidden">Target {target.words}</div>
                       <TagChips names={sight.namesByMetric.get(m.id) ?? []} className="mt-1" />
                     </td>
                     <td className="px-4 py-3 text-right max-sm:mt-2 max-sm:min-w-0 max-sm:p-0 max-sm:text-left">
                       <div className="fig whitespace-nowrap max-sm:text-base max-sm:font-medium">{last ? formatValue(m, last.value, numberStyle) : "–"}</div>
                       <div className="flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-xs text-muted-foreground max-sm:justify-start max-sm:text-sm">
-                        <TargetChip numberStyle={numberStyle} metric={m} value={last?.value} />
+                        <TargetChip numberStyle={numberStyle} metric={against} value={last?.value} />
                         <span className={last ? "whitespace-nowrap" : undefined}>{last ? periodLabel(last.period, m.period, yearStart, true) : noValuesWords(m)}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right text-xs text-[var(--color-ink-2)] max-sm:mt-2 max-sm:p-0"><Change numberStyle={numberStyle} pct={change} /></td>
                     <td className="hidden w-32 px-4 py-3 md:table-cell">{pts.length > 1 && <Sparkline points={pts.slice(-30)} height={28} tone={tone} />}</td>
-                    <td className="fig hidden whitespace-nowrap px-4 py-3 text-xs text-[var(--color-ink-2)] sm:table-cell">{targetText(m, numberStyle)}</td>
+                    <td className="fig hidden whitespace-nowrap px-4 py-3 text-xs text-[var(--color-ink-2)] sm:table-cell">{target.words}</td>
                     <td className="hidden px-4 py-3 lg:table-cell"><Person p={people[m.owner_id]} /></td>
                   </tr>
                 );

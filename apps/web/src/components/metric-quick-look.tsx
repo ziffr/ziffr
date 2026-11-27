@@ -17,7 +17,7 @@ import { ValueNoteText } from "@/components/value-note";
 import { periodRecordUrl } from "@/lib/period-record-url";
 import { Sparkline } from "@/views/sparkline";
 import { CalculationDisclosure } from "@/components/calculation-note";
-import { formatValue, health, SOURCE_LABEL, targetText } from "@ziffr/core/format";
+import { formatValue, health, SOURCE_LABEL } from "@ziffr/core/format";
 import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 
 const LOOK_PREFIX = lookPanel("");
@@ -48,17 +48,18 @@ function Panel({ slug }: { slug: string }) {
   if (look.state === "loading") return frame(<p className="text-sm text-muted-foreground" aria-live="polite">Loading…</p>);
   if (look.state === "refused") return frame(<p className="text-sm">{look.words}</p>);
   if (look.state === "failed") return frame(<p className="text-sm">The quick look did not load. Close it and try again.</p>);
-  const { metric: m, points: pts, notes, ownerName, yearStart, numberStyle } = look.look;
+  const { metric: m, points: pts, notes, target, ownerName, yearStart, numberStyle } = look.look;
   const last = pts[pts.length - 1];
   const prev = pts[pts.length - 2];
   const change = last && prev && prev.value ? (last.value - prev.value) / Math.abs(prev.value) : null;
+  const against = { ...m, target_min: target.min, target_max: target.max };
   return frame(
     <>
       <p className="text-sm text-muted-foreground">{PERIOD_LABEL[m.period]}, {m.total ? "adds up other metrics" : m.derived ? "derived from other metrics" : `via ${m.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}`}</p>
       <div>
         <div className="fig text-3xl font-semibold tracking-tight">{last ? formatValue(m, last.value, numberStyle) : "–"}</div>
         <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <TargetChip numberStyle={numberStyle} metric={m} value={last?.value} />
+          <TargetChip numberStyle={numberStyle} metric={against} value={last?.value} />
           {last ? periodLabel(last.period, m.period, yearStart, true) : m.empty}
           <Change numberStyle={numberStyle} pct={change} />
         </div>
@@ -70,9 +71,9 @@ function Panel({ slug }: { slug: string }) {
           <Link href={`${periodRecordUrl(m.slug, last.period)}#notes`} onClick={() => writePanel(null)} className="inline-flex min-h-11 items-center pl-3.5 text-sm underline sm:min-h-0">{notes.length > 1 ? `${notes.length - 1} more, and the history` : "Read in full"}</Link>
         </div>
       )}
-      {pts.length > 1 && <Sparkline points={pts} height={64} tone={health(m, last?.value)} />}
+      {pts.length > 1 && <Sparkline points={pts} height={64} tone={health(against, last?.value)} />}
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
-        <dt className="text-muted-foreground">Target</dt><dd className="fig min-w-0 text-right">{targetText(m, numberStyle)}</dd>
+        <dt className="text-muted-foreground">Target</dt><dd className="fig min-w-0 text-right">{target.words}</dd>
         <dt className="text-muted-foreground">Owner</dt><dd className="min-w-0 text-right [overflow-wrap:anywhere]">{ownerName ?? "–"}</dd>
       </dl>
       <CalculationDisclosure note={m.calculation_note} derived={m.derived} formula={m.formula} />
