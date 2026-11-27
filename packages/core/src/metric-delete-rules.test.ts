@@ -46,12 +46,12 @@ describe("a deck that lets go of a Metric", () => {
     "binding:a": { id: "binding:a", typeName: "binding", fromId: "shape:arrow", toId: "shape:one" },
   } };
   it("drops what must go, shortens what can, empties its place in a text, and names it nowhere after", () => {
-    const out = deckWithout(document, new Set([1]));
+    const out = deckWithout(document, new Set([1]), false);
     expect([out.removed, out.trimmed, out.emptied]).toEqual([1, 1, 1]);
     const store = (out.document as typeof document).store;
     expect(Object.keys(store).sort()).toEqual(["shape:other", "shape:t", "shape:two"]);
     expect(store["shape:t"].meta.metrics).toEqual([0, 2]);
-    expect(allDeckMetricIds(out.document)).toEqual([2]);
+    expect(allDeckMetricIds(out.document, false)).toEqual([2]);
   });
-  it("is the same document when it names none of them", () => expect(deckWithout(document, new Set([9])).document).toBe(document));
+  it("is the same document when it names none of them", () => expect(deckWithout(document, new Set([9]), false).document).toBe(document));
 });

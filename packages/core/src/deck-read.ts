@@ -66,9 +66,9 @@ export async function readDeck(actor: Actor, id: number): Promise<ReadDeck> {
   if (!Number.isSafeInteger(id)) throw new Forbidden();
   const role = (await visibleDecks(actor.workspaceId, actor.personId)).find((d) => d.id === id)?.role;
   if (!role) throw new Forbidden();
-  const { data: row } = await db().from("decks").select("name, theme_id, footer, document").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const { data: row } = await db().from("decks").select("name, theme_id, footer, document, made").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!row) throw new Forbidden();
-  const description = describedDeck(row.document);
+  const description = describedDeck(row.document, row.made);
   if (!description) throw new Refused(NOT_A_MADE_DECK);
   const sent = description.slides.filter((s) => role !== "viewer" || !s.hidden);
   const listed = new Set(sent.flatMap((s) => s.metrics));

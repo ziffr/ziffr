@@ -67,6 +67,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `saveMadeDeck` (deck-write.ts): decks Ziffr makes are built and read in the app (spec 0069)
 - `clearDeckAnswers` (deck-write.ts): decks Ziffr makes are built and read in the app (spec 0069)
 - `makeDeckFromDashboard` (deck-write.ts): decks Ziffr makes are built and read in the app (spec 0069)
+- `dropSlidesOfMetrics` (deck-write.ts): part of deleting Metrics, which calls it
 - `setHomeDashboard` (home.ts): choosing one's own home dashboard
 - `searchMarketplace` (marketplace.ts): the Marketplace
 - `readMarketplacePack` (marketplace.ts): the Marketplace

@@ -50,7 +50,7 @@ describe("visibility inside a workspace", () => {
   });
   it("shows what a shared dashboard or deck draws", () => {
     const deck = { store: { "shape:x": { type: "ziffr-widget", props: { metricIds: [2], settings: "{}" } } } };
-    const seen = visibleMetricIdsFrom(A, "anna", facts({ sharedDashboardWidgets: [inA({ metric_ids: [1], settings: {} })], sharedDeckDocuments: [inA({ document: deck })] }));
+    const seen = visibleMetricIdsFrom(A, "anna", facts({ sharedDashboardWidgets: [inA({ metric_ids: [1], settings: {} })], sharedDeckDocuments: [inA({ document: deck, made: false })] }));
     expect([...seen].sort()).toEqual([1, 2, 3]); // and Margin, which Anna owns and whose inputs she now sees
   });
   it("shows a derived metric to its owner, but not to others who see its inputs", () => {

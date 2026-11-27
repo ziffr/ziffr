@@ -13,6 +13,7 @@ import { refuseSeeded } from "./demo-seeded-rows";
 import { chargeVisitorDeckGrowth } from "./demo-visitor-deck";
 import { visitorOptionalText } from "./demo-visitor-words";
 import { MADE_DECKS_ON } from "./made-decks-on";
+import { deckWithout } from "./metric-delete-rules";
 import { assertSeesMetrics } from "./sharing";
 import { recordedWidgets } from "./tag-widgets";
 import { ensureBaseline, recordVersion } from "./versions";
@@ -27,8 +28,8 @@ async function writableDeck(actor: Actor, id: number) {
   if (role !== "owner" && role !== "editor") throw new Forbidden();
   // In the demo a deck the seed made is kept as it is.
   await refuseSeeded(actor, "decks", id);
-  const { data } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
-  const description = describedDeck(data?.document);
+  const { data } = await db().from("decks").select("document, made").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const description = describedDeck(data?.document, data?.made);
   if (!description) throw new Refused(NOT_A_MADE_DECK);
   const seen = await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId));
   return { description, sees: (slide: SlideDescription) => slide.metrics.every((m) => seen.has(m)) };
@@ -58,6 +59,14 @@ export async function clearDeckAnswers(actor: Actor, id: number): Promise<void> 
   await store(actor, id, description, clearedDescription(description, sees), "Cleared answers");
 }
 
+/** Takes the slides that list any of these Metrics off a made deck, as deleting the Metrics does (metric-delete.ts):
+ * a slide goes whole, answers included, whatever else it lists. The Version before keeps it. */
+export async function dropSlidesOfMetrics(actor: Actor, id: number, gone: ReadonlySet<number>): Promise<void> {
+  const { description } = await writableDeck(actor, id);
+  const { document, slides } = deckWithout(description, gone, true);
+  if (slides) await store(actor, id, description, document as DeckDescription, "Removed slides of deleted Metrics");
+}
+
 /** Makes a new deck, owned by the actor, about the Metrics a dashboard's Widgets draw. The actor opens the dashboard and
  * sees every one of those Metrics, or nothing is made. Guests make nothing. Answers the deck's id. */
 export async function makeDeckFromDashboard(actor: Actor, dashboardId: number, opts: { name?: string } = {}): Promise<number> {
@@ -79,8 +88,9 @@ export async function makeDeckFromDashboard(actor: Actor, dashboardId: number, o
   // A typed name goes through the demo's text rules; the dashboard's was checked when it was written.
   const name = opts.name === undefined ? deckName(actor, dashboard.name, true) : deckName(actor, opts.name);
   await chargeVisitorDeckGrowth(actor, document, null);
-  // One insert with its slides: a refused or failed deck leaves no empty one behind.
-  const { data, error } = await db().from("decks").insert({ name, document, owner_id: actor.personId, workspace_id: actor.workspaceId }).select("id").single();
+  // One insert with its slides: a refused or failed deck leaves no empty one behind. The only place a deck is marked as
+  // made by Ziffr.
+  const { data, error } = await db().from("decks").insert({ name, document, made: true, owner_id: actor.personId, workspace_id: actor.workspaceId }).select("id").single();
   if (error || !data) throw new Error("The deck could not be created.");
   return data.id;
 }

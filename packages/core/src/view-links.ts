@@ -150,7 +150,8 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
     // Nothing in a free layout may load from another site when shown through the link (spec 0009).
     widgets = ((await openRows("widgets", ws, data)) as Widget[]).map(widgetWithoutOutside);
     metricIds = [...new Set(widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))];
-  } else metricIds = deckMetricIds(slides);
+  // A made deck gets no View Link (above): these are the slide editor's slides.
+  } else metricIds = deckMetricIds(slides, false);
   // Only the series this link can show are read; it filters them further below.
   const full = await getCanvasData(ws, obj.owner_id, { seriesOf: metricIds });
   // Only Metrics the owner sees and, for a live link, agreed to when making it; added ones stay out.
@@ -190,7 +191,7 @@ export function deckForLink(document: unknown, shown: Set<number>, records: stri
   const keep = Object.entries(doc.store).filter(([key, r]) => {
     if (records && !records.includes(key)) return false;
     let ids: number[];
-    if (r?.type === "ziffr-widget") ids = deckMetricIds({ store: { x: r } }).concat(Array.isArray(r.props?.metricIds) ? (r.props!.metricIds as unknown[]).map(Number) : []);
+    if (r?.type === "ziffr-widget") ids = deckMetricIds({ store: { x: r } }, false).concat(Array.isArray(r.props?.metricIds) ? (r.props!.metricIds as unknown[]).map(Number) : []);
     // A text box stays out whole, as a widget does: its words are written around the values.
     else ids = r ? textMetricIds(r) : [];
     const stays = ids.every((m) => shown.has(m));

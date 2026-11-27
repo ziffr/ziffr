@@ -51,7 +51,7 @@ describe("every writer of a deck in decks.ts", () => {
 describe("every writer of a made deck in deck-write.ts", () => {
   it("refuses the seed's decks and holds a visit's slides to their size before it writes", () => {
     gatedBefore("deck-write.ts", "writableDeck", 'refuseSeeded(actor, "decks", id)');
-    for (const fn of ["saveMadeDeck", "clearDeckAnswers"]) gatedBefore("deck-write.ts", fn, "writableDeck(");
+    for (const fn of ["saveMadeDeck", "clearDeckAnswers", "dropSlidesOfMetrics"]) gatedBefore("deck-write.ts", fn, "writableDeck(");
     const store = body("deck-write.ts", "store");
     expect(store.indexOf("chargeVisitorDeckGrowth(")).toBeGreaterThan(-1);
     expect(store.indexOf("chargeVisitorDeckGrowth(")).toBeLessThan(store.indexOf("ensureBaseline("));

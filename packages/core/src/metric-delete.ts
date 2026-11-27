@@ -13,6 +13,8 @@ import { Forbidden, Refused, type Actor } from "./actor";
 import { removeWidget, updateWidget } from "./dashboards";
 import { db } from "./db";
 import { readersNow } from "./deleted-metrics";
+import { describedDeck } from "./deck-form";
+import { dropSlidesOfMetrics } from "./deck-write";
 import { saveDeck } from "./decks";
 import { refuseInDemo } from "./demo";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -58,7 +60,7 @@ const UNREAD = "What uses these Metrics could not be read. Try again in a moment
 const NO_TICKS: DeleteChoices = { dashboards: false, decks: false, viewLinks: false };
 
 type DashboardPlace = { id: number | null; name: string; changeable: boolean; seen: boolean; owner: string };
-type DeckPlace = { id: number; name: string; changeable: boolean; seen: boolean; document: unknown };
+type DeckPlace = { id: number; name: string; changeable: boolean; seen: boolean; document: unknown; made: unknown };
 type LinkPlace = { id: number; revocable: boolean; name: string | null; what: string; metricIds: number[] };
 
 /** Everything a deletion of the picked Metrics is decided from. */
@@ -99,7 +101,7 @@ async function facts(actor: Actor, ids: unknown): Promise<Facts> {
   const today = new Date().toISOString().slice(0, 10);
   const [widgetRows, deckRows, linkRows, dashboardRows, dashboards, decks] = await Promise.all([
     read<Widget>("widgets", "id, dashboard_id, owner_id, template, metric_ids, settings, title"),
-    read<{ id: number; document: unknown }>("decks", "id, document"),
+    read<{ id: number; document: unknown; made: unknown }>("decks", "id, document, made"),
     allRows<{ id: number; object_type: "dashboard" | "deck"; object_id: number; label: string | null; expires_at: string; metric_ids: unknown[] | null; snapshot_id: number | null }>((from, to) =>
       mustRead(db().from("view_links").select("id, object_type, object_id, label, expires_at, metric_ids, snapshot_id").eq("workspace_id", ws).is("revoked_at", null).gte("expires_at", today).order("id").range(from, to), UNREAD)),
     read<{ id: number; name: string; owner_id: string }>("dashboards", "id, name, owner_id"),
@@ -124,9 +126,9 @@ async function facts(actor: Actor, ids: unknown): Promise<Facts> {
     return uses.length ? [{ ...w, place: placeOf(w), uses }] : [];
   });
   const decksUsing = deckRows.flatMap((d) => {
-    const uses = usesOf(allDeckMetricIds(d.document));
+    const uses = usesOf(allDeckMetricIds(d.document, d.made));
     const seen = deckSeen.get(d.id);
-    return uses.length ? [{ id: d.id, name: seen?.name ?? "", seen: Boolean(seen), changeable: changes(seen?.role), document: d.document, uses }] : [];
+    return uses.length ? [{ id: d.id, name: seen?.name ?? "", seen: Boolean(seen), changeable: changes(seen?.role), document: d.document, made: d.made, uses }] : [];
   });
   const links = linkRows.flatMap((l): LinkPlace[] => {
     const metricIds = usesOf((l.metric_ids ?? []).map(Number));
@@ -180,7 +182,7 @@ function standing(actor: Actor, f: Facts, m: Metric): string[] {
   const locked = decks.filter((d) => !d.changeable);
   if (locked.length) out.push(`It is in decks you cannot change: ${listed(locked.filter((d) => d.seen).map((d) => d.name), locked.filter((d) => !d.seen).length, "you cannot open")}.`);
   // A deck that would still name it afterwards cannot be cleared from here.
-  const stuck = decks.filter((d) => d.changeable && allDeckMetricIds(deckWithout(d.document, new Set([m.id])).document).includes(m.id));
+  const stuck = decks.filter((d) => d.changeable && allDeckMetricIds(deckWithout(d.document, new Set([m.id]), d.made).document, d.made).includes(m.id));
   if (stuck.length) out.push(`Take it out of these decks by hand: ${listed(stuck.map((d) => d.name), 0, "")}.`);
   const links = f.links.filter((l) => l.metricIds.includes(m.id) && !l.revocable);
   if (links.length) out.push(`A View Link that still works shows it, and only the owner of what it shows revokes it: ${listed(links.flatMap((l) => l.name ?? []), links.filter((l) => l.name === null).length, "you cannot open")}.`);
@@ -232,8 +234,8 @@ function dashboardLines(f: Facts, going: ReadonlySet<number>): string[] {
 
 function deckLines(f: Facts, going: ReadonlySet<number>): string[] {
   return f.decks.filter((d) => d.changeable && d.uses.some((id) => going.has(id))).map((d) => {
-    const w = deckWithout(d.document, going);
-    const parts = [w.removed && `removes ${count(w.removed, "widget")}`, w.trimmed && `takes them out of ${count(w.trimmed, "widget")}`, w.emptied && `leaves their numbers empty in ${count(w.emptied, "text")}`];
+    const w = deckWithout(d.document, going, d.made);
+    const parts = [w.slides && `removes ${count(w.slides, "slide")}`, w.removed && `removes ${count(w.removed, "widget")}`, w.trimmed && `takes them out of ${count(w.trimmed, "widget")}`, w.emptied && `leaves their numbers empty in ${count(w.emptied, "text")}`];
     return `${d.name}: ${parts.filter(Boolean).join(", ")}`;
   }).sort();
 }
@@ -243,7 +245,7 @@ function fingerprintOf(f: Facts, c: DeleteChoices, going: ReadonlySet<number>): 
   const touched = (uses: number[]) => uses.some((id) => going.has(id));
   const changes = [
     c.dashboards ? widgetChanges(f, going).map((w) => [w.widget.id, w.rest]) : [],
-    c.decks ? f.decks.filter((d) => d.changeable && touched(d.uses)).map((d) => [d.id, deckWithout(d.document, going)]).map(([id, w]) => [id, (w as DeckWithout).removed, (w as DeckWithout).trimmed, (w as DeckWithout).emptied]) : [],
+    c.decks ? f.decks.filter((d) => d.changeable && touched(d.uses)).map((d) => [d.id, deckWithout(d.document, going, d.made)]).map(([id, w]) => [id, (w as DeckWithout).slides, (w as DeckWithout).removed, (w as DeckWithout).trimmed, (w as DeckWithout).emptied]) : [],
     c.viewLinks ? f.links.filter((l) => l.revocable && touched(l.metricIds)).map((l) => l.id) : [],
   ];
   return createHash("sha256").update(JSON.stringify(changes)).digest("hex");
@@ -292,7 +294,9 @@ export type DeleteResult = { deleted: { id: number; name: string; values: number
 async function makeChanges(actor: Actor, f: Facts, going: ReadonlySet<number>, done: { changed: number }): Promise<void> {
   // Decks first: a deck's save checks the most, so what could refuse does so before anything else has changed.
   for (const d of f.decks.filter((x) => x.changeable && x.uses.some((id) => going.has(id)))) {
-    await saveDeck(actor, d.id, deckWithout(d.document, going).document);
+    // A made deck is not saved as the slide editor's: its slides are dropped by its own writer.
+    if (describedDeck(d.document, d.made)) await dropSlidesOfMetrics(actor, d.id, going);
+    else await saveDeck(actor, d.id, deckWithout(d.document, going, d.made).document);
     done.changed++;
   }
   for (const { widget, rest } of widgetChanges(f, going)) {

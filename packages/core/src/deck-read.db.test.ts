@@ -6,12 +6,17 @@ import { Forbidden, Refused } from "./actor";
 import { createDashboard, placeWidget } from "./dashboards";
 import { db } from "./db";
 import { readDeck } from "./deck-read";
+import { describedFrom } from "./deck-edits";
 import { clearDeckAnswers, makeDeckFromDashboard, saveMadeDeck } from "./deck-write";
 import { saveDeck } from "./decks";
+import { deleteChosenMetrics, planMetricDelete } from "./metric-delete";
+import { exportMetricRecord } from "./metric-record";
 import { share, shareWithGroup } from "./sharing";
 import { createGroup, setGroupMember } from "./team";
 import { workspace } from "./test/db-fixtures";
 import { listVersions, restoreVersion } from "./version-history";
+import { ensureBaseline } from "./versions";
+import { allDeckMetricIds } from "./visibility";
 import { getMetrics } from "./workspace-data";
 
 vi.mock("./made-decks-on", () => ({ MADE_DECKS_ON: true }));
@@ -183,5 +188,48 @@ describe("making and changing a made deck", () => {
     const before = [...versions].sort((a, b) => b.version - a.version)[1];
     await restoreVersion(w.actor(sara), before.id, noEffects);
     expect(JSON.stringify(await stored())).toContain("Hidden answer");
+  });
+});
+
+describe("a deck Ziffr did not make", () => {
+  it("opens no Metric to anyone, whatever its document says, and a restore does not change that", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("owner"); const ed = await w.person("member"); const ben = await w.person("member");
+    const secret = await w.metric(sara, { name: "Secret churn" });
+    // A document in the shape of a description, stored in a deck that does not carry the mark.
+    const deck = (await db().from("decks").insert({ name: "Board", document: describedFrom([secret.id]), owner_id: sara, workspace_id: w.actor(sara).workspaceId }).select("id").single()).data!.id as number;
+    const row = async () => (await db().from("decks").select("made, document").eq("id", deck).single()).data!;
+    expect((await row()).made).toBe(false);
+    await share(w.actor(sara), "deck", deck, ed, "editor");
+    await share(w.actor(sara), "deck", deck, ben, "viewer");
+    const sees = async (person: string) => (await visibleMetricIds(w.actor(sara).workspaceId, person, await getMetrics(w.actor(sara).workspaceId))).has(secret.id);
+    const nothingOpens = async () => {
+      // The Metric's own owner sees it as its owner; the deck opens it to nobody else.
+      expect(await sees(ed)).toBe(false);
+      expect(await sees(ben)).toBe(false);
+      for (const person of [sara, ed, ben]) await expect(readDeck(w.actor(person), deck)).rejects.toBeInstanceOf(Refused);
+      for (const person of [sara, ed]) await expect(saveMadeDeck(w.actor(person), deck, { slides: [] })).rejects.toBeInstanceOf(Refused);
+    };
+    await nothingOpens();
+
+    await ensureBaseline("deck", deck, sara);
+    const [version] = (await listVersions(w.actor(sara), "deck", deck)).versions;
+    await expect(restoreVersion(w.actor(sara), version.id, noEffects)).rejects.toBeInstanceOf(Refused);
+    expect((await row()).made).toBe(false);
+    await nothingOpens();
+  });
+});
+
+describe("deleting a Metric a made deck lists", () => {
+  it("drops the slides that list it and keeps the deck readable", async () => {
+    const { w, sara, open, secret, deck, stored } = await setup();
+    const choices = { dashboards: true, decks: true, viewLinks: true };
+    await exportMetricRecord(w.actor(sara), [secret.id]);
+    const plan = await planMetricDelete(w.actor(sara), [secret.id], choices);
+    expect(plan.ids).toEqual([secret.id]);
+    expect(plan.decks.join()).toContain("slide");
+    expect((await deleteChosenMetrics(w.actor(sara), [secret.id], choices, "Secret churn", plan.seen)).stopped).toBeNull();
+    expect(allDeckMetricIds(await stored(), true)).toEqual([open.id]);
+    expect((await readDeck(w.actor(sara), deck)).leftOut).toBe(0);
   });
 });

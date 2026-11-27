@@ -27,8 +27,8 @@ describe("widget metrics, nested and malformed (security pass)", () => {
 describe("deck metrics (security pass)", () => {
   it("reads a deck like a free layout and keeps the malformed marker", async () => {
     const { deckMetricIds } = await import("./visibility");
-    expect(deckMetricIds({ store: { "shape:1": { type: "ziffr-widget", props: { metricIds: [3], settings: JSON.stringify({ panels: [{ metricIds: [4] }] }) } } } }).sort()).toEqual([3, 4]);
-    expect(deckMetricIds({ store: { "shape:1": { type: "ziffr-widget", props: { metricIds: "3" } } } }).some(Number.isNaN)).toBe(true);
-    expect(deckMetricIds(null)).toEqual([]);
+    expect(deckMetricIds({ store: { "shape:1": { type: "ziffr-widget", props: { metricIds: [3], settings: JSON.stringify({ panels: [{ metricIds: [4] }] }) } } } }, false).sort()).toEqual([3, 4]);
+    expect(deckMetricIds({ store: { "shape:1": { type: "ziffr-widget", props: { metricIds: "3" } } } }, false).some(Number.isNaN)).toBe(true);
+    expect(deckMetricIds(null, false)).toEqual([]);
   });
 });

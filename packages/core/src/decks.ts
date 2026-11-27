@@ -43,10 +43,11 @@ const GOES_LIVE = "This change would show live numbers of a Metric you cannot se
 /** Refuses in plain words a save that draws live a Metric the deck named only on slides that keep numbers, by someone
  * who does not see it: a part or a slide's mark was removed, or the Widget moved to another slide. */
 async function assertSeesWhatGoesLive(actor: Actor, before: unknown, after: unknown) {
-  const named = new Set(allDeckMetricIds(before));
-  const live = new Set(deckMetricIds(before));
+  // saveDeck refuses a description on either side: these are the slide editor's forms.
+  const named = new Set(allDeckMetricIds(before, false));
+  const live = new Set(deckMetricIds(before, false));
   try {
-    await assertSeesMetrics(actor, deckMetricIds(after).filter((m) => named.has(m) && !live.has(m)));
+    await assertSeesMetrics(actor, deckMetricIds(after, false).filter((m) => named.has(m) && !live.has(m)));
   } catch (err) {
     if (err instanceof Forbidden) throw new Refused(GOES_LIVE);
     throw err;
@@ -91,12 +92,12 @@ export async function saveDeck(actor: Actor, id: number, document: unknown) {
   document = await visitorDeckDocument(actor, document, before?.document);
   // A text box is stored listing only the Metrics its words ask for: those are what is checked here.
   document = withoutUnaskedMetrics(document);
-  const added = deckMetricIdsAdded(before?.document, document);
+  const added = deckMetricIdsAdded(before?.document, document, false);
   if (added.some((m) => !Number.isFinite(m))) throw new Error("A widget or text box on this deck names its metrics in a way Ziffr cannot read. Remove or recreate it, then save.");
   await assertSeesWhatGoesLive(actor, before?.document, document);
   await assertSeesMetrics(actor, added);
   // A deck that is shared shows only Metrics its recipients see (spec 0051, ticket 11).
-  await visitorSharedStaysSeen(actor, "deck", id, deckMetricIds(document));
+  await visitorSharedStaysSeen(actor, "deck", id, deckMetricIds(document, false));
   await ensureBaseline("deck", id, actor.personId);
   await db().from("decks").update({ document, updated_at: touch() }).eq("id", id).eq("workspace_id", actor.workspaceId);
   await recordVersion("deck", id, actor.personId);

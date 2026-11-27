@@ -170,18 +170,21 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
     if (widgets.flatMap((w) => widgetMetricIds(w.metric_ids ?? [], w.settings)).some((m) => !seen.has(m))) throw new Error(HIDDEN);
   }
   if (v.object_type === "template" && !(isView(String(s.view)) || s.view === "slide")) throw new Forbidden();
+  // Whether Ziffr made the deck, from its row as it is now: a restore never writes that mark, whatever a Version holds.
+  let deckMade: unknown = false;
   // A deck restore may only bring back Metrics the restorer sees, as saving a deck does.
   if (v.object_type === "deck") {
-    const { data: cur } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", ws).single();
+    const { data: cur } = await db().from("decks").select("document, made").eq("id", id).eq("workspace_id", ws).single();
+    deckMade = cur?.made;
     // Its Snapshot Parts are checked as a save's are (spec 0061): a Version keeps what was stored.
     const problem = snapshotPartProblem(s.document);
     if (problem) throw new Refused(problem);
     const seen = await visible();
-    if (deckMetricIdsAdded(cur?.document, s.document).some((m) => !seen.has(m))) throw new Error(HIDDEN);
+    if (deckMetricIdsAdded(cur?.document, s.document, deckMade).some((m) => !seen.has(m))) throw new Error(HIDDEN);
     // A made deck, or a form no reader knows, is held to more (spec 0069).
-    const made = isDescribed(cur?.document) || isDescribed(s.document) ? madeRestoreProblem(cur?.document, s.document, seen) : null;
-    if (made === "hidden") throw new Error(HIDDEN);
-    if (made) throw new Refused("Ziffr cannot read the slides of this Version, so it is not restored.");
+    const refused = isDescribed(cur?.document) || isDescribed(s.document) ? madeRestoreProblem(cur?.document, s.document, deckMade, seen) : null;
+    if (refused === "hidden") throw new Error(HIDDEN);
+    if (refused) throw new Refused("Ziffr cannot read the slides of this Version, so it is not restored.");
   }
   // A Theme picked back then may be gone since; the dashboard or deck then follows the default.
   if ((v.object_type === "dashboard" || v.object_type === "deck") && s.theme_id) {
@@ -229,7 +232,7 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
       assertWidgetDesigns(s.document);
       // As a save stores it: a text box lists only the Metrics its words ask for, which were checked above.
       s.document = withoutUnaskedMetrics(s.document);
-      await visitorSharedStaysSeen(actor, "deck", id, deckMetricIds(s.document));
+      await visitorSharedStaysSeen(actor, "deck", id, deckMetricIds(s.document, deckMade));
       mustRestore(await db().from("decks").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(s.footer !== undefined ? { footer: s.footer } : {}), document: s.document, updated_at: at }).eq("id", id).eq("workspace_id", ws));
       break;
     case "snapshot": {

@@ -116,7 +116,7 @@ export async function visibleMetricIds(ws: string, viewer: string, metrics: Metr
   const sharedDecks = decks.filter((d) => d.role !== "owner").map((d) => d.id);
   const [{ data: widgets }, { data: docs }] = await Promise.all([
     sharedDash.length ? db().from("widgets").select("metric_ids, settings, workspace_id").eq("workspace_id", ws).in("dashboard_id", sharedDash) : Promise.resolve({ data: [] }),
-    sharedDecks.length ? db().from("decks").select("document, workspace_id").eq("workspace_id", ws).in("id", sharedDecks) : Promise.resolve({ data: [] }),
+    sharedDecks.length ? db().from("decks").select("document, made, workspace_id").eq("workspace_id", ws).in("id", sharedDecks) : Promise.resolve({ data: [] }),
   ]);
   return visibleMetricIdsFrom(ws, viewer, {
     metrics: metrics.map((m) => ({ ...m, workspace_id: (m as Metric & { workspace_id?: string }).workspace_id ?? "" })),
@@ -154,7 +154,7 @@ export async function visibilityOfMany(ws: string, metrics: Metric[], planned?: 
   const [sharedDash, sharedDecks] = [shared("dashboard"), shared("deck")];
   const [{ data: storedWidgets }, { data: docs }] = await Promise.all([
     sharedDash.length ? db().from("widgets").select("dashboard_id, metric_ids, settings, workspace_id").eq("workspace_id", ws).in("dashboard_id", sharedDash) : Promise.resolve({ data: [] }),
-    sharedDecks.length ? db().from("decks").select("id, document, workspace_id").eq("workspace_id", ws).in("id", sharedDecks) : Promise.resolve({ data: [] }),
+    sharedDecks.length ? db().from("decks").select("id, document, made, workspace_id").eq("workspace_id", ws).in("id", sharedDecks) : Promise.resolve({ data: [] }),
   ]);
   const widgets = [...(storedWidgets ?? []), ...here(planned?.widgets)];
   const facts = { metrics: [...metrics.map((m) => ({ ...m, workspace_id: (m as Metric & { workspace_id?: string }).workspace_id ?? "" })), ...here(planned?.metrics)], tokens, shares };
@@ -372,7 +372,7 @@ export async function audience(ws: string, type: ObjectType, id: number, viewer:
     const [{ data: widgetRows }, { data: dashboards }, { data: decks }] = await Promise.all([
       db().from("widgets").select("dashboard_id, metric_ids, settings").eq("workspace_id", ws).not("dashboard_id", "is", null),
       db().from("dashboards").select("id, name, owner_id").eq("workspace_id", ws),
-      db().from("decks").select("id, name, owner_id, document").eq("workspace_id", ws),
+      db().from("decks").select("id, name, owner_id, document, made").eq("workspace_id", ws),
     ]);
     // Only dashboards and decks the viewer can see are named.
     const [myDash, myDecks] = await Promise.all([visibleDashboards(ws, viewer), visibleDecks(ws, viewer)]);
@@ -386,7 +386,7 @@ export async function audience(ws: string, type: ObjectType, id: number, viewer:
       }
     };
     for (const d of dashboards ?? []) if ((widgetRows ?? []).some((w) => w.dashboard_id === d.id && widgetMetricIds(w.metric_ids, w.settings).includes(id))) via("dashboard", d.id, d.name, d.owner_id);
-    for (const d of decks ?? []) if (deckMetricIds(d.document).includes(id)) via("deck", d.id, d.name, d.owner_id);
+    for (const d of decks ?? []) if (deckMetricIds(d.document, d.made).includes(id)) via("deck", d.id, d.name, d.owner_id);
   }
   // A Guest does not see who else is in the Workspace (peopleFor): of the audience only their own line, and the owner
   // is not named (the viewer's own id when it is theirs, otherwise none).
