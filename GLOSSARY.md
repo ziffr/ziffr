@@ -449,6 +449,10 @@ _Avoid_: Bulk export, data dump
 The ZIP file of everything Ziffr keeps about some Metrics, which their Metric Owner downloads before deleting them in the app: for each its Metric Description and settings, values with their history, Breakdowns, Target Series, Projections, and the Questions, Tasks and replies about it, as CSV files. Only the Metric Owner gets it, holding only what they may see. Deleting unlocks once the record of exactly the Metrics to be deleted, as they are then, was downloaded within the last 24 hours; the download is written in the Audit Log. Programs deleting a Metric through the API or the MCP Server are not asked for it. Not a Values Download (values only, for anyone who sees the Metrics), not a Period Record, and Ziffr never reads it back in.
 _Avoid_: Backup, dump, archive, full export
 
+**First Steps**:
+The guided start of a new Workspace (spec 0067): one question per screen about the person, the Workspace and its first numbers, ending with a first value the Owner sends in. It belongs to the Owner who made the Workspace and takes the place of the Setup Guide for Owners and Admins once it is switched on. Not the section "First steps" of a Pack Guide.
+_Avoid_: Wizard, onboarding, tour
+
 **Setup Guide**:
 The five steps that set up a Workspace (About you, Starting point, Ways in and out, First Metric, Team), opened by itself at a person's first sign-in and reopened from Help or the Setup line at the top of each page. Each step ticks from what the Workspace has, never from a flag a click sets, and each can be skipped. Its progress is the Workspace's, shared by its Owners and Admins; hiding it is each person's own. A Member sees the steps about themselves, a Guest none, and the demo never. What a person answers in it stays in the Workspace and is sent nowhere.
 _Avoid_: Wizard, onboarding, tour, checklist
