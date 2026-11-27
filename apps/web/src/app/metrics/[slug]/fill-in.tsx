@@ -5,6 +5,7 @@
 // checks again on saving; this only shows the button to people it would let in, and, before the Due Date, disabled with the
 // reason. What the core refuses comes back in its own words.
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { UserPen } from "lucide-react";
 import { fillInForSubmitter } from "@/app/fill-in-actions";
 import { AnswerBox, ValueEntry, sendValue, type Answer } from "./value-entry";
@@ -18,6 +19,9 @@ const first = (name: string) => name.split(" ")[0];
 /** The Fill in for … button with its form; disabled, with the reason beside it, while nobody may be filled in for yet. */
 export function FillIn({ offer, metricName, periodLabel, placeholder, numberStyle }: { offer: FillInOffer; metricName: string; periodLabel: string; placeholder: string; numberStyle: NumberStyle }) {
   const [open, setOpen] = useState(false);
+  // The page was not redrawn after a try, so that the answer stays to be read: it is when the panel closes.
+  const [stale, setStale] = useState(false);
+  const router = useRouter();
   const now = offer.people.filter((p) => !p.wait);
   const label = `Fill in for ${now.length === 1 ? first(now[0].name) : offer.people.length === 1 ? first(offer.people[0].name) : "someone"}…`;
   if (!now.length) {
@@ -29,21 +33,21 @@ export function FillIn({ offer, metricName, periodLabel, placeholder, numberStyl
     );
   }
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={(next) => { setOpen(next); if (!next && stale) { setStale(false); router.refresh(); } }}>
       <SheetTrigger className={buttonVariants({ size: "sm", variant: "outline" })}><UserPen aria-hidden /> {label}</SheetTrigger>
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Fill in {metricName}, {periodLabel}</SheetTitle>
           <SheetDescription>The value is recorded as theirs and always marked as entered by you. They are told, and can replace it with their own until the period is locked.</SheetDescription>
         </SheetHeader>
-        <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-4"><FillInForm offer={offer} people={now} placeholder={placeholder} numberStyle={numberStyle} /></div>
+        <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-4"><FillInForm offer={offer} people={now} placeholder={placeholder} numberStyle={numberStyle} onStale={() => setStale(true)} /></div>
       </SheetContent>
     </Sheet>
   );
 }
 
 /** Whom, the value, an optional Breakdown and note, and the answer to the last try. */
-function FillInForm({ offer, people, placeholder, numberStyle }: { offer: FillInOffer; people: FillInOffer["people"]; placeholder: string; numberStyle: NumberStyle }) {
+function FillInForm({ offer, people, placeholder, numberStyle, onStale }: { offer: FillInOffer; people: FillInOffer["people"]; placeholder: string; numberStyle: NumberStyle; onStale: () => void }) {
   const [who, setWho] = useState(people[0].id);
   const [value, setValue] = useState("");
   const [breakdown, setBreakdown] = useState(false);
@@ -60,6 +64,7 @@ function FillInForm({ offer, people, placeholder, numberStyle }: { offer: FillIn
         start(async () => {
           const r = await sendValue(() => fillInForSubmitter({ metricId: offer.metricId, period: offer.period, for: target.id, value, breakdown: String(data.get("breakdown") ?? ""), ...(note ? { note } : {}) }));
           setAnswer(r);
+          if (r?.noteKept) onStale();
           if (r?.ok) { setValue(""); setBreakdown(false); if (!r.noteKept) setNote(""); }
         });
       }}

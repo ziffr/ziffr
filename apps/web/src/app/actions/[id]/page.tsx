@@ -22,13 +22,17 @@ import { ApprovalBar } from "@/components/approval-bar";
 import { SelfCheckBar } from "@/components/self-check-bar";
 import { periodLabel } from "@ziffr/core/periods";
 import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
+import { periodValueNotes } from "@ziffr/core/value-notes";
+import { PeriodValueNotes } from "@/components/period-value-notes";
+import { periodRecordUrl } from "@/lib/period-record-url";
 
 export default async function ActionPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
   // Only an Action the viewer may read, with its Thread (GLOSSARY: Thread), decided in the core: the value it is
   // about, and the periods around it only for a viewer who sees the Metric (ticket 323).
   // "View as" exists only in the demo: elsewhere nobody can answer as someone else, so the hint is left out.
-  const [thread0, people, viewer, yearStart, numberStyle, demo] = await Promise.all([actionThread(await currentActor(), id), getProfileMap(), viewerId(), getYearStart(), getNumberStyle(), isDemo()]);
+  const actor = await currentActor();
+  const [thread0, people, viewer, yearStart, numberStyle, demo] = await Promise.all([actionThread(actor, id), getProfileMap(), viewerId(), getYearStart(), getNumberStyle(), isDemo()]);
   if (!thread0) notFound();
   const { action: a, metric: m, about, chartMetric, observation: obs, chart: window, seesMetric, messages: msgs, deliveries: sent, externalLinks } = thread0;
   const isAsker = viewer === a.asker_id;
@@ -42,6 +46,16 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
   const at = window.findIndex((p) => p.period === a.period_start);
   const before = at > 0 ? window[at - 1] : null;
   const change = before && obs && before.value !== 0 ? (obs.value - before.value) / Math.abs(before.value) : null;
+  // The period's Value Notes (spec 0064), always as they are now: beside the value an Approval or Self-check is about,
+  // and for the owner who has accepted a Correction here, to say what is behind the new number. The core gives them only
+  // to someone who is shown the value, whatever they may read of this Thread.
+  const aboutValue = a.purpose === "approval" || a.purpose === "self_check" || (isOwner && thread.some((t) => t.correction_value !== null && t.correction_status === "accepted"));
+  const notes = m && aboutValue ? await periodValueNotes(actor, m.id, a.period_start) : null;
+  const deciding = a.purpose === "approval" && m !== null && isAssignee && a.status === "open";
+  const noteBlock = m && notes ? (
+    <PeriodValueNotes metricId={m.id} period={a.period_start} notes={notes} metric={{ decimals: m.decimals, unit: m.unit, unit_position: m.unit_position }} numberStyle={numberStyle}
+      task={a.purpose === "approval" ? { changeAt: `${periodRecordUrl(m.slug, a.period_start)}#notes` } : "add"} className={deciding ? undefined : "mt-4"} />
+  ) : null;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -69,7 +83,8 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
             Also in {externalLinks.map((l, i) => <span key={`${l.system}-${i}`}>{i > 0 && ", "}{l.url ? <a href={l.url} target="_blank" rel="noopener noreferrer nofollow" className="underline">{l.system}</a> : l.system}</span>)}
           </p>
         )}
-        {a.purpose === "approval" && m && isAssignee && a.status === "open" && (
+        {!deciding && noteBlock}
+        {deciding && m && (
           <ApprovalBar actionId={a.id} current={obs?.value ?? null}>
             {obs ? (
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
@@ -79,6 +94,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
                 <dt className="text-muted-foreground">Submitted by</dt><dd>{obs.submitter_id ? people[obs.submitter_id]?.name ?? "Someone who left" : "A program"}</dd>
               </dl>
             ) : null}
+            {noteBlock}
           </ApprovalBar>
         )}
         {a.purpose === "self_check" && isAssignee && a.status === "open" && <SelfCheckBar actionId={a.id} value={obs?.value ?? null} />}

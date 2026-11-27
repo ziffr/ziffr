@@ -91,13 +91,57 @@ export const isPast = (t: NoteThread) => Boolean(t.removed) || t.replaced || t.e
 /** What the history may show of an entry's words: nothing once its note was removed or deleted for good. */
 export const wordsShown = (e: NoteEntry, t: NoteThread): string | null => (t.removed || t.erased ? null : e.words);
 
-/** What an entry to be added carries. */
-export type NewEntry = Pick<NoteEntry, "metric_id" | "period_start" | "note_id" | "kind" | "observation_id" | "words" | "said_of" | "author_id" | "source" | "added_later"> & { proposal?: number };
+/** What an entry to be added carries. `replaced_at` is set on one filed under a value that is no longer there. */
+export type NewEntry = Pick<NoteEntry, "metric_id" | "period_start" | "note_id" | "kind" | "observation_id" | "words" | "said_of" | "author_id" | "source" | "added_later"> & { proposal?: number; replaced_at?: string };
 
 /** Adds one entry, its words and number sealed for it; throws when it cannot be saved. Answers its id. */
 export async function addEntry(ws: string, entry: NewEntry): Promise<number> {
   const [row] = await insertSealed("value_notes", ws, [entry]);
   return Number(row!.id);
+}
+
+/** A note a text reply brought for a value that is in (spec 0064, "A later reply"). */
+export type ReplyNoteEntry = {
+  metricId: number; period: string; authorId: string; source: SourceId;
+  /** The contribution the note is about, and the number it holds. */
+  observationId: number; saidOf: number;
+  /** The author's value was replaced meanwhile, so the note is filed under their earlier value, in the history. */
+  replaced: boolean;
+  addedLater: boolean;
+};
+
+/** What became of a reply's note: `noteId` names the note, `inPlace` that it took the place of an earlier one. */
+export type ReplyNoteSaved = { saved: true; noteId: number; inPlace: boolean } | { saved: false; reason: string };
+
+/** Saves a reply's note: a second one on the same value by the same author takes the first one's place, and the same
+ * words again add nothing. It checks no rights: the caller has decided that this person may write on this value. */
+export async function addReplyNote(ws: string, at: ReplyNoteEntry, words: unknown): Promise<ReplyNoteSaved> {
+  const cleaned = cleanNote(words, "cut");
+  if ("problem" in cleaned) return { saved: false, reason: cleaned.problem };
+  try {
+    const entries = await noteEntries(ws, at.metricId, at.period);
+    const earlier = at.replaced ? undefined : noteThreads(entries).find((t) => !isPast(t) && t.first.author_id === at.authorId && t.first.observation_id === at.observationId);
+    if (earlier && earlier.latest.words === cleaned.words) return { saved: true, noteId: earlier.first.id, inPlace: false };
+    if (entries.filter((e) => e.kind !== "removed").length >= NOTES_PER_PERIOD) return { saved: false, reason: NOTES_FULL };
+    const id = await addEntry(ws, {
+      metric_id: at.metricId, period_start: at.period, note_id: earlier?.first.id ?? null, kind: earlier ? "corrected" : "written", observation_id: at.observationId,
+      words: cleaned.words, said_of: earlier ? earlier.first.said_of : at.saidOf, author_id: at.authorId, source: at.source, added_later: at.addedLater,
+      ...(at.replaced ? { replaced_at: new Date().toISOString() } : {}),
+    });
+    return { saved: true, noteId: earlier?.first.id ?? id, inPlace: Boolean(earlier) };
+  } catch (error) {
+    // The error's own words only: they never hold the note's.
+    console.error("A reply's Value Note could not be saved:", error instanceof Error ? error.message : "unknown");
+    return { saved: false, reason: "The note could not be saved." };
+  }
+}
+
+/** One note leaves the current view and stays in the history, as when its words moved to a newer value. */
+export async function retireNote(ws: string, noteId: number): Promise<void> {
+  for (const column of ["id", "note_id"]) {
+    const { error } = await db().from("value_notes").update({ replaced_at: new Date().toISOString() }).eq("workspace_id", ws).eq(column, noteId).is("replaced_at", null);
+    if (error) console.error("A Value Note could not be moved to the history:", error.message);
+  }
 }
 
 /** What became of a note that came with a value. The value stands either way. */
@@ -153,9 +197,11 @@ async function settleSameNumber(ws: string, messageId: number, accepted: Accepte
     if (error) throw new Error("The proposed note could not be read.");
     const [proposed] = (await openRows("value_notes", ws, (data ?? []) as Record<string, unknown>[])) as { words?: unknown }[];
     if (!proposed) return false;
-    const standing = noteThreads(await noteEntries(ws, accepted.metricId, accepted.period)).filter((t) => !isPast(t) && t.first.observation_id === accepted.observationId);
+    const entries = await noteEntries(ws, accepted.metricId, accepted.period);
+    const standing = noteThreads(entries).filter((t) => !isPast(t) && t.first.observation_id === accepted.observationId);
     if (standing.some((t) => t.latest.words === proposed.words)) return true;
-    await retireNotes(ws, accepted.observationId);
+    // Notes give way only to other words that can be kept in their place: a full period keeps what it has.
+    if (entries.filter((e) => e.kind !== "removed").length < NOTES_PER_PERIOD) await retireNotes(ws, accepted.observationId);
   } catch (error) {
     console.error("Value Notes could not be updated:", error instanceof Error ? error.message : "unknown");
   }
@@ -185,13 +231,19 @@ export async function noteWithProposal(ws: string, proposal: { messageId: number
 /** The value an accepted Correction wrote; `sameNumber` when it is the number that stood there before. */
 export type Accepted = { metricId: number; period: string; observationId: number; sameNumber: boolean };
 
+/** The database's code for a period that already holds as many notes as it keeps (trigger value_notes_cap). */
+const FULL_CODE = "ZF480";
+
 /** A Correction was decided: accepted, its note becomes the Value Note of the value now written; declined, it goes.
- * With the same number, its words take the place of the value's notes, and words already there add nothing. */
+ * With the same number, its words take the place of the value's notes, and words already there add nothing. In a period
+ * that holds NOTES_PER_PERIOD notes already, the value is taken and the proposed note goes. */
 export async function decideProposedNote(ws: string, messageId: number, accepted: Accepted | null): Promise<void> {
   // A new number has retired the earlier notes already (notesAfterValue).
   const known = accepted?.sameNumber ? await settleSameNumber(ws, messageId, accepted) : false;
-  const table = db().from("value_notes");
-  const { error } = await (accepted && !known ? table.update({ proposal: null, observation_id: accepted.observationId }) : table.delete()).eq("workspace_id", ws).eq("proposal", messageId);
+  const drop = () => db().from("value_notes").delete().eq("workspace_id", ws).eq("proposal", messageId);
+  let { error } = await (accepted && !known ? db().from("value_notes").update({ proposal: null, observation_id: accepted.observationId }).eq("workspace_id", ws).eq("proposal", messageId) : drop());
+  // The database counts under the period's lock, so two notes arriving at once never pass the cap.
+  if (error?.code === FULL_CODE) ({ error } = await drop());
   // The decision is made either way; a note left behind stays a proposal, which nobody is shown.
   if (error) console.error("a proposed Value Note could not be settled:", error.message);
 }

@@ -8,6 +8,8 @@ import { format } from "date-fns";
 import { currentActor } from "@/lib/viewer";
 import { getNumberStyle, getYearStart } from "@/lib/data";
 import { periodRecord, type PeriodStep } from "@ziffr/core/period-record";
+import { periodValueNotes } from "@ziffr/core/value-notes";
+import { PeriodValueNotes } from "@/components/period-value-notes";
 import { formatValue } from "@ziffr/core/format";
 import { periodLabel } from "@ziffr/core/periods";
 import { StatusBadge } from "@/components/status";
@@ -45,10 +47,13 @@ export default async function PeriodRecordPage({ params }: { params: Promise<{ s
   const { slug, period: asked } = await params;
   // A month may be written as 2026-03: the same page as 2026-03-01.
   if (/^\d{4}-\d{2}$/.test(asked)) redirect(periodRecordUrl(slug, `${asked}-01`));
-  const [record, yearStart, numberStyle] = await Promise.all([currentActor().then((a) => periodRecord(a, slug, asked)), getYearStart(), getNumberStyle()]);
+  const actor = await currentActor();
+  const [record, yearStart, numberStyle] = await Promise.all([periodRecord(actor, slug, asked), getYearStart(), getNumberStyle()]);
   // Not shared with this person is the same as not there: nothing is said of a Metric they may not see.
   if (!record) notFound();
   const { metric: m } = record;
+  // Its Value Notes as the core gives them to this person (spec 0064): null where they are not shown the value.
+  const notes = await periodValueNotes(actor, m.id, record.period);
   const write = (v: number | null) => formatValue(m, v, numberStyle);
   return (
     <div className="mx-auto max-w-3xl">
@@ -71,6 +76,12 @@ export default async function PeriodRecordPage({ params }: { params: Promise<{ s
           </div>
         )}
       </section>
+
+      {notes && (
+        <div id="notes" className="scroll-mt-20">
+          <PeriodValueNotes metricId={m.id} period={record.period} notes={notes} metric={{ decimals: m.decimals, unit: m.unit, unit_position: m.unit_position }} numberStyle={numberStyle} className="mt-4 stock rounded-[var(--radius-card)] p-5" />
+        </div>
+      )}
 
       <section className="mt-4 stock rounded-[var(--radius-card)] p-5">
         <h2 className="mb-1 font-medium">History</h2>

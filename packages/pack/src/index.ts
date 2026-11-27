@@ -10,6 +10,7 @@ export { checkMetricFile, METRIC_FILE_2_SCHEMA, METRIC_FILE_SCHEMA, type MetricF
 export { checkDashboardTemplateFile, DASHBOARD_TEMPLATE_SCHEMA, type DashboardTemplateFile } from "./dashboard-template-file.js";
 export { checkDeckTemplateFile, DECK_TEMPLATE_2_SCHEMA, DECK_TEMPLATE_3_SCHEMA, DECK_TEMPLATE_SCHEMA, type DeckTemplateFile } from "./deck-template-file.js";
 export { SLIDE_ELEMENT_KINDS, SLIDE_ELEMENT_LIMITS, SLIDE_TONES, type SlideElement, type SlideElementKind, type SlideTone } from "./slide-element.js";
+export { checkDeckDescription, DECK_DESCRIPTION_FORMAT, DECK_DESCRIPTION_LIMITS, DECK_DESCRIPTION_SCHEMA, DECK_DESIGNS, DECK_EMPHASES, SLIDE_CHART_FORMS, SLIDE_METRICS, SLIDE_TYPES, type ChartSlideOptions, type DeckDescription, type DeckDesign, type DeckEmphasis, type DriverTreeSlideOptions, type GapTableSlideOptions, type NoSlideOptions, type SlideAnswer, type SlideChartForm, type SlideDescription, type SlideOptions, type SlideType, type SummarySlideOptions, type TableSlideOptions } from "./deck-description.js";
 export { checkWorkflowTemplateFile, WORKFLOW_TEMPLATE_2_SCHEMA, WORKFLOW_TEMPLATE_SCHEMA, type WorkflowTemplateFile } from "./workflow-template-file.js";
 export type { WorkflowTemplateFileStep } from "./kinds.js";
 export { checkThemeFile, THEME_FILE_2_SCHEMA, THEME_FILE_SCHEMA, type ThemeFile } from "./theme-file.js";

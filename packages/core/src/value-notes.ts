@@ -1,22 +1,25 @@
-// What a person may do with Value Notes (GLOSSARY: Value Note; spec 0064): read a period's notes, write, correct,
-// remove and delete them for good. Whoever sees a period's value reads its notes and nobody else, decided here on
-// every call. Whoever sent a value writes on their own; the Metric Owner and Editors write on any period. Reads one
-// Workspace only and sends only words, numbers, names and times of the one period asked for.
+// What a person may do with Value Notes (GLOSSARY: Value Note; spec 0064): read the notes of a period, or of several
+// periods for a list, and write, correct, remove and delete them for good. Whoever sees a period's value reads its
+// notes and nobody else, decided here on every call. Whoever sent a value writes on their own; the Metric Owner and
+// Editors write on any period. Reads one Workspace only and sends only words, numbers, names and times of the periods
+// asked for.
 import { db } from "./db";
-import { Forbidden, Refused, type Actor } from "./actor";
+import { Forbidden, Refused, type Actor, type KeyActor } from "./actor";
 import { peopleFor, seriesFor, visibleMetricIds } from "./access";
 import { ARCHIVED_REFUSAL } from "./archived-metrics";
 import { audit } from "./audit-log";
 import { condensedOn, condensedRefusal } from "./condensed-values";
 import { refuseInDemo } from "./demo";
+import { DEMO_WORKSPACE_ID } from "./team";
 import { yearStartOf } from "./fiscal-year";
 import { nameHider } from "./hide-names";
 import { canEditMetric } from "./metrics";
 import { periodStart } from "./periods";
 import { openRows } from "./sealed-columns";
 import { isLocked, peopleToHide } from "./submissions";
+import { restsOnTotal } from "./totals";
 import { addEntry, cleanNote, isPast, noteEntries, noteThreads, NOTES_FULL, NOTES_PER_PERIOD, wordsShown, type NoteEntry, type NoteThread } from "./value-note-store";
-import { getMetrics } from "./workspace-data";
+import { allRows, getMetrics, mustRead } from "./workspace-data";
 import type { Metric } from "./types";
 
 /** A note as it stands now, for one reader. */
@@ -53,8 +56,12 @@ export type ValueNoteEntry = {
   deletedForGood: boolean;
 };
 
-/** The notes of one period: the current ones, newest first, and the whole history. */
-export type PeriodNotes = { current: ValueNote[]; history: ValueNoteEntry[] };
+/** The notes of one period: the current ones, newest first, the whole history, and what the reader may do here beyond
+ * changing a note they are shown: write a new one, and (the Metric Owner) delete any note's words for good. */
+export type PeriodNotes = { current: ValueNote[]; history: ValueNoteEntry[]; mayWrite: boolean; mayDeleteForGood: boolean };
+
+/** A current note as a list shows it, where nothing is changed: only what is read. */
+export type ShownNote = Pick<ValueNote, "id" | "words" | "author" | "correctedBy" | "at" | "addedLater" | "writtenWhenItShowed">;
 
 type Contribution = { id: number; submitter_id: string | null; entered_by: string | null; value: number };
 type Sight = {
@@ -67,32 +74,78 @@ type Sight = {
   calculated: number | null;
 };
 
-// What a person may see of one period, or null when they may not see its value. This is the whole rule of who reads
-// notes: a Metric they see; for a calculated one (Derived Metric, Total) a number they are shown for that period, which
-// a Total or what reads it withholds from someone who may not see what is added up.
-async function sightOf(actor: Actor, metricId: unknown, period: unknown): Promise<Sight | null> {
-  if (actor.key || typeof metricId !== "number" || !Number.isSafeInteger(metricId) || typeof period !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(period) || Number.isNaN(Date.parse(`${period}T00:00:00Z`))) return null;
+// The most periods one list asks for: a Metric's history panel shows far fewer.
+const PERIODS_PER_LIST = 400;
+const isDay = (p: unknown): p is string => typeof p === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p) && !Number.isNaN(Date.parse(`${p}T00:00:00Z`));
+
+// What a person may see of these periods of one Metric, by period; a period whose value they may not see is not in it.
+// This is the whole rule of who reads notes: a Metric they see; for a calculated one (Derived Metric, Total) a number
+// they are shown for that period, which a Total or what reads it withholds from someone who may not see what is added up.
+async function sightsOf(actor: Actor, metricId: unknown, periods: readonly unknown[]): Promise<Map<string, Sight>> {
+  const seen = new Map<string, Sight>();
+  if (actor.key || typeof metricId !== "number" || !Number.isSafeInteger(metricId)) return seen;
   const ws = actor.workspaceId;
   const metrics = await getMetrics(ws);
   const metric = metrics.find((m) => m.id === metricId);
-  if (!metric) return null;
+  if (!metric) return seen;
   const [visible, yearStart] = await Promise.all([visibleMetricIds(ws, actor.personId, metrics), yearStartOf(ws)]);
-  if (!visible.has(metric.id) || periodStart(period, metric.period, yearStart) !== period) return null;
+  if (!visible.has(metric.id)) return seen;
+  const asked = [...new Set(periods.filter(isDay).filter((p) => periodStart(p, metric.period, yearStart) === p))].slice(0, PERIODS_PER_LIST);
+  if (!asked.length) return seen;
   const editor = await canEditMetric(actor, metric.id);
   if (metric.formula) {
-    if (metric.inputs_withheld) return null;
-    const point = (await seriesFor(ws, metrics, visible, [metric.id])).series[metric.slug]?.find((p) => p.period === period);
-    return point ? { metric, editor, contributions: [], calculated: point.value } : null;
+    if (metric.inputs_withheld) return seen;
+    const points = (await seriesFor(ws, metrics, visible, [metric.id])).series[metric.slug] ?? [];
+    for (const point of points) if (asked.includes(point.period)) seen.set(point.period, { metric, editor, contributions: [], calculated: point.value });
+    return seen;
   }
-  const { data, error } = await db().from("observations").select("id, submitter_id, entered_by, value, value_sealed").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).order("created_at").order("id");
-  if (error) throw new Error("The values could not be read.");
-  const rows = (await openRows("observations", ws, (data ?? []) as Record<string, unknown>[])) as Record<string, unknown>[];
-  const contributions = rows.filter((o) => typeof o.value === "number").map((o) => ({ id: Number(o.id), submitter_id: o.submitter_id as string | null, entered_by: o.entered_by as string | null, value: o.value as number }));
-  return contributions.length ? { metric, editor, contributions, calculated: null } : null;
+  const rows = await allRows<Record<string, unknown>>((from, to) => mustRead<Record<string, unknown>>(db().from("observations").select("id, period_start, value, value_sealed, submitter_id, entered_by").eq("workspace_id", ws).eq("metric_id", metric.id).in("period_start", asked).order("created_at").order("id").range(from, to), "The values could not be read."));
+  for (const o of (await openRows("observations", ws, rows)) as Record<string, unknown>[]) {
+    if (typeof o.value !== "number") continue;
+    const period = String(o.period_start);
+    const s = seen.get(period) ?? { metric, editor, contributions: [], calculated: null };
+    s.contributions.push({ id: Number(o.id), submitter_id: o.submitter_id as string | null, entered_by: o.entered_by as string | null, value: o.value });
+    seen.set(period, s);
+  }
+  return seen;
+}
+
+// What a person may see of one period, or null when they may not see its value.
+async function sightOf(actor: Actor, metricId: unknown, period: unknown): Promise<Sight | null> {
+  return isDay(period) ? (await sightsOf(actor, metricId, [period])).get(period) ?? null : null;
 }
 
 // A note stands while its value does: on a calculated Metric always, else while the contribution it is about is there.
 const stands = (s: Sight, t: NoteThread) => !isPast(t) && (s.metric.formula ? true : s.contributions.some((c) => c.id === t.first.observation_id));
+
+// Names and words as this person reads them. A Guest is told only their own name (peopleFor), and no Feed's, neither
+// as an author nor inside the words.
+async function readerOf(actor: Actor): Promise<{ me: string; who: (id: string) => string; hide: (text: string) => string }> {
+  const ws = actor.workspaceId;
+  const guest = actor.role === "guest";
+  const [inWorkspace, { data: feeds }, hidden] = await Promise.all([
+    peopleFor(actor),
+    guest ? Promise.resolve({ data: [] }) : db().from("feeds").select("person_id, name").eq("workspace_id", ws),
+    guest ? peopleToHide(ws) : Promise.resolve([]),
+  ]);
+  const names = new Map<string, string>([...(feeds ?? []).map((f) => [f.person_id as string, f.name as string] as const), ...inWorkspace.map((p) => [p.id, p.name] as const)]);
+  return {
+    me: actor.personId,
+    who: (id) => names.get(id) ?? (guest ? "Someone" : "A former member"),
+    hide: guest ? nameHider(hidden.filter((p) => p.id !== actor.personId)) : (text) => text,
+  };
+}
+
+// Whether this person is told the number a note was said of. An earlier sum of a Total (or of a formula that reads
+// one) may have counted a Metric they were never shown, so there only the Metric Owner is told it.
+const toldNumbers = (s: Sight, personId: string) => !restsOnTotal(s.metric) || s.metric.owner_id === personId;
+
+// The part of a current note that is read, in this reader's names and words.
+const shownNote = (s: Sight, t: NoteThread, { me, who, hide }: Awaited<ReturnType<typeof readerOf>>): ShownNote => ({
+  id: t.first.id, words: hide(t.latest.words ?? ""), author: who(t.first.author_id), correctedBy: t.latest.id === t.first.id ? null : who(t.latest.author_id),
+  at: t.latest.created_at, addedLater: t.latest.added_later,
+  writtenWhenItShowed: s.calculated !== null && t.first.said_of !== s.calculated && toldNumbers(s, me) ? t.first.said_of : null,
+});
 
 /** The notes of one Metric's period for a person who sees its value; null for anyone else, so that a period that is
  * not theirs reads like one that is not there. A Guest reads no names, neither as authors nor in the words. */
@@ -100,33 +153,54 @@ export async function periodValueNotes(actor: Actor, metricId: number, period: s
   const s = await sightOf(actor, metricId, period);
   if (!s) return null;
   const ws = actor.workspaceId;
+  // The demo takes no notes (refuseInDemo below), so it offers no way to change one.
+  const demo = ws === DEMO_WORKSPACE_ID;
+  const owner = !demo && actor.role !== "guest" && s.metric.owner_id === actor.personId;
+  const writable = !demo && !s.metric.archived_at && !(await condensedOn(ws, s.metric.id, period));
+  // A new note goes on a value of their own, or on any for the owner and Editors; on a calculated Metric only theirs.
+  const mayWrite = writable && (s.metric.formula ? s.editor : s.contributions.some((c) => mayWriteOn(actor, s, c)));
   const threads = noteThreads(await noteEntries(ws, s.metric.id, period));
-  if (!threads.length) return { current: [], history: [] };
-  const guest = actor.role === "guest";
-  // A Guest is told only their own name (peopleFor), and no Feed's.
-  const [inWorkspace, { data: feeds }, hidden] = await Promise.all([
-    peopleFor(actor),
-    guest ? Promise.resolve({ data: [] }) : db().from("feeds").select("person_id, name").eq("workspace_id", ws),
-    guest ? peopleToHide(ws) : Promise.resolve([]),
-  ]);
-  const names = new Map<string, string>([...(feeds ?? []).map((f) => [f.person_id as string, f.name as string] as const), ...inWorkspace.map((p) => [p.id, p.name] as const)]);
-  const who = (id: string) => names.get(id) ?? (guest ? "Someone" : "A former member");
-  const hide = guest ? nameHider(hidden.filter((p) => p.id !== actor.personId)) : (text: string) => text;
-  const writable = !s.metric.archived_at && !(await condensedOn(ws, s.metric.id, period));
+  if (!threads.length) return { current: [], history: [], mayWrite, mayDeleteForGood: owner };
+  const reader = await readerOf(actor);
   const current = threads.filter((t) => stands(s, t)).map((t): ValueNote => {
     const may = writable && (s.editor || t.first.author_id === actor.personId);
-    return {
-      id: t.first.id, words: hide(t.latest.words ?? ""), author: who(t.first.author_id), correctedBy: t.latest.id === t.first.id ? null : who(t.latest.author_id),
-      at: t.latest.created_at, source: t.latest.source, addedLater: t.latest.added_later,
-      writtenWhenItShowed: s.calculated !== null && t.first.said_of !== s.calculated ? t.first.said_of : null,
-      mayCorrect: may, mayRemove: may, mayDeleteForGood: s.metric.owner_id === actor.personId,
-    };
+    return { ...shownNote(s, t, reader), source: t.latest.source, mayCorrect: may, mayRemove: may, mayDeleteForGood: owner };
   });
   const history = threads.flatMap((t) => t.entries.map((e): ValueNoteEntry => {
     const words = wordsShown(e, t);
-    return { noteId: t.first.id, kind: e.kind, words: words === null ? null : hide(words), saidOf: e.said_of, author: who(e.author_id), at: e.created_at, source: e.source, addedLater: e.added_later, replaced: t.replaced, deletedForGood: t.erased };
+    return { noteId: t.first.id, kind: e.kind, words: words === null ? null : reader.hide(words), saidOf: toldNumbers(s, actor.personId) ? e.said_of : null, author: reader.who(e.author_id), at: e.created_at, source: e.source, addedLater: e.added_later, replaced: t.replaced, deletedForGood: t.erased };
   }));
-  return { current, history: history.sort((a, b) => a.at.localeCompare(b.at)) };
+  return { current, history: history.sort((a, b) => a.at.localeCompare(b.at)), mayWrite, mayDeleteForGood: owner };
+}
+
+/** The current notes of several periods of one Metric, by period, newest first, for a list such as a Metric's history.
+ * A period without a note, or whose value this person may not see, is not in the answer. */
+export async function currentValueNotes(actor: Actor, metricId: number, periods: readonly string[]): Promise<Record<string, ShownNote[]>> {
+  const sights = await sightsOf(actor, metricId, periods);
+  if (!sights.size) return {};
+  const entries = await noteEntries(actor.workspaceId, metricId);
+  const standing = [...sights].map(([period, s]) => ({ period, s, threads: noteThreads(entries.filter((e) => e.period_start === period)).filter((t) => stands(s, t)) })).filter((x) => x.threads.length);
+  if (!standing.length) return {};
+  const reader = await readerOf(actor);
+  return Object.fromEntries(standing.map((x) => [x.period, x.threads.map((t) => shownNote(x.s, t, reader))]));
+}
+
+/** The key of one Metric's period in what periodsWithNotes answers. */
+export const noteKey = (metricId: number, period: string) => `${metricId}:${period}`;
+
+/** Which of these periods have a note this person may read, for a mark that says so without a word of it (the Period
+ * Timeline). A program's key is answered nothing yet (spec 0064, the API ticket). */
+export async function periodsWithNotes(actor: Actor | KeyActor, of: readonly { metricId: number; period: string }[]): Promise<Set<string>> {
+  const found = new Set<string>();
+  if (actor.key || !of.length) return found;
+  // Which of the Metrics have any note there at all, by ids alone, before anything is decided or opened.
+  const { data, error } = await db().from("value_notes").select("metric_id").eq("workspace_id", actor.workspaceId).in("metric_id", [...new Set(of.map((x) => x.metricId))]).in("period_start", [...new Set(of.map((x) => x.period).filter(isDay))]).is("note_id", null).is("proposal", null);
+  if (error) throw new Error("The notes could not be read.");
+  for (const metricId of new Set((data ?? []).map((r) => Number(r.metric_id)))) {
+    const notes = await currentValueNotes(actor, metricId, of.filter((x) => x.metricId === metricId).map((x) => x.period));
+    for (const period of Object.keys(notes)) found.add(noteKey(metricId, period));
+  }
+  return found;
 }
 
 // Nobody writes on an Archived Metric or a Condensed Value.
@@ -136,8 +210,8 @@ async function assertTakesNotes(ws: string, metric: Metric, period: string): Pro
   if (condensed) throw new Refused(condensedRefusal(condensed));
 }
 
-// A note written once the period is locked, or after its value was approved, says "added later".
-async function isAfterApprovalOrLock(ws: string, metricId: number, period: string): Promise<boolean> {
+/** Whether a note written now says "added later": the period is locked, or its value was approved. */
+export async function isAfterApprovalOrLock(ws: string, metricId: number, period: string): Promise<boolean> {
   if (await isLocked(metricId, period)) return true;
   const { data, error } = await db().from("audit_events").select("id, details").eq("workspace_id", ws).eq("object_type", "metric").eq("object_id", String(metricId)).eq("kind", "approval.given").order("id", { ascending: false }).limit(500);
   if (error) throw new Error("The approvals could not be read.");
@@ -153,6 +227,9 @@ function wordsOf(input: unknown): string {
 
 const NOT_YOURS = "There is no value here that you can write a note on.";
 
+// Whose value a person writes on: their own or one they entered; the owner and Editors on any.
+const mayWriteOn = (actor: Actor, s: Sight, c: Contribution) => s.editor || c.submitter_id === actor.personId || c.entered_by === actor.personId;
+
 /** Writes a note on a period's value: the Metric Owner or an Editor on any period, anyone else on a value they sent or
  * entered (`observationId`, else their newest). On a calculated Metric only the owner and Editors. Answers the note's
  * id; the same words on the same value again add nothing. */
@@ -162,7 +239,7 @@ export async function writeValueNote(actor: Actor, input: { metricId: number; pe
   if (!s) throw new Forbidden();
   const ws = actor.workspaceId;
   await assertTakesNotes(ws, s.metric, input.period);
-  const own = s.contributions.filter((c) => s.editor || c.submitter_id === actor.personId || c.entered_by === actor.personId);
+  const own = s.contributions.filter((c) => mayWriteOn(actor, s, c));
   const target = input.observationId === undefined ? own.at(-1) : own.find((c) => c.id === input.observationId);
   if (s.metric.formula ? !s.editor || input.observationId !== undefined : !target) throw new Forbidden(NOT_YOURS);
   const words = wordsOf(input.words);
@@ -217,8 +294,9 @@ export async function removeValueNote(actor: Actor, noteId: number): Promise<voi
 }
 
 /** Deletes a note's words for good, for something that should never have been written: the Metric Owner only, also on
- * an Archived Metric and whatever happened to the note. Every entry of it is emptied; that it was there stays. Notes
- * are kept nowhere else yet: what later copies words (Snapshots, View Links, the intake log) must empty them here. */
+ * an Archived Metric and whatever happened to the note. Every entry of it is emptied; that it was there stays. The
+ * intake log never holds a note's words (a reply's note is left out of what is logged), and an open offer made from
+ * them takes nothing once they are gone. What later copies words (Snapshots, View Links) must empty them here. */
 export async function deleteValueNoteForGood(actor: Actor, noteId: number): Promise<void> {
   refuseInDemo(actor);
   const ws = actor.workspaceId;

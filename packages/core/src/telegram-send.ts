@@ -4,6 +4,7 @@
 // retried by the job. Never in the demo, never where the workspace has Telegram off, never to someone not connected.
 import { db } from "./db";
 import { archivedMetricHolds, failForGood, withFormLink } from "./internal/delivery-send";
+import { withApprovalNote } from "./internal/approval-note";
 import { openRows } from "./sealed-columns";
 import { giveUpAfter, OPT_OUT_KINDS, type SendResult } from "./mail";
 import { sendingLimit } from "./sending-limit";
@@ -88,7 +89,7 @@ export async function sendTelegramDelivery(id: number): Promise<SendResult> {
   if (error) throw new Error("The Telegram message could not be claimed for sending.");
   if (claim === "wait") return "waiting";
   if (claim !== "ok") return "skipped";
-  const text = await withFormLink(String(d.body), d, String(process.env.ZIFFR_SITE_URL));
+  const text = await withApprovalNote(await withFormLink(String(d.body), d, String(process.env.ZIFFR_SITE_URL)), d, "telegram");
   const markup = await buttons(d);
   try {
     const sent = await callTelegram<{ message_id?: unknown; chat?: { id?: unknown } }>("sendMessage", {
