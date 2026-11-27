@@ -217,9 +217,10 @@ export function previewPeople(pack: Pack, stored: ReturnType<typeof storedItems>
 }
 
 /** The manifest an install keeps, with the logo checked again; what a /3 Pack's set-up says (`setUp`); as `places`,
- * what Set up and the Packs page read of its Positions, Repeats and the numbers asked; the Pack Guide, which Help shows; and the overview of what the Pack brings and where its
- * numbers come from, which Help and Set up show (spec 0058). Where all of it would not fit, the overview is left out
- * first and then the guide, so that the Pack still installs. Credit is left out: nothing reads it from an install yet. */
+ * what Set up and the Packs page read of its Positions, Repeats and the numbers asked; the Pack Guide, which Help
+ * shows; and the overview of what the Pack brings and where its numbers come from, which Help and Set up show (spec
+ * 0058). Where all of it would not fit, the overview is left out first and then the guide, so that the Pack still
+ * installs. Credit is left out: nothing reads it from an install yet. */
 export const installManifest = (p: Pack, stored: ReturnType<typeof storedItems> = storedItems(p)): Omit<Pack, "contents" | "positions" | "repeats" | "basedOn"> & { places?: PackPlaces; overview?: KeptOverview } => {
   const { positions: _p, repeats: _r, basedOn: _b, guide, ...m } = manifestOf(p); // eslint-disable-line @typescript-eslint/no-unused-vars
   const places = placesOf(p, stored.templates);

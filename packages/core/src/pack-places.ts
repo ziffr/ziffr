@@ -34,8 +34,8 @@ const METRIC_FIELDS = ["per", "submitters", "standIn", "viewers", "editors", "as
 const DASHBOARD_FIELDS = ["per", "viewers", "editors"] as const;
 const STEP_FIELDS = ["by", "assignee", "standIn", "to", "dashboard"] as const;
 
-/** The places of a checked Pack, or null when it has none and asks no number at set-up. `mark` identifies the steps of a Workflow Template as they
- * are stored (every step but a Tell step, in the file's order). */
+/** The places of a checked Pack, or null when it has none and asks no number at set-up. `mark` identifies the steps
+ * of a Workflow Template as they are stored (every step but a Tell step, in the file's order). */
 export function packPlaces(pack: Pick<Pack, "positions" | "repeats" | "contents">, mark: (key: string) => string): PackPlaces | null {
   const metrics = (pack.contents.metrics ?? []).map((m): PlacedMetric => ({ key: m.key, ...given(m, METRIC_FIELDS) })).filter((m) => Object.keys(m).length > 1);
   const dashboards = (pack.contents.dashboards ?? []).map((d): PlacedDashboard => ({ key: d.key, ...given(d, DASHBOARD_FIELDS) })).filter((d) => Object.keys(d).length > 1);
