@@ -153,7 +153,10 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
     <>
       {copy
         ? <Link href={`/metrics`} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> Metrics</Link>
-        : <Link href={guided ? "/metrics/new?setup=1" : "/metrics/new"} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> {guided ? "Back to the suggestions" : "Catalog"}</Link>}
+        : guided
+          // eslint-disable-next-line @next/next/no-html-link-for-pages -- a full page load, as on the screen it goes back to (see GuidedPick)
+          ? <a href="/metrics/new?setup=1" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> Back to the suggestions</a>
+          : <Link href="/metrics/new" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> Catalog</Link>}
       <PageHeader
         title={copy ? `Duplicate “${copy.original}”` : picked ? `New metric from “${picked.name}”` : "New metric"}
         sub={copy
