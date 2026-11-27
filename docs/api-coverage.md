@@ -56,6 +56,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `newDeckFor` (deck-additions.ts): Deck building
 - `newDeckFromSnapshot` (deck-snapshots.ts): Deck building
 - `createDeckFromTemplate` (deck-templates.ts): Deck Templates
+- `createFilledDeck` (deck-templates.ts): Deck Templates
 - `createDeck` (decks.ts): Deck building
 - `saveDeck` (decks.ts): Deck building
 - `renameDeck` (decks.ts): Deck building
@@ -86,6 +87,15 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `additionsFor` (pack-setup-adding.ts): Packs
 - `makeTotal` (pack-setup-totals.ts): Packs
 - `packLineStart` (pack-setup-adding.ts): Packs
+- `setupPeople` (pack-setup-build.ts): Packs
+- `stillMade` (pack-setup-record.ts): Packs
+- `claimGuidedRecord` (pack-setup-record.ts): Packs
+- `dropIdleGuided` (pack-setup-record.ts): Packs
+- `startOptions` (pack-start.ts): Packs
+- `startPackStep` (pack-start.ts): Packs
+- `checkStart` (pack-start.ts): Packs
+- `startDrawing` (pack-start.ts): Packs
+- `joinPeriodWorkflows` (period-workflows.ts): First Steps and a Pack's guided set-up put Metrics into a Workflow for their period; a program uses set_metric_workflow
 - `setUpStep` (pack-setup.ts): Packs
 - `setSendSnapshot` (workflows.ts): the dashboard a Set up from a Pack gives a Send Snapshot step; a program saves the Workflow
 - `roomFor` (pack-setup-install.ts): Packs
@@ -194,6 +204,19 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `markSetupGuideSeen` (setup-guide.ts): that a person opened the guide, for the app
 - `chooseExploreOnMyOwn` (setup-guide.ts): the guide's starting point, for the app
 - `saveFirstStepsAnswers` (first-steps.ts): the Owner answers First Steps again, in the app
+- `makeFirstMetric` (first-steps-metric.ts): the Owner adds the first Metric in First Steps, with its dashboard; a program makes one with create_metric
+- `firstStepsMetric` (first-steps-metric.ts): the name of the Owner's first Metric, for First Steps' screens; a program lists Metrics with list_metrics
+- `seenFirstMetric` (setup-guide.ts): the guide's first Metric as the viewer sees it, a read inside the core for the app's guide and First Steps
+- `madeMetrics` (first-steps-value.ts): the Metrics First Steps' last screens are about, for the app; a program reads Metrics with list_metrics
+- `firstStepsValue` (first-steps-value.ts): First Steps' first value screen, for the app
+- `firstStepsProgress` (first-steps-value.ts): the Owner's own first value, polled by that screen
+- `pickFirstStepsMetric` (first-steps-value.ts): which Metric that screen is about
+- `askFirstStepsByEmail` (first-steps-value.ts): the Owner asks Ziffr to email them; a program cannot message a person
+- `allowFirstStepsEmail` (first-steps-value.ts): one's own email choices
+- `sendFirstStepsValue` (first-steps-value.ts): a value typed in First Steps; a program sends values with submit_value
+- `firstStepsSender` (first-steps-providers.ts): First Steps' question of who provides the numbers, for the app
+- `chooseProviders` (first-steps-providers.ts): First Steps' answer to it, in the app; a program changes Submitters with set_submitters
+- `firstStepsDone` (first-steps-providers.ts): First Steps' closing screen, for the app
 - `firstMetricStep` (setup-first-metric.ts): the Setup Guide's First Metric step for the viewer, in words; for the app's page only (spec 0052)
 - `setupFirstValue` (setup-first-metric.ts): the viewer's own progress of the First Metric loop, polled by the app's step; no program sets up a Workspace
 - `askForFirstMetric` (setup-first-metric.ts): Ask me now from the Setup Guide, by the viewer's own ways; a program cannot message a person (spec 0052)
@@ -427,6 +450,13 @@ Ticketed. MCP follows where the ticket says so.
 - `createWorkflowFromTemplate` (workflow-templates.ts): Workflows for programs, #433
 - `runTodayNow` (workflows.ts): running a Workflow now, with Workflows for programs, #433
 - `closeWorkflowPeriod` (workflows.ts): closing a period, with Workflows for programs, #433
+- `periodValueNotes` (value-notes.ts): Value Notes for programs, #1313
+- `currentValueNotes` (value-notes.ts): Value Notes for programs, #1313
+- `periodsWithNotes` (value-notes.ts): Value Notes for programs, #1313
+- `writeValueNote` (value-notes.ts): Value Notes for programs, #1313
+- `correctValueNote` (value-notes.ts): Value Notes for programs, #1313
+- `removeValueNote` (value-notes.ts): Value Notes for programs, #1313
+- `deleteValueNoteForGood` (value-notes.ts): Value Notes for programs, #1313
 
 ## internal: not for programs
 

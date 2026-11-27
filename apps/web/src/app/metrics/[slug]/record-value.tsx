@@ -34,12 +34,13 @@ export function RecordSheet({ offer, open, onOpenChange, children }: { offer: Re
   );
 }
 
-/** The period, the value and an optional Breakdown, and the answer to the last try. */
+/** The period, the value, an optional Breakdown and note, and the answer to the last try. */
 function RecordForm({ offer }: { offer: RecordingOffer }) {
   // The oldest period they were asked for and still owe, else the current one.
   const [period, setPeriod] = useState(offer.asked ?? offer.periods[0].start);
   const [value, setValue] = useState("");
   const [breakdown, setBreakdown] = useState(false);
+  const [note, setNote] = useState("");
   const [answer, setAnswer] = useState<Answer>(null);
   const [pending, start] = useTransition();
   const chosen = offer.periods.find((p) => p.start === period)!;
@@ -50,9 +51,9 @@ function RecordForm({ offer }: { offer: RecordingOffer }) {
         e.preventDefault();
         const data = new FormData(e.currentTarget);
         start(async () => {
-          const r = await sendValue(() => recordValue(offer.metricId, { value, breakdown: String(data.get("breakdown") ?? ""), period }));
+          const r = await sendValue(() => recordValue(offer.metricId, { value, breakdown: String(data.get("breakdown") ?? ""), period, ...(note ? { note } : {}) }));
           setAnswer(r);
-          if (r?.ok) { setValue(""); setBreakdown(false); }
+          if (r?.ok) { setValue(""); setBreakdown(false); if (!r.noteKept) setNote(""); }
         });
       }}
     >
@@ -64,7 +65,7 @@ function RecordForm({ offer }: { offer: RecordingOffer }) {
         </select>
         {chosen.has !== null && <span className="mt-1 block text-xs text-muted-foreground">Already has <span className="fig">{chosen.has}</span>.</span>}
       </label>
-      <ValueEntry value={value} setValue={setValue} breakdown={breakdown} setBreakdown={setBreakdown} placeholder={offer.placeholder} numberStyle={offer.numberStyle} />
+      <ValueEntry value={value} setValue={setValue} breakdown={breakdown} setBreakdown={setBreakdown} placeholder={offer.placeholder} numberStyle={offer.numberStyle} note={offer.notes ? { words: note, setWords: setNote } : undefined} />
       <Button type="submit" size="lg" disabled={pending}>{pending ? "Recording…" : "Record the value"}</Button>
     </form>
   );

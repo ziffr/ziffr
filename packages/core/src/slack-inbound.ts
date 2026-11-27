@@ -8,6 +8,8 @@ import { slackEscape } from "./connectors/slack";
 import { tellOwnersOfStop } from "./email-opt-out";
 import { OPT_OUT_KINDS } from "./mail";
 import { routeReply, type RepliedDelivery } from "./reply-routing";
+import { repliesAllowed } from "./prompt-reply";
+import { chunks } from "./reply-chunks";
 import { callSlack, slackOn } from "./slack-api";
 import { noteSlackEventsChecked } from "./slack-setup";
 import { slackIdentityOf } from "./slack-identity";
@@ -22,7 +24,7 @@ import { personBlocked } from "./user-block";
 
 /** Largest request taken from Slack, in bytes; its events and button presses are far smaller. */
 export const MAX_SLACK_BYTES = 64 * 1024;
-/** Replies taken for one Delivery; more are ignored. */
+/** Replies taken for one Delivery (2 more for each figure of a Combined Prompt, at most 60); more are ignored. */
 export const MAX_SLACK_REPLIES_PER_DELIVERY = 20;
 /** Answers the bot gives in a minute to messages outside a thread (hints, link codes), per workspace. */
 const MAX_ANSWERS_PER_MINUTE = 10;
@@ -42,7 +44,7 @@ export function slackSigned(timestamp: string | null, signature: string | null, 
 
 /** What became of an event or a button press, for Slack's logs and ours; never more than the outcome's name. */
 export type SlackOutcome =
-  | "recorded" | "refused" | "form_link" | "replied" | "corrected" | "approved" | "stopped" | "linked" | "hint"
+  | "recorded" | "refused" | "form_link" | "replied" | "corrected" | "noted" | "closed" | "approved" | "stopped" | "linked" | "hint"
   | "unknown_team" | "unknown_thread" | "expired" | "wrong_user" | "duplicate" | "too_many" | "empty" | "ignored" | "disconnected";
 
 type Obj = Record<string, unknown>;
@@ -63,7 +65,8 @@ async function say(bot: SlackBot, channel: string, threadTs: string | null, user
     if (!(await mayAnswer(bot.workspaceId, "slack", `${bot.teamId}:${user}`))) return;
     // In the Workspace's name and logo like the message it answers, where the connection may.
     const who = await slackIdentityOf(bot.workspaceId, bot.scopes);
-    await callSlack("chat.postMessage", { channel, ...(threadTs ? { thread_ts: threadTs } : {}), ...who, text: slackEscape(text).slice(0, 3000), unfurl_links: false, unfurl_media: false }, bot.token);
+    // A long answer (a line for each of many figures) goes in several messages, cut between lines.
+    for (const part of chunks(text, 2500)) await callSlack("chat.postMessage", { channel, ...(threadTs ? { thread_ts: threadTs } : {}), ...who, text: slackEscape(part).slice(0, 3000), unfurl_links: false, unfurl_media: false }, bot.token);
   } catch {
     // The answer itself was taken.
   }
@@ -126,7 +129,7 @@ async function handle(bot: SlackBot, e: Obj, effects: { submission?: SubmissionE
     await say(bot, channel, null, user, "To answer, reply in the thread of the message you are answering.");
     return none("hint");
   }
-  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, created_at")
+  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, combined, created_at")
     .eq("workspace_id", bot.workspaceId).eq("connector", "slack").eq("slack_channel", channel).eq("slack_ts", threadTs).maybeSingle();
   if (!d) return none("unknown_thread");
   const at = (outcome: SlackOutcome) => ({ outcome, deliveryId: d.id as number });
@@ -135,11 +138,11 @@ async function handle(bot: SlackBot, e: Obj, effects: { submission?: SubmissionE
   // Only the person it went to, as Slack knows them now: someone else in the thread answers nothing.
   if ((await personOfSlackUser(bot.workspaceId, bot.teamId, user)) !== d.recipient_id) return at("wrong_user");
   const { count } = await db().from("slack_events").select("id", { count: "exact", head: true }).eq("delivery_id", d.id).not("outcome", "in", "(expired,wrong_user,too_many)");
-  if ((count ?? 0) >= MAX_SLACK_REPLIES_PER_DELIVERY) return at("too_many");
+  if ((count ?? 0) >= (await repliesAllowed(d.id as number, MAX_SLACK_REPLIES_PER_DELIVERY))) return at("too_many");
   if (!text) return at("empty");
   const outcome = await routeReply(d as RepliedDelivery, text, {
     source: "slack", sender: `slack:${user}`, provenPersonId: d.recipient_id,
-    answer: (subject, detail) => say(bot, channel, threadTs, user, `${subject}: ${detail}`),
+    answer: (subject, detail, _link, how) => say(bot, channel, threadTs, user, how?.bare ? detail : `${subject}: ${detail}`),
   }, effects.submission);
   return at(outcome === "unknown_token" ? "unknown_thread" : outcome);
 }

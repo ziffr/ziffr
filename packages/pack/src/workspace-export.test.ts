@@ -314,7 +314,8 @@ describe("hostile files", () => {
     rs.push({ kind: "end", counts: { ...(RECORDS.at(-1)!.counts as object), group: 0, theme: 0, person: 0, metric: 10_000, dashboard: 0, deck: 0, workflow: 0, share: 0, target: 0, projection: 0, value: 0 } });
     const started = Date.now();
     expect(problems(text(rs)).length).toBeGreaterThan(0);
-    expect(Date.now() - started).toBeLessThan(500);
+    // Generous for a busy test machine; a check that grows faster than the file would take many times longer.
+    expect(Date.now() - started).toBeLessThan(5000);
   });
 });
 

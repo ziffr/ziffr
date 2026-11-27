@@ -12,7 +12,7 @@ export type Schema = {
   $id?: string;
   title?: string;
   description?: string;
-  type?: "object" | "array" | "string" | "integer" | "number" | "boolean";
+  type?: "object" | "array" | "string" | "integer" | "number" | "boolean" | "null";
   const?: string | number | boolean;
   enum?: (string | number)[];
   properties?: Record<string, Schema>;

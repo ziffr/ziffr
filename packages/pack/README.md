@@ -22,7 +22,8 @@ saas.pack.json:64: contents.dashboards[0].template.slots[1].suggests names “cu
 - `--ziffr 0.12.0` also checks that the Pack can be installed on that Ziffr (its `ziffr` field).
 - A Pack's `logo` (one PNG, JPEG or plain SVG, at most 128,000 bytes and 512 pixels a side) is checked with the same code Ziffr uses for a Theme's logo, and a problem names the line of `logo`. An SVG is parsed strictly, held to lists of elements and attributes, and written out again; that written-out form is the only one Ziffr stores or serves. `logoOk`, `logoProblem`, `cleanLogo` and `svgClean` are exported for programs.
 - A Pack may say whom it is for in `audience` (industries, segments, Business Functions, employee bands, revenue bands, countries, each from a fixed list that `@ziffr/pack` exports: `INDUSTRIES`, `SEGMENTS`, `BUSINESS_FUNCTIONS`, `EMPLOYEE_BANDS`, `REVENUE_BANDS`, `COUNTRIES`). Unknown keys, repeats, empty parts and an audience without a `ziffr` minimum are refused, and a problem names the part.
-- A Pack in the format `ziffr.pack/2` may name **Positions** and **Repeats** (who does what when it is set up), add a Repeat up in a **Total**, credit other Packs in `basedOn`, say where each number **comes from** (`comesFrom`; `packOverview`, `comesFromGroups` and `includedAndNeeded` work out what a page shows) and carry a **Pack Guide**: plain headings, paragraphs and lists with bold words, which `guideRuns` splits for drawing. `/1` files are read as ever, and a `/2` Workflow Template belongs in a `/2` Pack.
+- A Pack in the format `ziffr.pack/2` may name **Positions** and **Repeats** (who does what when it is set up), add a Repeat up in a **Total**, credit other Packs in `basedOn`, say where each number **comes from** (`comesFrom`; `packOverview`, `comesFromGroups` and `includedAndNeeded` work out what a page shows) and carry a **Pack Guide**: plain headings, paragraphs and lists with bold words, which `guideRuns` splits for drawing. `/1` files are read as ever, and a `/2` Workflow Template belongs in a `/2` or `/3` Pack.
+- A Pack in the format `ziffr.pack/3` holds everything `/2` holds and may declare what its set-up shows and asks: `setUp` (the words of its preview), a `question` for each Position and Repeat, a `hint` for a Position, and `ask` on a Metric Catalog entry, a number written as that Metric's target. Short plain text only, held to the limits in `PACK_SET_UP_LIMITS`; see [What the set-up asks](../../docs/guides/packs.md#what-the-set-up-asks-ziffrpack3). An older `@ziffr/pack` refuses a `/3` file, saying which formats it reads.
 - Texts that read like instructions to an AI assistant are listed, without failing the check: Ziffr shows them to whoever installs the Pack.
 
 ## Check a Marketplace's answers
@@ -38,7 +39,9 @@ const res = checkPack(text);
 if (!res.ok) for (const p of res.problems) console.log(p.line, p.path, p.message);
 ```
 
-Each format has its own check and JSON Schema as well: `checkMetricFile`, `checkDashboardTemplateFile`, `checkDeckTemplateFile`, `checkWorkflowTemplateFile`, `checkThemeFile`, `checkViewDesign`, `checkAnalysisRecipe`, and `PACK_SCHEMA`, `PACK_2_SCHEMA`, `METRIC_FILE_SCHEMA` and the others.
+Each format has its own check and JSON Schema as well: `checkMetricFile`, `checkDashboardTemplateFile`, `checkDeckTemplateFile`, `checkWorkflowTemplateFile`, `checkThemeFile`, `checkViewDesign`, `checkAnalysisRecipe`, and `PACK_SCHEMA`, `PACK_2_SCHEMA`, `PACK_3_SCHEMA`, `METRIC_FILE_SCHEMA` and the others.
+
+`checkDeckDescription` (with `DECK_DESCRIPTION_SCHEMA`) checks a deck description, `ziffr.deck/1`: what a deck that Ziffr makes stores of itself. It takes a value already read from JSON, not a file's text, and answers with a copy of it; use that copy.
 
 ## Writing one
 

@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/2",
+  "format": "ziffr.pack/3",
   "id": "ziffr/fulfilment",
   "name": "Operations and fulfilment",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "summary": "Orders shipped, on-time delivery, backlog, stock, stock-outs, output, defects and downtime, with a weekly dashboard and a Workflow that asks for last week's figures on Monday.",
   "author": {
     "name": "Ziffr"
@@ -23,6 +23,17 @@
   },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "See every week what went out and what is still waiting.",
+    "happens": [
+      "Last week's figures are asked for on Monday",
+      "The dashboard shows deliveries, backlog, stock and output"
+    ],
+    "needs": [
+      "Orders shipped, on-time delivery, backlog and stock",
+      "Units produced, defect rate and downtime"
+    ]
   },
   "guide": {
     "whatItsFor": [

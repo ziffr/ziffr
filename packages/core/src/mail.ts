@@ -9,6 +9,7 @@ import nodemailer, { type SendMailOptions, type Transporter } from "nodemailer";
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
 import { archivedMetricHolds, failForGood, FORM_LINK, hashed, mayAskToResume, RESUME_NOT_SENT, RESUME_REF, withFormLink, withResumeLink } from "./internal/delivery-send";
+import { withApprovalNote } from "./internal/approval-note";
 import { STOPPED_REASON } from "./prompt-route";
 import { checkedMailHost } from "./mail-hosts";
 import { effectiveLimit } from "./limits";
@@ -198,7 +199,7 @@ export async function sendMail(mail: OutgoingMail, workspaceId: string | null, t
   const settings = await settingsInEffect();
   if (!mailEnabled(settings)) throw new Error("Email is not set up.");
   if (!isAddress(mail.to)) throw new Error("Not one plain email address.");
-  return (await transport(composed({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text), ...(mail.html ? { html: mail.html } : {}), ...(mail.logo ? { logo: mail.logo } : {}), ...(mail.fromName ? { fromName: mail.fromName } : {}), ...(mail.unsubscribe ? { unsubscribe: mail.unsubscribe } : {}), ...(mail.action ? { action: mail.action } : {}) }))).messageId;
+  return (await transport(composed({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text), ...(mail.html ? { html: mail.html } : {}), ...(mail.logo ? { logo: mail.logo } : {}), ...(mail.fromName ? { fromName: mail.fromName } : {}), ...(mail.replyTo ? { replyTo: mail.replyTo } : {}), ...(mail.unsubscribe ? { unsubscribe: mail.unsubscribe } : {}), ...(mail.action ? { action: mail.action } : {}) }))).messageId;
 }
 
 /** Whether replies by email come back into Ziffr with these settings (spec 0004, ticket #73): sending works,
@@ -307,6 +308,8 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
     if (linked === null) return fail(RESUME_NOT_SENT);
     text = linked;
   }
+  // An Approval's task quotes the note its value has now (spec 0064), in both parts of the email.
+  text = await withApprovalNote(text, claimed, "email");
   // The same words again as HTML in the Workspace's Theme; the plain text below is sent with it, always.
   const words = text;
   // The button is the link Ziffr put there: the Usage page for the digest, else the one appended to the words.

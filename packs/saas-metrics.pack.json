@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/2",
+  "format": "ziffr.pack/3",
   "id": "ziffr/saas-metrics",
   "name": "SaaS metrics",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "summary": "MRR and its movements, customers, churn, retention, CAC, cash and runway, with a monthly management report as dashboard and deck, a quarterly board deck, and the Workflows for the monthly and quarterly close.",
   "author": {
     "name": "Ziffr"
@@ -24,6 +24,18 @@
   "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0Ij48dGl0bGU+U2FhUyBtZXRyaWNzPC90aXRsZT48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxMiIgZmlsbD0iIzBGNUM1NCIvPjxyZWN0IHg9IjEyIiB5PSIzOCIgd2lkdGg9IjkiIGhlaWdodD0iMTQiIHJ4PSIyIiBmaWxsPSIjOUZFMEQ1Ii8+PHJlY3QgeD0iMjcuNSIgeT0iMjgiIHdpZHRoPSI5IiBoZWlnaHQ9IjI0IiByeD0iMiIgZmlsbD0iIzlGRTBENSIvPjxyZWN0IHg9IjQzIiB5PSIxNCIgd2lkdGg9IjkiIGhlaWdodD0iMzgiIHJ4PSIyIiBmaWxsPSIjRkZGRkZGIi8+PC9zdmc+",
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "Your subscription business each month, ready to report.",
+    "happens": [
+      "The month's revenue, customer and cash figures are asked for",
+      "Unusual figures are approved, then the month is locked",
+      "The dashboard and meeting slides fill in"
+    ],
+    "needs": [
+      "Monthly figures on recurring revenue, customers and churn",
+      "Cost of winning a customer, cash and months of runway"
+    ]
   },
   "guide": {
     "whatItsFor": [

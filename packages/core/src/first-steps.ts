@@ -95,8 +95,9 @@ export async function createFirstStepsWorkspace(personId: string, input: unknown
   return { workspaceId, saved: true };
 }
 
-// The Owner themself, checked against the database, in a Workspace that is not the demo. True when First Steps made it.
-async function ownersFirstSteps(actor: Actor): Promise<boolean> {
+/** Refuses everyone but the Workspace's Owner themself, checked against the database, in a Workspace that is not the
+ * demo; an Access Key too. True when First Steps made the Workspace. */
+export async function ownersFirstSteps(actor: Actor): Promise<boolean> {
   if (actor.key || actor.role !== "owner" || actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("First Steps is for the Workspace's Owner.");
   const [{ data: me }, { data: guide, error }] = await Promise.all([
     db().from("memberships").select("role").eq("workspace_id", actor.workspaceId).eq("user_id", actor.personId).maybeSingle(),

@@ -52,7 +52,7 @@ export function plainWords(text: string, urls: readonly string[]): string {
 }
 
 // The words Ziffr writes before a link it appends to a Delivery (deliveries.ts, connectors/email.ts).
-const APPENDED = /^(?:Open|Open your form|Enter it in your form|Answer it in Ziffr|Answer by replying to this email, or open it in Ziffr): (\S+)$/;
+const APPENDED = /^(?:Open|Open your form|Enter them on one page|Or enter them on one page|Enter it in your form|Answer it in Ziffr|Answer by replying to this email, or open it in Ziffr): (\S+)$/;
 
 /** The address Ziffr appended to a Delivery's words: the one on their very last line, written as Ziffr writes it there
  * and leading to this Ziffr; null otherwise. Only the last line is read: Ziffr adds its link after everything a person
@@ -64,6 +64,7 @@ export function appendedLink(text: string, own: OwnAddresses): string | null {
 
 // What a button says, by where it leads; the first that fits.
 const BUTTONS: [RegExp, string][] = [
+  [/^\/submit\/all\//, "Fill in your numbers"],
   [/^\/submit\//, "Open your form"],
   [/^\/invite\//, "Accept the invitation"],
   [/^\/api\/confirm-reply\//, "Check your reply"],
@@ -106,7 +107,7 @@ export function shownTarget(url: string): string {
 
 // Words before an address that only say "here it is": the button says that already. "Answer it in Ziffr" is not one
 // of them: it also says that a reply to the email is not taken.
-const SAID_BY_THE_BUTTON = new Set(["Open", "Open it here", "Open this Ziffr", "Open your form", "Join here", "Enter it in your form"]);
+const SAID_BY_THE_BUTTON = new Set(["Open", "Open it here", "Open this Ziffr", "Open your form", "Join here", "Enter it in your form", "Enter them on one page"]);
 
 /** The text above and below the button: the action's line is taken out, its words kept as a sentence unless the button
  * says them already, and a colon that pointed at the address becomes a full stop. `before` is the whole text, and
