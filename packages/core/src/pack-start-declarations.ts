@@ -2,9 +2,11 @@
 // read from what an install keeps, or would keep: the manifest (`setUp`, and with the places the questions and `ask`),
 // the Metric Catalog entries and the templates. One reader for both, so the preview of a Pack not yet installed shows
 // the steps its install will have.
-// Security: a Pack is untrusted input and a stored manifest a document read defensively. A text that is missing, too
-// long or not plain (markup, a web address, brackets) is left out, and the flow uses Ziffr's own words instead.
+// Security: a Pack is untrusted input and a stored row is not trusted either: every text is checked again as it is
+// read. One that is missing, too long, not plain (markup, a web address, brackets) or without a letter or digit is left
+// out, and the flow uses Ziffr's own words instead.
 import { PLAIN, textPasses } from "@ziffr/pack/file-text";
+import { PACK_LIMITS } from "@ziffr/pack/pack";
 import { PACK_ASK_EVERY, PACK_SET_UP_LIMITS as L, type PackAsk, type PackSetUpWords } from "@ziffr/pack/set-up";
 import { safeOverview } from "./installed-pack-guides";
 import { readPlaces, type PackPlaces, type PlacedWorkflow } from "./pack-places";
@@ -19,7 +21,8 @@ export type DeclaredEntry = Pick<EntryRow, "pack_key" | "name" | "period" | "for
 /** A template likewise. */
 export type DeclaredTemplate = Pick<TemplateRow, "pack_key" | "name" | "slots" | "body"> & { kind: "dashboard" | "deck" | "workflow" };
 
-const plain = (v: unknown, max: number): string | undefined => (typeof v === "string" && v.trim() !== "" && [...v].length <= max && textPasses(PLAIN, v) ? v : undefined);
+const READABLE = /[\p{L}\p{N}]/u;
+const plain = (v: unknown, max: number): string | undefined => (typeof v === "string" && [...v].length <= max && READABLE.test(v) && textPasses(PLAIN, v) ? v : undefined);
 const object = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 const some = <K extends string, V>(key: K, v: V | undefined) => (v === undefined ? {} : ({ [key]: v } as Record<K, V>));
 
@@ -78,7 +81,7 @@ export function declarationsFrom(manifest: unknown, entries: DeclaredEntry[], te
   const feeds = Array.isArray(m.feeds) ? m.feeds.flatMap((f) => { const x = object(f); return typeof x.template === "string" && Array.isArray(x.fills) ? [{ template: x.template, fills: x.fills.filter((k): k is string => typeof k === "string") }] : []; }) : [];
   return {
     name: String(m.name ?? ""),
-    ...some("summary", typeof m.summary === "string" ? m.summary : undefined),
+    ...some("summary", plain(m.summary, PACK_LIMITS.summary)),
     setUp: setUpWords(m.setUp),
     metrics,
     positions: [...maps.positions.values()].map((p) => {

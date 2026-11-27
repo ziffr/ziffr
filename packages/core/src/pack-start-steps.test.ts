@@ -100,8 +100,8 @@ describe("what a Pack declares for its set-up", () => {
     expect(step(steps, "numbers").asks).toEqual([{ metric: "commit", name: "Commit", question: "What is each quota this quarter?", field: "Quota", every: "quarter", repeat: "rep", total: "Team commit" }]);
   });
 
-  it("is left out where it is markup, an address, too long or of the wrong shape", () => {
-    const d = declaring({ line: "<b>Bold</b>", happens: ["See https://example.org", "x".repeat(91), 7, "Kept"], needs: "no list" }, { question: "x".repeat(91), name: "Quota", every: "quarter" }, "[Press here](javascript:alert(1))");
+  it("is checked again as it is read: markup, an address, too long, unreadable or of the wrong shape is left out", () => {
+    const d = declaring({ line: "<b>Bold</b>", happens: ["See https://example.org", "x".repeat(91), 7, "Kept"], needs: ["...", " ", { toString: "x" }] }, { question: "x".repeat(91), name: "Quota", every: "quarter" }, "[Press here](javascript:alert(1))");
     const steps = startSteps(d, UNLIMITED);
     expect(step(steps, "preview").line).toBe(d.summary);
     expect(step(steps, "preview").happens).toEqual(["Kept"]);
