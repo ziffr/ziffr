@@ -3,7 +3,7 @@
 // browser, in a test and in a file. Kerning is left out, which errs on the side of room. Pure.
 import { FONT_WIDTHS } from "./font-widths.generated";
 import type { DeckFont, DeckFonts } from "./fonts";
-import type { Face } from "./objects";
+import { keep, type Face } from "./objects";
 
 /** The share of a box that words may fill: PowerPoint breaks lines itself. */
 export const ROOM = 0.92;
@@ -44,7 +44,7 @@ function advance(table: Table, code: number): number {
 }
 
 /** The words of a line, split where a line may break. A number and its unit are held together by a space that never breaks. */
-const parts = (line: string) => line.split(" ");
+const parts = (line: string) => keep(line).split(" ");
 
 /** Measures words in a deck's fonts. */
 export function createMeasure(fonts: DeckFonts) {
@@ -87,14 +87,24 @@ export function createMeasure(fonts: DeckFonts) {
         lines.push(...pieces.slice(0, -1));
         line = pieces[pieces.length - 1]!;
       }
-      return [...lines, line];
+      lines.push(line);
+      // A last line never holds one word alone where the line above can spare one for it.
+      if (lines.length > 1 && parts(line).length === 1) {
+        const above = parts(lines[lines.length - 2]!);
+        const longer = `${above[above.length - 1]} ${line}`;
+        if (above.length > 2 && oneLine(longer, s) <= room) lines.splice(-2, 2, above.slice(0, -1).join(" "), longer);
+      }
+      return lines;
     });
   };
 
-  /** The words in at most this many lines, ending in … where some had to be left out. */
-  const clamp = (words: string, box: number, s: Setting, most: number): string => {
+  /**
+   * The words as they stand in a box of this width: their line breaks written in, so a browser and a file break them
+   * alike, in at most this many lines, ending in … where some had to be left out.
+   */
+  const fit = (words: string, box: number, s: Setting, most: number): string => {
     const lines = wrap(words, box, s);
-    if (lines.length <= most) return words;
+    if (lines.length <= most) return lines.join("\n");
     const kept = lines.slice(0, most);
     let last = kept[most - 1]!;
     while (last && oneLine(`${last}…`, s) > box * ROOM) last = last.slice(0, -1);
@@ -117,7 +127,7 @@ export function createMeasure(fonts: DeckFonts) {
       if (longest > ROOM) continue;
       // A line should not end on a short word that belongs to what follows; the upper line may be the longer one; a
       // break after the end of a clause reads best.
-      const dangling = /^(a|an|the|to|of|and|or|in|on|at|by|for|is|are|its|our)$/i.test(words[k - 1]!) ? 0.04 : 0;
+      const dangling = /^(a|an|the|to|of|and|or|in|on|at|by|for|is|are|its|our)$/i.test(words[k - 1]!) ? 0.15 : 0;
       const topHeavy = oneLine(second, s) > oneLine(first, s) ? 0.01 : 0;
       const clause = /[;:,]$/.test(words[k - 1]!) ? -0.05 : 0;
       const score = longest + dangling + topHeavy + clause;
@@ -146,7 +156,7 @@ export function createMeasure(fonts: DeckFonts) {
     return best?.split ?? [total / 2, total / 2];
   };
 
-  return { fonts, width, wrap, clamp, balance, columnFor, share };
+  return { fonts, width, wrap, fit, balance, columnFor, share };
 }
 
 /** Measures words in one deck's fonts. */

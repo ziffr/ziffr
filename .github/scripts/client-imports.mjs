@@ -14,6 +14,7 @@ const PURE = new Set([
   "feedback-rules", "demo-reset-line", "announcement-rules",
   "desktop-screens", "first-steps-screens", "calculation-note", "total-rules",
   "canvas-roles", "chart-stretch", "method-picker-names", "polar-marks", "progress-bars", "stacked-marks", "pareto", "slope-chart", "running-total", "bump-marks", "heatmap-grid", "formula-tree", "breakdown-tree",
+  "deck-drawing/chart", "deck-drawing/designs", "deck-drawing/draw-deck", "deck-drawing/fonts", "deck-drawing/measure", "deck-drawing/objects", "deck-drawing/slide-type", "deck-drawing/slides/index", "deck-drawing/theme",
 ]);
 
 const files = [];
