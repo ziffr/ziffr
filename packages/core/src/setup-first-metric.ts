@@ -6,7 +6,8 @@
 // address, own form code and own value, plus the Metric they may see. Nothing of anyone else is returned, and the demo
 // and a Guest are refused. A form code goes to the browser only once the viewer has asked.
 import { Forbidden, type Actor } from "./actor";
-import { addSubmitters } from "./metrics";
+import { addSubmitters, metricEffects, type MetricEffects } from "./metrics";
+import { deliverPrompt } from "./deliveries";
 import { ASK_NOW_EVERY_MINUTES, askMeNowBy, canAskNow, shownReason, type AskNowResult } from "./ask-now";
 import { CONNECTORS } from "./connectors/index";
 import type { ConnectorId } from "./connectors/types";
@@ -236,8 +237,9 @@ export async function setupFirstValue(actor: Actor): Promise<FirstMetricProgress
 export type FirstMetricAsk = { results: (AskNowResult & { look: string })[]; held: string | null; formCode: string | null };
 
 /** Ask me now for the guide's Metric, by the viewer's own chosen ways (the first way that reaches them when they chose
- * none). Only when they own and submit it; the ten minutes between asks of Ask me now apply. */
-export async function askForFirstMetric(actor: Actor): Promise<FirstMetricAsk> {
+ * none), or by `via` when the caller offers only that way (First Steps asks by email). Only when they own and submit it;
+ * the ten minutes between asks of Ask me now apply. */
+export async function askForFirstMetric(actor: Actor, via?: ConnectorId[]): Promise<FirstMetricAsk> {
   assertStep(actor);
   const guide = await guideRow(actor);
   if (!guide?.firstMetricId) throw new Error("Choose a Metric to try first.");
@@ -245,7 +247,7 @@ export async function askForFirstMetric(actor: Actor): Promise<FirstMetricAsk> {
   const wi = await waysInAndOut(actor);
   const now = new Date();
   const [{ data: me }, here, quiet, clock] = await Promise.all([db().from("profiles").select("email").eq("id", actor.personId).single(), whatWorksHere(actor), quietHours(actor), workspaceClock(actor)]);
-  const results = await askMeNowBy(actor, id, wi.askedBy as ConnectorId[]);
+  const results = await askMeNowBy(actor, id, via ?? (wi.askedBy as ConnectorId[]));
   const metric = await shownMetric(actor, id);
   const name = metric?.name ?? "it";
   const hold = await holdFor(actor.workspaceId, actor.personId, "prompt", now);
@@ -261,8 +263,8 @@ export async function askForFirstMetric(actor: Actor): Promise<FirstMetricAsk> {
 
 /** "Ask me for it": the viewer, who owns the guide's Metric but does not submit it, becomes one of its Submitters through
  * the one operation that adds Submitters (audited and versioned as any change of Submitters). Refused for a Metric
- * someone else owns. */
-export async function askMeForFirstMetric(actor: Actor): Promise<void> {
+ * someone else owns. With `via` the first Prompt goes that way, not by all of the viewer's own. */
+export async function askMeForFirstMetric(actor: Actor, via?: ConnectorId): Promise<void> {
   assertStep(actor);
   const guide = await guideRow(actor);
   if (!guide?.firstMetricId) throw new Error("Choose a Metric to try first.");
@@ -282,7 +284,8 @@ export async function askMeForFirstMetric(actor: Actor): Promise<void> {
   const { data: day, error: dayError } = await db().rpc("claim_test_message", { p_workspace: actor.workspaceId, p_person: actor.personId, p_way: "email", p_per_window: 1_000_000, p_window_minutes: 1, p_per_day: perDay });
   if (dayError || typeof day !== "string") throw new Error("Asking did not work. Try again.");
   if (day !== "ok") throw new Error(askForItLimitWords(day.split("|")[1] ?? "", perDay));
-  await addSubmitters(actor, id, [actor.personId]);
+  const effects: MetricEffects = via ? { ...metricEffects, promptSubmitter: (metricId, submitterId, by) => deliverPrompt({ metricId, submitterId, senderId: by, via }) } : metricEffects;
+  await addSubmitters(actor, id, [actor.personId], effects);
 }
 
 /** Picks another Metric to try: one the viewer owns and may ask for (not Derived, not archived). */
