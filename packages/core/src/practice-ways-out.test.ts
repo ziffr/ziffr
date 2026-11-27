@@ -45,7 +45,7 @@ const KEPT_BY: Record<string, string> = {
   "apps/web/src/components/delete-metrics.tsx": "the browser, to Ziffr",
   "apps/web/src/components/demo-reset-line.tsx": "the browser, to Ziffr",
   "apps/web/src/components/help-panel.tsx": "the browser, to Ziffr",
-  "apps/web/src/decks/slide-canvas.tsx": "the browser, to Ziffr",
+  "apps/web/src/decks/slide-license.ts": "the browser, to Ziffr",
   "apps/web/src/lib/connect-examples.ts": "words of an example, sending nothing",
 };
 
