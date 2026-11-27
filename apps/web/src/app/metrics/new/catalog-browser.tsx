@@ -11,6 +11,7 @@ import type { NumberStyle } from "@ziffr/core/number-style";
 import type { CatalogMetric, UnitPosition } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
+import { HOW_OFTEN } from "./suggestions";
 
 /** What the workspace's Workspace Profile says about it, for suggestions: its industry and segment keys and words. */
 export type CatalogFit = { industry: string | null; segment: string | null; label: string };
@@ -22,7 +23,7 @@ const suits = (c: CatalogMetric, fit: CatalogFit) =>
 
 /** The catalog as a searchable list of cards, grouped by category; with a Workspace Profile, a filter for the
  * Metrics written for its industry. */
-export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { items: CatalogMetric[]; fit?: CatalogFit | null; money: { unit: string; unit_position: UnitPosition }; numberStyle: NumberStyle; /** Opened from the Setup Guide: the links keep its return (`setup=1`). */ fromGuide?: boolean }) {
+export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { items: CatalogMetric[]; fit?: CatalogFit | null; money: { unit: string; unit_position: UnitPosition }; numberStyle: NumberStyle; /** Shown to someone from the Setup Guide: plain cards (name, definition, how often) whose links keep `setup=1`. */ fromGuide?: boolean }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const suited = useMemo(() => (fit ? items.filter((c) => suits(c, fit)) : []), [items, fit]);
@@ -42,7 +43,7 @@ export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { 
       <div className="mb-4 flex flex-col gap-3">
         <div className="relative max-w-md">
           <Search aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input type="search" aria-label="Search the Metric Catalog" placeholder="Search, e.g. churn, margin, tickets" value={query} onChange={(e) => setQuery(e.target.value)} className="pl-8" />
+          <Input type="search" aria-label="Search the Metric Catalog" placeholder={fromGuide ? "Search, e.g. weight, revenue, visitors" : "Search, e.g. churn, margin, tickets"} value={query} onChange={(e) => setQuery(e.target.value)} className={cn("pl-8", fromGuide && "max-sm:h-11 max-sm:text-base")} />
         </div>
         {/* On a phone the chips are one row that scrolls sideways (with a fade where it goes on), so the first entry is not pushed below the fold. */}
         <div role="group" aria-label="Category" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(to_right,#000_calc(100%-2rem),transparent)] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 sm:[mask-image:none] [&::-webkit-scrollbar]:hidden">
@@ -55,11 +56,10 @@ export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { 
           ))}
         </div>
       </div>
-      {fromGuide && <p className="mb-4 text-sm text-muted-foreground">Pick single Metrics here. A Pack gives you a set of Metrics, a sample dashboard and a Workflow that asks for them in one go.</p>}
       <p aria-live="polite" className="sr-only">{shown.length} metrics shown</p>
       {shown.length === 0 ? (
         <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm text-muted-foreground">
-          No catalog metric matches. Try another word, or start from scratch.
+          {fromGuide ? "Nothing matches. Try another word, or define it yourself." : "No catalog metric matches. Try another word, or start from scratch."}
         </div>
       ) : (
         <div className="space-y-6">
@@ -72,12 +72,12 @@ export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { 
                   <Link key={c.id} href={`/metrics/new?catalog=${c.id}${fromGuide ? "&setup=1" : ""}`} className="stock rounded-[var(--radius-card)] p-4 transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)]">
                     <div className="font-medium">{c.name}</div>
                     <p className="mt-1 line-clamp-3 text-sm text-muted-foreground sm:text-xs">{c.description}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-[var(--color-ink-2)] max-sm:text-sm">
+                    {fromGuide ? <p className="mt-2 text-xs text-[var(--color-ink-2)] max-sm:text-sm">{HOW_OFTEN[c.period]}</p> : <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-[var(--color-ink-2)] max-sm:text-sm">
                       <span className="rounded bg-muted px-1.5 py-0.5">{PERIOD_LABEL[c.period]}</span>
                       <span className="rounded bg-muted px-1.5 py-0.5">{POLARITY_LABEL[c.polarity]}</span>
                       <span className="rounded bg-muted px-1.5 py-0.5">Target {targetText({ ...c, ...(c.format === "currency" ? money : {}), target_min: c.target_min === null ? null : Number(c.target_min), target_max: c.target_max === null ? null : Number(c.target_max) }, numberStyle)}</span>
                       {(c.tags ?? []).map((t) => <span key={t} className="rounded-full border border-[var(--color-rule-2)] px-1.5 py-0.5">{t}</span>)}
-                    </div>
+                    </div>}
                   </Link>
                 ))}
               </div>
