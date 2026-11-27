@@ -143,7 +143,7 @@ describe("stop telling me", () => {
     const [msg] = await messages(w, ann);
     await db().from("deliveries").update({ unsubscribe_token: "T".repeat(32) }).eq("id", msg.id);
     expect(await unsubscribeIsTell("T".repeat(32))).toBe(true);
-    expect(await optOutByToken("T".repeat(32))).toBe(true);
+    expect(await optOutByToken("T".repeat(32))).toEqual({ undo: null });
     expect((await db().from("tell_stops").select("person_id").eq("workflow_id", flow)).data).toEqual([{ person_id: ann }]);
     await put(w, m.id, P(2), 50, sara);
     await put(w, m.id, P(3), 200, sara);

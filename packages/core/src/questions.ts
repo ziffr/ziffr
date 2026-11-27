@@ -134,8 +134,9 @@ export async function sendDueReminders(actor: Actor): Promise<number> {
 }
 
 /** What a scheduler would do each period: ask every submitter whose value for the current period is missing.
- * Their emails are queued for the deliveries job. Returns how many were asked. */
-export async function askForMissingValues(actor: Actor): Promise<number> {
+ * Their emails are queued for the deliveries job. Returns how many were asked, and how many requests go nowhere because
+ * the person stopped them (counts only, no names). */
+export async function askForMissingValues(actor: Actor): Promise<{ asked: number; stopped: number }> {
   assertRunsNow(actor);
   const ws = actor.workspaceId;
   const [{ data: tokens }, { data: metrics }] = await Promise.all([
@@ -152,7 +153,7 @@ export async function askForMissingValues(actor: Actor): Promise<number> {
   // One run: the several numbers one person owes can go in one message (GLOSSARY: Combined Prompt).
   const run = startAsking(ws, format(new Date(), "yyyy-MM-dd"));
   const step = stepOf(run);
-  let n = 0;
+  const count = { asked: 0, stopped: 0 };
   for (const t of tokens ?? []) {
     const m = byId.get(t.metric_id);
     if (!m || m.formula || m.archived_at) continue; // computed, or archived: never asked for
@@ -163,8 +164,9 @@ export async function askForMissingValues(actor: Actor): Promise<number> {
     ]);
     if (have || asked) continue; // already there, or already asked today
     // Queued: the deliveries job sends them, so asking many people never waits on the mail server.
-    if (await deliverPrompt({ into: step.into, metricId: m.id, submitterId: t.submitter_id, senderId: actor.personId, queue: true })) n++;
+    const sent = await deliverPrompt({ into: step.into, metricId: m.id, submitterId: t.submitter_id, senderId: actor.personId, queue: true });
+    if (sent) count[sent.stopped ? "stopped" : "asked"]++;
   }
   await run?.flush();
-  return n;
+  return count;
 }

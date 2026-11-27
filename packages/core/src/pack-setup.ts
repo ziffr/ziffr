@@ -31,7 +31,7 @@ import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
 import { getMetrics } from "./workspace-data";
 import { peopleIn } from "./submissions";
 import { LimitReached } from "./workspace-limits";
-import { buildSetup, placeMaps, SETUP_METRICS_MAX, tickedShares, withSlugs, type Blueprint, type BuiltLine, type PackSetupInput, type PlannedMetric, type PlannedWorkflow, type ProposedShare } from "./pack-setup-build";
+import { buildSetup, placeMaps, SETUP_METRICS_MAX, tickedShares, unsubscribedNote, withSlugs, type Blueprint, type BuiltLine, type PackSetupInput, type PlannedMetric, type PlannedWorkflow, type ProposedShare } from "./pack-setup-build";
 import { PACK_POSITION_LIMITS } from "@ziffr/pack/pack-positions";
 import { entryInputs, entryTotal, isComputed, makeTotal } from "./pack-setup-totals";
 import { addTotalPart } from "./total-changes";
@@ -76,6 +76,8 @@ export type PackSetupResult = { metrics: { id: number; slug: string; name: strin
   dashboards: { id: number; name: string }[]; workflows: { id: number; name: string }[];
   /** How many Shares were made, and how many requests for values went out at once. */
   shares: number; messages: number;
+  /** That some Submitters named at Set up unsubscribed, so no email asks them, in words; null when none did. */
+  stoppedNote: string | null;
   /** What has a Submitter and was not asked at once: how many Metrics a Workflow asks for at its next run, and those
    * that follow none, so nothing asks for them by itself. `mine`: the actor submits it, so they can ask themselves. */
   later: { nextRun: number; noWorkflow: { id: number; slug: string; name: string; mine: boolean }[] };
@@ -191,7 +193,7 @@ async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | nul
     promptSubmitter: async (metricId, submitter, by) => {
       if (!askNow) return false;
       const sent = await askForEndedPeriod(metricId, submitter, by, run);
-      if (sent) done.messages++;
+      if (sent && !sent.stopped) done.messages++;
       return sent;
     },
   };
@@ -348,7 +350,8 @@ export async function setUpStep(actor: Actor, installId: number, input: PackSetu
   const positions = [b.fills, ...b.lines.map((l) => l.fills)].flatMap((f) => [...f.values()].filter((ids) => ids.length)).length;
   await audit(actor, { kind: "pack.set_up", object: { type: "pack", id: p.install.id, name: p.install.name }, details: { version: p.install.version, metrics: done.metrics.size, dashboard: dashboards.length > 0, workflow: workflows.length > 0, feed: b.feed !== null, positions, lines: b.lines.length, shares: done.shares, messages: done.messages, ...(input.adding ? { added_line: true, widgets: done.widgets, totals: done.totals, joined_workflow: b.additions.join !== null } : {}) } });
   const metrics = [...done.metrics.values()];
-  return { done: true, result: { metrics, dashboardId: dashboards[0]?.id ?? null, workflowId: workflows[0]?.id ?? null, dashboards, workflows, shares: done.shares, messages: done.messages, later: askedLater(actor, b, input?.askNow === true, done), widgets: done.widgets, totals: done.totals, byHand: b.additions.byHand, targetsToSet: targetsToSet(p.entries.values(), metrics), tagsLeftOut: done.tagsLeftOut } };
+  const stoppedNote = await unsubscribedNote(actor, b);
+  return { done: true, result: { stoppedNote, metrics, dashboardId: dashboards[0]?.id ?? null, workflowId: workflows[0]?.id ?? null, dashboards, workflows, shares: done.shares, messages: done.messages, later: askedLater(actor, b, input?.askNow === true, done), widgets: done.widgets, totals: done.totals, byHand: b.additions.byHand, targetsToSet: targetsToSet(p.entries.values(), metrics), tagsLeftOut: done.tagsLeftOut } };
 }
 
 /** Sets up from one of the Workspace's installed Packs (Owners and Admins) in one go: the picked entries as Metrics, a

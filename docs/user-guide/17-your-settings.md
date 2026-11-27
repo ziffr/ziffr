@@ -256,7 +256,11 @@ Whoever asks you a question can still pick another way for that one message. Wha
 
 ### Requests for numbers by email
 
-The box **Send me Prompts and reminders by email in this workspace** is ticked while you get them. Untick it to stop them. Questions, tasks and replies keep coming, and the owners of the Metrics you send in are told once that you stopped. Tick it again to get them back. The same happens when you use **Unsubscribe from these emails** at the foot of one of these emails, or your mail app's own unsubscribe button.
+The box **Send me Prompts and reminders by email in this workspace** is ticked while you get them. Untick it to stop them. Questions, tasks and replies keep coming. Tick it again to get them back. While it is unticked the page says that you are not asked for numbers by email, and every Metric you send values for says so too, with **Get them by email again**.
+
+The same happens when you use **Unsubscribe from these emails** at the foot of one of these emails, or your mail app's own unsubscribe button. The link opens a page that asks **Stop being asked for numbers by email?**; nothing stops until you press **Stop asking me by email**. The page that follows offers **Undo** for 30 minutes, which needs no sign-in. Using the old email again later never switches anything back on.
+
+The owners of the Metrics you are asked for are told once (see [Metrics](10-metrics.md#when-someone-unsubscribes)). Nobody can switch your emails back on for you. The owner of such a Metric can have Ziffr send you one email that asks whether you want them again, at most once in 30 days: nothing changes unless you open its link and confirm. The link works once, for seven days, and only goes to the address you unsubscribed from.
 
 If your Ziffr sends no email, the box cannot be ticked and the page says so.
 

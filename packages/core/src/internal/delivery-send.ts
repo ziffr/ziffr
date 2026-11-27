@@ -2,6 +2,7 @@
 // (slack-send.ts) and Telegram (telegram-send.ts). Internal to the core: these check no Actor and no claim, so only a
 // sender that has read the queued Delivery itself, and claimed it before it adds the link, calls them. The app never
 // imports from core/internal (.github/scripts/app-db-access.mjs).
+import { createHash, randomBytes } from "node:crypto";
 import { mayReadMessage } from "../total-views";
 import { restsOnTotal } from "../totals";
 import { db } from "../db";
@@ -28,6 +29,38 @@ export async function withFormLink(body: string, d: { workspace_id: string; form
   return body.split(FORM_LINK).join(token ? `${site}/submit/${token.code}` : `${site}/`);
 }
 
+
+/** Marks, as its external reference, the notice that asks whether someone wants requests by email again. */
+export const RESUME_REF = "email_resume";
+/** Stands in that notice's stored text for the link that switches them back on, which is made only as it is sent. */
+export const RESUME_LINK = "[the link only they get]";
+/** How long that link works. */
+export const RESUME_DAYS = 7;
+/** Why that notice does not go out once there is nothing to ask, or its address is not the one they stopped from. */
+export const RESUME_NOT_SENT = "Not sent: they get these emails again, or their address changed.";
+
+/** A link's secret or a mailbox as it is kept: its SHA-256, so the database never holds the thing itself. */
+export const hashed = (value: string) => createHash("sha256").update(value).digest("hex");
+
+/** Whether someone who stopped requests by email may be asked at the mailbox with this mark: they are still stopped,
+ * and it is the mailbox they stopped from. With no mark kept (a stop made before marks), only a member, whose address
+ * they proved at sign-in, never a Contact, whose address someone typed. */
+export async function mayAskToResume(ws: string, personId: string, mark: string): Promise<boolean> {
+  const { data: stop } = await db().from("email_opt_outs").select("address_hash").eq("workspace_id", ws).eq("person_id", personId).maybeSingle();
+  if (!stop) return false;
+  if (stop.address_hash) return stop.address_hash === mark;
+  const { data: contact, error } = await db().from("contacts").select("person_id").eq("workspace_id", ws).eq("person_id", personId).maybeSingle();
+  return !error && !contact;
+}
+
+/** The notice's text with a new link put where RESUME_LINK stands, only as it is sent: its hash, its end and the mailbox
+ * it goes to are kept with the stop, and a link made before stops working. Null when the stop is gone meanwhile. */
+export async function withResumeLink(body: string, d: { workspace_id: string; recipient_id: string }, mark: string, siteUrl: string): Promise<string | null> {
+  const secret = randomBytes(32).toString("base64url");
+  const { data } = await db().from("email_opt_outs").update({ resume_hash: hashed(secret), resume_until: new Date(Date.now() + RESUME_DAYS * 86_400_000).toISOString(), address_hash: mark })
+    .eq("workspace_id", d.workspace_id).eq("person_id", d.recipient_id).select("person_id");
+  return data?.length ? body.split(RESUME_LINK).join(`${siteUrl.replace(/\/+$/, "")}/api/unsubscribe/again/${secret}`) : null;
+}
 
 /** Why a Delivery of an already answered Prompt is not sent. */
 export const PROMPT_ANSWERED = "Not sent: the request was answered another way first.";
