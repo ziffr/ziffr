@@ -2,6 +2,7 @@
 // and the checks on the server name the same things. Nothing here reads or writes; first-steps.ts checks the answers.
 import type { BusinessFunction } from "@ziffr/pack/business-functions";
 import type { Industry, Segment } from "@ziffr/pack/audience";
+import type { Polarity } from "./types";
 
 /** The page's path. */
 export const FIRST_STEPS_PATH = "/first-steps";
@@ -75,11 +76,19 @@ export const SUGGESTED_PERIODS = ["week", "month"] as const;
 /** One of them. */
 export type SuggestedPeriod = (typeof SUGGESTED_PERIODS)[number];
 
+/** The Polarities "Define your metric" offers, the suggested one first. Closer to target is left out: a first Metric has
+ * no target. */
+export const OWN_POLARITIES = ["higher", "lower"] as const satisfies readonly Polarity[];
+/** One of them. */
+export type OwnPolarity = (typeof OWN_POLARITIES)[number];
+/** The words for each. */
+export const OWN_POLARITY_LABEL: Record<OwnPolarity, string> = { higher: "Higher", lower: "Lower" };
+
 /** The most characters a first Metric's name takes. */
 export const FIRST_METRIC_NAME_FIELD = 80;
 
 /** What adding the first Metric says: an entry of the Metric Catalog, or a Metric of one's own. */
-export type FirstMetricPick = { catalogId: number; period?: SuggestedPeriod } | { name: string; unit: OwnUnit; period: OwnPeriod };
+export type FirstMetricPick = { catalogId: number; period?: SuggestedPeriod } | { name: string; unit: OwnUnit; period: OwnPeriod; polarity: OwnPolarity };
 
 /** Everything the questions and the Workspace screen ask. Null means skipped or not read. */
 export type FirstStepsAnswers = {
