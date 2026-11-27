@@ -145,7 +145,7 @@ describe("creating from the answers", () => {
     ["a dashboard", (owner) => createDashboard(owner, "Mine")],
     ["a Contact", async (owner) => {
       const person = await newcomer();
-      const { error } = await db().from("contacts").insert({ workspace_id: owner.workspaceId, person_id: person });
+      const { error } = await db().from("contacts").insert({ workspace_id: owner.workspaceId, person_id: person, email: `${person}@example.test` });
       if (error) throw error;
     }],
     ["an invitation", async (owner) => {
