@@ -1,10 +1,11 @@
 "use client";
 // The personal form link's form (GLOSSARY: Token, Submission Rule, Prompt): the period, the value or a Breakdown, and
-// the result of the last submission. The result is what the server action returned, Ziffr's own words; nothing from the page's URL is
-// ever shown (ticket 183), so a link cannot make Ziffr's frame say what its sender wants. On a phone (spec 0055) it is
-// one field and one button, the Breakdown behind a button, and after saving the next value that is due.
+// once something was recorded the thank-you screen with the result in the form's place. The result is what the server action returned, Ziffr's own words; nothing from the page's URL is
+// ever shown (ticket 183), so a link cannot make Ziffr's frame say what its sender wants. The Breakdown is behind a button;
+// on a phone (spec 0055) the thank-you screen also offers the next value that is due.
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
+import { flushSync } from "react-dom";
 import { submitWebForm, type WebFormResult } from "@/app/actions";
 import { recordValue } from "@/app/series-actions";
 import type { NumberStyle } from "@ziffr/core/number-style";
@@ -13,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { AskedNote } from "@/components/asked-note";
 import { TuckedNote } from "@/components/value-note-tuck";
 import { cn } from "@/lib/utils";
+import { NoteSaid, savedNote, ThankYou } from "@/app/submit/thank-you";
 import { BreakdownField } from "./breakdown-field";
 import type { PeriodOffer } from "./period-choices";
 import { RecordPeriod } from "./record-period";
@@ -28,6 +30,8 @@ type Props = {
   offer: PeriodOffer;
   /** The Metric's Submission Rule in words, said beside a value the period already holds. */
   rule: string;
+  /** What stands above the form and gives way with it: who is asked for what. */
+  intro?: React.ReactNode;
   /** The note that the request for the running period was answered on another way, shown while that period is picked. */
   answered?: React.ReactNode;
   /** Notes shown between the period and the form. */
@@ -56,25 +60,28 @@ export function sendForm(code: string, named: Props["named"]) {
 
 /** The period and the form, posting to the server action; unless the address names an earlier period it works without
  * JavaScript too. */
-export function SubmitForm({ code, label, placeholder, numberStyle, named = null, offer, rule, answered, children, next = null, nothingDue = false, notes = false }: Props) {
+export function SubmitForm({ code, label, placeholder, numberStyle, named = null, offer, rule, intro, answered, children, next = null, nothingDue = false, notes = false }: Props) {
   const [result, action, pending] = useActionState<WebFormResult, FormData>(sendForm(code, named), null);
   // Controlled, so a refusal does not empty the field (React resets uncontrolled fields after an action); the
   // value is cleared only when it was recorded.
   const [value, setValue] = useState("");
   const [note, setNote] = useState("");
+  // Once opened the Breakdown stays open, so nothing typed in it is ever out of sight.
   const [breakdown, setBreakdown] = useState(false);
   const [again, setAgain] = useState(false);
   // What the person picked holds while the form offers it; a period that stopped waiting gives way to the one to start with.
   const [picked, setPicked] = useState<string | null>(null);
   const choice = offer.choices.find((c) => c.start === picked) ?? offer.choices.find((c) => c.start === offer.preselected) ?? offer.choices[0];
   const id = useId();
-  // The period the last try was sent for: after saving, a phone shows "For" only while it still names that one.
-  const [sent, setSent] = useState<string | null>(null);
+  // What the last try was sent with: the period it was for and the note's words.
+  const [sent, setSent] = useState<{ period: string; note: string } | null>(null);
   const input = useRef<HTMLInputElement>(null);
-  const after = useRef<HTMLDivElement>(null);
+  const part = useRef<HTMLDivElement>(null);
   const refused = result && !result.ok ? result.detail : null;
-  // On a phone a recorded value ends the flow: the form gives way to what comes next.
+  // A recorded value ends the flow: the form gives way to the thank-you screen.
   const done = Boolean(result?.ok) && !again;
+  // An earlier period that was answered may no longer be offered: then nothing here can change it.
+  const changeable = sent === null || offer.choices.some((c) => c.start === sent.period);
   useEffect(() => {
     setAgain(false);
     if (result?.ok) {
@@ -85,31 +92,40 @@ export function SubmitForm({ code, label, placeholder, numberStyle, named = null
     // Focus goes back to the wrong field after a refusal; the value field is the first and the only required one.
     else if (result) input.current?.focus();
   }, [result]);
-  // On a phone the pressed button goes away with the form, so focus moves to what replaces it (hidden, so ignored, on a desktop).
-  useEffect(() => { if (done) after.current?.focus(); }, [done]);
   useEffect(() => { if (again) input.current?.focus(); }, [again]);
-  return (
-    <>
-      <RecordPeriod choice={choice} choices={offer.choices} selectable={offer.selectable} rule={rule} form={id} onPick={setPicked} className={done && (offer.selectable || (sent !== null && sent !== choice.start)) ? "max-sm:hidden" : undefined} />
-      {children}
-      {choice.running && answered}
-      {result?.ok && (
-        <div role="status" className="mt-4 rounded-lg border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] px-3 py-2 text-sm">{result.detail}</div>
-      )}
-      {/* Also after a value proposed for a locked period, which the form counts as taken. */}
-      {result?.ask && <AskedNote key={result.ask} code={result.ask} className="mt-3" />}
-      {done && (
-        <div ref={after} tabIndex={-1} className="mt-3 flex flex-col gap-2 outline-none sm:hidden">
-          {next ? (
-            <Link href={next.href} prefetch={false} className={cn(buttonVariants({ size: "lg" }), "h-auto min-h-12 w-full flex-col gap-0 py-2 text-center whitespace-normal")}>
+  // The button goes away once pressed, so focus moves to the field it opened.
+  const openBreakdown = () => { flushSync(() => setBreakdown(true)); part.current?.querySelector("textarea")?.focus(); };
+  if (result && done) {
+    const words = savedNote(result.detail, sent?.note);
+    return (
+      <div className="mt-1">
+        <ThankYou
+          changeLabel={changeable ? "Change it" : "Send another value"}
+          onChange={() => { if (changeable && sent) setPicked(sent.period); setAgain(true); }}
+          next={next ? (
+            <Link href={next.href} prefetch={false} className={cn(buttonVariants({ size: "lg" }), "mt-4 h-auto min-h-12 w-full flex-col gap-0 py-2 text-center whitespace-normal sm:hidden")}>
               <span className="text-base">Next: {next.name}</span>
               <span className="text-xs font-normal">Due for {next.periodLabel}</span>
             </Link>
-          ) : nothingDue && <p className="text-sm text-muted-foreground">No other value of yours is due now.</p>}
-          <Button type="button" variant="outline" size="lg" className="w-full" onClick={() => setAgain(true)}>Send another value</Button>
-        </div>
-      )}
-      <form id={id} action={action} onSubmit={() => setSent(choice.start)} className={cn("mt-4", done && "max-sm:hidden")}>
+          ) : nothingDue && <p className="mt-4 text-sm text-muted-foreground sm:hidden">No other value of yours is due now.</p>}
+        >
+          <div role="status" className="rounded-lg border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] px-3 py-2">
+            <p>{result.detail}</p>
+            {words && <NoteSaid words={words} />}
+          </div>
+          {/* Also after a value proposed for a locked period, which the form counts as taken. */}
+          {result.ask && <AskedNote key={result.ask} code={result.ask} />}
+        </ThankYou>
+      </div>
+    );
+  }
+  return (
+    <>
+      {intro}
+      <RecordPeriod choice={choice} choices={offer.choices} selectable={offer.selectable} rule={rule} form={id} onPick={setPicked} />
+      {children}
+      {choice.running && answered}
+      <form id={id} action={action} onSubmit={() => setSent({ period: choice.start, note })} className="mt-4">
         {/* The heading above names the Metric already: on a phone the field comes straight after the period. */}
         <label htmlFor="value" className="text-sm font-medium max-sm:sr-only">{label}</label>
         <Input
@@ -127,15 +143,16 @@ export function SubmitForm({ code, label, placeholder, numberStyle, named = null
           autoFocus
         />
         {refused && <p id="value-error" role="alert" className="mt-1.5 text-sm text-destructive">{refused}</p>}
-        <Button type="button" variant="ghost" className="mt-1 -ml-2 px-2 underline underline-offset-4 sm:hidden" aria-expanded={breakdown} aria-controls="breakdown-part" onClick={() => setBreakdown(!breakdown)}>
-          {breakdown ? "Hide the breakdown" : "Add a breakdown (optional)"}
-        </Button>
-        {/* Hidden, not removed, on a phone: what was typed stays and is sent. */}
-        <div id="breakdown-part" className={breakdown ? undefined : "max-sm:hidden"}>
+        {!breakdown && (
+          <Button type="button" variant="ghost" className="mt-1 -ml-2 px-2 underline underline-offset-4 max-sm:min-h-11" aria-expanded={false} aria-controls="breakdown-part" onClick={openBreakdown}>
+            Add a breakdown (optional)
+          </Button>
+        )}
+        {/* Hidden, not removed: the field is part of the form whether it was opened or not. */}
+        <div ref={part} id="breakdown-part" className={breakdown ? undefined : "hidden"}>
           <BreakdownField numberStyle={numberStyle} />
         </div>
-        {/* While the question stands the form's own note field gives way, until a further number is typed. */}
-        {notes && (!result?.ask || value !== "") && <div className="mt-1 sm:mt-4"><TuckedNote value={note} onChange={setNote} /></div>}
+        {notes && <div className="mt-1 sm:mt-4"><TuckedNote value={note} onChange={setNote} /></div>}
         <Button type="submit" size="lg" className="mt-4 w-full max-sm:h-12 max-sm:text-base" disabled={pending}>Submit</Button>
       </form>
     </>

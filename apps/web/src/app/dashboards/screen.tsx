@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import ReactGridLayout, { useContainerWidth, type Layout } from "react-grid-layout";
-import { BookOpen, Check, Eye, Home, Pin, LayoutDashboard, LayoutGrid, LayoutTemplate, MonitorPlay, MoreHorizontal, Pencil, Plus, Presentation, Users } from "lucide-react";
+import { BookOpen, Check, Eye, Home, Pin, LayoutDashboard, LayoutGrid, LayoutTemplate, MonitorPlay, Pencil, Plus, Presentation, Users } from "lucide-react";
 import { NewDashboardDialog } from "@/components/new-dashboard-dialog";
 import { SaveDashboardTemplateDialog } from "@/components/save-dashboard-template-dialog";
 import type { DashboardTemplateSummary } from "@ziffr/core/dashboard-templates";
@@ -38,7 +38,6 @@ import { themeFor } from "@ziffr/core/themes";
 import { DashboardSwitcher } from "@/components/dashboard-switcher";
 import { usePin } from "@/components/pinned-dashboards";
 import { useDemoPrefs } from "@/components/demo-visit-prefs";
-import { useWidgetMenuSeen } from "@/lib/widget-menu-hint";
 import { setHome } from "@/app/home-actions";
 import { MakeDeckDialog } from "@/components/make-deck-dialog";
 import { DashboardReader } from "@/components/dashboard-reader";
@@ -177,7 +176,6 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   // Where visitors may change the demo, Home is this visit's own, kept in the browser (demo-visit-prefs.tsx).
   const visit = useDemoPrefs();
   const homeShown = visit?.homeId ?? homeId;
-  const menuSeen = useWidgetMenuSeen(data.viewer);
   const [newOpen, setNewOpen] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [makingDeck, setMakingDeck] = useState(false);
@@ -214,7 +212,6 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 <DashboardSwitcher current={current} dashboards={dashboards} homeId={homeShown} ownerName={(id) => people[id]?.name ?? ""} onNew={canCreate ? newDashboard : undefined} />
                 <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">{current.role === "owner" ? <><Users aria-hidden className="size-4" /> Yours</> : current.role === "editor" ? <><Pencil aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Editor</> : <><Eye aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Viewer</>}</span>
-                  {!menuSeen && widgets.length > 0 && <span className="flex items-center gap-1.5 max-md:hidden"><MoreHorizontal aria-hidden className="size-4" /> <span>A widget&rsquo;s ⋯ menu has its history, questions and tasks<span className="hidden pointer-fine:inline">, or right-click it</span></span></span>}
                 </p>
                 {editing && mayChange ? <DashboardText key={current.id} id={current.id} name={current.name} intro={current.intro ?? ""} /> : !reading && current.intro && <p className="mt-3 max-w-3xl whitespace-pre-line text-muted-foreground">{current.intro}</p>}
               </div>
