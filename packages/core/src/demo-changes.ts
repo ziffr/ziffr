@@ -82,6 +82,15 @@ const OUTSIDE: readonly string[] = [
   "auth-actions:switchWorkspace",
   "first-steps/actions:makeWorkspace",
   "first-steps/actions:saveAnswers",
+  "first-steps/value-actions:askByEmail",
+  "first-steps/value-actions:chooseProvider",
+  "first-steps/value-actions:emailAgain",
+  "first-steps/value-actions:lookForValue",
+  "first-steps/value-actions:pickValueMetric",
+  "first-steps/value-actions:readDone",
+  "first-steps/value-actions:readFirstValue",
+  "first-steps/value-actions:readSender",
+  "first-steps/value-actions:typeValue",
   "installation-actions:addInstallationAdmin",
   "installation-actions:blockUser",
   "installation-actions:extendTrial",
@@ -267,6 +276,8 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   ],
   // Promises what does not happen in the demo (an Alert, a Heads-up, an automatic Snapshot) or records nothing there.
   "does-nothing": [
+    // The demo asks for each figure in a message of its own, so no combined form link exists there (spec 0064).
+    "actions:submitCombinedWebForm",
     "alert-actions:createAlert",
     "alert-actions:deleteAlert",
     "alert-actions:updateAlert",

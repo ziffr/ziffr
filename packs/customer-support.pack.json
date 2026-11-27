@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/2",
+  "format": "ziffr.pack/3",
   "id": "ziffr/customer-support",
   "name": "Customer support",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "summary": "Tickets opened, closed and open, the old ones, first response and resolution times, satisfaction and reopens, with a weekly dashboard and a Workflow that asks for last week's figures on Monday.",
   "author": {
     "name": "Ziffr"
@@ -16,6 +16,17 @@
   },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "See every week how your customer support is doing.",
+    "happens": [
+      "Last week's support figures are asked for",
+      "The dashboard shows what came in, what waits and how fast you answer"
+    ],
+    "needs": [
+      "Ticket counts and answer times from your help desk",
+      "Customer satisfaction and reopen rate"
+    ]
   },
   "guide": {
     "whatItsFor": [

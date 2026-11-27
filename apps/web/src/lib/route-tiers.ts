@@ -24,6 +24,7 @@ export const ROUTE_TIERS = {
   "/metrics/[slug]": "phone-first",
   "/metrics/[slug]/[period]": "phone-first",
   "/submit/[code]": "phone-first",
+  "/submit/all/[code]": "phone-first",
   "/schedule/submit/[slug]": "phone-first",
   "/paste-values": "phone-first",
   // What waits for a person.

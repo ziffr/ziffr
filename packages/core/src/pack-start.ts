@@ -26,7 +26,7 @@ import { listed } from "./pack-places";
 import { setUpStep, wordsForPeople, type GuidedStep, type SetupRun } from "./pack-setup";
 import { setupPeople, unsubscribedNote, type Blueprint, type PackSetupInput, type PlannedMetric, type SetupPerson } from "./pack-setup-build";
 import { assertSetsUp, installedForSetup, roomFor, roomNow, type EntryRow, type TemplateRow } from "./pack-setup-install";
-import { claimGuidedRecord, dropIdleGuided, heldKey, recordedSetups, setupStates, stillMade, type GuidedRecord, type MadeThing, type SetupState } from "./pack-setup-record";
+import { claimGuidedRecord, dropIdleGuided, heldKey, setupStates, stillMade, type GuidedRecord, type MadeThing, type SetupState } from "./pack-setup-record";
 import { entryTotal, isComputed } from "./pack-setup-totals";
 import type { PackSampleEntry } from "./pack-sample";
 import { declarationsFrom, type DeclaredEntry, type DeclaredTemplate } from "./pack-start-declarations";
@@ -467,14 +467,18 @@ async function contactRoom(actor: Actor, adding: number): Promise<string | null>
   return (count ?? 0) + adding > most ? `A workspace keeps at most ${most} contacts.` : null;
 }
 
-/** Why the answers cannot finish a set-up that stopped, or null: it goes on with the lines it started with, since a
- * Total or a dashboard it made already holds those and no others. */
-async function otherLines(actor: Actor, installId: number, open: SetupState, plan: StartPlan): Promise<string | null> {
-  if (!open.made) return null;
-  const { lines } = await recordedSetups(actor, installId);
-  const named = (list: { repeat: string; name: string }[]) => list.map((l) => `${l.repeat} ${l.name}`).sort().join("\n");
-  return named(lines) === named(plan.lines) ? null : `This set-up started with ${listed(lines.map((l) => l.name))}. List the same to finish it; add more afterwards on the Pack's page.`;
+/** A mark of who the answers name, in whatever order: the lines, who holds what and who provides. */
+function peopleMark(packId: string, answers: StartChoices): string {
+  const one = (p: StartPerson | undefined) => (p?.who === "new" ? `new ${asAddress(p.email)} ${p.name.trim()}` : p?.who === "here" ? `here ${p.id}` : p?.who ?? "");
+  const lines = (answers.lines ?? []).map((l) => [l.repeat, l.name?.trim() ?? "", one(l.person), ...(l.others ?? []).map((o) => `${o.position} ${one(o.person)}`).sort()].join("|")).sort();
+  const who = (answers.who ?? []).map((w) => `${w.position} ${one(w.person)}`).sort();
+  return itemHash({ packId, lines, who, providers: (answers.providers ?? []).map(one).sort() });
 }
+
+/** Why the answers cannot finish a set-up that stopped, or null: what it made already holds the people it started with,
+ * so it goes on only with them. Numbers, the source and the ticked Shares may change. */
+const otherPeople = (open: SetupState, mark: string): string | null =>
+  open.made && open.mark !== mark ? "This set-up stopped half way with other people. Name the same people to finish it; change or add people afterwards." : null;
 
 /** The plan of the answers as the Workspace is now, with everything that can be checked before anything is written;
  * `open` is this person's set-up that stopped, whose Metrics are there already. */
@@ -483,7 +487,7 @@ async function checkedPlan(actor: Actor, source: Source, answers: StartChoices, 
   const plan = planStart(source.declarations, await roomOf(actor, made), answers, await contextOf(actor, answers));
   if (plan.problems.length) return plan;
   const more = plan.metrics.length - made;
-  const why = (open ? await otherLines(actor, source.installId!, open, plan) : null) ?? (more > 0 ? await roomFor(actor, more) : null) ?? (await contactRoom(actor, plan.contacts.length));
+  const why = (open ? otherPeople(open, peopleMark(source.pack.id, answers)) : null) ?? (more > 0 ? await roomFor(actor, more) : null) ?? (await contactRoom(actor, plan.contacts.length));
   return why ? { ...plan, problems: [why] } : plan;
 }
 
@@ -573,6 +577,7 @@ export async function startPackStep(actor: Actor, ref: PackStartRef, choices: St
   const answers = cleanChoices(choices);
   let source = await sourceOf(actor, ref);
   const mark = itemHash({ pack: source.pack.id, answers: { ...answers, confirmed: null } });
+  const people = peopleMark(source.pack.id, answers);
   const stands = await standing(actor, source.installId);
   const { done } = stands;
   if (done && done.by === actor.personId && done.mark === mark) return { done: true, result: await resultOf(actor, source, source.installId!, done.id, answers) };
@@ -593,7 +598,7 @@ export async function startPackStep(actor: Actor, ref: PackStartRef, choices: St
     if (source.blocked) throw new Refused(source.blocked);
   }
   const p = await installedForSetup(actor, source.installId!);
-  const kept = await claimGuidedRecord(actor, p.install, mark, open);
+  const kept = await claimGuidedRecord(actor, p.install, { open: people, done: mark }, open);
   const added: string[] = [];
   try {
     // 3. Add the Contacts that are missing.

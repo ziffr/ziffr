@@ -230,8 +230,10 @@ async function takeGuided(actor: Actor, installId: number, mark: string, open: S
 }
 
 /** Takes the guided set-up's record for one step: a new one, or `open`, the unfinished one the caller found to be this
- * person's. Only one step holds it at a time, so a second press makes nothing twice. */
-export async function claimGuidedRecord(actor: Actor, install: { id: number; version: string }, mark: string, open: SetupState | null): Promise<GuidedRecord> {
+ * person's. Only one step holds it at a time, so a second press makes nothing twice. While unfinished it keeps the mark
+ * `marks.open` (who was named), once finished `marks.done` (every answer). */
+export async function claimGuidedRecord(actor: Actor, install: { id: number; version: string }, marks: { open: string; done: string }, open: SetupState | null): Promise<GuidedRecord> {
+  const mark = marks.open;
   const ws = actor.workspaceId;
   let id: number;
   let step = 0;
@@ -257,6 +259,9 @@ export async function claimGuidedRecord(actor: Actor, install: { id: number; ver
   const record = recordOf(ws, id, step, (line) => lineIds.get(lineKey(line))!);
   return {
     ...record,
+    finish: async (messages) => {
+      failed((await db().from("pack_setups").update({ messages, input_mark: marks.done, finished_at: new Date().toISOString(), working_since: null }).eq("id", id).eq("workspace_id", ws)).error);
+    },
     madeBefore: made,
     unstaffed: new Set(made.filter((m) => m.kind === "metric" && waiting.has(m.id)).map((m) => m.id)),
     staffed: async (ids) => {

@@ -42,11 +42,12 @@ export function FillIn({ offer, metricName, periodLabel, placeholder, numberStyl
   );
 }
 
-/** Whom, the value and an optional Breakdown, and the answer to the last try. */
+/** Whom, the value, an optional Breakdown and note, and the answer to the last try. */
 function FillInForm({ offer, people, placeholder, numberStyle }: { offer: FillInOffer; people: FillInOffer["people"]; placeholder: string; numberStyle: NumberStyle }) {
   const [who, setWho] = useState(people[0].id);
   const [value, setValue] = useState("");
   const [breakdown, setBreakdown] = useState(false);
+  const [note, setNote] = useState("");
   const [answer, setAnswer] = useState<Answer>(null);
   const [pending, start] = useTransition();
   const target = people.find((p) => p.id === who) ?? people[0];
@@ -57,9 +58,9 @@ function FillInForm({ offer, people, placeholder, numberStyle }: { offer: FillIn
         e.preventDefault();
         const data = new FormData(e.currentTarget);
         start(async () => {
-          const r = await sendValue(() => fillInForSubmitter({ metricId: offer.metricId, period: offer.period, for: target.id, value, breakdown: String(data.get("breakdown") ?? "") }));
+          const r = await sendValue(() => fillInForSubmitter({ metricId: offer.metricId, period: offer.period, for: target.id, value, breakdown: String(data.get("breakdown") ?? ""), ...(note ? { note } : {}) }));
           setAnswer(r);
-          if (r?.ok) { setValue(""); setBreakdown(false); }
+          if (r?.ok) { setValue(""); setBreakdown(false); if (!r.noteKept) setNote(""); }
         });
       }}
     >
@@ -72,7 +73,7 @@ function FillInForm({ offer, people, placeholder, numberStyle }: { offer: FillIn
           </select>
         </label>
       ) : <p className="text-sm">For <span className="font-medium">{target.name}</span></p>}
-      <ValueEntry value={value} setValue={setValue} breakdown={breakdown} setBreakdown={setBreakdown} placeholder={placeholder} numberStyle={numberStyle} />
+      <ValueEntry value={value} setValue={setValue} breakdown={breakdown} setBreakdown={setBreakdown} placeholder={placeholder} numberStyle={numberStyle} note={offer.notes ? { words: note, setWords: setNote } : undefined} />
       <Button type="submit" size="lg" disabled={pending}>{pending ? "Recording…" : `Enter it for ${first(target.name)}`}</Button>
     </form>
   );

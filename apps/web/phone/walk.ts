@@ -40,6 +40,8 @@ export const WALK: Record<string, Walk> = {
   "/metrics/[slug]": { open: "/metrics/gross-margin", sees: /gross margin/i },
   "/metrics/[slug]/[period]": { open: "/metrics/gross-margin?tab=history", follow: /^\/metrics\/gross-margin\/\d{4}-\d{2}-\d{2}$/, sees: /gross margin/i },
   "/submit/[code]": { open: "/submit/tk-mia-gross-margin", sees: "please report" },
+  // A link is made only when a message goes, and the demo sends none: the page a dead link shows is walked.
+  "/submit/all/[code]": { open: "/submit/all/gone", sees: "This link does not work", signedOut: true },
   "/schedule/submit/[slug]": { skip: REDIRECT },
   "/paste-values": { open: "/paste-values", sees: /paste/i },
   "/schedule": { open: "/schedule", sees: "Schedule" },

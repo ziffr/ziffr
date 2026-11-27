@@ -109,6 +109,8 @@ The order of the slides is their position on the canvas: left to right, then top
 
 The **Pool** on the left holds the Metrics you can see, your saved Widgets and the Widget Templates. Drag one onto a slide, or choose **+** next to it to add it to the slide you are looking at. It lands in the first free space on that slide, next to what is already there; if the slide is full, it is made smaller to fit.
 
+Pointing at a template or saved Widget for a moment shows its Preview beside the Pool. The **ⓘ** button on a row opens the Preview and keeps it open until you press **ⓘ** again, press Escape or tap elsewhere; on a touch screen or a narrow window it opens over the page just below the row, and the list never moves. A template's Preview always uses Sample Data, a saved Widget's draws your own values, and a Metric's is a small card with its latest value. **Browse…** next to **Templates** opens **Browse templates** in a panel beside the page: every template as a larger Preview, with **Filter** and a **Use** button on each. **Use** closes the panel and goes on as the Pool's **+** does; Escape or **Close** leaves without adding anything. A team Widget Template in the Pool has its own **⋯** menu, as in a dashboard's [Add widget](12-dashboards.md#adding-a-widget).
+
 - A Metric dropped on a slide becomes a line chart. You can change that afterwards.
 - A Widget Template asks for its Metrics first.
 - A Widget shows live numbers: whenever a new value arrives, the slide shows it (except on a [slide that keeps numbers](#slides-that-keep-numbers)). A Widget's title may use Placeholders such as {latest} and {change yoy}, which fill in from the same numbers, on the slide and in the PowerPoint export.

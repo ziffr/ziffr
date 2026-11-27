@@ -85,7 +85,7 @@ export function NewDashboardDialog({ open, onOpenChange, templates, metrics, tag
           <fieldset className="space-y-1.5">
             <legend className="mb-1 flex items-center gap-1.5 text-sm font-medium"><LayoutTemplate aria-hidden className="size-4" /> Start from</legend>
             <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              {option(null, "Empty dashboard", "Add widgets from the Pool yourself.")}
+              {option(null, "Empty dashboard", "Add widgets yourself with Add widget.")}
               {templates.map((x) => option(x, x.name, `${x.description ? `${x.description} ` : ""}${x.widgets} widget${x.widgets === 1 ? "" : "s"}${x.owner_id ? "" : ", from Ziffr"}.`))}
             </ul>
           </fieldset>

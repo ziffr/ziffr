@@ -274,6 +274,7 @@ The database and the core refuse some changes with a code of their own (ZFnnn), 
 | `ZF474` | A Total adds this Metric up |
 | `ZF475` | A Total adds up at most 50 Metrics |
 | `ZF476` | Only the owner changes what an open Total adds up; Only the owner opens a Total |
+| `ZF480` | A period keeps at most 50 notes |
 | `ZF4A1` | installation_announcements_cap |
 | `ZF4A2` | workspace_announcements_cap |
 | `ZF4A3` | workspace_announcements_move |

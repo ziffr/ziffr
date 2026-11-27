@@ -16,7 +16,7 @@ export function SaveWidget({ template, metricIds, showTarget, name }: { template
     if (!chosen) return;
     start(async () => {
       const settings = { ...TEMPLATES[template].settings, ...(showTarget ? { showTarget: true } : {}) };
-      if (!told(await saveToPool({ type: "spec", template, metricIds, settings }, chosen), "Not saved")) toast.success("Saved to My Widgets", { description: "Drag it from the Pool onto any dashboard." });
+      if (!told(await saveToPool({ type: "spec", template, metricIds, settings }, chosen), "Not saved")) toast.success("Saved to My Widgets", { description: "Add it to any dashboard with Add widget." });
     });
   };
   return <button type="button" disabled={pending} onClick={save} className="stock flex min-h-9 items-center gap-1.5 rounded-[var(--radius-stock)] px-3 text-sm disabled:opacity-50"><BookmarkPlus className="size-3.5" /> Save as widget</button>;
