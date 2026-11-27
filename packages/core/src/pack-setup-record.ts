@@ -323,7 +323,8 @@ export async function recordedHolders(actor: Actor, setupIds: number[]): Promise
 
 /** Notes that one person holds a Position now (of a line, or of none), in each of these Set ups that recorded a holder
  * for it, and that nobody is held for there any more. With `beside`, those recorded stay and the person is added to
- * them: part of what they held is still theirs. */
+ * them: part of what they held is still theirs. The person's row is then written anew, so that the latest choice is
+ * always the newest row (`packLineStart`). */
 export async function noteHolder(actor: Actor, setupIds: number[], position: string, line: { repeat: string; name: string } | null, person: string, beside = false): Promise<void> {
   const ws = actor.workspaceId;
   for (const setup of setupIds) {
@@ -341,7 +342,10 @@ export async function noteHolder(actor: Actor, setupIds: number[], position: str
     const [first, ...others] = (rows ?? []).map((r) => Number(r.id));
     if (first === undefined) continue;
     if (beside) {
-      if (!rows!.some((r) => r.person_id === person)) failed((await db().from("pack_setup_people").insert({ workspace_id: ws, setup_id: setup, line_id: lineId, position_key: position, person_id: person })).error);
+      // Written before the earlier row goes, so a failure between the two leaves the person recorded.
+      failed((await db().from("pack_setup_people").insert({ workspace_id: ws, setup_id: setup, line_id: lineId, position_key: position, person_id: person })).error);
+      const earlier = rows!.filter((r) => r.person_id === person).map((r) => Number(r.id));
+      if (earlier.length) failed((await db().from("pack_setup_people").delete().eq("workspace_id", ws).in("id", earlier)).error);
       continue;
     }
     failed((await db().from("pack_setup_people").update({ person_id: person, held_for: null }).eq("workspace_id", ws).eq("id", first)).error);

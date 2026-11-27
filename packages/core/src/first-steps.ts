@@ -72,24 +72,27 @@ async function save(actor: Actor, a: FirstStepsAnswers & { who: "team" | "me" })
 const UNMARKED_FOR = 60 * 60 * 1000;
 
 // The Workspace an attempt a moment ago made and could not mark as First Steps': made within the hour with this name,
-// the person its Owner and the only one in it, still without a Metric. It is taken up instead of making a second one,
-// which a trial or the limit of one Workspace per person would refuse.
+// the person its Owner and the only one in it, with no Metric, dashboard, Contact or invitation and no saved Workspace
+// Profile, so that nothing made by hand is overwritten. It is taken up instead of making a second one, which a trial or
+// the limit of one Workspace per person would refuse.
 async function leftUnmarked(personId: string, name: string): Promise<string | null> {
   const unread = () => new Error("The Workspace could not be created.");
   const { data: mine, error } = await db().from("memberships").select("workspace_id").eq("user_id", personId).eq("role", "owner");
   if (error) throw unread();
   if (!mine.length) return null;
   const since = new Date(Date.now() - UNMARKED_FOR).toISOString();
-  const { data: recent, error: unfound } = await db().from("workspaces").select("id").in("id", mine.map((m) => m.workspace_id as string)).eq("name", name).gte("created_at", since).is("practice_for", null).is("importing_at", null);
+  const { data: recent, error: unfound } = await db().from("workspaces").select("id").in("id", mine.map((m) => m.workspace_id as string)).eq("name", name).gte("created_at", since).is("practice_for", null).is("importing_at", null)
+    .is("industry", null).is("segment", null).is("country", null).is("currency", null).is("employee_band", null).is("revenue_band", null);
   if (unfound) throw unread();
   for (const { id } of recent) {
-    const [members, metrics, guide] = await Promise.all([
-      db().from("memberships").select("user_id", { count: "exact", head: true }).eq("workspace_id", id),
-      db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", id),
+    const count = (table: string) => db().from(table).select("workspace_id", { count: "exact", head: true }).eq("workspace_id", id);
+    const [members, guide, ...made] = await Promise.all([
+      count("memberships"),
       db().from("setup_guides").select("first_steps_at").eq("workspace_id", id).maybeSingle(),
+      ...["metrics", "dashboards", "contacts", "invitations"].map(count),
     ]);
-    if (members.error || metrics.error || guide.error) throw unread();
-    if (members.count === 1 && metrics.count === 0 && !guide.data?.first_steps_at) return id as string;
+    if (members.error || guide.error || made.some((x) => x.error)) throw unread();
+    if (members.count === 1 && !guide.data?.first_steps_at && made.every((x) => x.count === 0)) return id as string;
   }
   return null;
 }

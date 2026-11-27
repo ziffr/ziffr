@@ -167,10 +167,13 @@ export async function packLineStart(actor: Actor, installId: number, repeat: str
   const lines = record.lines.filter((l) => l.repeat === String(repeat)).map((l) => l.name);
   if (!lines.length) throw new Error("Nothing of this was set up from the Pack here yet. Set it up first.");
   const made = (kind: MadeThing["kind"]) => [...new Set(record.made.filter((t) => t.kind === kind && t.line?.repeat === String(repeat)).map((t) => t.key))];
-  // For each Position, the people of the latest Set up that put someone there.
+  // For each Position, the people of the latest Set up that put someone there. A Position for one person takes the
+  // newest row only: the record may still name who held it before (noteHolder). Only those who approve are changed
+  // there, and each of them is such a Position, so one for several people never names anybody who was replaced.
+  const single = new Set((p.places?.positions ?? []).filter((x) => x.people === "one").map((x) => x.key));
   const latest = new Map<string, number>(record.people.map((x) => [x.position, x.setup]));
   const people: Record<string, string[]> = {};
-  for (const x of record.people) if (latest.get(x.position) === x.setup) (people[x.position] ??= []).push(x.person);
+  for (const x of record.people) if (latest.get(x.position) === x.setup) people[x.position] = single.has(x.position) ? [x.person] : [...(people[x.position] ?? []), x.person];
   return {
     metrics: made("metric").filter((k) => p.entries.has(k)),
     dashboard: made("dashboard").find((k) => p.dashboards.has(k)) ?? "",

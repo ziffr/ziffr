@@ -13,6 +13,7 @@ import { changePackHolder, packHolderPlan, packHolders } from "./pack-after-hold
 import { confirmPackNumber, invitePackPeople, packInvite, sendFirstPackNumber } from "./pack-after-invite";
 import { packNumbers, setPackNumbers } from "./pack-after-numbers";
 import { packProviders, setPackProviders } from "./pack-after-providers";
+import { packLineStart } from "./pack-setup-adding";
 import { claimGuidedRecord, setupStates } from "./pack-setup-record";
 import { startPackStep, type PackStartRef, type PackStartResult } from "./pack-start";
 import type { StartChoices, StartPerson } from "./pack-start-steps";
@@ -372,7 +373,7 @@ describe("changing who approves", () => {
     expect(await snapshotPeople(t.id)).toEqual([stranger]);
   });
 
-  it("names both holders while a Snapshot stays for want of a Share, so a third change moves the Approve step", async () => {
+  it("names both holders while a Snapshot stays for want of a Share, moves the Approve step again and starts a new line with the latest choice", async () => {
     const t = await space();
     const result = await setUp(t.by, FORECAST, forecast(someone("Lea Lead"), someone("Sam Seller")));
     const id = result.pack.installId;
@@ -387,9 +388,17 @@ describe("changing who approves", () => {
     expect((await change(ben)).byHand.join(" ")).toContain("cannot open the dashboard");
     expect(await snapshotPeople(t.id)).toEqual([t.owner]);
     expect((await packHolders(t.by, id)).positions[0].holders).toHaveLength(2);
+    const approvers = async () => ((await flows(t.id))[0].config as WorkflowConfig).steps.flatMap((s) => (s.type === "approve" ? s.approvers : []));
+    const startsWith = async () => (await packLineStart(t.by, id, "rep")).people["sales-lead"];
+    expect(await startsWith()).toEqual([ben]);
     await change(cal);
-    const config = (await flows(t.id))[0].config as WorkflowConfig;
-    expect(config.steps.flatMap((s) => (s.type === "approve" ? s.approvers : []))).toEqual([cal]);
+    expect(await approvers()).toEqual([cal]);
+    expect(await startsWith()).toEqual([cal]);
+    // Someone the record names already becomes the latest choice again.
+    await change(ben);
+    expect(await approvers()).toEqual([ben]);
+    expect(await startsWith()).toEqual([ben]);
+    expect((await packHolders(t.by, id)).positions[0].holders).toHaveLength(3);
   });
 
   it("shows the changes first and then puts a Member into the Position's places", async () => {

@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, type Actor } from "./actor";
 import { myBusinessFunction } from "./business-function";
+import { createDashboard } from "./dashboards";
 import { db } from "./db";
 import { AnswerRefused, createFirstStepsWorkspace, firstStepsState, saveFirstStepsAnswers } from "./first-steps";
 import { NO_ANSWERS } from "./first-steps-screens";
@@ -15,7 +16,7 @@ import { workspace } from "./test/db-fixtures";
 import { TrialRefused, trialEndsAt } from "./trials";
 import { workspaceClock } from "./workspace-clock";
 import { DefaultWorkspaceTaken } from "./workspace-limits";
-import { workspaceName, workspaceProfile } from "./workspace-settings";
+import { setWorkspaceProfile, workspaceName, workspaceProfile } from "./workspace-settings";
 
 const ENV = ["ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_MAX", "ZIFFR_CLOUD_KEY", "ZIFFR_ONE_DEFAULT_PER_PERSON", "ZIFFR_DEFAULT_METRICS_LIMIT"] as const;
 const people: string[] = [];
@@ -136,6 +137,26 @@ describe("creating from the answers", () => {
     const person = await newcomer();
     const used = await createWorkspace(person, "Nord Co");
     await metric(used, person);
+    const { workspaceId } = await createFirstStepsWorkspace(person, TEAM);
+    expect(workspaceId).not.toBe(used);
+  });
+
+  it.each<[string, (owner: Actor) => PromiseLike<unknown>]>([
+    ["a dashboard", (owner) => createDashboard(owner, "Mine")],
+    ["a Contact", async (owner) => {
+      const person = await newcomer();
+      const { error } = await db().from("contacts").insert({ workspace_id: owner.workspaceId, person_id: person });
+      if (error) throw error;
+    }],
+    ["an invitation", async (owner) => {
+      const { error } = await db().from("invitations").insert({ workspace_id: owner.workspaceId, token: randomUUID(), role: "member", created_by: owner.personId, expires_at: new Date(Date.now() + 86_400_000).toISOString() });
+      if (error) throw error;
+    }],
+    ["a saved Workspace Profile", (owner) => setWorkspaceProfile(owner, { country: "DE" })],
+  ])("leaves a Workspace of the same name that already holds %s", async (_, use) => {
+    const person = await newcomer();
+    const used = await createWorkspace(person, "Nord Co");
+    await use({ personId: person, workspaceId: used, role: "owner" });
     const { workspaceId } = await createFirstStepsWorkspace(person, TEAM);
     expect(workspaceId).not.toBe(used);
   });
