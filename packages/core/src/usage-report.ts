@@ -5,7 +5,7 @@
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
-import { archiveMetric, archivableMetric, restoreMetric } from "./archived-metrics";
+import { archiveEach } from "./archived-metrics";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { refuseInDemo } from "./demo";
 import { inUse } from "./metric-row";
@@ -289,18 +289,6 @@ export async function archiveMetrics(actor: Actor, ids: unknown): Promise<number
   refuseInDemo(actor);
   assertMay(actor);
   if (!Array.isArray(ids) || ids.length === 0 || ids.length > 200 || !ids.every((x) => Number.isInteger(x))) throw new Error("Tick between 1 and 200 Metrics.");
-  const unique = [...new Set(ids as number[])];
   // One refused (gone, hidden, not yours to archive) refuses all, before anything changes.
-  for (const id of unique) await archivableMetric(actor, id);
-  const done: number[] = [];
-  try {
-    for (const id of unique) if ((await archiveMetric(actor, id)).archived) done.push(id);
-  } catch (e) {
-    let stuck = 0;
-    for (const id of done) await restoreMetric(actor, id).catch(() => { stuck++; });
-    // Said plainly when a Metric could not be brought back, so nobody believes nothing changed.
-    if (stuck > 0) throw new Error(`Archiving stopped, and ${stuck} of the Metrics archived before could not be brought back: look under Archived on the Metrics page.`);
-    throw e;
-  }
-  return done.length;
+  return archiveEach(actor, [...new Set(ids as number[])]);
 }
