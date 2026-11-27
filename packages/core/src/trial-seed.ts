@@ -11,7 +11,7 @@ import { createMetric, deleteMetric, type MetricEffects } from "./metrics";
 import { recordVersion } from "./versions";
 import { deleteWorkflow, saveWorkflow } from "./workflows";
 import { setPreference } from "./questions";
-import { chooseExploreOnMyOwn, startSetupGuide } from "./setup-guide";
+import { startSetupGuide } from "./setup-guide";
 import { trialEndsAt } from "./trials";
 import type { PreferenceKind } from "./connectors/types";
 import { openRows } from "./sealed-columns";
@@ -37,14 +37,14 @@ const quiet: MetricEffects = {
   promptSubmitter: async () => {},
 };
 
-/** Prepares a new Trial Workspace for its Owner: the ways messages go and the Setup Guide's starting point. It makes
- * no Metric, Workflow or dashboard. */
+/** Prepares a new Trial Workspace for its Owner: the ways messages go and the Setup Guide, with no step done. It makes
+ * no Metric, Workflow or dashboard and chooses nothing for the Owner. */
 export async function startTrialWorkspace(actor: Actor): Promise<void> {
   // Email is the team default for everything but Prompts, stored so the Connectors page shows it. Prompts have none: they
   // go by every way that reaches the person, so connecting Slack or Telegram adds it by itself (#614).
   for (const kind of ["question", "task", "update"] as PreferenceKind[]) await setPreference(actor, null, kind, "email");
-  // A trial asks nothing about where to start: the Setup Guide's Starting point ticks by itself (spec 0052).
-  await chooseExploreOnMyOwn(actor);
+  // The guide's row opens it at the first sign-in. The Starting point is the Owner's to choose, as everywhere (#1320).
+  await startSetupGuide(actor);
 }
 
 /** The Test Metric of a Workspace, or null when its example was not made (or was removed). */
