@@ -1,8 +1,12 @@
 // The Send Email Hook's signature check (spec 0025, #198): Standard Webhooks, with the secret Docker makes. A forged
 // call would make Ziffr send sign-in emails to anyone, so this check is the whole defence.
 import { createHmac } from "node:crypto";
-import { describe, expect, it } from "vitest";
-import { authHookSecrets, authHookSigned, firstHookCall } from "./auth-email";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { authHookSecrets, authHookSigned, firstHookCall, sendAuthEmail } from "./auth-email";
+
+const sent = vi.hoisted(() => [] as string[]);
+vi.mock("./settings-in-effect", () => ({ settingsInEffect: async () => ({ ZIFFR_SITE_URL: "https://app.example.com" }) }));
+vi.mock("./mail", async (original) => ({ ...(await original<typeof import("./mail")>()), mailEnabled: () => true, sendMail: async (m: { text: string }) => { sent.push(m.text); } }));
 
 const KEY = Buffer.alloc(32, 9);
 const SECRET = `v1,whsec_${KEY.toString("base64")}`;
@@ -51,5 +55,21 @@ describe("a hook call sent again", () => {
     expect(firstHookCall("msg_replayed", now + 1000)).toBe(false);
     expect(firstHookCall("msg_other", now + 1000)).toBe(true);
     expect(firstHookCall("msg_replayed", now + 11 * 60_000)).toBe(true);
+  });
+});
+
+describe("where a sign-in link may lead back to", () => {
+  afterEach(() => { delete process.env.ZIFFR_ADMIN_URL; delete process.env.SUPABASE_PUBLIC_URL; sent.length = 0; });
+  const email = (redirect_to: string) => sendAuthEmail({ user: { email: "ann@example.com" }, email_data: { email_action_type: "magiclink", token_hash: "a".repeat(32), redirect_to } });
+
+  it("is this Ziffr's address, and the Admin Address only where one is set (spec 0066)", async () => {
+    process.env.SUPABASE_PUBLIC_URL = "https://app.example.com";
+    await email("https://app.example.com/auth/callback");
+    await expect(email("https://admin.example.com/auth/callback")).rejects.toThrow("redirect_outside");
+    process.env.ZIFFR_ADMIN_URL = "https://admin.example.com";
+    await email("https://admin.example.com/auth/callback");
+    expect(sent).toHaveLength(2);
+    expect(sent[1]).toContain(encodeURIComponent("https://admin.example.com/auth/callback"));
+    for (const other of ["https://admin.example.com.evil.test/auth/callback", "https://evil.test/auth/callback"]) await expect(email(other)).rejects.toThrow("redirect_outside");
   });
 });

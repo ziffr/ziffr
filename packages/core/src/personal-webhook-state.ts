@@ -6,6 +6,7 @@ import { db } from "./db";
 import { deliverNotice } from "./deliveries";
 import { recordAudit } from "./audit-log";
 import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF } from "./webhook-limits";
+import { personBlocked } from "./user-block";
 
 /** The Workspace Roles that may have a Personal Webhook: not Guests (they see only what is shared with them), and a
  * Contact has no Workspace Role at all. */
@@ -17,9 +18,9 @@ export async function personalWebhooksAllowed(workspaceId: string): Promise<bool
   return data?.personal_webhooks_allowed === true;
 }
 
-/** Whether a person's Personal Webhooks may send now: the switch is on and the person is an Owner, Admin or Member. Judged at every send. */
+/** Whether a person's Personal Webhooks may send and be answered now: the switch is on, and the person is an Owner, Admin or Member and not a Blocked User. Judged at every send and request. */
 export async function personalWebhookMayRun(workspaceId: string, personId: string): Promise<boolean> {
-  if (!(await personalWebhooksAllowed(workspaceId))) return false;
+  if (!(await personalWebhooksAllowed(workspaceId)) || (await personBlocked(personId))) return false;
   const { data } = await db().from("memberships").select("role").eq("workspace_id", workspaceId).eq("user_id", personId).maybeSingle();
   return (PERSONAL_WEBHOOK_ROLES as readonly string[]).includes(String(data?.role));
 }

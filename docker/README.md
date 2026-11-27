@@ -67,6 +67,7 @@ All go in `.env` next to `compose.yml`, and all are optional. After changing one
 | `ZIFFR_TLDRAW_LICENSE_KEY` | The license key for tldraw, which draws decks and free layouts: needed to show them on an `https://` address (https://tldraw.dev/pricing). It must list your domain. Also on the Installation Settings page |
 | `ZIFFR_TURNSTILE_SITE_KEY`, `ZIFFR_TURNSTILE_SECRET` | Cloudflare Turnstile on the sign-in form: no link is sent before the server has checked the answer with Cloudflare. For any public Ziffr |
 | `ZIFFR_SITE_URL`, `ZIFFR_PROXY_HOPS` | Only behind a reverse proxy of your own (see below): the address people reach, such as `https://ziffr.example.com`, and how many proxies add to `X-Forwarded-For` (yours and Caddy: `2`) |
+| `ZIFFR_ADMIN_URL` | An address of its own for the Installation settings, which then answer only there; you restrict who reaches it ([how](../docs/guides/self-hosting.md#an-address-of-its-own-for-the-installation-settings)) |
 | `ZIFFR_REMOTE_MCP` | The remote MCP Server at `https://<your domain>/mcp`, for assistants such as Claude.ai. On with a domain, off at `http://localhost`; `0` turns it off, `1` on |
 | `ZIFFR_HTTP_PORT`, `ZIFFR_HTTPS_PORT`, `ZIFFR_MAIL_PORT` | Other ports on this machine, when 80, 443 or 8025 are taken |
 | `ZIFFR_IMAGE` | Another image than the version `compose.yml` names, such as `ghcr.io/ziffr/ziffr:X.Y.Z` or one you built |

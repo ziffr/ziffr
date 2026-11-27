@@ -10,6 +10,7 @@ import { Forbidden, type Actor, type WorkspaceRoleName } from "./actor";
 import { MAX_PROMPT_WAYS } from "./prompt-route";
 import { db } from "./db";
 import { refuseInDemo } from "./demo";
+import { installationHref } from "./admin-address";
 import { reachOf } from "./prompt-reach";
 import { isInstallationAdmin } from "./installation-admins";
 import { setPreference } from "./questions";
@@ -81,7 +82,7 @@ const manages = (role: WorkspaceRoleName) => role === "owner" || role === "admin
 export function wayCards(i: CardInput): WayCard[] {
   const by = (w: string): WayState | undefined => i.ways.find((x) => x.way === w);
   const admin = manages(i.role);
-  const missing = (guide: string): WayCard["help"] => ({ guide, installationPage: i.installationAdmin ? INSTALLATION_PAGE : null });
+  const missing = (guide: string): WayCard["help"] => ({ guide, installationPage: i.installationAdmin ? installationHref(INSTALLATION_PAGE) : null });
   // An Installation Admin is told where; anyone else is told whom to ask.
   const whoRuns = (what: string) => `This Ziffr has no ${what} yet. ${i.installationAdmin ? "You can add one on the Installation settings page." : "Whoever runs it adds one on its Installation settings page."}`;
   const card = (c: Partial<WayCard> & Pick<WayCard, "way" | "label" | "status" | "line">): WayCard => ({ action: null, also: null, canTest: false, help: null, limit: null, ...c });

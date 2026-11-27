@@ -18,6 +18,7 @@ import type { SubmissionEffects } from "./submissions";
 import { approve } from "./workflow-engine";
 import { trialEnded } from "./trials";
 import { mayAnswer } from "./practice";
+import { personBlocked } from "./user-block";
 
 /** Largest request taken from Slack, in bytes; its events and button presses are far smaller. */
 export const MAX_SLACK_BYTES = 64 * 1024;
@@ -177,6 +178,8 @@ async function pressed(bot: SlackBot, p: Obj): Promise<SlackOutcome> {
   // An ended trial takes no reply and answers none, as if the message were too old (spec 0021).
   if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000 || (await trialEnded(d.workspace_id))) return "expired";
   if (action.action_id === SLACK_BUTTONS.approve && d.action_id) {
+    // A Blocked User decides nothing (spec 0066).
+    if (await personBlocked(d.recipient_id)) return "refused";
     // Slack vouches for who pressed it, unlike an email's From: an Approval is taken here, by the same path as in
     // Ziffr, which checks the person is this approval's approver and it is still open.
     try {

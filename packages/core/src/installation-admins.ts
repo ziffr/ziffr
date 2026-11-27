@@ -6,6 +6,8 @@ import { createHash, randomInt } from "node:crypto";
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { isAddress } from "./mail";
+import { installationHref } from "./admin-address";
+import { personBlocked } from "./user-block";
 import { wellFormed } from "./announcement-rules";
 
 /** A signed-in person acting on the Installation, outside any Workspace. Every function here checks who they are. */
@@ -77,7 +79,7 @@ export function printSetupCode(code: string): void {
   console.log([
     "",
     "Ziffr: this Installation has no Installation Admin yet.",
-    `Ziffr: sign in, open /installation and enter the setup code ${code}`,
+    `Ziffr: sign in, open ${installationHref("/installation")} and enter the setup code ${code}`,
     "Ziffr: it works once, for whoever enters it first. Anyone who can read this log can claim the Installation.",
     "",
   ].join("\n"));
@@ -116,6 +118,14 @@ export async function claimInstallation(actor: InstallationActor, code: string):
   await recordInstallationEvent(person.id, "installation.claimed", null);
 }
 
+/** What a database operation of an Installation Admin needs of the one acting: their name, and whether they are one
+ * because the server names their address. Refuses anyone who is not an Installation Admin. */
+export async function actingAdmin(actor: InstallationActor): Promise<{ name: string; onServer: boolean }> {
+  await assertInstallationAdmin(actor);
+  const me = await personOf(actor.personId);
+  return { name: me?.name ?? "Someone", onServer: Boolean(me?.auth_user_id && me.email && serverAdminAddresses().includes(me.email.toLowerCase())) };
+}
+
 /** The Installation Admins, for an Installation Admin: those added on the page and those the server names. */
 export async function installationAdmins(actor: InstallationActor): Promise<InstallationAdminRow[]> {
   await assertInstallationAdmin(actor);
@@ -142,6 +152,7 @@ export async function addInstallationAdmin(actor: InstallationActor, email: stri
   const { data: person } = await db().from("profiles").select("id, name").eq("email", address).not("auth_user_id", "is", null).maybeSingle();
   // The same answer for "nobody" and "someone without a sign-in": the form says nothing about Contacts.
   if (!person) throw new Error("Nobody has signed in here with that address yet. Ask them to sign in once, then add them.");
+  if (await personBlocked(person.id as string)) throw new Error(`${person.name} is blocked. Unblock them under Users first.`);
   const { error } = await db().from("installation_admins").insert({ person_id: person.id, added_by: actor.personId });
   if (error?.code === "23505") throw new Error(`${person.name} is an Installation Admin already.`);
   if (error) throw new Error("They could not be added. Try again.");
@@ -192,7 +203,18 @@ export async function recordInstallationEvent(by: string, kind: string, subject:
 export async function installationEvents(actor: InstallationActor, limit = 30): Promise<InstallationEvent[]> {
   await assertInstallationAdmin(actor);
   const { data } = await db().from("installation_audit_events").select("at, actor_name, kind, subject").order("id", { ascending: false }).limit(Math.min(Math.max(1, Math.floor(limit) || 30), 200));
-  return (data ?? []).map((e) => ({ at: e.at as string, actorName: e.actor_name as string, kind: e.kind as string, subject: (e.subject as string | null) ?? null }));
+  const events = (data ?? []).map((e) => ({ at: e.at as string, actorName: e.actor_name as string, kind: e.kind as string, subject: (e.subject as string | null) ?? null }));
+  const names = await userNames(events.filter((e) => e.kind.startsWith("user.")).map((e) => e.subject ?? ""));
+  return events.map((e) => (e.kind.startsWith("user.") && e.subject ? { ...e, subject: names.get(e.subject) ?? `a User without a name here (${e.subject.slice(0, 8)})` } : e));
+}
+
+/** The names of Users as they are now, by account id. The audit keeps the id alone, so a person who is deleted leaves
+ * no name or address in it. A sealed Contact's name is never read here. */
+async function userNames(userIds: string[]): Promise<Map<string, string>> {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (!ids.length) return new Map();
+  const { data } = await db().from("profiles").select("auth_user_id, name, email").in("auth_user_id", ids).is("contact_workspace", null);
+  return new Map((data ?? []).map((p) => [p.auth_user_id as string, String(p.name || p.email || "a User")]));
 }
 
 /** Records an event of the Installation's audit done by a service, not a person (such as Ziffr Cloud setting a limit). */

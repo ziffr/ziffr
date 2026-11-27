@@ -55,8 +55,17 @@ export const sessionUser = cache(async () => {
   // nobody is signed in there, so the visitor gets the demo entry and no stale session reaches a Workspace or a write.
   if (demoOnly()) return null;
   const { data } = await (await authClient()).auth.getUser();
-  return data.user ?? null;
+  const user = data.user ?? null;
+  // A Blocked User is signed out whatever their browser still holds (spec 0066): the block ends their sessions, and
+  // this holds even if one were left.
+  return user && !blockedNow(user) ? user : null;
 });
+
+/** Whether Auth says the account is banned now. */
+function blockedNow(user: object): boolean {
+  const until = (user as { banned_until?: string }).banned_until;
+  return Boolean(until) && new Date(until as string).getTime() > Date.now();
+}
 
 /** The demo workspace (see the workspaces migration); its people are made up. */
 const DEMO_WORKSPACE = "d3e00000-0000-4000-8000-000000000001";

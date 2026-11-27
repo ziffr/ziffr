@@ -15,12 +15,15 @@
 //   (/oauth/register, /oauth/token, /oauth/revoke) and the metadata under /.well-known/ take no session either. The
 //   consent screen (/oauth/authorize) needs the session like any page. A Calendar Link (/cal/<secret>.ics, spec 0027) is its own
 //   secret, fetched by calendar apps without cookies; its route handler checks it on every fetch. Slack's OAuth callback (/api/slack/oauth) needs the session like any page.
+// - The Admin Address (spec 0066), where the server sets one: the Installation's pages answer only there, and it
+//   answers only signing in and those pages. Asked first, before anything lets a path pass.
 // - Everyone else: keep the sign-in session fresh and send anyone without one to sign in. The sign-in pages,
 //   View Links, the personal submission form (used by Contacts, who have no login) and the user guide stay open.
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { authSettings } from "@/lib/auth-settings";
 import { ownOrigins } from "@/lib/own-origins";
+import { adminRoute } from "@ziffr/core/admin-address";
 import { countsAsSignedIn, staleSessionCookies } from "@/lib/demo-only-session";
 import { DEMO_VISIT_COOKIE, newVisitId, visitCookieOptions, visitFromCookie, withCookie } from "@/lib/demo-visit-cookie";
 
@@ -60,6 +63,14 @@ export async function middleware(req: NextRequest) {
   headers.delete("x-ziffr-no-count");
   if (req.method === "HEAD") headers.set("x-ziffr-no-count", "1");
   const path = req.nextUrl.pathname;
+  // Which address serves which page (spec 0066). Server actions check again: one can be posted to any path.
+  const admin = adminRoute(path, req.headers);
+  if (admin === "not_found") return new NextResponse("Not found.", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+  if (admin === "panel") {
+    const to = req.nextUrl.clone();
+    to.pathname = "/installation";
+    return NextResponse.redirect(to);
+  }
   if (path.startsWith("/v/")) {
     headers.set("x-ziffr-view-link", "1");
     return NextResponse.next({ request: { headers } });

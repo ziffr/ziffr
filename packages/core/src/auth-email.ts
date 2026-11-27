@@ -8,6 +8,7 @@ import { isAddress, mailEnabled, sendMail, type MailTransport } from "./mail";
 import { emailHtml } from "./branded-email";
 import { themeLook } from "./theme-look";
 import { settingsInEffect } from "./settings-in-effect";
+import { adminAddress } from "./admin-address";
 
 /** How far a hook call's timestamp may be from now, in seconds, either way. */
 export const AUTH_HOOK_TOLERANCE_SECONDS = 300;
@@ -64,12 +65,14 @@ export function authHookSigned(secrets: Buffer[], headers: { id: string | null; 
   });
 }
 
-/** Where a link may lead after verifying: this Ziffr's own address and below it, nowhere else, so the hook can never
- * be used to send people elsewhere with a working sign-in. */
+/** Where a link may lead after verifying: this Ziffr's own address (or its Admin Address, spec 0066) and below it,
+ * nowhere else, so the hook can never be used to send people elsewhere with a working sign-in. */
 function redirectInside(redirectTo: unknown, site: string): string | null {
   if (redirectTo === undefined || redirectTo === null || redirectTo === "") return site;
   if (typeof redirectTo !== "string" || redirectTo.length > 2000) return null;
-  return redirectTo === site || redirectTo.startsWith(`${site}/`) ? redirectTo : null;
+  const admin = adminAddress();
+  const own = admin.state === "on" ? [site, admin.origin] : [site];
+  return own.some((o) => redirectTo === o || redirectTo.startsWith(`${o}/`)) ? redirectTo : null;
 }
 
 /** The address of Supabase Auth that people's browsers reach. */

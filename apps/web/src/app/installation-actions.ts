@@ -13,7 +13,10 @@ import * as limits from "@ziffr/core/workspace-limits-admin";
 import * as keyChange from "@ziffr/core/workspace-key-change";
 import * as usage from "@ziffr/core/installation-usage";
 import * as announcements from "@ziffr/core/installation-announcements";
-import { installationActor } from "@/lib/installation";
+import * as users from "@ziffr/core/installation-users";
+import * as workspaces from "@ziffr/core/installation-workspaces";
+import { atAdminAddress, installationActor, signedInActor } from "@/lib/installation";
+import { SITE_URL } from "@/lib/sign-in";
 import * as practice from "@ziffr/core/practice-workspace";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -186,9 +189,11 @@ export async function deleteInstallationAnnouncement(id: string): Promise<Result
 
 // The Practice Workspace (spec 0063; GLOSSARY: Practice Workspace): the core decides who may make one and start it over.
 
-/** Makes or remakes the person's Practice Workspace and opens it; what went wrong comes back as words. */
+/** Makes or remakes the person's Practice Workspace and opens it; what went wrong comes back as words. It is the
+ * person's own Workspace, not a page of the panel, so it also answers away from the Admin Address (its "Start over"
+ * is in the app); the core still takes an Installation Admin only. */
 async function openedPracticeWorkspace(work: (actor: admins.InstallationActor, from: string | null) => Promise<string>): Promise<{ error: string }> {
-  const actor = await installationActor();
+  const actor = await signedInActor();
   if (!actor) return { error: "Sign in first." };
   let id: string;
   try {
@@ -200,7 +205,8 @@ async function openedPracticeWorkspace(work: (actor: admins.InstallationActor, f
   jar.set(WORKSPACE_COOKIE, id, { httpOnly: true, sameSite: "lax", path: "/" });
   jar.delete(DEMO_COOKIE);
   revalidatePath("/", "layout");
-  redirect("/");
+  // The Admin Address shows no Workspace: Ziffr itself does, where it is chosen in the Workspace switcher.
+  redirect((await atAdminAddress()) ? `${SITE_URL}/` : "/");
 }
 
 /** Makes the Practice Workspace of an Installation Admin and opens it. */
@@ -211,4 +217,27 @@ export async function makePracticeWorkspace(): Promise<{ error: string }> {
 /** Deletes the named Practice Workspace, the person's own, makes a fresh one and opens it. */
 export async function startOverPracticeWorkspace(workspaceId: string): Promise<{ error: string }> {
   return openedPracticeWorkspace((actor, from) => practice.startOverPracticeWorkspace(actor, String(workspaceId ?? ""), from));
+}
+
+// Users and Workspaces (spec 0066; GLOSSARY: User, Blocked User, Trial Workspace): the core checks the Installation
+// Admin, the id and the hourly limit, and records each in the panel's Changes.
+
+/** Blocks a User. */
+export async function blockUser(userId: string): Promise<Result> {
+  return run(async (a) => { await users.blockUser(a, String(userId ?? "")); return "Blocked and signed out everywhere."; });
+}
+
+/** Lifts a User's block. */
+export async function unblockUser(userId: string): Promise<Result> {
+  return run(async (a) => { await users.unblockUser(a, String(userId ?? "")); return "Unblocked. They can sign in again."; });
+}
+
+/** Ends every session of a User. */
+export async function signOutUser(userId: string): Promise<Result> {
+  return run(async (a) => { await users.signOutUser(a, String(userId ?? "")); return "Signed out everywhere."; });
+}
+
+/** Gives a running trial more days. */
+export async function extendTrial(workspaceId: string, days: string): Promise<Result> {
+  return run(async (a) => { const { endsAt } = await workspaces.extendTrial(a, String(workspaceId ?? ""), String(days ?? "")); return `The trial now ends on ${endsAt.slice(0, 10)}.`; });
 }

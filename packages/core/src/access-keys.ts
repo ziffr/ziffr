@@ -1,6 +1,6 @@
 // Access Keys (GLOSSARY: Access Key): created by a person for a program, bound to one Workspace, limited to scopes
 // and ending on a set day. A key acts as its creator, with the creator's current role, and can do no more than its
-// scopes allow; it stops when it ends, when it is revoked, or when its creator is no longer a member. Only a hash of
+// scopes allow; it stops when it ends, when it is revoked, when its creator is no longer a member or while they are a Blocked User. Only a hash of
 // the secret is stored; the secret is shown once.
 import { timingSafeEqual } from "node:crypto";
 import { db } from "./db";
@@ -8,6 +8,7 @@ import { hash, insertKey } from "./internal/key-store";
 import { can, FEED_SCOPE, Forbidden, KEY_ONLY_SCOPES, SCOPES, type Actor, type FeedActor, type KeyActor, type Scope, type WorkspaceRoleName } from "./actor";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { trialEnded } from "./trials";
+import { personBlocked } from "./user-block";
 import { assertSeesMetrics } from "./sharing";
 import { audit } from "./audit-log";
 
@@ -126,6 +127,8 @@ export async function actorOfKey(k: { id: number; workspace_id: string; created_
   }
   const { data: membership } = await db().from("memberships").select("role").eq("workspace_id", k.workspace_id).eq("user_id", k.created_by).maybeSingle();
   if (!membership) return null;
+  // A Blocked User's keys and connected assistants do nothing until they are unblocked (spec 0066); nothing is revoked.
+  if (await personBlocked(k.created_by)) return null;
   await db().from("access_keys").update({ last_used_at: new Date().toISOString() }).eq("id", k.id);
   return { personId: k.created_by, workspaceId: k.workspace_id, role: membership.role as WorkspaceRoleName, key: { id: String(k.id), scopes: k.scopes } };
 }

@@ -107,6 +107,7 @@ Set these where the app runs. `.env.example` has them all with a comment each.
 | `ZIFFR_ALLOW_PRIVATE_MARKETPLACE` | `1` lets the Marketplace address be inside this server's network; off by default |
 | `ZIFFR_WEBHOOK_PRIVATE_HOSTS` | Exact host names (comma-separated, no ranges or wildcards) that Ziffr may send webhooks to even though they are inside this server's network, such as a self-hosted n8n. Every other address inside your network stays refused, and only https is used. List only names your own DNS answers: a listed name may reach any address. The list never applies to a trial. Only you set it here; a Workspace Admin cannot |
 | `ZIFFR_INSTALLATION_ADMINS` | Email addresses of the people who run this Installation, separated by commas, optional: they are Installation Admins without the setup code ([Installation settings](#installation-settings)) |
+| `ZIFFR_ADMIN_URL` | An address of its own for the Installation settings, such as `https://admin.example.com`, optional: they then answer only there ([how](#an-address-of-its-own-for-the-installation-settings)) |
 | `ZIFFR_JOB_SECRET` | The secret your scheduler sends to the jobs, at least 32 characters ([jobs](jobs.md)) |
 | `ZIFFR_INBOUND_DOMAIN`, `ZIFFR_INBOUND_SECRET`, `ZIFFR_INBOUND_AUTHSERV_ID` | Replies by email, optional ([email](email.md)). Without `ZIFFR_INBOUND_AUTHSERV_ID`, no provider vouches for senders, so each reply is held until the person confirms it with a one-time link emailed to the address on file (a forged sender never sees the link); the Installation Settings page says so while it is empty |
 | `ZIFFR_PROXY_HOPS` | How many proxies in front of Ziffr add to `X-Forwarded-For` (usually `1`). Lets the sign-in limit count per network address; without it only the per-address limits apply. A public demo that visitors may change needs it, and `ZIFFR_DEMO_ADDRESS_KEY` beside it: see [Running a public demo that visitors may change](#running-a-public-demo-that-visitors-may-change). Also lets the Webhook inbound gate count failed requests per address and remember real senders: without it a flood of failed requests past 600 a minute locks out the real sender until it stops |
@@ -150,6 +151,33 @@ Some of what an Installation talks to can be set on a page instead of in the set
 - **The check against bots and the demo** are set up on the page too, as the user guide's Installation settings chapter shows. `ZIFFR_DEMO_ONLY` stays a server setting, since it also stops Supabase Auth from making accounts. With Docker, `ZIFFR_DEMO` in the settings file wins. On a domain the demo is off on the server unless the settings file sets `ZIFFR_DEMO=1`, so the page shows it as set on the server; on a laptop the page may switch it off.
 - **Replies by email** are set up on the page too: the domain for replies, a signing secret the page makes for your provider's forwarder (shown once), the provider that vouches for senders, the MX record the domain needs and what it has now, and a test that emails you and waits for your reply to come back.
 - **What is recorded.** Claiming, adding and removing Installation Admins, and every change of a setting, by name and never by value, with who did it, in a log the page shows.
+
+### An address of its own for the Installation settings
+
+The Installation settings and their Users, Workspaces and Health pages answer wherever Ziffr does, to Installation Admins only. You can give them an **Admin Address** of their own and restrict who reaches it:
+
+```sh skip="a setting for your settings file"
+ZIFFR_ADMIN_URL=https://admin.example.com
+```
+
+With it set:
+
+- the pages and their actions answer only a request whose `Host` header names that host; on `ZIFFR_SITE_URL` they are "not found";
+- the Admin Address serves signing in and those pages, and nothing else of Ziffr;
+- sign-in links asked for there lead back there. You sign in there separately, as the session belongs to the address.
+
+A value that is not an address (a path, no `https://`) or that names the same host as `ZIFFR_SITE_URL` closes the pages everywhere and leaves the rest of Ziffr as it is. Unset it to go back. It is read from the server only, never from the page.
+
+What is yours to set up, since Ziffr restricts nobody's network:
+
+1. A DNS record for the name, and a certificate. A name that only a private network reaches cannot prove itself to Let's Encrypt over HTTP: use the DNS challenge.
+2. Your proxy sends the name on to Ziffr with the `Host` header unchanged, and lets only the people you choose reach it, for example an access list for your VPN's addresses. If the proxy passes `X-Forwarded-Host`, it must name the same host as `Host`.
+3. Make sure that only this proxy reaches Ziffr's port: whoever reaches the port directly can send any `Host` header, and then only the sign-in and the check of the Installation Admin stand.
+4. With Docker's own Caddy and `ZIFFR_DOMAIN` set, Caddy answers only that domain: name both for the `proxy` service in a `compose.override.yml` (`ZIFFR_SITE_ADDRESS: "ziffr.example.com, admin.example.com"`). Behind a proxy of your own, with `ZIFFR_DOMAIN` empty, Caddy answers any name.
+5. The sign-in service must allow `<ZIFFR_ADMIN_URL>/auth/callback`. Docker adds it by itself; with your own Supabase project, add it to the redirect URLs.
+6. With the check against bots, add the name to the Turnstile widget unless its domain covers it.
+
+The restriction is on the Admin Address only. Everything else of Ziffr stays as reachable as before, and every page and operation still checks that the person is an Installation Admin.
 
 ### The slide editor's license
 

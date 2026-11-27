@@ -12,6 +12,7 @@ import { calendarEntries } from "./schedule";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { refuseInDemo } from "./demo";
 import { assertMayLeave } from "./practice";
+import { personBlocked } from "./user-block";
 
 /** Most fetches of one link in an hour; more are refused (429) until the hour is over. */
 export const CALENDAR_FETCHES_PER_HOUR = 60;
@@ -106,6 +107,8 @@ export async function fetchCalendar(secret: unknown, origin: string, now = new D
     db().from("workspaces").select("name, trial_ends_at").eq("id", link.workspace_id).maybeSingle(),
   ]);
   if (!member || !ws || link.workspace_id === DEMO_WORKSPACE_ID) return { status: "not_found" };
+  // A Blocked User's Calendar Link shows nothing (spec 0066).
+  if (await personBlocked(link.person_id)) return { status: "not_found" };
   // An ended trial shows nothing more, as its keys do not work either.
   if (ws.trial_ends_at && new Date(String(ws.trial_ends_at)) <= now) return { status: "not_found" };
   if (!link.allowed) return { status: "rate_limited" };
