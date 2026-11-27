@@ -83,6 +83,15 @@ describe("writing, correcting and removing", () => {
     await removeValueNote(s.as(s.sara), id);
     expect((await s.read())!.current).toHaveLength(49);
   });
+
+  it("gives none of the 50 places to a note that waits with a proposal", async () => {
+    const s = await setup();
+    await s.send(45);
+    await s.w.lock(s.m.id, P);
+    expect((await s.send(46, "Waits with the proposal.")).valueNote).toEqual({ saved: true, cut: false });
+    for (let i = 0; i < 50; i += 1) await writeValueNote(s.as(s.sara), { metricId: s.m.id, period: P, words: `Note ${i}` });
+    expect((await s.read())!.current).toHaveLength(50);
+  });
 });
 
 describe("who reads and who writes", () => {
