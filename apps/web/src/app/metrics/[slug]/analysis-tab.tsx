@@ -1,7 +1,7 @@
 // The Analysis tab of a Metric's page (GLOSSARY: Metric, Takeaway, Correlation; ticket #988): what Ziffr already knows about this one
 // Metric, top to bottom. First the analyses ready for it (the forecast with its chart, then what fits of the usual range, the Target outlook
 // and when it changed), then what moves with it (the strongest links to the Metrics the person sees, one chart for the selected link), then
-// a way into Choose a method with this Metric on the canvas. The Takeaways are the core's words; this only lays them out.
+// a way into Pick a question with this Metric on the canvas. The Takeaways are the core's words; this only lays them out.
 import Link from "next/link";
 import type { ReadyCard } from "@ziffr/core/analysis-picker";
 import { stretchingPoints, stretchNote } from "@ziffr/core/chart-stretch";
@@ -80,7 +80,7 @@ export function AnalysisTab({ metric, ready, points, forecast, numberStyle, year
           <section aria-label={`Ask about ${metric.name}`} className="stock rounded-[var(--radius-card)] p-5">
             <h2 className="text-base font-medium">Ask about {metric.name}</h2>
             <p className="mt-1 text-sm text-muted-foreground">Pick what you want to know, such as what moves it, whether it changed or what it would take to reach a value. The list starts with what fits {metric.name}.</p>
-            <Link href={`/analyze?metric=${encodeURIComponent(metric.slug)}`} className="mt-3 inline-flex min-h-11 items-center sm:min-h-10 rounded-[var(--radius-stock)] bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90">Choose a method for {metric.name}</Link>
+            <Link href={`/analyze?metric=${encodeURIComponent(metric.slug)}`} className="mt-3 inline-flex min-h-11 items-center sm:min-h-10 rounded-[var(--radius-stock)] bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90">Pick a question for {metric.name}</Link>
           </section>
         </div>
   );

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// Choose a method on the Analysis Canvas (spec 0041, ticket 16; ticket #1068): the panel lists the questions grouped by what a person
+// Pick a question on the Analysis Canvas (spec 0041, ticket 16; ticket #1068): the panel lists the questions grouped by what a person
 // wants to know, as titles only; a Method that does not fit is greyed with its reason (never missing); choosing a title opens it in place
 // with what it is, when to use it and its fields; the answer goes under the canvas (not in the panel) with the Takeaway and what can be
 // done with it; and what is sent to the server is only ids and typed settings.
@@ -49,7 +49,7 @@ afterEach(() => { act(() => root.unmount()); host.remove(); asked.length = 0; ra
 const cards = () => [...host.querySelectorAll("aside section > ul > li")];
 const card = (name: string) => cards().find((li) => li.querySelector("button")?.textContent?.startsWith(name))!;
 
-describe("Choose a method", () => {
+describe("Pick a question", () => {
   it("lists every Method grouped by what a person wants, greyed with a reason when it does not fit, asking only for the canvas's ids", async () => {
     await mount([fact(1, "Revenue")]);
     expect(asked).toEqual([[1]]);
