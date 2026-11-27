@@ -30,7 +30,9 @@ export function DashboardSwitcher({ current, dashboards, homeId, ownerName, onNe
     <Popover open={open} onOpenChange={setOpen}>
       {/* The heading holds the button, not the other way round: a button may not contain a heading. */}
       <h1 className="text-[length:var(--text-2xl)] leading-tight max-sm:text-[length:var(--text-xl)]">
-        <PopoverTrigger className="group -ml-1 flex max-w-full items-center gap-1.5 rounded-[var(--radius-input)] px-1 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring" aria-label={`${current.name}: switch dashboard`}>
+        {/* It starts 4 px left of the heading so the name lines up, and may be that much wider: without it the heading's
+            own width is 4 px too little for the button, and a name that is the widest line there broke in two (#1338). */}
+        <PopoverTrigger className="group -ml-1 flex max-w-[calc(100%+0.25rem)] items-center gap-1.5 rounded-[var(--radius-input)] px-1 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring" aria-label={`${current.name}: switch dashboard`}>
           {/* Wraps to more lines when the name is long, so no dashboard title is ever cut off (#607). */}
           <span className="min-w-0 break-words">{current.name}</span>
           <ChevronDown aria-hidden className="size-5 shrink-0 text-muted-foreground transition-transform group-aria-expanded:rotate-180" />
