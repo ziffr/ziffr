@@ -28,7 +28,15 @@ An item you removed after installing is left out, and so are the Positions of a 
 
 **Ziffr's own Packs** lists the thirteen Packs that come with this version of Ziffr, for Owners and Admins. Each shows its name, version and summary and what it brings as counts (for example "13 Metrics, 2 dashboards, 2 Workflows"). It works on any Installation, also a self-hosted one with no Marketplace: nothing is downloaded and nothing leaves your server.
 
-Choose **Preview with Sample Data** to see everything the Pack adds, drawn with Sample Data and never your own values. Its Dashboard Templates show made-up numbers under the Pack's own Metric names; a Metric made once for each line of a Repeat is drawn for three made-up lines, such as “Commit, Salesperson A”. Under each Metric it shows its description and, where the Pack has one, **How it is calculated**: what counts, where the figure comes from and which adjustments are made. A Metric you set up from the Pack gets that text, and it is yours to change. These Packs need no confirmation about where they came from; texts aimed at assistants, if one ever had any, would still be listed and need a tick. Choose **Install** to add it. Nothing installs until you do, and the Audit log records it as installed from Ziffr's own Packs. A Pack that holds a Theme, such as SaaS metrics, Board meeting and Sales forecast, needs an Owner. A Pack that is installed already shows its version instead of a Preview.
+Choose **Preview with Sample Data** to open the Pack's Preview. It is a view of its own beside the list, and on a phone it covers the whole screen. **Back to the list**, the close button or Escape take you back and install nothing. From the top it shows:
+
+1. The Pack's name, version and one sentence about it, with its author and who vouches for them.
+2. Its first dashboard, drawn with Sample Data and never your own values. On a phone you see the dashboard's first three widgets, one below the other, and how many more there are.
+3. **Install**, with whatever you have to confirm first, the license and the Pack's links.
+4. **How it works**, the Pack's [guide](#a-packs-guide). It stays closed until you choose it.
+5. **What it brings**: how many items, [where the numbers come from](#where-a-packs-numbers-come-from), who does what, and every item.
+
+Its Dashboard Templates show made-up numbers under the Pack's own Metric names; a Metric made once for each line of a Repeat is drawn for three made-up lines, such as “Commit, Salesperson A”. Under each Metric it shows its description and, where the Pack has one, **How it is calculated**: what counts, where the figure comes from and which adjustments are made. A Metric you set up from the Pack gets that text, and it is yours to change. These Packs need no confirmation about where they came from; texts aimed at assistants, if one ever had any, would still be listed and need a tick. Choose **Install** to add it. Nothing installs until you do, and the Audit log records it as installed from Ziffr's own Packs. A Pack that holds a Theme, such as SaaS metrics, Board meeting and Sales forecast, needs an Owner. A Pack that is installed already shows its version instead of a Preview.
 
 When a newer Ziffr brings a newer version of a Pack you installed, that Pack shows **Version … comes with this Ziffr…**, which shows what an update changes before it is done, as under Updating a Pack. It is never applied by itself.
 
@@ -61,10 +69,10 @@ Ziffr makes thirteen starting Packs: SaaS metrics, Online shop, Agency or freela
 **Install a Pack from a file** is for Owners and Admins. A Pack that holds Themes needs an Owner, since only Owners change Themes. The demo installs no Packs and opens none.
 
 1. Choose **Choose a Pack file…** and pick the Pack's file (at most 1 MiB). Ziffr checks the whole file before it shows anything. If something in it is wrong, it lists every problem with its line, and installs nothing.
-2. Ziffr shows the Pack: its name, version, summary, author with its logo and who vouches for them, license, and every item it adds. A Theme that comes with the Pack's logo says so. Dashboard Templates and View Designs are drawn with Sample Data, never your own values; Themes show their colours.
+2. Ziffr opens the Pack's Preview, laid out as for [Ziffr's own Packs](#ziffrs-own-packs): name, version, summary, author with its logo and who vouches for them, the first dashboard, **Install** with the license, **How it works** and, under **What it brings**, every item the Pack adds. A Theme that comes with the Pack's logo says so. Dashboard Templates and View Designs are drawn with Sample Data, never your own values; Themes show their colours.
 3. It says **Uploaded file. The Marketplace did not check it.** Tick **I install a file the Marketplace did not check.**
 4. If any text in the Pack reads like an instruction to an AI assistant, such as "ignore your instructions", Ziffr lists each one. Assistants connected to the Workspace read Metric descriptions, but can only do what their key allows. Read them, then tick **I read the words aimed at assistants.**
-5. Choose **Install**. The Pack is installed whole or not at all, and the Audit log records it.
+5. Choose **Install**, which works once you ticked what is asked. The view closes, and the list shows the Pack. The Pack is installed whole or not at all, and the Audit log records it.
 
 Installing makes no Metric, Workflow, dashboard or deck, sends nothing and changes nothing already in the Workspace. Its Metric Catalog entries appear under **New metric** (a Derived Metric's entry only through **Set up from this Pack**, below), its templates where you start a dashboard, deck or Workflow, its View Designs under **Workspace → Library** (an Analysis Recipe as a View Design that draws it), and its Themes on the Themes page. Two Packs may describe the same Metric, such as Revenue: the Metric Catalog then lists both, each under its Pack. A Pack that is installed already is not installed again: update it instead.
 
@@ -140,7 +148,7 @@ Three Themes come with the Pack, **Forecast Navy** (the deck starts with it), **
 
 ## Where a Pack's numbers come from
 
-The preview of a Pack shows, above what it adds, a table **Where the numbers come from**. Metrics with the same answer share a row. A number reaches Ziffr in one of two ways: Ziffr asks a person, or another system sends it through a [Feed](16-workspace-settings.md#feeds).
+The preview of a Pack shows, under **What it brings**, a table **Where the numbers come from**. Metrics with the same answer share a row. A number reaches Ziffr in one of two ways: Ziffr asks a person, or another system sends it through a [Feed](16-workspace-settings.md#feeds).
 
 | The row says | What it means |
 | --- | --- |
@@ -160,7 +168,7 @@ Both are in Help with an installed Pack, also one without a guide (the Pack then
 
 ## A Pack's guide
 
-A Pack may carry a **Pack Guide**: what its creator tells you about it. The preview shows it above the list of what the Pack adds, for a file, one of Ziffr's own Packs and a Pack from the Marketplace, also in the Setup Guide.
+A Pack may carry a **Pack Guide**: what its creator tells you about it. The Preview holds it under **How it works**, closed until you choose it, for a file, one of Ziffr's own Packs and a Pack from the Marketplace, also in the Setup Guide.
 
 Each of Ziffr's own Packs has one; read **First steps**, which begins with **Start here**. A Pack of one of them installed from an earlier version of Ziffr gets its guide when you update it.
 
@@ -222,7 +230,7 @@ What it makes are ordinary Metrics, a dashboard and a Workflow, as if you made t
 
 When an Installation Admin turned on the Marketplace connection, Owners and Admins see **From the Marketplace**. It shows the newest free Packs as soon as the page opens, in two parts: **From Ziffr**, the Packs published under `ziffr/`, and **Community**, everyone else's. A search by a word narrows both. A Pack says **New creator** while its creator has published only recently (or a report against them was upheld), and **Installed, version …** when your Workspace has it already, also when it came with Ziffr or from a file.
 
-Choose **See what it adds** to see a Pack drawn with Sample Data. Ziffr first checks that the Marketplace signed exactly that file; a file that fails is not shown. The Preview says who published it, **Checked by program**, and **No person reviewed it** unless one did. It needs no warning about where it came from; texts aimed at assistants are still listed and need a tick. Installing works as from a file.
+Choose **See what it adds** to open a Pack's [Preview](#ziffrs-own-packs), drawn with Sample Data. Ziffr first checks that the Marketplace signed exactly that file; a file that fails is not shown. The Preview says who published it, **Checked by program**, and **No person reviewed it** unless one did. It needs no warning about where it came from; texts aimed at assistants are still listed and need a tick. Installing works as from a file.
 
 Opening the page asks the Marketplace for the newest Packs from your server; a search sends the words you typed, and opening a Pack names it and its version. Nothing about your Workspace or you is sent. Once a day Ziffr asks which installed Packs have newer versions; an installed Pack with one shows **Version … on the Marketplace…**, which shows what an update changes before it is done.
 

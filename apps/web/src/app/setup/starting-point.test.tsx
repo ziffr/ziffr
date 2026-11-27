@@ -5,11 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, refresh() {} }) }));
 vi.mock("sonner", () => ({ toast: { success() {}, error() {} } }));
-vi.mock("@/components/slide-over-host", () => ({ useSlideOver: () => ({ open() {}, close() {}, replace() {}, back() {}, isOpen: false }) }));
 vi.mock("./actions", () => ({ chooseExplore: async () => ({}), setUpFromPackInGuide: async () => ({}), skipStep: async () => ({}) }));
 vi.mock("@/app/pack-actions", () => ({ readIncludedPackFile: async () => ({}), installIncludedPackFile: async () => ({}) }));
 vi.mock("@/app/pack-setup-actions", () => ({ packSetup: async () => ({}) }));
-vi.mock("@/app/settings/packs/screen", () => ({ PackPreviewCard: () => null }));
+vi.mock("@/app/settings/packs/preview-view", () => ({ useOpenPackPreview: () => () => {} }));
 import { StartingPoint, whatYouGet } from "./starting-point";
 import type { RecommendedPack } from "@ziffr/core/included-packs";
 
