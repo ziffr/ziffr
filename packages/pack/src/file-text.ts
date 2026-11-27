@@ -37,6 +37,16 @@ export function textPasses(pattern: string, text: string): boolean {
   return new RegExp(pattern, "u").test(text) && (!pattern.startsWith(`^${NO_ADDRESS}`) || NO_ADDRESS_READ.test(asRead(text)));
 }
 
+// Where such a text would still be read as an address: before the dot of a name and a top-level domain (or a path),
+// after "www", and after a scheme's colon. The ideographic and fullwidth full stops count as dots, as mail and chat
+// apps read them.
+const ADDRESS_DOT = new RegExp(`(?<=[\\p{L}\\p{M}\\p{N}\\-])[.\u3002\uFF0E\uFF61](?=(?:${TLDS})(?![\\p{L}\\p{N}])|${anyCase("xn--")}|[\\p{L}\\p{M}]{2,}/)`, "gu");
+const ADDRESS_START = new RegExp(`(?<![\\p{L}\\p{N}])(${anyCase("www")}\\.)(?=\\S)|\\b((?:${SCHEMES}|${anyCase("javascript")}|${anyCase("data")}):)(?!\\s)|(:)(?=//)`, "gu");
+
+/** A person's words as they may go into a message: every web address this module's plain text would refuse, bare ones
+ * such as "evil.example/x" included, is broken with a space, so that mail and chat apps make no link of it. */
+export const withoutAddresses = (text: string): string => text.replace(ADDRESS_START, (found) => `${found} `).replace(ADDRESS_DOT, (dot) => `${dot} `);
+
 // The Placeholders every text knows. How a Metric is calculated (spec 0060) is added where a format says so: widgets,
 // Slide Elements and, from ziffr.deck-template/3 on, a slide's text and boxes.
 const SHARED_PLACEHOLDERS = "metrics|metric|period|latest|change yoy|change prev|top row|target";

@@ -50,7 +50,8 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
   // and for the owner who has accepted a Correction here, to say what is behind the new number. The core gives them only
   // to someone who is shown the value, whatever they may read of this Thread.
   const aboutValue = a.purpose === "approval" || a.purpose === "self_check" || (isOwner && thread.some((t) => t.correction_value !== null && t.correction_status === "accepted"));
-  const notes = m && aboutValue ? await periodValueNotes(actor, m.id, a.period_start) : null;
+  // The current ones alone: this page shows no history, so none goes to the browser.
+  const notes = m && aboutValue ? await periodValueNotes(actor, m.id, a.period_start, { currentOnly: true }) : null;
   const deciding = a.purpose === "approval" && m !== null && isAssignee && a.status === "open";
   const noteBlock = m && notes ? (
     <PeriodValueNotes metricId={m.id} period={a.period_start} notes={notes} metric={{ decimals: m.decimals, unit: m.unit, unit_position: m.unit_position }} numberStyle={numberStyle}

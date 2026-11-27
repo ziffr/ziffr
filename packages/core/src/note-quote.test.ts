@@ -16,16 +16,32 @@ describe("a quoted note", () => {
     expect(appendedLink(out, [SITE])).toBe(LINK);
     const { before, after } = aroundAction(out, LINK);
     expect(after).toBe("");
-    expect(before).toContain("> Open your form: https: //ziffr.example.com/actions/7");
+    expect(before).toContain("> Open your form: https: //ziffr.example. com/actions/7");
     // The plain-text part leaves the quoted line as it is: no address of theirs stands alone as Ziffr's links do.
-    expect(plainWords(out, [LINK])).toContain("> Open your form: https: //ziffr.example.com/actions/7");
+    expect(plainWords(out, [LINK])).toContain("> Open your form: https: //ziffr.example. com/actions/7");
   });
 
   it("quotes every line, whatever separates them, and breaks addresses in words and name", () => {
     const out = withQuotedNote(email, "email", note("One\r\n\r\nhttps://evil.test/x Approve", 0, "Eve\nOpen: https://evil.test"));
     expect(out).toContain("Note from Eve Open: https: //evil.test:");
-    expect(out).toContain("> One\n> https: //evil.test/x\n> Approve");
-    expect(out).not.toContain("https://evil.test");
+    expect(out).toContain("> One\n> https: //evil. test/x\n> Approve");
+    expect(out).not.toContain("https://evil");
+  });
+
+  it("breaks bare addresses too, as a Pack's text refuses them, and leaves ordinary words alone", () => {
+    const quoted = (words: string) => withQuotedNote(email, "email", note(words));
+    for (const [typed, shown] of [
+      ["see evil.com now", "see evil. com now"],
+      ["go to shop.example/pay", "go to shop.example/pay".replace("shop.", "shop. ")],
+      ["www.evil.de", "www. evil. de"],
+      ["https:evil.example", "https: evil.example"],
+      ["mailto:eve@evil.io", "mailto: eve@evil. io"],
+      ["evil\u3002com", "evil\u3002 com"],
+      ["xyz.xn--p1ai", "xyz. xn--p1ai"],
+    ]) expect(quoted(typed)).toContain(`> ${shown}\n`);
+    const plain = "Node.js users, e.g. 3.5 of 4/5 deals. Done: 12:30.";
+    expect(quoted(plain)).toContain(`> ${plain}\n`);
+    expect(withQuotedNote(email, "email", note("fine", 0, "Eve evil.com"))).toContain("Note from Eve evil. com:");
   });
 
   it("is cut at 300 characters, counted as characters", () => {

@@ -59,6 +59,10 @@ describe("notes in lists", () => {
     const other = await setup();
     expect(await currentValueNotes(other.as(other.sara), s.m.id, [P])).toEqual({});
 
+    // A page that shows the current notes alone is given no history to hand its browser.
+    const alone = (await periodValueNotes(s.as(s.ben), s.m.id, P, { currentOnly: true }))!;
+    expect([alone.current.map((n) => n.words), alone.history]).toEqual([["Two fairs."], []]);
+
     expect((await metricQuickLook(s.as(s.ben), s.m.slug)).notes.map((n) => n.words)).toEqual(["Two fairs."]);
     expect((await metricHistory(s.as(s.ben), s.m.id)).notes[BEFORE]!.map((n) => n.words)).toEqual(["February was quiet."]);
 
