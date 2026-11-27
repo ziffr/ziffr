@@ -242,6 +242,15 @@ describe("the offer", () => {
     expect(await s.values()).toEqual([46]);
   });
 
+  it("is closed by a Lock set or lifted, so yes never does more than was asked", async () => {
+    const s = await sent("add");
+    await s.w.lock(s.m.id, NOW);
+    expect((await s.reply("It should be 47")).said).toContain("To propose 47 as a correction, reply yes.");
+    await db().from("period_states").update({ state: "submitted" }).eq("metric_id", s.m.id).eq("period_start", NOW);
+    expect((await s.reply("yes")).said).toContain("no open offer");
+    expect(await s.values()).toEqual([45]);
+  });
+
   it("is not taken once the person is no longer asked", async () => {
     const s = await sent();
     await s.reply("Could be 47");
@@ -255,6 +264,37 @@ describe("the offer", () => {
     await writeValueNote(s.w.actor(s.ann, "member"), { metricId: s.m.id, period: NOW, words: "From the app" });
     expect((await s.reply("From the email")).said).toBe("");
     expect(await s.notes()).toEqual(["From the email"]);
+  });
+});
+
+describe("a Stand-in's reply", () => {
+  /** Ben stands in for Ann, who is Away, and is asked for her value. */
+  async function standingIn() {
+    const s = await setup();
+    await db().from("tokens").update({ stand_in_id: s.ben }).eq("metric_id", s.m.id).eq("submitter_id", s.ann);
+    const today = new Date().toISOString().slice(0, 10);
+    await db().from("away").insert({ user_id: s.ann, starts: today, ends: today, set_by: s.ann });
+    await deliverPrompt({ metricId: s.m.id, submitterId: s.ben, standingInFor: s.ann, senderId: s.sara });
+    const [d] = (await rowsOf("deliveries", { workspace_id: s.w.id, recipient_id: s.ben })) as { id: number }[];
+    const [ben] = await rowsOf("profiles", { id: s.ben });
+    return { ...s, asBen: replier(d!.id, String(ben!.email)) };
+  }
+
+  it("is the note of the value they entered, with nothing offered that would be refused", async () => {
+    const s = await standingIn();
+    expect((await s.asBen("45")).outcome).toBe("recorded");
+    const r = await s.asBen("Her count was 47 last week");
+    expect(r).toMatchObject({ outcome: "noted", said: "Saved as your note." });
+    expect(await s.values()).toEqual([45]);
+    expect(await s.notes()).toEqual(["Her count was 47 last week"]);
+  });
+
+  it("is read as a first answer while no value of theirs is in, also once the person answered themself", async () => {
+    const s = await standingIn();
+    expect((await s.form(45)).ok).toBe(true);
+    expect((await s.asBen("Nothing from me")).outcome).toBe("refused");
+    expect(await s.notes()).toEqual([]);
+    expect(await s.values()).toEqual([45]);
   });
 });
 

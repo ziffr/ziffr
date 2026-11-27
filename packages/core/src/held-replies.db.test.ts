@@ -96,7 +96,7 @@ describe("held replies", () => {
     for (const text of ["It was 44 in fact", "It was 44 in fact"]) expect(await receive({ from: annMail, token: d.reply_token!, text })).toBe("held");
     const [one, two] = (await linksTo(annMail)).slice(1);
     const view = await heldReplyView(one);
-    expect(view).toMatchObject({ kind: "value", offer: { take: "1:44", label: expect.stringContaining("change the value to 44") } });
+    expect(view).toMatchObject({ kind: "value", offer: { take: "1:overwrite:44", label: expect.stringContaining("change the value to 44") } });
     expect(view!.effect).toContain("Saves your note");
     expect(await rowsOf("value_notes", { metric_id: m.id })).toHaveLength(1);
     // Confirm alone saves the note, which the page says, and leaves the value and no offer open.
@@ -105,10 +105,10 @@ describe("held replies", () => {
     expect(await rowsOf("reply_offers", { workspace_id: w.id })).toEqual([]);
     // A change other than the one offered is not taken.
     expect(await receive({ from: annMail, token: d.reply_token!, text: "Or 45?" })).toBe("held");
-    expect(await confirmHeldReply(two, "1:99")).toMatchObject({ ok: true });
+    expect(await confirmHeldReply(two, "1:add:45")).toMatchObject({ ok: true });
     expect(await valuesOf(m.id)).toMatchObject([{ value: 42 }]);
     const last = (await linksTo(annMail)).at(-1)!;
-    expect(await confirmHeldReply(last, "1:45")).toMatchObject({ ok: true, detail: expect.stringContaining("45") });
+    expect(await confirmHeldReply(last, "1:overwrite:45")).toMatchObject({ ok: true, detail: expect.stringContaining("45") });
     expect(await valuesOf(m.id)).toMatchObject([{ value: 45 }]);
   });
 

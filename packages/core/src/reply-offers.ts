@@ -6,6 +6,7 @@
 import { createHash } from "node:crypto";
 import { db } from "./db";
 import { loneNumber, type ReplyContext } from "./reply-reader";
+import { isLocked } from "./submissions";
 import { noteEntries, noteThreads } from "./value-note-store";
 import { workspaceCipher } from "./workspace-keys";
 import type { NumberStyle } from "./number-style";
@@ -18,13 +19,15 @@ export type StoredOffer = { prompt_id: number; metric_id: number; note_id: numbe
 
 const COLUMNS = "prompt_id, metric_id, note_id, value_mark, number_style, value_stamp";
 
-/** The state of a period's values that an offer holds for: any value added, replaced or corrected, and a changed
- * Submission Rule, gives another stamp, and so closes the offer. */
+/** The state of a period's values that an offer holds for: any value added, replaced or corrected, a changed
+ * Submission Rule and a Lock set or lifted give another stamp, and so close the offer: "yes" does what was asked or
+ * nothing. */
 export async function valueStamp(ws: string, metricId: number, period: string, rule: SubmissionRule): Promise<string> {
+  const locked = await isLocked(metricId, period);
   const { data, count, error } = await db().from("observations").select("id, value, value_sealed", { count: "exact" }).eq("workspace_id", ws).eq("metric_id", metricId).eq("period_start", period).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(1);
   if (error) throw new Error("The values could not be read.");
   const latest = data?.[0];
-  return createHash("sha256").update(JSON.stringify([rule, count ?? 0, latest?.id ?? null, latest?.value_sealed ?? String(latest?.value ?? "")])).digest("hex");
+  return createHash("sha256").update(JSON.stringify([rule, locked, count ?? 0, latest?.id ?? null, latest?.value_sealed ?? String(latest?.value ?? "")])).digest("hex");
 }
 
 /** Keeps the offer made in answer to a reply to this message; it takes the place of any earlier one. Throws when it

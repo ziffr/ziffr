@@ -76,6 +76,8 @@ type InValue = {
   replaced: boolean;
   /** An "add" Metric whose one value also holds others' contributions. */
   shared: boolean;
+  /** Entered in someone's place by a Stand-in: a further value is refused, as the intake does, so none is offered. */
+  forAnother?: boolean;
 };
 
 type PromptRow = { id: number; metric_id: number; period_start: string; submitter_id: string; stands_in_for: string | null; answered_at: string | null };
@@ -114,7 +116,7 @@ async function valueIn(ws: string, person: string, prompt: PromptRow, rule: Metr
     return typeof o?.value === "number" ? o.value : Number.NaN;
   };
   const mine = rows.find(theirs);
-  if (mine) return { value: await open("observations", mine), observationId: Number(mine.id), replaced: false, shared: rule === "add" };
+  if (mine) return { value: await open("observations", mine), observationId: Number(mine.id), replaced: false, shared: rule === "add", forAnother: Boolean(stands) && !guest };
   // Under "add" the period has one value, which keeps its first sender: whoever's request was answered added to it.
   if (rule === "add" && !stands && prompt.answered_at && rows[0]) return { value: await open("observations", rows[0]), observationId: Number(rows[0].id), replaced: false, shared: true };
   const { data: before, error: unread } = await db().from("observation_history").select("id, observation_id, value, value_sealed, submitter_id, entered_by").eq("workspace_id", ws).eq("metric_id", prompt.metric_id).eq("period_start", prompt.period_start).order("superseded_at", { ascending: false }).order("id", { ascending: false }).limit(500);
@@ -171,7 +173,7 @@ function readerFigure(f: Figure, combined: boolean): ReplyFigure {
   const closed = combined && f.closedWhy !== null;
   return {
     name: f.metric?.name ?? "", unit: f.metric?.unit ?? "", period: f.metric?.period ?? "month", promptPeriod: f.prompt?.period_start ?? null,
-    value: closed ? null : (f.held?.value ?? null), rule: f.metric?.submission_rule ?? "reject", locked: f.locked, closed,
+    value: closed ? null : (f.held?.value ?? null), rule: f.held?.forAnother ? "reject" : (f.metric?.submission_rule ?? "reject"), locked: f.locked, closed,
   };
 }
 
@@ -284,7 +286,8 @@ async function noteReport(r: Run, i: number, reading: Extract<ReplyReading, { ki
   const choice = r.mode.dry ? null : r.mode.offers;
   if (offer && saved.saved) {
     const words = offerWords(r, f, offer);
-    const take = `${f.position}:${offer.value}`;
+    // What a Held Reply's button sends back: it takes only the very change its page showed, how it is made included.
+    const take = `${f.position}:${offer.how}:${offer.value}`;
     if (r.mode.dry) report.offer = { take, label: words.label };
     else if (choice === "keep") {
       const kept = await keepFor(r, f, offer.value, saved.noteId);
