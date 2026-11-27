@@ -22,7 +22,7 @@ const packs = [
   pack("ziffr/one", { because: ["industry", "function"], suggested: true }), pack("ziffr/two", { because: ["function"], suggested: true }), pack("ziffr/three"),
   pack("ziffr/four"), pack("ziffr/five"),
 ];
-const base = { packs, startingPoint: null, metrics: 0, firstMetric: null, trial: null, isOwner: true, viewer: "me", numberStyle: {} as never, following: "ways", ticked: false };
+const base = { packs, startingPoint: null, metrics: 0, firstMetric: null, trial: false, isOwner: true, viewer: "me", numberStyle: {} as never, following: "ways", ticked: false };
 const html = (over: Partial<Parameters<typeof StartingPoint>[0]> = {}) => renderToStaticMarkup(<StartingPoint {...base} {...over} />);
 
 describe("what a Pack brings", () => {
@@ -80,9 +80,11 @@ describe("installed Packs, Owners and Admins, trials and Metrics already there",
     expect(html({ packs: themed, isOwner: true })).not.toContain("only an Owner can install this Pack");
     expect(html({ packs: themed, isOwner: true })).not.toMatch(/<button[^>]*disabled=""[^>]*>Install<\/button>/);
   });
-  it("a trial starts with its Test Metric", () => {
-    expect(html({ trial: { testMetric: "Cups of coffee" }, ticked: true })).toContain("is a sample Metric");
-    expect(html()).not.toContain("is a sample Metric");
+  it("a trial's step is done by itself and points at the example without making anything", () => {
+    const trial = html({ trial: true, ticked: true });
+    expect(trial).toContain("In a trial this step is done.");
+    expect(trial).not.toContain("coffee");
+    expect(html()).not.toContain("In a trial this step is done.");
     expect(html({ functionLabel: "Finance" })).toContain("Ready-made Metrics for Finance");
   });
   it("a Workspace with Metrics already asks whether to start from a Pack anyway, and names the guide's first Metric", () => {

@@ -13,7 +13,7 @@ import { CheckCircle2, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isActionError, UNEXPECTED } from "@/lib/action-error";
 import type { FirstMetricAsk, FirstMetricProgress, FirstMetricStep } from "@ziffr/core/setup-first-metric";
-import { askFirstMetric, askMeForIt, checkFirstMetric, pickMetric, sendFirstValue } from "./first-metric-actions";
+import { askFirstMetric, askMeForIt, checkFirstMetric, pickMetric, sendFirstValue, tryExampleHere } from "./first-metric-actions";
 import { skipStep } from "./actions";
 import { PHONE_ACTIONS, PHONE_BUTTON, PHONE_BUTTON_SM, PHONE_FIELD, PHONE_FOOTER, PHONE_LINK_BUTTON, PHONE_TEXT_LINK } from "./phone";
 
@@ -87,6 +87,20 @@ export function FirstMetricStepView({ step, following }: { step: FirstMetricStep
     return () => clearInterval(t);
   }, [m, done, look]);
 
+  // A trial that never had a Metric is given the example when the step is reached: asked for once, by an action.
+  const madeExample = useRef(false);
+  useEffect(() => {
+    if (!step.exampleDue || madeExample.current) return;
+    madeExample.current = true;
+    start(async () => {
+      try {
+        const r = await tryExampleHere();
+        if (isActionError(r)) setError(r.error);
+        else router.refresh();
+      } catch { setError(UNEXPECTED); }
+    });
+  }, [step.exampleDue, router]);
+
   const lines: Line[] = just
     ? just.results.map((r) => ({ label: r.label, state: r.state, held: Boolean(just.held) && r.state === "queued", note: r.note, look: r.look, at: just.at }))
     : step.asked.map((a) => ({ label: a.label, state: a.state, held: a.held, note: a.note, look: a.look, at: a.at }));
@@ -105,15 +119,19 @@ export function FirstMetricStepView({ step, following }: { step: FirstMetricStep
     </label>
   );
 
+  if (!m && step.exampleDue && !error) return <p role="status" className="text-sm text-muted-foreground">Making the example…</p>;
+
   if (!m) {
     return (
       <div className="space-y-4">
-        <p className="text-sm">{step.trial ? "This trial has no Test Metric to try." : "There is no Metric to try yet."} Make one, and Ziffr asks you for it and takes your answer.</p>
+        <p className="text-sm">There is no Metric to try yet. Make one, and Ziffr asks you for it and takes your answer.{step.canTryExample ? " Or try the example: Ziffr asks you once a day how many cups of coffee you drank, so you see how it works." : ""}</p>
         <div className={`${PHONE_ACTIONS} sm:gap-3`}>
           <Link href="/metrics/new?setup=1" className={PHONE_LINK_BUTTON}>Make a Metric</Link>
+          {step.canTryExample && <Button type="button" variant="outline" size="sm" className={PHONE_BUTTON_SM} disabled={pending} onClick={() => run(() => tryExampleHere())}>Try the example</Button>}
           {picker}
         </div>
         <Footer step="first_metric" following={following} pending={pending} run={run} done={false} />
+        <p role="alert" className="min-h-5 text-sm text-destructive">{error}</p>
       </div>
     );
   }
@@ -121,9 +139,13 @@ export function FirstMetricStepView({ step, following }: { step: FirstMetricStep
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <h3 className="text-base font-medium">Try {m.name} both ways{step.trial ? " (your trial’s Test Metric)" : ""}</h3>
+        <h3 className="text-base font-medium">Try {m.name} both ways{m.example ? " (the example)" : ""}</h3>
         {picker}
       </div>
+
+      {m.example && (
+        <p className="text-sm">{m.name} is an example Ziffr made so you can see how asking works: it asks you once a day how many cups of coffee you drank. <Link href="/metrics/new?setup=1" className={PHONE_TEXT_LINK}>Make a Metric of your own</Link></p>
+      )}
 
       {!m.mine && (
         <p className="text-sm">{m.ownerName ?? "Someone else"} owns {m.name}. Ask me now is for a Metric you own and send values for yourself, so pick one of your own{ownChoices.length ? " above" : ": make a Metric first"}.{ownChoices.length === 0 && <> <Link href="/metrics/new?setup=1" className="underline">Make a Metric</Link></>}</p>

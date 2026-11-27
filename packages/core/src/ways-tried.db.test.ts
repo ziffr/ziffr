@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { createWorkspace } from "./page-data";
+import { makeTrialExample } from "./trial-seed";
 import { waysTried } from "./what-works-here";
 
 const made: { workspaces: string[]; people: string[] } = { workspaces: [], people: [] };
@@ -30,8 +31,8 @@ describe("ways tried", () => {
     const actor = { personId: owner, workspaceId: ws, role: "owner" as const };
     expect(Object.values(await waysTried(actor)).some(Boolean)).toBe(false);
 
-    const { data: m } = await db().from("metrics").select("id").eq("workspace_id", ws).single(); // the Test Metric, its name is sealed
-    const add = (row: Record<string, unknown>) => db().from("observations").insert({ metric_id: m!.id, period_start: "2026-11-01", value: 1, submitter_id: owner, workspace_id: ws, ...row });
+    const { metricId } = await makeTrialExample(actor);
+    const add = (row: Record<string, unknown>) => db().from("observations").insert({ metric_id: metricId, period_start: "2026-11-01", value: 1, submitter_id: owner, workspace_id: ws, ...row });
     await add({ source: "mail" });
     await add({ source: "web_form" });
     const { data: key } = await db().from("access_keys").insert({ workspace_id: ws, created_by: owner, name: "k", prefix: randomUUID().slice(0, 12), secret_hash: randomUUID(), scopes: ["metrics:read"], expires_on: "2026-12-01" }).select("id").single();
