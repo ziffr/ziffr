@@ -47,6 +47,8 @@ import { HEADER_FITS, HeaderStatusProvider, type HeaderStatus } from "@/views/he
 import { TargetChip } from "@/components/target-chip";
 import { ObservationDetailsProvider, cachedLoader } from "@/views/observation-tip";
 import { observationDetailsAction } from "@/app/observation-actions";
+import { HistoryNotes } from "@/components/history-notes";
+import type { ShownNote } from "@ziffr/core/value-notes";
 import { markWidgetMenuSeen } from "@/lib/widget-menu-hint";
 import { designOf, duplicateAsDesign } from "@ziffr/core/design-files";
 import { downloadDesign } from "@/lib/design-download";
@@ -434,7 +436,7 @@ const DM = { Item: DropdownMenuItem, Separator: DropdownMenuSeparator, Sub: Drop
 
 function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }) {
   const m = data.metrics.find((x) => x.id === metricId)!;
-  const [h, setH] = useState<{ observations: Observation[]; actions: Action[]; superseded: { id: number; period_start: string; value: number; superseded_at: string; change: string; submitter_id: string | null; entered_by?: string | null }[] } | null>(null);
+  const [h, setH] = useState<{ observations: Observation[]; actions: Action[]; superseded: { id: number; period_start: string; value: number; superseded_at: string; change: string; submitter_id: string | null; entered_by?: string | null }[]; notes: Record<string, ShownNote[]> } | null>(null);
   useEffect(() => {
     getHistory(metricId).then((r) => setH(r as never));
   }, [metricId]);
@@ -446,6 +448,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
         <div className="text-xs text-muted-foreground"><span className="fig">{data.series[m.slug]?.length ?? 0}</span> {m.period}s on record</div>
         <div className="mt-2"><MetricChart metric={m} points={data.series[m.slug] ?? []} height={120} markers={h?.actions.map((a) => a.period_start)} yearStart={data.yearStart} numberStyle={data.numberStyle} /></div>
       </div>
+      {h && <HistoryNotes notes={h.notes} metric={m} yearStart={data.yearStart} numberStyle={data.numberStyle} />}
       <div className="border-b p-3"><CompareTable metric={m} resolve={resolverFrom(data.metrics, data.series, data)} targets={data.targets[m.id]} compact yearStart={data.yearStart} numberStyle={data.numberStyle} attainmentMethod={data.attainmentMethod} /></div>
       {h && h.actions.length > 0 && (
         <div className="border-b p-3">
