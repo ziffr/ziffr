@@ -129,12 +129,14 @@ export async function notesAfterValue(ws: string, value: ValueWritten, note?: No
     const entries = await noteEntries(ws, value.metricId, value.period);
     const standing = noteThreads(entries).filter((t) => !isPast(t));
     const there = words !== null && standing.some((t) => t.latest.words === words && t.latest.said_of === value.after);
-    const replaced = value.replaces && (value.before !== value.after || Boolean(value.replacedFilledIn) || (words !== null && !there));
+    const full = entries.filter((e) => e.kind !== "removed").length >= NOTES_PER_PERIOD;
+    // With the same number, notes give way only to other words that can be kept in their place.
+    const replaced = value.replaces && (value.before !== value.after || Boolean(value.replacedFilledIn) || (words !== null && !there && !full));
     if (replaced) await retireNotes(ws, value.observationId);
     if (!note) return undefined;
     if (!cleaned || "problem" in cleaned) return { saved: false, reason: cleaned?.problem ?? FAILED };
     if (there && !replaced) return { saved: true, cut: cleaned.cut };
-    if (entries.filter((e) => e.kind !== "removed").length >= NOTES_PER_PERIOD) return { saved: false, reason: NOTES_FULL };
+    if (full) return { saved: false, reason: NOTES_FULL };
     await addEntry(ws, { metric_id: value.metricId, period_start: value.period, note_id: null, kind: "written", observation_id: value.observationId, words: cleaned.words, said_of: value.after, author_id: note.authorId, source: note.source, added_later: false });
     return { saved: true, cut: cleaned.cut };
   } catch (error) {
