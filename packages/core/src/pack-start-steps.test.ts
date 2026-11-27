@@ -64,13 +64,15 @@ describe("the steps of every Pack Ziffr ships", () => {
     }
   });
 
-  it("asks the sales forecast for its team, its lead and where the CRM's numbers come from, and for no providers", () => {
+  it("asks the sales forecast for its team, its lead, the quotas and where the CRM's numbers come from, and for no providers", () => {
     const steps = startSteps(stored("sales-forecast"), UNLIMITED);
-    expect(kinds(steps)).toEqual(["preview", "lines", "who", "source", "check"]);
+    expect(kinds(steps)).toEqual(["preview", "lines", "who", "numbers", "source", "check"]);
+    expect(step(steps, "preview")).toMatchObject({ line: "A weekly forecast meeting, prepared for you.", heading: "Every week", needs: ["Names and email addresses of your salespeople", "Their quotas (can come later)"] });
     const lines = step(steps, "lines");
-    expect(lines).toMatchObject({ repeat: "rep", asksName: false, question: "List each Salesperson", limit: { allowed: 30, because: "pack" } });
+    expect(lines).toMatchObject({ repeat: "rep", asksName: false, question: "Who is in your sales team?", limit: { allowed: 30, because: "pack" } });
     expect(lines.person).toMatchObject({ position: "seller", needsRole: false });
-    expect(step(steps, "who")).toMatchObject({ position: "sales-lead", question: "Who is Sales lead?", needsRole: true });
+    expect(step(steps, "who")).toMatchObject({ position: "sales-lead", question: "Who approves the figures?", hint: "This person checks the numbers each week and sees the whole team.", needsRole: true });
+    expect(step(steps, "numbers").asks).toEqual([{ metric: "commit", name: "Commit", question: "What is each quota this quarter?", field: "Quota", every: "quarter", repeat: "rep", total: "Team commit" }]);
     expect(step(steps, "source")).toMatchObject({ preselected: "typed" });
     expect(step(steps, "source").templates).toContain("hubspot-forecast");
   });
@@ -87,17 +89,21 @@ describe("the steps of every Pack Ziffr ships", () => {
 });
 
 describe("what a Pack declares for its set-up", () => {
-  const declaring = (words: Record<string, unknown>, ask: unknown, question: unknown) => stored("sales-forecast", (m) => {
-    const places = m.places as { repeats: Record<string, unknown>[]; metrics: Record<string, unknown>[] };
-    return { ...m, setUp: words, places: { ...places, repeats: places.repeats.map((r) => ({ ...r, question })), metrics: places.metrics.map((x) => (x.key === "commit" ? { ...x, ask } : x)) } };
+  type Row = Record<string, unknown>;
+  /** The sales forecast with its stored manifest changed: its words, and what its places say of a Repeat, the
+   * Positions and the number asked. */
+  const declaring = (setUp: unknown, ask: unknown, question: unknown) => stored("sales-forecast", (m) => {
+    const places = m.places as { repeats: Row[]; positions: Row[]; metrics: Row[] };
+    return { ...m, setUp, places: { ...places, repeats: places.repeats.map((r) => ({ ...r, question })), positions: places.positions.map((x) => ({ ...x, question, hint: question })), metrics: places.metrics.map((x) => (x.key === "commit" ? { ...x, ask } : x)) } };
   });
 
-  it("is read where it is there", () => {
-    const d = declaring({ line: "A weekly forecast meeting, prepared for you.", happens: ["Monday: your salespeople are asked"], needs: ["Names"] }, { question: "What is each quota this quarter?", name: "Quota", every: "quarter" }, "Who is in your sales team?");
+  it("gives way to Ziffr's own words where a Pack of an older format declares nothing", () => {
+    const d = declaring(undefined, undefined, undefined);
     const steps = startSteps(d, UNLIMITED);
-    expect(step(steps, "preview")).toMatchObject({ line: "A weekly forecast meeting, prepared for you.", heading: "Every week", happens: ["Monday: your salespeople are asked"], needs: ["Names"] });
-    expect(step(steps, "lines").question).toBe("Who is in your sales team?");
-    expect(step(steps, "numbers").asks).toEqual([{ metric: "commit", name: "Commit", question: "What is each quota this quarter?", field: "Quota", every: "quarter", repeat: "rep", total: "Team commit" }]);
+    expect(step(steps, "preview")).toMatchObject({ line: d.summary, happens: [], needs: [] });
+    expect(step(steps, "lines").question).toBe("List each Salesperson");
+    expect(step(steps, "who")).toMatchObject({ question: "Who is Sales lead?", hint: null });
+    expect(kinds(steps)).not.toContain("numbers");
   });
 
   it("is checked again as it is read: markup, an address, too long, unreadable or of the wrong shape is left out", () => {

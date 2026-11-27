@@ -3,11 +3,12 @@
 // the Metric Catalog entries and the templates. One reader for both, so the preview of a Pack not yet installed shows
 // the steps its install will have.
 // Security: a Pack is untrusted input and a stored row is not trusted either: every text is checked again as it is
-// read. One that is missing, too long, not plain (markup, a web address, brackets) or without a letter or digit is left
-// out, and the flow uses Ziffr's own words instead.
+// read. One that is missing, too long or not plain (markup, a web address, brackets) is left out, and the flow uses
+// Ziffr's own words instead. The questions and the numbers asked are checked by readPlaces (pack-places.ts), the
+// manifest's own words here, where they must also hold a letter or digit.
 import { PLAIN, textPasses } from "@ziffr/pack/file-text";
 import { PACK_LIMITS } from "@ziffr/pack/pack";
-import { PACK_ASK_EVERY, PACK_SET_UP_LIMITS as L, type PackAsk, type PackSetUpWords } from "@ziffr/pack/set-up";
+import { PACK_SET_UP_LIMITS as L, type PackSetUpWords } from "@ziffr/pack/set-up";
 import { safeOverview } from "./installed-pack-guides";
 import { readPlaces, type PackPlaces, type PlacedWorkflow } from "./pack-places";
 import { placeMaps } from "./pack-setup-build";
@@ -30,14 +31,6 @@ function setUpWords(raw: unknown): Partial<PackSetUpWords> {
   const s = object(raw);
   const lines = (v: unknown, most: number) => (Array.isArray(v) ? v.slice(0, most).flatMap((x) => plain(x, L.listed) ?? []) : undefined);
   return { ...some("line", plain(s.line, L.line)), ...some("happens", lines(s.happens, L.happens)), ...some("needs", lines(s.needs, L.needs)) };
-}
-
-function askOf(raw: unknown): PackAsk | undefined {
-  const a = object(raw);
-  const question = plain(a.question, L.question);
-  const name = plain(a.name, L.name);
-  const every = PACK_ASK_EVERY.find((e) => e === a.every);
-  return question && name && every ? { question, name, every } : undefined;
 }
 
 function workflowOf(t: DeclaredTemplate, placed: PlacedWorkflow | undefined): StartWorkflow {
@@ -73,7 +66,7 @@ export function declarationsFrom(manifest: unknown, entries: DeclaredEntry[], te
       ...some("total", entryTotal(e) ?? undefined),
       ...some("per", placed?.per), ...some("submitters", placed?.submitters), ...some("standIn", placed?.standIn), ...some("viewers", placed?.viewers), ...some("editors", placed?.editors),
       ...some("comesFrom", by === "person" || by === "system" || by === "target" ? by : undefined),
-      ...some("ask", askOf((placed as { ask?: unknown } | undefined)?.ask)),
+      ...some("ask", placed?.ask),
     };
   });
   const slots = (t: DeclaredTemplate): StartSlot[] => (t.slots ?? []).map((s) => ({ suggests: s.suggests ?? null, multiple: Boolean(s.multiple) }));
@@ -84,11 +77,8 @@ export function declarationsFrom(manifest: unknown, entries: DeclaredEntry[], te
     ...some("summary", plain(m.summary, PACK_LIMITS.summary)),
     setUp: setUpWords(m.setUp),
     metrics,
-    positions: [...maps.positions.values()].map((p) => {
-      const words = p as { question?: unknown; hint?: unknown };
-      return { key: p.key, name: p.name, ...some("per", p.per), ...some("question", plain(words.question, L.question)), ...some("hint", plain(words.hint, L.hint)) };
-    }),
-    repeats: [...maps.repeats.values()].map((r) => ({ key: r.key, name: r.name, ...some("max", r.max), ...some("question", plain((r as { question?: unknown }).question, L.question)) })),
+    positions: [...maps.positions.values()].map((p) => ({ key: p.key, name: p.name, ...some("per", p.per), ...some("question", p.question), ...some("hint", p.hint) })),
+    repeats: [...maps.repeats.values()].map((r) => ({ key: r.key, name: r.name, ...some("max", r.max), ...some("question", r.question) })),
     dashboards: of("dashboard").map((t) => {
       const placed = maps.dashboards.get(t.pack_key);
       return { key: t.pack_key, name: t.name, slots: slots(t), ...some("per", placed?.per), ...some("viewers", placed?.viewers), ...some("editors", placed?.editors) };

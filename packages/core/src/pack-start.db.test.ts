@@ -268,13 +268,7 @@ describe("the check screen and the preview", () => {
 describe("numbers asked at set-up", () => {
   it("are written unchanged as the target of every period of the span", async () => {
     const t = await space();
-    const install = await installIncludedPack(t.by, FORECAST.included, { assistantTexts: true });
-    // What an install of a ziffr.pack/3 file keeps with its places.
-    const { data } = await db().from("pack_installs").select("manifest").eq("id", install).single();
-    const manifest = data!.manifest as { places: { metrics: { key: string }[] } };
-    const metrics = manifest.places.metrics.map((m) => (m.key === "commit" ? { ...m, ask: { question: "What is each quota this quarter?", name: "Quota", every: "quarter" } } : m));
-    await db().from("pack_installs").update({ manifest: { ...manifest, places: { ...manifest.places, metrics } } }).eq("id", install);
-    const ref = { install };
+    const ref = FORECAST;
     const choices: StartChoices = { ...forecast({ who: "me" }, { who: "me" }, someone("Sam")), numbers: [{ metric: "commit", line: 1, value: 120000 }] };
     const result = await setUp(t.by, ref, choices);
     expect(result.targets).toBe(1);
@@ -416,7 +410,12 @@ describe("who is refused", () => {
     await refused(forecast({ who: "me" }, { who: "here", id: "x".repeat(65) }), /Answer the questions again/);
     const same = address("same");
     await refused(forecast({ who: "me" }, someone("A", same), someone("B", same)), /each line is another person/);
-    await refused({ ...forecast({ who: "me" }, { who: "me" }), numbers: [{ metric: "commit", line: 0, value: 1 }] }, /does not ask/);
+    // Only the quota of a listed line is asked: no other number, no Total, no line that is not there.
+    for (const wrong of [{ metric: "best-case", line: 0 }, { metric: "team-commit" }, { metric: "commit" }, { metric: "commit", line: 1 }]) {
+      await refused({ ...forecast({ who: "me" }, { who: "me" }), numbers: [{ ...wrong, value: 1 }] }, /does not ask/);
+    }
+    await refused({ ...forecast({ who: "me" }, { who: "me" }), numbers: [{ metric: "commit", line: 0, value: 1e20 }] }, /Enter a number/);
+    await refused({ ...forecast({ who: "me" }, { who: "me" }), numbers: [{ metric: "commit", line: 0, value: "1" }] }, /Answer the questions again/);
     expect(await counts(t.id)).toMatchObject({ pack_installs: 0, contacts: 0, metrics: 0, pack_setups: 0 });
   });
 
