@@ -145,6 +145,18 @@ describe("Users", () => {
     expect((await named.signIn()).data.session).not.toBeNull();
   });
 
+  it("makes no blocked User an Installation Admin, and the database refuses someone who is no admin", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const a = await account(ben);
+    await blockUser(admin.actor, a.userId);
+    const add = async (actor: string) => (await db().rpc("add_installation_admin", { p_actor: actor, p_actor_on_server: false, p_person: ben })).data;
+    expect(await add(admin.actor.personId)).toBe("blocked");
+    expect(await add(sara)).toBe("forbidden");
+    await unblockUser(admin.actor, a.userId);
+    cleanups.unshift(async () => { await db().from("installation_admins").delete().eq("person_id", ben); });
+    expect(await add(admin.actor.personId)).toBe("ok");
+    expect(await add(admin.actor.personId)).toBe("exists");
+  });
+
   it("refuses an id that is no User, and stops at the hourly number", async () => {
     await expect(blockUser(admin.actor, "not-an-id")).rejects.toThrow(/no such User/);
     await expect(blockUser(admin.actor, randomUUID())).rejects.toThrow(/no such User/);
