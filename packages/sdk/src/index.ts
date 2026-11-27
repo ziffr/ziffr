@@ -5,6 +5,9 @@
 /** How often a Metric has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year. */
 export type Period = "day" | "week" | "month" | "quarter" | "year";
 
+/** When a Metric asks for a note after only a number came in. */
+export type AskForNote = "always" | "off_target_or_unusual" | "never";
+
 /** A Metric's description, as `GET /metrics/{slug}` answers it. */
 export type Metric = {
   slug: string;
@@ -24,6 +27,8 @@ export type Metric = {
   target_max: number | null;
   /** How its Attainment is computed: by ratio or by distance to the target; null follows the workspace's default. */
   attainment_method: "ratio" | "distance" | null;
+  /** Ask for a note: when Ziffr asks whoever sent only a number what is behind it; null for a Derived Metric. */
+  ask_for_note: AskForNote | null;
   /** Its Sources: the ways values may arrive. The personal form link works apart from them. */
   sources: Source[];
   /** A Derived Metric: computed from others, takes no values. */
@@ -141,6 +146,8 @@ export type NewMetric = {
   target_min?: number | null;
   target_max?: number | null;
   attainment_method?: Metric["attainment_method"];
+  /** When Ziffr asks for a note after only a number came in; left out, always. */
+  ask_for_note?: AskForNote;
   submit?: boolean;
   /** Its Sources; left out, every one. */
   sources?: Source[];
@@ -176,6 +183,8 @@ export type MetricPatch = {
   target_min?: number | null;
   target_max?: number | null;
   attainment_method?: "ratio" | "distance" | null;
+  /** When Ziffr asks for a note after only a number came in; not for a Derived Metric. */
+  ask_for_note?: AskForNote;
   /** A Derived Metric's new formula (scope metrics:read too); only its owner and Editors. */
   formula?: string;
   /** All its Tags (at most 10): it carries exactly these afterwards; [] takes them all off. Only its owner and Editors. */
@@ -429,8 +438,12 @@ export type DashboardSummary = { id: number; name: string; role: "owner" | "edit
 /** A Finding's words; Placeholders such as {metric} or {change yoy} are filled in when it is drawn. */
 export type FindingWords = { kicker?: string; headline?: string; subline?: string; footnote?: string; source?: string };
 
-/** One widget: its view, the slugs of the Metrics it draws and where it sits; a Finding has its words too. */
-export type Widget = { id: number; view: string; title: string | null; metrics: string[]; x: number; y: number; w: number; h: number; words?: FindingWords; display?: DisplayPeriod };
+/** What a Note Widget says: plain text, the workspace's own words; its heading is the widget's title. A key reads it only. */
+export type Note = { text: string; highlighted: boolean };
+
+/** One widget: its view, the slugs of the Metrics it draws and where it sits; a Finding has its words too, a Note Widget
+ * its note. */
+export type Widget = { id: number; view: string; title: string | null; metrics: string[]; x: number; y: number; w: number; h: number; words?: FindingWords; note?: Note; display?: DisplayPeriod };
 
 /** A dashboard with its introduction and its widgets in reading order. */
 export type Dashboard = DashboardSummary & { intro: string; widgets: Widget[] };
@@ -453,8 +466,8 @@ export type Snapshot = SnapshotSummary & {
   corrections: { metric: string; period: string; was: number; now: number | null }[];
 };
 
-/** A widget of a Snapshot: a Finding carries its words. */
-export type SnapshotWidget = { id: number; view: string; title: string | null; metrics: string[]; words?: Record<string, string> };
+/** A widget of a Snapshot: a Finding carries its words, a Note Widget its note. */
+export type SnapshotWidget = { id: number; view: string; title: string | null; metrics: string[]; words?: Record<string, string>; note?: Note };
 
 /** A Metric of a Snapshot with the values it kept. */
 export type SnapshotMetric = { slug: string; name: string; unit: string; values: { period: string; value: number }[] };

@@ -194,6 +194,7 @@ export async function saveTemplate(actor: Actor, input: { widgetId: number; name
   const w = await editableWidget(actor, Number(input.widgetId));
   await assertSeesMetrics(actor, widgetMetricIds(w.metric_ids, w.settings));
   if (TEMPLATES[w.template].kind === "layout") throw new Error("Free layouts cannot be saved as templates yet.");
+  if (w.template === "note") throw new Refused("A note widget cannot be saved as a template: templates keep no notes.");
   // A widget of "all Metrics tagged X" becomes a Slot only as part of a dashboard (spec 0038).
   if (isTagWidget(w)) throw new Refused("A widget that shows all Metrics with a Tag is saved as part of its dashboard: save the dashboard as a template.");
   const t = toTemplate(w, await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(actor, input.labels));

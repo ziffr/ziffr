@@ -12,7 +12,8 @@ import type { CanvasData, Widget } from "@ziffr/core/types";
 /** What the Read view shows of the dashboard itself. */
 export type ReadDashboard = { id: number; name: string; intro: string; theme_id: number | null };
 
-/** How tall a widget is drawn: its place's height in rows, as on the grid, but never cramped. */
+/** How tall a widget is drawn: its place's height in rows, as on the grid, but never cramped. A note is as tall as its
+ * words. */
 const height = (w: Widget) => Math.max(8, w.h) * 44;
 
 /** The dashboard read top to bottom. `readOnly` through a View Link; `header` false when the page shows the name. */
@@ -33,7 +34,7 @@ export function DashboardReader({ dashboard, widgets, data, readOnly = false, he
         )}
         <RecipeBudgetProvider data={data}>
         {ordered.map((w, i) => (
-          <section key={w.id} aria-label={`Part ${i + 1} of ${ordered.length}`} style={{ height: height(w) }}>
+          <section key={w.id} aria-label={`Part ${i + 1} of ${ordered.length}`} style={w.template === "note" ? undefined : { height: height(w) }}>
             <WidgetFrame widget={w} data={data} targets={[]} editable={false} readOnly={readOnly} />
           </section>
         ))}

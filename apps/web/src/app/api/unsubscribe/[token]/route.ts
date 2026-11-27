@@ -5,6 +5,7 @@
 // The page that has just stopped them also takes it back (Undo): its form carries a secret made for that stop alone,
 // so the link by itself, old or forwarded, never switches anything on.
 import { optOutByToken, UNDO_MINUTES, undoEmailStop, unsubscribeIsAlert, unsubscribeIsHeadsUp, unsubscribeIsTell, unsubscribeTokenValid } from "@ziffr/core/email-opt-out";
+import { readLimited } from "@/lib/limited-body";
 import { escapeHtml, unsubscribePage as page } from "@/lib/unsubscribe-page";
 
 type Ctx = { params: Promise<{ token: string }> };
@@ -20,8 +21,8 @@ const MOST_BODY = 1000;
 
 /** The Undo secret in a form's body, or null for a stop (the page's button, a mail client's one-click). */
 async function undoIn(req: Request): Promise<string | null> {
-  const body = await req.text().catch(() => "");
-  return body.length <= MOST_BODY ? new URLSearchParams(body).get("undo") : null;
+  const body = await readLimited(req, MOST_BODY).catch(() => null);
+  return body === null ? null : new URLSearchParams(body).get("undo");
 }
 
 /** The page after Undo: on again, or why not. It never stops anything instead. */

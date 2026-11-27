@@ -3,7 +3,7 @@
 // Packs and a search, From Ziffr and Community, one drawn with Sample Data before installing it, and taking a newer
 // version of an installed one. Every request goes from Ziffr's server; the browser only names a search, a Pack and a
 // version, and the core checks the file and its signature.
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -13,11 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { installFromTheMarketplace, readFromMarketplace, readMarketplaceUpdatePlan, searchPacks, updateFromTheMarketplace } from "@/app/pack-actions";
 import type { MarketplaceListing } from "@ziffr/core/marketplace";
-import type { PackPreview } from "@ziffr/core/packs";
 import type { UpdatePlan } from "@ziffr/core/pack-updates";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import { LogoChange } from "./pack-logo";
-import { PackPreviewCard } from "./screen";
+import { useOpenPackPreview } from "./preview-view";
 import { useInstalledToast } from "@/components/pack-guide-help";
 
 /** Browsing and searching the Marketplace, and installing a Pack from it. `installed` marks what the Workspace has. */
@@ -28,11 +27,8 @@ export function MarketplaceSearch({ installed, viewer, numberStyle }: { installe
   // What was asked for with what came back; null while the first question is out.
   const [found, setFound] = useState<{ query: string; packs: MarketplaceListing[] } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ listing: MarketplaceListing; preview: PackPreview } | null>(null);
-  const [okAssistant, setOkAssistant] = useState(false);
+  const openPreview = useOpenPackPreview();
   const [pending, start] = useTransition();
-  const shownPreview = useRef<HTMLDivElement>(null);
-  const run = (f: () => Promise<void>) => start(async () => { try { await f(); } catch (e) { toast.error("Not done", { description: shown(e) }); } });
   // A search that fails says so in the section: nobody pressed anything when the newest Packs are asked for.
   const search = useCallback((query: string) => start(async () => {
     try {
@@ -44,19 +40,19 @@ export function MarketplaceSearch({ installed, viewer, numberStyle }: { installe
   }), []);
   // The newest Packs show before a search.
   useEffect(() => { search(""); }, [search]);
-  // The Preview opens under a list that can be long: bring it into view.
-  useEffect(() => { shownPreview.current?.scrollIntoView({ block: "start" }); }, [preview]);
-  const open = (l: MarketplaceListing) => run(async () => {
-    const res = unwrap(await readFromMarketplace(l.id, l.version));
-    if (!res.ok) throw new Refused(`The Marketplace's file is not a Pack Ziffr can install: ${res.problems[0]?.message ?? ""}`);
-    setOkAssistant(false);
-    setPreview({ listing: l, preview: res.preview });
-  });
-  const install = () => run(async () => {
-    const id = unwrap(await installFromTheMarketplace(preview!.listing.id, preview!.listing.version, { assistantTexts: okAssistant }));
-    installedToast(id, preview!.preview.manifest);
-    setPreview(null);
-    router.refresh();
+  const open = (l: MarketplaceListing) => start(async () => {
+    try {
+      const res = unwrap(await readFromMarketplace(l.id, l.version));
+      if (!res.ok) throw new Refused(`The Marketplace's file is not a Pack Ziffr can install: ${res.problems[0]?.message ?? ""}`);
+      openPreview({
+        preview: res.preview, viewer, numberStyle,
+        install: async ({ assistantTexts }) => {
+          const id = unwrap(await installFromTheMarketplace(l.id, l.version, { assistantTexts }));
+          installedToast(id, res.preview.manifest);
+          router.refresh();
+        },
+      });
+    } catch (e) { toast.error("Not done", { description: shown(e) }); }
   });
   const have = new Map(installed.map((p) => [p.packId, p.version]));
   const parts = [
@@ -91,15 +87,12 @@ export function MarketplaceSearch({ installed, viewer, numberStyle }: { installe
                     {have.has(l.id) && <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5"><Check aria-hidden className="size-3" /> Installed, version {have.get(l.id)}</span>}
                   </p>
                 )}
-                <Button size="sm" variant="outline" className="mt-2" disabled={pending} aria-label={`See what ${l.name} adds`} onClick={() => open(l)}>See what it adds</Button>
+                <Button size="sm" variant="outline" className="mt-2 data-disabled:opacity-50" disabled={pending} focusableWhenDisabled aria-label={`See what ${l.name} adds`} onClick={() => open(l)}>See what it adds</Button>
               </li>
             ))}
           </ul>
         </div>
       ))}
-      <div ref={shownPreview} className="scroll-mt-16">
-        {preview && <PackPreviewCard preview={preview.preview} viewer={viewer} numberStyle={numberStyle} pending={pending} okUnsigned={false} setOkUnsigned={() => {}} okAssistant={okAssistant} setOkAssistant={setOkAssistant} onCancel={() => setPreview(null)} onInstall={install} />}
-      </div>
     </section>
   );
 }

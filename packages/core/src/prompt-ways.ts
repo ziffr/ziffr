@@ -12,7 +12,8 @@ import { telegramOnIn } from "./telegram-connection";
 import { SOURCE_LABEL } from "./format";
 import type { SourceId } from "./types";
 import { isPracticeWorkspace } from "./practice";
-import { combinedAsItStands, combinedListing } from "./internal/combined-delivery";
+import { combinedAsItStands, combinedListing, withCombinedLink } from "./internal/combined-delivery";
+import { enterAllButton } from "./slack-buttons";
 
 /** What a reply on this Delivery may answer: the Source it was offered on, or `web_form` when only a form link answers.
  * Deliveries made before several ways existed hold none and answer where their Prompt does. */
@@ -51,7 +52,7 @@ export async function closePrompt(ws: string, promptId: number, source: SourceId
  * and a sent chat message is edited, where `tell` says so, to mark each figure that needs nothing more. The message is
  * never replaced as a whole, and no value is put in it. */
 async function markCombined(ws: string, deliveryId: number, tell: (answeredOn: (string | null)[], own: string | undefined) => boolean): Promise<void> {
-  const { data: d } = await db().from("deliveries").select("id, connector, mail_state, slack_channel, slack_ts, telegram_chat_id, telegram_message_id").eq("id", deliveryId).eq("workspace_id", ws).maybeSingle();
+  const { data: d } = await db().from("deliveries").select("id, connector, mail_state, sent_at, slack_channel, slack_ts, telegram_chat_id, telegram_message_id").eq("id", deliveryId).eq("workspace_id", ws).maybeSingle();
   if (!d) return;
   // An edit that fails changes nothing about the answer: the old message stays, and the form says what is answered.
   try {
@@ -59,21 +60,26 @@ async function markCombined(ws: string, deliveryId: number, tell: (answeredOn: (
     if (!now) return;
     if (now.allAnswered) await db().from("deliveries").update({ status: "answered" }).eq("id", d.id).eq("workspace_id", ws).eq("status", "sent");
     if (d.mail_state !== "sent" || !tell(now.answeredOn, CONNECTORS[d.connector as keyof typeof CONNECTORS].sourceId)) return;
-    if (d.connector === "slack" && d.slack_channel && d.slack_ts) await editSlack(ws, d.slack_channel, d.slack_ts, now.text);
-    else if (d.connector === "telegram" && d.telegram_chat_id && d.telegram_message_id) await editTelegram(ws, Number(d.telegram_chat_id), Number(d.telegram_message_id), now.text);
+    // An edited chat message keeps a way to its form. The earlier code is not kept, so it gets a further one with the same end.
+    const linked = () => withCombinedLink(now.text, { id: d.id as number, workspace_id: ws, sent_at: d.sent_at as string | null }, String(process.env.ZIFFR_SITE_URL ?? ""));
+    // **Enter all** stays while a figure is still open.
+    if (d.connector === "slack" && d.slack_channel && d.slack_ts) await editSlack(ws, d.slack_channel, d.slack_ts, await linked(), now.allAnswered ? undefined : d.id as number);
+    else if (d.connector === "telegram" && d.telegram_chat_id && d.telegram_message_id) await editTelegram(ws, Number(d.telegram_chat_id), Number(d.telegram_message_id), await linked());
   } catch {
     // Nothing more to do here.
   }
 }
 
-/** The message as Slack shows it after the Prompt is answered: its text, no buttons, no attachment. */
-async function editSlack(ws: string, channel: string, ts: string, text: string): Promise<void> {
+/** The message as Slack shows it after the Prompt is answered: its text, no attachment, and no buttons but **Enter
+ * all** on a Combined Prompt with a figure still open (`entering` names its Delivery). */
+async function editSlack(ws: string, channel: string, ts: string, text: string, entering?: number): Promise<void> {
   // Never from a Practice Workspace (spec 0063): the account it went to may no longer be the one switched on.
   if (await isPracticeWorkspace(ws)) return;
   const bot = await slackBot(ws);
   if (!bot) return;
   const plain = slackEscape(text).slice(0, 2900);
-  await callSlack("chat.update", { channel, ts, text: plain, blocks: [{ type: "section", text: { type: "mrkdwn", text: plain } }], attachments: [] }, bot.token);
+  const more = entering === undefined ? [] : [{ type: "actions", block_id: "ziffr", elements: [enterAllButton(entering)] }];
+  await callSlack("chat.update", { channel, ts, text: plain, blocks: [{ type: "section", text: { type: "mrkdwn", text: plain } }, ...more], attachments: [] }, bot.token);
 }
 
 /** The message as Telegram shows it after the Prompt is answered: plain text, and no keyboard (none is sent with it). */

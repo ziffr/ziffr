@@ -4,6 +4,7 @@
 // the Delivery's workspace was found as (slack-people.ts), never in the demo, and nothing without a connection.
 import { db } from "./db";
 import { archivedMetricHolds, failForGood, withFormLink } from "./internal/delivery-send";
+import { withApprovalNote } from "./internal/approval-note";
 import { openRows } from "./sealed-columns";
 import { heldBack, mayQueue, PRACTICE_HELD } from "./practice";
 import { giveUpAfter, OPT_OUT_KINDS, type SendResult } from "./mail";
@@ -14,6 +15,7 @@ import { slackBot, slackConnectionEnded, type SlackBot } from "./slack-connectio
 import { slackIdentity } from "./slack-identity";
 import { slackUserFor } from "./slack-people";
 import { tellIfAnswered } from "./prompt-ways";
+import { enterAllButton } from "./slack-buttons";
 import { workspaceLook } from "./workspace-look";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { claimTrialSend, keepInOutbox } from "./trials";
@@ -39,8 +41,8 @@ export async function slackSends(workspaceId: string): Promise<boolean> {
 }
 
 /** A Prompt's or reminder's buttons, and an approval task's: what the recipient can do without opening Ziffr. */
-async function buttons(d: { id: number; workspace_id: string; kind: string; action_id: number | null }) {
-  const out: Record<string, unknown>[] = [];
+async function buttons(d: { id: number; workspace_id: string; kind: string; action_id: number | null; combined?: boolean | null }) {
+  const out: Record<string, unknown>[] = d.kind === "prompt" && d.combined ? [enterAllButton(d.id)] : [];
   if (d.action_id && d.kind === "task") {
     const { data: a } = await db().from("actions").select("purpose, status").eq("id", d.action_id).eq("workspace_id", d.workspace_id).maybeSingle();
     if (a?.purpose === "approval" && a.status === "open") out.push({ type: "button", action_id: SLACK_BUTTONS.approve, text: { type: "plain_text", text: "Approve" }, style: "primary", value: String(d.id) });
@@ -96,7 +98,7 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
   if (error) throw new Error("The Slack message could not be claimed for sending.");
   if (claim === "wait") return "waiting";
   if (claim !== "ok") return "skipped";
-  const text = await withFormLink(String(d.body), d, String(process.env.ZIFFR_SITE_URL));
+  const text = await withApprovalNote(await withFormLink(String(d.body), d, String(process.env.ZIFFR_SITE_URL)), d, "slack");
   const actions = await buttons(d);
   const blocks = [{ type: "section", text: { type: "mrkdwn", text: text.slice(0, 2900) } }, ...(actions.length ? [{ type: "actions", block_id: "ziffr", elements: actions }] : [])];
   try {

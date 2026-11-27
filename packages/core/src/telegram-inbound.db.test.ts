@@ -9,7 +9,7 @@ import { ask } from "./questions";
 import { setTelegramEnabled } from "./telegram-connection";
 import { MAX_TELEGRAM_REPLIES_PER_DELIVERY, receiveTelegramUpdate } from "./telegram-inbound";
 import { fakeTelegram } from "./test/fake-telegram";
-import { valuesOf, workspace } from "./test/db-fixtures";
+import { rowsOf, valuesOf, workspace } from "./test/db-fixtures";
 
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 beforeAll(async () => { tg = await fakeTelegram(); });
@@ -49,6 +49,22 @@ describe("answers by Telegram", () => {
     expect(obs).toEqual([{ value: 42, source: "telegram", submitter_id: ann }]);
     expect(lastSaid()).toMatch(/^Recorded: /);
     expect((await latest(w.id, ann)).status).toBe("answered");
+  });
+
+  it("takes yes as a reply to the message that made the offer, from that chat only (spec 0064)", async () => {
+    const { w, sara, ann, user, m } = await setup();
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "telegram" });
+    const d = await latest(w.id, ann);
+    expect(await receiveTelegramUpdate(text(user, "42", d.telegram_message_id))).toBe("recorded");
+    expect(await receiveTelegramUpdate(text(user, "actually 43", d.telegram_message_id))).toBe("noted");
+    expect(lastSaid()).toBe("Saved as your note. Your value is still 42. To change it to 43, reply yes.");
+    const [offer] = await rowsOf("reply_offers", { delivery_id: d.id });
+    const answer = Number(offer!.answer_message_id);
+    expect(answer).toBeGreaterThan(0);
+    // The same message number in another chat is not this offer.
+    expect(await receiveTelegramUpdate(text(id(), "yes", answer))).toBe("unknown_message");
+    expect(await receiveTelegramUpdate(text(user, "yes", answer))).toBe("recorded");
+    expect((await valuesOf(m.id)).map((o) => o.value)).toEqual([43]);
   });
 
   it("reads a sentence as the answer, and asks back for several numbers or another period (spec 0022)", async () => {
@@ -127,5 +143,26 @@ describe("answers by Telegram", () => {
     const d = await latest(w.id, ann);
     for (let i = 0; i < MAX_TELEGRAM_REPLIES_PER_DELIVERY; i++) expect(await receiveTelegramUpdate(text(user, `Reply ${i}`, d.telegram_message_id))).toBe("replied");
     expect(await receiveTelegramUpdate(text(user, "One more", d.telegram_message_id))).toBe("too_many");
+  });
+});
+
+describe("the question for a note on Telegram (spec 0064)", () => {
+  it("opens the reply box under the confirmation and takes a reply to it, or to the request, as the note", async () => {
+    const { w, sara, ann, user, m } = await setup();
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "telegram" });
+    const d = await latest(w.id, ann);
+    const before = tg.of("sendMessage").length;
+    expect(await receiveTelegramUpdate(text(user, "42", d.telegram_message_id))).toBe("recorded");
+    expect(tg.of("sendMessage")).toHaveLength(before + 1);
+    expect(lastSaid()).toContain("Anything behind it?");
+    expect(tg.of("sendMessage").at(-1)!.params.reply_markup).toMatchObject({ force_reply: true, input_field_placeholder: "What is behind it?" });
+    const [question] = await rowsOf("note_questions", { delivery_id: d.id });
+    const asked = Number(question!.chat_message);
+    expect(asked).toBeGreaterThan(0);
+    // The same message number in another chat is not this question.
+    expect(await receiveTelegramUpdate(text(id(), "Mine?", asked))).toBe("unknown_message");
+    expect(await receiveTelegramUpdate(text(user, "Two visits moved.", asked))).toBe("noted");
+    expect((await rowsOf("value_notes", { metric_id: m.id }))).toHaveLength(1);
+    expect(tg.of("sendMessage").at(-1)!.params.reply_markup).toBeUndefined();
   });
 });

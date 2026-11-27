@@ -1,4 +1,5 @@
 /** The shapes of Ziffr's domain objects, shared by the core, the web app, the API and the MCP server (GLOSSARY.md). */
+import type { AskNote } from "./ask-note";
 import type { NumberStyle } from "./number-style";
 import type { AttainmentMethod } from "./attainment-method";
 
@@ -60,6 +61,9 @@ export type MetricDescription = {
   sources: SourceId[];
   /** How its Attainment is computed (GLOSSARY: Attainment); null follows the Workspace's default. */
   attainment_method: AttainmentMethod | null;
+  /** When it asks for a Value Note after only a number came in (spec 0064); missing where a description carries none,
+   * which is the default. A Derived Metric has no such setting: nobody sends it values. */
+  ask_note?: AskNote;
 };
 
 /** A metric with its owner and, for a Derived Metric, its formula. */
@@ -208,7 +212,7 @@ export type Dashboard = {
 };
 
 /** The built-in Widget Templates. */
-export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "stacked" | "pareto" | "slope" | "running-total" | "bump" | "heatmap" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design" | "slide";
+export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "stacked" | "pareto" | "slope" | "running-total" | "bump" | "heatmap" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "note" | "design" | "slide";
 
 /** A callout sits at one period, or (in templates) at whatever period a rule picks. */
 export type Callout = { period: string; text: string; rule?: AnchorRule };
@@ -277,6 +281,10 @@ export type WidgetSettings = {
   /** Comparison strip (GLOSSARY: Comparison); undefined means the default. */
   compare?: import("./compare").CompareKey[];
   fullPeriods?: boolean;
+  /** What a Note Widget says (GLOSSARY: Note Widget): plain text, drawn as text only. Its heading is the widget's title. */
+  note?: string;
+  /** Whether a Note Widget is drawn highlighted, as a callout. */
+  noteHighlight?: boolean;
   /** Free layout: a tldraw document with its artboard, and the latest period per metric when it was drawn. */
   canvas?: { document: unknown; stamp: Record<string, string> } | null;
   /** Draws only the Metric periods complete by this day (yyyy-mm-dd): a deck made from a Snapshot (spec 0013). */

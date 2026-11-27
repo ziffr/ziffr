@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
 import { deliverPrompt } from "./deliveries";
-import { ask } from "./questions";
+import { ask, askForMissingValues } from "./questions";
 import { finishSlackInstall, slackBot, startSlackInstall, type SlackBot } from "./slack-connection";
 import { receiveSlackEvent, receiveSlackInteraction, slackSigned, slackText } from "./slack-inbound";
 import { startSlackLink, slackUserFor } from "./slack-people";
@@ -15,7 +15,10 @@ import { submitValue } from "./submissions";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
 import type { Actor } from "./actor";
 import { fakeSlack } from "./test/fake-slack";
-import { valuesOf, workspace, opened } from "./test/db-fixtures";
+import { rowsOf, valuesOf, workspace, opened } from "./test/db-fixtures";
+import { JANUARY, periodStart } from "./periods";
+import { periodValueNotes } from "./value-notes";
+import { sendSlackDelivery } from "./slack-send";
 
 let slack: Awaited<ReturnType<typeof fakeSlack>>;
 beforeAll(async () => { slack = await fakeSlack(); });
@@ -85,6 +88,23 @@ describe("answers by Slack", () => {
     expect(confirm.params.username).toBeTruthy();
     expect(confirm.params.text).toMatch(/^Recorded/);
     expect((await sent(w.id, ann)).status).toBe("answered");
+  });
+
+  it("saves later words as the note, offers the other number in the thread and records it on yes (spec 0064)", async () => {
+    const { w, sara, bot, ann, annSlack, m } = await setup();
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "slack" });
+    const d = await sent(w.id, ann);
+    const say = (text: string) => receiveSlackEvent(message(bot, annSlack, d.slack_channel, d.slack_ts, text));
+    const said = () => String(slack.of("chat.postMessage").at(-1)!.params.text);
+    expect(await say("17")).toEqual({ outcome: "recorded" });
+    expect(await say("actually 18, one came late")).toEqual({ outcome: "noted" });
+    expect(said()).toBe("Saved as your note. Your value is still 17. To change it to 18, reply yes.");
+    expect(await valuesOf(m.id)).toMatchObject([{ value: 17 }]);
+    expect(await say("yes")).toEqual({ outcome: "recorded" });
+    expect(await valuesOf(m.id)).toMatchObject([{ value: 18 }]);
+    const before = slack.of("chat.postMessage").length;
+    expect(await say("thanks")).toEqual({ outcome: "closed" });
+    expect(slack.of("chat.postMessage")).toHaveLength(before);
   });
 
   it("reads a sentence as the answer, and asks back for several numbers or another period (spec 0022)", async () => {
@@ -187,5 +207,90 @@ describe("answers by Slack", () => {
     expect(await slackBot(w.id)).not.toBeNull();
     expect(await receiveSlackEvent({ type: "event_callback", team_id: bot.teamId, api_app_id: bot.appId, event_id: eventId(), event: { type: "app_uninstalled" } })).toEqual({ outcome: "disconnected" });
     expect(await slackBot(w.id)).toBeNull();
+  });
+});
+
+describe("the question for a note on Slack (spec 0064)", () => {
+  type Sent = { id: number; slack_channel: string; slack_ts: string };
+  const lastPost = () => slack.of("chat.postMessage").at(-1)!;
+  const buttonsOf = (params: Record<string, string>) => (JSON.parse(params.blocks ?? "[]") as { elements?: { action_id: string }[] }[]).flatMap((b) => b.elements ?? []).map((e) => e.action_id);
+  /** A press on a button of the answer in the thread, whose timestamp the question keeps. */
+  const pressOn = async (bot: SlackBot, user: string, d: Sent, actionId: string) => {
+    const [q] = await rowsOf("note_questions", { delivery_id: d.id });
+    return { ...press(bot, user, d, actionId), container: { type: "message", channel_id: d.slack_channel, message_ts: String(q!.chat_message), thread_ts: d.slack_ts }, message: { blocks: [{ type: "section", text: { type: "mrkdwn", text: "Recorded" } }, { type: "actions" }] } };
+  };
+  /** A window as Slack sends it back, with what was typed by block id. */
+  const submitted = (bot: SlackBot, user: string, opened: Record<string, string>, typed: Record<string, string>) => {
+    const view = JSON.parse(opened.view!) as { callback_id: string; private_metadata: string };
+    return {
+      type: "view_submission", team: { id: bot.teamId }, api_app_id: bot.appId, user: { id: user }, trigger_id: `${Date.now()}.${randomBytes(6).toString("hex")}`,
+      view: { id: `V${randomBytes(6).toString("hex")}`, callback_id: view.callback_id, private_metadata: view.private_metadata, state: { values: Object.fromEntries(Object.entries(typed).map(([k, v]) => [k, { x: { type: "plain_text_input", value: v } }])) } },
+    };
+  };
+  const fieldsOf = (opened: Record<string, string>) => (JSON.parse(opened.view!) as { blocks: { block_id?: string }[] }).blocks.flatMap((b) => (b.block_id ? [b.block_id] : []));
+  const current = async (s: Awaited<ReturnType<typeof setup>>) => (await periodValueNotes(s.w.actor(s.sara), s.m.id, periodStart(new Date(), "month", JANUARY)))?.current.map((n) => n.words) ?? [];
+
+  async function recorded() {
+    const s = await setup();
+    await deliverPrompt({ metricId: s.m.id, submitterId: s.ann, senderId: s.sara, via: "slack" });
+    const d = await sent(s.w.id, s.ann);
+    const before = slack.of("chat.postMessage").length;
+    expect(await receiveSlackEvent(message(s.bot, s.annSlack, d.slack_channel, d.slack_ts, "17"))).toEqual({ outcome: "recorded" });
+    // One answer in the thread, which is the confirmation: asking sends nothing of its own.
+    expect(slack.of("chat.postMessage")).toHaveLength(before + 1);
+    return { ...s, d: d as Sent };
+  }
+
+  it("asks in the thread's confirmation with both buttons, and takes the window's note for its recipient only", async () => {
+    const s = await recorded();
+    expect(lastPost().params.text).toContain("Anything behind it?");
+    expect(buttonsOf(lastPost().params)).toEqual(["ziffr_add_note", "ziffr_no_note"]);
+    expect(await receiveSlackInteraction(await pressOn(s.bot, slack.user(mail("eve")), s.d, "ziffr_add_note"))).toBe("wrong_user");
+    expect(await receiveSlackInteraction({ ...(await pressOn(s.bot, s.annSlack, s.d, "ziffr_add_note")), container: { channel_id: s.d.slack_channel, message_ts: "1600000000.000100" } })).toBe("unknown_thread");
+    expect(slack.of("views.open")).toHaveLength(0);
+    expect(await receiveSlackInteraction(await pressOn(s.bot, s.annSlack, s.d, "ziffr_add_note"))).toBe("opened");
+    const opened = slack.of("views.open").at(-1)!.params;
+    expect(fieldsOf(opened)).toEqual(["n1"]);
+    expect(await receiveSlackInteraction(submitted(s.bot, slack.user(mail("mallory")), opened, { n1: "Not mine" }))).toBe("wrong_user");
+    // A number typed under a note window's ids is not taken.
+    const window = submitted(s.bot, s.annSlack, opened, { n1: "Two visits moved.", v1: "99" });
+    const later: Promise<void>[] = [];
+    expect(await receiveSlackInteraction(window, { later: (work) => { later.push(work()); } })).toBe("taken");
+    await Promise.all(later);
+    expect(await receiveSlackInteraction(window)).toBe("duplicate");
+    expect(await current(s)).toEqual(["Two visits moved."]);
+    expect((await valuesOf(s.m.id)).map((v) => v.value)).toEqual([17]);
+    expect(lastPost().params).toMatchObject({ thread_ts: s.d.slack_ts, text: expect.stringContaining("Field visits") });
+    expect(lastPost().params.text).toContain("Saved as your note.");
+  });
+
+  it("closes on No note and takes the buttons away", async () => {
+    const s = await recorded();
+    expect(await receiveSlackInteraction(await pressOn(s.bot, s.annSlack, s.d, "ziffr_no_note"))).toBe("closed");
+    expect((await rowsOf("note_questions", { delivery_id: s.d.id }))[0]!.closed_at).not.toBeNull();
+    expect(slack.of("chat.update").at(-1)!.params.blocks).not.toContain("ziffr_add_note");
+    expect(await current(s)).toEqual([]);
+  });
+
+  it("enters all numbers of one message in a window, with their notes, and asks for the missing ones", async () => {
+    const s = await setup();
+    const costs = await s.w.metric(s.sara, { name: "Costs", sources: ["web_form", "slack"] });
+    await s.w.token(costs.id, s.ann);
+    await askForMissingValues(s.w.actor(s.sara));
+    // A combined message leaves from the queue; here the fake Slack takes it.
+    await sendSlackDelivery(Number((await sent(s.w.id, s.ann)).id));
+    const d = (await sent(s.w.id, s.ann)) as Sent;
+    expect(d.slack_ts).toBeTruthy();
+    const request = slack.of("chat.postMessage").at(-1)!.params;
+    expect(String(request.attachments ?? request.blocks)).toContain("ziffr_enter_all");
+    expect(await receiveSlackInteraction(press(s.bot, s.annSlack, d, "ziffr_enter_all"))).toBe("opened");
+    const opened = slack.of("views.open").at(-1)!.params;
+    expect(fieldsOf(opened)).toEqual(["v1", "n1", "v2", "n2"]);
+    expect(await receiveSlackInteraction(submitted(s.bot, s.annSlack, opened, { v1: "17", v2: "12", n2: "Rent." }))).toBe("recorded");
+    expect(await valuesOf(costs.id)).toHaveLength(1);
+    expect(await valuesOf(s.m.id)).toHaveLength(1);
+    const answer = lastPost().params;
+    expect(answer.text).toContain('Anything behind it? Reply "1: your words"');
+    expect(buttonsOf(answer)).toEqual(["ziffr_add_note", "ziffr_no_note"]);
   });
 });

@@ -12,7 +12,7 @@ import { parseInbound, receiveEmail } from "./inbound-email";
 import { ask } from "./questions";
 import type { SubmissionEffects } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { auditRowsOf, valuesOf, workspace } from "./test/db-fixtures";
+import { rowsOf, auditRowsOf, valuesOf, workspace } from "./test/db-fixtures";
 
 const MAILPIT = process.env.MAILPIT_URL ?? "http://127.0.0.1:55424";
 const DOMAIN = "in.ziffr.example.test";
@@ -52,6 +52,34 @@ async function linksTo(to: string): Promise<string[]> {
 }
 const heldRows = async (deliveryId: number) => (await db().from("held_replies").select("*").eq("delivery_id", deliveryId)).data ?? [];
 
+describe("the note on a Held Reply's page (spec 0064)", () => {
+  it("offers a field with the question above Confirm, saves what is typed with the value, and sends no further email", async () => {
+    const { w, m, d, annMail } = await promptFor();
+    expect(await receive({ from: annMail, token: d.reply_token!, text: "42" })).toBe("held");
+    const [token] = await linksTo(annMail);
+    expect(await heldReplyView(token!)).toMatchObject({ question: "Anything behind it?", notes: [{ position: 1, asks: true }] });
+    const before = (await rowsOf("deliveries", { workspace_id: w.id })).length;
+    const done = await confirmHeldReply(token!, undefined, { 1: "Two visits moved.", 2: "Nobody's" });
+    expect(done).toMatchObject({ ok: true, detail: expect.stringContaining("Your note was saved.") });
+    expect(done!.detail).not.toContain("Anything behind");
+    expect((await rowsOf("deliveries", { workspace_id: w.id })).length).toBe(before);
+    expect(await rowsOf("value_notes", { metric_id: m.id })).toHaveLength(1);
+    expect(await rowsOf("note_questions", { workspace_id: w.id })).toEqual([]);
+  });
+
+  it("keeps the field without the question where the Metric never asks, and none where the reply holds a note", async () => {
+    const { m, d, annMail } = await promptFor();
+    await db().from("metrics").update({ ask_note: "never" }).eq("id", m.id);
+    expect(await receive({ from: annMail, token: d.reply_token!, text: "42" })).toBe("held");
+    expect(await receive({ from: annMail, token: d.reply_token!, text: "43\r\nCounted twice." })).toBe("held");
+    const [first, second] = await linksTo(annMail);
+    const plain = await heldReplyView(first!);
+    expect(plain!.notes).toEqual([expect.objectContaining({ position: 1, asks: false })]);
+    expect(plain).not.toHaveProperty("question");
+    expect(await heldReplyView(second!)).not.toHaveProperty("notes");
+  });
+});
+
 describe("held replies", () => {
   it("holds an unvouched reply, mails the link to the address on file, and records it only when confirmed, once", async () => {
     const { w, m, d, annMail } = await promptFor();
@@ -85,6 +113,31 @@ describe("held replies", () => {
     expect(held).toHaveLength(1);
     expect(confirmed).toHaveLength(1);
     expect(JSON.stringify([held, confirmed])).not.toContain("42");
+  });
+
+  it("shows the note and the offered change of a later reply, and takes the change only by its button (spec 0064)", async () => {
+    const { w, m, d, annMail } = await promptFor();
+    expect(await receive({ from: annMail, token: d.reply_token!, text: "42\r\nFewer trips." })).toBe("held");
+    const [first] = await linksTo(annMail);
+    expect((await heldReplyView(first))!.effect).toMatch(/42.*Field visits[\s\S]*Fewer trips\./);
+    expect(await confirmHeldReply(first)).toMatchObject({ ok: true });
+    for (const text of ["It was 44 in fact", "It was 44 in fact"]) expect(await receive({ from: annMail, token: d.reply_token!, text })).toBe("held");
+    const [one, two] = (await linksTo(annMail)).slice(1);
+    const view = await heldReplyView(one);
+    expect(view).toMatchObject({ kind: "value", offer: { take: "1:overwrite:44", label: expect.stringContaining("change the value to 44") } });
+    expect(view!.effect).toContain("Saves your note");
+    expect(await rowsOf("value_notes", { metric_id: m.id })).toHaveLength(1);
+    // Confirm alone saves the note, which the page says, and leaves the value and no offer open.
+    expect(await confirmHeldReply(one)).toMatchObject({ ok: true, detail: expect.stringContaining("Saved as your note") });
+    expect(await valuesOf(m.id)).toMatchObject([{ value: 42 }]);
+    expect(await rowsOf("reply_offers", { workspace_id: w.id })).toEqual([]);
+    // A change other than the one offered is not taken.
+    expect(await receive({ from: annMail, token: d.reply_token!, text: "Or 45?" })).toBe("held");
+    expect(await confirmHeldReply(two, "1:add:45")).toMatchObject({ ok: true });
+    expect(await valuesOf(m.id)).toMatchObject([{ value: 42 }]);
+    const last = (await linksTo(annMail)).at(-1)!;
+    expect(await confirmHeldReply(last, "1:overwrite:45")).toMatchObject({ ok: true, detail: expect.stringContaining("45") });
+    expect(await valuesOf(m.id)).toMatchObject([{ value: 45 }]);
   });
 
   it("takes a vouched-for reply at once, and holds one whose Authentication-Results do not pass", async () => {
@@ -176,9 +229,9 @@ describe("held replies", () => {
     const actionId = await ask(w.actor(sara), { metricId: m.id, period: "2026-10-01", assigneeId: ben, text: "Is October right?" });
     const { data: d } = await db().from("deliveries").select("id, reply_token").eq("action_id", actionId).eq("recipient_id", ben).single();
     const benMail = await emailOf(ben);
-    expect(await receive({ from: benMail, token: d!.reply_token!, text: "ä".repeat(1500) })).toBe("held");
+    expect(await receive({ from: benMail, token: d!.reply_token!, text: "ä".repeat(6000) })).toBe("held");
     const [link] = await linksTo(benMail);
-    expect((await heldReplyView(link))!.text).toHaveLength(1000);
+    expect((await heldReplyView(link))!.text).toHaveLength(5000);
     // The Action became an Approval since: never confirmed by email unvouched.
     await db().from("actions").update({ purpose: "approval" }).eq("id", actionId);
     expect(await heldReplyView(link)).toBeNull();

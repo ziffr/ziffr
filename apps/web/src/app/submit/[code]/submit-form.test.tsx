@@ -11,6 +11,7 @@ const submitWebForm = vi.fn(async (_code: string, _previous: unknown, _form: For
 const recordValue = vi.fn(async (_id: number, _input: unknown): Promise<Result | { error: string }> => ({ ok: true, detail: "5 recorded for October." }));
 vi.mock("@/app/actions", () => ({ submitWebForm: (c: string, p: unknown, f: FormData) => submitWebForm(c, p, f) }));
 vi.mock("@/app/series-actions", () => ({ recordValue: (i: number, v: unknown) => recordValue(i, v) }));
+vi.mock("@/app/value-note-actions", () => ({ saveFormNote: async () => ({ saved: true, detail: "Your note was saved." }) }));
 import { sendForm, SubmitForm as Form } from "./submit-form";
 import { periodOffer } from "./period-choices";
 

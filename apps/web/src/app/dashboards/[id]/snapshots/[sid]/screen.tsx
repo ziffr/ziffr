@@ -2,8 +2,8 @@
 // One Snapshot as people read and write it (spec 0013, ticket #175; GLOSSARY: Snapshot, Finding, Version). A band
 // says which period it is, when and by whom it was taken, and whether it is still a draft; the dashboard reads top to
 // bottom below it, drawn from the values it kept, without calling the server for more. The dashboard's owner and
-// Editors write its words (introduction, each widget's title and a Finding's kicker, headline, subline, footnote and
-// source) and show it; its owner deletes it. Its numbers, charts and layout never change.
+// Editors write its words (introduction, each widget's title, a Finding's kicker, headline, subline, footnote and
+// source, and a Note Widget's text) and show it; its owner deletes it. Its numbers, charts and layout never change.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PlaceholderHints } from "@/components/placeholder-hints";
 import { formatDate, formatValue } from "@ziffr/core/format";
 import { TEMPLATES } from "@ziffr/core/widget-templates";
+import { NOTE_HEADING_MAX, NOTE_TEXT_MAX } from "@ziffr/core/note-widget";
 import type { OpenSnapshot, SnapshotWords, WidgetWords, WordKey } from "@ziffr/core/snapshots";
 import type { Profile, Widget } from "@ziffr/core/types";
 import { periodLabel } from "@ziffr/core/periods";
@@ -38,6 +39,8 @@ function wordsOf(w: Widget): WidgetWords {
   const s = (w.settings ?? {}) as Record<string, unknown>;
   const out: WidgetWords = w.title ? { title: w.title } : {};
   for (const { key } of FINDING_WORDS) if (typeof s[key] === "string" && s[key]) out[key] = s[key] as string;
+  // A note's text goes along, or saving the words would empty it.
+  if (typeof s.note === "string" && s.note) out.note = s.note;
   return out;
 }
 
@@ -143,11 +146,13 @@ function Words({ snapshot: s, pending, onSave }: { snapshot: OpenSnapshot; pendi
       </label>
       {ordered.map((w, i) => {
         const finding = TEMPLATES[w.template]?.kind === "story";
+        const note = w.template === "note";
         const own = words[String(w.id)] ?? {};
         return (
           <fieldset key={w.id} className="space-y-2 rounded-[var(--radius-card)] border border-[var(--color-rule-2)] p-4">
-            <legend className="px-1 text-sm font-medium">Part {i + 1}{finding ? ": a Finding" : ""}</legend>
-            {!finding && <Input aria-label={`Title of part ${i + 1}`} value={own.title ?? ""} onChange={(e) => set(w.id, "title", e.target.value)} maxLength={600} placeholder="Title" />}
+            <legend className="px-1 text-sm font-medium">Part {i + 1}{finding ? ": a Finding" : note ? ": a note" : ""}</legend>
+            {!finding && <Input aria-label={`${note ? "Heading" : "Title"} of part ${i + 1}`} value={own.title ?? ""} onChange={(e) => set(w.id, "title", e.target.value)} maxLength={note ? NOTE_HEADING_MAX : 600} placeholder={note ? "Heading (optional)" : "Title"} />}
+            {note && <Textarea aria-label={`Words of part ${i + 1}`} value={own.note ?? ""} onChange={(e) => set(w.id, "note", e.target.value)} maxLength={NOTE_TEXT_MAX} rows={5} />}
             {finding && FINDING_WORDS.map(({ key, label }) => (
               <label key={key} className="block space-y-1 text-sm"><span className="text-muted-foreground">{label}</span>
                 {key === "headline" || key === "subline" || key === "footnote"

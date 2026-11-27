@@ -9,6 +9,10 @@ import { db } from "./db";
 import { tellOwnersOfStop } from "./email-opt-out";
 import { OPT_OUT_KINDS } from "./mail";
 import { routeReply, type RepliedDelivery } from "./reply-routing";
+import { repliesAllowed } from "./prompt-reply";
+import { offersAnsweredAs } from "./reply-offers";
+import { deliveriesAskedIn, questionsIn } from "./note-question";
+import { chunks } from "./reply-chunks";
 import type { SubmissionEffects } from "./submissions";
 import { TELEGRAM_BUTTONS } from "./telegram-send";
 import { approve } from "./workflow-engine";
@@ -25,7 +29,7 @@ import { personBlocked } from "./user-block";
 export const MAX_TELEGRAM_BYTES = 64 * 1024;
 /** Answers the bot gives one Telegram account in a minute (hints, link results), so a flood costs nothing. */
 const MAX_ANSWERS_PER_MINUTE = 10;
-/** Replies taken for one Delivery; more are ignored. */
+/** Replies taken for one Delivery (2 more for each figure of a Combined Prompt, at most 60); more are ignored. */
 export const MAX_TELEGRAM_REPLIES_PER_DELIVERY = 20;
 /** How long a Delivery takes replies. */
 const REPLY_DAYS = 30;
@@ -33,7 +37,7 @@ const REPLY_DAYS = 30;
 /** What became of an update; only this name is kept. */
 export type TelegramOutcome =
   | "linked" | "confirm_sent" | "refused" | "unlinked" | "blocked" | "hint" | "duplicate" | "too_many" | "ignored"
-  | "recorded" | "form_link" | "replied" | "corrected" | "empty" | "unknown_message" | "expired" | "wrong_user"
+  | "recorded" | "form_link" | "replied" | "corrected" | "noted" | "closed" | "empty" | "unknown_message" | "expired" | "wrong_user"
   | "approved" | "stopped" | "test_started" | "test_refused" | "test_answered" | "test_hint";
 
 type Obj = Record<string, unknown>;
@@ -50,10 +54,15 @@ export async function telegramSecretOk(given: string | null): Promise<boolean> {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** Says something in a private chat, as plain text; a lost answer is not worth failing the update for. */
-export async function telegramSay(chatId: number, text: string, replyTo?: number): Promise<void> {
+// Opens the reply box on the person's side under a message that asks for a note (spec 0064).
+const NOTE_BOX = { force_reply: true, input_field_placeholder: "What is behind it?" };
+
+/** Says something in a private chat, as plain text, and answers the sent message's id; a lost answer is not worth
+ * failing the update for. With `asks`, the person's reply box opens under it. */
+export async function telegramSay(chatId: number, text: string, replyTo?: number, asks = false): Promise<number | void> {
   try {
-    await callTelegram("sendMessage", { chat_id: chatId, text: text.slice(0, 4096), ...(replyTo ? { reply_parameters: { message_id: replyTo, allow_sending_without_reply: true } } : {}), link_preview_options: { is_disabled: true } });
+    const sent = await callTelegram<{ message_id?: unknown }>("sendMessage", { chat_id: chatId, text: text.slice(0, 4096), ...(replyTo ? { reply_parameters: { message_id: replyTo, allow_sending_without_reply: true } } : {}), ...(asks ? { reply_markup: NOTE_BOX } : {}), link_preview_options: { is_disabled: true } });
+    if (typeof sent?.message_id === "number" && Number.isSafeInteger(sent.message_id)) return sent.message_id;
   } catch {
     // The update itself was handled.
   }
@@ -122,7 +131,7 @@ async function handle(u: Obj, userId: number | null, effects: { submission?: Sub
     // The Installation Settings page's round trip test: a code of its own shape, never a Workspace link. It is
     // handled here and goes no further, so a test code can never connect anyone.
     if (isTelegramTestCode(start[1])) {
-      const started = await takeTelegramTestStart({ code: start[1], userId, chatId, say: (t) => (silent ? Promise.resolve() : telegramSay(chatId, t)) });
+      const started = await takeTelegramTestStart({ code: start[1], userId, chatId, say: async (t) => { if (!silent) await telegramSay(chatId, t); } });
       return none(started ? "test_started" : "test_refused");
     }
     // A code still links when the bot keeps quiet: a flood by others must not stop someone linking.
@@ -149,9 +158,26 @@ async function handle(u: Obj, userId: number | null, effects: { submission?: Sub
   return reply(userId, chatId, repliedTo, Number(msg.message_id) || undefined, text, effects);
 }
 
-/** Answers about a Workspace's message in a chat: in a Practice Workspace (spec 0063) only in its person's recorded chat. */
-async function answerIn(workspaceId: string, chatId: number, text: string, replyTo?: number): Promise<void> {
-  if (await mayAnswer(workspaceId, "telegram", String(chatId))) await telegramSay(chatId, text, replyTo);
+/** Answers about a Workspace's message in a chat: in a Practice Workspace (spec 0063) only in its person's recorded
+ * chat. A long answer goes in several messages; the last one, which ends with a question for a note where `asks`,
+ * opens the reply box then, and its id is returned. */
+async function answerIn(workspaceId: string, chatId: number, text: string, replyTo?: number, asks = false): Promise<number | void> {
+  if (!(await mayAnswer(workspaceId, "telegram", String(chatId)))) return;
+  let last: number | void = undefined;
+  const parts = chunks(text, 4000);
+  for (const [i, part] of parts.entries()) last = await telegramSay(chatId, part, replyTo, asks && i === parts.length - 1);
+  return last;
+}
+
+/** The Delivery a reply in this chat answers: the one sent as the replied-to message, or the one whose open offer
+ * ("reply yes") or question for a note that message made. */
+async function repliedDelivery(chatId: number, repliedTo: number) {
+  const columns = "id, workspace_id, recipient_id, kind, action_id, prompt_id, combined, created_at";
+  const chat = () => db().from("deliveries").select(columns).eq("connector", "telegram").eq("telegram_chat_id", chatId);
+  const { data: sent } = await chat().eq("telegram_message_id", repliedTo).maybeSingle();
+  if (sent) return sent;
+  const answered = [...(await offersAnsweredAs(repliedTo)), ...(await deliveriesAskedIn(String(repliedTo)))];
+  return answered.length ? (await chat().in("id", answered).limit(1)).data?.[0] ?? null : null;
 }
 
 /** What the bot says to a /start with a Workspace's code. */
@@ -175,8 +201,7 @@ function startAnswer(r: TelegramLinkOutcome): string {
 /** A reply to a message: taken only for a sent Delivery in this chat, from the person it went to as linked now,
  * within 30 days and at most twenty times; then routed as an email or Slack reply is. */
 async function reply(userId: number, chatId: number, repliedTo: number, messageId: number | undefined, text: string, effects: { submission?: SubmissionEffects }): Promise<Handled> {
-  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, created_at")
-    .eq("connector", "telegram").eq("telegram_chat_id", chatId).eq("telegram_message_id", repliedTo).maybeSingle();
+  const d = await repliedDelivery(chatId, repliedTo);
   if (!d) return none("unknown_message");
   const at = (outcome: TelegramOutcome): Handled => ({ outcome, workspaceId: d.workspace_id as string, deliveryId: d.id as number });
   // A workspace that turned Telegram off takes nothing by it any more, also replies to what it sent before.
@@ -186,11 +211,13 @@ async function reply(userId: number, chatId: number, repliedTo: number, messageI
   // Only the person it went to, as linked now: a chat that changed hands answers nothing.
   if ((await personOfTelegramUser(d.workspace_id, userId)) !== d.recipient_id) return at("wrong_user");
   const { count } = await db().from("telegram_updates").select("update_id", { count: "exact", head: true }).eq("delivery_id", d.id).not("outcome", "in", "(expired,wrong_user,too_many)");
-  if ((count ?? 0) >= MAX_TELEGRAM_REPLIES_PER_DELIVERY) return at("too_many");
+  if ((count ?? 0) >= (await repliesAllowed(d.id as number, MAX_TELEGRAM_REPLIES_PER_DELIVERY))) return at("too_many");
   if (!text) return at("empty");
+  // A reply to the question itself says which number its words are about.
+  const about = (await questionsIn(d.workspace_id as string, d.id as number, String(repliedTo))).map((q) => q.promptId);
   const outcome = await routeReply(d as RepliedDelivery, text.slice(0, 5000), {
-    source: "telegram", sender: `telegram:${userId}`, provenPersonId: d.recipient_id,
-    answer: (subject, detail) => answerIn(d.workspace_id as string, chatId, `${subject}: ${detail}`, messageId),
+    source: "telegram", sender: `telegram:${userId}`, provenPersonId: d.recipient_id, about,
+    answer: (subject, detail, _link, how) => answerIn(d.workspace_id as string, chatId, how?.bare ? detail : `${subject}: ${detail}`, messageId, how?.ask),
   }, effects.submission);
   return at(outcome === "unknown_token" ? "unknown_message" : outcome);
 }

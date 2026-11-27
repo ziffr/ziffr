@@ -9,6 +9,7 @@ import { db } from "./db";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { feedIdsAmong } from "./feed-people";
 import { fillInVerdict } from "./fill-in-check";
+import { noteFieldsOn } from "./form-submit";
 import { getMetrics } from "./workspace-data";
 import { yearStartFor } from "./fiscal-year";
 import { workingPeriod } from "./workflow-rules";
@@ -18,7 +19,7 @@ import type { Period } from "./types";
 type FillInPerson = { id: string; name: string; wait: string | null };
 
 /** The people the viewer may fill in for (now or from the Due Date on) for one Metric's period. */
-export type FillInOffer = { metricId: number; period: string; people: FillInPerson[] };
+export type FillInOffer = { metricId: number; period: string; people: FillInPerson[]; /** Whether the form offers a note field (GLOSSARY: Value Note). */ notes?: boolean };
 
 /** The refusals of mayFillIn that only mean "not yet": the offer is then shown disabled with the reason. Every other
  * refusal (a value is there, the period is locked, the viewer is not the one who may) shows no button. A test keeps these
@@ -50,7 +51,7 @@ export async function fillInOffer(actor: Actor, metricId: number, period: string
     if (v.ok) people.push({ id, name, wait: null });
     else if (NOT_YET.test(v.refusal)) people.push({ id, name, wait: v.refusal });
   }
-  return people.length ? { metricId: metric.id, period, people } : null;
+  return people.length ? { metricId: metric.id, period, people, ...(noteFieldsOn(ws) ? { notes: true } : {}) } : null;
 }
 
 /** The Guests already chosen as Stand-ins for this Metric, by the Submitter they stand in for (spec 0046: a Guest cannot fill

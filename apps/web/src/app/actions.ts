@@ -7,7 +7,10 @@ import { db } from "@/lib/db";
 import { currentActor, DEMO_WORKSPACE_ID, VIEWER_COOKIE } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { Forbidden } from "@ziffr/core/actor";
-import { decideCorrection as coreDecideCorrection, submitValue, type SubmissionResult } from "@ziffr/core/submissions";
+import { decideCorrection as coreDecideCorrection, type SubmissionResult } from "@ziffr/core/submissions";
+import { submitFormLink } from "@ziffr/core/form-submit";
+import { submitCombinedForm, type CombinedResult } from "@ziffr/core/combined-form";
+import { COMBINED_MAX } from "@ziffr/core/combined-words";
 import * as questions from "@ziffr/core/questions";
 import { recordSimulatedMessage as recordChannelMessage, simulateMessage as simulateChannelMessage } from "@ziffr/core/demo-channels";
 import { demoTextForVisit } from "@ziffr/core/demo-text";
@@ -41,7 +44,7 @@ export async function createMetric(form: FormData) {
     name: String(form.get("name") ?? ""), description: String(form.get("description") ?? ""), calculationNote: String(form.get("calculation_note") ?? ""), unit: String(form.get("unit") ?? ""), unitPosition: String(form.get("unit_position") ?? ""),
     format: String(form.get("format") ?? ""), decimals: Number(form.get("decimals") ?? 0), period: String(form.get("period") ?? ""),
     submissionRule: String(form.get("submission_rule") ?? ""), polarity: String(form.get("polarity") ?? ""), aggregation: String(form.get("aggregation") ?? ""),
-    targetMin: num("target_min"), targetMax: num("target_max"), attainmentMethod: String(form.get("attainment_method") ?? ""), fromCatalogId: num("from_catalog_id"),
+    targetMin: num("target_min"), targetMax: num("target_max"), attainmentMethod: String(form.get("attainment_method") ?? ""), askNote: String(form.get("ask_note") ?? ""), fromCatalogId: num("from_catalog_id"),
     workflowId: num("workflow_id"), duplicateOf: num("duplicate_of"),
     sources: form.getAll("sources").map(String), submitters: form.getAll("submitters").map(String),
   }).catch((e) => {
@@ -91,8 +94,10 @@ export async function recordSimulatedMessage(input: { source: SourceId; sender: 
   }));
 }
 
-/** What the form shows after a submission: the core's own words, handed back by the action, never through the URL. */
-export type WebFormResult = { ok: boolean; detail: string } | null;
+/** What the form shows after a submission: the core's own words, handed back by the action, never through the URL.
+ * `noteKept` when the note was not saved, so the field keeps its words; `ask` the code under which a note asked for
+ * after the value is saved. */
+export type WebFormResult = { ok: boolean; detail: string; noteKept?: boolean; ask?: string } | null;
 
 /** A personal form link submits a value (or a Breakdown), with the period picked when the form offered a list; the core
  * takes only the running period or one that still waits for this link. The result comes back to the form itself rather
@@ -102,14 +107,14 @@ export async function submitWebForm(code: string, _previous: WebFormResult, form
     return await inDemoVisit("actions:submitWebForm", async (visiting) => {
       // The code is logged and shown as the sender: a visit's must be shaped like a form link's token before anything is looked up.
       if (visiting && !/^tk-[A-Za-z0-9_-]{3,64}$/.test(String(code))) return { ok: false, detail: "This form link doesn’t match any Token." };
-      // A breakdown travels as "label value" lines; a filled-in total joins them as a Total line. A visitor's texts go through the text rules first (spec 0051).
+      // A visitor's texts go through the text rules first (spec 0051). The demo keeps no notes.
       const value = demoTextForVisit(visiting, String(form.get("value") ?? "").trim(), "name");
       const breakdown = demoTextForVisit(visiting, String(form.get("breakdown") ?? "").trim(), "message");
-      const text = breakdown ? `${breakdown}${value ? `\nTotal ${value}` : ""}` : value;
       const period = form.get("period");
-      const r = await submitValue({ source: "web_form", sender: String(code), text: text.slice(0, 5000), ...(period === null ? {} : { formPeriod: String(period) }) });
+      const r = await submitFormLink(String(code), { value, breakdown, ...(period === null ? {} : { period: String(period) }), note: visiting ? undefined : form.get("note") });
       revalidatePath("/", "layout");
-      return { ok: !r.outcome.startsWith("rejected"), detail: r.detail };
+      const ok = !r.outcome.startsWith("rejected");
+      return { ok, detail: r.detail, ...(r.valueNote?.saved === false ? { noteKept: true } : {}), ...(r.ask ? { ask: r.ask } : {}) };
     });
   } catch (e) {
     // What a visit's change is refused with says why on the form itself; anything else is thrown on, as it always was.
@@ -117,6 +122,20 @@ export async function submitWebForm(code: string, _previous: WebFormResult, form
     if (words) return { ok: false, detail: words };
     throw e;
   }
+}
+
+/** The combined form (spec 0064) sends its rows, one field of each kind for a figure, named by the figure's number in
+ * the message. The code and every field come from a browser: the core checks the link and each figure. The page shows
+ * only the core's own words. */
+export async function submitCombinedWebForm(code: string, _previous: CombinedResult | null, form: FormData): Promise<CombinedResult> {
+  const field = (name: string) => {
+    const v = form.get(name);
+    return typeof v === "string" ? v : "";
+  };
+  const r = await submitCombinedForm(code, Array.from({ length: COMBINED_MAX }, (_, i) => ({ position: i + 1, value: field(`value-${i + 1}`), breakdown: field(`breakdown-${i + 1}`), note: field(`note-${i + 1}`) })));
+  // Only after something was taken: a refused link must not redraw the page under the words that say why.
+  if (Object.values(r.rows).some((row) => row.ok)) revalidatePath("/", "layout");
+  return r;
 }
 
 /** Asks a member about a value. */

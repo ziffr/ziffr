@@ -24,6 +24,7 @@ export const ROUTE_TIERS = {
   "/metrics/[slug]": "phone-first",
   "/metrics/[slug]/[period]": "phone-first",
   "/submit/[code]": "phone-first",
+  "/submit/all/[code]": "phone-first",
   "/schedule/submit/[slug]": "phone-first",
   "/paste-values": "phone-first",
   // What waits for a person.
@@ -37,6 +38,8 @@ export const ROUTE_TIERS = {
   "/welcome": "phone-first",
   "/first-steps": "phone-first",
   "/setup": "phone-first",
+  "/use-pack/[ref]": "phone-first",
+  "/use-pack/[ref]/[task]": "phone-first",
   "/try": "phone-first",
   "/try/start": "phone-first",
   "/demo/confirm": "phone-first",

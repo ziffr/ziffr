@@ -8,6 +8,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, refresh() {} 
 vi.mock("sonner", () => ({ toast: { success() {}, error() {} } }));
 vi.mock("@/app/team-actions", () => ({ createGroup: async () => ({}), createInviteLink: async () => "", inviteGateNow: async () => ({}), inviteMember: async () => ({}), setDomainJoining: async () => ({}), setMember: async () => ({}) }));
 vi.mock("@/app/series-actions", () => ({ askMeNow: async () => ({}), recordValue: async () => ({}) }));
+vi.mock("@/app/value-note-actions", () => ({ saveFormNote: async () => ({ saved: true, detail: "Your note was saved." }) }));
 vi.mock("./team-actions", () => ({ askForMetric: async () => ({}) }));
 vi.mock("./actions", () => ({ skipStep: async () => ({}) }));
 import { WORKSPACE_ROLE_WORDS } from "@ziffr/core/role-words";

@@ -182,7 +182,7 @@ The restriction is on the Admin Address only. Everything else of Ziffr stays as 
 
 ### The slide editor's license
 
-Decks and free layouts are drawn with [tldraw](https://tldraw.dev), which has a license of its own, apart from Ziffr's. On an `https://` address tldraw shows them only with a **license key**: without one they disappear a few seconds after they appear, so Ziffr shows a notice in their place that says what is missing. Everything else in Ziffr works without a key. Over `http://`, and on `https://localhost`, no key is needed.
+Decks and free layouts are drawn with [tldraw](https://tldraw.dev), which has a license of its own, apart from Ziffr's. On an `https://` address tldraw shows them only with a **license key**: without one they disappear a few seconds after they appear, so Ziffr shows a notice in their place that says what is missing. Everything else in Ziffr works without a key. Over `http://`, and on `https://localhost`, decks show without one. Free layouts on dashboards are different: Ziffr offers, shows and changes them only where a key is set, whatever the address, and keeps those already made until there is one. A dashboard's Note widget needs no key.
 
 1. Get a key at <https://tldraw.dev/pricing>: tldraw offers a free trial of 100 days, commercial licenses and a hobby license for non-commercial use. Their terms say which one fits you.
 2. Name every domain people reach this Ziffr at when you ask for it. A key does not work on a domain it does not list, View Links included.

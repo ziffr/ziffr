@@ -26,7 +26,12 @@ describe("every writer of a widget's settings in dashboards.ts, dashboard-templa
   });
 
   it("passes the text rules and key allow-list for the settings it takes from a browser or a template", () => {
-    expect(body("dashboards.ts", "specFrom")).toContain("visitorSettings(");
+    expect(body("dashboards.ts", "specFrom")).toContain("await droppedSpec(");
+    expect(body("dashboards.ts", "droppedSpec")).toContain("visitorSettings(");
+    // A Note Widget's words and look pass the same rules, on the way in and on a change.
+    expect(src("dashboards.ts")).toMatch(/function noteSettings\([^\n]*\{\n(?:  [^\n]*\n)*?  return visitorSettings\(/);
+    expect(body("dashboards.ts", "droppedSpec")).toContain("noteSettings(");
+    expect(body("dashboards.ts", "updateNote")).toContain("noteSettings(");
     expect(body("dashboards.ts", "updateWidget")).toContain("visitorSettings(");
     expect(body("dashboards.ts", "fromTeamTemplate")).toContain("visitorSettings(");
     expect(src("dashboards.ts")).toMatch(/export async function visitorTemplateWidgets[\s\S]*visitorSettings\(/);

@@ -11,6 +11,7 @@ import { oldestAsked } from "./asked-periods";
 import { visibleMetricIds } from "./access";
 import { db } from "./db";
 import { refuseInDemo } from "./demo";
+import { askedAfter, formNote, noteFieldsOn, withNoteWords, type FormResult } from "./form-submit";
 import { yearStartOf } from "./fiscal-year";
 import { formatValue, RULE_LABEL } from "./format";
 import { readNumber } from "./numbers";
@@ -42,6 +43,8 @@ export type RecordingOffer = {
   periods: { start: string; label: string; has: string | null }[];
   /** The oldest of these periods they were asked for and still owe, where the form starts; null: the current one. */
   asked: string | null;
+  /** Whether the form offers a note field (GLOSSARY: Value Note). */
+  notes?: boolean;
 };
 
 type Own = { metric: Metric; code: string; yearStart: YearStart };
@@ -110,13 +113,15 @@ export async function recordingOffers(actor: Actor, metricIds: number[]): Promis
       numberStyle: style,
       periods: starts.map((start) => ({ start, label: periodLabel(start, metric.period, ys), has: have.has(start) ? formatValue(metric, have.get(start)!, style) : null })),
       asked: asked.get(metric.id) ?? null,
+      ...(noteFieldsOn(ws) ? { notes: true } : {}),
     };
   }
   return offers;
 }
 
-/** What the form sends: the total as typed, the Breakdown as pasted lines, and the period start if not the current one. */
-export type RecordInput = { value: string; breakdown?: string; period?: string };
+/** What the form sends: the total as typed, the Breakdown as pasted lines, the period start if not the current one, and
+ * a note on the value. */
+export type RecordInput = { value: string; breakdown?: string; period?: string; note?: string };
 
 const refused = (outcome: string, detail: string): SubmissionResult => ({ ok: false, outcome, detail });
 
@@ -124,7 +129,7 @@ const refused = (outcome: string, detail: string): SubmissionResult => ({ ok: fa
  * intake's own words (a Lock, an Approval, a rule, Retention). Refuses, in words, whoever does not submit the Metric.
  * The text is read here with the Workspace's Number Style, the period must be one the form offers, and nothing a
  * browser sends reaches submitValue except as that read value. */
-export async function recordOwnValue(actor: Actor, metricId: number, input: RecordInput, effects: SubmissionEffects = submissionEffects): Promise<SubmissionResult> {
+export async function recordOwnValue(actor: Actor, metricId: number, input: RecordInput, effects: SubmissionEffects = submissionEffects): Promise<FormResult> {
   refuseInDemo(actor, "series-actions:recordValue");
   const own = await ownToken(actor, Number(metricId));
   if (!own) throw new Forbidden("You do not submit this Metric, so you cannot record a value for it here.");
@@ -143,5 +148,6 @@ export async function recordOwnValue(actor: Actor, metricId: number, input: Reco
   const period = input.period ? String(input.period) : current;
   const offered = Array.from({ length: RECORDABLE_PERIODS }, (_, i) => shiftPeriod(current, metric.period, -i));
   if (!offered.includes(period)) return refused("rejected_period", `Choose one of the ${metric.period}s the form lists.`);
-  return submitValue({ source: "web_form", sender: code, workspaceId: actor.workspaceId, text: typed || "breakdown", typed: true, value: { value, ...(bd ? { breakdown: bd.rows } : {}) }, period }, effects);
+  const result = await submitValue({ source: "web_form", sender: code, workspaceId: actor.workspaceId, text: typed || "breakdown", typed: true, value: { value, ...(bd ? { breakdown: bd.rows } : {}) }, period, ...formNote(input.note) }, effects);
+  return askedAfter(withNoteWords(result), actor.workspaceId, { personId: actor.personId });
 }

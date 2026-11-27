@@ -46,7 +46,8 @@ const WRITERS: [string, string, string[], string[]][] = [
   // Whatever changes what an object that is already shared shows passes visitorSharedStaysSeen first (ticket 11, after the security review).
   ["decks.ts", "saveDeck", ["visitorSharedStaysSeen("], ['from("decks").update']],
   ["dashboards.ts", "placeWidget", ["visitorSharedStaysSeen("], ["insertSealed("]],
-  ["dashboards.ts", "updateWidget", ["visitorSharedStaysSeen("], ['from("widgets").update']],
+  ["dashboards.ts", "updateWidget", ["visitorSharedStaysSeen("], ["await writeWidget("]],
+  ["dashboards.ts", "updateNote", ["assertVisitorRoom("], ["await writeWidget("]],
   ["dashboards.ts", "applyTemplate", ["visitorSharedStaysSeen("], ['from("widgets").update']],
   ["derived-metrics.ts", "setMetricFormula", ["visitorMetricUnused("], ['from("metrics").update']],
 ];

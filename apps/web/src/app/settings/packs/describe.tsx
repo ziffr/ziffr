@@ -1,16 +1,20 @@
 "use client";
-// "Describe your Pack", the second step of Export as Pack (spec 0058, GLOSSARY: Pack Guide, Comes From): where each number
-// comes from, and a field for each of the guide's five sections, "Each part" starting with the list of what goes into the file, the guide of an installed Pack
-// offered again, and what the file may not hold told at its field. The core makes and checks the guide; this step only
-// holds the words and decides whether they go into the file.
+// "Describe your Pack", the second step of Export as Pack (specs 0058 and 0068, GLOSSARY: Pack Guide, Comes From, Pack):
+// where each number comes from, a field for each of the guide's five sections, "Each part" starting with the list of what
+// goes into the file, the guide of an installed Pack offered again, the set-up questions (describe-set-up.tsx, only while
+// the guided set-up is switched on), and what the file may not hold told at its field. The core makes and checks the
+// file; this step only holds the words and decides whether the guide goes into it.
 import { useCallback, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { PackNumberFields } from "./describe-numbers";
+import { PackSetUpFields, type SetUpState } from "./describe-set-up";
+import { PACK_SET_UP_ON } from "@/app/use-pack/switch";
 import type { ComesFromChoice, ComesFromProblem } from "@ziffr/core/pack-export-numbers";
 import { PACK_GUIDE_SECTIONS, type PackGuideSection } from "@ziffr/pack/pack-guide";
 import type { PackGuideDraft } from "@ziffr/core/pack-export-guide";
 import type { GuideProblem, PackGuideText } from "@ziffr/core/pack-guide-text";
+import type { PackSetUpProblem } from "@ziffr/core/pack-export-set-up";
 
 /** What each field asks for, in plain words. */
 const ASKS: Record<PackGuideSection, string> = {
@@ -21,15 +25,14 @@ const ASKS: Record<PackGuideSection, string> = {
   questions: "What people ask, with your answers.",
 };
 
-/** The step's words and choices. */
-export type Description = {
+/** The step's words and choices, the set-up questions among them. */
+export type Description = SetUpState & {
   text: PackGuideText;
   /** The guide goes into the file: ticked by the person, or by writing in a field. */
   include: boolean;
   problems: GuideProblem[];
   offers: PackGuideDraft["installed"];
-  /** The numbers of the file, and where the person says each comes from. */
-  numbers: PackGuideDraft["numbers"];
+  /** Where the person says each number of the file comes from. */
   comesFrom: ComesFromChoice;
   numberProblems: ComesFromProblem[];
 };
@@ -37,17 +40,19 @@ export type Description = {
 /** The state of the step, kept while the dialog moves back and forth. `drafted` takes in what the core answers each time
  * the step is opened: the list of contents replaces "Each part" only while the person has not changed it. */
 export function useDescription() {
-  const [state, setState] = useState<Description>({ text: {}, include: false, problems: [], offers: [], numbers: [], comesFrom: {}, numberProblems: [] });
+  const [state, setState] = useState<Description>({ text: {}, include: false, problems: [], offers: [], numbers: [], comesFrom: {}, numberProblems: [], setUp: {}, setUpProblems: [], positions: [], repeats: [], setUps: [] });
   const listed = useRef("");
   const drafted = useCallback((draft: PackGuideDraft) => {
     const before = listed.current;
     listed.current = draft.contents;
     // Each number starts with what the Pack it came from says, else "Ask a person"; an answer given stays.
+    // The set-up questions start empty: an installed Pack's are only offered.
     setState((s) => ({ ...s, offers: draft.installed, numbers: draft.numbers, numberProblems: [], problems: [], text: (s.text.eachPart ?? "") === before ? { ...s.text, eachPart: draft.contents } : s.text,
+      setUpProblems: [], positions: draft.positions ?? [], repeats: draft.repeats ?? [], setUps: draft.setUps ?? [],
       comesFrom: Object.fromEntries(draft.numbers.map((n) => [n.ref, s.comesFrom[n.ref] ?? n.said ?? { by: "person" as const }])) }));
   }, []);
-  const refused = useCallback((problems: GuideProblem[], numberProblems: ComesFromProblem[]) => setState((s) => ({ ...s, problems, numberProblems })), []);
-  return { state, setState, drafted, refused, /** What goes with the export: the guide only when it is ticked. */ guide: state.include ? state.text : undefined, comesFrom: state.comesFrom };
+  const refused = useCallback((problems: GuideProblem[], numberProblems: ComesFromProblem[], setUpProblems: PackSetUpProblem[]) => setState((s) => ({ ...s, problems, numberProblems, setUpProblems })), []);
+  return { state, setState, drafted, refused, /** What goes with the export: the guide only when it is ticked. */ guide: state.include ? state.text : undefined, comesFrom: state.comesFrom, setUp: PACK_SET_UP_ON ? state.setUp : undefined };
 }
 
 /** The fields of the step, each problem under the field it is in. */
@@ -88,6 +93,7 @@ export function DescribeStep({ state, setState }: { state: Description; setState
           </div>
         );
       })}
+      {PACK_SET_UP_ON && <PackSetUpFields state={state} setState={setState} />}
     </div>
   );
 }

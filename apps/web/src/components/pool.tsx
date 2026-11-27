@@ -24,6 +24,7 @@ import { Preview, TemplatePreview } from "./preview";
 import { BROWSE_TEMPLATES, TemplateBrowser } from "./template-browser";
 import { useSlideOver } from "./slide-over-host";
 import { TEMPLATE_GROUPS, builtinTemplates } from "./template-groups";
+import { useFreeLayouts } from "@/decks/slide-license";
 
 /** What a Preview in the Pool shows: a drawing with the name and a line under it, or (`whole`) a body of its own. */
 type Shown = { key: string; draw: () => React.ReactNode; name: string; blurb?: string; whole?: boolean };
@@ -35,7 +36,7 @@ const PREVIEW_HEIGHT = 340;
 
 /** GLOSSARY: Pool. Metrics the viewer can see, their saved Widgets and the Widget Templates, draggable onto any canvas.
  * Pointing at or focusing a template or saved widget shows its Preview (spec 0011). */
-export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }: { data: CanvasData; saved: Widget[]; onAdd?: (s: DropSource) => void; hint: string; metricsOnly?: boolean; layouts?: boolean }) {
+export function Pool({ data, saved, onAdd, hint, metricsOnly }: { data: CanvasData; saved: Widget[]; onAdd?: (s: DropSource) => void; hint: string; metricsOnly?: boolean }) {
   const [q, setQ] = useState("");
   const [, start] = useTransition();
   const panel = useSlideOver();
@@ -45,10 +46,12 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
   const metrics = inUse(data.metrics).filter((m) => match(m.name));
   // Metrics with the same name are told apart by owner, then period and unit.
   const notes = tellApart(inUse(data.metrics), (id) => people[id]?.name.split(" ")[0] ?? "someone");
-  const widgets = saved.filter((w) => match(w.title ?? ""));
+  // A saved free layout is offered only where one can be drawn.
+  const freeLayouts = useFreeLayouts(saved.some((w) => w.template === "canvas"));
+  const widgets = saved.filter((w) => (freeLayouts || w.template !== "canvas") && match(w.title ?? ""));
   // Slide layouts live under + Slide in decks; the Pool holds templates for single widgets.
   const templates = data.templates.filter((t): t is WidgetTemplate => t.kind === "widget" && match(t.name));
-  const builtins = builtinTemplates(layouts).filter((t) => match(t.label) || match(t.blurb));
+  const builtins = builtinTemplates(false).filter((t) => match(t.label) || match(t.blurb));
 
   // Pointing at a Metric starts fetching its series, so it is usually there by the time it is dropped (ticket #125).
   const ensure = useEnsure();
@@ -192,7 +195,7 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
         {!metricsOnly && (
           <Section
             title="Templates"
-            action={onAdd && <button onClick={() => { hide(); panel.open({ ...BROWSE_TEMPLATES, content: <TemplateBrowser data={data} layouts={layouts} onUse={(s) => { panel.close(); onAdd(s); }} /> }); }} className="rounded-[var(--radius-input)] px-1.5 py-0.5 text-xs text-muted-foreground underline-offset-2 hover:bg-muted hover:text-foreground hover:underline">Browse…</button>}
+            action={onAdd && <button onClick={() => { hide(); panel.open({ ...BROWSE_TEMPLATES, content: <TemplateBrowser data={data} onUse={(s) => { panel.close(); onAdd(s); }} /> }); }} className="rounded-[var(--radius-input)] px-1.5 py-0.5 text-xs text-muted-foreground underline-offset-2 hover:bg-muted hover:text-foreground hover:underline">Browse…</button>}
           >
             {TEMPLATE_GROUPS.map((g) => {
               const list = builtins.filter((t) => t.kind === g.kind);
@@ -328,9 +331,9 @@ function Item({ children, onAdd, info, ...rest }: ItemProps) {
   );
 }
 
-/** A metric's Preview in the Pool (GLOSSARY: Preview): what it counts and how it stands, drawn from the viewer's own
- * data, which the page already holds for every Metric the viewer sees. */
-function MetricPreview({ metric: m, data }: { metric: Metric; data: CanvasData }) {
+/** A metric's Preview in the Pool and the Add widget panel (GLOSSARY: Preview): what it counts and how it stands, drawn
+ * from the viewer's own data, which the page already holds for every Metric the viewer sees. */
+export function MetricPreview({ metric: m, data }: { metric: Metric; data: CanvasData }) {
   const ready = useSeriesReady([m.id], data);
   const points = data.series[m.slug] ?? [];
   const last = points[points.length - 1];

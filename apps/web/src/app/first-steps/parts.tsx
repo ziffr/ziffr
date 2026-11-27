@@ -24,12 +24,13 @@ export function Choices({ columns, children }: { columns?: boolean; children: Re
 }
 
 /** One choice: a whole card to press. `selected` gives a button that holds an answer its state, shown by a tick as well
- * as by its border; a choice that only leads on has none and may name what it does (`action`). */
-export function Choice({ title, hint, action, selected, onPick }: { title: string; hint?: string; action?: string; selected?: boolean; onPick: () => void }) {
+ * as by its border; a choice that only leads on has none and may name what it does (`action`). `waiting` says that a
+ * press does nothing for now; the button keeps the keyboard's place. */
+export function Choice({ title, hint, action, selected, waiting, onPick }: { title: string; hint?: React.ReactNode; action?: string; selected?: boolean; waiting?: boolean; onPick: () => void }) {
   return (
     <button
-      type="button" aria-pressed={selected} onClick={onPick}
-      className="flex min-h-14 w-full items-center gap-3 rounded-[var(--radius-card)] border border-border bg-card px-4 py-3 text-left text-card-foreground shadow-[var(--shadow-card)] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-pressed:border-primary aria-pressed:ring-1 aria-pressed:ring-primary"
+      type="button" aria-pressed={selected} aria-disabled={waiting || undefined} onClick={onPick}
+      className="flex min-h-14 w-full items-center gap-3 rounded-[var(--radius-card)] border border-border bg-card px-4 py-3 text-left text-card-foreground shadow-[var(--shadow-card)] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-disabled:opacity-60 aria-pressed:border-primary aria-pressed:ring-1 aria-pressed:ring-primary"
     >
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium break-words">{title}</span>
@@ -41,6 +42,23 @@ export function Choice({ title, hint, action, selected, onPick }: { title: strin
   );
 }
 
+/** A few short answers side by side, of which one may be chosen; the chosen one is filled and ticked. */
+export function Options<T extends string>({ legend, options, labels, value, onPick, className }: { legend: string; options: readonly T[]; labels: Record<T, string>; value: T | null; onPick: (v: T) => void; className?: string }) {
+  return (
+    <fieldset className="mt-4 min-w-0">
+      <legend className="mb-1.5 text-sm font-medium">{legend}</legend>
+      <div className={cn("grid gap-2", className)}>
+        {options.map((v) => (
+          <Button key={v} type="button" variant={value === v ? "default" : "outline"} aria-pressed={value === v} className="h-11 min-w-0 px-2 md:h-9" onClick={() => onPick(v)}>
+            {value === v && <Check aria-hidden />}
+            {labels[v]}
+          </Button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
 /** Goes on without an answer. */
 export function Skip({ onSkip }: { onSkip: () => void }) {
   return (
@@ -48,9 +66,4 @@ export function Skip({ onSkip }: { onSkip: () => void }) {
       <Button type="button" variant="ghost" className="h-11 md:h-9" onClick={onSkip}>Skip this question</Button>
     </div>
   );
-}
-
-/** A screen a later ticket builds. Nobody reaches one: First Steps is switched off until every screen exists. */
-export function NotBuilt({ title }: { title: string }) {
-  return <ScreenHeading title={title}>This step is not ready yet.</ScreenHeading>;
 }

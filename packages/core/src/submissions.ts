@@ -2,7 +2,7 @@
 // by Slack, mail, a personal form link, a program with an Access Key or a Feed, and are recorded under their sender,
 // members, Contacts and Feeds alike; a Metric owner
 // accepts or declines Corrections. Every lookup stays inside one Workspace.
-import { decideProposedNote, notesAfterValue, noteWithProposal, type NoteArriving, type NoteSaved } from "./value-note-store";
+import { decideProposedNote, notesAfterValue, noteWithProposal, type NoteArriving, type NoteSaved, type NumberOnly } from "./value-note-store";
 import { announceNewAction } from "./action-state";
 import { askedPeriods } from "./asked-periods";
 import { db } from "./db";
@@ -33,6 +33,7 @@ import type { Metric, Profile, SourceId, Token } from "./types";
 import { JANUARY, periodLabel, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import { yearStartOf } from "./fiscal-year";
 import { visitHeaders } from "./demo-visit-scope";
+import { DEMO_WORKSPACE_ID } from "./team";
 import { demoValuePeriodRefusal } from "./demo-values";
 
 /** A value as it arrived: who sent it on which Source, the text, and the Prompt it answers if any. */
@@ -45,10 +46,16 @@ export type SubmissionInput = {
   /** A note sent with the value (GLOSSARY: Value Note; spec 0064), untrusted: checked where it is saved, after the
    * value, which it never blocks. A program's longer note is not saved; any other is cut. */
   valueNote?: unknown;
-  /** A program's value as it sent it, instead of a number found in `text` (source "api" only). */
+  /** A program's value as it sent it, instead of a number found in `text` (source "api", and the values named below). */
   value?: { value: number; breakdown?: BreakdownInput[] };
-  /** The period a program names; otherwise the current one, or the Prompt's (source "api" only). */
+  /** The period a program names; otherwise the current one, or the Prompt's (source "api", and the values named below). */
   period?: string;
+  /** Set only by a reply that took an offer (prompt-reply.ts), never from what anyone sends: the number the person was
+   * offered and said "yes" to, in `value` and `period`, instead of a number read from `text`. */
+  offered?: boolean;
+  /** Set only by the reply reading (prompt-reply.ts): why the reply gives no value. Everything is checked as for any
+   * answer, nothing is recorded, and the sender is asked back in these terms. */
+  unread?: Exclude<AnswerReading, { ok: true }>;
   /** The first day of the period picked on the personal form link, as the browser sent it: untrusted. Honoured on the web
    * form only, and only for the running period or one this Token was asked for and still owes (asked-periods.ts). */
   formPeriod?: string;
@@ -76,7 +83,14 @@ export type SubmissionInput = {
 };
 
 /** What became of a submission, in words for the sender. */
-export type SubmissionResult = { outcome: string; detail: string; ok: boolean; metricSlug?: string; imported?: boolean; /** What became of the note sent with the value; absent when none was sent. */ valueNote?: NoteSaved };
+export type SubmissionResult = {
+  outcome: string; detail: string; ok: boolean; metricSlug?: string; imported?: boolean;
+  /** What became of the note sent with the value; absent when none was sent. */
+  valueNote?: NoteSaved;
+  /** Set when a person's value came in an interactive way with no note, so a question may follow (note-question.ts):
+   * never for a program, a Feed, an Import or a paste. It holds ids and a number: no browser and no program gets it. */
+  numberOnly?: NumberOnly;
+};
 
 /** What the intake log marks a value with: `paste` for a cell of a paste, and `import` beside it when it was recorded
  * as history (spec 0026). Read by the Metric's history and the intake log. */
@@ -127,7 +141,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
       observation_id: r.observationId ?? null,
       marks,
     }]);
-    return { outcome: r.outcome, detail: r.detail, ok: r.ok, metricSlug: r.metricSlug, ...(r.imported ? { imported: true } : {}), ...(r.valueNote ? { valueNote: r.valueNote } : {}) };
+    return { outcome: r.outcome, detail: r.detail, ok: r.ok, metricSlug: r.metricSlug, ...(r.imported ? { imported: true } : {}), ...(r.valueNote ? { valueNote: r.valueNote } : {}), ...(r.numberOnly ? { numberOnly: r.numberOnly } : {}) };
   };
 
   // 1. Who sent it? The Token is implied by the sender's identity on this Source.
@@ -179,7 +193,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   // The period the value answers when it names none itself: the one picked on the form link, else the Prompt's.
   const form = await formPick(input, { byLink, ws: workspaceId, metric, token, current, yearStart: ys, promptPeriod: prompt?.period_start ?? null });
   if ("refused" in form) return log({ ...base, ok: false, ...form.refused });
-  const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text, style, { parents: input.source === "web_form" });
+  const breakdown = breakdownOf(input, sent, style);
   // Rows that are parts of others (spec 0041, ticket 12) are checked before anything is looked up or written: a list that
   // is refused is refused whole, in words, whichever way it came in (a program, a form, a message, a Feed).
   const parents = breakdown ? readParents(breakdown.rows) : null;
@@ -200,7 +214,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
     // Period words are read with the workspace's Fiscal Year even for a monthly Metric, so the reply names "Q3"
     // rightly when it says that is not one of its periods.
     // A period picked on the form holds like a Prompt's: words naming another one record nothing.
-    const answer = readAnswer(input.text, { style, today: new Date(), period: metric.period, yearStart: workspaceYearStart, promptPeriod: form.asked, ...reading });
+    const answer = input.unread ?? readAnswer(input.text, { style, today: new Date(), period: metric.period, yearStart: workspaceYearStart, promptPeriod: form.asked, ...reading });
     if (!answer.ok) return log({ ...base, ok: false, ...unread(byLink, answer, metric, workspaceYearStart, form.asked ?? current, input.source === "web_form" ? style : null, form.picked) });
     value = answer.value;
     period = answer.period;
@@ -225,7 +239,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   if (condensedDay) return log({ ...base, ok: false, outcome: "rejected_period_condensed", detail: condensedRefusal(condensedDay) });
 
   // A locked period takes no more values: a late one becomes a proposal for the metric owner (GLOSSARY: Lock).
-  if (await isLocked(metric.id, period)) return log({ ...base, ...(await lateValue({ ws: workspaceId, metric, period, value, note: noteOf(input, senderId), senderName: sender?.name, senderId, preview, fv, when, notify: effects.notifyCorrection }, { filled: Boolean(filled || ownerFill), source: input.source, token, prompt })) });
+  if (await isLocked(metric.id, period)) return log({ ...base, ...(await lateValue({ ws: workspaceId, metric, period, value, note: noteOf(input, senderId), mayAsk: mayAskNote(input, workspaceId, pasted !== null), senderName: sender?.name, senderId, preview, fv, when, notify: effects.notifyCorrection }, { filled: Boolean(filled || ownerFill), source: input.source, token, prompt })) });
 
   // A Stand-in's answer to a Prompt sent in someone's place is the submitter's value, entered by the Stand-in; asked after
   // the Lock, so a late one is still proposed as a Correction, as any late value is.
@@ -270,13 +284,14 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   if (result.ok && !preview && filled) result.detail = await settleFilled(workspaceId, { metric, period, value: fv(value), when, forId: filled.forId, by: filled.by, as: filled.as, awayBy: filled.awayBy, observationId: Number(data.observation_id), source: input.source, forName: profiles.find((p) => p.id === filled!.forId)?.name, detail: result.detail });
   // The period's notes follow the value (spec 0064): a replaced value's notes become history, and its own is added.
   const valueNote = await notesOfRecorded(workspaceId, input, { result, preview, filled, submitterId, metricId: metric.id, period, before, data });
+  const numberOnly = valueWithoutNote(input, workspaceId, pasted !== null, { result, preview, imported, valueNote, filled, submitterId, metricId: metric.id, period, data });
   // The metric's Workflow takes it from here: check, approval, publish.
   if (result.ok && submitterId) {
     const next = await effects.afterValue(metric.id, period, submitterId, afterOptions(byLink, imported));
     if (next.length) result.detail += ` Workflow: ${next.join("; ")}.`;
   }
   // The value it became, so the intake log and the Metric's history can say how it arrived.
-  return log({ ...base, ...result, valueNote, observationId: result.ok ? data.observation_id : null });
+  return log({ ...base, ...result, valueNote, numberOnly, observationId: result.ok ? data.observation_id : null });
 }
 
 /** Who sent a submission and which Tokens of theirs it may use: the Token a form link or a key names, or the Tokens of the
@@ -313,9 +328,10 @@ async function chooseToken(input: SubmissionInput, ws: string, sender: Profile, 
     // A Prompt is answered by the person it asked only (a Stand-in has Prompts of their own): its id is no key to another's.
     if (!prompt || prompt.submitter_id !== sender.id) return { refused: { outcome: "rejected_no_token", detail: "That Prompt is not known here." } };
     // A Prompt sent in someone's place is answered by the Token of that Stand-in, whatever other Tokens they hold: the
-    // answer records under the right name (spec 0046). An older Prompt without it takes whichever Token fits.
+    // answer records under the right name (spec 0046). Any other Prompt is answered by the person's own Token only,
+    // never by one that stands in for someone, which would record the answer as that person's.
     const forMetric = candidates.filter((t) => t.metric_id === prompt.metric_id);
-    const token = prompt.stands_in_for ? forMetric.find((t) => t.stands_in_for === prompt.stands_in_for) : (forMetric.find((t) => !t.stands_in_for) ?? forMetric[0]);
+    const token = forMetric.find((t) => (t.stands_in_for ?? null) === (prompt.stands_in_for ?? null));
     if (!token) return { refused: { metricId: prompt.metric_id, outcome: "rejected_no_token", detail: `${sender.name} has no Token for ${metricById[prompt.metric_id]?.name ?? "that metric"}.` } };
     return { token, prompt, how: "reply to a Prompt" };
   }
@@ -390,6 +406,20 @@ async function lateValue(i: Parameters<typeof proposeLate>[0], by: { filled: boo
   return proposeLate(i);
 }
 
+// Whether a note may be asked for after this value (spec 0064, "The question"): it came by an interactive way, so not
+// from a program or a Feed and not as a paste, and nothing was sent along as its note. Never in the demo, which keeps
+// no notes and whose simulated channels hand the whole result to the browser.
+function mayAskNote(input: SubmissionInput, ws: string, pasted: boolean): boolean {
+  return ws !== DEMO_WORKSPACE_ID && input.source !== "api" && !pasted && (input.valueNote === undefined || input.valueNote === null);
+}
+
+// What a note may be asked about after a value that was recorded: nothing for a preview, an Import, one that brought a
+// note or one nobody may be asked about. The author is who entered the value, also for someone else.
+function valueWithoutNote(input: SubmissionInput, ws: string, pasted: boolean, v: { result: { ok: boolean }; preview: boolean; imported: boolean; valueNote: NoteSaved | undefined; filled?: { by: string } | null; submitterId: string | null | undefined; metricId: number; period: string; data: { observation_id: unknown; after: unknown } }): NumberOnly | undefined {
+  if (!v.result.ok || v.preview || v.imported || v.valueNote || !v.submitterId || !mayAskNote(input, ws, pasted)) return undefined;
+  return { metricId: v.metricId, period: v.period, authorId: v.filled?.by ?? v.submitterId, value: Number(v.data.after), observationId: Number(v.data.observation_id) };
+}
+
 // The note that came with a value, by who sent it; nothing when none came or nobody is known to have sent it.
 function noteOf(input: SubmissionInput, authorId: string | null | undefined): NoteArriving | undefined {
   if (input.valueNote === undefined || input.valueNote === null || !authorId) return undefined;
@@ -407,8 +437,9 @@ async function notesOfRecorded(ws: string, input: SubmissionInput, v: { result: 
 
 /** A value for a locked period (GLOSSARY: Lock, Correction): it changes nothing; it becomes a proposal for the Metric's owner,
  * or, in a preview, says that it would. Returns the intake's outcome and words. */
-async function proposeLate(i: { ws: string; metric: Metric; period: string; value: number; senderName: string | undefined; senderId: string | null; note?: NoteArriving; preview: boolean; fv: (v: number) => string; when: string; notify: SubmissionEffects["notifyCorrection"] }): Promise<{ ok: false; outcome: string; detail: string; valueNote?: NoteSaved }> {
+async function proposeLate(i: { ws: string; metric: Metric; period: string; value: number; senderName: string | undefined; senderId: string | null; note?: NoteArriving; /** Whether a note may be asked for (mayAskNote). */ mayAsk: boolean; preview: boolean; fv: (v: number) => string; when: string; notify: SubmissionEffects["notifyCorrection"] }): Promise<{ ok: false; outcome: string; detail: string; valueNote?: NoteSaved; numberOnly?: NumberOnly }> {
   let valueNote: NoteSaved | undefined;
+  let numberOnly: NumberOnly | undefined;
   const { ws, metric, period, value, senderId, fv, when } = i;
   const owner = metric.owner_id === senderId ? "you" : "the metric owner";
   if (i.preview) return { ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} would go to ${owner} as a proposed correction.` };
@@ -423,9 +454,10 @@ async function proposeLate(i: { ws: string; metric: Metric; period: string; valu
     const [message] = await insertSealed("thread_messages", ws, [{ action_id: a.id, author_id: senderId, body: "Late value for a locked period.", correction_value: value, correction_status: "proposed" }]);
     // Its note waits with the proposal and becomes the period's only if the Correction is accepted.
     if (i.note) valueNote = await noteWithProposal(ws, { messageId: Number(message!.id), metricId: metric.id, period, value }, i.note);
+    else if (i.mayAsk && senderId) numberOnly = { metricId: metric.id, period, authorId: senderId, value, proposal: Number(message!.id) };
     if (senderId) await i.notify({ actionId: a.id, senderId, ownerId: metric.owner_id, value });
   }
-  return { ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} went to ${owner} as a proposed correction.`, ...(valueNote ? { valueNote } : {}) };
+  return { ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} went to ${owner} as a proposed correction.`, ...(valueNote ? { valueNote } : {}), ...(numberOnly ? { numberOnly } : {}) };
 }
 
 /** What a sender is told when rows cannot be added to the Breakdown already recorded, whatever the reason. */
@@ -458,9 +490,16 @@ async function formPick(input: SubmissionInput, at: { byLink: boolean; ws: strin
   return { asked: sent, picked: true };
 }
 
+/** The Breakdown a submission carries: the rows given beside a value read already, else what its text holds; none for a
+ * reply that gives no value. */
+function breakdownOf(input: SubmissionInput, sent: SubmissionInput["value"], style: NumberStyle): { rows: BreakdownInput[]; total: number | null } | null {
+  if (sent) return sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null;
+  return input.unread ? null : parseBreakdown(input.text, style, { parents: input.source === "web_form" });
+}
+
 /** Whether the value and period come read already: a program's, a paste's, or one typed on the Metric's own page. */
 function valueIsGiven(input: SubmissionInput, pasted: boolean): boolean {
-  return input.source === "api" || pasted || (input.typed === true && input.source === "web_form");
+  return input.source === "api" || pasted || input.offered === true || (input.typed === true && input.source === "web_form");
 }
 
 /** How a value with the sender's only Token arrived, in words for the reply. */

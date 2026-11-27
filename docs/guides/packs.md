@@ -282,9 +282,9 @@ Do not write it on a Derived Metric or a [Total](#totals): Ziffr calculates thos
 
 ### The Pack Guide
 
-`guide` is where you explain your Pack, read before installing (in the preview) and afterwards in Help, with the installed Pack. It has five sections, each optional, in this order and under Ziffr's own titles: `whatItsFor` (What it's for), `beforeYouStart` (Before you start), `firstSteps` (First steps), `eachPart` (Each part) and `questions` (Questions).
+`guide` is where you explain your Pack, read before installing (in the preview) and afterwards in Help, with the installed Pack. It has five sections, each optional, in this order and under Ziffr's own titles: `whatItsFor` (What it's for), `beforeYouStart` (What you need), `firstSteps` (First steps), `eachPart` (Each part) and `questions` (Questions).
 
-For a whole guide to learn from, read the one of Ziffr's [Sales forecast Pack](../../packs/sales-forecast.pack.json): what the Pack is for, what to have ready, a numbered **Start here**, each part and the questions people ask.
+Keep it short. Ziffr's own guides fill three sections, in at most 1,200 characters: what the Pack is for and how often something happens, what you need, and up to three questions. For one to learn from, read the guide of the [Sales forecast Pack](../../packs/sales-forecast.pack.json).
 
 A section is a list of blocks:
 
@@ -336,7 +336,7 @@ A Pack in the format `ziffr.pack/3` holds everything a `/2` file holds, and may 
 }
 ```
 
-**Export as Pack** does not write these fields yet: add them to the file by hand.
+**Export as Pack** writes these fields under **Set-up questions**, with **Try it** to walk the screens with made-up people; both are shown once the guided set-up is switched on. Until then, add the fields to the file by hand.
 
 ## The logo
 
@@ -352,7 +352,7 @@ Ziffr checks a Pack in full on its server before it shows or installs anything:
 - a web address, HTML, a script, a template in braces or a line break in any text of `contents`. Words of widgets may hold the Placeholders Ziffr knows, such as `{metric}` or `{change yoy}`. The text check reads Unicode the way a person does: an address with an accent mark, an invisible character or letters of another width in it is an address too, while ordinary accented words pass;
 - images and fonts, except the Pack's one `logo`: a Theme uses only fonts Ziffr ships, and its background image is set in Ziffr after installing;
 - a `logo` that is not a PNG, JPEG or plain SVG as a base64 data address, weighs over 128,000 bytes, measures over 512 pixels on a side, or whose bytes are not the type it says; an SVG with a script, a handler, foreign content, a link, a style, an entity or a `<!DOCTYPE>`. These are the checks a Theme's logo has, the very same code. `npx @ziffr/pack check` reports them with the line of `logo`;
-- a Dashboard Template with a Free Layout, a Slot it does not have, or widgets that overlap;
+- a Dashboard Template with a Free Layout or a Note Widget (a Pack carries no notes), a Slot it does not have, or widgets that overlap;
 - a slide of a Deck Template with anything but widgets, text, simple boxes and Slide Elements, or a shape past the slide's edge;
 - a Workflow Template that names a person: an Approve step says only how many Approvers to pick, and in `/2` which Positions of the Pack they are;
 - in `ziffr.pack/2`: a Position, Repeat or credited Pack that is not listed or is listed twice, a Position for several people where one is needed, a Tell step with a level, and everything else the rules under [Who does what](#who-does-what-ziffrpack2) refuse;
@@ -373,7 +373,7 @@ A Pack with Themes can be installed only by an Owner, since only Owners change T
 Under **Workspace → Packs**, **Export as Pack…** makes a Pack of things you pick in your Workspace: Metrics (as Metric Catalog entries), the Workspace's own catalog entries from Packs, Dashboard, Deck and Workflow Templates, View Designs and Themes. Give it a name, an id (your handle and a slug), a version, a summary, an author and a license, and choose **Download Pack**. The Tags of the Metrics you pick go in, up to 5 per entry and only Tags you can see on those Metrics; untick **Carry the Tags** to leave them out.
 
 - It holds Metric Descriptions only, never a value, an owner, a Submitter or a Token, and only of Metrics you see.
-- The step **Describe your Pack** writes the [Pack Guide](#the-pack-guide): one field per section, **Each part** starting with the list of what goes into the file. A Pack with a guide is written as `ziffr.pack/2`; without one it stays `ziffr.pack/1`. A guide a Pack was installed with can be taken over there.
+- The step **Describe your Pack** writes the [Pack Guide](#the-pack-guide): one field per section, **Each part** starting with the list of what goes into the file. A Pack with a guide is written as `ziffr.pack/2`; without one it stays `ziffr.pack/1`; with [set-up questions](#what-the-set-up-asks-ziffrpack3) it is written as `ziffr.pack/3`. A guide a Pack was installed with can be taken over there.
 - A Slot suggests the catalog entry of the Metric the template was made with, when that Metric is in the Pack too. A Derived Metric goes in only with the Metrics it is computed from.
 - Words that a Pack may not hold, such as a description with a web address, stay out of the file. Drawings on slides stay out, and so does every logo but the one you choose: under **Logo** you take the logo of one of your Themes or upload a picture, and Themes that use it say `"logo": "pack"`. The **Author** starts as your name and is the publisher the logo is shown with. Ziffr lists everything that stayed out, and why.
 - Things a Pack installed keep their keys, so exporting what a Pack added gives the same file again.

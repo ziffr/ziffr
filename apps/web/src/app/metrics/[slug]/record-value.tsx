@@ -7,6 +7,7 @@ import { useState, useTransition, type ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { recordValue } from "@/app/series-actions";
 import { AnswerBox, ValueEntry, sendValue, type Answer } from "./value-entry";
+import { AskedNote } from "@/components/asked-note";
 import type { RecordingOffer } from "@ziffr/core/record-own-value";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -34,12 +35,13 @@ export function RecordSheet({ offer, open, onOpenChange, children }: { offer: Re
   );
 }
 
-/** The period, the value and an optional Breakdown, and the answer to the last try. */
+/** The period, the value, an optional Breakdown and note, and the answer to the last try. */
 function RecordForm({ offer }: { offer: RecordingOffer }) {
   // The oldest period they were asked for and still owe, else the current one.
   const [period, setPeriod] = useState(offer.asked ?? offer.periods[0].start);
   const [value, setValue] = useState("");
   const [breakdown, setBreakdown] = useState(false);
+  const [note, setNote] = useState("");
   const [answer, setAnswer] = useState<Answer>(null);
   const [pending, start] = useTransition();
   const chosen = offer.periods.find((p) => p.start === period)!;
@@ -50,9 +52,9 @@ function RecordForm({ offer }: { offer: RecordingOffer }) {
         e.preventDefault();
         const data = new FormData(e.currentTarget);
         start(async () => {
-          const r = await sendValue(() => recordValue(offer.metricId, { value, breakdown: String(data.get("breakdown") ?? ""), period }));
+          const r = await sendValue(() => recordValue(offer.metricId, { value, breakdown: String(data.get("breakdown") ?? ""), period, ...(note ? { note } : {}) }));
           setAnswer(r);
-          if (r?.ok) { setValue(""); setBreakdown(false); }
+          if (r?.ok) { setValue(""); setBreakdown(false); if (!r.noteKept) setNote(""); }
         });
       }}
     >
@@ -64,7 +66,9 @@ function RecordForm({ offer }: { offer: RecordingOffer }) {
         </select>
         {chosen.has !== null && <span className="mt-1 block text-xs text-muted-foreground">Already has <span className="fig">{chosen.has}</span>.</span>}
       </label>
-      <ValueEntry value={value} setValue={setValue} breakdown={breakdown} setBreakdown={setBreakdown} placeholder={offer.placeholder} numberStyle={offer.numberStyle} />
+      {answer?.ask && <AskedNote key={answer.ask} code={answer.ask} redraw />}
+      {/* While the question stands the form's own note field gives way, until a further number is typed. */}
+      <ValueEntry value={value} setValue={setValue} breakdown={breakdown} setBreakdown={setBreakdown} placeholder={offer.placeholder} numberStyle={offer.numberStyle} note={offer.notes && (!answer?.ask || value) ? { words: note, setWords: setNote } : undefined} />
       <Button type="submit" size="lg" disabled={pending}>{pending ? "Recording…" : "Record the value"}</Button>
     </form>
   );

@@ -37,7 +37,7 @@ describe("metricDraftFrom", () => {
     const { w, sara, cleo, m, workflowId } = await original();
     expect(await metricDraftFrom(w.actor(sara), m.id)).toEqual({
       original: "Cash", name: "Cash (copy)", description: "Money in the bank at month end.", calculation_note: "All bank accounts; no overdraft is deducted.", unit: "EUR", unit_position: "after", format: "currency", decimals: 2, period: "month",
-      submission_rule: "reject", polarity: "target", aggregation: "last", target_min: 1000, target_max: 5000, attainment_method: null, sources: ["mail", "web_form"],
+      submission_rule: "reject", polarity: "target", aggregation: "last", target_min: 1000, target_max: 5000, attainment_method: null, ask_note: "always", sources: ["mail", "web_form"],
       workflow: { id: workflowId, name: "Monthly close" }, submitters: [cleo], duplicateOf: m.id,
     });
   });

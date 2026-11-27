@@ -23,6 +23,9 @@ export type ReplyFigure = {
   rule: SubmissionRule;
   /** Whether the period is locked, so that a new value is only proposed. */
   locked?: boolean;
+  /** A number of the message that takes nothing by this reply (no longer asked, or only on the form): its line is
+   * reported as `closed` and it is never filled in order. */
+  closed?: boolean;
 };
 
 /** What a reply is read with. */
@@ -31,10 +34,15 @@ export type ReplyContext = Pick<AnswerContext, "style" | "today" | "yearStart" |
   figures: readonly ReplyFigure[];
   /** Whether the reply is an email, which is cleaned of quoted text, greeting and signature; a chat message is taken whole. */
   email: boolean;
+  /** Whether the message numbered its figures (a Combined Prompt), so that "1:" is read also when it holds only one. */
+  numbered?: boolean;
   /** The sender's name, a line of which ends an email's note. */
   senderName?: string | null;
   /** The offer made to this person in this place that is still open, if any. */
   openOffer?: { figure: number; value: number } | null;
+  /** The one figure the reply answers by where it was sent, as a reply to the question about it: words that could mean
+   * several figures mean this one. */
+  meant?: number;
 };
 
 /** Why a number was not read: readAnswer's refusals. */
@@ -59,20 +67,23 @@ export type ReplyOffer = { figure: number; value: number; how: "overwrite" | "ad
 /** What a reply says. */
 export type ReplyReading =
   /** Values to record; in a message for several figures also notes for figures already in, lines that named a figure
-   * but could not be read, and the figures still open afterwards. */
-  | { kind: "values"; values: ReplyValue[]; notes: { figure: number; note: ReplyNote }[]; unread: { figure: number; reading: Unread }[]; open: number[] }
+   * but could not be read, figures named that take nothing by reply, and the figures still open afterwards. `skipped`
+   * are figures already in whose plain number, taken in order, is left aside; `unplaced` says the reply holds plain
+   * numbers that cannot be told apart by their order, so nothing of it is taken and Ziffr asks which is which. */
+  | { kind: "values"; values: ReplyValue[]; notes: { figure: number; note: ReplyNote; holdsNumber: boolean }[]; unread: { figure: number; reading: Unread; answer: string }[]; closed: number[]; open: number[]; skipped?: number[]; unplaced?: boolean }
   /** One figure: nothing is recorded, and `reading` says what to answer or ask back. */
   | { kind: "not_read"; figure: number; reading: Unread }
-  /** A note for a value that is in. `sendAlone` asks for the number alone, where the note holds several. */
-  | { kind: "note"; figure: number; note: ReplyNote; offer: ReplyOffer | null; sendAlone: boolean }
+  /** A note for a value that is in. `holdsNumber` says whether its words hold any number; `sendAlone` asks for the
+   * number alone, where they hold several. */
+  | { kind: "note"; figure: number; note: ReplyNote; offer: ReplyOffer | null; holdsNumber: boolean; sendAlone: boolean }
   /** Words that could mean any of these figures: nothing is saved, and Ziffr asks which. */
   | { kind: "which_figure"; figures: number[] }
   /** "Yes" to the open offer. */
   | { kind: "accept_offer"; figure: number; value: number }
   /** A refusal or thanks once a value is in: nothing is saved and the question is closed. */
   | { kind: "closed" }
-  /** Nothing to save. */
-  | { kind: "nothing" };
+  /** Nothing to save; `yes` when the reply said yes with no offer open. */
+  | { kind: "nothing"; yes?: boolean };
 
 /** The longest reply read, in characters, as long as the longest email or chat message taken today. */
 const REPLY_CHARS = 5000;
@@ -136,7 +147,10 @@ function reader(ctx: ReplyContext) {
   const answerFor = (figure: ReplyFigure, text: string): AnswerReading =>
     readAnswer(text, { style: ctx.style, today: ctx.today, yearStart: ctx.yearStart, languages, monthFirst: ctx.monthFirst, period: figure.period, promptPeriod: figure.promptPeriod });
 
-  return { ctx, languages, today, analyse, answerFor };
+  // Each figure's name as lines are compared with it, worked out once for a reply.
+  const names = ctx.figures.map((f) => plainLine(f.name));
+
+  return { ctx, languages, today, names, analyse, answerFor };
 }
 type Reader = ReturnType<typeof reader>;
 
@@ -231,13 +245,16 @@ function valueAt(lines: Line[], at: number, figure: number, r: Reader, head: str
   return value({ value: reading.value, period: reading.period, named: reading.named, answer, rows: null }, lines.slice(at + 1).map((l) => l.text));
 }
 
-const oneValue = (v: ReplyValue): ReplyReading => ({ kind: "values", values: [v], notes: [], unread: [], open: [] });
+const oneValue = (v: ReplyValue): ReplyReading => ({ kind: "values", values: [v], notes: [], unread: [], closed: [], open: [] });
 
 /** The first reply for one figure: the value line is the first that holds a number once period words are out. */
 function firstValue(lines: Line[], r: Reader): ReplyReading {
   const at = lines.findIndex((l) => l.numbers.length > 0);
   if (at >= 0) {
-    const v = valueAt(lines, at, 0, r, lines[at].text);
+    // In a message that numbered its only figure, "1:" says which one is meant and is no part of the value.
+    const head = (r.ctx.numbered ? numbered(lines[at].text, 1)?.rest : undefined) ?? lines[at].text;
+    const read = head === lines[at].text ? lines : [...lines.slice(0, at), ...r.analyse([head]), ...lines.slice(at + 1)];
+    const v = valueAt(read, at, 0, r, head);
     return "value" in v ? oneValue(v) : { kind: "not_read", figure: 0, reading: v };
   }
   // No line holds a number: read as a whole, as today ("2026" alone is a value; "Q3" alone has no number).
@@ -252,12 +269,22 @@ function noteReading(figure: number, lines: string[], r: Reader): ReplyReading {
   const note = noteFrom(lines);
   if (!note) return { kind: "nothing" };
   const f = r.ctx.figures[figure];
-  const numbers = r.analyse(lines).flatMap((l) => l.numbers);
+  const numbers = numbersOfNote(note, r);
   // A locked period takes a proposal whatever the rule; otherwise a rule that rejects a second value leaves no offer.
   const how: ReplyOffer["how"] | null = f.locked ? "correction" : f.rule === "reject" ? null : f.rule;
   const other = numbers.length === 1 ? numbers[0].value : null;
   const offer = how && other !== null && other !== f.value ? { figure, value: other, how } : null;
-  return { kind: "note", figure, note, offer, sendAlone: how !== null && numbers.length > 1 };
+  return { kind: "note", figure, note, offer, holdsNumber: numbers.length > 0, sendAlone: how !== null && numbers.length > 1 };
+}
+
+/** The numbers a note's words hold, period words not counted. */
+const numbersOfNote = (note: ReplyNote, r: Reader) => r.analyse(note.text.split("\n")).flatMap((l) => l.numbers);
+
+/** The one number a note's words hold, period words not counted; null when they hold none or several. What an offer
+ * made from those words offered, read again when "yes" takes it. */
+export function loneNumber(words: string, ctx: Pick<ReplyContext, "style" | "today" | "yearStart" | "languages" | "monthFirst">): number | null {
+  const numbers = numbersOfNote({ text: words.slice(0, REPLY_CHARS), cut: false }, reader({ ...ctx, figures: [], email: false }));
+  return numbers.length === 1 ? numbers[0].value : null;
 }
 
 /** The lines of a note that is the reply itself: in an email its first paragraph, whose first line never ends it unless
@@ -280,12 +307,12 @@ const NAME_CHARS = 300;
 
 /** A line that starts with a figure's number, or with its full name and a colon; null for any other line, and for a
  * name two figures share. */
-function labelled(text: string, figures: readonly ReplyFigure[]): { figure: number; rest: string } | null {
-  const byNumber = numbered(text, figures.length);
+function labelled(text: string, r: Reader): { figure: number; rest: string } | null {
+  const byNumber = numbered(text, r.ctx.figures.length);
   if (byNumber) return byNumber;
   for (let at = text.indexOf(":"); at >= 0 && at < NAME_CHARS; at = text.indexOf(":", at + 1)) {
     const head = plainLine(text.slice(0, at));
-    const found = figures.flatMap((f, i) => (plainLine(f.name) === head ? [i] : []));
+    const found = head === "" ? [] : r.names.flatMap((name, i) => (name === head ? [i] : []));
     if (found.length === 1) return { figure: found[0], rest: text.slice(at + 1).trim() };
   }
   return null;
@@ -296,7 +323,7 @@ function laterValue(lines: Line[], r: Reader): ReplyReading {
   // Period words may stand alone above the value ("October" and, under it, "45").
   const found = lines.findIndex((l) => l.text !== "" && !(l.words.length > 0 && !/[\p{L}\p{N}]/u.test(l.rest)));
   const at = Math.max(found, 0);
-  const label = labelled(lines[at].text, r.ctx.figures);
+  const label = labelled(lines[at].text, r);
   const corrected = /^correction ?:(.*)$/i.exec(lines[at].text)?.[1].trim();
   const head = label?.rest ?? corrected ?? lines[at].text;
   const withHead = [...lines.slice(0, at), ...r.analyse([head]), ...lines.slice(at + 1)];
@@ -319,11 +346,13 @@ function labelledFigures(texts: string[], labels: ({ figure: number; rest: strin
   const starts = labels.flatMap((l, i) => (l ? [i] : []));
   const parts = starts.map((start, i) => ({ ...labels[start]!, under: texts.slice(start + 1, starts[i + 1] ?? texts.length) }));
   const values: ReplyValue[] = [];
-  const notes: { figure: number; note: ReplyNote }[] = [];
-  const unread: { figure: number; reading: Unread }[] = [];
+  const notes: { figure: number; note: ReplyNote; holdsNumber: boolean }[] = [];
+  const unread: { figure: number; reading: Unread; answer: string }[] = [];
+  const closed: number[] = [];
   const noted: { figure: number; lines: string[] }[] = [];
   for (const figure of [...new Set(parts.map((p) => p.figure))].sort((a, b) => a - b)) {
     const f = figures[figure];
+    if (f.closed) { closed.push(figure); continue; }
     const units = unitsOf([f]);
     const own = parts.filter((p) => p.figure === figure);
     const heads = own.map((p) => r.analyse([p.rest])[0]);
@@ -332,7 +361,7 @@ function labelledFigures(texts: string[], labels: ({ figure: number; rest: strin
       if (f.value === null) {
         // Words are no value: the figure stays open, with the reason where the number reader has one.
         const reading = r.answerFor(f, own[0].rest);
-        if (!reading.ok) unread.push({ figure, reading });
+        if (!reading.ok) unread.push({ figure, reading, answer: own[0].rest });
         continue;
       }
       const lines = own.flatMap((p) => (r.ctx.email ? [p.rest, ...paragraph(p.under, r.ctx, r.languages)] : [p.rest, ...p.under]));
@@ -341,51 +370,58 @@ function labelledFigures(texts: string[], labels: ({ figure: number; rest: strin
     }
     const [part] = own;
     const reading = r.answerFor(f, part.rest);
-    if (!reading.ok) { unread.push({ figure, reading }); continue; }
+    if (!reading.ok) { unread.push({ figure, reading, answer: part.rest }); continue; }
     // Two lines for one figure, or a second number alone under it, leave it open which one is meant.
     const second = own.length > 1 ? { ok: false as const, reason: "several_numbers" as const, numbers: heads.flatMap((h) => h.numbers.map((n) => n.text)) } : secondNumber(heads[0], r.analyse(part.under), r, units);
-    if (second) { unread.push({ figure, reading: second }); continue; }
+    if (second) { unread.push({ figure, reading: second, answer: part.rest }); continue; }
     values.push({ figure, value: reading.value, period: reading.period, named: reading.named, answer: part.rest, rows: null, note: noteFrom(noteUnder(part.under, r.ctx, r.languages)) });
   }
-  if (!values.length && !unread.length && noted.length === 1) return noteReading(noted[0].figure, noted[0].lines, r);
+  if (!values.length && !unread.length && !closed.length && noted.length === 1) return noteReading(noted[0].figure, noted[0].lines, r);
   for (const n of noted) {
     const note = noteFrom(n.lines);
-    if (note) notes.push({ figure: n.figure, note });
+    if (note) notes.push({ figure: n.figure, note, holdsNumber: numbersOfNote(note, r).length > 0 });
   }
-  return { kind: "values", values, notes, unread, open: stillOpen(figures, values) };
+  return { kind: "values", values, notes, unread, closed, open: stillOpen(figures, values) };
 }
 
 const stillOpen = (figures: readonly ReplyFigure[], values: ReplyValue[]) =>
-  figures.flatMap((f, i) => (f.value === null && !values.some((v) => v.figure === i) ? [i] : []));
+  figures.flatMap((f, i) => (f.value === null && !f.closed && !values.some((v) => v.figure === i) ? [i] : []));
 
 /** A reply to a message for several figures. */
 function severalFigures(lines: Line[], r: Reader): ReplyReading {
   const { figures } = r.ctx;
   const texts = lines.map((l) => l.text);
-  const labels = texts.map((t) => labelled(t, figures));
+  const labels = texts.map((t) => labelled(t, r));
   if (labels.some(Boolean)) return labelledFigures(texts, labels, r);
   const open = stillOpen(figures, []);
   const units = unitsOf(figures);
   const alone = lines.flatMap((l, i) => (bare(l, r, units) ? [i] : []));
-  // Numbers alone are taken in order, and only when there is exactly one for every open figure (decision 3).
-  if (open.length && alone.length === open.length) {
+  const nothingRead = { kind: "values" as const, values: [], notes: [], unread: [], closed: [], open };
+  // Numbers alone are taken in order only when there is exactly one for every figure the message numbered, those since
+  // answered or closed included, whose numbers are left aside (decision 3). Any other count could mean other figures
+  // than the order says, a lone number with one figure open too, so Ziffr asks.
+  if (alone.length) {
+    if (alone.length !== figures.length) return { ...nothingRead, unplaced: true };
     const values: ReplyValue[] = [];
-    const unread: { figure: number; reading: Unread }[] = [];
-    alone.forEach((at, i) => {
-      const figure = open[i];
+    const unread: { figure: number; reading: Unread; answer: string }[] = [];
+    const closed: number[] = [];
+    const skipped: number[] = [];
+    alone.forEach((at, figure) => {
+      if (figures[figure].closed) { closed.push(figure); return; }
+      if (figures[figure].value !== null) { skipped.push(figure); return; }
       const reading = r.answerFor(figures[figure], texts[at]);
-      if (!reading.ok) { unread.push({ figure, reading }); return; }
-      const note = noteFrom(noteUnder(texts.slice(at + 1, alone[i + 1] ?? texts.length), r.ctx, r.languages));
+      if (!reading.ok) { unread.push({ figure, reading, answer: texts[at] }); return; }
+      const note = noteFrom(noteUnder(texts.slice(at + 1, alone[figure + 1] ?? texts.length), r.ctx, r.languages));
       values.push({ figure, value: reading.value, period: reading.period, named: reading.named, answer: texts[at], rows: null, note });
     });
-    return { kind: "values", values, notes: [], unread, open: stillOpen(figures, values) };
+    return { kind: "values", values, notes: [], unread, closed, skipped, open: stillOpen(figures, values) };
   }
-  const nothingRead: ReplyReading = { kind: "values", values: [], notes: [], unread: [], open };
-  if (open.length && alone.length) return nothingRead;
   const filled = figures.flatMap((f, i) => (f.value === null ? [] : [i]));
   if (!filled.length) return nothingRead;
-  if (filled.length > 1) return { kind: "which_figure", figures: filled };
-  return noteReading(filled[0], wordsOf(texts, r), r);
+  const { meant } = r.ctx;
+  const one = meant !== undefined && filled.includes(meant) ? meant : filled.length === 1 ? filled[0] : null;
+  if (one === null) return { kind: "which_figure", figures: filled };
+  return noteReading(one, wordsOf(texts, r), r);
 }
 
 /** Whether a reply is one of these words and nothing else (an email's signature aside). */
@@ -405,7 +441,7 @@ export function readReply(text: string, ctx: ReplyContext): ReplyReading {
   if (yes && offer) return { kind: "accept_offer", figure: offer.figure, value: offer.value };
   if (ctx.figures.some((f) => f.value !== null)) {
     // "Yes" with no open offer saves nothing: it never approves, sends back or confirms anything.
-    if (yes) return { kind: "nothing" };
+    if (yes) return { kind: "nothing", yes: true };
     if (saysOnly(texts, ["-", ...replyWords(r.languages, "no")], r)) return { kind: "closed" };
   }
   const lines = r.analyse(texts);

@@ -40,14 +40,16 @@ type Props = {
   /** Lay the widget out at the width given, with its words at their usual size, instead of scaling it down: how a
    * phone's dashboard shows it. */
   reflow?: boolean;
+  /** The most height it takes: a taller widget is drawn smaller, so cards in a grid keep one height. Not when reflowed. */
+  maxHeight?: number;
 };
 
 /** A widget drawn small and inert at its own proportions. */
-export function Preview({ widget, data, size, width = 280, sample, className, reflow = false }: Props) {
+export function Preview({ widget, data, size, width = 280, sample, className, reflow = false, maxHeight }: Props) {
   const cells = cellsToPixels(size);
   const narrow = Math.max(width, REFLOW_MIN_WIDTH[widget.template] ?? 0);
   const natural = reflow && cells.width > narrow ? { width: narrow, height: cells.height + REFLOW_ROOM } : cells;
-  const scale = Math.min(1, width / natural.width);
+  const scale = Math.min(1, width / natural.width, maxHeight && !reflow ? maxHeight / natural.height : 1);
   const free = TEMPLATES[widget.template]?.kind === "layout" && !widget.settings.canvas?.document;
   const badge = (place: string) => <span className={cn("rounded-[var(--radius-input)] bg-[var(--color-cotton)] px-1.5 py-0.5 text-xs text-muted-foreground shadow-[var(--edge-stock)]", place)}>Sample data</span>;
   const frame = (
@@ -70,26 +72,40 @@ export function Preview({ widget, data, size, width = 280, sample, className, re
 }
 
 /** A built-in or team Widget Template's Preview, drawn with Sample Data. */
-export function TemplatePreview({ template, viewer, numberStyle, width, className, reflow }: { template: TemplateId | Pick<WidgetTemplate, "view" | "body" | "slots" | "w" | "h">; viewer: string; numberStyle: NumberStyle; width?: number; className?: string; reflow?: boolean }) {
+export function TemplatePreview({ template, viewer, numberStyle, width, className, reflow, maxHeight }: { template: TemplateId | Pick<WidgetTemplate, "view" | "body" | "slots" | "w" | "h">; viewer: string; numberStyle: NumberStyle; width?: number; className?: string; reflow?: boolean; maxHeight?: number }) {
   const data = useMemo(() => sampleCanvasData(viewer, numberStyle), [viewer, numberStyle]);
   const { widget, size } = useMemo((): { widget: SampleWidget; size: { w: number; h: number } } => {
     if (typeof template === "string") return { widget: sampleWidget(template), size: TEMPLATES[template].size };
     return { widget: sampleTeamWidget(template), size: { w: template.w, h: template.h } };
   }, [template]);
-  return <Preview widget={widget} data={data} size={size} width={width} sample className={className} reflow={reflow} />;
+  return <Preview widget={widget} data={data} size={size} width={width} sample className={className} reflow={reflow} maxHeight={maxHeight} />;
+}
+
+/** The Sample Data a Preview draws from, with a Pack's own Metrics, series and targets under its names when it is one
+ * of a Pack's. */
+export function withPackSample(sample: CanvasData, pack?: ReturnType<typeof packSample>): CanvasData {
+  return pack ? { ...sample, metrics: [...pack.data.metrics, ...sample.metrics], series: { ...sample.series, ...pack.data.series }, targets: { ...sample.targets, ...pack.data.targets } } : sample;
 }
 
 /** A Dashboard Template's Preview (spec 0014, #191): its widgets where they sit on the 12-column grid, drawn with
  * Sample Data and scaled to `width`. A Pack's template is drawn with `pack`, Sample Data under the Pack's own Metric
  * names. Like a template's Preview, it shows none of the workspace's numbers. */
-export function DashboardTemplatePreview({ template, viewer, numberStyle, width = 520, className, pack }: { template: { slots: DashboardTemplate["slots"]; body: DashboardTemplate["body"] }; viewer: string; numberStyle: NumberStyle; width?: number; className?: string; pack?: ReturnType<typeof packSample> }) {
-  const data = useMemo(() => {
-    const sample = sampleCanvasData(viewer, numberStyle);
-    return pack ? { ...sample, metrics: [...pack.data.metrics, ...sample.metrics], series: { ...sample.series, ...pack.data.series }, targets: { ...sample.targets, ...pack.data.targets } } : sample;
-  }, [viewer, numberStyle, pack]);
+export function DashboardTemplatePreview({ template, viewer, numberStyle, width = 520, className, pack, stacked }: { template: { slots: DashboardTemplate["slots"]; body: DashboardTemplate["body"] }; viewer: string; numberStyle: NumberStyle; width?: number; className?: string; pack?: ReturnType<typeof packSample>;
+  /** On a narrow screen: only this many of its first widgets, one below the other, with their words at the usual size. */
+  stacked?: number }) {
+  const data = useMemo(() => withPackSample(sampleCanvasData(viewer, numberStyle), pack), [viewer, numberStyle, pack]);
   const widgets = useMemo(() => sampleDashboard(template, "month", pack?.fills(template.slots)), [template, pack]);
   const natural = { width: cellsToPixels({ w: 12, h: 1 }).width, height: Math.max(1, ...widgets.map((w) => w.y + w.h)) * (ROW + GAP) - GAP };
   const scale = Math.min(1, width / natural.width);
+  if (stacked) {
+    const more = widgets.length - stacked;
+    return (
+      <div data-preview="dashboard" className={cn("flex flex-col items-center gap-2", className)}>
+        {[...widgets].sort((a, b) => a.y - b.y || a.x - b.x).slice(0, stacked).map((w, i) => <Preview key={i} widget={w} data={data} size={w} width={width} reflow sample={i === 0} />)}
+        {more > 0 && <p className="text-xs text-muted-foreground">And {more} more widget{more === 1 ? "" : "s"} on this dashboard.</p>}
+      </div>
+    );
+  }
   return (
     <div
       aria-hidden

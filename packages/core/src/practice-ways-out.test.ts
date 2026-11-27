@@ -23,6 +23,7 @@ const KEPT_BY: Record<string, string> = {
   "packages/core/src/slack-send.ts": "sendSlackDelivery asks heldBack with the very account it sends to",
   "packages/core/src/slack-people.ts": "needs a bot from slackBot, and looks nobody up for a Practice Workspace",
   "packages/core/src/slack-inbound.ts": "say() asks mayAnswer with the account it answers",
+  "packages/core/src/slack-window.ts": "slackSay asks mayAnswer with the account it answers; its windows need a bot from slackBot, which hands none out for a Practice Workspace unless Slack is switched on there",
   "packages/core/src/slack-connection.ts": "an install starts, and slackBot hands out a bot, only where Slack is switched on",
   "packages/core/src/prompt-ways.ts": "a Practice Workspace edits nothing it sent",
   // Telegram. It is on in a Workspace by telegramOnIn alone, and never in a Practice Workspace.
@@ -45,7 +46,7 @@ const KEPT_BY: Record<string, string> = {
   "apps/web/src/components/delete-metrics.tsx": "the browser, to Ziffr",
   "apps/web/src/components/demo-reset-line.tsx": "the browser, to Ziffr",
   "apps/web/src/components/help-panel.tsx": "the browser, to Ziffr",
-  "apps/web/src/decks/slide-canvas.tsx": "the browser, to Ziffr",
+  "apps/web/src/decks/slide-license.ts": "the browser, to Ziffr",
   "apps/web/src/lib/connect-examples.ts": "words of an example, sending nothing",
 };
 

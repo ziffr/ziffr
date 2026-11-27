@@ -29,6 +29,7 @@ vi.mock("@/app/view-link-actions", () => ({
 vi.mock("@/app/canvas-actions", () => ({ setShare: async () => ({}), setGroupShare: async () => ({}) }));
 vi.mock("@/app/team-actions", () => ({ inviteMember: async () => ({}), inviteGateNow: async () => ({ state: "ended" }) }));
 vi.mock("@/app/series-actions", () => ({ askMeNow: async () => ({}), recordValue: async () => ({}) }));
+vi.mock("@/app/value-note-actions", () => ({ saveFormNote: async () => ({ saved: true, detail: "Your note was saved." }) }));
 vi.mock("@/app/deck-actions", () => ({ deckShareLeftOut: async () => ({ who: { p2: [{ from: "Sales, Q3 2026", count: 3 }] }, unnamed: 1 }) }));
 import { SlideOverProvider } from "./slide-over-host";
 import { ShareSheet } from "./share-sheet";

@@ -11,7 +11,7 @@ A named, fully described number tracked over time. It must be defined before any
 _Avoid_: Number, KPI, measure, series
 
 **Metric Description**:
-Everything that defines a metric: name, description, Calculation Note, unit and which side of the number it stands on, format, period, submission rule, sources, target range, polarity, how its Attainment is computed (or the Workspace's way), owner, its Tags and, for a derived metric, its formula.
+Everything that defines a metric: name, description, Calculation Note, unit and which side of the number it stands on, format, period, submission rule, sources, target range, polarity, how its Attainment is computed (or the Workspace's way), owner, its Tags, when it asks for a Value Note (**Ask for a note**: always, which is the default, only when off target or unusual, or never; not for a derived metric) and, for a derived metric, its formula.
 _Avoid_: Settings, config, schema
 
 **Calculation Note**:
@@ -19,7 +19,7 @@ How a Metric is calculated, in words; screens call it **How it is calculated**: 
 _Avoid_: Methodology, counting rules, business logic
 
 **Value Note**:
-Words about one period's value of a Metric saying what is behind it, written by who sent the value or by who looks after the Metric. It never changes a number and is seen by whoever sees the value. Not the Calculation Note (how a Metric is calculated) and not a Thread.
+Words about one period's value of a Metric saying what is behind it, written by who sent the value or by who looks after the Metric. It never changes a number and is seen by whoever sees the value. Where a person sends only a number by a reply or a form, Ziffr may ask once, inside the confirmation, whether anything is behind it, as the Metric's **Ask for a note** says. It sends no message of its own for that and gives no reason; whoever may not see the Metric, or types into a form without signing in, is asked every time unless the setting is never. Not the Calculation Note (how a Metric is calculated) and not a Thread.
 _Avoid_: comment, annotation, remark, commentary
 
 **Period**:
@@ -154,7 +154,7 @@ A scheduled message asking a submitter for a metric's value for the current peri
 _Avoid_: Reminder, nudge
 
 **Combined Prompt**:
-One message that carries several Prompts to one person, with one form for all of them. Each value still answers its own Prompt. One run of asking (the Workspace's run, running Workflows by hand, Ask for missing values or one Set up from a Pack) puts what it asks one person by one way into one, new numbers and, in a reminder, those still missing. Its words are written when it is sent, from the numbers still open that the person is still asked for. One number is asked as an ordinary Prompt. The owner says "one request"; screens may say "your numbers". Not switched on yet.
+One message that carries several Prompts to one person, with one form for all of them. Each value still answers its own Prompt. One run of asking (the Workspace's run, running Workflows by hand, Ask for missing values or one Set up from a Pack) puts what it asks one person by one way into one, new numbers and, in a reminder, those still missing. Its words are written when it is sent, from the numbers still open that the person is still asked for. One number is asked as an ordinary Prompt. Its link opens the **combined form**: one page, without sign-in, with a field for each number the message listed, for 30 days. That link is no Token: every number is still checked against its own. On Slack the message also has **Enter all**, a window with a number and a note for each (up to 40). The owner says "one request"; screens may say "your numbers". A text reply answers it with one line for each number ("1: 45").
 _Avoid_: Digest, batch, bundle, summary
 
 **Workflow**:
@@ -178,7 +178,7 @@ A Workflow step that, once a period is finished, takes and shows the period's Sn
 _Avoid_: Pack, board pack, report, distribution, mailing
 
 **Period Timeline**:
-What happened in one period of a Workflow, in order: who was asked and reminded, which values came in (marked when someone entered one for its submitter) and which Checklist Items were sent, given and ticked off ("5 of 6 in" counts values and those Tasks together), Approvals and Actions, what published and locked, when the period finished, and the Snapshots made and sent. It records nothing of its own and shows each person only what they may see: a Metric they cannot see is only a count ("1 value"), and a Thread's words appear only as first words, for a Thread they may read. On the Workflow page, and as the `period_status` tool.
+What happened in one period of a Workflow, in order: who was asked and reminded, which values came in (marked when someone entered one for its submitter) and which Checklist Items were sent, given and ticked off ("5 of 6 in" counts values and those Tasks together), Approvals and Actions, what published and locked, when the period finished, and the Snapshots made and sent. A value with a Value Note is marked "with a note", never with its words. It records nothing of its own and shows each person only what they may see: a Metric they cannot see is only a count ("1 value"), and a Thread's words appear only as first words, for a Thread they may read. On the Workflow page, and as the `period_status` tool.
 _Avoid_: Activity feed, audit trail, history
 
 **Workflow Template**:
@@ -218,7 +218,7 @@ A value that changes more than a set share against the period before, or falls o
 _Avoid_: Outlier, anomaly
 
 **Approval**:
-Confirming a value before it counts, by each Approver in order: an Unusual Value, or every value where the Workflow's Approve step says so. An Import of a Feed's history does not wait for it. An approver can approve it, send it back to the submitter with a comment, or correct it. Until it is approved the value shows, marked as not approved yet. Nobody approves their own value, nor a Filled-in Value they entered or that was entered for them: when nobody else could, the Approve step says whether a Self-check takes its place or the value counts without Approval, with a note saying so.
+Confirming a value before it counts, by each Approver in order: an Unusual Value, or every value where the Workflow's Approve step says so. An Import of a Feed's history does not wait for it. An approver can approve it, send it back to the submitter with a comment, or correct it. Until it is approved the value shows, marked as not approved yet. The Approval's task shows the period's Value Notes, and its message quotes the newest as it leaves. Nobody approves their own value, nor a Filled-in Value they entered or that was entered for them: when nobody else could, the Approve step says whether a Self-check takes its place or the value counts without Approval, with a note saying so.
 _Avoid_: Sign-off, review, verification
 
 **Self-check**:
@@ -226,7 +226,7 @@ The submitter checking their own value when an Approval is needed but nobody els
 _Avoid_: Self-approval, own approval
 
 **Period Record**:
-One Metric's page for one period (`/metrics/churn-rate/2026-03-01`): its value and state, every step the value went through in order (submitted, entered by someone for its submitter, replaced, Correction proposed and decided, approved, sent back, published, locked, unlocked with its reason) with person, channel and date, and the Threads about it that the person may read. Only for people who see the Metric.
+One Metric's page for one period (`/metrics/churn-rate/2026-03-01`): its value and state, every step the value went through in order (submitted, entered by someone for its submitter, replaced, Correction proposed and decided, approved, sent back, published, locked, unlocked with its reason) with person, channel and date, the Threads about it that the person may read, and its Value Notes with their history, which are written and corrected there. Only for people who see the Metric.
 _Avoid_: Value page, audit trail, timeline (a Workflow's timeline lists many periods)
 
 **Search**:
@@ -298,12 +298,16 @@ _Avoid_: Token, variable, merge field
 One metric drawn with a view and its settings, such as time window, target band or visible history. A saved widget can be reused; placing it on a dashboard places an independent copy.
 _Avoid_: Tile, card, panel, chart
 
+**Note Widget**:
+A widget that holds a person's own words instead of drawing a Metric, to explain the numbers beside it: an optional heading and plain text with line breaks and simple lists, plain or highlighted as a callout. A dashboard's owner and Editors write it on the dashboard; whoever sees the dashboard reads it, also in a Snapshot (as it was kept) and through a View Link. It reads no Metric, takes no number by itself, and is never markup or a link. Templates and Packs keep none. It belongs to its place on a canvas; a Value Note belongs to one period's value of a Metric and is another thing, so "note" never stands alone where either could be meant.
+_Avoid_: Text widget, text box (a box of words on a slide), comment, annotation, sticky note, Value Note (for this)
+
 **Free Layout**:
-A widget that holds an artboard of its own, laid out like a slide: widgets from the Pool, text, arrows, shapes and drawings placed freely. On a dashboard it shows read-only with live numbers; its owner or Editors change it with *Edit layout…*. What is drawn stays where it was placed, so it says when its Metrics have newer periods than when it was drawn.
+A widget that holds an artboard of its own, laid out like a slide: widgets from the Pool, text, arrows, shapes and drawings placed freely. On a dashboard it shows read-only with live numbers; its owner or Editors change it with *Edit layout…*. What is drawn stays where it was placed, so it says when its Metrics have newer periods than when it was drawn. It is drawn by the slide editor, so it is offered, added and changed only where the Installation has that editor's license key; elsewhere those already made are kept, say that they cannot be shown, and can be moved or removed.
 _Avoid_: Canvas, drawing, board, freeform widget
 
 **Pool**:
-The side panel that holds everything a user can drag onto a canvas: the metrics they can see, their saved widgets and the Widget Templates.
+The panel that holds everything a user can put on a canvas: the metrics they can see, their saved widgets and the Widget Templates. On a deck, a Free Layout and the Analysis Canvas it is a list titled Pool; on a dashboard it opens with **Add widget** and shows them as cards drawn with a Metric, as the Gallery does, with the Note Widget beside them.
 _Avoid_: Library, palette, sidebar
 
 **Preview**:
@@ -396,12 +400,20 @@ _Avoid_: Preset analysis, template
 ### Decks
 
 **Deck**:
-An ordered set of slides that a user designs from widgets, text, arrows and shapes, and exports as a presentation.
+An ordered set of slides about Metrics. Ziffr **makes** it from them, **shows** it and lets people **download** it: a person chooses and answers, and does not draw. What Ziffr stores of such a deck, its deck description, says what each slide shows and holds no numbers and no positions; the numbers are filled in for whoever looks. A deck made with the slide editor is one that a user designed from widgets, text, arrows and shapes, and exported as a presentation.
 _Avoid_: Presentation, slideshow, report
 
 **Slide**:
-One 16:9 page of a deck. Its order follows its position on the deck canvas, left to right and top to bottom. A **cover slide** shows no logo, footer or number of the Theme and is not counted in page numbers.
+One 16:9 page of a deck. In a deck Ziffr makes, each slide has a Slide Type, and the slides stand in the order of the deck description's list. In a deck made with the slide editor, the order follows a slide's position on the deck canvas, left to right and top to bottom, and a **cover slide** shows no logo, footer or number of the Theme and is not counted in page numbers.
 _Avoid_: Page, frame, board
+
+**Slide Type**:
+What a slide of a deck Ziffr makes shows, such as the cover, a chart, a gap table, questions, or **About these slides**, which Ziffr writes and which is always the last slide. It fixes how many Metrics the slide reads and what a person may set; the slide reads only the Metrics it lists.
+_Avoid_: Slide Layout, slide template, slide kind
+
+**Deck Design**:
+Where things stand on every slide of a deck Ziffr makes: **band** (a headline band) or **column** (a side column at the left). It names no colour and no font; the Theme says those, with the logo and the footer's words.
+_Avoid_: Layout, master, slide template, deck theme
 
 **Slide Element**:
 A part of a slide that draws itself in the deck's Theme and fills its words from today's data: words, a box, a figure, a column chart, a gap table, a metric table, definitions (Metrics with their description and Calculation Note), a numbered list, a logo place or cover art. It may read Metrics, and shows nothing of one the viewer may not see. It is for slides only; on a dashboard stand Widgets.
@@ -534,7 +546,7 @@ The private service that runs hosted Ziffr's billing: Sizes, prices, payments, i
 _Avoid_: Billing service, SaaS, hosted edition
 
 **Pack**:
-A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Setting up from it keeps a record of what was made and who fills its Positions, which decides nothing and goes when the Pack is uninstalled. Ziffr's own Packs (the thirteen of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs. It may say whom it is for (its Pack Audience), which ranks it in the Setup Guide. It may declare what its set-up shows and asks, in short plain text only: a line, what happens and what is needed, a question for each Position and Repeat, and numbers to be written as targets. It brings no screen, markup or code for it.
+A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Setting up from it keeps a record of what was made and who fills its Positions, which decides nothing and goes when the Pack is uninstalled. Ziffr's own Packs (the thirteen of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs. It may say whom it is for (its Pack Audience), which ranks it in the Setup Guide. It may declare what its set-up shows and asks, in short plain text only: a line, what happens and what is needed, a question for each Position and Repeat, and numbers to be written as targets. It brings no screen, markup or code for it. Its author writes these when exporting it, as its set-up questions, and may try the set-up with made-up people, which writes nothing.
 _Avoid_: Plugin, add-on, integration, app, bundle
 
 **Pack Audience**:
@@ -554,7 +566,7 @@ A Derived Metric that adds up a list of Metrics it keeps, its parts, such as the
 _Avoid_: Roll-up, consolidation, group sum
 
 **Pack Guide**:
-What a Pack's creator tells people about it, in five set sections whose titles Ziffr writes: What it's for, Before you start, First steps, Each part, and Questions. Headings, paragraphs, lists and bold words only; read before installing and, with the installed Pack, in Help. Not the user guide, which is Ziffr's own, not the Setup Guide, and not the summary of one or two sentences.
+What a Pack's creator tells people about it, in five set sections whose titles Ziffr writes: What it's for, What you need, First steps, Each part, and Questions. Headings, paragraphs, lists and bold words only; read before installing and, with the installed Pack, in Help. Not the user guide, which is Ziffr's own, not the Setup Guide, and not the summary of one or two sentences.
 _Avoid_: Readme, manual, documentation, tutorial
 
 **Marketplace**:
@@ -741,7 +753,7 @@ A change to an observation proposed in an action's thread, which takes effect on
 _Avoid_: Fix, edit, amendment
 
 **Held Reply**:
-A reply by email that no provider vouched for, which changes nothing until the person it went to confirms it with a one-time link Ziffr emails to the address the Workspace keeps for them (never the address it came from). The link works once, for 48 hours, and shows the reply and what it would do before its Confirm button takes it. Replies a provider vouched for are taken at once. Not an Approval, which is never taken by email unvouched.
+A reply by email that no provider vouched for, which changes nothing until the person it went to confirms it with a one-time link Ziffr emails to the address the Workspace keeps for them (never the address it came from). The link works once, for 48 hours, and shows the reply and what it would do before its Confirm button takes it, with a field for a note on each value that came without one. Replies a provider vouched for are taken at once. Not an Approval, which is never taken by email unvouched.
 _Avoid_: Quarantined reply, pending reply
 
 **Delivery**:

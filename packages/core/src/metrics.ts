@@ -3,8 +3,10 @@
 import { closeForSystem } from "./system-closes";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
-import { forgetInCombined } from "./internal/combined-delivery";
+import { forgetInCombined, holdCombined } from "./internal/combined-delivery";
 import { openNames, openOne, openRows, reserveIds, sealRow, sealedPatch } from "./sealed-columns";
+import { ASK_NOTE, ASK_NOTE_DEFAULT, ASK_NOTE_MANY, ASK_NOTE_SETTING, isAskNote } from "./ask-note";
+import { refuseInDemo } from "./demo";
 import { CONNECTORS } from "./connectors/index";
 import type { FirstAsk } from "./asked-message";
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
@@ -53,6 +55,8 @@ export type MetricInput = {
   fromCatalogId?: number | null;
   /** "ratio" or "distance" for an Attainment method of its own; anything else follows the Workspace. */
   attainmentMethod?: string | null;
+  /** When it asks for a Value Note (spec 0064); anything else is the default, "always". */
+  askNote?: string;
   /** The Workflow its values take; must be one of the workspace's. */
   workflowId?: number | null;
   /** The Metric this one duplicates; the actor must see it. */
@@ -152,6 +156,7 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
     aggregation,
     target_min: words.target_min, target_max: words.target_max, target_min_sealed: words.target_min_sealed, target_max_sealed: words.target_max_sealed,
     attainment_method: methodOrNull(input.attainmentMethod),
+    ask_note: pick(input.askNote, ASK_NOTE, ASK_NOTE_DEFAULT),
     // Left out, every Source, as the new-Metric form offers: a Metric no way is open for would never be asked or answered.
     sources: [...new Set((input.sources ?? ALL_SOURCES).filter((s): s is SourceId => SOURCES.includes(s as SourceId)))],
     from_catalog_id: fromCatalogId,
@@ -214,7 +219,7 @@ export async function metricDraftFrom(actor: Actor, metricId: number): Promise<M
     name: `${m.name} (copy)`.slice(0, 120), description: m.description, calculation_note: m.calculation_note ?? null, unit: m.unit, unit_position: m.unit_position, format: m.format, decimals: m.decimals, period: m.period,
     submission_rule: m.submission_rule, polarity: m.polarity, aggregation: m.aggregation,
     target_min: m.target_min === null ? null : Number(m.target_min), target_max: m.target_max === null ? null : Number(m.target_max),
-    attainment_method: methodOrNull(m.attainment_method),
+    attainment_method: methodOrNull(m.attainment_method), ask_note: pick(m.ask_note, ASK_NOTE, ASK_NOTE_DEFAULT),
     sources: m.sources, workflow: workflow ? { id: workflow.id as number, name: workflow.name as string } : null, submitters: [...new Set((tokens ?? []).map((t) => t.submitter_id as string))].filter((s) => !feeds.has(s)), duplicateOf: m.id,
   };
 }
@@ -281,7 +286,8 @@ export async function deleteMetric(actor: Actor, metricId: number, confirmName: 
   const forget = await forgetInCombined(ws, metricId);
   const { data: gone, error } = await db().from("metrics").delete().eq("id", metricId).eq("workspace_id", ws).select("id");
   if (error || !gone?.length) throw new Error("The Metric could not be deleted.");
-  await forget();
+  // The Metric is gone: a message that could not be tidied up is logged, and the deletion is still recorded.
+  await forget().catch((e) => console.error("Messages that named a deleted Metric could not be tidied up:", e instanceof Error ? e.message : "unknown"));
   await audit(actor, { kind: "metric.deleted", object: { type: "metric", id: metricId, name: m.name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { values: count ?? 0 } });
   return { values: count ?? 0 };
 }
@@ -486,6 +492,15 @@ async function holdLatePrompts(ws: string, metricId: number, ids: string[]): Pro
   await holdPrompts(ws, "prompt_id", found.flatMap((r) => (r.data ?? []).map((p) => p.id as number)));
 }
 
+/** The messages with several figures that listed a removed person's Prompts for this Metric are written again without
+ * them, once the Tokens are gone; one with nothing left is not sent. */
+async function holdCombinedOfRemoved(ws: string, metricId: number, ids: string[]): Promise<void> {
+  const prompts = () => db().from("prompts").select("id").eq("workspace_id", ws).eq("metric_id", metricId).is("answered_at", null).order("id", { ascending: false }).limit(1000);
+  const found = await Promise.all([prompts().in("submitter_id", ids).is("stands_in_for", null), prompts().in("stands_in_for", ids)]);
+  if (found.some((r) => r.error)) throw new Error("The Submitters could not be removed.");
+  await holdCombined(ws, found.flatMap((r) => (r.data ?? []).map((p) => p.id as number)), ["queued", "outbox"], REMOVED_BEFORE_SENT);
+}
+
 /** Stops people submitting to a Metric, for its owner and its Editors: their Tokens go, and those of anyone standing
  * in for them on it, and Prompts to those Tokens that wait or are kept in the Outbox are not sent. Their earlier values
  * stay, as do the Threads, Tasks and Approver steps they are in. Returns who was removed. */
@@ -497,6 +512,7 @@ export async function removeSubmitters(actor: Actor, metricId: number, personIds
   await db().from("tokens").delete().eq("metric_id", m.id).eq("workspace_id", actor.workspaceId).in("stands_in_for", ids);
   const removed = [...new Set((gone ?? []).map((t) => t.submitter_id as string))];
   await holdLatePrompts(actor.workspaceId, m.id as number, ids);
+  await holdCombinedOfRemoved(actor.workspaceId, m.id as number, ids);
   await auditSubmitters(actor, { id: m.id as number, name: m.name as string }, "metric.submitter_removed", removed);
   if (removed.length) await recordVersion("metric", m.id, actor.personId, { message: removed.length === 1 ? "Removed a Submitter" : `Removed ${removed.length} Submitters` });
   return removed;
@@ -524,6 +540,8 @@ export type MetricDetails = {
   polarity?: string; aggregation?: string; targetMin?: number | null; targetMax?: number | null;
   /** "ratio" or "distance" for an Attainment method of its own; null (or anything else) follows the Workspace. */
   attainmentMethod?: string | null;
+  /** When it asks for a Value Note (spec 0064). Refused for a Derived Metric or Total, which nobody sends values. */
+  askNote?: string;
 };
 
 /** Changes a Metric's description, for its owner and its Editors: name, description, Calculation Note, unit and its side, format, decimals, Polarity, Submission
@@ -561,6 +579,11 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
   if (p.targetMin !== undefined) update.target_min = numOrNull(p.targetMin);
   if (p.targetMax !== undefined) update.target_max = numOrNull(p.targetMax);
   if (p.attainmentMethod !== undefined) update.attainment_method = methodOrNull(p.attainmentMethod);
+  if (p.askNote !== undefined && p.askNote !== m.ask_note) {
+    if (!isAskNote(p.askNote)) throw new Refused(`${ASK_NOTE_SETTING} takes ${ASK_NOTE.join(", ")}.`);
+    if (takesNoValues(m)) throw new Refused("Nobody sends this Metric values, so it never asks for a note.");
+    update.ask_note = p.askNote;
+  }
   const lo = (update.target_min ?? m.target_min) as number | null;
   const hi = (update.target_max ?? m.target_max) as number | null;
   if (lo !== null && hi !== null && Number(lo) > Number(hi)) throw new Error("The lower target is above the upper one.");
@@ -584,6 +607,33 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
   const { error } = await db().from("metrics").update(await sealedPatch("metrics", ws, metricId, update)).eq("id", metricId).eq("workspace_id", ws);
   if (error) throw new Error("The change could not be saved.");
   await recordVersion("metric", metricId, actor.personId, { message: changeMessage(m, update) });
+}
+
+// A Derived Metric and a Total are computed: nobody sends them values, so they have no **Ask for a note**.
+const takesNoValues = (m: { formula?: unknown; total_targets?: unknown }) => Boolean(m.formula) || Boolean(m.total_targets);
+
+/** Sets **Ask for a note** (spec 0064) on several Metrics at once: on each that the actor owns or edits and that takes
+ * values. The others are left as they are and only counted, never named, so the answer says nothing about a Metric the
+ * actor does not see. Each change is a Version. The ids come from a browser. */
+export async function setAskNote(actor: Actor, metricIds: unknown, askNote: unknown): Promise<{ changed: number; leftOut: number }> {
+  refuseInDemo(actor);
+  if (actor.key) throw new Forbidden();
+  if (!isAskNote(askNote)) throw new Refused(`${ASK_NOTE_SETTING} takes ${ASK_NOTE.join(", ")}.`);
+  const ids = Array.isArray(metricIds) ? [...new Set(metricIds.filter((id): id is number => typeof id === "number" && Number.isSafeInteger(id) && id > 0))] : [];
+  if (!ids.length) throw new Refused("Pick at least one Metric.");
+  if (ids.length > ASK_NOTE_MANY) throw new Refused(`Pick at most ${ASK_NOTE_MANY} Metrics at once.`);
+  let changed = 0;
+  let leftOut = 0;
+  for (const id of ids) {
+    const m = await editableMetric(actor, id).catch((e) => { if (e instanceof Forbidden) return null; throw e; });
+    if (!m || takesNoValues(m)) { leftOut++; continue; }
+    changed++;
+    if (m.ask_note === askNote) continue;
+    const { error } = await db().from("metrics").update({ ask_note: askNote }).eq("id", id).eq("workspace_id", actor.workspaceId);
+    if (error) throw new Error("The change could not be saved.");
+    await recordVersion("metric", id, actor.personId, { message: "Changed when it asks for a note" });
+  }
+  return { changed, leftOut };
 }
 
 /** What the Version of a change says: whether how the Metric is calculated changed, so a reader of its history sees when

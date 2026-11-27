@@ -40,6 +40,8 @@ export const WALK: Record<string, Walk> = {
   "/metrics/[slug]": { open: "/metrics/gross-margin", sees: /gross margin/i },
   "/metrics/[slug]/[period]": { open: "/metrics/gross-margin?tab=history", follow: /^\/metrics\/gross-margin\/\d{4}-\d{2}-\d{2}$/, sees: /gross margin/i },
   "/submit/[code]": { open: "/submit/tk-mia-gross-margin", sees: "please report" },
+  // A link is made only when a message goes, and the demo sends none: the page a dead link shows is walked.
+  "/submit/all/[code]": { open: "/submit/all/gone", sees: "This link does not work", signedOut: true },
   "/schedule/submit/[slug]": { skip: REDIRECT },
   "/paste-values": { open: "/paste-values", sees: /paste/i },
   "/schedule": { open: "/schedule", sees: "Schedule" },
@@ -54,6 +56,8 @@ export const WALK: Record<string, Walk> = {
   "/setup": { skip: SIGNED_IN },
   "/try": { skip: SIGNED_IN },
   "/try/start": { skip: SIGNED_IN },
+  "/use-pack/[ref]": { skip: "switched off until every entry point switches over (spec 0068)" },
+  "/use-pack/[ref]/[task]": { skip: "switched off until every entry point switches over (spec 0068)" },
   "/demo/confirm": { open: "/demo/confirm", sees: "Open the demo?" },
   "/oauth/authorize": { skip: "Needs an assistant's own request and a signed-in account." },
 };

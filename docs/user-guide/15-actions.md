@@ -135,7 +135,7 @@ Only the asker, the Assignee and the Metric Owner can reply. Everyone else who m
 
 ### Approving a value
 
-On an Approval waiting for you, the Action shows the value, its period, the period before it with the change, and who submitted it, with three buttons. **Approve** accepts the value. **Send back** asks what the submitter should check and returns it with your reason. **Correct the value** takes a number and an optional reason and proposes it as a [Correction](#corrections); the Metric's Owner accepts it, and the new value is approved again. You cannot approve your own value, nor a value you entered for someone, nor one entered for you (see [Filling in a value for someone](10-metrics.md#filling-in-a-value-for-someone)), and only the Approver named on the Action sees the buttons. The words "reply approve" belong to chat messages and do not show here.
+On an Approval waiting for you, the Action shows the value, its period, the period before it with the change, who submitted it and the period's [Value Notes](10-metrics.md#value-notes), with three buttons. **Approve** accepts the value. **Send back** asks what the submitter should check and returns it with your reason. **Correct the value** takes a number and an optional reason and proposes it as a [Correction](#corrections); the Metric's Owner accepts it, and the new value is approved again. You cannot approve your own value, nor a value you entered for someone, nor one entered for you (see [Filling in a value for someone](10-metrics.md#filling-in-a-value-for-someone)), and only the Approver named on the Action sees the buttons. The words "reply approve" belong to chat messages and do not show here.
 
 ### From open to closed
 
@@ -158,6 +158,8 @@ The Metric Owner sees two buttons:
 - **Accept**: the new value takes the old one's place, and the Correction is marked **Corrected**. Ziffr keeps the first value, shown crossed out. The value then goes through the Metric's Workflow again. If the period was Locked, it opens for Approval again.
 - **Decline**: the value stays as it was, and the Correction is marked declined.
 
+Once a Correction is accepted, the Action shows the Metric Owner the period's [Value Notes](10-metrics.md#value-notes), with **Add a note** to say what is behind the new value.
+
 Whoever proposed the Correction hears what the owner decided. Each decision is noted in the Audit Log. A Correction is decided once only.
 
 ## Answering by email or Slack
@@ -166,7 +168,9 @@ Each new Action, reply, proposed Correction and closed Task reaches the person a
 
 People answer by replying to that email, Slack or Telegram message. In Telegram, they reply to the message itself (swipe it to the left, or press and hold it and choose Reply); a message that replies to nothing gets a hint instead, so no answer lands on the wrong question. Their answer goes into the Thread, as if they had written it in Ziffr. A line starting with "Correction:" and a number proposes a Correction. The number stands after the colon or alone on the line under it; without a number the words are an ordinary reply and no value changes. On a Task that asks for Approval, the Approver can reply "approve", or "send back:" followed by what to check. On a Task that asks you to check your own value, reply "confirm", or "Correction:" and the right number. On Slack and Telegram, the message also has an **Approve** button, which only the Approver it went to can use.
 
-When the Installation has no email provider that vouches for senders, a reply by email is **held** first: Ziffr emails you a link, a page shows your reply and what it would do, and pressing **Confirm** records it. The link works once and for 48 hours. If you did not send the reply, ignore the email and nothing happens.
+#### Replying from outside Ziffr
+
+Replies to a request for a number are described under [Answering by reply](10-metrics.md#answering-by-reply). When the Installation has no email provider that vouches for senders, a reply by email is **held** first: Ziffr emails you a link, a page shows your reply (up to 5,000 characters) and what it would do, and pressing **Confirm** records it. For each value that comes without a note the page has an optional note field above **Confirm**, with the question [Anything behind it?](10-metrics.md#asking-for-a-note) where the Metric asks. When your reply is a note that offers a change of the value, a second button saves the note and makes the change. The link works once and for 48 hours. If you did not send the reply, ignore the email and nothing happens.
 
 A Prompt asking you for a number is not an Action, but it can come by several ways at once (see [Your settings](17-your-settings.md#where-you-get-what)). Answer on whichever is handiest: the first value Ziffr accepts counts. The other messages are then updated where the app allows it, on Slack and Telegram to "Answered on Telegram: 3" and so on, while an email cannot be changed, so its form link says **Already answered**. If you answer a second time on another way, Ziffr does not drop it: it follows the Metric's Submission Rule, as a second value always does (it may replace the first, be added to it, or be refused), and the reply tells you which and that the request was already answered.
 

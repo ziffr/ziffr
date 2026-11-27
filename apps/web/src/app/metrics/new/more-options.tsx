@@ -19,6 +19,7 @@ function readValues(form: HTMLFormElement): MoreOptionValues {
     aggregation: String(f.get("aggregation") ?? ""),
     sources: f.getAll("sources").map(String),
     attainment_method: String(f.get("attainment_method") ?? ""),
+    ask_note: String(f.get("ask_note") ?? ""),
   };
 }
 
@@ -52,7 +53,7 @@ export function MoreOptions({ initial, sourceLabels, attainmentLabels, children 
       <summary className="cursor-pointer font-medium marker:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
         More options
         <span className="ml-2 text-sm font-normal text-muted-foreground">
-          {changes.length ? changes.join(" · ") : "Stands, decimals, second value, aggregation, sources, attainment: as usual"}
+          {changes.length ? changes.join(" · ") : "Stands, decimals, second value, aggregation, sources, attainment, asking for a note: as usual"}
         </span>
       </summary>
       <div className="mt-4">{children}</div>

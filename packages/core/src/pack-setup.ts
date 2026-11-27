@@ -24,7 +24,7 @@ import { saveWorkflow, setSendSnapshot, setStandIn } from "./workflows";
 import { askForEndedPeriod } from "./workflow-engine";
 import { startAsking } from "./asking-run";
 import { share } from "./sharing";
-import { resumeSetupRecord, startSetupRecord, type MadeThing, type SetupRecord } from "./pack-setup-record";
+import { resumeSetupRecord, startSetupRecord, type GuidedRecord, type MadeThing, type SetupRecord } from "./pack-setup-record";
 import { itemHash } from "./packs";
 import { recordVersion } from "./versions";
 import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
@@ -89,7 +89,7 @@ export type PackSetupResult = { metrics: { id: number; slug: string; name: strin
   tagsLeftOut: { metric: string; tags: string[] }[] };
 
 /** An error's words when they are Ziffr's own, written for people: a plain Error, a refusal or a limit. */
-const wordsForPeople = (e: unknown): string | null =>
+export const wordsForPeople = (e: unknown): string | null =>
   e instanceof Error && e.message && (Object.getPrototypeOf(e) === Error.prototype || e instanceof Forbidden || e instanceof LimitReached || e instanceof MetricKept) ? e.message : null;
 
 const approversWanted = (body: WorkflowTemplateBody) => body.steps.reduce((n, s) => (s.type === "approve" ? n + s.approvers : n), 0);
@@ -150,6 +150,8 @@ function targetsToSet(entries: Iterable<EntryRow>, made: PackSetupResult["metric
 /** Makes the Workflows, so the Metrics can take them. */
 async function makeWorkflows(actor: Actor, b: Blueprint, record: SetupRecord, done: Progress) {
   for (const w of b.workflows) {
+    if (done.workflows.has(w)) continue;
+    await record.beat?.();
     const id = await saveWorkflow(actor, null, w.name, w.config, { message: `Made from the Workflow Template “${w.templateName}”` });
     done.workflows.set(w, id);
     await record.made({ kind: "workflow", key: w.key, line: w.line, id });
@@ -159,6 +161,7 @@ async function makeWorkflows(actor: Actor, b: Blueprint, record: SetupRecord, do
 /** Makes some of the Metrics, in the order given: a Derived Metric after its inputs. */
 async function makeMetrics(actor: Actor, b: Blueprint, todo: PlannedMetric[], record: SetupRecord, done: Progress) {
   for (const planned of todo) {
+    await record.beat?.();
     const e = planned.entry;
     // A Total counts the Metrics of the lines, all made before it.
     const m = entryTotal(e) ? await makeTotal(actor, planned, planned.parts!.map((x) => done.metrics.get(x)!.id)) : await createMetric(actor, {
@@ -166,7 +169,7 @@ async function makeMetrics(actor: Actor, b: Blueprint, todo: PlannedMetric[], re
       submissionRule: e.submission_rule, polarity: e.polarity, aggregation: e.aggregation, targetMin: e.target_min, targetMax: e.target_max,
       // A Derived Metric takes no values, so no Source and no Workflow.
       // One that takes values and has no Workflow of this run may join the one ticked of what was set up before.
-      sources: e.formula ? [] : e.sources, fromCatalogId: e.id, workflowId: planned.workflow ? done.workflows.get(planned.workflow)! : e.formula ? null : b.additions.join,
+      sources: e.formula ? [] : planned.sources ?? e.sources, fromCatalogId: e.id, workflowId: planned.workflow ? done.workflows.get(planned.workflow)! : e.formula ? null : b.additions.join,
     });
     // The entry's Tags were put on it by createMetric, as this person; a limit leaves words out, never the Metric.
     if (m.tagsLeftOut.length) done.tagsLeftOut.push({ metric: planned.name, tags: m.tagsLeftOut });
@@ -184,7 +187,7 @@ async function makeMetrics(actor: Actor, b: Blueprint, todo: PlannedMetric[], re
 /** Puts the people and the Feed on the Metrics just made: Submitters, who are asked at once only when sending the
  * first requests was chosen (the actor no differently from anyone else), for the period that ended last, then their
  * Stand-ins. */
-async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | null, askNow: boolean, done: Progress) {
+async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | null, askNow: boolean, record: SetupRecord, done: Progress) {
   // A whole set up is one run: whoever sends several of its numbers can be asked in one message (GLOSSARY: Combined Prompt).
   const run = askNow ? startAsking(actor.workspaceId, new Date().toISOString().slice(0, 10)) : null;
   const effects: MetricEffects = {
@@ -198,7 +201,10 @@ async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | nul
   };
   const taking = todo.filter((m) => !isComputed(m.entry)).map((m) => ({ ...m, id: done.metrics.get(m.plan)!.id }));
   try {
-    for (const m of taking) for (let i = 0; i < m.submitters.length; i += SUBMITTERS_PER_CHANGE) await addSubmitters(actor, m.id, m.submitters.slice(i, i + SUBMITTERS_PER_CHANGE), effects);
+    for (const m of taking) {
+      await record.beat?.();
+      for (let i = 0; i < m.submitters.length; i += SUBMITTERS_PER_CHANGE) await addSubmitters(actor, m.id, m.submitters.slice(i, i + SUBMITTERS_PER_CHANGE), effects);
+    }
   } finally {
     await run?.flush();
   }
@@ -210,6 +216,8 @@ async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | nul
  * Metrics to the widgets and the Totals ticked of what was set up before. */
 async function makeDashboards(actor: Actor, b: Blueprint, ticked: ProposedShare[], record: SetupRecord, done: Progress) {
   for (const d of b.dashboards) {
+    if (done.dashboards.has(d.plan)) continue;
+    await record.beat?.();
     const id = await createDashboardFromTemplate(actor, { template: d.template.id, name: d.name, fills: d.fills.map((f) => f.map((x) => (x < 0 ? done.metrics.get(x)!.id : x))) });
     done.dashboards.set(d.plan, { id, name: d.name });
     await record.made({ kind: "dashboard", key: d.key, line: d.line, id });
@@ -262,6 +270,11 @@ async function takeUp(actor: Actor, b: Blueprint, made: MadeThing[], done: Progr
     if (!metric) throw new Error(`“${m.name}” was deleted meanwhile.`);
     done.metrics.set(m.plan, { id: was.id, slug: metric.slug, name: m.name, key: m.entry.pack_key, line: m.line?.name ?? null, takesValues: !isComputed(m.entry) });
   }
+  // A guided set-up that stopped may have made dashboards already.
+  for (const d of b.dashboards) {
+    const was = made.find((x) => x.kind === "dashboard" && x.key === d.key && forLine(x, d.line));
+    if (was) done.dashboards.set(d.plan, { id: was.id, name: d.name });
+  }
 }
 
 /** What to say when a Set up stops: Ziffr's own words, and what was made before. Only they reach a person; anything
@@ -283,42 +296,58 @@ export type PackSetupStep =
   | { done: false; run: SetupRun; made: number; of: number; tagsLeftOut: PackSetupResult["tagsLeftOut"] }
   | { done: true; result: PackSetupResult };
 
+/** What the guided set-up (pack-start.ts) brings to a step: its record, taken up already, which stays open when the
+ * step stops; whom a Position's holder stands in for; and what it makes after the dashboards. Only the server passes it,
+ * never a browser. */
+export type GuidedStep = {
+  record: GuidedRecord;
+  heldFor: ReadonlyMap<string, string>;
+  after: (b: Blueprint, metrics: ReadonlyMap<number, PackSetupResult["metrics"][number]>) => Promise<void>;
+};
+
 /** Takes one step of setting up from one of the Workspace's installed Packs (Owners and Admins): the first, without
  * `run`, checks everything, the Workspace Limit for the whole set included, makes the Workflows and the first Metrics;
  * each further one, with the `run` the last answered and the same choices, makes the next Metrics; the last makes the
  * dashboards and the ticked Shares. A step that stops ends the Set up and says what was made. */
-export async function setUpStep(actor: Actor, installId: number, input: PackSetupInput, run: SetupRun | null = null, size = SETUP_STEP_METRICS): Promise<PackSetupStep> {
+export async function setUpStep(actor: Actor, installId: number, input: PackSetupInput, run: SetupRun | null = null, size = SETUP_STEP_METRICS, guided: GuidedStep | null = null): Promise<PackSetupStep> {
   assertSetsUp(actor);
   const p = await installedForSetup(actor, Number(installId));
   const mark = itemHash(input);
-  const resumed = run ? await resumeSetupRecord(actor, p.install.id, run, mark) : null;
-  let record = resumed?.record ?? null;
+  const resumed = guided ? { record: guided.record, made: guided.record.madeBefore, messages: 0 } : run ? await resumeSetupRecord(actor, p.install.id, run, mark) : null;
+  let record: SetupRecord | null = resumed?.record ?? null;
   // Made in order: Workflows, then Metric by Metric (inputs first) with their Submitters and Stand-ins, then
   // dashboards, Shares and the Send Snapshot step. All of it was checked; only what changed meanwhile can still refuse.
   const done: Progress = { workflows: new Map(), metrics: new Map(), dashboards: new Map(), shares: 0, widgets: 0, totals: 0, messages: resumed?.messages ?? 0, tagsLeftOut: [] };
   let b: Blueprint;
   try {
-    b = await buildSetup(actor, p, input, resumed ? { record: resumed.record.id, metrics: resumed.made.filter((x) => x.kind === "metric").length } : undefined);
+    b = await buildSetup(actor, p, input, resumed ? { record: resumed.record.id, metrics: resumed.made.filter((x) => x.kind === "metric").length } : undefined, guided !== null);
     // Taken up first, so a step that is refused still says what was made.
     if (resumed) await takeUp(actor, b, resumed.made, done);
     if (b.problems.length) throw new Error(b.problems[0]);
-    if (!resumed) {
-      record = await startSetupRecord(actor, p.install, b.lines, b.fills, mark);
-      await makeWorkflows(actor, b, record, done);
-    }
+    if (!resumed) record = await startSetupRecord(actor, p.install, b.lines, b.fills, mark);
+    await guided?.record.layOut(b.lines, b.fills, guided.heldFor);
+    // A guided set-up that stopped may not have made every Workflow.
+    if (!resumed || guided) await makeWorkflows(actor, b, record!, done);
     const todo = b.metrics.filter((m) => !done.metrics.has(m.plan)).slice(0, size);
+    // Made before a guided set-up stopped, without all their people.
+    const unstaffed = b.metrics.filter((m) => guided?.record.unstaffed.has(done.metrics.get(m.plan)?.id ?? 0));
     await makeMetrics(actor, b, todo, record!, done);
-    await addPeople(actor, todo, b.feed, input?.askNow === true, done);
+    const staffing = [...unstaffed, ...todo];
+    // A guided set-up sends nothing, whatever the input says.
+    await addPeople(actor, staffing, b.feed, !guided && input?.askNow === true, record!, done);
+    await guided?.record.staffed(staffing.map((m) => done.metrics.get(m.plan)!.id));
     if (done.metrics.size < b.metrics.length) {
       await record!.keep(done.messages);
       return { done: false, run: { id: record!.id, step: record!.step }, made: done.metrics.size, of: b.metrics.length, tagsLeftOut: done.tagsLeftOut };
     }
     await makeDashboards(actor, b, tickedShares(b, input?.shares), record!, done);
+    await guided?.after(b, done.metrics);
     await record!.finish(done.messages);
   } catch (e) {
-    // Nothing made leaves no record; else it is ended, and what was made stays.
+    // Nothing made leaves no record; else it is ended, and what was made stays. A guided set-up's stays open, and its
+    // caller lets go of it.
     const nothing = !resumed && !done.metrics.size && !done.workflows.size && !done.dashboards.size;
-    if (record) await (nothing ? record.drop() : record.finish(done.messages));
+    if (record && !guided) await (nothing ? record.drop() : record.finish(done.messages));
     throw resumed || record ? stoppedWords(e, done, resumed?.made.length ?? 0) : e;
   }
   const workflows = [...done.workflows].map(([w, id]) => ({ id, name: w.name }));

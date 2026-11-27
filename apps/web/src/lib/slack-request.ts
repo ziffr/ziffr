@@ -8,13 +8,14 @@ import { slackSigningSecretNow } from "@ziffr/core/slack-api";
 /** An answer with nothing cached. */
 export const slackAnswer = (status: number, body?: unknown) => (body === undefined ? new Response(null, { status, headers: { "cache-control": "no-store" } }) : Response.json(body, { status, headers: { "cache-control": "no-store" } }));
 
-/** The body as text when this Ziffr has a signing secret, it is at most 64 KB and Slack signed it with that secret;
+/** The body as text when this Ziffr has a signing secret, it is at most `most` bytes (64 KB unless the route says
+ * otherwise) and Slack signed it with that secret;
  * else the answer to give. `signedWith` is that secret, for the core's note of Slack's check; it stays on the server. */
-export async function signedSlackBody(req: Request): Promise<{ text: string; signedWith: string } | { refuse: Response }> {
+export async function signedSlackBody(req: Request, most = MAX_SLACK_BYTES): Promise<{ text: string; signedWith: string } | { refuse: Response }> {
   const secret = await slackSigningSecretNow();
   if (!secret) return { refuse: slackAnswer(404) };
   const declared = req.headers.get("content-length");
-  if (declared !== null && (!/^\d{1,10}$/.test(declared) || Number(declared) > MAX_SLACK_BYTES)) return { refuse: slackAnswer(413) };
+  if (declared !== null && (!/^\d{1,10}$/.test(declared) || Number(declared) > most)) return { refuse: slackAnswer(413) };
   const parts: Uint8Array[] = [];
   let size = 0;
   if (req.body) {
@@ -24,7 +25,7 @@ export async function signedSlackBody(req: Request): Promise<{ text: string; sig
       if (done) break;
       size += value.byteLength;
       // Read only up to the limit: a large or endless body is never held whole.
-      if (size > MAX_SLACK_BYTES) { await reader.cancel(); return { refuse: slackAnswer(413) }; }
+      if (size > most) { await reader.cancel(); return { refuse: slackAnswer(413) }; }
       parts.push(value);
     }
   }

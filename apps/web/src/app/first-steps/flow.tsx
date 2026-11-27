@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { NO_ANSWERS, questionScreens, screenFor, type FirstStepsAnswers, type FirstStepsScreen } from "@ziffr/core/first-steps-screens";
 import { useConfirm } from "@/components/confirm-dialog";
 import { browserDefaults } from "./browser";
-import { draftKey, dropDraft, keepDraft, loadDraft } from "./draft";
+import { draftKey, dropDraft, keepDraft, keepTopic, loadDraft, loadTopic } from "./draft";
 import { SCREENS } from "./screens/registry";
 import type { FirstStepsContext } from "./screens/types";
 import { Shell } from "./shell";
@@ -22,10 +22,11 @@ export function FirstStepsFlow({ context }: { context: FirstStepsContext }) {
 // How many First Steps entries lie behind this one in the browser's history; a freshly loaded page has none.
 const depth = () => (window.history.state as { firstSteps?: number } | null)?.firstSteps ?? 0;
 
-function urlOf(screen: FirstStepsScreen): string {
+function urlOf(screen: FirstStepsScreen, more: Record<string, string> = {}): string {
   const query = new URLSearchParams(window.location.search);
   query.delete("unsaved");
   query.set("step", screen);
+  for (const [name, value] of Object.entries(more)) query.set(name, value);
   return `${window.location.pathname}?${query}`;
 }
 
@@ -33,7 +34,10 @@ function Flow({ context }: { context: FirstStepsContext }) {
   const made = context.workspace;
   const key = draftKey(context.personId, made?.id ?? null);
   // The Workspace's own answers once it exists, else what the browser says about the day and the money.
-  const fresh = (): FirstStepsAnswers => made?.answers ?? { ...NO_ANSWERS, ...browserDefaults(navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone) };
+  // The topic is the one answer the Workspace does not keep.
+  const fresh = (): FirstStepsAnswers => made
+    ? { ...made.answers, topic: made.answers.who === "me" ? loadTopic(context.personId) : null }
+    : { ...NO_ANSWERS, ...browserDefaults(navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone) };
   const [answers, setAnswers] = useState(() => loadDraft(key) ?? fresh());
   const screen = screenFor(useSearchParams().get("step"), answers.who, made?.resume ?? null);
   const { confirm, dialog } = useConfirm();
@@ -49,10 +53,11 @@ function Flow({ context }: { context: FirstStepsContext }) {
     const kept = { ...answers, ...patch };
     setAnswers(kept);
     keepDraft(key, kept);
+    if (patch.topic !== undefined) keepTopic(context.personId, patch.topic);
     return kept;
   }
-  function go(to: FirstStepsScreen) {
-    window.history.pushState({ firstSteps: depth() + 1 }, "", urlOf(to));
+  function go(to: FirstStepsScreen, query?: Record<string, string>) {
+    window.history.pushState({ firstSteps: depth() + 1 }, "", urlOf(to, query));
   }
   function next(patch: Partial<FirstStepsAnswers>) {
     const questions = questionScreens(update(patch).who);
@@ -60,11 +65,18 @@ function Flow({ context }: { context: FirstStepsContext }) {
   }
   function back() {
     if (depth() > 0) return window.history.back();
+    // A set opened or reloaded here: its list is the screen before it.
+    if (screen === "set") return window.history.replaceState({ firstSteps: 0 }, "", urlOf("sets"));
     // Opened or reloaded here: step to the screen before this one.
     const questions = questionScreens(answers.who);
     const at = questions.indexOf(screen);
-    const before = at > 0 ? questions[at - 1] : screen === "start" ? "workspace" : screen === "sender" ? "value" : screen === "done" ? "sender" : "start";
+    const before = at > 0 ? questions[at - 1] : screen === "start" ? "workspace" : screen === "own" ? "first" : screen === "sender" ? "value" : screen === "done" ? "sender" : "start";
     window.history.replaceState({ firstSteps: 0 }, "", urlOf(before));
+  }
+  // Start over and signing out forget everything this browser kept.
+  function forget() {
+    dropDraft(key);
+    keepTopic(context.personId, null);
   }
   function leave(url: string) {
     dropDraft(key);
@@ -72,14 +84,14 @@ function Flow({ context }: { context: FirstStepsContext }) {
   }
   async function startOver() {
     if (made && !(await confirm({ title: "Start the questions again?", description: "Nothing you made is deleted.", confirmLabel: "Start over", destructive: false }))) return;
-    dropDraft(key);
+    forget();
     setAnswers(fresh());
     go("who");
   }
 
   const Screen = SCREENS[screen];
   return (
-    <Shell screen={screen} answers={answers} made={made !== null} onBack={screen === "who" ? null : back} onStartOver={() => void startOver()} onSignOut={() => dropDraft(key)}>
+    <Shell screen={screen} answers={answers} made={made !== null} onBack={screen === "who" ? null : back} onStartOver={() => void startOver()} onSignOut={forget}>
       <Screen key={screen} context={context} answers={answers} update={update} go={go} next={next} leave={leave} />
       {dialog}
     </Shell>
