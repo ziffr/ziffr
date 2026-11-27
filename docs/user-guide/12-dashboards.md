@@ -137,7 +137,7 @@ On a phone, edit mode shows a note at the top that this is easier on a larger sc
 
 ### Adding a widget
 
-**Add widget** (in the toolbar, or the empty card on the grid) opens a panel with everything you can put on the dashboard, drawn as cards like those in the [Gallery](#gallery). On a wide screen (1024 pixels and more) the panel stands on the right and the dashboard stays in view and usable beside it; where that leaves little room, the dashboard keeps its arrangement and is drawn smaller while the panel is open. On a narrower screen the panel opens over the page (it covers a phone). Close it with **×** or Escape.
+**Add widget** (in the toolbar, or the empty card on the grid) opens a panel with everything you can put on the dashboard, drawn as cards like those in the [Gallery](#gallery). On a wide screen (1024 pixels and more) the panel stands on the right and the dashboard stays in view and usable beside it; where that leaves little room, the dashboard keeps its arrangement and is drawn smaller while the panel is open. On a narrower screen the panel opens over the page (it covers a phone). Close it with **×** or Escape. [Analyze](13-analyze.md#putting-metrics-on-the-canvas) adds Metrics to its canvas the same way.
 
 - **Show:** picks the Metric the cards are drawn with. It starts with the first Metric by name that the dashboard does not show yet. Metrics that share a name show their owner (or, for one owner, the period and unit) next to the name.
 - **Search** narrows everything in the panel by name.
