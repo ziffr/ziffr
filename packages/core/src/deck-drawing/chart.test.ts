@@ -83,6 +83,28 @@ describe("a column chart", () => {
   });
 });
 
+describe("a crowded chart", () => {
+  it("names the first, the latest, the highest and the lowest, and keeps every value for those who cannot see it", () => {
+    const names = Array.from({ length: 30 }, (_, i) => `${i + 1}`);
+    const values = names.map((_, i) => (i === 7 ? 900.5 : i === 19 ? -100.5 : 500.5 + i));
+    const { texts, rects } = draw({ kind: "columns", categories: names, alt: "Daily", series: [{ name: "Value", values, color: "accent", words: values.map(String) }] });
+    const said = texts.map((t) => t.body.paras[0]!.runs[0]!.t).filter((t) => t.endsWith(".5"));
+    expect(said.sort()).toEqual(["-100.5", "500.5", "529.5", "900.5"]);
+    expect(rects.map((r) => r.alt)).toContain("2, Value: 501.5");
+  });
+
+  it("gives the highest and the lowest their place before their neighbours", () => {
+    const values = [-1, -8, -9.4, -9.2, -7, -2];
+    const { said } = draw({ kind: "columns", categories: values.map((_, i) => `${i}`), alt: "Net", series: [{ name: "Net", values, color: "bad", words: values.map((v) => `${v} customers net`) }] });
+    expect(said("-9.4 customers net")).toBeDefined();
+  });
+
+  it("gives a long series name a second line", () => {
+    const { texts } = draw({ kind: "line", categories: ["Q1", "Q2"], alt: "Names", series: [{ name: "A", values: [1, 2], color: "accent", endLabel: "Net revenue retention of large accounts" }] });
+    expect(texts.some((t) => t.body.paras[0]!.runs[0]!.t.includes("\n"))).toBe(true);
+  });
+});
+
 describe("a line chart", () => {
   const line: ChartSpec = {
     kind: "line",

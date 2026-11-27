@@ -150,7 +150,8 @@ function Table({ o, paint }: { o: TableObj; paint: Paint }) {
   );
 }
 
-function Leaf({ o, paint }: { o: Leaf; paint: Paint }) {
+/** One object that is not a group. */
+function Drawn({ o, paint }: { o: Leaf; paint: Paint }) {
   switch (o.type) {
     case "text":
       return (
@@ -188,7 +189,7 @@ function objects(list: Obj[], paint: Paint): ReactNode {
         {objects(o.children, paint)}
       </div>
     ) : (
-      <Leaf key={o.id} o={o} paint={paint} />
+      <Drawn key={o.id} o={o} paint={paint} />
     ),
   );
 }

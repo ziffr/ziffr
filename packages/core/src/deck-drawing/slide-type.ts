@@ -48,7 +48,10 @@ type Filled = {
 };
 
 /** What `fill` gives: the content to draw, or, where the data cannot carry the slide, the sentence that says why. */
-export type SlideFill<Content> = (Filled & { aside?: Aside; content: Content }) | (Filled & { cannot: string });
+export type SlideFill<Content> =
+  // `note` stands above the source line: what a reader must know to read the figures.
+  | (Filled & { note?: string; aside?: Aside; content: Content })
+  | (Filled & { cannot: string });
 
 /** The room a slide type draws in, with the design it is drawn in and the slide's pen and measures. */
 export type Region = Box & { design: Design; pen: Pen; measure: Measure };

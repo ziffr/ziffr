@@ -4,17 +4,17 @@
 import { chartTitle, drawChart, type ChartSpec } from "@ziffr/core/deck-drawing/chart";
 import type { DeckDrawingInput } from "@ziffr/core/deck-drawing/draw-deck";
 import { textBody, type Cell, type Row } from "@ziffr/core/deck-drawing/objects";
-import type { Region, SlideSource, SlideType } from "@ziffr/core/deck-drawing/slide-type";
+import type { Aside, Region, SlideSource, SlideType } from "@ziffr/core/deck-drawing/slide-type";
 import type { Role } from "@ziffr/core/deck-drawing/theme";
 import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
 import { STARTER_THEME } from "@ziffr/core/themes";
 import type { CanvasData, ThemeSlides, ThemeTokens } from "@ziffr/core/types";
 
-/** A sample of one slide type: what its description says, and the data it reads. */
+/** One sample of a slide type: what its description says, and the data it reads. */
 export type Sample = { slide?: Partial<SlideSource>; data?: Partial<CanvasData> };
 
-/** A sample of every slide type Ziffr has, by type. */
-export const SAMPLES: Record<string, Sample> = { cover: {} };
+/** The samples of every slide type Ziffr has, by type: one or more, among them its hardest (long, empty, negative). */
+export const SAMPLES: Record<string, Sample[]> = { cover: [{}] };
 
 /** A made-up logo: three bars and a block, as a picture carried in the drawing. */
 const LOGO = `data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40" viewBox="0 0 160 40"><rect x="2" y="20" width="8" height="16" fill="#E0707F"/><rect x="14" y="12" width="8" height="24" fill="#C24B5A"/><rect x="26" y="4" width="8" height="32" fill="#9B2C3B"/><rect x="46" y="12" width="110" height="16" rx="3" fill="#44505C"/></svg>')}`;
@@ -109,7 +109,7 @@ const table: SlideType<Figures> = {
   },
 };
 
-type Said = { headline: string; source: string; content: unknown; type: SlideType<never> | SlideType; aside?: NonNullable<Extract<ReturnType<SlideType["fill"]>, { aside?: unknown }>["aside"]>; note?: string; section?: string };
+type Said = { headline: string; source: string; content: unknown; type: SlideType<never> | SlideType; aside?: Aside; note?: string; section?: string };
 
 /** A slide type that says exactly this. */
 function saying(id: string, said: Said): SlideType {

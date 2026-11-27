@@ -91,7 +91,7 @@ const realistic = (design: DeckDesignId, theme: string, more: Partial<DeckDrawin
   design,
   emphasis: "strong",
   theme: THEMES[theme]!,
-  slides: [slideOf("cover", SAMPLES.cover!.slide), ...Object.keys(CONTENT_TYPES).map((type) => slideOf(type))],
+  slides: [slideOf("cover"), ...Object.keys(CONTENT_TYPES).map((type) => slideOf(type))],
   ...more,
 });
 
@@ -118,14 +118,15 @@ describe("the deck slides in a browser", () => {
   });
 
   it.each(DESIGNS)("pass the check in every Theme and font set, %s design", async (design) => {
+    // Beside the whole deck, each sample as a deck of its own, with the data it reads.
+    const samples = Object.entries(SAMPLES).flatMap(([type, list]) => list.map((s) => ({ slides: [slideOf(type, s.slide)], data: { ...DECK.data, ...s.data } })));
     const found: string[] = [];
     for (const theme of Object.keys(THEMES)) {
       for (const emphasis of ["strong", "quiet"] as const) {
         for (const fonts of ["theme", "office"] as const) {
-          const where = `${design}/${theme}/${emphasis}/${fonts}`;
-          found.push(...(await deckFaults(where, realistic(design, theme, { emphasis, fonts }))));
-          const samples = Object.entries(SAMPLES).map(([type, s]) => slideOf(type, s.slide));
-          found.push(...(await deckFaults(`${where}/samples`, realistic(design, theme, { emphasis, fonts, slides: samples }))));
+          for (const [i, deck] of [{}, ...samples].entries()) {
+            found.push(...(await deckFaults(`${design}/${theme}/${emphasis}/${fonts}/${i}`, realistic(design, theme, { emphasis, fonts, ...deck }))));
+          }
         }
       }
     }

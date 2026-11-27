@@ -123,7 +123,7 @@ export function drawChart(pen: Pen, measure: Measure, box: Box, spec: ChartSpec)
   const count = Math.max(1, spec.categories.length);
   const labelHeight = Math.ceil(VALUE * LINE_HEIGHT);
   const ends = spec.series.filter((s) => s.endLabel);
-  const endRoom = ends.length ? Math.min(box.w * 0.24, Math.max(...ends.map((s) => measure.columnFor([[s.endLabel!, { size: VALUE, bold: true }]], 10)))) : 0;
+  const endRoom = ends.length ? Math.min(box.w * 0.28, Math.max(...ends.map((s) => measure.columnFor([[s.endLabel!, { size: VALUE, bold: true }]], 10)))) : 0;
   const band = (box.w - endRoom) / count;
   const names = categoryNames(measure, spec.categories, band);
   const namesHeight = Math.ceil(names.lines * NAME * LINE_HEIGHT) + 6;
@@ -141,8 +141,8 @@ export function drawChart(pen: Pen, measure: Measure, box: Box, spec: ChartSpec)
   const solids: Box[] = [];
   const taken: Box[] = [];
   const labels: Obj[] = [];
-  /** Writes a label at the first of these places that is free, if any is. `on` names a column it is written inside. */
-  const place = (words: string, places: Box[], color: Role, bold: boolean, { align = "center", on }: { align?: "left" | "center"; on?: Box } = {}) => {
+  /** Writes a value at the first of these places that is free, if any is. `on` names a column it is written inside. */
+  const place = (words: string, places: Box[], color: Role, bold: boolean, on?: Box) => {
     const free = places.find(
       (p) =>
         p.x >= box.x - 1 &&
@@ -154,15 +154,27 @@ export function drawChart(pen: Pen, measure: Measure, box: Box, spec: ChartSpec)
     );
     if (!free) return;
     taken.push(free);
-    labels.push(pen.text(free, [words], { size: VALUE, line: LINE_HEIGHT, color, bold, align, wrap: false }));
+    labels.push(pen.text(free, [words], { size: VALUE, line: LINE_HEIGHT, color, bold, align: "center", wrap: false }));
   };
   /** The box of a value label centred on a point, kept inside the chart. */
   const around = (words: string, centre: number, top: number, bold: boolean): Box => {
     const w = measure.columnFor([[words, { size: VALUE, bold }]], 2);
     return { x: Math.max(box.x, Math.min(centre - w / 2, box.x + box.w - w)), y: top, w, h: labelHeight };
   };
-  /** The categories in the order labels are placed: the latest first, then the first, then back from the latest. */
-  const order = [count - 1, 0, ...Array.from({ length: Math.max(0, count - 2) }, (_, i) => count - 2 - i)].filter((v, i, all) => v >= 0 && all.indexOf(v) === i);
+  /**
+   * How a series' values are written. The order is the order they get a place in: the latest, the first, the highest and
+   * the lowest before the others, from the latest back. Where values are too wide to stand side by side only those four
+   * are written, so that a crowded chart does not name whichever happen to find room.
+   */
+  const labelling = (series: ChartSeries): { order: number[]; wordsAt: (category: number) => string | null } => {
+    const known = series.values.flatMap((v, i) => (v === null ? [] : [{ v, i }]));
+    const byValue = [...known].sort((a, b) => a.v - b.v);
+    const keys = new Set([known[known.length - 1], known[0], byValue[byValue.length - 1], byValue[0]].flatMap((k) => (k ? [k.i] : [])));
+    const order = [...new Set([...keys, ...known.map((k) => k.i).reverse()])];
+    const words = series.words ?? [];
+    const crowded = words.some((w) => w && measure.width(w, { size: VALUE }) > band + 4);
+    return { order, wordsAt: (i) => (crowded && !keys.has(i) ? null : (words[i] ?? null)) };
+  };
 
   // ---- columns
   const top = Array<number>(count).fill(0);
@@ -171,23 +183,24 @@ export function drawChart(pen: Pen, measure: Measure, box: Box, spec: ChartSpec)
   /** The middle of each series' latest column, where a series that stands in a stack is named. */
   const middles = new Map<ChartSeries, number>();
   for (const series of columns) {
+    const { order, wordsAt } = labelling(series);
     for (const i of order) {
-      const v = series.values[i];
-      if (v === null || v === undefined) continue;
+      const v = series.values[i]!;
       const from = spec.stacked ? (v >= 0 ? top[i]! : bottom[i]!) : Math.max(low, Math.min(0, high));
       const to = spec.stacked ? from + v : v;
       if (spec.stacked) (v >= 0 ? top : bottom)[i] = to;
       const [a, b] = [y(from), y(to)];
       const shape = { x: x(i) - column / 2, y: Math.min(a, b), w: column, h: Math.abs(b - a) };
-      const words = series.words?.[i] ?? null;
-      marks.push(pen.rect(shape, series.pointColors?.[i] ?? series.color, { alt: `${spec.categories[i]}, ${series.name}: ${words ?? v}` }));
+      const words = wordsAt(i);
+      marks.push(pen.rect(shape, series.pointColors?.[i] ?? series.color, { alt: `${spec.categories[i]}, ${series.name}: ${series.words?.[i] ?? v}` }));
       solids.push(shape);
+      // The first drawn is the latest.
       if (!middles.has(series)) middles.set(series, shape.y + shape.h / 2);
       if (!words) continue;
       if (spec.stacked) {
         // Inside its part, where the part is tall and wide enough for it.
         const inside = around(words, x(i), shape.y + (shape.h - labelHeight) / 2, true);
-        if (shape.h >= labelHeight + 2 && inside.w <= column) columnLabels.push(() => place(words, [inside], series.wordColor ?? "ink", true, { on: shape }));
+        if (shape.h >= labelHeight + 2 && inside.w <= column) columnLabels.push(() => place(words, [inside], series.wordColor ?? "ink", true, shape));
       } else {
         const at = around(words, x(i), v >= 0 ? b - labelHeight - 3 : b + 3, i === count - 1);
         // Beyond the column's end or, where a target mark or a taller neighbour stands there, a little further.
@@ -223,11 +236,11 @@ export function drawChart(pen: Pen, measure: Measure, box: Box, spec: ChartSpec)
         marks.push(pen.line([a.x, a.y], [b.x, b.y], { color: series.color, width: series.dash ? 1.5 : 2.5, dash: series.dash }));
       }
     }
+    const { order, wordsAt } = labelling(series);
     for (const i of order) {
-      const p = points[i];
-      if (!p) continue;
-      const words = series.words?.[i] ?? null;
-      const alt = `${spec.categories[i]}, ${series.name}: ${words ?? series.values[i]}`;
+      const p = points[i]!;
+      const words = wordsAt(i);
+      const alt = `${spec.categories[i]}, ${series.name}: ${series.words?.[i] ?? series.values[i]}`;
       // A dashed line is a level to read against: it gets no points of its own.
       if (as === "marks" || !series.dash) {
         const solid = as === "marks" ? { x: p.x - column * 0.42, y: p.y - 1.5, w: column * 0.84, h: 3 } : { x: p.x - MARK / 2, y: p.y - MARK / 2, w: MARK, h: MARK };
@@ -248,13 +261,20 @@ export function drawChart(pen: Pen, measure: Measure, box: Box, spec: ChartSpec)
 
   // The names at the ends first, spread so none stands on another; then the values, which give way to them.
   endLabels.sort((a, b) => a.at - b.at);
-  let free = box.y;
-  endLabels.forEach((e, i) => {
-    const latest = plot.y + plot.h - (endLabels.length - i) * labelHeight;
-    const at = Math.min(Math.max(e.at - labelHeight / 2, free), latest);
-    free = at + labelHeight;
-    place(measure.fit(e.words, endRoom - 6, { size: VALUE, bold: true }, 1), [{ x: plot.x + plot.w + 6, y: at, w: endRoom - 6, h: labelHeight }], e.color, true, { align: "left" });
+  const spread = endLabels.map((e) => {
+    const words = measure.fit(e.words, endRoom - 6, { size: VALUE, bold: true }, 2);
+    return { ...e, words, h: labelHeight * words.split("\n").length };
   });
+  let free = box.y;
+  let below = spread.reduce((sum, e) => sum + e.h, 0);
+  for (const e of spread) {
+    const at = Math.min(Math.max(e.at - e.h / 2, free), plot.y + plot.h - below);
+    free = at + e.h;
+    below -= e.h;
+    const spot = { x: plot.x + plot.w + 6, y: at, w: endRoom - 6, h: e.h };
+    taken.push(spot);
+    labels.push(pen.text(spot, [e.words], { size: VALUE, line: LINE_HEIGHT, color: e.color, bold: true }));
+  }
   for (const write of [...columnLabels, ...pointLabels]) write();
 
   if (columns.length) marks.push(pen.line([plot.x, y(Math.max(low, Math.min(0, high)))], [plot.x + plot.w, y(Math.max(low, Math.min(0, high)))], { color: "muted" }));
