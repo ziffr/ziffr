@@ -65,20 +65,18 @@ export const PREFERENCE_KIND: Record<DeliveryKind, PreferenceKind> = {
   reply: "update", correction: "update", decision: "update", closed: "update", done: "update", prompt: "reminder",
 };
 
-/** "Correction: 1,234" on a line of its own proposes a new value, whatever the system. */
+/** "Correction: 1,234" on a line of its own proposes a new value, whatever the system. The number stands after the colon
+ * or alone on the next line that has anything on it. Without one the whole reply is its words, so that no value changes. */
 export function parseReply(text: string): { body: string; correction: number | null } {
-  const lines = correctionLines(text);
-  let correction: number | null = null;
-  for (const line of lines) {
+  for (const line of correctionLines(text)) {
     const number = correctionNumber(text, line.after);
     if (number === null) continue;
-    correction = Number(number.replace(/[\s,]/g, ""));
-    break;
+    const correction = Number(number.replace(/[\s,]/g, ""));
+    if (!Number.isFinite(correction)) break;
+    // Only the line that proposes the value is not part of the words.
+    return { body: (text.slice(0, line.from) + text.slice(runEnd(text, line.after, /.*/y))).trim(), correction };
   }
-  // The first such line is not part of the words, whether or not a number reads from it.
-  const first = lines[0];
-  const body = (first ? text.slice(0, first.from) + text.slice(runEnd(text, first.after, /.*/y)) : text).trim();
-  return { body, correction: Number.isFinite(correction) ? correction : null };
+  return { body: text.trim(), correction: null };
 }
 
 const LINE_BREAK = /[\n\r\u2028\u2029]/;
@@ -108,24 +106,17 @@ function correctionLines(text: string): { from: number; after: number }[] {
   return lines;
 }
 
-/** The last position from `from` to `to` at which a line ends, or -1. */
-function lastLineEnd(text: string, from: number, to: number): number {
-  if (to === text.length) return to >= from ? to : -1;
-  for (let i = to - 1; i >= from; i--) if (LINE_BREAK.test(text[i])) return i;
-  return -1;
-}
-
-/** What stands for the number after a Correction's colon: a sign, then digits, points, commas and white space up to a
- * line's end. Null when nothing there reads so. */
+/** What stands for the number after a Correction's colon, white space and empty lines aside: a sign, then digits,
+ * points, commas and spaces up to that line's end, with at least one digit. A number never runs into a further line, and
+ * nothing without a digit is one (it would read as 0). Null when nothing there reads so. */
 function correctionNumber(text: string, colon: number): string | null {
-  const figures = /[\d.,\s]*/y;
   const at = runEnd(text, colon, /\s*/y);
   const digits = /[-+]/.test(text.charAt(at)) ? at + 1 : at;
-  const end = lastLineEnd(text, digits + 1, runEnd(text, digits, figures));
-  if (end >= 0) return text.slice(at, end);
-  // Else white space alone may stand there, where a line ends in or right after it.
-  const blank = lastLineEnd(text, colon + 1, runEnd(text, at, figures));
-  return blank < 0 || at === colon ? null : text.slice(Math.min(at, blank) - 1, blank);
+  // The class is digits, points, commas and every white space but a line break.
+  const end = runEnd(text, digits, /[\d.,\t\v\f\ufeff\p{Zs}]*/uy);
+  if (end < text.length && !LINE_BREAK.test(text[end])) return null;
+  const number = text.slice(at, end);
+  return /\d/.test(number) ? number : null;
 }
 
 /** The headline of an event, in plain words, shared by every connector. */
