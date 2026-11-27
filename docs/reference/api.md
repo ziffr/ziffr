@@ -40,6 +40,7 @@ The Metrics the key's creator sees, oldest first, a page at a time: those in use
 | `items[].target_min` | number or null | yes | The low end of its target, if any. |
 | `items[].target_max` | number or null | yes | The high end of its target, if any. |
 | `items[].attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
+| `items[].ask_for_note` | `"always"`, `"off_target_or_unusual"`, `"never"` or null | yes | Ask for a note: when Ziffr asks whoever sent only a number to say what is behind it; null for a Derived Metric, which nobody sends values. |
 | `items[].sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `items[].derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `items[].archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
@@ -87,6 +88,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `target_min` | number or null | no |  |
 | `target_max` | number or null | no |  |
 | `attainment_method` | `"ratio"`, `"distance"` or null | no | ratio or distance for an Attainment method of its own; left out or null, it follows the workspace's default. |
+| `ask_for_note` | `"always"`, `"off_target_or_unusual"`, `"never"` | no | Ask for a note: when Ziffr asks whoever sent only a number to say what is behind it, inside the confirmation: always, off_target_or_unusual (only when the value is off target or unusual; someone who may not see the Metric is asked every time) or never. Left out, always. |
 | `submit` | boolean | no | Make the key's creator its Submitter, so the key can submit values to it at once. |
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` (at most 5) | no | Its Sources, the ways values may arrive; left out, every one. |
 | `submitters` | array of string, at most 64 characters (at most 20) | no | Who submits: ids from GET /people (people, Contacts) and GET /feeds (Feeds), at most 20. Each gets a first Prompt. Needs metrics:edit as well. |
@@ -112,6 +114,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `target_min` | number or null | yes | The low end of its target, if any. |
 | `target_max` | number or null | yes | The high end of its target, if any. |
 | `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
+| `ask_for_note` | `"always"`, `"off_target_or_unusual"`, `"never"` or null | yes | Ask for a note: when Ziffr asks whoever sent only a number to say what is behind it; null for a Derived Metric, which nobody sends values. |
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
@@ -195,6 +198,7 @@ One Metric's description: period, format, unit, Polarity and target, with its Wo
 | `target_min` | number or null | yes | The low end of its target, if any. |
 | `target_max` | number or null | yes | The high end of its target, if any. |
 | `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
+| `ask_for_note` | `"always"`, `"off_target_or_unusual"`, `"never"` or null | yes | Ask for a note: when Ziffr asks whoever sent only a number to say what is behind it; null for a Derived Metric, which nobody sends values. |
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
@@ -280,6 +284,7 @@ Changes a Metric's name, description, unit, format, period (only while it has no
 | `target_min` | number, -1000000000000000 to 1000000000000000 or null | no | The low end of its Target Range; null for none. |
 | `target_max` | number, -1000000000000000 to 1000000000000000 or null | no | The high end of its Target Range; null for none. |
 | `attainment_method` | `"ratio"`, `"distance"` or null | no | ratio or distance for an Attainment method of its own; null follows the workspace's default. |
+| `ask_for_note` | `"always"`, `"off_target_or_unusual"`, `"never"` | no | Ask for a note: when Ziffr asks whoever sent only a number to say what is behind it, inside the confirmation: always, off_target_or_unusual (only when the value is off target or unusual; someone who may not see the Metric is asked every time) or never. Not for a Derived Metric. |
 | `workflow` | integer or string, at most 120 characters or null | no | One of your own Workflows, by id or exact name (GET /workflows), or null for none. Only the Metric's owner; not for a Derived Metric. A Workflow with an Approve or Tell step, or leaving one, only with workflows:people on a program's key. |
 | `tags` | array of string, at most 100 characters (at most 10) | no | Its Tags, the whole set (at most 10 words of at most 32 characters; no comma, markup or control characters): the Metric carries exactly these afterwards. A word that exists is the same Tag Workspace-wide, a new one is made (at most 200 Tags in a Workspace). Renaming, merging and deleting Tags is done in Ziffr, not here. [] takes all of them off. |
 
@@ -301,6 +306,7 @@ Changes a Metric's name, description, unit, format, period (only while it has no
 | `target_min` | number or null | yes | The low end of its target, if any. |
 | `target_max` | number or null | yes | The high end of its target, if any. |
 | `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
+| `ask_for_note` | `"always"`, `"off_target_or_unusual"`, `"never"` or null | yes | Ask for a note: when Ziffr asks whoever sent only a number to say what is behind it; null for a Derived Metric, which nobody sends values. |
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
@@ -359,6 +365,7 @@ Archives a Metric as the key's creator, when they are an Owner or Admin of the w
 | `target_min` | number or null | yes | The low end of its target, if any. |
 | `target_max` | number or null | yes | The high end of its target, if any. |
 | `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
+| `ask_for_note` | `"always"`, `"off_target_or_unusual"`, `"never"` or null | yes | Ask for a note: when Ziffr asks whoever sent only a number to say what is behind it; null for a Derived Metric, which nobody sends values. |
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
@@ -405,6 +412,7 @@ Brings an Archived Metric back as the key's creator, when they are an Owner or A
 | `target_min` | number or null | yes | The low end of its target, if any. |
 | `target_max` | number or null | yes | The high end of its target, if any. |
 | `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
+| `ask_for_note` | `"always"`, `"off_target_or_unusual"`, `"never"` or null | yes | Ask for a note: when Ziffr asks whoever sent only a number to say what is behind it; null for a Derived Metric, which nobody sends values. |
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
