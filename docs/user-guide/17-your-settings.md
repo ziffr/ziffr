@@ -25,6 +25,8 @@ Whether the page offers the demo, Trial Workspaces and the check against bots is
 
 If the link cannot be sent, the page says why under the button, such as **The link could not be sent. Try again.** or that the check against bots did not pass.
 
+If your account is a [Blocked User](18-installation-settings.md#users)'s, you are signed out everywhere and cannot sign in; ask whoever runs your Ziffr. Where the Ziffr has an [Admin Address](18-installation-settings.md#an-address-of-its-own), its Installation Admins sign in there separately; that page offers no demo, and **Installation settings** in their menu leads to it.
+
 After you ask for a link, the page says "Check your inbox". If a link has been used already or does not work, the page says so: ask for a new one. If you ask for many links in a short time, Ziffr asks you to wait a minute.
 
 Your address counts as proven when you signed in with the email link or a provider that proves it, such as Google. A proven address is what an email Invitation and Domain Joining check.

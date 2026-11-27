@@ -7,15 +7,16 @@
 // One visibility system, all the way through (decided on #193): a Snapshot has no audience of its own. Whoever may
 // open the dashboard may open its Snapshots once they are shown, and sees in them only the Metrics they may see now,
 // as on the live dashboard; until then they are drafts for the dashboard's owner and Editors who see all they kept.
-// Losing access to the dashboard loses its Snapshots; losing a Metric loses it in every Snapshot too.
+// Losing access to the dashboard loses its Snapshots; losing a Metric loses it in every Snapshot too. A Metric deleted
+// since stays, marked as deleted, for who saw it when it was deleted (deleted-metrics.ts, spec 0065).
 import { allowedNow, restsNow } from "./total-parts";
 import type { KeptData } from "./total-views";
 import { recordedWidgets } from "./tag-widgets";
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
-import { getCanvasData, peopleFor, visibleDashboards, visibleMetricIds } from "./access";
-import { getMetrics } from "./workspace-data";
+import { getCanvasData, peopleFor, visibleDashboards } from "./access";
+import { assertSeesKeptMetrics, DELETED_MARK, seenInSnapshots } from "./deleted-metrics";
 import { audit } from "./audit-log";
 import { db } from "./db";
 import { mapBreakdownLabels, openFrozenData, openObject, opening, sealFrozenData, sealing, sealObject, mapSettingsWords, WORD_KEYS } from "./sealed-words";
@@ -93,6 +94,8 @@ export type SnapshotSummary = {
 export type OpenSnapshot = SnapshotSummary & { name: string; themeId: number | null; intro: string; widgets: Widget[]; data: CanvasData; canWrite: boolean; canDelete: boolean;
   /** How many of its widgets the reader does not get, because they draw Metrics the reader may not see now. */
   hiddenParts: number;
+  /** The names of the Metrics it shows the reader that have been deleted since, without the mark. */
+  deletedMetrics: string[];
   corrections: Correction[] };
 
 /** A value the Snapshot kept that differs from the one recorded now (#177): the Snapshot keeps `was`; `now` is the
@@ -239,9 +242,9 @@ export async function listSnapshots(actor: Actor, dashboardId: number): Promise<
   // who does not see every Metric it kept gets neither (#448, the same rule as `readable`).
   const drafts = rows.filter((r) => !r.shown_at).map((r) => r.id);
   if (!drafts.length) return rows.map(summary);
-  const [{ data: kept, error }, visible] = await Promise.all([
+  const [{ data: kept, error }, { visible }] = await Promise.all([
     db().from("dashboard_snapshots").select("id, ids:frozen->metricIds, legacy:frozen->data->metrics").eq("workspace_id", actor.workspaceId).in("id", drafts),
-    visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId)),
+    seenInSnapshots(actor.workspaceId, actor.personId),
   ]);
   if (error) throw error;
   // Allowed ones are listed, so a draft that did not come back is left out rather than shown.
@@ -290,7 +293,7 @@ async function assertSeesKept(actor: Actor, snapshotId: number) {
   const { data } = await db().from("dashboard_snapshots").select("ids:frozen->metricIds, legacy:frozen->data->metrics").eq("id", snapshotId).eq("workspace_id", actor.workspaceId).maybeSingle();
   const kept = keptIds(data as { ids?: unknown; legacy?: unknown } | null);
   if (kept === null) throw new Forbidden();
-  await assertSeesMetrics(actor, kept);
+  await assertSeesKeptMetrics(actor, kept);
 }
 
 /** A Snapshot's data, counting "to date" from the day after its period (spec 0018): a widget shown by quarter keeps
@@ -336,15 +339,16 @@ export async function openSnapshot(actor: Actor, snapshotId: number): Promise<Op
   const seen = await forReader(actor, withWords(frozen.widgets, words), keptDay(frozen.data, row), frozen.themeId);
   const ids = seen.data.metrics.map((m) => m.id);
   const corrections = ids.length ? correctedSince(seen.data, await recordedNow(actor, ids)) : [];
-  return { ...summary(row), name: frozen.name, themeId: frozen.themeId, intro: String(words.intro ?? ""), widgets: seen.widgets, data: seen.data, hiddenParts: seen.hidden, canWrite: writer, canDelete: role === "owner", corrections };
+  return { ...summary(row), name: frozen.name, themeId: frozen.themeId, intro: String(words.intro ?? ""), widgets: seen.widgets, data: seen.data, hiddenParts: seen.hidden, deletedMetrics: seen.deleted, canWrite: writer, canDelete: role === "owner", corrections };
 }
 
 /** What of a Snapshot one reader gets (spec 0013, decided on #193): visibility carries all the way through, so only
  * the Metrics they may see now, as on the live dashboard. A widget that draws any other Metric stays out whole: its
  * title and settings can name it. `hidden` counts the widgets left out. A Guest is shown no one else of the people it
- * kept (the Workspace's, as its taker saw them). */
-export async function forReader(actor: Pick<Actor, "personId" | "workspaceId"> & { role?: Actor["role"] }, widgets: Widget[], data: CanvasData, themeId: number | null, allowed?: readonly number[]): Promise<{ widgets: Widget[]; data: CanvasData; hidden: number }> {
-  const [seen, yearStart, numberStyle] = await Promise.all([visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId)), yearStartOf(actor.workspaceId), numberStyleOf(actor.workspaceId)]);
+ * kept (the Workspace's, as its taker saw them). A Metric deleted since is given to who saw it when it was deleted,
+ * its name marked, and named in `deleted`. */
+export async function forReader(actor: Pick<Actor, "personId" | "workspaceId"> & { role?: Actor["role"] }, widgets: Widget[], data: CanvasData, themeId: number | null, allowed?: readonly number[]): Promise<{ widgets: Widget[]; data: CanvasData; hidden: number; deleted: string[] }> {
+  const [{ visible: seen, deleted }, yearStart, numberStyle] = await Promise.all([seenInSnapshots(actor.workspaceId, actor.personId), yearStartOf(actor.workspaceId), numberStyleOf(actor.workspaceId)]);
   // A View Link also keeps to the Metrics agreed when it was made.
   const visible = allowed ? new Set([...seen].filter((m) => allowed.includes(m))) : seen;
   const shown = widgets.filter((w) => widgetMetricIds(w.metric_ids ?? [], w.settings).every((m) => visible.has(m)));
@@ -356,10 +360,12 @@ export async function forReader(actor: Pick<Actor, "personId" | "workspaceId"> &
   // were when it was taken; one taken before there was a choice keeps Ratio (#130).
   // The people frozen in it are those the person who took it saw: a Guest reads only themselves (peopleFor).
   const people = await peopleFor({ workspaceId: actor.workspaceId, personId: actor.personId, role: actor.role ?? "member" }, data.people);
-  const kept = { ...data, people, metrics: data.metrics.map((m) => normalizeMetric(keptUnit(m))), yearStart, numberStyle, attainmentMethod: keptMethod(data.attainmentMethod) };
+  const metrics = data.metrics.map((m) => normalizeMetric(keptUnit(deleted.has(m.id) ? { ...m, name: `${m.name}${DELETED_MARK}` } : m)));
+  const kept = { ...data, people, metrics, yearStart, numberStyle, attainmentMethod: keptMethod(data.attainmentMethod) };
   // A Total's period the copy kept is given only if it is open now, or the reader sees every Metric counted in it then.
   const totals = await allowedNow(actor.workspaceId, (data as KeptData).rests, (m) => visible.has(m));
-  return { widgets: shown, data: shownData(kept, ids, themeId, totals), hidden: widgets.length - shown.length };
+  const gone = data.metrics.filter((m) => deleted.has(m.id) && ids.has(m.id)).map((m) => m.name);
+  return { widgets: shown, data: shownData(kept, ids, themeId, totals), hidden: widgets.length - shown.length, deleted: gone };
 }
 
 /** What a View Link to a Snapshot shows (#178), read from the Snapshot each time it is opened: what it kept and the

@@ -50,6 +50,11 @@ import { ServiceWorker } from "@/components/service-worker";
 import { APP_COLOURS } from "@/lib/app-colours";
 import { appearanceFor, appearanceForPerson } from "@/lib/appearance";
 import { PracticeBar } from "@/components/practice-bar";
+import { SlideOverProvider } from "@/components/slide-over-host";
+import { atAdminAddress, signedInActor } from "@/lib/installation";
+import { installationHref } from "@ziffr/core/admin-address";
+import { SITE_URL } from "@/lib/sign-in";
+import { signOut } from "@/app/auth-actions";
 import { isPracticeWorkspace } from "@ziffr/core/practice";
 
 export const metadata: Metadata = {
@@ -84,6 +89,19 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </html>
     );
   }
+  // The Admin Address (spec 0066) serves only signing in and the Installation's pages: no Workspace, nothing of the app.
+  if (await atAdminAddress()) {
+    const who = await signedInActor();
+    return (
+      <Plain appearance={await appearanceForPerson(who?.personId ?? null)} actions={
+        <>
+          <a href={SITE_URL} className={PLAIN_LINK}>Open Ziffr</a>
+          <a href={`${SITE_URL}${guideHref()}/installation-settings`} className={PLAIN_LINK}>User guide</a>
+          {who && <form action={signOut}><button type="submit" className={PLAIN_LINK}>Sign out</button></form>}
+        </>
+      }>{children}</Plain>
+    );
+  }
   // Signed out, or signed in without a workspace yet: the page (login, welcome, a form link) and only the name.
   const demo = await isDemo();
   const user = demo ? null : await sessionUser();
@@ -93,24 +111,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     // Signed in without a Workspace yet: the Installation's lines still show (the same read as the shell, nothing of a person).
     const lines = user ? fromInstallation(await activeInstallationAnnouncements({ demo: false })) : [];
     return (
-      <html lang="en" data-appearance={await appearanceForPerson(person)}>
-        <head>
-          <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
-          {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-          <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
-        </head>
-        <body className="min-h-screen bg-background font-sans antialiased">
-          <header className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-            <span className="text-lg font-semibold tracking-[-0.03em]">Ziffr</span>
-            <GuideLink href={guideHref()} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline max-md:-my-3 max-md:inline-flex max-md:min-h-11 max-md:items-center">User guide</GuideLink>
-          </header>
-          {lines.length > 0 && <AnnouncementLine items={shellOrder([], lines, false)} scope={await announcementScope(false)} />}
-          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
-          <LegalFooter />
-          <Toaster />
-          <ServiceWorker />
-        </body>
-      </html>
+      <Plain appearance={await appearanceForPerson(person)} actions={<GuideLink href={guideHref()} className={PLAIN_LINK}>User guide</GuideLink>}
+        lines={lines.length > 0 && <AnnouncementLine items={shellOrder([], lines, false)} scope={await announcementScope(false)} />}>
+        {children}
+      </Plain>
     );
   }
   const [shown, viewer] = await Promise.all([getProfiles(), viewerId()]);
@@ -138,7 +142,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const due = await dueValueCount();
   // Pinned dashboards (#509): only those this person may open now, with nothing but id and name.
   const pinned = await pinnedDashboards(await currentActor());
-  const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, guest: role === "guest", demo: await demoEnabled(), sendFeedback: !practice && hostedByCloud(await settingsInEffect()) };
+  const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, installationHref: installationAdmin ? installationHref("/installation") : undefined, guest: role === "guest", demo: await demoEnabled(), sendFeedback: !practice && hostedByCloud(await settingsInEffect()) };
   // On a phone the demo bar is this one control; "Leave the demo" and the guided tour are in More.
   const demoControls = demo ? <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} roles={await demoRoles()} /> : undefined;
   // The demo saves and sends nothing (spec 0021, #271): say so on every page, and where to get it for real when this Ziffr offers trials.
@@ -160,7 +164,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   ) : null;
   const banners = (
     <>
-      {practice && <PracticeBar startOver={installationAdmin} />}
+      {practice && <PracticeBar startOver={installationAdmin ? installationHref("/installation#practice") : null} />}
       {/* Owners and Admins get the bar with counts and links; everyone else the plain words (spec 0040). */}
       {trial && !trial.ended && (role === "owner" || role === "admin"
         ? <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} isOwner={role === "owner"} keeps={trial.keeps} usage={usage} />
@@ -191,6 +195,36 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         {demo && <Tour key={can(actor, "create") ? "member" : "guest"} guest={!can(actor, "create")} changes={Boolean(demoChanges)} />}
         <Toaster />
         <Suspense fallback={null}><QuickLookHost /><MetricActionsHost /></Suspense>
+        <ServiceWorker />
+      </body>
+    </html>
+  );
+}
+
+/** A link or button in the header of the plain shell. */
+const PLAIN_LINK = "text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline max-md:-my-3 max-md:inline-flex max-md:min-h-11 max-md:items-center";
+
+/** The page without the app around it: Ziffr's name, a few links and the page. */
+function Plain({ appearance, actions, lines, children }: { appearance: string; actions: React.ReactNode; lines?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <html lang="en" data-appearance={appearance}>
+      <head>
+        <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
+      </head>
+      <body className="min-h-screen bg-background font-sans antialiased">
+        <header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-3 sm:px-6">
+          <span className="text-lg font-semibold tracking-[-0.03em]">Ziffr</span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">{actions}</div>
+        </header>
+        {lines}
+        {/* Pages that open a panel at the side, such as the Installation's Announcements, need its provider here too. */}
+        <SlideOverProvider>
+          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+        </SlideOverProvider>
+        <LegalFooter />
+        <Toaster />
         <ServiceWorker />
       </body>
     </html>

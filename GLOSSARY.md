@@ -412,7 +412,7 @@ One of the Themes Ziffr delivers (Ziffr Light, Ziffr Dark, Tokyo, Paris, Oslo, P
 _Avoid_: Preset, built-in theme, template theme
 
 **Snapshot**:
-What something showed, fixed so it never changes when observations do. A dashboard's Snapshot keeps the dashboard as it stood for one week, month, quarter, half-year or year (quarters, half-years and years of the Fiscal Year, such as "Q1 FY 2026/27", "H2 2026" or "2026"): its layout and the values of every Metric period complete by the period's last day. Its numbers never change, and a value corrected since is shown with a note of what it is now; its words (the introduction, each Finding's headline and sentences) are written after it is taken, and every change is a Version. It is a draft for the dashboard's owner and Editors until one of them shows it; then whoever may open the dashboard may open it, and sees in it only the Metrics they may see now. Its owner may have the dashboard take one of every week, month, quarter, half-year or year by itself, once every Metric on it is Locked for each of its periods inside it (for a year of a monthly Metric, all twelve months) or a set number of days after it ends. A Workflow's Send Snapshot step takes and shows one when its period is finished. A deck's Snapshot is the values its widgets show at the moment it is exported, stamped with that date.
+What something showed, fixed so it never changes when observations do. A dashboard's Snapshot keeps the dashboard as it stood for one week, month, quarter, half-year or year (quarters, half-years and years of the Fiscal Year, such as "Q1 FY 2026/27", "H2 2026" or "2026"): its layout and the values of every Metric period complete by the period's last day. Its numbers never change, and a value corrected since is shown with a note of what it is now; its words (the introduction, each Finding's headline and sentences) are written after it is taken, and every change is a Version. It is a draft for the dashboard's owner and Editors until one of them shows it; then whoever may open the dashboard may open it, and sees in it only the Metrics they may see now. A Metric deleted since stays in it, marked as deleted, for the Members and Guests who saw it when it was deleted, and never in a View Link to it. Its owner may have the dashboard take one of every week, month, quarter, half-year or year by itself, once every Metric on it is Locked for each of its periods inside it (for a year of a monthly Metric, all twelve months) or a set number of days after it ends. A Workflow's Send Snapshot step takes and shows one when its period is finished. A deck's Snapshot is the values its widgets show at the moment it is exported, stamped with that date.
 _Avoid_: Copy, freeze, archived copy, export data
 
 ### Sharing
@@ -445,6 +445,10 @@ _Avoid_: Backup, dump, archive
 The CSV file of the values of the Metrics a person ticked in the Metrics list (or of one Metric, from its History tab): one row per value, written in the Workspace's Number Style as the Workspace's own download is. Any signed-in person gets it for the Metrics they may see, a Guest for what is shared with them; a Metric they may not see is left out as if it did not exist, at most 50 Metrics and 250,000 rows go in one file, and each download is written in the Audit Log in counts. Never for an Access Key, a View Link or the demo. Not a Workspace Export (the Owner's file for another Ziffr to read), and not the Workspace's download of every Metric for Owners and Admins (spec 0056).
 _Avoid_: Bulk export, data dump
 
+**Metric Record**:
+The ZIP file of everything Ziffr keeps about some Metrics, which their Metric Owner downloads before deleting them in the app: for each its Metric Description and settings, values with their history, Breakdowns, Target Series, Projections, and the Questions, Tasks and replies about it, as CSV files. Only the Metric Owner gets it, holding only what they may see. Deleting unlocks once the record of exactly the Metrics to be deleted, as they are then, was downloaded within the last 24 hours; the download is written in the Audit Log. Programs deleting a Metric through the API or the MCP Server are not asked for it. Not a Values Download (values only, for anyone who sees the Metrics), not a Period Record, and Ziffr never reads it back in.
+_Avoid_: Backup, dump, archive, full export
+
 **Setup Guide**:
 The five steps that set up a Workspace (About you, Starting point, Ways in and out, First Metric, Team), opened by itself at a person's first sign-in and reopened from Help or the Setup line at the top of each page. Each step ticks from what the Workspace has, never from a flag a click sets, and each can be skipped. Its progress is the Workspace's, shared by its Owners and Admins; hiding it is each person's own. A Member sees the steps about themselves, a Guest none, and the demo never. What a person answers in it stays in the Workspace and is sent nowhere.
 _Avoid_: Wizard, onboarding, tour, checklist
@@ -474,12 +478,28 @@ One running Ziffr: its app, its database and its keys, reached at one address. I
 _Avoid_: Instance, deployment, server, tenant
 
 **Installation Admin**:
-A person who runs an Installation as a whole: they open its Installation Settings and add or remove other Installation Admins, never the last one. It is not a Workspace Role: an Owner of every Workspace is not one, and being one shows no Workspace's data. The first one claims the Installation with a one-time setup code that Ziffr writes to its server log while it has none; the server's settings can also name them by address.
+A person who runs an Installation as a whole: they open its Installation Settings and add or remove other Installation Admins, never the last one. It is not a Workspace Role: an Owner of every Workspace is not one, and being one shows nothing a Workspace holds (no Metric name, value, note, comment, dashboard or Contact) and gives no way to sign in as someone else. They do see its Users and, of each Workspace, its name, Owners, kind, limit and counts. The first one claims the Installation with a one-time setup code that Ziffr writes to its server log while it has none; the server's settings can also name them by address.
 _Avoid_: Superadmin, root, system administrator
 
 **Installation Settings**:
-What an Installation talks to, such as its mail server, set by an Installation Admin on a page of its own instead of in the server's environment. A value set in the environment wins and is shown as set on the server; secret values are sealed and never shown again. Settings of a Workspace are not Installation Settings.
+What an Installation talks to, such as its mail server, set by an Installation Admin on a page of its own instead of in the server's environment. A value set in the environment wins and is shown as set on the server; secret values are sealed and never shown again. The same menu item opens the Installation's panel, whose other pages are Users, Workspaces and Health. Settings of a Workspace are not Installation Settings.
 _Avoid_: Admin settings, system settings, global config
+
+**Admin Address**:
+An address of its own that whoever runs the server may give the Installation's panel (`ZIFFR_ADMIN_URL`), such as `https://admin.example.com`, so the network can restrict who reaches it. Where one is set, the panel answers only there, and that address serves only signing in and the panel. A server setting, never on a page. It adds to the check of the Installation Admin and never replaces it.
+_Avoid_: Admin domain, admin subdomain, back office
+
+**User**:
+Someone who signed up at an Installation, as its Installation Admins see them: name, email address, when they signed up and last signed in, whether they are blocked, and how many Workspaces they belong to. Not a Contact (who never signs in), not a Made-up Person, and not a Workspace Role, which says what a person may do in one Workspace.
+_Avoid_: Customer, subscriber, login
+
+**Blocked User**:
+A User an Installation Admin has blocked: they cannot sign in, every session of theirs ended, and nothing acts as them (their Access Keys, connected assistants, Personal Webhooks, replies, form links and Calendar Links) and nothing is sent to them, until they are unblocked. Nothing is revoked or deleted, and what belongs to a Workspace carries on. Nobody blocks themself or an Installation Admin.
+_Avoid_: Banned, suspended, deactivated, disabled user
+
+**Installation Health**:
+What an Installation Admin reads on the Health page to see whether the Installation does its own work: its release, the messages that wait or failed, and when each background job last recorded a run. Counts and times only, from what Ziffr records anyway.
+_Avoid_: Monitoring, status page, diagnostics
 
 **Sending Limit**:
 One of the abuse safeguards of an Installation that an Installation Admin may move within a range, as an Installation Setting named `ZIFFR_LIMIT_*`: emails, chat messages, Alerts, values, calls, Webhooks, sign-in links, Contacts and Snapshots per day, hour or minute. None can be switched off; they are the same for every Workspace whatever its Size, and Ziffr Cloud never sets them. Lowering one never deletes or stops what exists: only what is new waits. Not a Workspace Limit, which counts Metrics.
@@ -733,7 +753,7 @@ Where a person wants to get questions, tasks, reminders and replies. The team se
 _Avoid_: Notification settings, routing
 
 **Usage**:
-What a Workspace or an Installation is used for, as counts: what is looked at, which Metrics have values, what arrives by which Source. It never says who looked. A Workspace's Owners and Admins see theirs on the Usage page; an Installation Admin sees only totals across all Workspaces.
+What a Workspace or an Installation is used for, as counts: what is looked at, which Metrics have values, what arrives by which Source. It never says who looked. A Workspace's Owners and Admins see theirs on the Usage page; of Usage, an Installation Admin sees only totals across all Workspaces.
 _Avoid_: Analytics, telemetry, tracking, statistics, activity
 
 **Usage Digest**:

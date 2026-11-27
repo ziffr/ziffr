@@ -66,6 +66,19 @@ const siteUrl = (set(env.ZIFFR_SITE_URL)
     ? `https://${domain}${httpsPort === "443" ? "" : `:${httpsPort}`}`
     : `http://localhost${httpPort === "80" ? "" : `:${httpPort}`}`).replace(/\/$/, "");
 
+// The Admin Address (spec 0066), optional: an address of its own for the Installation's pages. The app reads it as
+// every other ZIFFR_ setting; here it only joins Auth's list of addresses. The app itself refuses a wrong one.
+let adminOrigin = "";
+if (set(env.ZIFFR_ADMIN_URL)) {
+  try {
+    const url = new URL(env.ZIFFR_ADMIN_URL.trim());
+    if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("not http");
+    adminOrigin = url.origin;
+  } catch {
+    fail("ZIFFR_ADMIN_URL must be an address such as https://admin.example.com.");
+  }
+}
+
 // --- Mail: the mail server given, or Mailpit inside the stack ------------------------------------------------------
 
 const smtpUrl = set(env.ZIFFR_SMTP_URL) ? env.ZIFFR_SMTP_URL : "smtp://mail:1025";
@@ -168,7 +181,8 @@ const files = {
     API_EXTERNAL_URL: `${siteUrl}/auth/v1`,
     GOTRUE_DB_DATABASE_URL: `postgresql://supabase_auth_admin:${encodeURIComponent(authPassword)}@db:5432/postgres`,
     GOTRUE_SITE_URL: siteUrl,
-    GOTRUE_URI_ALLOW_LIST: `${siteUrl}/auth/callback`,
+    // Sign-in links and providers may also come back to the Admin Address, where one is set (spec 0066).
+    GOTRUE_URI_ALLOW_LIST: [siteUrl, adminOrigin].filter(Boolean).map((o) => `${o}/auth/callback`).join(","),
     GOTRUE_JWT_SECRET: jwtSecret,
     GOTRUE_JWT_ISSUER: `${siteUrl}/auth/v1`,
     GOTRUE_MAILER_URLPATHS_CONFIRMATION: `${siteUrl}/auth/v1/verify`,

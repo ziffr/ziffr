@@ -57,3 +57,30 @@ describe("the middleware and a real session", () => {
     expect(new URL(res.headers.get("location")!).pathname).toBe("/demo/confirm");
   });
 });
+
+describe("the middleware and the Admin Address (spec 0066)", () => {
+  afterEach(() => { delete process.env.ZIFFR_ADMIN_URL; delete process.env.ZIFFR_SITE_URL; });
+  const at = (host: string, path: string, headers: Record<string, string> = {}) => middleware(new NextRequest(`http://${host}${path}`, { headers: { host, cookie: "sb-x-auth-token=abc", ...headers } }));
+  const set = () => { process.env.ZIFFR_ADMIN_URL = "https://admin.example.com"; process.env.ZIFFR_SITE_URL = "https://app.example.com"; };
+
+  it("unset, serves the panel wherever Ziffr answers", async () => {
+    expect((await at("app.example.com", "/installation/users")).status).toBe(200);
+  });
+
+  it("set, serves the panel only there, and there nothing but signing in and the panel", async () => {
+    set();
+    expect((await at("app.example.com", "/installation")).status).toBe(404);
+    expect((await at("app.example.com", "/installation/users")).status).toBe(404);
+    expect((await at("app.example.com", "/metrics")).status).toBe(200);
+    expect((await at("admin.example.com", "/installation/users")).status).toBe(200);
+    expect((await at("admin.example.com", "/login")).status).toBe(200);
+    for (const path of ["/metrics", "/api/v1/metrics", "/v/abc", "/demo", "/mcp"]) expect((await at("admin.example.com", path)).status).toBe(404);
+    expect(new URL((await at("admin.example.com", "/")).headers.get("location")!).pathname).toBe("/installation");
+  });
+
+  it("set, does not take a forwarded header's word for it", async () => {
+    set();
+    expect((await at("app.example.com", "/installation", { "x-forwarded-host": "admin.example.com" })).status).toBe(404);
+    expect((await at("app.example.com", "/", { "x-forwarded-host": "admin.example.com" })).status).toBe(404);
+  });
+});

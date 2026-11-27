@@ -11,6 +11,7 @@ import { mapViewWords, openFrozenData, opening, openObject, sealFrozenData, seal
 import { workspaceCipher } from "./workspace-keys";
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { getCanvasData } from "./access";
+import { DELETED_MARK, deletedAmong, stillExisting } from "./deleted-metrics";
 import { assertSeesMetrics } from "./sharing";
 import { deckMetricIds } from "./visibility";
 import { widgetMetricIds } from "./widget-metrics";
@@ -314,7 +315,8 @@ async function openLinkContent(token: string, opts: { count?: boolean }): Promis
     if (!s || !dash) return null;
     // As any View Link: only what the dashboard's owner may see now, and only the Metrics agreed when it was made
     // (visibility carries all the way through, #193). A widget drawing any other Metric stays out whole.
-    const seen = await forReader({ personId: dash.owner_id as string, workspaceId: dash.workspace_id as string }, s.widgets, s.data, s.themeId, link.metric_ids ?? []);
+    // Never a Metric deleted since, also where the link was made with it: a link shows none (spec 0065).
+    const seen = await forReader({ personId: dash.owner_id as string, workspaceId: dash.workspace_id as string }, s.widgets, s.data, s.themeId, await stillExisting(String(dash.workspace_id), (link.metric_ids ?? []).map(Number)));
     return snapshotPayload(link.object_id, s, seen);
   }
   return buildView(link.object_type, link.object_id, link.metric_ids ?? [], link.widget_ids ?? null, link.shape_ids ?? null);
@@ -336,6 +338,19 @@ export async function emptyInLink(actor: Actor, type: "dashboard" | "deck", id: 
   return view.data.metrics.filter((m) => restsOnTotal(m) && !view.data.series[m.slug]?.length).map((m) => m.name);
 }
 
+/** The Metrics of a Snapshot that a View Link to it leaves out because they have been deleted since (spec 0065), for
+ * its owner to read before making one: named where the owner keeps them in the Snapshot, marked as deleted, the others
+ * only counted. */
+export async function deletedInLink(actor: Actor, dashboardId: number, snapshotId: number): Promise<string[]> {
+  if (!Number.isInteger(dashboardId) || !Number.isInteger(snapshotId)) throw new Forbidden();
+  await assertOwner(actor, "dashboard", dashboardId);
+  const s = await snapshotForLink(snapshotId, dashboardId);
+  if (!s) return [];
+  const { kept, others } = await deletedAmong(actor.workspaceId, actor.personId, s.data.metrics.map((m) => m.id));
+  const named = s.data.metrics.filter((m) => kept.has(m.id)).map((m) => `${m.name}${DELETED_MARK}`);
+  return others ? [...named, `${others} deleted Metric${others === 1 ? "" : "s"} you may not see`] : named;
+}
+
 /** Exactly what the person on the other end of a View Link to this dashboard (or one of its shown Snapshots) would see
  * now, for its owner to look at before agreeing to make it (GLOSSARY: Share Proposal). Only the owner, only while their
  * role may share, and only Metrics they see, as when the link is made; null when there is nothing to show. */
@@ -346,7 +361,7 @@ export async function previewViewLink(actor: Actor, dashboardId: number, snapsho
   if (snapshotId !== null) {
     const s = await snapshotForLink(snapshotId, dashboardId);
     if (!s) return null;
-    const ids = s.data.metrics.map((m) => m.id);
+    const ids = await stillExisting(actor.workspaceId, s.data.metrics.map((m) => m.id));
     await assertSeesMetrics(actor, ids);
     return snapshotPayload(dashboardId, s, await forReader(actor, s.widgets, s.data, s.themeId, ids));
   }
@@ -440,13 +455,15 @@ async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId:
   const s = await snapshotForLink(snapshotId, dashboardId);
   // Only a shown Snapshot of this dashboard: a draft is not for anyone else yet.
   if (!s) throw new Refused("Show the Snapshot to everyone with access first, then make a link to it.");
-  await assertSeesMetrics(actor, s.data.metrics.map((m) => m.id));
+  // A Metric deleted since stays out of every link, whoever keeps it in the Snapshot (spec 0065).
+  const shown = await stillExisting(actor.workspaceId, s.data.metrics.map((m) => m.id));
+  await assertSeesMetrics(actor, shown);
   const token = randomBytes(24).toString("base64url");
   const [linkId] = await reserveIds("view_links", 1);
   const { data: made, error: madeError } = await db().from("view_links").insert({ id: linkId, token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: asked, frozen: null, show_names: input?.showNames === true, snapshot_id: snapshotId,
     // The words as the owner sees them now: someone outside reads these, whatever is written in Ziffr later. Sealed for
     // the link with the Workspace Key (spec 0028).
-    snapshot_words: sealObject(await workspaceCipher(actor.workspaceId), { table: "view_links", column: "snapshot_words", row: linkId }, s.words), metric_ids: s.data.metrics.map((m) => m.id), widget_ids: null, shape_ids: null, workspace_id: actor.workspaceId }).select("id").single();
+    snapshot_words: sealObject(await workspaceCipher(actor.workspaceId), { table: "view_links", column: "snapshot_words", row: linkId }, s.words), metric_ids: shown, widget_ids: null, shape_ids: null, workspace_id: actor.workspaceId }).select("id").single();
   // A trial's limit (ZF437) or any other refusal of the database: no link was made, so no token goes out.
   if (madeError) throw new Refused(trialLimitMessage(madeError.code) ?? "The View Link could not be made. Try again.");
   await audit(actor, { kind: "view_link.created", object: { type: "dashboard", id: dashboardId, name: s.name }, accessKeyId: opts.accessKeyId, details: { link_id: made?.id ?? null, frozen: true, show_names: input?.showNames === true, snapshot_id: snapshotId, period: s.label, expires_on: expires, metrics: s.data.metrics.length } });

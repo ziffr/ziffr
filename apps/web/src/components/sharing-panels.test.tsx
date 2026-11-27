@@ -24,6 +24,7 @@ vi.mock("@/app/view-link-actions", () => ({
   shownSnapshots: async () => [],
   tagListsToFix: async () => 0,
   emptyInLink: async () => [],
+  deletedInLink: async () => [],
 }));
 vi.mock("@/app/canvas-actions", () => ({ setShare: async () => ({}), setGroupShare: async () => ({}) }));
 vi.mock("@/app/team-actions", () => ({ inviteMember: async () => ({}), inviteGateNow: async () => ({ state: "ended" }) }));

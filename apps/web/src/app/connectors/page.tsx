@@ -2,7 +2,9 @@
 // AI assistants have their own place, Connected assistants, with a line pointing there (#532).
 import Link from "next/link";
 import { currentActor } from "@/lib/viewer";
-import { installationActor } from "@/lib/installation";
+import { signedInActor } from "@/lib/installation";
+import { isInstallationAdmin } from "@ziffr/core/installation-admins";
+import { installationHref } from "@ziffr/core/admin-address";
 import { emailOptedOut } from "@ziffr/core/email-opt-out";
 import { inboundOn, mailOn } from "@ziffr/core/mail";
 import { slackConnection } from "@ziffr/core/slack-connection";
@@ -33,7 +35,8 @@ export default async function ConnectorsPage({ searchParams }: { searchParams: P
   // The Slack connection comes as its name only; its token never leaves the core (spec 0007). Telegram's bot comes as
   // its username only; its token stays in the environment (spec 0016). Only whether the person runs the Installation
   // is passed on, for a link.
-  const [optedOut, demo, slack, slackLink, slackStopped, telegram, telegramLink, telegramStopped, { slack: outcome }, installer, ways, mail, inbound] = await Promise.all([emailOptedOut(actor), isDemo(), slackConnection(actor), mySlackLink(actor), slackOptedOut(actor), telegramConnection(actor), myTelegramLink(actor), telegramOptedOut(actor), searchParams, installationActor(), whatWorksHere(actor), mailOn(), inboundOn()]);
+  const [optedOut, demo, slack, slackLink, slackStopped, telegram, telegramLink, telegramStopped, { slack: outcome }, installer, ways, mail, inbound] = await Promise.all([emailOptedOut(actor), isDemo(), slackConnection(actor), mySlackLink(actor), slackOptedOut(actor), telegramConnection(actor), myTelegramLink(actor), telegramOptedOut(actor), searchParams, signedInActor(), whatWorksHere(actor), mailOn(), inboundOn()]);
+  const runsIt = !demo && installer !== null && (await isInstallationAdmin(installer));
   // In a Practice Workspace only (spec 0063), and only for the person it was made for: null otherwise.
   const toYourself = demo ? null : await practiceWays(actor);
   return (
@@ -43,7 +46,7 @@ export default async function ConnectorsPage({ searchParams }: { searchParams: P
       {optedOut && <OptedOutNote />}
       {(slack.enabled || slack.team) && <SlackPanel connection={slack} link={slackLink} stopped={slackStopped} notice={outcome ? SLACK_OUTCOME[String(outcome)] : undefined} />}
       {telegram.configured && <TelegramPanel connection={telegram} linked={Boolean(telegramLink)} stopped={telegramStopped} />}
-      <ChannelCards demo={demo} email={mail ? (inbound ? "both" : "send") : "off"} slack={slack.team ? "connected" : "off"} telegram={telegram.enabled ? "on" : "off"} ways={ways} installationAdmin={Boolean(installer) && !demo} />
+      <ChannelCards demo={demo} email={mail ? (inbound ? "both" : "send") : "off"} slack={slack.team ? "connected" : "off"} telegram={telegram.enabled ? "on" : "off"} ways={ways} installationHref={runsIt ? installationHref("/installation") : null} />
       {/* The demo has no Access Keys, so it offers no assistant. */}
       {!demo && <p className="text-sm text-muted-foreground">To connect Claude or another AI assistant, open <Link href="/settings/assistants" className="underline">Connected assistants</Link>.</p>}
     </div>

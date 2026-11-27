@@ -6,6 +6,8 @@ import { getShareProposal, previewFingerprint, previewShareProposal } from "@zif
 import { PageHeader } from "@/components/page-header";
 import { DashboardReader } from "@/components/dashboard-reader";
 import { ShareProposalButtons } from "@/components/share-proposal-buttons";
+import { DeletedLeftOut } from "@/components/view-links";
+import { deletedInLink } from "@ziffr/core/view-links";
 import { ProposalFacts, proposalTitle } from "@/components/share-proposal-summary";
 
 // Never cached: it shows what would go out right now, and only to the person it was prepared for.
@@ -19,6 +21,8 @@ export default async function ShareProposalPage({ params }: { params: Promise<{ 
   const p = await getShareProposal(actor, id);
   if (!p) notFound();
   const preview = p.status === "open" ? await previewShareProposal(actor, id).catch(() => null) : null;
+  // Said before the person confirms: what the link leaves out because it was deleted since the Snapshot (spec 0065).
+  const deleted = preview && p.snapshot ? await deletedInLink(actor, p.dashboard.id, p.snapshot.id).catch(() => []) : [];
   return (
     <div className="mx-auto max-w-3xl">
       <Link href="/schedule" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Schedule</Link>
@@ -30,6 +34,7 @@ export default async function ShareProposalPage({ params }: { params: Promise<{ 
       {p.status === "open" && p.kind === "view_link" && (
         <section className="mt-6">
           <h2 className="mb-2 text-sm font-semibold">What {p.recipient.label} will see</h2>
+          {deleted.length > 0 && <div className="mb-2"><DeletedLeftOut names={deleted} /></div>}
           {preview && preview.type === "dashboard" ? (
             <>
               <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4">

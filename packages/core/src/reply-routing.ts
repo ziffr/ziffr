@@ -8,6 +8,7 @@ import { linkTo } from "./deliveries";
 import { submitValue, submissionEffects, type SubmissionEffects } from "./submissions";
 import { postReply } from "./threads";
 import { answerSourceOf } from "./prompt-ways";
+import { personBlocked } from "./user-block";
 
 /** How long a reply address works, in days. */
 export const REPLY_DAYS = 30;
@@ -31,6 +32,8 @@ export type RouteOutcome = "recorded" | "refused" | "form_link" | "replied" | "c
 
 /** Takes one reply to a Delivery from the person it went to. */
 export async function routeReply(d: RepliedDelivery, text: string, via: ReplyChannel, submission: SubmissionEffects = submissionEffects): Promise<RouteOutcome> {
+  // A Blocked User's reply changes nothing and is not answered (spec 0066).
+  if (await personBlocked(d.recipient_id)) return "refused";
   // An Alert is never answerable (spec 0032): nothing said back to it is a value, a reply or a Correction.
   if (d.kind === "alert" || d.kind === "heads_up") {
     await via.answer("Not recorded", d.kind === "alert" ? "Alerts cannot be answered; open the Metric in Ziffr." : "Heads-ups cannot be answered; open Ziffr.");
