@@ -59,7 +59,7 @@ Each Workflow shows its name, who owns it and how many Metrics use it (counting 
 
 The steps are drawn as a timeline, from top to bottom. Each step shows in words what it does, with its settings underneath. The owner moves a step with the arrows **Earlier** and **Later**, and takes it out with **Remove step**.
 
-**Ask** always comes first and cannot be changed: "When the period ends, ask each submitter through their connector. While someone is away, their stand-in is asked." Ziffr sends each Submitter a **Prompt**, by email, on Slack or wherever that person gets their messages (see [Your settings](17-your-settings.md)). A **Feed** is a program and is never asked.
+**Ask** always comes first and cannot be changed: "When the period ends, ask each submitter through their connector. While someone is away, their stand-in is asked." Ziffr sends each Submitter a **Prompt**, by email, on Slack or wherever that person gets their messages (see [Your settings](17-your-settings.md)). A **Feed** is a program and is never asked. A person asked for several numbers by one run gets [one message for all of them](10-metrics.md#several-numbers-in-one-request), and one reminder for what is still missing.
 
 **Add step** offers the other kinds:
 
