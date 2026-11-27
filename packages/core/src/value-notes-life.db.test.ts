@@ -167,7 +167,7 @@ describe("Condensed Values", () => {
 });
 
 describe("what goes", () => {
-  it("keeps the notes of a removed person, who is a former person whose name Guests are not told", async () => {
+  it("keeps the notes of a removed person without their name, and gives that person nothing", async () => {
     const s = await setup();
     await s.w.value(s.m.id, P, 3, s.sara);
     const ben = await s.w.person("member");
