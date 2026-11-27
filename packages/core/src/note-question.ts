@@ -113,7 +113,10 @@ export async function askOnForm(ws: string | null, at: NumberOnly, by: FormAsker
     const code = randomBytes(32).toString("base64url");
     await forgetOld(workspaceId);
     const { error } = await db().from("note_questions").insert({ workspace_id: workspaceId, token_id: tokenId, code_hash: hashOf(code), ...(await target(workspaceId, at)) });
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("A question for a form could not be saved:", error.message);
+      throw new Error("The question could not be saved.");
+    }
     return code;
   } catch (e) {
     console.error("A note could not be asked for:", e instanceof Error ? e.message : "unknown");
@@ -130,13 +133,19 @@ export async function askOnReply(ws: string, deliveryId: number, personId: strin
     try {
       const what = await target(ws, at);
       const { data: there, error } = await db().from("note_questions").update(what).eq("workspace_id", ws).eq("delivery_id", deliveryId).eq("prompt_id", promptId).select("id");
-      if (error) throw new Error(error.message);
+      if (error) {
+        console.error("A question could not be brought up to date:", error.message);
+        throw new Error("The question could not be saved.");
+      }
       // A value entered in someone's place is noted by who entered it, who is the person asked.
       if (there?.length || at.authorId !== personId || !(await asks(ws, at, personId))) continue;
       await forgetOld(ws);
       const { error: failed } = await db().from("note_questions").insert({ workspace_id: ws, delivery_id: deliveryId, prompt_id: promptId, ...what });
       // Another reply asked at the same moment: one question is enough.
-      if (failed && failed.code !== "23505") throw new Error(failed.message);
+      if (failed && failed.code !== "23505") {
+        console.error("A question for a reply could not be saved:", failed.message);
+        throw new Error("The question could not be saved.");
+      }
       if (!failed) asked.push(promptId);
     } catch (e) {
       console.error("A note could not be asked for:", e instanceof Error ? e.message : "unknown");

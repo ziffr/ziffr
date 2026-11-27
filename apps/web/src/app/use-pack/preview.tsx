@@ -54,9 +54,11 @@ type Props = Look & {
   /** What an earlier try made, which is kept. */
   unfinished: string[] | null;
   onUse: () => void;
-  /** The way back out. */
-  exit: string;
+  /** The way back out: the address of a page, or, where the screens stand over one, what closes them. */
+  exit: string | (() => void);
 };
+
+const EXIT = "inline-flex min-h-11 items-center justify-center text-sm underline underline-offset-4 sm:min-h-9";
 
 /** The Preview, with "Use this pack". */
 export function PreviewScreen({ step, view, drawing, drawn, viewer, numberStyle, blocked, unfinished, onUse, exit }: Props) {
@@ -69,7 +71,7 @@ export function PreviewScreen({ step, view, drawing, drawn, viewer, numberStyle,
       <div className={PHONE_ACTIONS}>
         {step.setsUp && <Button type="button" className={`${PHONE_BUTTON} sm:px-6`} disabled={blocked !== null} onClick={onUse}>{unfinished ? "Finish setting up" : "Use this pack"}</Button>}
         {/* A plain link: the app around the Packs page is not drawn here, so it is loaded anew. */}
-        <a href={exit} className="inline-flex min-h-11 items-center justify-center text-sm underline underline-offset-4 sm:min-h-9">All packs</a>
+        {typeof exit === "string" ? <a href={exit} className={EXIT}>All packs</a> : <button type="button" onClick={exit} className={EXIT}>Close</button>}
       </div>
       <Lines title={step.heading} items={step.happens} />
       <Lines title="You need" items={step.needs} />

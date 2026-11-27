@@ -28,7 +28,7 @@ describe("Describe your Pack", () => {
     const hidden = await w.metric(ann, { name: "Salaries" });
     const address = await w.metric(mia, { name: "See evil.example/x" });
     const draft = await draftPackGuide(w.actor(mia, "member"), "northwind/board", { metrics: [own.id, hidden.id, address.id] });
-    expect(draft).toEqual({ contents: "# Metrics\n- Orders", numbers: [{ ref: `metric:${own.id}`, name: "Orders", said: null }], installed: [] });
+    expect(draft).toEqual({ contents: "# Metrics\n- Orders", numbers: [{ ref: `metric:${own.id}`, name: "Orders", period: "month", said: null }], installed: [] });
     expect(await draftPackGuide(w.actor(mia, "member"), "northwind/board", {})).toEqual({ contents: "", numbers: [], installed: [] });
   });
 

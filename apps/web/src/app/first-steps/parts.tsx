@@ -67,8 +67,3 @@ export function Skip({ onSkip }: { onSkip: () => void }) {
     </div>
   );
 }
-
-/** A screen a later ticket builds. Nobody reaches one: First Steps is switched off until every screen exists. */
-export function NotBuilt({ title }: { title: string }) {
-  return <ScreenHeading title={title}>This step is not ready yet.</ScreenHeading>;
-}
