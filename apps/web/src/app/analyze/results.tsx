@@ -78,7 +78,7 @@ function ResultCard({ item, focus, writing }: { item: ResultItem; focus: boolean
     start(async () => {
       const settings = { ...TEMPLATES[template].settings, ...(done.widget!.showTarget ? { showTarget: true } : {}) };
       const res = await saveToPool({ type: "spec", template, metricIds: done.widget!.metricIds, settings }, name);
-      if (!told(res, "Not saved")) toast.success("Saved to My Widgets", { description: "Drag it from the Pool onto any dashboard." });
+      if (!told(res, "Not saved")) toast.success("Saved to My Widgets", { description: "Add it to any dashboard with Add widget." });
     });
   };
   const body = `result-${item.key}`;
