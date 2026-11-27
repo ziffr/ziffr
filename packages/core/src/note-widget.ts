@@ -4,6 +4,8 @@
 // text only: nothing here makes markup, a link or anything that runs. Characters that show nothing or turn the reading
 // order around are taken out.
 
+import { APP_REFUSED } from "./file-text";
+
 /** The longest heading, on one line. */
 export const NOTE_HEADING_MAX = 120;
 /** The longest text. */
@@ -17,8 +19,9 @@ export type NoteSettings = { note?: string; noteHighlight?: boolean };
 /** Cleaned words, or the sentence that says why they cannot be kept. */
 export type NoteWords = { ok: true; text: string } | { ok: false; problem: string };
 
-// Control characters other than the new line, the controls that turn the reading order around, and the byte order mark.
-const UNSEEN = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069\ufeff]/g;
+// What other typed text refuses (APP_REFUSED: control and invisible characters, lone surrogates, the controls that turn
+// the reading order around), but for the new line.
+const UNSEEN = new RegExp(`(?!\\n)[${APP_REFUSED}]`, "gu");
 // Every way a line may end becomes a new line, and a tab a space.
 const plainLines = (raw: string) => raw.replace(/\r\n?|[\u2028\u2029]/g, "\n").replace(/\t/g, " ").replace(UNSEEN, "");
 

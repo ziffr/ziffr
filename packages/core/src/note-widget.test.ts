@@ -22,6 +22,17 @@ describe("a note's text", () => {
     expect(text(null)).toBe("");
   });
 
+  it("takes out every character other typed text refuses, but keeps the new line and whole characters", () => {
+    // A soft hyphen, zero-width space and word joiner, the direction marks, both halves of a pair on their own, tag characters.
+    const hidden = [0x00ad, 0x061c, 0x200b, 0x200e, 0x200f, 0x2060, 0xd800, 0xdc00, 0xe0000, 0xe0041, 0xe007f].map((c) => String.fromCodePoint(c));
+    for (const c of hidden) {
+      expect(text(`a${c}b\nc`)).toBe("ab\nc");
+      expect(heading(`a${c}b`)).toBe("ab");
+    }
+    const emoji = String.fromCodePoint(0x1f600);
+    expect(text(`Up ${emoji}\nDown`)).toBe(`Up ${emoji}\nDown`);
+  });
+
   it("is refused when it is not words or too long", () => {
     for (const bad of [7, {}, ["a"], true]) expect(cleanNoteText(bad).ok).toBe(false);
     expect(text("x".repeat(NOTE_TEXT_MAX))).toHaveLength(NOTE_TEXT_MAX);
