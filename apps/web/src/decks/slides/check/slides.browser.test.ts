@@ -136,6 +136,19 @@ describe("the deck slides in a browser", () => {
     expect(found.slice(0, 60)).toEqual([]);
   });
 
+  // Each sample again, its Metrics named with the longest names of the shipped Packs. Not yet the gap table, whose
+  // column headings take a second line under such names (#1366).
+  it.each(DESIGNS)("pass the check with every sample under the longest names of the shipped Packs, %s design", async (design) => {
+    const names = packNames();
+    const found: string[] = [];
+    for (const [i, deck] of sampleDecks().entries()) {
+      if (deck.slides.some((s) => s.type === "gap-table")) continue;
+      const metrics = (deck.data.metrics ?? []).map((m, j) => ({ ...m, name: names[j % names.length]! }));
+      found.push(...(await deckFaults(`${design}/${i}`, realistic(design, "ziffr-light", { ...deck, data: { ...deck.data, metrics } }))));
+    }
+    expect(found.slice(0, 60)).toEqual([]);
+  });
+
   it.each(DESIGNS)("pass the check with the longest names, an unbreakable word and no values, %s design", async (design) => {
     const hard = hardDeck(packNames());
     const found: string[] = [];
