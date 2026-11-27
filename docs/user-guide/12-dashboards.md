@@ -34,7 +34,7 @@ A trial's example dashboard, **Your coffee**, has a line above it that says what
 
 ### A new Workspace
 
-A new Workspace opens on the Setup Guide, not on an empty dashboard list; see [Getting started](07-getting-started.md#the-setup-line-and-opening-by-itself). Until you make or are shown a dashboard, the list says "No dashboards yet", and Home offers [where to start](07-getting-started.md#where-would-you-like-to-start).
+A new Workspace starts with First Steps, not with an empty dashboard list; see [Getting started](07-getting-started.md#first-steps). Until you make or are shown a dashboard, the list says "No dashboards yet", and Home offers [where to start](07-getting-started.md#where-would-you-like-to-start).
 
 ## Opening a dashboard
 

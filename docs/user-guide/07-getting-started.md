@@ -1,8 +1,8 @@
 <!-- part: Understanding Ziffr -->
-<!-- screens: apps/web/src/app/setup/**, apps/web/src/components/privacy-statement.tsx, apps/web/src/components/setup-line.tsx, apps/web/src/components/setup-panel.tsx -->
+<!-- screens: apps/web/src/app/first-steps/**, apps/web/src/components/first-steps-line.tsx, apps/web/src/app/setup/**, apps/web/src/components/privacy-statement.tsx, apps/web/src/components/setup-line.tsx, apps/web/src/components/setup-panel.tsx -->
 # Getting started
 
-This chapter takes you from nothing to a team that sees its numbers each month. The Setup Guide, which opens by itself when you first join, walks you through the first steps; the routine then runs by itself.
+This chapter takes you from nothing to a team that sees its numbers each month. First Steps, which opens when you start a Workspace, walks you through the beginning one question at a time; the routine then runs by itself.
 
 ## Look around the demo first
 
@@ -41,115 +41,105 @@ In that demo the line above the page ends with a countdown, "Resets in 9 min.", 
 
 ## Start your Workspace
 
-Sign in with your work email: Ziffr sends you a sign-in link (on hosted Ziffr the sign-in page also offers a trial of your own, next to the demo; on a Ziffr that somebody else runs it has no trial), and the page then says **Check your email** with the address it went to; **Use another address** takes you back to the form. Then give your Workspace a name, such as your name, your team or your company, and choose **Create workspace**. You become its Owner and can invite others later. If a colleague already uses Ziffr, ask them to invite you instead, so you join their Workspace.
+Sign in with your work email: Ziffr sends you a sign-in link (on hosted Ziffr the sign-in page also offers a trial of your own, next to the demo; on a Ziffr that somebody else runs it has no trial), and the page then says **Check your email** with the address it went to; **Use another address** takes you back to the form. Then Ziffr asks a few questions, gives your Workspace a name, such as your name, your team or your company, and makes it when you choose **Create Workspace**. You become its Owner and can invite others later. If a colleague already uses Ziffr, ask them to invite you instead, so you join their Workspace.
 
-A new Workspace opens on the **Setup Guide**, which the next section describes.
+Making a Workspace is part of **First Steps**, which the next section describes.
 
-## The Setup Guide
+## First Steps
 
-The **Setup Guide** is a short list of five steps that sets a Workspace up: **About you**, **Starting point**, **Ways in and out**, **First Metric** and **Team**. It lives at **Set up your Workspace** (the address `/setup`), shows the steps in a bar at the top with each one's state in words (Done, Skipped, To do, Comes next), and every step can be skipped. On a phone the bar is one line, "Step 2 of 5", over a strip with one segment per step; tap a segment to open that step. **Go to Ziffr** leaves it at any time, and the guide never blocks the app. The first time you open the guide on a phone, one short note comes before the first step: it says that Ziffr was written with the desktop in mind, where most work happens, so some screens are roomier there, and that the Dashboards are the screens tuned for phones. **Continue to set up** and **Skip** both lead to the first step, and the note does not come back on that phone (it is remembered in that browser only; on a desktop or tablet width it never shows). The rest of Ziffr works without it, as the sections after it show.
+**First Steps** is the guided start of a new Workspace: one question to a screen, in three chapters, **About you**, **Your Workspace** and **Your numbers**. A panel at the side (a bar at the top on a phone) shows the chapters and your answers so far. It works from start to end on a phone, and takes about two minutes.
 
-A step is ticked from what the Workspace really has (a Pack installed, a Metric made, a value that arrived, a colleague invited), never from a box you tick yourself; the only things a click stores are skipping a step and choosing **Explore on my own**. A skipped step counts as done for the line at the top of the page, but is not ticked.
+### The questions
+
+| Screen | What you do |
+| --- | --- |
+| **Who will use Ziffr?** | **My team or business** or **Just me**. Where colleagues at your company's domain already have a Workspace you may join, **Ask to join** is offered above (see [Asking to join](16-workspace-settings.md#asking-to-join)). |
+| About you (a team) | Your role, the kind of business and who your customers are, so that suggestions fit. Each can be skipped. |
+| About you (just me) | What you would like to track: health and fitness, money, habits and time, a club or hobby, or something else. It can be skipped. |
+| **Set up your Workspace** | Its name. Time zone, currency and first day of the week are read from your browser; **Change** adjusts them and the country. **Create Workspace** makes it. A trial says after how many days it ends and is deleted. On a Ziffr you run, **Coming from another Ziffr?** starts from a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) instead. |
+| **How would you like to start?** | **Start with a ready-made set** or **Start from a clean slate**. |
+
+Before the Workspace exists, your answers are kept in this browser only: reloading the page brings them back, and another device starts again. What you answer stays in your Workspace and is sent to nobody else.
+
+### A ready-made set or a clean slate
+
+- **A ready-made set** is a [Pack](19-packs.md): Metrics, a dashboard and reminders for your kind of work. **Choose a ready-made set** shows the three that fit you best, and all of them on request. A set shows its dashboard drawn with sample numbers. **Use this set** opens its [guided set-up](19-packs.md#use-this-pack); nothing is installed before you press **Set it up**.
+- **A clean slate** asks for your first metric, one number you follow over time. Choose how often, **Weekly** (suggested) or **Monthly**, and pick one of the suggestions, or **Define your own** with a name, a unit and how often. Ziffr makes the Metric and a dashboard that shows it.
+
+### Your first value
+
+**Now send your first value** closes the loop: until a value is in, your dashboard stays empty, and in a trial you cannot invite colleagues.
+
+- **Ask me by email** sends you the Metric's real request. Reply to it with the number (where this Ziffr cannot receive replies, open the link in the email and type it). The screen shows when it arrives. **Nothing arrived?** says what to check, and what became of a reply that was not recorded. Asking again waits ten minutes and keeps to the daily limits. This choice is shown only where this Ziffr can send email.
+- **Type it in here** records the value without sending any message.
+- **Do this later** goes on; the closing screen and a line at the top of each page remind you.
+
+### Who sends the values from now on
+
+| Choice | What happens |
+| --- | --- |
+| **I will** | You are asked, on the schedule the screen names. |
+| **A colleague** (**Someone else** for just you) | You give their email address and they become the one who sends the values. In an ordinary Workspace they are added as a [Contact](16-workspace-settings.md#contacts) and not invited. In a trial this opens once your own first value is in, and they are invited by email as a Guest; they are asked once they accept. |
+| **Nobody for now** | Nobody is asked; you enter values when you like. |
+
+Nothing on this screen asks anyone for a value at once. The last screen, **Your Workspace is ready** (or **One thing is still open**), says what is set up, opens your dashboard, and offers **Invite your team** and **Connect Slack or Telegram**.
+
+### Leaving and coming back
+
+- **Finish later** (once the Workspace exists) opens Ziffr. Home leads you to First Steps once if you closed it without choosing that.
+- While a step is open, a line above every page says what is next, such as "Next: send your first value.", with **Continue** and **Hide**; in a trial it also says that invitations stay closed. **Continue setting up** on [Where would you like to start?](#where-would-you-like-to-start) and in **Help** brings you back too, also after you hid the line.
+- **Start over** asks the questions again. It deletes nothing and makes no second Workspace.
+
+### Who gets First Steps
 
 | Who you are | What you see |
 | --- | --- |
-| **Owner or Admin** | All five steps. Owners and Admins share one Workspace's progress: what one of them did is ticked for the other. |
-| **Member** | The short version: **About you** (only your own function) and **Ways in and out** (only how you are asked and your own Slack or Telegram link). Your skips are your own. |
-| **Guest** | Nothing: no guide and no line. |
-| **The demo** | Nothing: it keeps its own guided tour. |
+| Someone who makes a Workspace, the first or one more (**New workspace**) | First Steps. It belongs to this Owner, one for each Workspace. |
+| An **Admin**, or another Owner | Nothing: no guide and no line. |
+| Owners and Admins of a Workspace made before First Steps, or imported from a Workspace Export | Nothing. The old address `/setup` leads to **Connectors** or **Members and Groups** where it asked for one of them, and otherwise Home. |
+| An invited **Member** | The short [Setup Guide](#the-setup-guide). |
+| A **Guest** | Nothing. |
+| The demo and a Practice Workspace | Never. |
+
+## The Setup Guide
+
+The **Setup Guide** is a short list of two steps for a **Member** who joins a Workspace: **About you** and **Ways in and out**. It lives at **Set up your account** (the address `/setup`), shows the steps in a bar at the top with each one's state in words (Done, Skipped, To do, Comes next), and each can be skipped. On a phone the bar is one line, "Step 1 of 2", over a strip with one segment per step; tap a segment to open that step. **Go to Ziffr** leaves it at any time, and the guide never blocks the app. The first time you open the guide on a phone, one short note comes before the first step: it says that Ziffr was written with the desktop in mind, where most work happens, so some screens are roomier there, and that the Dashboards are the screens tuned for phones. **Continue to set up** and **Skip** both lead to the first step, and the note does not come back on that phone (it is remembered in that browser only; on a desktop or tablet width it never shows).
+
+A step is ticked from what you have really set, never from a box you tick yourself; the only thing a click stores is skipping a step, and your skips are your own. A skipped step counts as done for the line at the top of the page, but is not ticked.
 
 ### About you
 
-**About you** asks plain questions, one to a row, each optional and each saying what it is for. Choose **Skip this question** to leave one open, **Skip** to skip the whole step, or **Save and go on**.
+**About you** shows what the Workspace has said about the business, read-only, and asks one question of your own, **What do you do here?**. It is optional: choose **Skip this question** to leave it open, **Skip** to skip the step, or **Save and go on**. The answer is your **Business Function**, so Ziffr can suggest Packs and who is asked for what.
 
-| Question | Who answers | What it is used for |
-| --- | --- | --- |
-| **What does your business do?**, **Who do you sell to?**, **How many people work there?** | Owners and Admins | So Ziffr can suggest Metrics and Packs that fit |
-| **Where is it based?** | Owners and Admins | So numbers and money are written the way you write them: the country proposes the currency, how numbers are written and the languages answers are read in, until someone sets them on **Workspace → General** |
-| **Revenue in a year** | Owners and Admins | The same suggestions; it is roughly, in the currency of the country |
-| **What do you do here?** | Everyone who has the step | Your **Business Function**: so Ziffr can suggest Packs and who is asked for what |
-| **Your Workspace's time zone**, **Ziffr asks for numbers at**, **The week starts on**, **Your year starts in** | Owners and Admins | Which day it is for your team, when each day's requests go out, the first day of the week in the Schedule (Monday or Sunday), and where quarters and years begin. Ziffr proposes this browser's time zone while the Workspace still has the default, UTC, and Sunday when this browser's region starts its week on Sunday |
-
-The Workspace's time counts as answered once an Owner or Admin has saved it, even when it is UTC. A Member sees what the Owners and Admins said about the business, read-only, and answers only their own function.
-
-What you answer stays in this Workspace. It is not sent to Ziffr's makers or to anyone else. It is used only inside this Workspace, to suggest Metrics, Packs and settings that fit and who is asked for what. Owners and Admins of this Workspace see your function; other members do not. (On hosted Ziffr, ziffr.net runs the database, as for everything else in the Workspace.)
-
-You can change every answer later: the business and the time under **Workspace → General**, in the section **About your business**, and your function under **Your profile**.
-
-### Starting point
-
-This step is for Owners and Admins, and asks how you want to begin. A Member never sees it. Nothing is installed or made until you press a button.
-
-| Choice | What it does |
-| --- | --- |
-| **Explore on my own** | Starts from scratch: it opens a page that helps you make [your first metric](10-metrics.md#your-first-metric-from-the-setup-guide), with a few suggestions that fit your answers in About you, a button to define it yourself and **Back to the Setup Guide** on top. The Metric you make there becomes your first Metric, and you land back in the guide. |
-| **Start from a Pack** | A [Pack](19-packs.md) is a ready-made set. **Choose a Pack** leads to Ziffr's own Packs further down, the ones that fit your answers first, under the heading **Packs suggested for you**. Each card names the Pack, says why ("Suggested because of your industry and your function") and lists **What you get**, one item to a line: how many Metrics (with the first names), Dashboards, Workflows and other items it brings. A Pack that includes a Theme says that only an Owner can install it, and only to someone who is not one. On a phone the card stacks, with its button at the bottom. The first three are shown; **See all** shows every Pack, none is hidden. While nothing is suggested and About you is not done, the list has the heading **Ziffr's own Packs**, keeps the usual order and links to **Answer About you to get suggestions**. |
-| **Use this pack** | Opens the [guided set-up](19-packs.md#use-this-pack) of the Pack: first its preview, with a dashboard drawn with Sample Data, then one question per screen. Nothing is installed or made until you press **Set it up**. Owners and Admins only (a Pack that holds a Theme needs an Owner). |
-| **Preview** | For a Pack with nothing to set up: opens its [Preview](19-packs.md#ziffrs-own-packs), where **Add to my Workspace** adds it. Nothing is added by looking. |
-| **See it in Packs** | Shown for a Pack that is **Added**: leads to the [installed Pack](19-packs.md#use-this-pack), where you set it up, open its dashboard and change who does what. |
-
-A Workspace that has Metrics already says "You have 4 Metrics. Start from a Pack anyway?" and still offers everything. A trial is no different: the step is **To do** until you choose, and a Pack stays within the [trial's limits](16-workspace-settings.md#on-a-ziffr-that-offers-trials). The **Start from a Pack** card names your function from About you when you gave one ("Get ready-made Metrics for Finance."). On a phone the two buttons fill the width of their cards.
+What you answer stays in this Workspace. It is not sent to Ziffr's makers or to anyone else. Owners and Admins of this Workspace see your function; other members do not. (On hosted Ziffr, ziffr.net runs the database, as for everything else in the Workspace.) You can change it later under **Your profile**.
 
 ### Ways in and out
 
-Each of the last three steps opens with a sentence saying what it is, why you would do it and that you can skip it. On a phone their fields and buttons are 44 px tall with 16 px text (so Safari does not zoom in), the buttons fill the width with the main one on top and **Skip** under it, and cards, lists and links stack one to a line.
+On a phone the fields and buttons are 44 px tall with 16 px text (so Safari does not zoom in), the buttons fill the width with the main one on top and **Skip** under it, and cards and links stack one to a line.
 
-This step asks two questions on one screen. **How should numbers come in?** lists the ways a number reaches Ziffr, one card each, with its state in words:
+**How can you send numbers?** lists the ways a number reaches Ziffr, one card each, with its state in words:
 
 | Way | What the card says | What you can press |
 | --- | --- | --- |
 | **Web form** | Every request carries a personal link that works without signing in. Always ready. | Nothing to set up |
 | **Email** | Ready where this Ziffr has a mail server, and says whether replying with the number works too. | **Send me a test** |
-| **Slack** | Ready once an Owner or Admin has connected a Slack workspace; a Member is told whom to ask. | **Add to Slack** (Owners and Admins; Slack then brings you back to this step), **Link my Slack account** (when your Slack address is another one), **Send me a test** |
-| **Telegram** | Off until an Owner or Admin turns it on in this Workspace, then ready once you connect your own Telegram. | **Turn on Telegram** (Owners and Admins), **Connect my Telegram** (everyone), **Send me a test** |
+| **Slack** | Ready once an Owner or Admin has connected a Slack workspace; until then it says whom to ask. | **Link my Slack account** (when your Slack address is another one), **Send me a test** |
+| **Telegram** | Off until an Owner or Admin turns it on in this Workspace, then ready once you connect your own Telegram. | **Connect my Telegram**, **Send me a test** |
 | **Paste** | Paste rows from a spreadsheet: the easiest way in when the numbers already sit in one. | **Try it** opens [Paste values](10-metrics.md#paste-values-from-a-spreadsheet) |
 
-**Send me a test** sends one [Test Message](04-connecting.md#send-yourself-a-test-message) to you, and the card says what came of it: sent, waiting to be sent, or kept in the Outbox with the reason; over a limit it says which and when you can try again. There is no button for a way that cannot work here. Where this Ziffr has no mail server, Slack app or Telegram bot, the card says so ("This Ziffr has no Slack app yet. Whoever runs it adds one on its Installation settings page."), links how to add it, and, for an Installation Admin, links the [Installation settings](18-installation-settings.md) page. The web form and paste still work, so you can finish the first Metric without any of the others. **More ways** lists links for Owners and Admins: Access Keys, **Connect Claude or another assistant** (the Connected assistants page, with the connector address and the steps), Feeds (with the warehouse Feeds and n8n templates), **Send values**, **Send numbers on to other systems (Webhooks)** (the Webhooks page, which says what a trial may add), and in a trial **A key for n8n**. A Member sees no More ways, only a link to their own key.
+**Send me a test** sends one [Test Message](04-connecting.md#send-yourself-a-test-message) to you, and the card says what came of it: sent, waiting to be sent, or kept in the Outbox with the reason; over a limit it says which and when you can try again. There is no button for a way that cannot work here. Where this Ziffr has no mail server, Slack app or Telegram bot, the card says so and links how to add it. **More ways** links to your own Access Key.
 
-**How should people be asked and told?** is your own choice: **Ask me by** takes up to three ways in order, from the ones that work here, saved only for you. Others are asked by what they choose, and the default is the first way that reaches them. Telling people through Alerts, a Workflow's Tell step, Snapshots by email, View Links and Webhooks needs a Metric or a dashboard first, so the step only links to them. The step ticks once you have saved a way that works here, or a Test Message to you was sent; a Member's step counts only their own choice, and a Member never sees the Workspace-level setup.
+**How should you be asked?** is your own choice: **Ask me by** takes up to three ways in order, from the ones that work here, saved only for you. The step ticks once you have saved a way that works here, or a Test Message to you was sent.
 
-### First Metric: try the whole loop
-
-**First Metric** shows that Ziffr and you can reach each other, in both directions, with one real Metric: the first one you made in the guide, one you pick with **Another Metric** (only Metrics you own that take values are listed), or, in a trial, the example.
-
-When a trial's Owner reaches this step and the trial has no Metric yet, Ziffr makes the example, and the step says what it is: the Test Metric **Cups of coffee**, asked once a day, with a [dashboard of its own](16-workspace-settings.md#the-example-in-a-trial). To use your own Metric instead, choose the link to make a Metric. Once a Metric has been deleted in the trial, Ziffr makes nothing by itself here; **Try the example** makes it again.
-
-1. **Out: Ziffr asks you.** **Ask me now** sends that Metric's real request to where you chose to be asked, by every way you picked (the first way that reaches you when you picked none). The step says what to look for: for email, a message whose subject starts with "What's the number for ..."; for Slack, a direct message from the Ziffr app; for Telegram, a message from Ziffr's bot. Ask me now asks at most once every ten minutes per Metric, and the button says when you can press it again. When you are in your Quiet Hours the step says so before you ask ("the request will wait until 07:00"); a request held by them still counts as asked, so nobody is stuck at night.
-2. **In: you answer.** Reply where it arrived, open your form link (shown once you have asked), or type the number into the step and press **Send the value**. The step looks every five seconds for ten minutes, and then offers **Check again**.
-
-The step is done when both happened, and says so with what arrived: "MRR for November 2026: 48,200 EUR, by email reply. The loop works." Only a value you sent yourself, after the guide started, counts; a value someone else sent for the same Metric does not.
-
-If you own the Metric but are not one of the people who send its values, the step offers **Ask me for it**, which adds you as a Submitter (it sends your first request, so it shares the ten minutes of Ask me now and a cap of 20 asks a day, 5 in a trial, counting test messages; over a limit it says which and how long to wait). If someone else owns the Metric, it says who and offers one of yours. **Didn't arrive?** lists what to check for the way you asked by: the spam folder and the address for email, the Ziffr app's Messages tab and whether Slack knows you for Slack, whether Telegram is connected and the bot not blocked for Telegram, your Quiet Hours, and always the Outbox, which says why a message stayed. Where this Ziffr has no mail server, Slack app or Telegram bot, the request is kept in the Outbox and the step says you can still finish with the form link or by typing the number.
-
-### Team
-
-This step is for Owners and Admins; a Member and a Guest never see it. It does the work of the Members and Groups page in one place, and everything it does is also there afterwards.
-
-| Part | What it does |
-| --- | --- |
-| **Who is here** | The members and Contacts with their role, and the invitations still waiting. An Owner or Admin also sees what each member said they work in, because functions are visible to Owners and Admins only. |
-| **Invite people** | Type an address, pick a role and choose **Invite**: Ziffr emails the link where this Ziffr has a mail server, and otherwise says so and gives you the link to send yourself. **Make a link for Members** makes a link anyone who has it can join by, for 7 days. The four roles are explained in one line each under the form: an Owner manages everything, an Admin manages settings, Groups and members but cannot remove Owners, a Member makes and shares Metrics, dashboards and decks and sends in values, and a Guest sees only what is shared with them and makes nothing. Only an Owner can invite an Owner. |
-| **Colleagues at your company** | Owners only. **Let people with an address at your company's domain ask to join** switches [Domain Joining](16-workspace-settings.md) on for the domain of your own verified address; it is not offered for a public mail provider, and each person still waits for you or an Admin to let them in. |
-| **A first Group** | An optional Group such as Finance, with a box per member to put people in it. |
-| **Who is asked for what** | Each Metric you can change, with who is asked for it now. Where the Metric came from a Pack that says which Business Function it is for, and a member has that function, a button reads **Suggested: Ben (Finance)**. Pressing a name, or choosing **Ask someone else** and **Ask**, makes that person a Submitter and sends them their first request; Contacts can be asked too. For a Metric you edit but do not own, only people who see it already are offered (see [Who submits](10-metrics.md#who-submits)). A message says what was sent; someone asked for that Metric in the last day is added without a new request. Nothing is assigned until you press. Later, change who is asked under [Who submits](10-metrics.md#who-submits) on the Metric's page. |
-
-The step ticks once someone beside you is in the Workspace, an invitation is waiting, Domain Joining is on, or a Contact is asked for at least one Metric. A Contact that only exists does not count. Revoking the last invitation later does not reopen a finished guide.
-
-**In a trial**, invitations open once the Owner has sent in a first value of their own. Until then the fields are greyed out, and a box right above them, **Invitations are not open yet**, says why (an invitation is an email to an address nobody has confirmed yet, and this keeps automated sign-ups from using a trial to send mail) and what opens them:
-
-- It names one Metric you send values for, with **Ask me now** (then reply to the request) and **Record a value**. Either counts, and so does a reply by your form link; a value from a Feed or an Import does not.
-- If you send values for no Metric yet, for example right after starting from a Pack, it offers **Make a Metric** and **Go to the First Metric step**. Add yourself as the Metric's Submitter.
-- An Admin reads that an Owner has to send in that value.
-
-The fields open by themselves within half a minute of the value arriving, or at once when you close **Record a value** or come back to the page, without reloading it, and the box says **Invitations are open now**. When every place of the trial is taken, the fields are greyed out too and the box says how to free one. After the trial has ended, nobody can be invited. The same box shows in **Invite** on Members and Groups and under **Invite someone** in a Share panel. A trial invites by email only: there is no link and no Domain Joining, as [the trial](16-workspace-settings.md#on-a-ziffr-that-offers-trials) describes.
+Owners and Admins connect Slack, Telegram and the other ways for the Workspace under **Workspace → Connectors** (see [Connectors](16-workspace-settings.md#connectors)).
 
 ### The Setup line and opening by itself
 
-A new Workspace opens on the Setup Guide, because there is nothing else to look at yet. Someone who joins a Workspace, by invitation or because their company's domain may join, is led to the guide once as well, and sees only the short version: **About you** and **Ways in and out**. After that the guide never opens by force again: **Go to Ziffr** is always one click away, and the guide never blocks the app.
+A Member who joins a Workspace, by invitation or because their company's domain may join, is led to the guide once. After that it never opens by force again.
 
-While you have steps left, a thin line above every page (except the [new Metric page opened from the guide](10-metrics.md#your-first-metric-from-the-setup-guide), which says its own next step) says how far you are: "Setup: 2 of 5 done. Next: Ways in and out." **Continue** opens the steps beside the page, each with its tick (a step you skipped counts as done), the next one marked and **Skip** next to those still open; choose a step's name to do it on the full page. **Hide** puts the line away for you, in this Workspace only: nobody else's line changes, and nothing brings it back on its own. The line goes by itself once every step you have is done or skipped; for a Member it also goes when the Owners and Admins have finished the Workspace's guide. A Guest sees no line, and the demo has none: it keeps its own guided steps.
+While you have steps left, a thin line above every page says how far you are: "Setup: 1 of 2 done. Next: Ways in and out." **Continue** opens the steps beside the page, each with its tick (a step you skipped counts as done), the next one marked and **Skip** next to those still open; choose a step's name to do it on the full page. **Hide** puts the line away for you, in this Workspace only: nobody else's line changes, and nothing brings it back on its own. The line goes by itself once every step is done or skipped.
 
-To bring the guide back, choose **Setup Guide** in **Help** (the list of chapters) or in your own menu at the bottom of the sidebar (in **More** on a phone); it opens beside the page, and the line comes back with it. **Workspace → General** shows "Setup: 4 of 5 steps done" with **Open the Setup Guide**, for Owners and Admins. A trial has no guide of its own: its Owner lands in the same Setup Guide when the trial starts, the trial bar's **Setup Guide** link opens it, and the line sits under the trial bar. In the demo there is none of it: no line, no Setup Guide, and its address goes back to the dashboard.
+To bring the guide back, choose **Setup Guide** in **Help** (the list of chapters) or in your own menu at the bottom of the sidebar (in **More** on a phone); it opens beside the page, and the line comes back with it.
 
 ### Where would you like to start?
 
@@ -160,23 +150,23 @@ While there is nothing to look at yet, Ziffr's home asks **Where would you like 
 | **Create your first figure** | Opens **New metric**. | Everyone who may create Metrics |
 | **Install a Pack** | Opens [Packs](19-packs.md). | Owners and Admins |
 | **Try the example** | Ziffr asks you once a day how many cups of coffee you drank, so you see how it works. It makes [the example](16-workspace-settings.md#the-example-in-a-trial) and makes its dashboard your Home. | The Owner of a trial |
-| **Continue setup (2 of 5)** | Opens the Setup Guide, with how many steps are done. | Whoever has steps left and did not hide the line |
+| **Continue setting up** | Leads back to [First Steps](#leaving-and-coming-back), or opens a Member's Setup Guide. | An Owner with a step of First Steps left; a Member with steps left who did not hide the line |
 
 As soon as you have a dashboard of your own, a Metric or a value in the example, or you chose a Home, Ziffr opens as usual. A Guest with nothing shared sees "Nothing has been shared with you yet". The demo never shows this screen.
 
 ### In a trial, in the demo and on a Ziffr you run
 
-- **On hosted Ziffr, a trial** opens the same guide, with its own limits. Leaving it before you have a Metric leads to [Where would you like to start?](#where-would-you-like-to-start). See [Starting a Workspace](16-workspace-settings.md#on-a-ziffr-that-offers-trials).
-- **In the demo** there is no guide, no line and no redirect; **Set up your Workspace** goes back to the dashboard, and the guided tour is the demo's own.
-- **On a Ziffr you run yourself** the guide is the same and depends on nothing hosted: Ziffr's own Packs come with it, and the ways read this Ziffr's own settings, so a Test Message goes through its own mail server, Slack app and Telegram bot. A way it lacks is said in words, with who adds it (see [Installation settings](18-installation-settings.md) and the [self-hosting guide](../guides/self-hosting.md)), and the web form and paste still let you finish the First Metric.
+- **On hosted Ziffr, a trial** starts with the same First Steps, within its own limits. See [Starting a Workspace](16-workspace-settings.md#on-a-ziffr-that-offers-trials).
+- **In the demo** there is no First Steps, no guide, no line and no redirect; `/setup` goes back to the dashboard, and the guided tour is the demo's own.
+- **On a Ziffr you run yourself** First Steps is the same and depends on nothing hosted: Ziffr's own Packs come with it, and the ways read this Ziffr's own settings (see [Installation settings](18-installation-settings.md) and the [self-hosting guide](../guides/self-hosting.md)). Without a mail server you type your first value in.
 
-## What comes after the Setup Guide
+## What comes after First Steps
 
-The guide gets one Metric asking and answering, and your first colleagues in. What follows is the routine, and none of it needs the guide.
+First Steps gets one Metric asking and answering. What follows is the routine.
 
 ### Describe more Metrics
 
-Go to **Metrics** and choose **New metric** (the Setup Guide's **Starting point** may have made the first ones already). The easiest start is the Metric Catalog: pick a number you already track, such as "Revenue" or "Customer satisfaction". Ziffr fills in its description, and you check:
+Go to **Metrics** and choose **New metric** (First Steps may have made the first ones already). The easiest start is the Metric Catalog: pick a number you already track, such as "Revenue" or "Customer satisfaction". Ziffr fills in its description, and you check:
 
 - **Name and description**: would a new colleague understand exactly what is counted?
 - **Period**: daily, weekly, monthly, quarterly or yearly. A number reported once a quarter, such as a survey score or board figures, is quarterly: Ziffr then asks for it once a quarter.
@@ -187,7 +177,7 @@ Start with three to five Metrics in all that matter most. You can always add mor
 
 ### Invite more people, and set the time later
 
-The Team step does the first round. Later, under **Workspace → Members and Groups**, invite colleagues by email or with a link and choose their role:
+Under **Workspace → Members and Groups**, invite colleagues by email or with a link and choose their role:
 
 - **Member** for people who build dashboards and describe Metrics,
 - **Guest** for people who only look at what you share with them and send in their numbers,
@@ -195,13 +185,13 @@ The Team step does the first round. Later, under **Workspace → Members and Gro
 
 People who only send in a number, such as an outside bookkeeper, can be added as **Contacts**. They need no login and use their personal form link, email or Slack. Create **Groups** such as "Management" or "Sales" so you can share with many people at once.
 
-Your time zone, the hour at which Ziffr asks for values and sends reminders each day, and the month your year starts in are set in **About you** and changed under **Workspace → General**. Ziffr counts working days and Due Dates in this time zone.
+Your time zone, the hour at which Ziffr asks for values and sends reminders each day, and the month your year starts in are changed under **Workspace → General**. Ziffr counts working days and Due Dates in this time zone.
 
 ### Let Ziffr ask for the numbers
 
 Under **Workspace → Workflows**, create a Workflow such as "Monthly numbers": when to ask, when to remind, on which working day a value is due, who is asked when it is late, what counts as unusual, and who approves. Then assign it to your Metrics.
 
-From now on, Ziffr sends the Prompts by itself. Each person chooses under **Your Deliveries** (their own menu at the bottom of the sidebar) whether they get them by email, on Slack or on Telegram, and enters the dates they are Away. The **Ways in and out** step above already saved your own choice there.
+From now on, Ziffr sends the Prompts by itself. Each person chooses under **Your Deliveries** (their own menu at the bottom of the sidebar) whether they get them by email, on Slack or on Telegram, and enters the dates they are Away.
 
 ### Build a dashboard
 
@@ -229,7 +219,7 @@ The installed app is the same Ziffr as in the browser and needs a connection: yo
 
 ## Screens made for a larger screen
 
-A phone is good for looking at numbers and for quick answers; building is easier with a larger screen. On a phone these screens show a note at the top that says "This is easier on a larger screen." and why: editing a dashboard, the deck editor, Workflows, the tabs of Connectors except the Outbox, Packs, the Playground, Installation settings, Analyze, New metric and the import of a Workspace Export. Nothing is switched off: the screen is below the note and you may use it.
+A phone is good for looking at numbers and for quick answers; building is easier with a larger screen. On a phone these screens show a note at the top that says "This is easier on a larger screen." and why: editing a dashboard, the deck editor, Workflows, the **Sources**, **Send values** and **Who gets what** tabs of Connectors, Packs, the Playground, Installation settings, Analyze, New metric and the import of a Workspace Export. Nothing is switched off: the screen is below the note and you may use it.
 
 The note offers up to two things:
 

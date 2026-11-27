@@ -158,7 +158,7 @@ A Pack may say which of Ziffr's ready n8n templates ([Automation Templates for F
 
 ## Whom it is for
 
-A Pack may say whom it is for with an optional `audience`, beside `ziffr` and `logo`. Ziffr uses it to suggest the Packs that fit a Workspace first, in the Setup Guide; it never hides a Pack from anyone, and a Pack without one is simply not suggested for a reason. Every part is optional and lists distinct keys from Ziffr's fixed lists, which `@ziffr/pack` exports so your tools check against the same ones:
+A Pack may say whom it is for with an optional `audience`, beside `ziffr` and `logo`. Ziffr uses it to suggest the Packs that fit a Workspace first, in First Steps; it never hides a Pack from anyone, and a Pack without one is simply not suggested for a reason. Every part is optional and lists distinct keys from Ziffr's fixed lists, which `@ziffr/pack` exports so your tools check against the same ones:
 
 ```json skip="a fragment of a Pack's manifest"
 "audience": {

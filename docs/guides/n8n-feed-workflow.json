@@ -97,7 +97,7 @@
         -300
       ],
       "parameters": {
-        "content": "## Send a number to Ziffr\nPress **Execute workflow**: **Value** picks a number from 1 to 5 and **Send to Ziffr** records it for `your-metric-slug` as today's value.\n\nThe Feed Key in the Authorization header comes from Ziffr (the Setup Guide of a trial, or Settings, then Feeds). For real use, put it in an n8n credential (Header Auth, name `Authorization`, value `Bearer <key>`) instead of the header field.\n\n**Every day at 9** sends a value daily once you turn it on.",
+        "content": "## Send a number to Ziffr\nPress **Execute workflow**: **Value** picks a number from 1 to 5 and **Send to Ziffr** records it for `your-metric-slug` as today's value.\n\nThe Feed Key in the Authorization header comes from Ziffr (Try it in a trial, or Settings, then Feeds). For real use, put it in an n8n credential (Header Auth, name `Authorization`, value `Bearer <key>`) instead of the header field.\n\n**Every day at 9** sends a value daily once you turn it on.",
         "height": 260,
         "width": 560
       }

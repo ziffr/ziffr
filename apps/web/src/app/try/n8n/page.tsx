@@ -1,4 +1,4 @@
-// A key for n8n in a trial (spec 0052, ticket 12; GLOSSARY: Feed, Feed Key, Test Metric): linked from the ways in and out.
+// A key for n8n in a trial (spec 0052, ticket 12; GLOSSARY: Feed, Feed Key, Test Metric): linked from Try it.
 // Only the Owner of a running Trial Workspace has it; everyone else, and the demo, goes on to Home.
 import { redirect } from "next/navigation";
 import { currentActor } from "@/lib/viewer";

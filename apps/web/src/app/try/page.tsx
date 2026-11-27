@@ -10,6 +10,7 @@ import { isDemo } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { WayLine } from "@/components/way-state";
 import { trialEndsAt } from "@ziffr/core/trials";
+import { trialFeedKey } from "@ziffr/core/trial-feed-key";
 import { waysTried, whatWorksHere, type Way } from "@ziffr/core/what-works-here";
 import { reachedWords, trialUsage } from "@ziffr/core/trial-usage";
 import { EndTrialButton } from "@/components/end-trial-button";
@@ -45,6 +46,8 @@ export default async function TryItPage() {
   if (!ends) redirect("/");
   const [ways, tried] = await Promise.all([whatWorksHere(actor), waysTried(actor)]);
   const usage = await trialUsage(actor);
+  // The core gives it to the trial's Owner only, once there is something to send to; nobody else gets the link.
+  const n8n = Boolean(await trialFeedKey(actor).catch(() => null));
   const done = ways.filter((w) => tried[w.way]).length;
   return (
     <>
@@ -64,6 +67,7 @@ export default async function TryItPage() {
               {w.state === "real" && <p className="mt-2">{step.how}</p>}
               {w.state === "real" && step.link && <Link href={step.link.href} className="mt-2 inline-block text-xs underline">Go to {step.link.label}</Link>}
               {w.state === "real" && w.way === "feeds" && <a href={FEEDS_GUIDE} className="ml-3 mt-2 inline-block text-xs underline">The Feeds guide, with a ready n8n automation</a>}
+              {w.state === "real" && w.way === "feeds" && n8n && <Link href="/try/n8n" className="ml-3 mt-2 inline-block text-xs underline">A key for n8n</Link>}
             </li>
           );
         })}

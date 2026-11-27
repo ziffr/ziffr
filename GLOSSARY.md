@@ -470,16 +470,12 @@ The ZIP file of everything Ziffr keeps about some Metrics, which their Metric Ow
 _Avoid_: Backup, dump, archive, full export
 
 **First Steps**:
-The guided start of a new Workspace (spec 0067): one question per screen about the person, the Workspace and its first numbers, ending with a first value the Owner sends in. It belongs to the Owner who made the Workspace and takes the place of the Setup Guide for Owners and Admins once it is switched on. Not the section "First steps" of a Pack Guide.
+The guided start of a new Workspace (spec 0067): one question per screen about the person, the Workspace and its first numbers, ending with a first value the Owner sends in. It belongs to the Owner who made the Workspace and is theirs alone: nobody else in the Workspace is led to it. Not the section "First steps" of a Pack Guide.
 _Avoid_: Wizard, onboarding, tour
 
 **Setup Guide**:
-The five steps that set up a Workspace (About you, Starting point, Ways in and out, First Metric, Team), opened by itself at a person's first sign-in and reopened from Help or the Setup line at the top of each page. Each step ticks from what the Workspace has, never from a flag a click sets, and each can be skipped. Its progress is the Workspace's, shared by its Owners and Admins; hiding it is each person's own. A Member sees the steps about themselves, a Guest none, and the demo never. What a person answers in it stays in the Workspace and is sent nowhere.
+The two steps a Member takes after joining a Workspace (About you, Ways in and out), opened by itself at their first sign-in and reopened from Help or the Setup line at the top of each page. Each step ticks from what the person has set, never from a flag a click sets, and each can be skipped. Hiding it is the person's own. Owners and Admins have none (the Owner who makes a Workspace has First Steps), nor does a Guest or the demo. What a person answers in it stays in the Workspace and is sent nowhere.
 _Avoid_: Wizard, onboarding, tour, checklist
-
-**Trial Guide**:
-The Setup Guide as a Trial Workspace has it: the same steps, with the Test Metric as its First Metric while the Workspace has no Metric of its own choosing, and the Trial Limits on the steps that count something. Try it stays as the reference of every way.
-_Avoid_: Wizard, onboarding, tour
 
 **Business Function**:
 The part of a business a person works in, picked by that person from a fixed list (sales, marketing, finance, operations, customer support, people and HR, product and engineering, management, something else). Set per Workspace, optional, and seen only by the person and the Workspace's Owners and Admins. Ziffr uses it to suggest Packs and who is asked for what.
@@ -494,7 +490,7 @@ A Delivery a person sends to themselves through one Connector (email, Slack or T
 _Avoid_: Ping, test notification
 
 **Test Metric**:
-The Metric of a Trial Workspace's example, made only when its Owner chooses to try the example or reaches the Setup Guide's First Metric step without a Metric: Cups of coffee, asked of the Owner daily, answered by hand and without history, so the first value it holds is the Owner's own. With it come the Workflow Ask me each day and the dashboard Your coffee, which its owner may remove while saying what happens to recorded values.
+The Metric of a Trial Workspace's example, made only when its Owner chooses to try the example: Cups of coffee, asked of the Owner daily, answered by hand and without history, so the first value it holds is the Owner's own. With it come the Workflow Ask me each day and the dashboard Your coffee, which its owner may remove while saying what happens to recorded values.
 _Avoid_: Demo metric, sample metric
 
 **Installation**:

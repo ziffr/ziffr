@@ -1,6 +1,6 @@
 # 0067 First Steps: from sign-in to a first number, one question at a time
 
-**Status:** in progress (2026-11-27). Tracking issue #1325. Replaces the Owner's and Admin's Setup Guide of spec 0052.
+**Status:** done (2026-11-27). Tracking issue #1325. Replaces the Owner's and Admin's Setup Guide of spec 0052.
 
 **Screens:** [0067/screens.html](0067/screens.html) is the clickable draft (open it in a browser). It is the reference for flow, words, layout and simplicity. **Its styling is not the reference**: the app has one design (below). Its sets, suggestions, sample numbers and "Berlin" are examples. Where it differs from this spec, the spec wins.
 

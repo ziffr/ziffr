@@ -25,7 +25,7 @@ Every page in `apps/web/src/app` has a **Route Tier**: how much a phone has to d
 | --- | --- | --- | --- | --- |
 | Phone-first | `phone-first` | Made for a thumb | Dashboards, a Metric's page, recording a value, the Schedule, signing in | Yes, unless the walk skips the page |
 | Phone-OK | `phone-ok` | Everything can be read and the common change made. It may be cramped, with no sideways scroll and no control out of reach | Settings, Team, the Audit Log, Decks, the guide | No: look yourself |
-| Desktop-first | `desktop-first` | Made for a pointer and a large screen. It shows the [desktop-only note](#the-desktop-only-note), and what only reads stays readable | The deck editor, Workflows, Connectors, Analyze | No: look yourself |
+| Desktop-first | `desktop-first` | Made for a pointer and a large screen. It shows the [desktop-only note](#the-desktop-only-note), and what only reads stays readable | The deck editor, Workflows, sending values under Connectors, Analyze | No: look yourself |
 
 The table is [`apps/web/src/lib/route-tiers.ts`](../../apps/web/src/lib/route-tiers.ts), the one list of every page. A new `page.tsx` gets a line there. A Phone-first page also gets a line in [`apps/web/phone/walk.ts`](../../apps/web/phone/walk.ts): how the check opens it and words that show it is the right screen, or why it is skipped. `route-tiers.test.ts` fails when a page is in no tier, when the table names a page that is gone, or when the walk and the Phone-first pages differ. `pnpm precheck` runs it.
 
