@@ -169,9 +169,9 @@ export function sampleWidget(id: TemplateId, period: Period = "month"): SampleWi
 }
 
 /** A Dashboard Template's widgets filled with Sample Data, where they sit (spec 0014). Never with the Metrics it was
- * made with, for the same reason as a team template's. */
-export function sampleDashboard(t: { slots: Pick<Slot, "multiple">[]; body: DashboardTemplateBody }, period: Period = "month"): (SampleWidget & { x: number; y: number; w: number; h: number })[] {
-  return fromDashboardTemplate(t.body, sampleFills(t.slots, period));
+ * made with, for the same reason as a team template's. `fills` are a Pack's own Sample Metrics (pack-sample.ts). */
+export function sampleDashboard(t: { slots: Pick<Slot, "multiple">[]; body: DashboardTemplateBody }, period: Period = "month", fills = sampleFills(t.slots, period)): (SampleWidget & { x: number; y: number; w: number; h: number })[] {
+  return fromDashboardTemplate(t.body, fills);
 }
 
 /** A team template filled with Sample Data. Never with the metrics it was made with (its Slots' exampleIds): the

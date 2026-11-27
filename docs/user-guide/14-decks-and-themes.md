@@ -142,7 +142,7 @@ Select an element to change its words, colours, size and Metrics in the side pan
 
 Tick **One Total: a row for each Metric it adds up, against its target** and pick the [Total](10-metrics.md#adding-up-metrics-a-total) under **Metrics**, such as the team's commit. The tick is offered once you see a Total. The table then shows, for the latest period one of those Metrics has a value in:
 
-- one row for each Metric counted in that period, with its **Target** for the period (its Target Series value, else a Target Range with one number), its value and the gap, the largest surplus first;
+- one row for each Metric counted in that period, with its target for the period (its Target Series value, else a Target Range with one number), its value and the gap, the largest surplus first. The column of targets is headed **Target**, or what you type under **Heading of a Total's targets**, such as Quota;
 - "–" for a Metric with no value yet, and no gap for one without a single target number;
 - at most 30 rows; the rest are counted below the table.
 

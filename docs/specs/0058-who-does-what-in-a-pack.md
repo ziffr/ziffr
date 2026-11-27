@@ -221,7 +221,7 @@ It is worked out per reader and period, at the time of reading.
 
 #### The forecast Pack's team quota
 
-Decided by the owner on 2026-11-26: **the team's quota is the salespeople's targets added up** to begin with (`"targets": "parts"` on the Total over Commit), so each quota is set once, on a salesperson's Commit. A team may give the Total its own target instead, and the Pack Guide and the user guide say how:
+Decided by the owner on 2026-11-26: **the team's quota is the salespeople's targets added up** to begin with (`"targets": "parts"` on the Total over Commit), so each quota is set in one place, as weekly targets on a salesperson's Commit. A team may give the Total its own target instead, and the Pack Guide and the user guide say how:
 
 1. On the Total's page, tab **Overview**, section **What it adds up**: under **Target** choose **Its own target** (its owner or an Editor; only the owner while the Total is open).
 2. On its **Targets** tab give every week its quota (**Add row** or **Paste from a spreadsheet**), the quarter's quota in each of the quarter's weeks, past weeks that are still read included. **Edit details** and **Target from** give one quota for every week instead, without history.
@@ -338,7 +338,7 @@ A person about to install a Pack needs to know where its numbers will come from 
 { "key": "closed-quarter", "comesFrom": { "by": "system", "system": "CRM", "note": "The won deals of the quarter." }, "metric": { "format": "ziffr.metric/1", "name": "Closed this quarter" } }
 ```
 
-- **Never typed:** a Derived Metric or a Total takes no `comesFrom`, since its formula says it. A formula that only reads a target, `target({x})`, shows as set once as the target of x. The delivered n8n templates are the manifest's `feeds`; without one that fills an entry, another system's number is set up by whoever installs. Workflows, what is included and what is still needed are worked out from the Pack.
+- **Never typed:** a Derived Metric or a Total takes no `comesFrom`, since its formula says it. A formula that only reads a target, `target({x})`, shows as the target of x, or, where x is a Total whose targets are its parts' added up, as the targets of each part. The delivered n8n templates are the manifest's `feeds`; without one that fills an entry, another system's number is set up by whoever installs. Workflows, what is included and what is still needed are worked out from the Pack.
 - **Optional in the format;** a number without it is described by the ways Ziffr has, worked out from its Sources and the manifest's `feeds` (owner, 2026-11-26: never that the Pack does not say): **Ask a person**, **Ask a person, or another system sends it**, **Ask a person, or fill it from** a system **(template included)**, or, where only the API is a Source, **Another system sends it**. Numbers with the same answer share a row. It is **required for every number that takes values** in order to be listed in the Marketplace (the publish check) and in Ziffr's own Packs (a test).
 - **Text from a stranger:** `system` and `note` are held to the plain text of a Pack's names, read by the assistant-words check and drawn as text.
 

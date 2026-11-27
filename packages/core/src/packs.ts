@@ -24,6 +24,7 @@ import { cleanLogo, logoRatio, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import { checkViewDesignValue, type ViewDesign } from "./view-design";
 import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
 import { designWithRecipe } from "./design-files";
+import type { PackSampleEntry } from "./pack-sample";
 import { MAX_WORKSPACE_DESIGNS } from "./view-designs";
 import type { DashboardTemplateBody, DeckTemplateBody, Slot, ThemeSlides, ThemeTokens, WorkflowTemplateBody } from "./types";
 
@@ -43,6 +44,9 @@ export type PackPreview = {
   items: PackPreviewItem[];
   /** What the Pack brings and where its numbers come from (comes-from.ts), worked out from the checked file. */
   overview: KeptOverview;
+  /** What the Sample Data of its Dashboard Templates' Previews is made from (pack-sample.ts): the Pack's own entries,
+   * so a Preview shows its Metrics by their names. */
+  sample: { pack: string; metrics: PackSampleEntry[] };
   /** Its Positions, Repeats and proposed Shares in words (spec 0058), or null when it has none. */
   people: PackPeople | null;
   /** The Pack's logo, checked again and written out as Ziffr keeps it (a data address), or null. It is drawn only in an
@@ -186,6 +190,16 @@ function placesOf(pack: Pack, stored: ReturnType<typeof storedItems>["templates"
   return packPlaces(pack, (key) => itemHash(bodies.get(key)));
 }
 
+/** A checked Pack's Metric Catalog entries as its Preview's Sample Data reads them. */
+function sampleEntries(pack: Pack, stored: ReturnType<typeof storedItems>): PackSampleEntry[] {
+  const repeats = new Map((pack.repeats ?? []).map((r) => [r.key, r.name]));
+  const per = new Map((pack.contents.metrics ?? []).map((m) => [m.key, m.per]));
+  return stored.catalog.map((e) => ({
+    key: e.key, name: e.name, period: e.period, aggregation: e.aggregation, unit: e.unit, unit_position: e.unit_position, format: e.format, decimals: e.decimals, polarity: e.polarity,
+    target_min: e.target_min, target_max: e.target_max, formula: e.formula, total: "total" in e ? (e.total as PackSampleEntry["total"]) ?? null : null, repeat: repeats.get(per.get(e.key) ?? "") ?? null,
+  }));
+}
+
 /** A checked Pack's Positions, Repeats and proposed Shares in words, as its Preview shows them, or null. */
 export function previewPeople(pack: Pack, stored: ReturnType<typeof storedItems> = storedItems(pack)) {
   const places = placesOf(pack, stored.templates);
@@ -247,7 +261,7 @@ export async function previewPack(actor: Actor, text: string, origin: PackOrigin
     ...stored.themes.map((t): PackPreviewItem => ({ kind: "theme", key: t.key, name: t.name, tokens: t.tokens, logo: Boolean(t.slides.logo) })),
   ];
   const people = previewPeople(pack, stored);
-  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, overview: keptOverview(pack), people, logo: safeLogo(pack), unsigned: !origin.signed, source: origin.source, reviewed: origin.reviewed === true, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
+  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, overview: keptOverview(pack), sample: { pack: pack.id, metrics: sampleEntries(pack, stored) }, people, logo: safeLogo(pack), unsigned: !origin.signed, source: origin.source, reviewed: origin.reviewed === true, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
 }
 
 /** Installs an uploaded Pack file (Owners and Admins; Owners for one with Themes; never in the demo), after the person

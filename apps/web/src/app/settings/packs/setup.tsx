@@ -103,6 +103,19 @@ function FillAfterSetUp({ options, made }: { options: PackSetupOptions; made: Pa
   );
 }
 
+/** What to do first after a Set up whose formulas read targets, such as a quota: a link to each Targets tab. */
+function TargetsNext({ metrics }: { metrics: PackSetupResult["targetsToSet"] }) {
+  return (
+    <div className="mt-2 rounded-[var(--radius-input)] border border-input p-2">
+      <p className="font-medium">Next: set the targets</p>
+      <p className="text-xs">Calculated Metrics read them, such as a quota. Give every period its target on each Targets tab:</p>
+      <ul className="flex flex-wrap gap-x-4 text-xs">
+        {metrics.map((m) => <li key={m.slug}><Link href={`/metrics/${m.slug}?tab=targets`} className="inline-flex min-h-11 items-center underline sm:min-h-8">{m.name}</Link></li>)}
+      </ul>
+    </div>
+  );
+}
+
 /** What an entry that is computed says of itself: what it is computed from, which is made with it. */
 function madeWith(e: PackSetupOptions["entries"][number], inputs: string[], options: PackSetupOptions): string {
   if (!e.total) return `, a Derived Metric computed from ${inputs.join(" and ")}, made too`;
@@ -214,6 +227,7 @@ function SetUpForm({ options, viewer, adding, practice = false, onClose }: { opt
     return (
       <div className="mt-3 rounded-[var(--radius-input)] border border-input p-3 text-sm" aria-live="polite">
         <p className="font-medium">{adding ? `Added ${lineName}` : `Set up from ${options.install.name}`}</p>
+        {made.targetsToSet.length > 0 && <TargetsNext metrics={made.targetsToSet} />}
         <ul className="mt-1 list-disc space-y-0.5 pl-5">
           {made.metrics.map((m) => <li key={m.id}><Link href={`/metrics/${m.slug}`} className="underline">{m.name}</Link></li>)}
           {made.dashboards.map((d) => <li key={d.id}>The dashboard <Link href={`/dashboards/${d.id}`} className="underline">{d.name}</Link></li>)}

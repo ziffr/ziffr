@@ -19,7 +19,7 @@ export function checkedElement(v: unknown): SlideElement {
 }
 
 // The fields of an element that hold words a person reads; every other string is one of a fixed list.
-const WORD_FIELDS = ["lead", "label", "note", "empty", "headline", "title", "partLabel", "restLabel", "referenceLabel", "rowLabel", "gapLabel"] as const;
+const WORD_FIELDS = ["lead", "label", "note", "empty", "headline", "title", "partLabel", "restLabel", "referenceLabel", "rowLabel", "targetLabel", "gapLabel"] as const;
 
 // The fields that hold a whole line of words; the others are held to a label's length.
 const LINE_FIELDS = new Set<string>(["note", "empty", "headline", "gapLabel"]);

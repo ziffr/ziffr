@@ -272,7 +272,7 @@ function totalGapModel(e: GapTableElement, ctx: SlideContext, total: Metric): Ga
   const gapLabel = e.gapLabel?.replace(/\{scale\}/gi, scaleUnit(total, scale));
   const head = {
     row: e.rowLabel ? fillSlideWords(e.rowLabel, ctx).text : "Name",
-    goal: "Target",
+    goal: e.targetLabel ? fillSlideWords(e.targetLabel, ctx).text : "Target",
     actual,
     gap: gapLabel ? fillSlideWords(gapLabel, ctx).text : `${actual} minus target${scaleUnit(total, scale) ? `, ${scaleUnit(total, scale)}` : ""}`,
   };

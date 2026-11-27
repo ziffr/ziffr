@@ -39,7 +39,7 @@ export type ColumnsElement = { kind: "columns"; title?: string; part?: boolean; 
 /** Two Metrics' latest Breakdowns row by row, with the difference as bars either side of zero; with `total`, one Total
  * and a row for each Metric it adds up, against that Metric's target. A headline above the table and a closing line
  * under it (after a bar, with its lead-in) move with it, however many lines they take. */
-export type GapTableElement = { kind: "gap-table"; total?: boolean; rowLabel?: string; gapLabel?: string; headline?: string; lead?: string; note?: string };
+export type GapTableElement = { kind: "gap-table"; total?: boolean; rowLabel?: string; /** The heading of the target column of a Total's rows, such as Quota. */ targetLabel?: string; gapLabel?: string; headline?: string; lead?: string; note?: string };
 /** One row per Metric: latest value, the one before, the change, a trend and whether it is on target. */
 export type MetricTableElement = { kind: "metric-table"; /** How many periods the trend shows. */ periods?: number };
 /** Definitions (spec 0060): each Metric with its description and how it is calculated, for an appendix. */
@@ -96,7 +96,7 @@ export function slideElementSchema(text: (max: number) => Schema = slideWords, {
         title: line, part: flag("The next Metric fills part of each column."), reference: flag("One more Metric draws a reference line."),
         partLabel: label, restLabel: label, referenceLabel: label, periods: { type: "integer", minimum: 1, maximum: L.periods },
       }),
-      kind("gap-table", "Two Metrics' Breakdowns row by row, with the difference.", { ...(totals ? { total: flag("Reads one Total instead: a row for each Metric it adds up, against that Metric's target.") } : {}), rowLabel: label, gapLabel: line, headline: line, lead: label, note: line }),
+      kind("gap-table", "Two Metrics' Breakdowns row by row, with the difference.", { ...(totals ? { total: flag("Reads one Total instead: a row for each Metric it adds up, against that Metric's target."), targetLabel: { ...label, description: "The heading of the target column of a Total's rows, such as Quota; Target without one." } } : {}), rowLabel: label, gapLabel: line, headline: line, lead: label, note: line }),
       kind("metric-table", "One row per Metric.", { periods: { type: "integer", minimum: 2, maximum: L.periods } }),
       kind("definitions", "Each Metric with its description and how it is calculated.", {}),
       kind("list", "Numbered rows under a heading.", {

@@ -46,7 +46,7 @@ const FIELDS: Record<SlideElement["kind"], Field[]> = {
     text("partLabel", "Legend of the filled part"), text("restLabel", "Legend of the rest"), text("referenceLabel", "Label of the line"),
     { type: "number", key: "periods", label: "Periods", min: 1, max: SLIDE_ELEMENT_LIMITS.periods, hint: "Empty shows the quarter so far." },
   ],
-  "gap-table": [flag("total", "One Total: a row for each Metric it adds up, against its target"), line("headline", "Headline above"), text("rowLabel", "Heading of the rows", "Such as Salesperson."), line("gapLabel", "Heading of the difference"), text("lead", "Closing line: lead-in"), line("note", "Closing line")],
+  "gap-table": [flag("total", "One Total: a row for each Metric it adds up, against its target"), line("headline", "Headline above"), text("rowLabel", "Heading of the rows", "Such as Salesperson."), text("targetLabel", "Heading of a Total's targets", "Such as Quota."), line("gapLabel", "Heading of the difference"), text("lead", "Closing line: lead-in"), line("note", "Closing line")],
   "metric-table": [{ type: "number", key: "periods", label: "Periods in the trend", min: 2, max: SLIDE_ELEMENT_LIMITS.periods }],
   definitions: [],
   list: [text("title", "Heading")],

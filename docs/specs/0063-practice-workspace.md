@@ -74,9 +74,12 @@ Values come in as anywhere: Feeds, Access Keys, connected assistants and form li
 ### Made-up numbers after a Pack's Set up
 
 - An action on the Set up's result fills the Metrics it made, in a Practice Workspace only.
-- **Span:** every period from the start of the previous fiscal year up to the running period, and never fewer than 13 months back; quarterly Metrics at least 8 quarters, yearly ones at least 3 years. So year on year, year to date against last year to the same date, the quarter to date, the period before and Heads-ups all have something to show.
-- **Targets:** a Metric where higher or lower is better gets a Target Series for the previous fiscal year and the whole current one, periods still to come included.
+- **Span:** every period from the start of the previous fiscal year, and never fewer than 13 months back; quarterly Metrics at least 8 quarters, yearly ones at least 3 years. So year on year, year to date against last year to the same date, the quarter to date, the period before and Heads-ups all have something to show.
+- **The latest two periods stay empty** (changed after the end-to-end test of 2026-11-27): the last ended period, which is the one a request asks for, and the running one. A period a Workflow already works on is left alone too. So asking and approving can be tried, and made-up numbers start no Approval, task or message.
+- **Targets:** a Metric where higher or lower is better gets a Target Series for the previous fiscal year and the whole current one, periods still to come included, some a few percent above its values and some below. A calculated Metric gets none: its Target Range applies.
 - Believable: a trend, a season, noise, in the Metric's unit and period, never below zero where that makes no sense. Metrics with a Breakdown get none. Derived Metrics and Totals compute. A period that has a value, or a target, is never overwritten.
+- **The numbers of one Pack belong together.** For Ziffr's own Packs, described in `practice-relations.ts` (not in the Pack format): a part is a share of its whole, and the sales forecast follows its Pack (Closed this quarter grows within a quarter and starts again; Closed <= Commit <= Best case; the Pipeline value holds the Best case's open deals; each salesperson's quota is the same in every week of a quarter, and only Commit gets targets; some salespeople end above it and some below). A quota that is there gives the weeks without one theirs.
+- A Pack's Preview draws its Dashboard Templates with numbers made the same way, under the Pack's own Metric names.
 - Written in batches as imports, a few Metrics per step, with progress shown.
 
 ### Everything else

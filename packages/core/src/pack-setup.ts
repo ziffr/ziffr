@@ -16,7 +16,7 @@ import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { feedChoices, addFeedToMetric } from "./feeds";
 import { addSubmitters, createMetric, deleteMetric, metricEffects, MetricKept, SUBMITTERS_PER_CHANGE, type MetricEffects } from "./metrics";
-import { checkFormula, formulaInputs } from "./formula";
+import { checkFormula, formulaInputs, targetInputs } from "./formula";
 import { createDashboardFromTemplate, metricChoices } from "./dashboard-templates";
 import { editableWidget, updateWidget } from "./dashboards";
 import { feedTemplates, type FeedTemplateInfo } from "./feed-template-download";
@@ -34,7 +34,7 @@ import { buildSetup, placeMaps, SETUP_METRICS_MAX, tickedShares, withSlugs, type
 import { PACK_POSITION_LIMITS } from "@ziffr/pack/pack-positions";
 import { entryInputs, entryTotal, isComputed, makeTotal } from "./pack-setup-totals";
 import { addTotalPart } from "./total-changes";
-import { assertSetsUp, installedForSetup, roomFor, roomNow, type PackSetupRoom } from "./pack-setup-install";
+import { assertSetsUp, installedForSetup, roomFor, roomNow, type EntryRow, type PackSetupRoom } from "./pack-setup-install";
 import type { Slot, WorkflowTemplateBody } from "./types";
 import type { KeptOverview, PackNumber } from "@ziffr/pack/comes-from";
 
@@ -80,6 +80,8 @@ export type PackSetupResult = { metrics: { id: number; slug: string; name: strin
   later: { nextRun: number; noWorkflow: { id: number; slug: string; name: string; mine: boolean }[] };
   /** Adding a line: how many widgets took its Metrics, how many Totals count them, and what is left to do by hand. */
   widgets: number; totals: number; byHand: string[];
+  /** The Metrics made whose targets someone sets next, since a formula of the Pack reads them, such as a quota. */
+  targetsToSet: { slug: string; name: string }[];
   /** The Tags of an entry that a limit kept off its Metric (the Metric is made either way), by Metric: the page says so. */
   tagsLeftOut: { metric: string; tags: string[] }[] };
 
@@ -132,6 +134,15 @@ type Progress = {
   messages: number;
   tagsLeftOut: PackSetupResult["tagsLeftOut"];
 };
+
+/** Of the Metrics made, those whose targets the Pack's formulas read. For a Total that adds its parts' targets up they
+ * are the parts, since the targets are set there. */
+function targetsToSet(entries: Iterable<EntryRow>, made: PackSetupResult["metrics"]): PackSetupResult["targetsToSet"] {
+  const all = [...entries];
+  const parts = new Map(all.flatMap((e): [string, string][] => { const total = entryTotal(e); return total?.targets === "parts" ? [[e.pack_key, total.of]] : []; }));
+  const keys = new Set(all.flatMap((e) => (e.formula ? targetInputs(e.formula).map((k) => parts.get(k) ?? k) : [])));
+  return made.filter((m) => keys.has(m.key)).map(({ slug, name }) => ({ slug, name }));
+}
 
 /** Makes the Workflows, so the Metrics can take them. */
 async function makeWorkflows(actor: Actor, b: Blueprint, record: SetupRecord, done: Progress) {
@@ -307,7 +318,7 @@ export async function setUpStep(actor: Actor, installId: number, input: PackSetu
   const positions = [b.fills, ...b.lines.map((l) => l.fills)].flatMap((f) => [...f.values()].filter((ids) => ids.length)).length;
   await audit(actor, { kind: "pack.set_up", object: { type: "pack", id: p.install.id, name: p.install.name }, details: { version: p.install.version, metrics: done.metrics.size, dashboard: dashboards.length > 0, workflow: workflows.length > 0, feed: b.feed !== null, positions, lines: b.lines.length, shares: done.shares, messages: done.messages, ...(input.adding ? { added_line: true, widgets: done.widgets, totals: done.totals, joined_workflow: b.additions.join !== null } : {}) } });
   const metrics = [...done.metrics.values()];
-  return { done: true, result: { metrics, dashboardId: dashboards[0]?.id ?? null, workflowId: workflows[0]?.id ?? null, dashboards, workflows, shares: done.shares, messages: done.messages, later: askedLater(actor, b, input?.askNow === true, done), widgets: done.widgets, totals: done.totals, byHand: b.additions.byHand, tagsLeftOut: done.tagsLeftOut } };
+  return { done: true, result: { metrics, dashboardId: dashboards[0]?.id ?? null, workflowId: workflows[0]?.id ?? null, dashboards, workflows, shares: done.shares, messages: done.messages, later: askedLater(actor, b, input?.askNow === true, done), widgets: done.widgets, totals: done.totals, byHand: b.additions.byHand, targetsToSet: targetsToSet(p.entries.values(), metrics), tagsLeftOut: done.tagsLeftOut } };
 }
 
 /** Sets up from one of the Workspace's installed Packs (Owners and Admins) in one go: the picked entries as Metrics, a
