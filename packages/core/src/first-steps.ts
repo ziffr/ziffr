@@ -4,7 +4,7 @@
 // untrusted: every one is checked against its fixed list or size before anything is written. What is read back is the
 // Workspace's own answers and the asker's own Business Function, nothing of another person.
 import { isBusinessFunction } from "@ziffr/pack/business-functions";
-import { Forbidden, type Actor } from "./actor";
+import { Forbidden, type Actor, Refused } from "./actor";
 import { myBusinessFunction, setMyBusinessFunction } from "./business-function";
 import { db } from "./db";
 import { NO_ANSWERS, TOPICS, USED_BY, type FirstStepsAnswers, type FirstStepsResume } from "./first-steps-screens";
@@ -18,7 +18,7 @@ import { COUNTRIES, CURRENCIES, INDUSTRIES, SEGMENTS } from "./workspace-profile
 import { MAX_WORKSPACE_NAME, renameWorkspace, setWorkspaceProfile, workspaceName, workspaceProfile } from "./workspace-settings";
 
 /** An answer refused, in words for the person. */
-export class AnswerRefused extends Error {}
+export class AnswerRefused extends Refused {}
 
 const LISTS = { role: null, industry: INDUSTRIES, segment: SEGMENTS, topic: TOPICS, country: COUNTRIES, currency: CURRENCIES } as const;
 
