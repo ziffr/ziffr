@@ -2,7 +2,8 @@
 // its own copy of the numbers; who is shown a Metric in it is asked of who sees the Metric now, which nobody does once
 // it is deleted. So deleting writes down who saw it at that moment, and they keep it in the copies, marked as deleted.
 // Visibility: this only ever keeps what a person had. It never adds a reader, it counts only while the Metric is gone,
-// the person still needs to be allowed to open the Snapshot, and leaving the Workspace ends it.
+// the person still needs to be allowed to open the Snapshot, and leaving the Workspace ends it. A View Link to a
+// Snapshot, for someone outside, never shows a deleted Metric.
 import { getMetrics, allRows, mustRead } from "./workspace-data";
 import { visibilityOfMany, visibleMetricIds } from "./access";
 import { Forbidden, type Actor } from "./actor";
@@ -44,6 +45,21 @@ export async function keepForSnapshots(ws: string, metric: { id: number; totalOp
 export async function deletedKept(ws: string, personId: string, existing: ReadonlySet<number>): Promise<Set<number>> {
   const rows = await allRows<{ metric_id: number }>((from, to) => db().from("deleted_metric_readers").select("metric_id").eq("workspace_id", ws).eq("user_id", personId).order("metric_id").range(from, to));
   return new Set(rows.map((r) => r.metric_id).filter((id) => !existing.has(id)));
+}
+
+/** Those of these ids that are Metrics of the Workspace now: what a View Link to a Snapshot may show, since it never
+ * shows a deleted one. */
+export async function stillExisting(ws: string, metricIds: readonly number[]): Promise<number[]> {
+  const here = new Set((await getMetrics(ws)).map((m) => m.id));
+  return metricIds.filter((id) => here.has(id));
+}
+
+/** Which of these ids are deleted Metrics: the ones this person keeps in past Snapshots, and how many others. */
+export async function deletedAmong(ws: string, personId: string, metricIds: readonly number[]): Promise<{ kept: Set<number>; others: number }> {
+  const here = new Set((await getMetrics(ws)).map((m) => m.id));
+  const gone = metricIds.filter((id) => !here.has(id));
+  const mine = gone.length ? await deletedKept(ws, personId, here) : new Set<number>();
+  return { kept: new Set(gone.filter((id) => mine.has(id))), others: gone.filter((id) => !mine.has(id)).length };
 }
 
 /** What a person is shown of the Metrics in a Snapshot: those they see now, and the deleted ones they keep. */

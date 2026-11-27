@@ -17,7 +17,7 @@ import { share } from "./sharing";
 import { SNAPSHOT_PART_SHAPE } from "./snapshot-parts";
 import { listSnapshots, openSnapshot, showSnapshot, takeSnapshot } from "./snapshots";
 import { auditRowsOf, workspace } from "./test/db-fixtures";
-import { createViewLink, openViewLink } from "./view-links";
+import { createViewLink, deletedInLink, openViewLink, previewViewLink } from "./view-links";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -212,9 +212,23 @@ describe("a past Snapshot of a deleted Metric", () => {
     expect(later.hiddenParts).toBe(2);
     expect(JSON.stringify(later.data)).not.toContain(rev.slug);
 
-    // The owner may still make a View Link to it, and put its numbers on a deck.
+    // A View Link made now shows nothing of a deleted Metric, and its owner is told which before making it.
+    expect((await deletedInLink(owner, dash, shown)).sort()).toEqual(["=Revenue (deleted)", "Cost (deleted)"]);
+    await expect(deletedInLink(w.actor(ben, "member"), dash, shown)).rejects.toBeInstanceOf(Forbidden);
+    const preview = await previewViewLink(owner, dash, shown);
     const link = await createViewLink(owner, "dashboard", dash, { label: "Q", expires: inDays(5), frozen: true, snapshotId: shown });
-    expect((await openViewLink(link))?.data.metrics.map((m) => m.name)).toContain("Cost (deleted)");
+    const outside = await openViewLink(link);
+    for (const view of [preview, outside]) {
+      expect(view?.data.metrics).toEqual([]);
+      expect(view?.widgets).toEqual([]);
+      for (const word of [rev.slug, cost.slug, "(deleted)"]) expect(JSON.stringify(view?.data)).not.toContain(word);
+    }
+    expect((await db().from("view_links").select("metric_ids").eq("token", link).single()).data!.metric_ids).toEqual([]);
+    // Also a link that names it, however it came to, shows none of it.
+    await db().from("view_links").update({ metric_ids: ids }).eq("token", link);
+    expect((await openViewLink(link))?.data.metrics).toEqual([]);
+    // Signed in, they still see it, and can put its numbers on a deck.
+    expect((await openSnapshot(owner, shown)).data.metrics).toHaveLength(2);
     const parts = [0, ...hers.widgets.map((x) => x.id)];
     const [kept] = await readKeptNumbers(owner, [{ snapshotId: shown, parts, metricIds: [] }]);
     expect(kept.state === "shown" && kept.data.metrics).toHaveLength(2);

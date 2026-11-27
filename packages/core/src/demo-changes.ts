@@ -60,6 +60,7 @@ const READS: readonly string[] = [
   "team-actions:inviteGateNow",
   "theme-actions:themeLogoSource",
   "version-actions:listVersions",
+  "view-link-actions:deletedInLink",
   "view-link-actions:emptyInLink",
   "view-link-actions:listViewLinks",
   "view-link-actions:shownSnapshots",

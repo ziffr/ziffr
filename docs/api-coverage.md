@@ -389,6 +389,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `deleteChosenMetrics` (metric-delete.ts): the app's deletion, behind the record download and typed words (spec 0065); a program deletes one unused Metric with `deleteMetricWithKey`
 - `archiveChosenMetrics` (metric-delete.ts): "Archive instead" in the app's deletion window; a program archives one Metric at a time
 - `archiveEach` (archived-metrics.ts): several Metrics at once, for the app's Usage page and deletion window; a program archives one at a time
+- `deletedInLink` (view-links.ts): what the app says before a View Link to a Snapshot is made (spec 0065); reads Workspace words, which opening needs the Workspace's key for (spec 0028)
 - `planMetricDelete` (metric-delete.ts): the preview of the app's deletion window; reads Workspace words, which opening needs the Workspace's key for (spec 0028)
 - `ownedForRecord` (metric-record.ts): who may have a record, asked by the app's download and its check; reads Workspace words, which opening needs the Workspace's key for (spec 0028)
 - `buildMetricRecord` (metric-record.ts): the contents of the app's record download; reads Workspace words, which opening needs the Workspace's key for (spec 0028)

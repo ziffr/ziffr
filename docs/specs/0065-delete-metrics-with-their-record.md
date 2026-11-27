@@ -14,7 +14,7 @@ Deleting was one Metric at a time, named only how many things stood in the way, 
 4. **Order.** Picked Metrics that read each other are deleted readers first.
 5. **The record.** One ZIP with, per Metric, its definition, values and their history, Breakdowns, targets, Projections, Questions, Tasks and replies, and calculated numbers, as CSV files written like every CSV file of Ziffr (formulas guarded, Number Style, byte-order mark). Delete unlocks only after this download, **checked on the server**: the download is written in the Audit Log with a fingerprint of what it held, and deleting asks for the fingerprint of exactly this set as it is then. A download counts for 24 hours.
 6. **Confirm** by typing the Metric's name, or "delete N Metrics". **Archive instead** stands beside it.
-7. **Past Snapshots keep their copy.** Deleting writes down which Members and Guests see the Metric at that moment (before it is taken off any dashboard). They keep seeing it, marked "(deleted)", in Snapshots they may still open, on slides that draw those Snapshots and through View Links to a Snapshot. Nobody else gains anything; leaving the Workspace ends it. This holds for every deletion, also by a program.
+7. **Past Snapshots keep their copy.** Deleting writes down which Members and Guests see the Metric at that moment (before it is taken off any dashboard). They keep seeing it, marked "(deleted)", in Snapshots they may still open and on slides that draw those Snapshots. Nobody else gains anything; leaving the Workspace ends it. This holds for every deletion, also by a program. A View Link to a Snapshot, for someone outside, shows nothing of a deleted Metric: it leaves out every widget that draws one, and says which before the link is made.
 
 ## Rights
 
