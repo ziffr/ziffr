@@ -8,7 +8,8 @@ import { randomBytes } from "node:crypto";
 import nodemailer, { type SendMailOptions, type Transporter } from "nodemailer";
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
-import { archivedMetricHolds, failForGood, FORM_LINK, withFormLink } from "./internal/delivery-send";
+import { archivedMetricHolds, failForGood, FORM_LINK, hashed, mayAskToResume, RESUME_NOT_SENT, RESUME_REF, withFormLink, withResumeLink } from "./internal/delivery-send";
+import { STOPPED_REASON } from "./prompt-route";
 import { checkedMailHost } from "./mail-hosts";
 import { effectiveLimit } from "./limits";
 import { assertMayLeave, heldBack, isPracticeWorkspace, neverRouted, PRACTICE_HELD } from "./practice";
@@ -219,6 +220,9 @@ export function initialMailState(connector: string, workspaceId: string, setting
   return connector === "email" && workspaceId !== DEMO_WORKSPACE_ID && mailEnabled(settings) ? "queued" : "outbox";
 }
 
+/** The mailbox an address reaches, as it is kept with a stop: its hash, never the address. */
+export const mailboxMark = (address: string) => hashed(mailboxKey(address));
+
 /** The address a workspace keeps for a person: a Contact's stored one, or a member's own (proven at sign-in). Null
  * for anyone who is neither in that workspace, or has no usable address. */
 export async function addressIn(workspaceId: string, personId: string): Promise<string | null> {
@@ -235,7 +239,7 @@ export async function addressIn(workspaceId: string, personId: string): Promise<
 /** Sends one queued Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendDelivery(id: number, transport: MailTransport = smtpTransport): Promise<SendResult> {
   const maxAttempts = await sendingLimit("sendAttempts");
-  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id, alert_metric_id, alert_id, heads_up_metric_a, heads_up_metric_b, heads_up_key, heads_up_told_id, tell_workflow_id, snapshot_dashboard_id, sender_id, filled_in_observation_id, total_rests, combined")
+  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id, alert_metric_id, alert_id, heads_up_metric_a, heads_up_metric_b, heads_up_key, heads_up_told_id, tell_workflow_id, snapshot_dashboard_id, sender_id, filled_in_observation_id, total_rests, combined, external_ref")
     // Email only: a queued Slack Delivery is sent by slack-send.ts, never as an email.
     .eq("id", id).eq("connector", "email").eq("mail_state", "queued").lt("attempts", maxAttempts).maybeSingle();
   if (!found) return "skipped";
@@ -263,8 +267,11 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   const stoppable = OPT_OUT_KINDS.includes(claimed.kind);
   if (stoppable) {
     const { data: out } = await db().from("email_opt_outs").select("person_id").eq("workspace_id", claimed.workspace_id).eq("person_id", claimed.recipient_id).maybeSingle();
-    if (out) return never("They stopped reminders by email.");
+    if (out) return never(STOPPED_REASON.email);
   }
+  // The question whether someone wants them again goes only while they are stopped, to the mailbox they stopped from.
+  const resume = claimed.kind === "notice" && claimed.external_ref === RESUME_REF;
+  if (resume && !(await mayAskToResume(claimed.workspace_id, claimed.recipient_id, mailboxMark(to)))) return never(RESUME_NOT_SENT);
   // Claimed in the database within the limits, counted by inbox and by sender across all workspaces, so neither
   // parallel sends nor many Contacts or workspaces for one inbox pass them; over a limit it waits.
   // The usage digest (spec 0031): one switch per person for every Workspace, also for one queued before they used it.
@@ -295,6 +302,11 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   };
   let unsubscribe: string | undefined;
   let text = await withFormLink(String(claimed.body), claimed, String(settings.ZIFFR_SITE_URL));
+  if (resume) {
+    const linked = await withResumeLink(text, claimed, mailboxMark(to), String(settings.ZIFFR_SITE_URL));
+    if (linked === null) return fail(RESUME_NOT_SENT);
+    text = linked;
+  }
   // The same words again as HTML in the Workspace's Theme; the plain text below is sent with it, always.
   const words = text;
   // The button is the link Ziffr put there: the Usage page for the digest, else the one appended to the words.
@@ -328,7 +340,8 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   let replyTo: string | undefined;
   // An Alert, a Checklist Item or the message about a Filled-in Value cannot be answered (GLOSSARY: Alert, Checklist Item, Filled-in Value): its email has no reply address of its own.
   // None from a Practice Workspace either: its email carries no address but the one it goes to and Ziffr's sender.
-  if (!digest && inboundEnabled(settings) && !(await isPracticeWorkspace(claimed.workspace_id)) && claimed.kind !== "alert" && claimed.kind !== "heads_up" && claimed.kind !== "checklist" && claimed.kind !== "filled_in" && claimed.kind !== "test") {
+  // Nor the question whether they want requests again: only its link answers it.
+  if (!digest && !resume && inboundEnabled(settings) && !(await isPracticeWorkspace(claimed.workspace_id)) && claimed.kind !== "alert" && claimed.kind !== "heads_up" && claimed.kind !== "checklist" && claimed.kind !== "filled_in" && claimed.kind !== "test") {
     const token = claimed.reply_token ?? randomBytes(24).toString("base64url");
     if (!claimed.reply_token) await db().from("deliveries").update({ reply_token: token }).eq("id", id);
     replyTo = replyAddress(token, settings);

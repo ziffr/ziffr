@@ -171,7 +171,7 @@ describe("answers by Slack", () => {
     expect(await receiveSlackInteraction(press(bot, annSlack, prompt, "ziffr_stop"))).toBe("stopped");
     expect((await db().from("slack_opt_outs").select("person_id").eq("workspace_id", w.id)).data).toEqual([{ person_id: ann }]);
     const notice = await opened("deliveries", w.id, (await db().from("deliveries").select("id, subject").eq("workspace_id", w.id).eq("recipient_id", sara).eq("kind", "notice")).data, { dropId: true });
-    expect(notice?.[0]?.subject).toMatch(/stopped reminders on Slack/);
+    expect(notice?.[0]?.subject).toMatch(/is no longer asked for numbers on Slack$/);
     await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "slack" });
     expect((await sent(w.id, ann)).mail_state).toBe("failed");
   });

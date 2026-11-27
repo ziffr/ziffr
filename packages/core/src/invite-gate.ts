@@ -28,7 +28,7 @@ export type InviteGate =
 
 /** Whether a Trial Workspace's Owner has recorded a first value of their own (never one that came in through a Feed or
  * an Import), which opens invitations in a trial. The same rule as the database's. */
-async function ownerHasOwnValue(ws: string): Promise<boolean> {
+export async function ownerHasOwnValue(ws: string): Promise<boolean> {
   const { data: owners } = await db().from("memberships").select("user_id").eq("workspace_id", ws).eq("role", "owner");
   const ids = (owners ?? []).map((o) => o.user_id as string);
   if (!ids.length) return false;

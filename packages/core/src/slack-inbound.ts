@@ -193,7 +193,7 @@ async function pressed(bot: SlackBot, p: Obj): Promise<SlackOutcome> {
   }
   if (action.action_id === SLACK_BUTTONS.stop && OPT_OUT_KINDS.includes(d.kind)) {
     const { data: added } = await db().from("slack_opt_outs").upsert({ workspace_id: d.workspace_id, person_id: d.recipient_id }, { onConflict: "workspace_id,person_id", ignoreDuplicates: true }).select("person_id");
-    if (added?.length) await tellOwnersOfStop(d.workspace_id, d.recipient_id, "on Slack");
+    if (added?.length) await tellOwnersOfStop(d.workspace_id, d.recipient_id, "slack");
     await say(bot, channel, ts, presser, "Stopped: no more requests for numbers or reminders on Slack from this workspace. Turn them on again on the Connectors page in Ziffr.");
     return "stopped";
   }

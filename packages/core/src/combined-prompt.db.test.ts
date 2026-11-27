@@ -7,7 +7,7 @@ import { composeAtSend } from "./internal/combined-delivery";
 import { deleteMetric } from "./metrics";
 import { askForMissingValues } from "./questions";
 import { runWorkspaceIfDue } from "./scheduled-runs";
-import { changeRows, opened, rowsOf, workspace } from "./test/db-fixtures";
+import { changeRows, insertRow, opened, rowsOf, workspace } from "./test/db-fixtures";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
 import type { WorkflowConfig } from "./types";
 
@@ -53,7 +53,7 @@ describe("a run's Prompts", () => {
     const { w, sara, ann, bob, metric } = await setUp();
     for (const name of ["Revenue", "Costs", "Visits"]) await metric(name, ann);
     await metric("Tickets", bob);
-    expect(await askForMissingValues(w.actor(sara))).toBe(4);
+    expect(await askForMissingValues(w.actor(sara))).toEqual({ asked: 4, stopped: 0 });
     const toAnn = await sentTo(w.id, ann);
     expect(toAnn).toHaveLength(1);
     expect(toAnn[0]).toMatchObject({ combined: true, prompt_id: null, sender_id: sara });
@@ -66,7 +66,14 @@ describe("a run's Prompts", () => {
     expect(toBob[0]).toMatchObject({ combined: false });
     expect(toBob[0].prompt_id).not.toBeNull();
     // Asked today, so asking again sends nothing.
-    expect(await askForMissingValues(w.actor(sara))).toBe(0);
+    expect(await askForMissingValues(w.actor(sara))).toEqual({ asked: 0, stopped: 0 });
+  });
+
+  it("count a person who stopped these messages as not asked, also when their figures were collected for one", async () => {
+    const { w, sara, ann, metric } = await setUp();
+    for (const name of ["Revenue", "Costs"]) await metric(name, ann);
+    await insertRow("email_opt_outs", { workspace_id: w.id, person_id: ann });
+    expect(await askForMissingValues(w.actor(sara))).toEqual({ asked: 0, stopped: 2 });
   });
 
   it("leave out at send what was answered, archived or is no longer asked of the person", async () => {
@@ -124,7 +131,7 @@ describe("a run's Prompts", () => {
     expect(await sentTo(w.id, bob)).toHaveLength(0);
     expect(await promptsOf(w.id, bob)).toHaveLength(0);
     state.failFor = null;
-    expect(await askForMissingValues(w.actor(sara))).toBe(2);
+    expect(await askForMissingValues(w.actor(sara))).toEqual({ asked: 2, stopped: 0 });
     expect(await sentTo(w.id, ann)).toHaveLength(1);
     expect(await sentTo(w.id, bob)).toHaveLength(1);
   });
