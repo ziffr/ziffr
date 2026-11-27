@@ -19,6 +19,7 @@ Under the steps, **What happened, period by period** shows a timeline for each p
 - who was asked and reminded, grouped when close together: "Asked 6 people by Email, Slack and Telegram",
 - values that came in, with how many were in by then: "5 values came in (5 of 6 in)"; a value someone else entered for the submitter says so ("Revenue came in: 42, entered by Ben for Sara (5 of 6 in)"), and a group says "3 values came in, 1 entered for someone",
 - Approvals asked, approved and sent back, Self-checks, Escalations and the Questions and Tasks about the period's values,
+- the mark "with a note" on a Metric's latest value that came in, where it has a [Value Note](10-metrics.md#value-notes) you may read; the timeline never shows its words,
 - Metrics published and locked,
 - **Checklist items** sent: "Sent ‘Invoices must be in by Friday.’ to 8 people",
 - **Checklist Tasks** given and ticked off: "‘Reconcile the bank account.’ was given to Ann", "‘Reconcile the bank account.’ was ticked off" with the first words of the note (see [Checklist Tasks](15-actions.md#checklist-tasks)); a Task you may not read shows only that one was given or ticked off,
@@ -176,6 +177,8 @@ On the task's page, the Approver sees a box, **You approve this value**:
 | **Approve** | Confirms the value. If there is a next Approver, they are asked now; otherwise the value is published, and locked if the Workflow says so. |
 | **Send back** | Opens a box, **What should they check?**. Write what looks wrong and choose **Send back** (or **Cancel**). The value stays, marked as not approved yet, and the Submitter gets your comment. They can reply with a corrected value. |
 
+The period's [Value Notes](10-metrics.md#value-notes) stand on the task's page, above the buttons, always as they are now; who may write one gets a link to the period's page there. The message that asks you quotes the newest one as the message leaves, cut at 300 characters, as a quotation above the link; a note written afterwards sends nothing. The Outbox keeps the message without the quotation. A note is never read as "approve" or "send back".
+
 The same works without opening Ziffr: reply "approve", or "send back:" followed by what to check, to the message on Slack or by email.
 
 **To correct the value yourself**, propose a Correction in the task's Thread: type the right value in **Propose a correction** and reply. A Correction takes effect once the Metric Owner accepts it, and then goes through Approval again.
@@ -192,6 +195,8 @@ When a value needs Approval but nobody but you could give it, and the Approve st
 | --- | --- |
 | **Confirm** | The value counts. It is published, and locked if the Workflow says so. The Thread says "Confirmed by the submitter.", the Workflow box notes it on the period, and the Audit Log lists it under **Self-checks**, never as an Approval. |
 | **Correct** | Opens a field for the right value; **Correct** replaces the value with it, keeps the first as the original, like an accepted Correction, and counts the new one as confirmed by you. **Cancel** closes the field. |
+
+The page also shows the period's [Value Notes](10-metrics.md#value-notes), and **Add a note** to say what is behind your value.
 
 You can also reply "confirm", or "Correction: 6", to the task's message by email, Slack or Telegram. The task has no **Mark done**, **Close Action** or **Reopen**: only Confirm and Correct decide it. While the check waits, the period cannot be locked or closed, as with any value waiting for Approval. If someone else can approve by the time you press **Confirm**, such as an Approver added in the meantime, they are asked instead and the value waits for them.
 

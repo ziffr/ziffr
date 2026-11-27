@@ -135,7 +135,7 @@ Only the asker, the Assignee and the Metric Owner can reply. Everyone else who m
 
 ### Approving a value
 
-On an Approval waiting for you, the Action shows the value, its period, the period before it with the change, and who submitted it, with three buttons. **Approve** accepts the value. **Send back** asks what the submitter should check and returns it with your reason. **Correct the value** takes a number and an optional reason and proposes it as a [Correction](#corrections); the Metric's Owner accepts it, and the new value is approved again. You cannot approve your own value, nor a value you entered for someone, nor one entered for you (see [Filling in a value for someone](10-metrics.md#filling-in-a-value-for-someone)), and only the Approver named on the Action sees the buttons. The words "reply approve" belong to chat messages and do not show here.
+On an Approval waiting for you, the Action shows the value, its period, the period before it with the change, who submitted it and the period's [Value Notes](10-metrics.md#value-notes), with three buttons. **Approve** accepts the value. **Send back** asks what the submitter should check and returns it with your reason. **Correct the value** takes a number and an optional reason and proposes it as a [Correction](#corrections); the Metric's Owner accepts it, and the new value is approved again. You cannot approve your own value, nor a value you entered for someone, nor one entered for you (see [Filling in a value for someone](10-metrics.md#filling-in-a-value-for-someone)), and only the Approver named on the Action sees the buttons. The words "reply approve" belong to chat messages and do not show here.
 
 ### From open to closed
 
@@ -157,6 +157,8 @@ The Metric Owner sees two buttons:
 
 - **Accept**: the new value takes the old one's place, and the Correction is marked **Corrected**. Ziffr keeps the first value, shown crossed out. The value then goes through the Metric's Workflow again. If the period was Locked, it opens for Approval again.
 - **Decline**: the value stays as it was, and the Correction is marked declined.
+
+Once a Correction is accepted, the Action shows the Metric Owner the period's [Value Notes](10-metrics.md#value-notes), with **Add a note** to say what is behind the new value.
 
 Whoever proposed the Correction hears what the owner decided. Each decision is noted in the Audit Log. A Correction is decided once only.
 

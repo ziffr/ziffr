@@ -210,14 +210,14 @@ Under **Save as…**:
 | Option | Who sees it | What it does |
 | --- | --- | --- |
 | **Open metric** | Everyone | Opens the Metric's page. With several Metrics, there is one **Open** entry per Metric, with its name. |
-| **Quick look** | Everyone | Opens the Widget's Metric in a panel on the right: its latest value, target, trend and owner, with **Open the Metric** at the bottom. A Widget with one Metric also shows a small button for it beside its title. |
+| **Quick look** | Everyone | Opens the Widget's Metric in a panel on the right: its latest value with its newest [Value Note](10-metrics.md#value-notes), target, trend and owner, with **Open the Metric** at the bottom. A Widget with one Metric also shows a small button for it beside its title. |
 | **Remove from dashboard** | The owner and Editors, in edit mode | Takes the Widget off the dashboard, at once. **Versions** of the dashboard keep it. |
 
 If a Widget draws a Metric you may not see, it shows "No access to this metric. Ask its owner to share it." instead.
 
 ### History
 
-**History** opens beside the Widget: the Metric's name and how many periods are on record, a small chart of its values (with marks where questions were asked), a table of its Comparisons, its **Questions and tasks** (an Approval reads as a plain question, without the chat words "Reply approve"), any **Superseded values** (with when they were replaced or removed), and every value with its period, how it came in and who sent it. A value that someone entered for the person who should have sent it says "entered by" and that name beneath theirs; a Guest is not told that.
+**History** opens beside the Widget: the Metric's name and how many periods are on record, a small chart of its values (with marks where questions were asked), under **Notes** the newest [Value Note](10-metrics.md#value-notes) of up to four recent periods that have one (each leads to the period's page), a table of its Comparisons, its **Questions and tasks** (an Approval reads as a plain question, without the chat words "Reply approve"), any **Superseded values** (with when they were replaced or removed), and every value with its period, how it came in and who sent it. A value that someone entered for the person who should have sent it says "entered by" and that name beneath theirs; a Guest is not told that.
 
 ### Asking a question or assigning a task
 
