@@ -68,15 +68,29 @@ function whyNotFor(entry: PickerEntry, canvas: CanvasFact[]): string | null {
   return periodsReason(entry, used) ?? targetReason(entry, used) ?? breakdownReason(entry, used) ?? pairReason(entry, used);
 }
 
+/** Where an entry has too little history: the canvas Metric (by id) with the fewest periods, how many it has and how many are needed, counted in `span`. */
+export type PeriodsShort = { metric: number; have: number; need: number; span: Span };
+
 // The Metrics counted at the longest period set the period of a comparison; the history they have in common is at most theirs.
-function periodsReason(entry: PickerEntry, used: CanvasFact[]): string | null {
+function shortOf(entry: PickerEntry, used: CanvasFact[]): PeriodsShort | null {
   // Stryker disable next-line ConditionalExpression: an entry with no checks of its own (the shares, the bridge) has no minimum to read; without this line the minimum is undefined and no count is below it, so the result is the same
   if (!entry.checks) return null;
   const span = used.map((m) => m.period).reduce(commonPeriod);
   const held = entry.id === "partial" ? Math.max(1, used.length - 2) + 1 : 1;
   const least = minimumPeriods(entry.checks, { drivers: held, span });
   const short = used.filter((m) => m.period === span).sort((a, b) => a.periods - b.periods)[0];
-  return short.periods < least ? `Needs at least ${periodCountLabel(span, least)} of values; ${short.name} has ${short.periods}.` : null;
+  return short.periods < least ? { metric: short.id, have: short.periods, need: least, span } : null;
+}
+
+function periodsReason(entry: PickerEntry, used: CanvasFact[]): string | null {
+  const short = shortOf(entry, used);
+  return short && `Needs at least ${periodCountLabel(short.span, short.need)} of values; ${used.find((m) => m.id === short.metric)!.name} has ${short.have}.`;
+}
+
+/** Where history is what stops an entry on these canvas Metrics, as numbers; null where it can run, or where the canvas holds too few Metrics for it. An entry about one Metric that fits none is counted on the first. */
+export function periodsShort(entry: PickerEntry, canvas: CanvasFact[]): PeriodsShort | null {
+  if (canvas.length < metricsNeeded(entry) || whyNot(entry, canvas) === null) return null;
+  return shortOf(entry, looksAtOne(entry) ? [canvas[0]] : filled(entry, canvas).flat());
 }
 
 function targetReason(entry: PickerEntry, used: CanvasFact[]): string | null {

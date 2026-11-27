@@ -27,6 +27,8 @@ vi.mock("@/app/canvas-actions", () => ({
 }));
 // Server action modules the Pool and widgets import, never called here.
 vi.mock("server-only", () => ({}));
+// The picker offers Fill past periods, whose actions are the server's.
+vi.mock("@/app/paste-actions", () => ({ pasteTemplateFile: vi.fn() }));
 vi.mock("@/lib/viewer", () => ({}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }), usePathname: () => "/analyze", useSearchParams: () => new URLSearchParams() }));
 vi.mock("sonner", () => ({ toast: { error: (t: string, o?: { description?: string }) => shownError(o?.description ?? t), info: vi.fn(), success: vi.fn() } }));
@@ -42,12 +44,15 @@ async function mount(demo: boolean, onCanvas: number[] = [], explained: number |
   await act(async () => { root.render(<SlideOverProvider><AnalyzeScreen data={data} onCanvas={onCanvas} explained={explained} demo={demo} /></SlideOverProvider>); });
 }
 const button = (label: string) => host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
+const opener = (kind: "metrics" | "methods") => host.querySelector<HTMLButtonElement>(`[data-canvas] button[data-opens="${kind}"]`)!;
+const addPanel = () => act(async () => { opener("metrics").click(); });
 const onCanvas = () => [...host.querySelectorAll("button[aria-label^='Take ']")].map((b) => b.getAttribute("aria-label")!.replace(/^Take | off the canvas$/g, ""));
 afterEach(() => { act(() => root.unmount()); host.remove(); add.mockClear(); set.mockClear(); remove.mockClear(); shownError.mockClear(); });
 
 describe("adding a Metric to the Analysis Canvas", () => {
   it("in the demo, + puts it on the canvas without asking the server", async () => {
     await mount(true);
+    await addPanel();
     await act(async () => { button(`Add ${first.name}`).click(); });
     expect(onCanvas()).toEqual([first.name]);
     expect(add).not.toHaveBeenCalled();
@@ -73,6 +78,7 @@ describe("adding a Metric to the Analysis Canvas", () => {
 
   it("outside the demo, + asks the server, which keeps the canvas, and says why when it refuses", async () => {
     await mount(false);
+    await addPanel();
     await act(async () => { button(`Add ${first.name}`).click(); });
     expect(add).toHaveBeenCalledWith([first.id]);
     expect(shownError).toHaveBeenCalledWith(refused.error);
@@ -127,42 +133,115 @@ describe("the Metric to explain", () => {
   });
 });
 
-const choose = () => [...host.querySelectorAll<HTMLButtonElement>("button")].find((x) => x.textContent?.trim() === "Pick a question");
-const panel = () => document.querySelector("[data-slide-over]");
-afterEach(() => { listing = () => ({ canvas: [], groups: [] }); listed.mockClear(); });
+const choose = () => host.querySelector<HTMLButtonElement>('[data-canvas] button[data-opens="methods"]');
+const dialog = () => document.querySelector<HTMLElement>("[data-slide-over]");
+const beside = () => host.querySelector<HTMLElement>("#canvas-panel");
+const byText = (root: ParentNode, text: string) => [...root.querySelectorAll<HTMLButtonElement>("button")].find((x) => x.textContent?.trim() === text);
+// The focus goes back once the panel has gone, a moment later.
+const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+const wide = window.matchMedia;
+const narrow = () => { window.matchMedia = (q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList; };
+afterEach(() => { listing = () => ({ canvas: [], groups: [] }); listed.mockClear(); window.matchMedia = wide; });
 const fromSample = (ids: number[]) => listFor(ids.map((id) => fact(id, data.metrics.find((m) => m.id === id)!.name)));
 
 describe("the empty canvas", () => {
-  it("shows the three numbered steps and nothing to press, and the panel stays shut", async () => {
-    listing = fromSample;
+  it("shows the three numbered steps and one button, and no panel", async () => {
     await mount(true);
     const steps = [...host.querySelectorAll("ol[aria-label='How it works'] li")].map((li) => li.textContent);
-    expect(steps).toEqual(["1Drop Metrics here (or click + in the Pool).", "2Pick a question.", "3Read the answer."]);
-    expect(host.querySelector("[data-canvas]")!.querySelectorAll("button")).toHaveLength(0);
-    expect(choose()).toBeUndefined();
-    expect(panel()).toBeNull();
-    expect(host.textContent).not.toMatch(/Forecast|Correlation matrix|What drives|Try:/);
+    expect(steps).toEqual(["1Add a Metric.", "2Pick a question.", "3Read the answer."]);
+    expect([...host.querySelectorAll("[data-canvas] button")].map((b) => b.textContent?.trim())).toEqual(["Add a Metric"]);
+    expect(beside()).toBeNull();
+    expect(dialog()).toBeNull();
+    expect(host.querySelector("aside[aria-label='Pool']")).toBeNull();
+  });
+
+  it("offers an example when one fits, which puts its Metrics on the canvas and opens its question", async () => {
+    listing = fromSample;
+    await mount(true);
+    await settle();
+    await act(async () => { byText(host, "See an example")!.click(); });
+    await settle();
+    expect(onCanvas().length).toBeGreaterThan(1);
+    expect(beside()!.getAttribute("aria-label")).toBe("Pick a question");
+    expect(beside()!.querySelector("[aria-expanded='true']")).not.toBeNull();
+  });
+});
+
+describe("Add a Metric, beside the canvas on a wide screen", () => {
+  const [a, b] = data.metrics;
+
+  it("stays open while several are added, marks them, and covers nothing", async () => {
+    await mount(true);
+    await addPanel();
+    expect(dialog()).toBeNull();
+    expect(byText(beside()!, "Pick a question")).toBeUndefined();
+    expect(beside()!.querySelector("li[draggable='true']")).not.toBeNull();
+    await act(async () => { button(`Add ${a.name}`).click(); });
+    await act(async () => { button(`Add ${b.name}`).click(); });
+    expect(onCanvas()).toEqual([a.name, b.name]);
+    expect(button(`${a.name} is on the canvas`).textContent).toContain("Added");
+    expect(button(`Add ${a.name}`)).toBeNull();
+  });
+
+  it("switches to the questions from its foot, and Escape gives the focus back to the button", async () => {
+    listing = fromSample;
+    await mount(true, [a.id]);
+    opener("metrics").focus();
+    await addPanel();
+    expect(document.activeElement).toBe(beside());
+    await act(async () => { byText(beside()!, "Pick a question")!.click(); });
+    expect(beside()!.getAttribute("aria-label")).toBe("Pick a question");
+    await act(async () => { beside()!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+    await settle();
+    expect(beside()).toBeNull();
+    expect(document.activeElement).toBe(choose());
+  });
+});
+
+describe("Add a Metric on a narrow screen", () => {
+  const [a, b] = data.metrics;
+
+  it("is one Slide-over: a row is tapped, it is marked, and the foot switches to the questions", async () => {
+    narrow();
+    listing = fromSample;
+    await mount(true);
+    await addPanel();
+    expect(beside()).toBeNull();
+    expect(dialog()!.querySelector("li[draggable='true']")).toBeNull();
+    const row = (name: string) => [...dialog()!.querySelectorAll("li")].find((li) => li.textContent?.includes(name))!;
+    await act(async () => { row(a.name).click(); });
+    await act(async () => { row(b.name).click(); });
+    expect(onCanvas()).toEqual([a.name, b.name]);
+    expect(dialog()!.querySelector(`button[aria-label="${a.name} is on the canvas"]`)).not.toBeNull();
+    await act(async () => { byText(dialog()!, "Pick a question")!.click(); });
+    await settle();
+    expect(document.querySelectorAll("[data-slide-over]")).toHaveLength(1);
+    expect(dialog()!.textContent).toContain("Where is it heading?".replace("it", a.name));
+    expect([...dialog()!.querySelectorAll("button")].some((x) => x.textContent?.trim() === "Back")).toBe(false);
+    await act(async () => { dialog()!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+    await settle();
+    await settle();
+    expect(dialog()).toBeNull();
+    expect(document.activeElement).toBe(choose());
   });
 });
 
 describe("Pick a question", () => {
-  it("is on the canvas once a Metric is there, and opens the Slide-over only when asked", async () => {
+  it("is on the canvas once a Metric is there, and opens the list only when asked", async () => {
     listing = fromSample;
     await mount(true, [first.id]);
-    expect(panel()).toBeNull();
-    expect(host.querySelector("[data-canvas]")!.contains(choose()!)).toBe(true);
+    expect(beside()).toBeNull();
     await act(async () => { choose()!.click(); });
-    expect(panel()!.textContent).toContain("Pick a question");
-    expect(panel()!.textContent).toContain("Where is it heading?".replace("it", first.name));
+    expect(beside()!.textContent).toContain("Pick a question");
+    expect(beside()!.textContent).toContain("Where is it heading?".replace("it", first.name));
     expect(choose()!.getAttribute("aria-expanded")).toBe("true");
-    expect(host.querySelector("aside[aria-label='Pick a question']")).toBeNull();
   });
 
   it("opens from the start when the page says so (from a Metric page)", async () => {
     listing = fromSample;
     host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
     await act(async () => { root.render(<SlideOverProvider><AnalyzeScreen data={data} onCanvas={[first.id]} explained={first.id} open demo={false} /></SlideOverProvider>); });
-    expect(panel()).not.toBeNull();
+    expect(beside()).not.toBeNull();
     expect(listed.mock.calls.at(-1)![1]).toBe(first.id);
   });
 });

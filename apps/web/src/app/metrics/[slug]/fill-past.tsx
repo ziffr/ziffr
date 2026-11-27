@@ -32,11 +32,11 @@ function Way({ icon, title, children, action }: { icon: React.ReactNode; title: 
 }
 
 /** The dialog opened by the ⋯ menu's "Fill past periods…". `onAssistant` opens the text for the person's own assistant. */
-export function FillPast({ metric, ways, open, onOpenChange, onAssistant }: { metric: { id: number; name: string; slug: string }; ways: FillPastWays; open: boolean; onOpenChange: (open: boolean) => void; onAssistant: () => void }) {
+export function FillPast({ metric, ways, from, open, onOpenChange, onAssistant }: { metric: { id: number; name: string; slug: string }; ways: FillPastWays; /** Where it was opened from, so the paste page leads back there. */ from?: "analyze"; open: boolean; onOpenChange: (open: boolean) => void; onAssistant: () => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [downloaded, setDownloaded] = useState(false);
-  const pasteHref = `/paste-values?metric=${encodeURIComponent(metric.slug)}`;
+  const pasteHref = `/paste-values?metric=${encodeURIComponent(metric.slug)}${from ? `&from=${from}` : ""}`;
   const download = () => start(async () => {
     try {
       const r = unwrap(await pasteTemplateFile({ kind: "history", metricId: metric.id })) as { fileName: string; text: string; periods: number };

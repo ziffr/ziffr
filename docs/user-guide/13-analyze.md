@@ -4,7 +4,7 @@
 
 **Analyze** in the sidebar opens the **Analysis Canvas**: a place to put a few Metrics side by side and ask simple questions of them. Where is this heading? Do these two move together? What moves Cost? You choose a **method** by what you want to know, and its result can go onto a dashboard.
 
-Three steps are all it takes: drop Metrics on the canvas, pick a question, read the answer. An empty canvas says so.
+Three steps are all it takes: add a Metric, pick a question, read the answer. An empty canvas says so. Building an analysis works like building a dashboard: what you can add opens at the side.
 
 Everyone in the Workspace can use Analyze, with the Metrics they can see. The page needs no setup and changes nothing for anyone else.
 
@@ -15,27 +15,32 @@ On a phone a note at the top says Analyze is easier on a larger screen; see [Scr
 From the top, the screen has these parts:
 
 - **Heads-ups**, a block under the title with how many there are for you and **Look**, which opens the list in the side panel (see [Heads-ups](#heads-ups)). With none there is no block.
-- **The Analysis canvas**, large, with the Metrics on it and which of them is the one to explain. Left of it is **The Pool** (below it on a narrow screen), with the Metrics you can see. Here it holds only Metrics, no saved Widgets or Widget Templates. **Filter** narrows it by name.
-- **Pick a question**, the button at the top right of the canvas once a Metric is on it: the one way to run an analysis here. It opens a side panel with a list of questions grouped by what you want to know (see [Pick a question](#pick-a-question)).
+- **The Analysis canvas**, across the full width, with the Metrics on it and which of them is the one to explain.
+- **Add a Metric**, on the canvas. It opens the **Pool** at the right side, with the Metrics you can see (see [Putting Metrics on the canvas](#putting-metrics-on-the-canvas)).
+- **Pick a question**, the button at the top right of the canvas once a Metric is on it: the one way to run an analysis here. It opens a list of questions at the right side, grouped by what you want to know (see [Pick a question](#pick-a-question)).
 - **The results**, directly under the canvas: the answer to the question you asked, newest first.
 
 ## The empty canvas
 
 When nothing is on the canvas, it tells you what to do:
 
-1. Drop Metrics here (or click **+** in the Pool).
+1. Add a Metric.
 2. Pick a question.
 3. Read the answer.
 
+Under the steps is one button, **Add a Metric**. **See an example**, the small link below it, puts a few of your Metrics on the canvas and opens one question about them, so you can see how the page works; choose **Work it out** for its answer. The link is there only when your Metrics have enough values for such a question.
+
 ## Putting Metrics on the canvas
 
-Drag a Metric from the Pool onto the canvas, or point at it and press **+**. **Archived Metrics** are not in the Pool, and the Drivers suggestion leaves them out. To see what a Metric is before you drop it, press the **ⓘ** on its row: a small card opens beside it with the Metric's name, how often it is counted and in which unit, its description, its latest value with the period, and a small line of its recent values. The list stays as it is; press **ⓘ** again, press Escape or tap elsewhere to close the card. You can also open a Metric's own page and choose **Analyze** there: Ziffr opens this screen with that Metric already on the canvas.
+**Add a Metric**, on the empty canvas or at its top right, opens the **Pool** at the right side: the Metrics you can see, with **Filter** to narrow them by name. It holds only Metrics, no saved Widgets or Widget Templates. On a wide screen it stands beside the canvas, which stays usable: drag a Metric onto the canvas, or press **+**. On a narrower screen it covers the page: tap a Metric to add it. Either way the list stays open, so you can add several; a Metric that is on the canvas is marked **Added**. Once a Metric is on the canvas, **Pick a question** at the foot of the list switches the same panel to the questions. **Esc** or the close button closes it.
+
+**Archived Metrics** are not in the Pool, and the Drivers suggestion leaves them out. To see what a Metric is before you add it, press the **ⓘ** on its row: under the row you see the Metric's name, how often it is counted and in which unit, its description, its latest value with the period, and a small line of its recent values; press **ⓘ** again to close it. You can also open a Metric's own page and choose **Analyze** there: Ziffr opens this screen with that Metric already on the canvas.
 
 Each Metric on the canvas shows its name and how often it is counted, such as "monthly". The **×** next to it takes it off. **Clear** empties the canvas and its results. The number next to **Analysis canvas** says how many Metrics are on it.
 
 The Metrics on your canvas stay there until you take them off, also when you leave and come back. The canvas is yours alone; colleagues have their own. In the demo nothing is saved: the canvas works the same way, but starts over when you leave the page.
 
-The side panel with the questions opens only when you ask for it, or when you come from a Metric's page; once there are Metrics on the canvas it starts with the questions that fit them.
+The list of questions opens only when you ask for it, choose **See an example**, or come from a Metric's page; once there are Metrics on the canvas it starts with the questions that fit them.
 
 ### The Metric to explain
 
@@ -45,11 +50,17 @@ Choose another Metric's button and nothing is taken off the canvas; the list sta
 
 ## Pick a question
 
-**Pick a question**, at the top right of the canvas, is the one way to run an analysis: it is for when you know what you want to know and not which Method gives it. It opens a panel at the right side of the screen, at every width, over the page. It closes when you ask a question, so that the answer under the canvas is in view. To put another Metric on the canvas, close the panel first. **Esc** or the close button closes it, and the address `?panel=methods` opens it from a link.
+**Pick a question**, at the top right of the canvas, is the one way to run an analysis: it is for when you know what you want to know and not which Method gives it. It opens a list at the right side of the screen. On a wide screen the list stands beside the canvas and stays open when you ask a question: the answer appears under the canvas, and you can ask the next one or drag in another Metric. On a narrower screen it covers the page and closes when you ask a question, so that the answer is in view. **Esc** or the close button closes it, and the address `?panel=methods` opens it from a link.
 
 The panel lists the questions grouped by what you want to know: **Where is it heading?**, **What moves with what?**, **What would it take?**, **What would happen if?**, **What changed?**, **What is usual?** and **Where is it concentrated?**. To start with there are only the headings and the questions under them, in the Metrics' own words ("What moves Cost?").
 
-**Choose a question** and it opens in place: what it is in plain words, the technical name in small type, **Use it when** and **Don't use it when** (the same words as the Methods guide), what it needs of the canvas and the fields that set it up. One question is open at a time; choose it again to close it. The list fits the canvas, and what fits comes first: groups with a question that fits are above the others, and inside a group the ones that fit are above the greyed ones. The questions use the Metrics' own names: with Cost on the canvas as the one to explain you see "What moves Cost?" instead of "What moves B?", "What does Revenue need to reach 1.2m?" once you type the value, and "What if we change Support tickets by 10 %?" once you give the change. Where nothing is chosen yet the general words stay. A Method that cannot work on what is on the canvas now stays in the list, greyed, with the reason in one line beside it: "Needs at least 12 months of values; Revenue has 7.", "Revenue has no Target Range, so there is nothing to reach.", "Needs 3 Metrics on the canvas; there are 2." With nothing on the canvas every entry says "Drop a Metric on the canvas first." The list names only Metrics you can see.
+**Choose a question** and it opens in place: what it is in plain words, the technical name in small type, **Use it when** and **Don't use it when** (the same words as the Methods guide), what it needs of the canvas and the fields that set it up. One question is open at a time; choose it again to close it. The list fits the canvas, and what fits comes first: groups with a question that fits are above the others, and inside a group the ones that fit are above the greyed ones. The questions use the Metrics' own names: with Cost on the canvas as the one to explain you see "What moves Cost?" instead of "What moves B?", "What does Revenue need to reach 1.2m?" once you type the value, and "What if we change Support tickets by 10 %?" once you give the change. Where nothing is chosen yet the general words stay. A Method that cannot work on what is on the canvas now stays in the list, greyed, with the reason in one line beside it: "Revenue has no Target Range, so there is nothing to reach.", "Needs 3 Metrics on the canvas; there are 2." With nothing on the canvas every entry says "Drop a Metric on the canvas first." The list names only Metrics you can see.
+
+Where the only thing missing is history, the line says how close you are, counted in the Metric's own period: "1 of 4 days. Ready on 30 Nov 2026 if you add one each day." For a week, a month or longer it says by which day: "Ready by …". A day is named only where it is certain: for a question about one Metric whose values someone adds, with no period missing between its values or since its latest one. Otherwise, and for **Did it work?** (which counts the periods before and after your day separately), the line says how many more are needed: "Revenue has 5 of 8 months. 3 more needed."
+
+**Add earlier values** under such a line opens [Fill past periods](10-metrics.md) for that Metric, with the ways that take pasted or uploaded values. The paste page has **Back to Analyze** at the top. The button is shown only if you may paste values for the Metric: you submit it, and it takes values by the web form.
+
+**See an example**, under any greyed question, answers it on Sample Data counted in your Metric's period (months where only the number of Metrics is short): made-up numbers, marked as such, shown only in that row. They are never put beside your numbers or under the canvas, and nothing is saved.
 
 The fields of an open question ask for what it needs, in words, with the canvas filling in what it can: which Metric you want to explain, which might move it, the day it started, the value you want it to reach. Each question says what it takes (a day that exists, a number, a whole number from 1 to 10). **What if A changes?** asks for the Metric to change, the Metrics that might follow it, and the change as an amount or as a percent (one of the two). **Work it out** gives a Takeaway, under the canvas, in the same words, ranges, strength words and footers as a Recipe's: picking a Method yourself turns none of that off, and a Method that does not apply (too little history, a flat Metric) says so in the same words as a Recipe does.
 
