@@ -10,10 +10,10 @@ import { retentionPreview, retentionValuesCsv } from "./retention-setting";
 import { share } from "./sharing";
 import { decideCorrection, submitValue } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { auditRowsOf, rowsOf, workspace } from "./test/db-fixtures";
+import { auditRowsOf, rowsOf, valuesOf, workspace } from "./test/db-fixtures";
 import { createTotal } from "./total-changes";
 import { correctValueNote, deleteValueNoteForGood, periodValueNotes, removeValueNote, writeValueNote } from "./value-notes";
-import { NOTE_MAX, NOTE_TOO_LONG, NOTES_FULL } from "./value-note-store";
+import { NOTE_MAX, NOTE_TOO_LONG, NOTES_FULL, NOTES_PER_PERIOD } from "./value-note-store";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -231,7 +231,7 @@ describe("a note that comes with a value", () => {
     const s = await setup();
     const sent = await s.send(45, "x".repeat(NOTE_MAX + 1));
     expect(sent).toMatchObject({ ok: true, valueNote: { saved: false, reason: NOTE_TOO_LONG } });
-    expect(await s.read()).toEqual({ current: [], history: [] });
+    expect(await s.read()).toMatchObject({ current: [], history: [] });
     const form = await submitValue({ source: "web_form", sender: s.code, text: "46", valueNote: "y".repeat(NOTE_MAX + 1) });
     expect(form.valueNote).toEqual({ saved: true, cut: true });
   });
@@ -242,13 +242,32 @@ describe("a note that comes with a value", () => {
       await s.w.value(s.m.id, period, 40, s.ann);
       await s.w.lock(s.m.id, period);
       expect((await s.send(45, "Found an invoice.", period)).valueNote).toEqual({ saved: true, cut: false });
-      expect(await s.read(s.sara, period)).toEqual({ current: [], history: [] });
+      expect(await s.read(s.sara, period)).toMatchObject({ current: [], history: [] });
       const [row] = await rowsOf("value_notes", { metric_id: s.m.id, period_start: period });
       await decideCorrection(s.as(s.sara), Number(row!.proposal), accept);
       const after = (await s.read(s.sara, period))!;
       expect(after.current.map((n) => [n.words, n.addedLater])).toEqual(accept ? [["Found an invoice.", true]] : []);
       if (!accept) expect(await rowsOf("value_notes", { metric_id: s.m.id, period_start: period })).toEqual([]);
     }
+  });
+});
+
+describe("a full period and an accepted Correction", () => {
+  it.each([["another number", 45], ["the same number", 40]] as const)("takes %s and keeps 50 notes: the proposed one goes", async (_name, proposed) => {
+    const s = await setup();
+    await s.w.value(s.m.id, P, 40, s.ann);
+    await s.w.lock(s.m.id, P);
+    expect((await s.send(proposed, "Found an invoice.")).valueNote).toEqual({ saved: true, cut: false });
+    const [waiting] = await rowsOf("value_notes", { metric_id: s.m.id });
+    for (let i = 0; i < NOTES_PER_PERIOD; i++) await writeValueNote(s.as(s.ann), { metricId: s.m.id, period: P, words: `Note ${i}` });
+    await decideCorrection(s.as(s.sara), Number(waiting!.proposal), true);
+    expect((await valuesOf(s.m.id)).map((v) => v.value)).toEqual([proposed]);
+    const rows = await rowsOf("value_notes", { metric_id: s.m.id });
+    expect(rows).toHaveLength(NOTES_PER_PERIOD);
+    expect(rows.filter((r) => r.proposal !== null)).toEqual([]);
+    expect((await s.words()).includes("Found an invoice.")).toBe(false);
+    // With the same number nothing made way for words that could not be kept.
+    expect(await s.words()).toHaveLength(proposed === 40 ? NOTES_PER_PERIOD : 0);
   });
 });
 

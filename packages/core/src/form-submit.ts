@@ -8,8 +8,8 @@ import { DEMO_WORKSPACE_ID } from "./team";
 /** The longest text of a value with its Breakdown a form link takes; more is cut off. */
 const MAX_TEXT = 5000;
 
-/** Whether the forms of a Workspace offer a note field. It comes with the Combined Prompt (combined-switch.ts), so
- * nothing changes for anyone before notes are shown; never in the demo, which keeps none. */
+/** Whether the forms of a Workspace offer a note field. It comes with the Combined Prompt (combined-switch.ts); never
+ * in the demo, which keeps none. */
 export const noteFieldsOn = (workspaceId: string): boolean => combinedPromptsOn() && workspaceId !== DEMO_WORKSPACE_ID;
 
 /** The note a form sent, to go with its value; nothing while the forms offer none or when the field was empty. Untrusted:

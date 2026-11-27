@@ -47,7 +47,7 @@ async function setup() {
 describe("the Fill in for … offer", () => {
   it("offers the Metric's owner and the Workflow's owner the submitter after the Due Date, and nobody else", async () => {
     const { w, ben, mia, zed, sara, tom, guest, m, as } = await setup();
-    const open = { metricId: m.id, period: ago(2), people: [{ id: sara, name: await nameOf(sara), wait: null }] };
+    const open = { metricId: m.id, period: ago(2), notes: true, people: [{ id: sara, name: await nameOf(sara), wait: null }] };
     expect(await fillInOffer(as(ben), m.id, ago(2))).toEqual(open);
     expect(await fillInOffer(as(mia), m.id, ago(2))).toEqual(open);
     // A Member who sees the Metric, the submitter, a Stand-in nobody asked, a Guest, an Access Key and the demo: no button at all.
@@ -66,7 +66,7 @@ describe("the Fill in for … offer", () => {
 
   it("offers on the Workflow's period view the same people as on the Metric's page, for the period it works on, and nobody else", async () => {
     const { w, ben, mia, zed, sara, tom, guest, m, wf, as } = await setup();
-    const open = [{ metricId: m.id, period: ago(1), people: [expect.objectContaining({ id: sara, name: await nameOf(sara) })] }];
+    const open = [{ metricId: m.id, period: ago(1), notes: true, people: [expect.objectContaining({ id: sara, name: await nameOf(sara) })] }];
     expect(await workflowFillIns(as(ben), wf)).toEqual(open);
     expect(await workflowFillIns(as(mia), wf)).toEqual(open);
     // The others, a Guest, an Access Key and the demo get nothing; neither does another Workflow.

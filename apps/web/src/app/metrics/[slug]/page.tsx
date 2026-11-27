@@ -14,6 +14,7 @@ import { CALCULATION_NOTE_LABEL } from "@ziffr/core/calculation-note";
 import { CalculationDisclosure, CalculationWords } from "@/components/calculation-note";
 import { TargetsEditor } from "./series-form";
 import { MetricTabs } from "./metric-tabs";
+import { CalculatedValues, LatestNote, NoteHead, RowWithNote, metricNotes, noteSpan } from "./metric-notes";
 import { ArchivedNote } from "./archived-note";
 import { RetentionBox } from "./retention-box";
 import { canArchiveMetric } from "@ziffr/core/archived-metrics";
@@ -214,6 +215,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const createdNote = await createdNoteFor(sp.created, canEdit, actor, metric.id);
   const tagsLeftOff = sp.created && canEdit ? await tagsLeftOffEntry(actor, metric.id) : [];
 
+  // Value Notes as the core gives them to this person (spec 0064).
+  const notes = await metricNotes(actor, metric, { history: tab === "history", rows: obs, points: all });
+
   return (
     <>
       {sp.created && <CreatedNote derived={Boolean(metric.formula)} total={Boolean(metric.total)} note={createdNote} demo={demo} tagsLeftOut={tagsLeftOff} />}
@@ -251,6 +255,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           <span className="fig">{periodTarget ? formatValue(metric, periodTarget.value, numberStyle) : kind.addedUp ? "–" : targetText(metric, numberStyle)}</span>
         </Stat>
       </div>
+
+      <LatestNote notes={notes} yearStart={yearStart} metric={shown} numberStyle={numberStyle} />
 
       <MetricTabs tabs={TABS.map((t) => ({ ...t, href: t.id === "overview" ? "?" : `?tab=${t.id}` }))} active={tab} />
 
@@ -346,19 +352,20 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
       {tab === "history" && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <CalculatedValues notes={notes} metric={shown} numberStyle={numberStyle} yearStart={yearStart} />
           {!metric.formula && (
-            <section className="stock rounded-[var(--radius-card)] p-5">
+            <section className={cn("stock rounded-[var(--radius-card)] p-5", noteSpan(notes))}>
               {/* Paste history is offered to whoever submits for the Metric on the web form; the core checks again when they paste. */}
               <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3"><h2 className="font-medium">Latest values</h2><HistoryLinks slug={metric.slug} download={!demo} paste={mayPaste(metric, tokens, actor.personId)} /></div>
               {obs.length === 0 ? <p className="text-sm text-muted-foreground">No values yet.</p> : (
                 <table className="w-full text-sm">
                   <thead className="text-left text-xs text-muted-foreground">
-                    <tr><th className="pb-2 font-normal">Period</th><th className="pb-2 text-right font-normal">Value</th><th className="pb-2 pl-3 font-normal">From</th><th className="pb-2 font-normal">Submitted by</th></tr>
+                    <tr><th className="pb-2 font-normal">Period</th><th className="pb-2 text-right font-normal">Value</th><th className="pb-2 pl-3 font-normal">From</th><th className="pb-2 font-normal">Submitted by</th><NoteHead notes={notes} /></tr>
                   </thead>
                   <tbody>
                     {obs.map((o) => (
-                      <tr key={o.id} className="border-t">
-                        <td className="py-2"><Link href={periodRecordUrl(metric.slug, o.period_start)} className="hover:underline">{periodLabel(o.period_start, metric.period, yearStart)}</Link>{pending.includes(o.period_start) && <> <NotApprovedMark short /></>}</td>
+                      <RowWithNote key={o.id} notes={notes} row={o} metric={shown} numberStyle={numberStyle}>
+                        <td className="py-2"><Link href={periodRecordUrl(metric.slug, o.period_start)} className="hover:underline max-md:inline-flex max-md:min-h-11 max-md:items-center">{periodLabel(o.period_start, metric.period, yearStart)}</Link>{pending.includes(o.period_start) && <> <NotApprovedMark short /></>}</td>
                         <td className="py-2 text-right">
                           <span className="fig">{formatValue(metric, o.value, numberStyle)}</span>
                           {o.original_value !== null && <span className="block text-xs text-muted-foreground"><span className="line-through">{formatValue(metric, o.original_value, numberStyle)}</span> corrected</span>}
@@ -366,7 +373,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                         </td>
                         <td className="py-2 pl-3 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}{o.access_key_id && keyNames[o.access_key_id] ? ` · ${keyNames[o.access_key_id]}` : null}</td>
                         <td className="py-2">{actor.role !== "guest" && !o.submitter_id && o.submitted_by_name ? <span>{o.submitted_by_name} <span className="text-muted-foreground">(imported)</span></span> : <Person p={o.submitter_id ? peopleById[o.submitter_id] : undefined} />}<EnteredBy by={o.entered_by && actor.role !== "guest" ? (peopleById[o.entered_by]?.name ?? "Someone") : null} importedName={o.entered_by_name} guest={actor.role === "guest"} /></td>
-                      </tr>
+                      </RowWithNote>
                     ))}
                   </tbody>
                 </table>

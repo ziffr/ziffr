@@ -1,7 +1,7 @@
 // One run's asking (spec 0064; GLOSSARY: Combined Prompt, Prompt, Delivery). A run is one call of the Workflows job for a
 // Workspace, Run workflows by hand, Ask for missing values or one Set up from a Pack. It collects what it would ask, and
-// at its end sends one message per person and way; a reminder lists everything still missing. Off while the switch is off
-// (combined-switch.ts): then there is no run, and every figure is sent at once in a message of its own.
+// at its end sends one message per person and way; a reminder lists everything still missing. With the switch off
+// (combined-switch.ts) there is no run, and every figure is sent at once in a message of its own.
 import { db } from "./db";
 import { combinedPromptsOn } from "./combined-switch";
 import { combinedChunks } from "./combined-words";
