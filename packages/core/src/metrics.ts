@@ -177,7 +177,7 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   }
   // Who was really asked, by which way and with what result: only these people, whom the creator just named.
   const people = outcomes.length ? await openNames(actor.workspaceId, (await db().from("profiles").select("id, name").in("id", outcomes.map((o) => o.personId))).data) : [];
-  const asked = outcomes.map((o) => ({ personId: o.personId, name: String(people.find((p) => p.id === o.personId)?.name ?? "Someone"), connector: o.connector, label: CONNECTORS[o.connector].label, state: o.state }));
+  const asked = outcomes.map((o) => ({ personId: o.personId, name: String(people.find((p) => p.id === o.personId)?.name ?? "Someone"), connector: o.connector, label: CONNECTORS[o.connector].label, state: o.state, stopped: o.stopped }));
   // A Metric made from a Pack's entry gets the entry's Tags; a limit leaves words out and says which (spec 0038).
   const tagsLeftOut = fromCatalog && fromCatalogId !== null ? await tagMetricFromEntry(actor, metric.id, fromCatalog.tags) : [];
   return { id: metric.id, slug: metric.slug, submitters: submitters.length, asked, tagsLeftOut };

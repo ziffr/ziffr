@@ -12,6 +12,8 @@ import type { Metric, Profile } from "@ziffr/core/types";
 import { Person } from "@/components/avatar";
 import { FeedControls, RemoveFeed } from "./feed-picker";
 import { NextPrompt } from "./next-prompt";
+import type { StoppedSubmitter } from "@ziffr/core/prompt-preview";
+import { StoppedActions } from "./stopped-actions";
 import { AddSubmitter, RemoveSubmitter } from "./submitter-controls";
 import { removingWords } from "./submitter-words";
 
@@ -34,9 +36,18 @@ function removingSays(t: Row, tokens: Row[], people: Record<string, Profile>, ow
   });
 }
 
+/** What the owner can do for a Submitter who stopped requests: send them their form link, where this person may have
+ * it, and, for the owner, have them asked whether they want the emails again. */
+function StoppedRow({ metricId, person, code }: { metricId: number; person?: StoppedSubmitter; code: string | null }) {
+  if (!person || (!code && !person.askAgain)) return null;
+  return <StoppedActions metricId={metricId} personId={person.id} name={person.name} code={code} askAgain={person.askAgain} />;
+}
+
 /** The box. Adding and removing people is not offered in the demo, whose people nobody may change. */
-export async function WhoSubmits({ actor, metric, tokens, people, promptWays, canEdit, demo, workflow, feeds }: {
+export async function WhoSubmits({ actor, metric, tokens, people, promptWays, stopped, canEdit, demo, workflow, feeds }: {
   actor: Actor; metric: Metric; tokens: Row[]; people: Record<string, Profile>; promptWays: Record<string, RouteView>; canEdit: boolean; demo: boolean;
+  /** Submitters who stopped requests, as the core tells this person of them. */
+  stopped: StoppedSubmitter[];
   /** Whether a Workflow asks for the Metric's values. */
   workflow: boolean; feeds: { id: string; name: string }[];
 }) {
@@ -46,7 +57,7 @@ export async function WhoSubmits({ actor, metric, tokens, people, promptWays, ca
   const choices = changes ? await submitterChoices(actor, metric.id) : [];
   const webForm = metric.sources.includes("web_form");
   return (
-    <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
+    <section id="who-submits" className="stock scroll-mt-20 rounded-[var(--radius-card)] p-5 text-sm">
       <h2 className="mb-1 flex items-center gap-2 font-medium"><KeyRound className="size-4" /> Who submits</h2>
       <p className="mb-3 text-xs text-muted-foreground">Who may send values for this metric. Ziffr recognises them by their Slack name or mail address, or by their personal form link.</p>
       <ul className="space-y-2">
@@ -65,6 +76,7 @@ export async function WhoSubmits({ actor, metric, tokens, people, promptWays, ca
               {changes && !t.feed && !t.stands_in_for && <RemoveSubmitter metricId={metric.id} personId={t.submitter_id} name={people[t.submitter_id]?.name ?? "this person"} says={removingSays(t, tokens, people, metric.owner_id, editor)} />}
             </span>
             {!t.feed && promptWays[t.submitter_id] && <NextPrompt view={promptWays[t.submitter_id]} />}
+            {!t.stands_in_for && <StoppedRow metricId={metric.id} person={stopped.find((p) => p.id === t.submitter_id)} code={webForm ? t.code : null} />}
           </li>
         ))}
         {!tokens.length && <li className="text-muted-foreground">Nobody yet.</li>}

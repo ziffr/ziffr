@@ -13,7 +13,7 @@ import { FORM_LINK, inboundEnabled, initialMailState } from "./mail";
 import { appendedLink, unlinked } from "./mail-links";
 import { initialDeliveryState, sendQueuedNow } from "./outbound";
 import { holdFor } from "./quiet-hours";
-import { planPrompt } from "./prompt-reach";
+import { planPrompt, stoppedWays } from "./prompt-reach";
 import { NOT_SENT, notSentReason, PROMPT_WAYS } from "./prompt-route";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { slackEscape } from "./connectors/slack";
@@ -22,6 +22,7 @@ import { CURRENT_PERIOD, periodLabel, periodStart } from "./periods";
 import { yearStartFor } from "./fiscal-year";
 import { announceNewAction } from "./action-state";
 import { checklistAbout } from "./checklist-about";
+import { RESUME_LINK, RESUME_REF } from "./internal/delivery-send";
 import { FROM_APP, type ChangeSource } from "./webhook-events";
 
 /** A path in Ziffr as a link that works outside it (in an email): ZIFFR_SITE_URL in front, when it is set. */
@@ -117,7 +118,7 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
 
 /** What became of a Prompt: the Connector it went through, and whether it left Ziffr (sent), waits to (queued), or
  * stays in the Outbox because that Connector does not really send here (outbox), or failed. */
-export type PromptOutcome = { connector: ConnectorId; state: "sent" | "queued" | "outbox" | "failed"; /** Whether it went the way the person chose (else the first way the Metric allows that reaches them). */ chosen: boolean; /** Why it was not sent, when no allowed way reaches them. */ notSent?: string };
+export type PromptOutcome = { connector: ConnectorId; state: "sent" | "queued" | "outbox" | "failed"; /** Whether it went the way the person chose (else the first way the Metric allows that reaches them). */ chosen: boolean; /** Why it was not sent, when no allowed way reaches them. */ notSent?: string; /** Nothing leaves: the person stopped requests by every way this one would go. */ stopped?: true };
 
 /** Asks a submitter for a value through their reminder Connector (GLOSSARY: Prompt). Returns false if nobody was asked
  * (no Token, a Feed, a Derived or Archived Metric), else what became of the Prompt, read back after sending.
@@ -184,7 +185,11 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   // One Prompt however many ways it goes by, so the first answer on any of them closes it for all (prompt-ways.ts).
   // The question names the Metric, so it is sealed with the Workspace Key (spec 0028).
   const [prompt] = await insertSealed("prompts", metric.workspace_id, [{ metric_id: metric.id, submitter_id: person.id, source: answersBy(routes[0]), text: question, period_start: period, stands_in_for: promptStandsInFor }]) as { id: number }[];
+  // A way they stopped still gets its Delivery, which the sender holds back with the reason; the answer here says so,
+  // so nobody is told a request is on its way.
+  const stops = (await stoppedWays(metric.workspace_id, [person.id])).get(person.id);
   let first: PromptOutcome | null = null;
+  let held: PromptOutcome | null = null;
   for (const route of routes) {
     const via: ConnectorId = route.via;
     const c = CONNECTORS[via];
@@ -194,9 +199,10 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
     if (!input.queue && !d.held) await sendQueuedNow(d.id, mail_state, via);
     // What really happened is read back: a send that failed leaves the Delivery in another state than it started in.
     const now = d.id && mail_state === "queued" && !input.queue && !d.held ? (await db().from("deliveries").select("mail_state").eq("id", d.id).maybeSingle()).data?.mail_state : mail_state;
-    first ??= { connector: via, chosen: route.chosen, state: (now === "sending" ? "queued" : ["sent", "queued", "outbox", "failed"].includes(now) ? now : mail_state) as PromptOutcome["state"] };
+    if (stops?.has(route.via)) held ??= { connector: via, chosen: route.chosen, state: "failed", stopped: true };
+    else first ??= { connector: via, chosen: route.chosen, state: (now === "sending" ? "queued" : ["sent", "queued", "outbox", "failed"].includes(now) ? now : mail_state) as PromptOutcome["state"] };
   }
-  return first!;
+  return (first ?? held)!;
 }
 
 /** A Prompt no allowed way reaches the person with: one Delivery that stays in the Outbox as "Not sent: …" (the reason
@@ -265,6 +271,13 @@ export async function deliverTest(ws: string, input: { recipientId: string; subj
   return deliverPlain(ws, "test", { recipientId: input.recipientId, senderId: null, subject: input.subject, text: input.text, link: "/", via: input.via, keep: input.keep });
 }
 
+/** The message that asks someone who stopped requests by email whether they want them again (email-resume.ts), from the
+ * Metric's owner: a notice by email only. The link that switches them back on is put in only as it is sent, to the
+ * recipient, and is never stored with the Delivery, which its sender reads in the Outbox. */
+export async function deliverResumeAsk(ws: string, input: { recipientId: string; senderId: string; subject: string; text: string }): Promise<number | null> {
+  return deliverPlain(ws, "notice", { ...input, link: RESUME_LINK, via: "email", ref: RESUME_REF });
+}
+
 /** A Screen Link (GLOSSARY: Screen Link; spec 0055) to the person themself: a notice by email only, sent at once. The
  * recipient is the caller's own person id; `text` is fixed words and `link` a path of the fixed list (desktop-screens.ts). */
 export async function deliverScreenLink(ws: string, input: { recipientId: string; subject: string; text: string; link: string; keep?: string }): Promise<number | null> {
@@ -280,6 +293,8 @@ export function plainBody(via: ConnectorId, text: string, link: string | null): 
   // would pass for one there are broken.
   if (link === null) return appendedLink(words, [linkTo("")]) ? unlinked(words) : words;
   if (link === FORM_LINK) return `${words}\nOpen your form: ${FORM_LINK}`;
+  // As the form link: put in only as it is sent (email-resume.ts), so nobody but the recipient ever reads it.
+  if (link === RESUME_LINK) return `${words}\nOpen: ${RESUME_LINK}`;
   if (via === "slack") return `${words}\n<${linkTo(link)}|Open in Ziffr>`;
   return `${words}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(link)}`;
 }

@@ -5,7 +5,7 @@ import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { CONNECTOR_IDS, CONNECTORS, type ConnectorId } from "./connectors/index";
 import { deliverPrompt } from "./deliveries";
-import { isNotSentReason } from "./prompt-route";
+import { isNotSentReason, STOPPED_REASON, STOPPED_SELF, type PromptWay } from "./prompt-route";
 import { TRIAL_HOLDS_BACK } from "./trials";
 import { ARCHIVED_BEFORE_SENT } from "./archived-metrics";
 import { NO_WAY_HERE } from "./test-message-words";
@@ -16,7 +16,7 @@ import { PRACTICE_HELD } from "./practice";
 export const ASK_NOW_EVERY_MINUTES = 10;
 
 /** What became of a press: where the Prompt went, and whether it really left Ziffr or stayed in the Outbox and why. */
-export type AskNowResult = { connector: ConnectorId; label: string; state: "sent" | "queued" | "outbox" | "failed"; note: string | null; /** Whether it went the way the person chose; else the first way the Metric accepts answers by that reaches them. */ chosen: boolean };
+export type AskNowResult = { connector: ConnectorId; label: string; state: "sent" | "queued" | "outbox" | "failed"; note: string | null; /** Whether it went the way the person chose; else the first way the Metric accepts answers by that reaches them. */ chosen: boolean; /** Nothing was sent: the person stopped requests for numbers this way. */ stopped?: true };
 
 /** Whether the actor may press Ask me now on a Metric: they own it and are one of its Submitters themselves. */
 export async function canAskNow(actor: Actor, metricId: number): Promise<boolean> {
@@ -30,10 +30,12 @@ export async function canAskNow(actor: Actor, metricId: number): Promise<boolean
  * server's or a provider's own words) becomes one fixed line, so no provider text reaches a browser. */
 const SHOWN_REASONS = new Set<string>([
   ...Object.values(TRIAL_HOLDS_BACK), ARCHIVED_BEFORE_SENT, REMOVED_BEFORE_SENT, PRACTICE_HELD,
-  "Email is not set up.", "No usable email address for this person here.", "They stopped reminders by email.",
-  "Slack is not set up.", "Slack is not connected.", "Slack is not connected any more.", "They stopped reminders on Slack.", "Slack asked to wait.",
+  "Email is not set up.", "No usable email address for this person here.", ...Object.values(STOPPED_REASON),
+  // As Deliveries made earlier say it.
+  "They stopped reminders by email.",
+  "Slack is not set up.", "Slack is not connected.", "Slack is not connected any more.", "Slack asked to wait.",
   ...Object.values(NO_WAY_HERE),
-  "Telegram is off in this workspace.", "Not connected to Telegram.", "They stopped reminders on Telegram.", "Telegram asked to wait.", "They blocked Ziffr's bot in Telegram.",
+  "Telegram is off in this workspace.", "Not connected to Telegram.", "Telegram asked to wait.", "They blocked Ziffr's bot in Telegram.",
 ]);
 /** The line shown for a reason that is not one of Ziffr's own. */
 export const NOT_DELIVERED = "It could not be delivered.";
@@ -78,11 +80,17 @@ export async function askMeNowBy(actor: Actor, metricId: number, via: ConnectorI
       out.push({ connector: fallback, label: CONNECTORS[fallback].label, state: "failed", note: NOT_ASKED, chosen: true });
       continue;
     }
+    if (asked.stopped) {
+      out.push({ connector: asked.connector, label: CONNECTORS[asked.connector].label, state: "failed", note: STOPPED_SELF[asked.connector as PromptWay], chosen: asked.chosen, stopped: true });
+      continue;
+    }
     const { data: d } = await db().from("deliveries").select("connector, mail_state, last_error").eq("workspace_id", actor.workspaceId)
-      .eq("recipient_id", actor.personId).eq("kind", "prompt").gte("created_at", since).order("id", { ascending: false }).limit(1).maybeSingle();
+      .eq("recipient_id", actor.personId).eq("kind", "prompt").eq("connector", asked.connector).gte("created_at", since).order("id", { ascending: false }).limit(1).maybeSingle();
     const connector = (d?.connector ?? fallback) as ConnectorId;
     const state = (["sent", "queued", "outbox", "failed"].includes(d?.mail_state) ? d!.mail_state : "outbox") as AskNowResult["state"];
     out.push({ connector, label: CONNECTORS[connector].label, state, note: shownReason(d?.last_error as string | null), chosen: asked.chosen });
   }
+  // Nothing could go because they stopped it: they may switch it on and ask again at once.
+  if (out.every((r) => r.stopped)) await db().from("ask_now_claims").delete().eq("metric_id", metricId);
   return out;
 }

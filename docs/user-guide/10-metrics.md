@@ -525,6 +525,20 @@ A Feed is listed with the word "Feed". The owner and Editors see **Remove** next
 
 **Values from a Feed** (for the owner and Editors) adds one of the Workspace's Feeds as a Submitter: pick it and choose **Add**. Its values arrive through the API, so the **API and Feeds** Source is turned on by itself. Owners and Admins create Feeds (see [Connecting Ziffr](04-connecting.md#feeds-numbers-from-other-systems)); a Feed is never sent Prompts. The choice only appears when there is a Feed not yet on the list.
 
+#### When someone unsubscribes
+
+A Submitter who unsubscribes from requests by email (or stops them on Slack or Telegram) is no longer asked that way. The owner of each Metric concerned gets one message, such as **Sara is no longer asked for numbers by email**. It lists only the Metrics that owner owns, says who is still asked and whether Ziffr still asks the person another way, and names the numbers nobody else is asked for, which will stay empty. Its button, **Choose someone else**, opens **Who submits**. Ziffr sends such a message at most once a day for one person.
+
+The Metric shows it too, to its owner, its Editors and the person themselves, and to nobody else:
+
+- Under the person in **Who submits**: **Not asked by email (unsubscribed)** in place of the next request, or beside it when another way still reaches them.
+- Above the numbers, for the owner and Editors, when nobody is left to ask: **Nobody is asked for this number, so it will stay empty**, with **Choose someone else**.
+- Above the numbers, for the person: **You are not asked for this number by email**, with **Get them by email again**.
+
+Under the person, **Copy a link to send …** copies their personal form link, for those who may open it (the owner, Owners and Admins), when the Metric takes values by **Web form**: send it to them and they can still enter the number. The owner also has **Ask whether they want the emails again**: Ziffr sends the person one email, and nothing changes unless they confirm. It can be sent once in 30 days, only to the address they unsubscribed from, and the owner never sees its link. If a Contact's address was changed since, it is not sent.
+
+Where Ziffr offers to ask by email now (**Ask me now**, adding a Submitter, **Ask for missing values now**, setting up from a Pack), it says that the person unsubscribed instead of reporting a request as sent.
+
 #### Adding and removing a person
 
 People are chosen as Submitters when the Metric is created or duplicated, and the Metric's owner and its Editors can change them here at any time. Neither is offered in the demo, and a Derived Metric or a Total takes no Submitters.
