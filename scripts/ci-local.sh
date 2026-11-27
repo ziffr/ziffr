@@ -2,7 +2,7 @@
 # `pnpm ci:local`: everything CI checks (.github/workflows/ci.yml), on this machine, against the local Supabase that
 # `pnpm prototype` (or `supabase start`) already runs. Run it before pushing: GitHub Actions minutes are counted, local
 # runs are not. Steps whose tool is not installed (gitleaks, vale) are skipped with a note; CI still runs them.
-# `--quick` leaves out the database, the app build, the SDK and MCP tests and the phone check.
+# `--quick` leaves out the database, the app build, the SDK and MCP tests, the slide check and the phone check.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -27,6 +27,11 @@ if ! $quick; then
   changed=$(.github/scripts/mutation-changed.sh origin/main)
   # With the results of an earlier local run (pnpm --filter @ziffr/core test:mutation), only changed lines are tested.
   if [ -n "$changed" ]; then pnpm --filter @ziffr/core exec stryker run --incremental --mutate "$changed"; else echo "No calculation module changed."; fi
+fi
+
+if ! $quick; then
+  step "The deck slides in a headless browser (needs: pnpm --filter @ziffr/web exec playwright install chromium-headless-shell)"
+  pnpm --filter @ziffr/web test:slides
 fi
 
 step "Security"
