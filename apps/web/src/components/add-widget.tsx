@@ -6,7 +6,7 @@
 // through the core, for Metrics they see), and adding goes through the caller, to the same placeWidget as before.
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { GripVertical, Info, Plus, Search, Sigma, X } from "lucide-react";
+import { GripVertical, Info, Plus, Search, Sigma, Trash2, X } from "lucide-react";
 import { tellApart } from "@ziffr/core/metric-names";
 import { inUse } from "@ziffr/core/metric-row";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
@@ -216,7 +216,7 @@ function Offered({ data, ensure, saved, metricId, onPick, onAdd, onDrag }: Props
               id: `w${w.id}`, name: w.title ?? templateOf(w).label, blurb: templateOf(w).label, source: { type: "widget", id: w.id },
               // A saved widget is the person's own: its card draws their data, never more than placing it would show.
               picture: () => <SavedPicture widget={w} data={data} reflow={phone} />,
-              more: <Button variant="ghost" size="icon-sm" className="max-lg:size-11" title="Delete saved widget" aria-label={`Delete ${w.title}`} onClick={() => start(async () => { if (!told(await deleteSavedWidget(w.id))) setGone((g) => [...g, `w${w.id}`]); })}><X aria-hidden /></Button>,
+              more: <Button variant="ghost" size="icon-sm" className="max-lg:size-11" title="Delete saved widget" aria-label={`Delete ${w.title}`} onClick={() => start(async () => { if (!told(await deleteSavedWidget(w.id))) setGone((g) => [...g, `w${w.id}`]); })}><Trash2 aria-hidden /></Button>,
             }))}
           </ul>
         </Section>

@@ -1,7 +1,7 @@
 // The dashboard grid's geometry (#1338): the empty card stands in the next free place, and a grid drawn smaller beside
 // the Add widget panel still reads a drop where the pointer is.
 import { describe, expect, it } from "vitest";
-import { addCardBox, dropOffset, fitGrid, GRID, ONE_COLUMN_BELOW } from "./dashboard-grid";
+import { addCardBox, BESIDE_PANEL, dropOffset, fitGrid, GRID, ONE_COLUMN_BELOW } from "./dashboard-grid";
 
 const size = { w: 3, h: 4 };
 const at = (x: number, y: number, w = 3, h = 4) => ({ i: `${x}-${y}`, x, y, w, h });
@@ -9,8 +9,10 @@ const at = (x: number, y: number, w = 3, h = 4) => ({ i: `${x}-${y}`, x, y, w, h
 const WIDTH = 2 * GRID.padding + 12 * 60 + 11 * GRID.margin;
 
 describe("fitGrid", () => {
-  it("draws a dashboard narrower than its columns smaller, only beside the panel", () => {
-    expect(fitGrid(384, true)).toEqual({ gridWidth: ONE_COLUMN_BELOW, scale: 384 / ONE_COLUMN_BELOW });
+  it("draws a narrow dashboard smaller instead of squeezing it, only beside the panel", () => {
+    expect(fitGrid(420, true)).toEqual({ gridWidth: BESIDE_PANEL, scale: 0.5 });
+    // Never one column beside the panel, so there is always a place to drag to.
+    expect(BESIDE_PANEL).toBeGreaterThanOrEqual(ONE_COLUMN_BELOW);
     expect(fitGrid(384, false)).toEqual({ gridWidth: 384, scale: 1 });
     expect(fitGrid(900, true)).toEqual({ gridWidth: 900, scale: 1 });
     // Not measured yet.

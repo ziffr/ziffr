@@ -47,8 +47,8 @@ function useShowAdded(widgets: Widget[]) {
     known.current = new Set(widgets.map((w) => w.id));
     if (!fresh || !wanted.current) return;
     wanted.current = false;
-    // After the grid has moved it to its place.
-    const t = setTimeout(() => document.querySelector(`[data-widget="${fresh.id}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 300);
+    // After the grid has moved it to its place; in the middle, so a phone's tab bar and the message do not lie over it.
+    const t = setTimeout(() => document.querySelector(`[data-widget="${fresh.id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 300);
     return () => clearTimeout(t);
   }, [widgets]);
   return () => { wanted.current = true; };
@@ -105,7 +105,10 @@ export function useAddWidget({ dashboardId, mayChange, widgets, complete, put }:
     openAdd,
     close,
     carrying,
-    setCarrying,
+    /** A widget on the grid starts being moved or resized. The grid library reports this for the place a card is dragged
+     * over too, which must not stop counting as a card: its drop would then be measured twice at the grid's scale. */
+    moveStart: () => setCarrying((c) => c ?? "widget"),
+    moveEnd: () => setCarrying(null),
     /** Something was dropped on the grid at `at`. */
     drop: (event: Event, at: Place) => {
       let source = getDrag();

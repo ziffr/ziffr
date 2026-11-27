@@ -137,13 +137,13 @@ On a phone, edit mode shows a note at the top that this is easier on a larger sc
 
 ### Adding a widget
 
-**Add widget** (in the toolbar, or the empty card on the grid) opens a panel with everything you can put on the dashboard, drawn as cards like those in the [Gallery](#gallery). On a wide screen (1024 pixels and more) the panel stands on the right and the dashboard stays in view and usable beside it; where that leaves too little room for its columns, the dashboard is drawn smaller while the panel is open. On a narrower screen the panel opens over the page (it covers a phone). Close it with **×** or Escape.
+**Add widget** (in the toolbar, or the empty card on the grid) opens a panel with everything you can put on the dashboard, drawn as cards like those in the [Gallery](#gallery). On a wide screen (1024 pixels and more) the panel stands on the right and the dashboard stays in view and usable beside it; where that leaves little room, the dashboard keeps its arrangement and is drawn smaller while the panel is open. On a narrower screen the panel opens over the page (it covers a phone). Close it with **×** or Escape.
 
 - **Show:** picks the Metric the cards are drawn with. It starts with the first Metric by name that the dashboard does not show yet. Metrics that share a name show their owner (or, for one owner, the period and unit) next to the name.
 - **Search** narrows everything in the panel by name.
 - **Views**, **Analyses** and **Findings** are the built-in **Widget Templates**, each drawn with the picked Metric. A card that your Metric cannot fill is drawn with **Sample Data**; on a phone the reason is written under it, on a wider screen it shows when you point at the card.
 - **Metrics**: every Metric you can see, except **Archived Metrics**, to add on its own. A derived Metric has a Σ mark. **ⓘ** shows what a Metric is before you add it: how often it is counted and in which unit, its description, its latest value with the period, and a small line of its recent values. If you see no Metric yet, the panel links to **Describe your first one**.
-- **My Widgets**: the Widgets you saved (see [Saving a widget](#saving-a-widget)), drawn with your own values. The **×** on a card deletes it from your saved Widgets, without asking; Widgets already placed from it stay.
+- **My Widgets**: the Widgets you saved (see [Saving a widget](#saving-a-widget)), drawn with your own values. The bin on a card deletes it from your saved Widgets, without asking; Widgets already placed from it stay.
 - **The team's templates**: Widget Templates colleagues saved, drawn with Sample Data. Each has its own **⋯** menu. Everyone sees **Versions…**, which opens the versions in a panel beside the page. Only the person who saved it sees **Rename…** (its name and "What it is for") and **Delete**. Deleting asks first; Widgets made from it stay as they are.
 - **The Workspace's View Designs**, when Owners or Admins added some (see [View Designs](13-analyze.md#view-designs)).
 - **Layout**: the [Free layout](#free-layout).

@@ -12,10 +12,15 @@ export const ONE_COLUMN_BELOW = 640;
 /** Below this many widgets a dashboard that may be changed shows the empty "Add widget" card. */
 export const FEW_WIDGETS = 4;
 
+/** The narrowest a grid is laid out beside the Add widget panel: about the room a dashboard has on a 1,100 px screen,
+ * so its widgets keep their shape and words instead of being squeezed. */
+export const BESIDE_PANEL = 840;
+
 /** The width the grid is laid out at, and how much it is scaled to fit. Beside the Add widget panel (`beside`) a
- * dashboard narrower than one that has columns keeps them and is drawn smaller, so a card can be dragged to a place. */
+ * narrower dashboard is laid out at `BESIDE_PANEL` and drawn smaller: it keeps its columns and its look, and a card can
+ * be dragged to a place on it. */
 export function fitGrid(width: number, beside: boolean): { gridWidth: number; scale: number } {
-  return beside && width > 0 && width < ONE_COLUMN_BELOW ? { gridWidth: ONE_COLUMN_BELOW, scale: width / ONE_COLUMN_BELOW } : { gridWidth: width, scale: 1 };
+  return beside && width > 0 && width < BESIDE_PANEL ? { gridWidth: BESIDE_PANEL, scale: width / BESIDE_PANEL } : { gridWidth: width, scale: 1 };
 }
 
 /** What to add to a pointer's place so that the grid, drawn at `scale`, reads it in its own pixels: the grid library

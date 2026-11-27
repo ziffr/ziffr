@@ -58,7 +58,8 @@ export function ObjectToolbar({ type, id, people, children, phone, share, viewLi
   return (
     <div className="flex flex-wrap items-center gap-2">
       {lead}
-      {phone ? <><div className="flex flex-wrap items-center gap-2 max-md:hidden">{children}</div>{phone}</> : children}
+      {/* From 768 px the page's buttons wrap one by one with Share and ⋯, so a narrower page (beside a panel) has no half-empty rows. */}
+      {phone ? <><div className="contents max-md:hidden">{children}</div>{phone}</> : children}
       {share && (
         <ShareSheet
           primary={!lead}

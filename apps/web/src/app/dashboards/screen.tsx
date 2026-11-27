@@ -115,8 +115,8 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   const router = useRouter();
   const [, start] = useTransition();
   // A refusal says why in a toast; anything unforeseen says only that it went wrong (lib/action-error.ts).
-  const act = (f: () => Promise<unknown>, ok?: string) => start(async () => {
-    try { unwrap(await f()); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); }
+  const act = (f: () => Promise<unknown>, ok?: string, where?: { position: "bottom-left" }) => start(async () => {
+    try { unwrap(await f()); if (ok) toast.success(ok, where); } catch (err) { toast.error("Not done", { description: shown(err) }); }
   });
   const { width, containerRef, mounted } = useContainerWidth();
   const editable = current?.role === "owner" || current?.role === "editor";
@@ -127,15 +127,16 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   // The Read view only reads; changes are made in the grid.
   const mayChange = editable && !reading;
   const slotFill = useSlotFill(data);
-  const add = useAddWidget({ dashboardId: current?.id, mayChange, widgets, complete: slotFill.complete, put: (id, s, at) => act(() => placeWidget(id, s, at), "Widget added") });
+  // The message stands on the left: on the right it would lie over the Add widget panel's buttons.
+  const add = useAddWidget({ dashboardId: current?.id, mayChange, widgets, complete: slotFill.complete, put: (id, s, at) => act(() => placeWidget(id, s, at), "Widget added", { position: "bottom-left" }) });
   // Beside the Add widget panel widgets can be moved too, to make room for the new one.
   const changing = mayChange && (editing || add.beside);
   const toLayout = (ws: Widget[]): Layout => ws.map((w) => ({ i: String(w.id), x: w.x, y: w.y, w: w.w, h: w.h, minW: 2, minH: 3 }));
   const [layout, setLayout] = useState<Layout>(toLayout(widgets));
   useEffect(() => setLayout(toLayout(widgets)), [widgets]);
   const targets = dashboards.filter((d) => d.role !== "viewer");
-  // Under 40rem the grid becomes one column in reading order, full width, not draggable. Beside the panel it keeps its
-  // columns and is drawn smaller.
+  // Under 40rem the grid becomes one column in reading order, full width, not draggable. Beside the Add widget panel a
+  // narrow one keeps its columns and is drawn smaller.
   const { gridWidth, scale } = fitGrid(width, add.beside);
   const narrow = mounted && gridWidth < ONE_COLUMN_BELOW;
   const stacked: Layout = [...layout]
@@ -174,7 +175,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   const newDashboard = () => setNewOpen(true);
 
   return (
-    <div className={cn("grid grid-cols-[minmax(0,1fr)] gap-4", add.beside && "lg:grid-cols-[minmax(0,1fr)_18rem] xl:grid-cols-[minmax(0,1fr)_23rem]")}>
+    <div className={cn("grid grid-cols-[minmax(0,1fr)] gap-4", add.beside && "lg:grid-cols-[minmax(0,1fr)_18rem] xl:grid-cols-[minmax(0,1fr)_21rem]")}>
       {slotFill.dialog}
       {newOpen && <NewDashboardDialog open onOpenChange={setNewOpen} templates={dashboardTemplates} metrics={inUse(data.metrics).map((m) => ({ id: m.id, name: m.name }))} tags={data.tags} viewer={data.viewer} numberStyle={data.numberStyle} />}
       {makingDeck && current && <MakeDeckDialog key={current.id} source={{ dashboardId: current.id, snapshots: snapshots.filter((s) => s.shownAt) }} onClose={() => setMakingDeck(false)} />}
@@ -264,10 +265,10 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                   dragConfig={{ enabled: changing && !narrow, handle: ".widget-drag" }}
                   resizeConfig={{ enabled: changing && !narrow }}
                   dropConfig={{ enabled: changing && !narrow, defaultItem: TEMPLATES[DEFAULT_TEMPLATE].size, onDragOver: grid.onDragOver }}
-                  onDragStart={() => add.setCarrying("widget")}
-                  onDragStop={(l) => { add.setCarrying(null); persist(l); }}
-                  onResizeStart={() => add.setCarrying("widget")}
-                  onResizeStop={(l) => { add.setCarrying(null); persist(l); }}
+                  onDragStart={add.moveStart}
+                  onDragStop={(l) => { add.moveEnd(); persist(l); }}
+                  onResizeStart={add.moveStart}
+                  onResizeStop={(l) => { add.moveEnd(); persist(l); }}
                   onDrop={(_l, item, e) => { if (item) add.drop(e, { x: item.x, y: item.y }); }}
                 >
                   {widgets.map((w) => (
