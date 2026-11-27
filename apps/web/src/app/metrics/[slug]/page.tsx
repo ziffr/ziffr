@@ -25,6 +25,7 @@ import { HandOver } from "./hand-over";
 import { canEditMetric } from "@ziffr/core/metrics";
 import { firstAsksFor } from "@ziffr/core/first-asks";
 import { WhoSubmits } from "./who-submits";
+import { StopNotes } from "./stop-notes";
 import { SourcesEditor } from "./sources-editor";
 import { EditDetails } from "./edit-details";
 import { MetricTagChips, MetricTagsRow } from "./metric-tags";
@@ -52,7 +53,7 @@ import { MetricToolbar } from "./metric-toolbar";
 import { recordingOffer } from "@ziffr/core/record-own-value";
 import { fillInOffer, guestStandIns } from "@ziffr/core/fill-in-offer";
 import { canAskNow } from "@ziffr/core/ask-now";
-import { nextPromptWays } from "@ziffr/core/prompt-preview";
+import { askingStops, nextPromptWays } from "@ziffr/core/prompt-preview";
 import { MetricWorkflow } from "@/components/metric-workflow";
 import { alertMeData } from "./alert-me";
 import { RequestAccess } from "@/components/who-can-see";
@@ -203,7 +204,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   // Its owner and its Editors change targets, description and Sources; deleting and sharing stay the owner's.
   const canEdit = isOwner || (await canEditMetric(actor, metric.id));
   // Where each submitter's next Prompt goes and why (owner and Editors see everyone's, others only their own).
-  const promptWays = metric.formula ? {} : await nextPromptWays(actor, metric.id);
+  const [promptWays, stops] = await Promise.all([nextPromptWays(actor, metric.id), askingStops(actor, metric.id)]);
   // Which target counts for the latest period: its own Target Series value if there is one, else the Target Range.
   const periodTarget = last ? tSeries.find((t) => t.period === last.period) : undefined;
   // A Derived Metric's formula by its inputs' names, only for someone who sees every one of them.
@@ -235,6 +236,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         />
       </PageHeader>
       <ArchivedNote archivedAt={metric.archived_at ?? null} /><MetricTagChips actor={actor} metricId={metric.id} />
+      <StopNotes stops={stops} viewer={viewer} />
       {/* The Description tab shows it in full, so the disclosure stands on the other tabs. */}
       {tab !== "settings" && <CalculationDisclosure note={metric.calculation_note} derived={derived} formula={formula} className="mb-4" />}
 
@@ -424,7 +426,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           </section>
           {!metric.formula && <RetentionBox metric={metric} demo={demo} suggest={sp.suggest} />}
           {!metric.formula && <MetricWorkflow metric={metric} yearStart={yearStart} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for && !t.feed).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={isOwner} fillIn={fillIn} guestStandIn={guestStandIn} numberStyle={numberStyle} />}
-          {!metric.formula && <WhoSubmits actor={actor} metric={metric} tokens={tokens} people={peopleById} promptWays={promptWays} canEdit={canEdit} demo={demo} workflow={workflowId !== null} feeds={choices} />}
+          {!metric.formula && <WhoSubmits actor={actor} metric={metric} tokens={tokens} people={peopleById} promptWays={promptWays} stopped={stops.people} canEdit={canEdit} demo={demo} workflow={workflowId !== null} feeds={choices} />}
         </div>
       )}
     </>

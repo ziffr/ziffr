@@ -75,6 +75,7 @@ export function DeliveriesForm({ viewer, mine, team, optedOut, away, email, usag
             <span className="block text-muted-foreground">Questions, tasks and replies keep coming. When you stop, the owners of the Metrics you submit to are told once.</span>
           </span>
         </label>
+        {stopped && <p role="status" className="text-sm font-medium">You are not asked for numbers by email in this workspace. Tick the box to get the requests again.</p>}
         {!email && <p className="text-sm text-muted-foreground">This Ziffr sends no email{stopped ? "; you stopped it before." : "."}</p>}
       </section>
 

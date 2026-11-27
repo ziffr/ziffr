@@ -160,7 +160,7 @@ describe("an Archived Metric asks for nothing", () => {
     const asked = (await prompts(m.id)).length;
     const asOf = shiftPeriod(thisMonth(), "day", 20);
     expect(await runWorkflows(w.id, asOf, sara)).toEqual([]);
-    expect(await askForMissingValues(w.actor(sara))).toBe(0);
+    expect(await askForMissingValues(w.actor(sara))).toEqual({ asked: 0, stopped: 0 });
     expect(await deliverPrompt({ metricId: m.id, submitterId: cleo, senderId: sara })).toBe(false);
     expect((await prompts(m.id)).length).toBe(asked);
     const { data: escalations } = await db().from("actions").select("id").eq("metric_id", m.id);

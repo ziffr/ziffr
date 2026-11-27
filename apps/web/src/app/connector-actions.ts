@@ -75,7 +75,7 @@ export async function telegramUnlink() {
 export async function emailRemindersAgain() {
   return attempt(async () => {
     await optOut.optBackIn(await currentActor());
-    revalidatePath("/connectors", "layout");
+    done();
   });
 }
 

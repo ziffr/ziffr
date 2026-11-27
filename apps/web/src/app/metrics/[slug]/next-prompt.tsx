@@ -10,6 +10,7 @@ export function NextPrompt({ view }: { view: RouteView }) {
       {view.ok ? "Next request: " : ""}{view.text}{view.ok && view.why ? `. ${view.why}` : ""}
       {!view.ok && view.why ? <span className="block text-muted-foreground">{view.why}</span> : null}
       {view.fix && <> <Link href={view.fix.href} className="underline">{view.fix.label}</Link></>}
+      {view.stopped && <span className="block text-destructive">{view.stopped}</span>}
     </p>
   );
 }

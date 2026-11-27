@@ -466,7 +466,7 @@ You see Deliveries about Threads you may read, and Prompts and notices you sent 
 
 **Run now** (Owners and Admins only, folded away): Ziffr does this by itself every morning. Use it when the schedule did not run, or right after adding people.
 
-- **Ask for missing values now** asks everyone whose value for the current period is missing.
+- **Ask for missing values now** asks everyone whose value for the current period is missing. Requests for people who stopped them are counted apart and named as not sent.
 - **Send due reminders now** reminds people of tasks due in the next two days.
 
 ### In the demo
