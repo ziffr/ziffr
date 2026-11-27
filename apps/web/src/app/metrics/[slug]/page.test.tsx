@@ -47,6 +47,7 @@ vi.mock("@ziffr/core/prompt-preview", () => ({ nextPromptWays: async () => ({}),
 vi.mock("@ziffr/core/metric-owner", () => ({ handOverChoices: async () => [] }));
 vi.mock("@ziffr/core/feed-template-download", () => ({ feedTemplates: () => [] }));
 vi.mock("@ziffr/core/who-submits", () => ({ submitterChoices: async () => [] }));
+vi.mock("@ziffr/core/value-notes", () => ({ periodValueNotes: async () => null, currentValueNotes: async () => ({}) }));
 
 /** Every string in what an element tree is given. A part that takes the resolver is worked out on the server (a function
  * cannot be handed to a browser), so what it takes stays there. */
