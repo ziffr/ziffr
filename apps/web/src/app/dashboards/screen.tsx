@@ -50,6 +50,7 @@ import type { RecordingOffer } from "@ziffr/core/record-own-value";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { StartScreen } from "@/app/dashboards/start-screen";
+import { comparesWhileViewing } from "@/lib/compare-while-viewing";
 import { ExampleNote } from "@/app/dashboards/example-note";
 import type { ExampleNote as Example, StartChoices } from "@ziffr/core/trial-example";
 
@@ -176,6 +177,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   // Where visitors may change the demo, Home is this visit's own, kept in the browser (demo-visit-prefs.tsx).
   const visit = useDemoPrefs();
   const homeShown = visit?.homeId ?? homeId;
+  const mayCompare = comparesWhileViewing(mayChange, demo, !!visit);
   const [newOpen, setNewOpen] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [makingDeck, setMakingDeck] = useState(false);
@@ -285,7 +287,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                       ) : (
                         // Outside Edit mode a tap on the card opens it large, as Present does one at a time (#826).
                         <OpenLarge className="h-full" title={frameTitle(w, widgetMetrics(w, data), data)} onOpen={() => router.push(largeHref(current.id, w.id!))}>
-                          <WidgetFrame widget={w} data={data} targets={targets.filter((d) => d.id !== current.id)} editable={false} saved={saved} mayWrite={mayChange} />
+                          <WidgetFrame widget={w} data={data} targets={targets.filter((d) => d.id !== current.id)} editable={false} saved={saved} mayWrite={mayChange} mayCompare={mayCompare} />
                         </OpenLarge>
                       )}
                     </div>

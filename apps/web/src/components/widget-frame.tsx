@@ -76,6 +76,8 @@ type Props = {
   saved?: Widget[];
   /** The viewer may change this dashboard but is not editing it: an empty Note Widget still offers to be written. */
   mayWrite?: boolean;
+  /** Outside Edit mode, someone who may change this dashboard still chooses a Widget's Comparisons. The core checks the change. */
+  mayCompare?: boolean;
   /** View Links: the card and its numbers only, no menus and nothing that calls the server. */
   readOnly?: boolean;
 };
@@ -93,7 +95,7 @@ export function WidgetFrame(props: Props) {
 }
 
 /** A widget seen through a View Link (GLOSSARY: View Link): what it shows, nothing it can do. */
-function InteractiveFrame({ widget, data, targets, editable = false, className, dragHandle, saved = [], mayWrite = false }: Props) {
+function InteractiveFrame({ widget, data, targets, editable = false, className, dragHandle, saved = [], mayWrite = false, mayCompare = false }: Props) {
   const [layoutOpen, setLayoutOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [deckOpen, setDeckOpen] = useState(false);
@@ -239,7 +241,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           </K.SubContent>
         </K.Sub>
       )}
-      {m && templateOf(widget).kind === "metric" && editable && widget.id && (
+      {m && templateOf(widget).kind === "metric" && (editable || mayCompare) && widget.id && (
         <K.Sub>
           <K.SubTrigger><Scale /> Comparisons</K.SubTrigger>
           <K.SubContent>
