@@ -56,6 +56,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `newDeckFor` (deck-additions.ts): Deck building
 - `newDeckFromSnapshot` (deck-snapshots.ts): Deck building
 - `createDeckFromTemplate` (deck-templates.ts): Deck Templates
+- `createFilledDeck` (deck-templates.ts): Deck Templates
 - `createDeck` (decks.ts): Deck building
 - `saveDeck` (decks.ts): Deck building
 - `renameDeck` (decks.ts): Deck building
@@ -86,6 +87,15 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `additionsFor` (pack-setup-adding.ts): Packs
 - `makeTotal` (pack-setup-totals.ts): Packs
 - `packLineStart` (pack-setup-adding.ts): Packs
+- `setupPeople` (pack-setup-build.ts): Packs
+- `stillMade` (pack-setup-record.ts): Packs
+- `claimGuidedRecord` (pack-setup-record.ts): Packs
+- `dropIdleGuided` (pack-setup-record.ts): Packs
+- `startOptions` (pack-start.ts): Packs
+- `startPackStep` (pack-start.ts): Packs
+- `checkStart` (pack-start.ts): Packs
+- `startDrawing` (pack-start.ts): Packs
+- `joinPeriodWorkflows` (period-workflows.ts): First Steps and a Pack's guided set-up put Metrics into a Workflow for their period; a program uses set_metric_workflow
 - `setUpStep` (pack-setup.ts): Packs
 - `setSendSnapshot` (workflows.ts): the dashboard a Set up from a Pack gives a Send Snapshot step; a program saves the Workflow
 - `roomFor` (pack-setup-install.ts): Packs

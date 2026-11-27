@@ -190,13 +190,15 @@ export function startSteps(d: StartDeclarations, room: StartRoom): StartStep[] {
     return { position: p.key, name: p.name, question: p.question || `Who is ${p.name}?`, hint: p.hint || null, needsRole: needsRole(its), places: its };
   };
   const used = (d.positions ?? []).filter((p) => places.has(p.key));
-  // The heading follows the period of what the first Workflow Template asks for.
+  // The heading follows the rhythm of the first Workflow Template: the one period of the numbers it asks for. One that
+  // asks for several periods, such as a quarter close with monthly numbers, has no "Every …" that would be true.
   const first = (d.workflows ?? [])[0];
-  const rhythm = first ? d.metrics.find((m) => m.takesValues && (first.per === undefined || m.per === first.per)) : undefined;
+  const periods = new Set(first ? d.metrics.filter((m) => m.takesValues && (first.per === undefined || m.per === first.per)).map((m) => m.period) : []);
+  const [rhythm] = periods.size === 1 ? periods : [];
   const setsUp = Boolean((d.dashboards?.length ?? 0) + (d.decks?.length ?? 0) + (d.workflows?.length ?? 0));
   const board = dashboards.find((t) => t.per === undefined) ?? dashboards[0];
   const preview: StartStep = {
-    step: "preview", name: d.name, line: d.setUp?.line || d.summary || "", heading: rhythm ? HEADINGS[rhythm.period] : "What happens",
+    step: "preview", name: d.name, line: d.setUp?.line || d.summary || "", heading: rhythm ? HEADINGS[rhythm] : "What happens",
     happens: d.setUp?.happens ?? [], needs: d.setUp?.needs ?? [],
     draws: board ? { kind: "dashboard", key: board.key } : decks[0] ? { kind: "deck", key: decks[0].key } : null,
     setsUp, blocked: blockedBy(d, room),
