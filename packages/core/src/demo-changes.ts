@@ -180,6 +180,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "setup/first-metric-actions:askFirstMetric",
     "setup/team-actions:askForMetric",
     "submitter-actions:addSubmitter",
+    "submitter-actions:askToGetEmailsAgain",
     "connector-actions:disconnectSlack",
     "connector-actions:emailRemindersAgain",
     "connector-actions:sendScreenLink",

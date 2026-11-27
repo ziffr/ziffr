@@ -8,6 +8,7 @@ import { attempt } from "@/lib/action-result";
 import { refuseInDemo } from "@ziffr/core/demo";
 import { removeSubmitters } from "@ziffr/core/metrics";
 import { addSubmitterWithAnswer } from "@ziffr/core/who-submits";
+import { askToResumeEmail } from "@ziffr/core/email-resume";
 
 /** Makes a person a Submitter of a Metric, asking them for the current value only when `askNow` is true. Answers what
  * was sent to them, in words. */
@@ -28,5 +29,17 @@ export async function removeSubmitter(metricId: number, personId: string) {
     refuseInDemo(actor);
     await removeSubmitters(actor, Number(metricId), [String(personId ?? "")]);
     revalidatePath("/metrics/[slug]", "page");
+  });
+}
+
+/** The Metric's owner has a Submitter who stopped requests by email asked whether they want them again. Answers what
+ * became of the message, in words; the core checks who and how often. */
+export async function askToGetEmailsAgain(metricId: number, personId: string) {
+  return attempt(async () => {
+    const actor = await currentActor();
+    refuseInDemo(actor);
+    const answer = await askToResumeEmail(actor, Number(metricId), String(personId ?? ""));
+    revalidatePath("/metrics/[slug]", "page");
+    return answer;
   });
 }

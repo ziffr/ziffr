@@ -492,11 +492,11 @@ describe("leaving, giving back, switching off and the limits in the database", (
     await db().from("deliveries").update({ unsubscribe_token: token }).eq("id", m!.id);
     expect(await unsubscribeIsHeadsUp(token)).toBe(true);
     expect(await unsubscribeIsHeadsUp("B".repeat(32))).toBe(false);
-    expect(await optOutByToken(token)).toBe(true);
+    expect(await optOutByToken(token)).toEqual({ undo: null });
     expect(await headsUpSettings(actor(sara))).toEqual({ show: true, byMessage: false });
     expect(await open()).toBe(0);
     // Used again: nothing changes.
-    expect(await optOutByToken(token)).toBe(true);
+    expect(await optOutByToken(token)).toEqual({ undo: null });
     expect(await headsUpSettings(actor(sara))).toEqual({ show: true, byMessage: false });
   });
 

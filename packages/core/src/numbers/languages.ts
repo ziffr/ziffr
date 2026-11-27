@@ -45,6 +45,20 @@ export type HandWords = {
   ordinal: string[];
   /** Words between a day, its month and its year ("12 de noviembre de 2026", "12th of November"). */
   dateWords: string[];
+  /** What a text reply is read with besides numbers and periods (spec 0064). Each entry is a whole reply or a whole
+   * line, written without the punctuation it ends in. */
+  reply: {
+    /** The whole reply that takes an offer ("yes"). "ok" and thanks are never on it. */
+    yes: string[];
+    /** The whole reply that refuses or thanks: nothing is saved. */
+    no: string[];
+    /** How a greeting line starts ("hello", "dear"). */
+    greetings: string[];
+    /** A line that closes an email ("best regards"). */
+    closings: string[];
+    /** The line a mail app adds ("sent from my …"); "…" stands for the device's name. */
+    sentFrom: string[];
+  };
 };
 
 /** The words of one language: what `Intl` knows, then what was added by hand. Every word is written in lower case. */

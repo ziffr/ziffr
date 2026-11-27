@@ -11,6 +11,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `firstAsksFor` (first-asks.ts): the sentence under a new Metric on the Metric page in the app, read from the Outbox; the API has no such page
 - `addSubmitterWithAnswer` (who-submits.ts): adding one person under Who submits on the Metric page, with the sentence of what was sent; a program changes Submitters with set_submitters
 - `submitterChoices` (who-submits.ts): the list of people to add under Who submits on the Metric page in the app; a program names them from its list of people
+- `askingStops` (prompt-preview.ts): what the Metric page in the app says about stopped requests (who unsubscribed, to its owner, Editors and the person); a program reads Submitters through the API
 - `nextPromptWays` (prompt-preview.ts): the line under each submitter on the Metric page in the app, where their next Prompt goes and why; a program sets Sources and reads Metrics through the API
 - `metricQuickLook` (quick-look.ts): the slide-over beside a list or Widget in the app; a program reads a Metric through the API
 - `openActionsAboutMetrics` (metric-actions.ts): the panel a Widget's "N open" mark opens in the app; a program lists Actions through the API's actions endpoint
@@ -172,6 +173,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `rejectFeedback` (feedback-review.ts): the same queue, rejecting with a reason
 - `optOutOfEmail` (email-opt-out.ts): one's own email choices
 - `optBackIn` (email-opt-out.ts): one's own email choices
+- `askToResumeEmail` (email-resume.ts): the owner's button under Who submits that has one person asked whether they want requests by email again; it sends a message to a person, so a person at the screen does it
 - `setTellStopped` (tell.ts): one's own "stop telling me" setting
 - `updateMyProfile` (profile.ts): one's own profile
 - `setMyAppearance` (profile.ts): one's own Appearance

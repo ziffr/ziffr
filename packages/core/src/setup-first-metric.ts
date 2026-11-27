@@ -8,6 +8,7 @@
 import { Forbidden, type Actor } from "./actor";
 import { addSubmitters } from "./metrics";
 import { ASK_NOW_EVERY_MINUTES, askMeNowBy, canAskNow, shownReason, type AskNowResult } from "./ask-now";
+import { STOPPED_REASON, STOPPED_SELF, type PromptWay } from "./prompt-route";
 import { CONNECTORS } from "./connectors/index";
 import type { ConnectorId } from "./connectors/types";
 import { db } from "./db";
@@ -153,9 +154,14 @@ async function askedFor(actor: Actor, metric: FirstMetricShown, ctx: { email: st
     seen.add(connector);
     const state = (["sent", "queued", "outbox", "failed"].includes(d.mail_state as string) ? d.mail_state : "outbox") as FirstMetricAsked["state"];
     const held = state === "queued" && Boolean(d.not_before) && new Date(d.not_before as string).getTime() > Date.now();
-    out.push({ connector, label: CONNECTORS[connector].label, state, held, note: shownReason(d.last_error as string | null), at: d.created_at as string, look: whatToLookFor(connector, { metric: metric.name, ...ctx }) });
+    out.push({ connector, label: CONNECTORS[connector].label, state, held, note: ownReason(connector, d.last_error as string | null), at: d.created_at as string, look: whatToLookFor(connector, { metric: metric.name, ...ctx }) });
   }
   return out;
+}
+
+// Why the viewer's own request did not go: their own stop is said to them, not about them.
+function ownReason(connector: ConnectorId, lastError: string | null): string | null {
+  return lastError && lastError === STOPPED_REASON[connector as PromptWay] ? STOPPED_SELF[connector as PromptWay] : shownReason(lastError);
 }
 
 // The latest value the viewer submitted for the Metric through a Source since the guide began, in the Workspace's words.

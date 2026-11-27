@@ -57,7 +57,7 @@ export async function setUpGuideFromPack(actor: Actor, installId: number, input:
     if (f && formulaInputs(f).some((i) => have.has(i))) throw new Error("A Metric computed from others cannot be added here once its inputs exist. Add it from the Packs page.");
   }
 
-  let made: PackSetupResult = { metrics: [], dashboardId: null, workflowId: null, dashboards: [], workflows: [], shares: 0, messages: 0, later: { nextRun: 0, noWorkflow: [] }, widgets: 0, totals: 0, byHand: [], targetsToSet: [], tagsLeftOut: [] };
+  let made: PackSetupResult = { metrics: [], dashboardId: null, workflowId: null, dashboards: [], workflows: [], shares: 0, messages: 0, stoppedNote: null, later: { nextRun: 0, noWorkflow: [] }, widgets: 0, totals: 0, byHand: [], targetsToSet: [], tagsLeftOut: [] };
   // Nothing left to make: the earlier click did it, and a dashboard or Workflow is not made a second time with it.
   if (remaining.length > 0) made = await setUpFromPack(actor, installId, { ...input, metrics: remaining });
 

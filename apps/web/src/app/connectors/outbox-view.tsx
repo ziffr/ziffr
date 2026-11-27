@@ -30,6 +30,13 @@ export type DeliveryRow = {
 };
 type TokenRow = { code: string; metric_id: number; submitter_id: string };
 
+/** What "Ask for missing values now" did, never calling a request made that goes nowhere because it was stopped. */
+function missingWords({ asked, stopped }: { asked: number; stopped: number }): string {
+  const held = !stopped ? "" : stopped === 1 ? "1 request was not sent, because that person stopped these messages." : `${stopped} requests were not sent, because the people asked stopped these messages.`;
+  if (asked) return [`Made ${asked} request${asked === 1 ? "" : "s"} for missing values. The Outbox shows which have gone out.`, held].filter(Boolean).join(" ");
+  return held || "Nobody is missing a value for the current period";
+}
+
 /** The Outbox: every Delivery the person may see, newest first, and the Run now buttons. */
 export function Outbox({ isOwner, people, deliveries, tokens, demo, changes = false }: { isOwner: boolean; people: Profile[]; deliveries: DeliveryRow[]; tokens: TokenRow[]; demo: boolean; /** Visitors may change the demo: answers are recorded. */ changes?: boolean }) {
   const [pending, start] = useTransition();
@@ -37,7 +44,7 @@ export function Outbox({ isOwner, people, deliveries, tokens, demo, changes = fa
   // demo can't be changed); elsewhere owners and admins get it as a fallback, explained, and members do not see it.
   const runNow = (
     <span className="flex flex-wrap gap-2">
-      <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await askForMissingValues(); if (isActionError(n)) { toast.error("Not done", { description: n.error }); return; } toast.success(n ? `Made ${n} request${n === 1 ? "" : "s"} for missing values. The Outbox shows which have gone out.` : "Nobody is missing a value for the current period"); })}>
+      <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await askForMissingValues(); if (isActionError(n)) { toast.error("Not done", { description: n.error }); return; } toast.success(missingWords(n)); })}>
         <Hash aria-hidden /> Ask for missing values now
       </Button>
       <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await sendDueReminders(); if (isActionError(n)) { toast.error("Not done", { description: n.error }); return; } toast.success(n ? `Made ${n} reminder${n === 1 ? "" : "s"} for open tasks. The Outbox shows which have gone out.` : "No open tasks due in the next two days"); })}>
