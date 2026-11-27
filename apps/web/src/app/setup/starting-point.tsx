@@ -48,8 +48,8 @@ type Props = {
   metrics: number;
   /** The guide's Metric, when the viewer may see it. */
   firstMetric: { id: number; name: string } | null;
-  /** A trial, where the step is ticked by itself. */
-  trial: boolean;
+  /** About you is not done yet, so answering it can still bring suggestions. */
+  canAnswerAbout: boolean;
   /** The viewer's own Business Function from About you, in words, to name in the Pack card; null when not answered. */
   functionLabel?: string | null;
   /** Whether the viewer is an Owner (a Pack that holds a Theme is for Owners). */
@@ -82,12 +82,7 @@ export function StartingPoint(p: Props) {
 
   return (
     <div className="space-y-6">
-      {p.trial && (
-        <p role="status" className="rounded-[var(--radius-card)] border border-border bg-card p-4 text-sm">
-          In a trial this step is done. Start from a Pack, within the trial&rsquo;s limits, or build your own. To see first how Ziffr asks for a Metric, try the example in the First Metric step.
-        </p>
-      )}
-      {!p.trial && p.metrics > 0 && p.startingPoint !== "pack" && (
+      {p.metrics > 0 && p.startingPoint !== "pack" && (
         <p role="status" className="rounded-[var(--radius-card)] border border-border bg-card p-4 text-sm">
           You have {p.metrics} Metric{p.metrics === 1 ? "" : "s"}. Start from a Pack anyway?
         </p>
@@ -101,14 +96,14 @@ export function StartingPoint(p: Props) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="stock flex flex-col rounded-[var(--radius-card)] p-4">
             <p className="font-medium">Explore on my own</p>
-            <p className="mt-1 flex-1 text-sm text-muted-foreground">{p.trial ? "Build your own step by step, from the Metric Catalog or from scratch." : "An empty Workspace. Describe your first Metric from the Metric Catalog or from scratch."}</p>
+            <p className="mt-1 flex-1 text-sm text-muted-foreground">Pick or write your first Metric yourself.</p>
             <Button type="button" variant="outline" className="mt-3 h-11 w-full sm:h-9 sm:w-auto sm:self-start" disabled={pending} onClick={() => run(() => chooseExplore(), () => router.push("/metrics/new?setup=1"))}>
               Explore on my own
             </Button>
           </div>
           <div className="stock flex flex-col rounded-[var(--radius-card)] p-4">
             <p className="font-medium">Start from a Pack</p>
-            <p className="mt-1 flex-1 text-sm text-muted-foreground">Ready-made Metrics{p.functionLabel ? ` for ${p.functionLabel}` : " for your kind of work"}, plus a sample dashboard and a Workflow that asks for them. You can change everything afterwards, so it is a quick start.</p>
+            <p className="mt-1 flex-1 text-sm text-muted-foreground">Get ready-made Metrics{p.functionLabel ? ` for ${p.functionLabel}` : " for your kind of work"}.</p>
             <a href="#guide-packs" className={buttonVariants({ variant: "outline", className: "mt-3 h-11 w-full sm:h-9 sm:w-auto sm:self-start" })}>Choose a Pack</a>
           </div>
         </div>
@@ -117,8 +112,9 @@ export function StartingPoint(p: Props) {
 
       <section id="guide-packs" aria-labelledby="guide-packs-heading" className="space-y-3">
         <h3 id="guide-packs-heading" className="text-base font-medium">{answered ? "Packs suggested for you" : "Ziffr’s own Packs"}</h3>
-        <p className="text-sm text-muted-foreground">A Pack gives you ready-made Metrics, a sample Dashboard and a Workflow that asks for them{answered ? " for the kind of work you chose" : ""}. Install one to start fast; you can change everything afterwards.</p>
-        {!answered && <p className="text-sm text-muted-foreground">Answer About you to get suggestions. Until then they are in the order most Workspaces start in.</p>}
+        {!answered && p.canAnswerAbout && (
+          <p className="text-sm"><Link href="/setup?step=about" className="inline-flex min-h-11 items-center underline sm:min-h-0">Answer About you to get suggestions</Link></p>
+        )}
         <ul className="space-y-3">
           {list.map((pack) => <PackRow key={pack.id} pack={pack} p={p} />)}
         </ul>

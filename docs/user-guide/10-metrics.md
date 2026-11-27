@@ -135,7 +135,7 @@ On a phone the page says at the top that it is easier on a larger screen; see [S
 - **Start from scratch**: an empty form, for a number nobody has described before.
 - **Metric Catalog**: a library of ready-made descriptions. Picking one copies its description into a new Metric of your own. It is yours from then on and does not follow later changes to the catalog. Besides the entries every Workspace has, it holds those of the Packs your Workspace installed, under each entry's category or the Pack's name (see [Packs](19-packs.md)). A Pack's entry may say how it is calculated, which fills in **How it is calculated** in the form. It may also carry Tags, shown as small chips on its card; the Metric you make from it gets them, and if a Tag limit kept some off, the Metric's page says which right after you create it.
 
-When you arrive from **Explore on my own** in the [Setup Guide](07-getting-started.md#the-setup-guide), the page shows **Back to the Setup Guide** on top, and the Metric you create there becomes the guide's first Metric and takes you back to the guide.
+Opened from the Setup Guide, the page looks different: see [Your first metric, from the Setup Guide](#your-first-metric-from-the-setup-guide).
 
 Owners, Admins and Members create Metrics. Guests create nothing: they see no **New metric**, **Paste values** or Metric Catalog, and the Metrics list says "Nothing has been shared with you yet" when nothing is. When the Workspace has a **Workspace Limit** and holds as many Metrics as it allows (see [Installation settings](18-installation-settings.md)), the form says so at the top, such as "This Workspace holds 50 Metrics, as many as its Size Small allows. Archive a Metric, or ask an Owner to change the Size.", and creating waits until a Metric is archived or the limit is raised. Values keep arriving for every Metric meanwhile. From 90 % of the limit on, the page shows how many Metrics the Workspace holds of how many, such as "This Workspace holds 48 of 50 Metrics." Guests see neither.
 
@@ -148,9 +148,19 @@ Owners, Admins and Members create Metrics. Guests create nothing: they see no **
 | **All** | Shows the whole catalog. |
 | A category, such as Finance | Shows only that category. Click it again to show all. |
 
-When you open the catalog from the Setup Guide (**Explore on my own**) and your Workspace has an industry, the Metrics written for your business come first under "For" and your industry, and every other Metric follows under **All other Metrics**; nothing is hidden. A line above the list says: pick single Metrics here, while a Pack gives you a set of Metrics, a sample dashboard and a Workflow that asks for them in one go.
-
 Each card shows the Metric's name, what it counts, its period, which way is good and its target. Click a card to open the form, already filled in. If nothing matches, try another word or start from scratch.
+
+### Your first metric, from the Setup Guide
+
+When an Owner or Admin arrives from the [Setup Guide](07-getting-started.md#the-setup-guide), by **Explore on my own** or **Make a Metric**, the page says **OK, from scratch. Let's do your first metric together** and explains that a metric is one number you keep track of over time. The thin Setup line is left off here and on the form that follows, and so is the note that the screen is easier on a larger one (the form keeps it).
+
+| Option | What it does |
+| --- | --- |
+| **Pick a suggestion** | Six ready-made Metrics, each with one plain sentence and how often it is due. They are chosen from your **Business Function** and the Workspace's industry and customers, as far as you answered **About you**; with no answers they are a mix for private and business use. Choosing one opens the form, filled in. |
+| **Define it yourself** | Opens the empty form. A name is all you have to add. |
+| **Show all suggestions** | Opens the whole catalog below, with search and categories. With an industry, the Metrics written for it come first under "For" and your industry, and every other one follows under **All other Metrics**. |
+
+One line at the top of the form says what to do: check the name, or give one, and press **Create metric** at the bottom. The Metric becomes the guide's first Metric, and you are back in the guide. **Back to the suggestions** returns to the first page. A Metric calculated from others is not offered here; make one from **New metric** later, see [Calculated from other Metrics](#calculated-from-other-metrics).
 
 ### The form
 

@@ -1,7 +1,7 @@
 // The Setup Guide's Starting point against the real database (spec 0052, ticket 6; GLOSSARY: Setup Guide, Pack, Trial
 // Workspace): "Set up from this Pack" makes the right Metrics through the one set-up path, records the first as the guide's
 // Metric, makes nothing twice on a second click, and is refused to Members, keys, the demo and installs of other
-// Workspaces; a trial's start ticks by itself; a Metric made from the catalog with the return link becomes the guide's.
+// Workspaces; a trial's start chooses nothing; a Metric made from the catalog with the return link becomes the guide's.
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
@@ -125,13 +125,15 @@ describe("the ranked list names the install", () => {
 });
 
 describe("a trial's start", () => {
-  it("ticks by itself, and makes no Metric", async () => {
+  it("chooses nothing for the Owner and makes no Metric: the Starting point is to do until they choose", async () => {
     const { w, o } = await fresh();
     await startTrialWorkspace(o);
     const g = (await setupGuide(o))!;
-    expect(g.startingPoint).toBe("scratch");
-    expect(g.steps.find((s) => s.id === "start")).toMatchObject({ ticked: true });
+    expect(g).toMatchObject({ started: true, startingPoint: null, lineShown: true, ticked: 0 });
+    expect(g.steps.find((s) => s.id === "start")).toMatchObject({ ticked: false, skipped: false });
     expect(await count("metrics", w.id)).toBe(0);
+    await chooseExploreOnMyOwn(o);
+    expect((await setupGuide(o))!.steps.find((s) => s.id === "start")).toMatchObject({ ticked: true });
   });
 });
 

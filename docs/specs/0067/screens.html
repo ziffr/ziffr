@@ -1,0 +1,361 @@
+<!-- Spec 0067, clickable draft: the reference for flow, words, layout and simplicity only. Its colours, fonts and
+     other styling are NOT to be built: use the app's shared tokens and components. All data in it is made up. -->
+<title>Ziffr First Steps</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Styling of the draft only, not to be built (see the comment at the top). Layout: a side panel, one question per screen; on a phone a top bar. */
+:root{
+  /*FONTS*/
+  --canvas:#f8f4f1; --surface:#ffffff; --surface-2:#f2ece7; --text:#1f1917; --text-2:#463d39; --muted:#6b605a;
+  --line:#e6ded8; --line-2:#cfc4bc; --accent:#ef8b7b; --accent-text:#a63d2c; --good:#1d7a4c;
+  --action:#1f1917; --action-text:#f8f4f1;
+  --rail:#1f1917; --rail-text:#f8f4f1; --rail-muted:#b3a7a0; --rail-line:#3a312e;
+  --shadow:0 1px 2px rgba(31,25,23,.05),0 4px 14px -8px rgba(31,25,23,.14);
+  --shadow-up:0 1px 2px rgba(31,25,23,.06),0 10px 24px -10px rgba(31,25,23,.22);
+  --sans:"General Sans",ui-sans-serif,system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --canvas:#171211; --surface:#221c1a; --surface-2:#2a2321; --text:#f3eeea; --text-2:#d8cfc9; --muted:#a99e97;
+  --line:#352d2a; --line-2:#4b413d; --accent:#ef8b7b; --accent-text:#f2a193; --good:#69c896;
+  --action:#f3eeea; --action-text:#1f1917;
+  --rail:#100c0b; --rail-text:#f3eeea; --rail-muted:#a2968f; --rail-line:#2c2522;
+  --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-up:0 8px 22px -10px rgba(0,0,0,.7); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --canvas:#171211; --surface:#221c1a; --surface-2:#2a2321; --text:#f3eeea; --text-2:#d8cfc9; --muted:#a99e97;
+  --line:#352d2a; --line-2:#4b413d; --accent:#ef8b7b; --accent-text:#f2a193; --good:#69c896;
+  --action:#f3eeea; --action-text:#1f1917;
+  --rail:#100c0b; --rail-text:#f3eeea; --rail-muted:#a2968f; --rail-line:#2c2522;
+  --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-up:0 8px 22px -10px rgba(0,0,0,.7); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--canvas);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.5}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.shell{display:grid;grid-template-columns:288px minmax(0,1fr);min-height:100vh}
+.rail{background:var(--rail);color:var(--rail-text);display:flex;flex-direction:column;gap:32px;padding:28px max(24px,env(safe-area-inset-left,0px));min-width:0}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:18px;letter-spacing:-.02em}
+.mark{display:grid;place-items:center;width:28px;height:28px;border-radius:7px;background:var(--rail-text);color:var(--rail);font-weight:600;font-size:16px;position:relative}
+.mark::after{content:"";position:absolute;right:5px;bottom:5px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.steps{list-style:none;margin:0;padding:0;display:grid}
+.steps li{position:relative;padding:0 0 24px 30px}
+.steps li::before{content:"";position:absolute;left:5px;top:6px;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--rail-muted)}
+.steps li:not(:last-child)::after{content:"";position:absolute;left:10px;top:20px;bottom:4px;width:1px;background:var(--rail-line)}
+.steps li.done::before{background:var(--rail-muted)}
+.steps li[aria-current]::before{background:var(--accent);border-color:var(--accent)}
+.steps b{display:block;font-weight:500;font-size:14px;color:var(--rail-muted)}
+.steps li[aria-current] b,.steps li.done b{color:var(--rail-text)}
+.steps dl{margin:6px 0 0;display:grid;gap:3px;font-size:13px}
+.steps dl div{display:flex;gap:8px;justify-content:space-between}
+.steps dt{color:var(--rail-muted)}
+.steps dd{margin:0;text-align:right;min-width:0;overflow-wrap:anywhere}
+.foot{margin-top:auto;display:flex;justify-content:space-between;gap:16px}
+.later{white-space:nowrap;background:none;border:0;padding:0;min-height:44px;font-size:13px;color:var(--rail-muted)}
+.later:hover{color:var(--rail-text)}
+.bar,.stepline{display:none}
+.stepline{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.work{display:flex;flex-direction:column;min-width:0;padding-left:max(24px,env(safe-area-inset-right,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+main{width:100%;max-width:600px;margin:0 auto;padding-block:clamp(24px,9vh,96px) 40px;flex:1}
+.screen{display:flex;flex-direction:column;gap:22px}
+@media (prefers-reduced-motion:no-preference){.screen.in{animation:in .24s ease-out}}
+@keyframes in{from{transform:translateY(6px);opacity:.5}to{transform:none;opacity:1}}
+.back{align-self:flex-start;background:none;border:0;padding:0;min-height:32px;font-size:13px;color:var(--muted);margin-bottom:-12px}
+.back:hover{color:var(--text)}
+h1{margin:0;font-size:clamp(24px,4.4vw,30px);line-height:1.2;letter-spacing:-.022em;font-weight:600;text-wrap:balance}
+.lead{margin:-12px 0 0;color:var(--muted);max-width:54ch}
+.group{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+.group.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line)}
+.row{display:flex;align-items:center;gap:14px;width:100%;min-height:56px;padding:13px 18px;text-align:left;background:var(--surface);border:0;transition:background .12s}
+.group:not(.two) .row+.row{border-top:1px solid var(--line)}
+.group.two .row:last-child:nth-child(odd){grid-column:1/-1}
+.row:hover{background:var(--surface-2)}
+.row>.txt{flex:1;min-width:0}
+.row b{display:block;font-weight:500}
+.row small{display:block;font-size:13px;color:var(--muted)}
+.dot{flex:none;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line-2)}
+.row[aria-pressed="true"] .dot{border:5px solid var(--action)}
+.go{flex:none;color:var(--muted)}
+.match{display:block;margin-top:3px;font-size:12px;color:var(--accent-text);font-weight:500}
+.choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.choice{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:22px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);transition:box-shadow .16s,border-color .16s}
+.choice:hover{border-color:var(--text);box-shadow:var(--shadow-up)}
+.choice b{font-size:17px;font-weight:600;line-height:1.3}
+.choice small{font-size:14px;color:var(--muted);flex:1}
+.choice em{font-style:normal;font-size:13px;font-weight:500;margin-top:10px}
+.primary{align-self:flex-start;min-height:44px;padding:0 22px;border:1px solid var(--action);border-radius:8px;background:var(--action);color:var(--action-text);font-weight:500}
+.primary:disabled{opacity:.35;cursor:default}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px 22px}
+.link{align-self:flex-start;background:none;border:0;padding:0;min-height:36px;font-size:14px;color:var(--text-2);text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:4px}
+.link:hover{text-decoration-color:currentColor}
+.field{display:block;font-weight:500;font-size:14px}
+input[type=text],input[type=email]{display:block;width:100%;margin-top:7px;min-height:46px;padding:0 14px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);font-size:16px;font-weight:400}
+input:focus{border-color:var(--text);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent)}
+.seg{display:flex;flex-wrap:wrap;gap:8px;margin-top:7px}
+.opt{min-height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);font-size:14px}
+.opt[aria-pressed="true"]{border-color:var(--action);background:var(--action);color:var(--action-text)}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;align-items:center;gap:12px;padding:14px 18px;border:1px solid var(--line);border-radius:12px;font-size:13px}
+.facts span{min-width:0}
+.facts small{display:block;color:var(--muted)}
+.note-line{margin:0;padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);font-size:13px;color:var(--text-2)}
+.list{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.list li{display:flex;justify-content:space-between;gap:16px;padding:12px 18px}
+.list li+li{border-top:1px solid var(--line)}
+.list span:last-child:not(:first-child){text-align:right;color:var(--muted);min-width:0;overflow-wrap:anywhere}
+.label{margin:6px 0 -14px;font-size:13px;font-weight:500;color:var(--muted)}
+main.wide{max-width:1040px}
+.set{display:grid;grid-template-areas:"head" "dash" "rest";gap:22px;min-width:0}
+.set>div,.set>figure{min-width:0;display:flex;flex-direction:column;gap:22px;margin:0}
+.set .head{grid-area:head}.set .rest{grid-area:rest}.set figure{grid-area:dash;gap:8px;align-self:start}
+@media (min-width:1240px){.set{grid-template-columns:minmax(0,2fr) minmax(0,3fr);grid-template-areas:"head dash" "rest dash";grid-template-rows:auto 1fr;column-gap:36px}}
+.dash{display:grid;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.tile{min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);box-shadow:var(--shadow)}
+.tile small{display:block;font-size:12px;color:var(--muted);line-height:1.35}
+.tile b{display:block;margin-top:4px;font-size:clamp(17px,3.6vw,23px);font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.tile em{display:block;font-style:normal;font-size:11px;color:var(--good)}
+.tile em.worse{color:var(--accent-text)}
+.dash svg{display:block;width:100%;height:auto;margin-top:8px}
+.dash svg text{fill:var(--muted);font-size:11px;font-family:var(--sans)}
+figcaption{font-size:12px;color:var(--muted)}
+.row.locked{cursor:default;color:var(--muted)}
+.row.locked:hover{background:var(--surface)}
+.row.locked .link{flex:none;align-self:center}
+.mail{display:flex;flex-direction:column;gap:14px;padding:18px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}
+.mail p{margin:0}
+.mailhead{padding-bottom:12px;border-bottom:1px solid var(--line)}
+.mailhead small{display:block;color:var(--muted);font-size:12px}
+.mailhead b{font-weight:600}
+.notes{width:100%;max-width:600px;margin:0 auto;padding-block:8px 28px;border-top:1px dashed var(--line-2);font-size:13px;color:var(--muted)}
+.notes summary{min-height:40px;display:flex;align-items:center;cursor:pointer}
+.notes p{margin:0 0 10px;max-width:64ch}
+@media (max-width:860px){
+  .shell{display:block}
+  .rail{flex-direction:row;align-items:center;justify-content:space-between;gap:12px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .steps{display:none}
+  .foot{margin:0}
+  .stepline{display:block;font-size:13px;color:var(--rail-muted)}
+  .bar{display:block;height:3px;background:var(--rail-line)}
+  .bar i{display:block;height:100%;background:var(--accent);transition:width .3s ease-out}
+  .work{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  main{padding-block:20px 32px}
+}
+@media (max-width:560px){
+  .stepline{display:none}
+  .choices,.group.two{grid-template-columns:1fr}
+  .facts{grid-template-columns:1fr 1fr}
+  .primary{align-self:stretch}
+  .actions{flex-direction:column;align-items:stretch}
+  .actions .link{align-self:center}
+}
+</style>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="brand"><span class="mark" aria-hidden="true">Z</span>Ziffr</div>
+    <span class="stepline" id="stepline"></span>
+    <ol class="steps" id="steps" aria-label="Setup progress"></ol>
+    <div class="foot"><button class="later" id="over" type="button">Start over</button><button class="later" id="later" type="button">Finish later</button></div>
+  </aside>
+  <div class="work">
+    <div class="bar" aria-hidden="true" style="margin:0 -16px"><i id="barfill"></i></div>
+    <main><div class="screen" id="screen" aria-live="polite"></div></main>
+    <details class="notes" id="notes">
+      <summary>Notes for you (not part of the screens)</summary>
+      <p id="note"></p>
+      <p>Jump to a screen:</p>
+      <div class="seg" id="jump"></div>
+      <button class="link" id="restart" type="button">Start again</button>
+    </details>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(i){return document.getElementById(i)};
+var esc=function(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})};
+
+var FUNCS=[["sales","Sales"],["marketing","Marketing"],["finance","Finance"],["operations","Operations"],["customer_support","Customer support"],["people","People and HR"],["product_engineering","Product and engineering"],["management","Management"],["other","Something else"]];
+var INDUSTRIES=[["saas","Software and SaaS"],["ecommerce","E-commerce"],["professional_services","Consulting and services"],["agency","Agency"],["retail","Retail"],["manufacturing","Manufacturing"],["healthcare","Health and care"],["hospitality","Hospitality and travel"],["education","Education"],["construction","Construction"],["wholesale","Wholesale and distribution"],["financial_services","Finance and insurance"],["real_estate","Real estate"],["logistics","Transport and logistics"],["media","Media and entertainment"],["energy","Energy and utilities"],["agriculture","Agriculture and food"],["other","Something else"]];
+var SEGMENTS=[["b2b","Businesses"],["b2c","Consumers"],["b2b2c","Both"],["public_sector","Public sector"],["non_profit","We are a non-profit"]];
+var TOPICS=[["health","Health and fitness"],["money","Money"],["habits","Habits and time"],["club","A club or hobby"],["other","Something else"]];
+var PACKS=[
+ {id:"forecast",kpi:[["Commit","412k \u20ac","\u25b2 6% on last week"],["Gap to quota","88k \u20ac","\u25bc 24k \u20ac"],["Pipeline coverage","3.1\u00d7","\u25b2 0.2"]],chart:"Closed this quarter",step:"week",name:"Sales forecast",line:"Weekly forecast for a sales team",n:12,fn:["sales"],get:["Commit","Best case","Closed this quarter","Pipeline","Gap to quota"]},
+ {id:"sales",kpi:[["Deals won","34","\u25b2 5"],["Pipeline","1.2m \u20ac","\u25b2 8%"],["Win rate","27%","\u25b2 2 points"]],chart:"New leads",step:"month",name:"Sales",line:"Leads, deals won and pipeline, monthly",n:9,fn:["sales"],get:["New leads","Deals won","Pipeline","Win rate","Average deal size"]},
+ {id:"saas",kpi:[["Recurring revenue","184k \u20ac","\u25b2 4.1%"],["Churn","2.1%","\u25bc 0.3 points"],["Runway","19 months","\u25b2 1"]],chart:"Monthly recurring revenue",step:"month",name:"SaaS metrics",line:"Recurring revenue, churn and cash",n:13,fn:["management","finance"],ind:["saas"],seg:["b2b"],get:["Monthly recurring revenue","Customers","Churn","Cash","Runway"]},
+ {id:"finance",kpi:[["Revenue","640k \u20ac","\u25b2 5%"],["Gross margin","61%","\u25b2 1 point"],["Cash","1.4m \u20ac","\u25bc 2%",1]],chart:"Revenue",step:"month",name:"Finance",line:"Revenue, costs, cash and invoices",n:8,fn:["finance"],get:["Revenue","Operating costs","Gross margin","Cash","Open invoices"]},
+ {id:"shop",kpi:[["Orders","1,284","\u25b2 9%"],["Average order","58 \u20ac","\u25b2 2 \u20ac"],["Returns","4.8%","\u25bc 0.6 points"]],chart:"Orders",step:"week",name:"Online shop",line:"Orders, revenue and returns, weekly",n:6,ind:["ecommerce","retail"],seg:["b2c"],get:["Orders","Revenue by channel","Average order value","Conversion","Returns"]},
+ {id:"agency",kpi:[["Billable hours","612","\u25b2 4%"],["Utilisation","74%","\u25b2 3 points"],["Open invoices","48k \u20ac","\u25bc 6k \u20ac"]],chart:"Revenue",step:"month",name:"Agency or freelancer",line:"Hours, utilisation and open invoices",n:6,ind:["agency","professional_services"],get:["Billable hours","Utilisation","Revenue","Open invoices","Pipeline"]},
+ {id:"support",kpi:[["Open tickets","41","\u25bc 12"],["First response","3.2 h","\u25bc 0.8 h"],["Satisfaction","92%","\u25b2 2 points"]],chart:"Tickets closed",step:"week",name:"Customer support",line:"Tickets, response times and satisfaction",n:8,fn:["customer_support"],get:["Tickets opened","Open tickets","First response time","Satisfaction","Reopened tickets"]},
+ {id:"hr",kpi:[["Headcount","128","\u25b2 3"],["Open roles","7","\u25bc 2"],["Absence","3.1%","\u25bc 0.4 points"]],chart:"Headcount",step:"month",name:"People and HR",line:"Headcount, hiring and absence",n:8,fn:["people"],get:["Headcount","Hires","Leavers","Open roles","Absence"]},
+ {id:"ops",kpi:[["Orders shipped","2,310","\u25b2 6%"],["On-time delivery","96%","\u25b2 1 point"],["Backlog","118","\u25bc 23"]],chart:"Orders shipped",step:"week",name:"Operations and fulfilment",line:"Orders shipped, delivery and stock",n:8,fn:["operations"],ind:["ecommerce","retail","wholesale","manufacturing","logistics"],get:["Orders shipped","On-time delivery","Backlog","Stock-outs","Defects"]},
+ {id:"club",kpi:[["Members","342","\u25b2 11"],["Attendance","78%","\u25b2 4 points"],["Fees received","9.6k \u20ac","\u25b2 0.4k \u20ac"]],chart:"Members",step:"month",name:"Sports club",line:"Members, attendance and fees",n:6,seg:["non_profit"],topic:["club"],get:["Members","Attendance per training","Fees received","Volunteer hours"]}
+];
+var M=function(name,line,freq){return {name:name,line:line,freq:freq}};
+var SUG={
+ sales:[M("Revenue","What you sold","month"),M("New leads","Prospects showing interest","week"),M("Deals won","Sales closed","week"),M("Pipeline","Value of open deals","week"),M("Win rate","Share of deals won","month")],
+ marketing:[M("Website visitors","Visits to your website","week"),M("New leads","Prospects showing interest","week"),M("Marketing spend","Cost of marketing","month"),M("Newsletter subscribers","People on your list","month")],
+ finance:[M("Revenue","Amount invoiced","month"),M("Cash in bank","Money available","week"),M("Operating costs","Cost of running the business","month"),M("Open invoices","Amount still owed to you","week")],
+ operations:[M("Orders shipped","Orders that left","day"),M("On-time delivery","Share delivered on time","week"),M("Backlog","Orders still waiting","week")],
+ customer_support:[M("Open tickets","Requests not yet solved","day"),M("First response time","Hours until a first answer","week"),M("Customer satisfaction","Share of satisfied customers","month")],
+ people:[M("Headcount","People employed","month"),M("Open roles","Positions to fill","week"),M("Sick days","Days of absence","month")],
+ product_engineering:[M("Releases","Versions shipped","week"),M("Open bugs","Problems not yet fixed","week"),M("Active users","People using the product","week")],
+ management:[M("Revenue","What you sold","month"),M("Cash in bank","Money available","week"),M("New customers","First-time customers","month"),M("Headcount","People employed","month")],
+ other:[M("Revenue","What you sold","month"),M("New customers","First-time customers","month"),M("Hours worked","Time spent","week")],
+ health:[M("Running distance","Kilometres run","day"),M("Body weight","Morning weight","day"),M("Hours of sleep","Time slept","day")],
+ money:[M("Money saved","Amount put aside","month"),M("Spending","Amount spent","week"),M("Account balance","Money in the account","week")],
+ habits:[M("Cups of coffee","How many you drank","day"),M("Pages read","Progress made","day"),M("Screen time","Hours on your phone","day")],
+ club:[M("Members","People in the club","month"),M("Attendance","People at training","week"),M("Fees received","Money collected","month")],
+ mine:[M("Running distance","Kilometres run","day"),M("Money saved","Amount put aside","month"),M("Cups of coffee","How many you drank","day")]
+};
+var EVERY={day:"Daily",week:"Weekly",month:"Monthly"};
+var WHEN={day:"every day at 08:00",week:"every Monday at 08:00",month:"on the 1st of each month"};
+var S,hist,at,moved,message="";
+function reset(){S={who:null,fn:null,ind:null,more:false,seg:null,topic:null,ws:"",pack:null,all:false,metric:null,own:{name:"",unit:"",freq:""},sender:null,mail:"",value:null,how:null,reply:""};hist=[];at="who";moved=true;message=""}
+var isTeam=function(){return S.who!=="me"};
+var label=function(list,k){var f=list.filter(function(x){return x[0]===k})[0];return f?f[1]:""};
+var clearValue=function(){S.value=null;S.how=null;S.reply="";S.sender=null};
+var firstName=function(){var p=thePack();return p?p.get[0]:(metricNow().name||"your metric")};
+var thePack=function(){return PACKS.filter(function(x){return x.id===S.pack})[0]||null};
+var metricNow=function(){return S.metric||{name:S.own.name,freq:S.own.freq}};
+function ranked(){
+ return PACKS.map(function(p,i){var why=[],s=0;
+  if(p.ind&&p.ind.indexOf(S.ind)>=0){s+=4;why.push("business")}
+  if(p.fn&&p.fn.indexOf(S.fn)>=0){s+=3;why.push("role")}
+  if(p.seg&&p.seg.indexOf(S.seg)>=0){s+=2;why.push("customers")}
+  if(p.topic&&p.topic.indexOf(S.topic)>=0){s+=3;why.push("interest")}
+  return {p:p,s:s,why:why,i:i}}).filter(function(x){return isTeam()||x.p.id==="club"}).sort(function(a,b){return b.s-a.s||a.i-b.i});
+}
+function row(act,val,title,sub,on){return '<button type="button" class="row" data-act="'+act+'" data-val="'+esc(val)+'" aria-pressed="'+(on?"true":"false")+'"><span class="dot" aria-hidden="true"></span><span class="txt"><b>'+esc(title)+'</b>'+(sub?'<small>'+esc(sub)+'</small>':'')+'</span></button>'}
+function nav(act,val,title,sub,extra){return '<button type="button" class="row" data-act="'+act+'" data-val="'+esc(val)+'"><span class="txt"><b>'+esc(title)+'</b>'+(sub?'<small>'+esc(sub)+'</small>':'')+(extra||"")+'</span><span class="go" aria-hidden="true">&#8594;</span></button>'}
+function opt(act,val,text,on){return '<button type="button" class="opt" data-act="'+act+'" data-val="'+esc(val)+'" aria-pressed="'+(on?"true":"false")+'">'+esc(text)+'</button>'}
+function link(to,text){return '<button type="button" class="link" data-act="go" data-val="'+to+'">'+text+'</button>'}
+
+function dash(p){
+ var seed=PACKS.indexOf(p),xs=p.step==="week"?["W40","W41","W42","W43","W44","W45","W46","W47"]:["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov"];
+ var pts=xs.map(function(_,i){return {x:20+i*(560/7),y:112-i*10-((i*7+seed*5)%11)*2.4}});
+ var line=pts.map(function(q,i){return (i?"L":"M")+q.x.toFixed(1)+" "+q.y.toFixed(1)}).join("");
+ var last=pts[pts.length-1];
+ return '<figure><div class="dash" role="img" aria-label="Example dashboard of '+esc(p.name)+' with sample numbers"><div class="kpis">'+p.kpi.map(function(k){return '<div class="tile"><small>'+esc(k[0])+'</small><b>'+esc(k[1])+'</b><em'+(k[3]?' class="worse"':"")+'>'+esc(k[2])+'</em></div>'}).join("")+'</div>'
+ +'<div class="tile"><small>'+esc(p.chart)+'</small><svg viewBox="0 0 600 150" aria-hidden="true"><rect x="10" y="40" width="580" height="34" style="fill:var(--surface-2)"/><line x1="10" y1="126" x2="590" y2="126" style="stroke:var(--line-2)"/><path d="'+line+'" style="fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round"/><circle cx="'+last.x+'" cy="'+last.y+'" r="4.5" style="fill:var(--accent)"/>'+xs.map(function(l,i){return '<text x="'+pts[i].x+'" y="142" text-anchor="middle">'+l+'</text>'}).join("")+'</svg></div></div><figcaption>Example dashboard, shown with sample numbers.</figcaption></figure>';
+}
+var V={
+who:{ch:0,p:.1,note:"New first question. It spares private users the business questions.",
+ h:function(){return '<h1>Who will use Ziffr?</h1><p class="lead">We tailor the setup to your answer. It takes about two minutes.</p><div class="group">'
+ +row("who","team","My team or business","A company, department, shop or club",S.who==="team")+row("who","me","Just me","Personal numbers such as health or money",S.who==="me")+'</div>'}},
+role:{ch:0,p:.4,note:"One choice per screen. The same answers as today, used to order the suggestions.",
+ h:function(){return '<h1>What is your role?</h1><p class="lead">So that relevant metrics come first.</p><div class="group two">'+FUNCS.map(function(f){return row("role",f[0],f[1],"",S.fn===f[0])}).join("")+'</div>'+link("industry","Skip this question")}},
+industry:{ch:0,p:.7,note:"Eight common answers first, the rest on request.",
+ h:function(){var list=S.more?INDUSTRIES:INDUSTRIES.slice(0,8);return '<h1>What kind of business is it?</h1><div class="group two">'+list.map(function(i){return row("industry",i[0],i[1],"",S.ind===i[0])}).join("")+'</div><div class="actions">'+(S.more?"":'<button type="button" class="link" data-act="more" data-val="1">Show all industries</button>')+link("segment","Skip this question")+'</div>'}},
+segment:{ch:0,p:1,note:"Last business question. Company size and revenue leave the setup and can be added later in the settings.",
+ h:function(){return '<h1>Who are your customers?</h1><div class="group">'+SEGMENTS.map(function(s){return row("segment",s[0],s[1],"",S.seg===s[0])}).join("")+'</div>'+link("workspace","Skip this question")}},
+topic:{ch:0,p:.8,note:"Private use only, to order the suggestions.",
+ h:function(){return '<h1>What would you like to track?</h1><div class="group">'+TOPICS.map(function(t){return row("topic",t[0],t[1],"",S.topic===t[0])}).join("")+'</div>'+link("workspace","Skip this question")}},
+workspace:{ch:1,p:.4,note:"The Workspace is explained and named here, after the questions about the person. Time zone, currency and week start are read from the browser (the values shown are examples). Year start and asking hour keep their defaults.",
+ h:function(){return '<h1>Set up your Workspace</h1><p class="lead">A Workspace is your own space in Ziffr for your numbers and charts. Only people you invite can see it.</p>'
+ +'<label class="field" for="ws">Workspace name<input type="text" id="ws" data-bind="ws" maxlength="60" autocomplete="off" placeholder="'+(isTeam()?"Company or team name":"For example, My numbers")+'" value="'+esc(S.ws)+'"></label>'
+ +'<div class="facts"><span><small>Time zone</small>Europe/Berlin</span><span><small>Currency</small>Euro</span><span><small>Week starts</small>Monday</span><button type="button" class="link" data-act="facts">Change</button></div>'
+ +'<button type="button" class="primary" data-act="go" data-val="start"'+(S.ws.trim()?"":" disabled")+'>Create Workspace</button>'}},
+start:{ch:1,p:1,note:"Your two ways in. Nothing is preselected and nothing is marked done.",
+ h:function(){return '<h1>How would you like to start?</h1><p class="lead">Either way, everything can be changed later.</p><div class="choices">'
+ +'<button type="button" class="choice" data-act="go" data-val="packs"><b>Start with a ready-made set</b><small>Metrics, a dashboard and reminders, prepared for your kind of work.</small><em>Browse sets &#8594;</em></button>'
+ +'<button type="button" class="choice" data-act="go" data-val="first"><b>Start from a clean slate</b><small>An empty Workspace. We add your first metric together.</small><em>Add a metric &#8594;</em></button></div>'}},
+packs:{ch:2,p:.25,note:"Ready-made sets are Ziffr's Packs, ordered by the answers. The board meeting, workspace usage and operator Packs are left out of the setup. For private use only Sports club exists today.",
+ h:function(){var r=ranked(),some=r.filter(function(x){return x.s>0}),top=(some.length?some:r).slice(0,3),list=S.all?r:top;
+ return '<h1>Choose a ready-made set</h1><p class="lead">In Ziffr these are called Packs.'+(isTeam()?"":" There are few for private use so far.")+'</p><div class="group">'+list.map(function(x){return nav("pack",x.p.id,x.p.name,x.p.line+" · "+x.p.n+" metrics",x.why.length?'<span class="match">Matches your '+esc(x.why.join(" and "))+'</span>':"")}).join("")+'</div><div class="actions">'
+ +(!S.all&&r.length>list.length?'<button type="button" class="link" data-act="all">Show all '+r.length+' sets</button>':"")+link("first","Start from a clean slate instead")+'</div>'}},
+pack:{ch:2,p:.55,note:"What the person gets, before anything is installed, with the set's dashboard drawn from sample numbers. The picture here is a sketch; in Ziffr it is the set's real dashboard.",
+ h:function(){var p=thePack()||PACKS[0];return '<div class="set"><div class="head"><h1>'+esc(p.name)+'</h1><p class="lead">'+esc(p.line)+'. Includes '+p.n+' metrics, a dashboard and reminders.</p></div>'+dash(p)+'<div class="rest"><div class="actions"><button type="button" class="primary" data-act="go" data-val="value">Use this set</button>'+link("packs","See other sets")+'</div><p class="label">Some of the metrics</p><ul class="list">'+p.get.map(function(g){return '<li><span>'+esc(g)+'</span></li>'}).join("")+'</ul></div></div>'}},
+first:{ch:2,p:.25,note:"The clean slate path, without calculated metrics. Suggestions follow the answers. Some private suggestions do not exist in the catalog yet and would be added.",
+ h:function(){var key=isTeam()?(SUG[S.fn]?S.fn:"management"):(SUG[S.topic]&&S.topic!=="other"?S.topic:"mine");
+ return '<h1>Let’s add your first metric together</h1><p class="lead">A metric is one number you follow over time. Pick a suggestion or define your own.</p><div class="group">'+SUG[key].map(function(m,i){return nav("metric",key+":"+i,m.name,m.line+" · "+EVERY[m.freq])}).join("")+nav("go","own","Define your own","Any number you want to follow")+'</div>'}},
+own:{ch:2,p:.5,note:"The next question appears once the one before is answered. Everything else keeps a default.",
+ h:function(){var o=S.own,named=o.name.trim(),u=o.unit;return '<h1>Define your metric</h1>'
+ +'<label class="field" for="mname">Name<input type="text" id="mname" data-bind="name" maxlength="60" autocomplete="off" placeholder="For example, Store visitors" value="'+esc(o.name)+'"></label>'
+ +(named?'<div><span class="field">Unit</span><div class="seg">'+[["count","Number"],["money","Money"],["percent","Percent"],["hours","Hours"]].map(function(x){return opt("unit",x[0],x[1],u===x[0])}).join("")+'</div></div>':"")
+ +(named&&u?'<div><span class="field">How often</span><div class="seg">'+[["day","Daily"],["week","Weekly"],["month","Monthly"]].map(function(x){return opt("freq",x[0],x[1],o.freq===x[0])}).join("")+'</div></div>':"")
+ +(named&&u&&o.freq?'<button type="button" class="primary" data-act="own">Add metric</button>':"")}},
+value:{ch:2,p:.7,note:"Closes the loop: a request goes out and the person answers it. Checked in the code: in a trial, invitations stay locked until the Owner has sent in a value of their own (values from a Feed or an Import do not count). Dashboards can be made but stay empty. On a self-hosted Ziffr the line about invitations is left out. Here the email is imitated.",
+ h:function(){var n=firstName(),p=thePack();
+ if(S.value!==null)return '<h1>'+(S.how==="mail"?"Your reply arrived":"Value recorded")+'</h1><p class="lead">That is the whole round: Ziffr asks, someone answers, the number is on record.</p><ul class="list"><li><span>'+esc(n)+'</span><span>'+esc(S.value)+'</span></li></ul><p class="label">Now open to you</p><ul class="list"><li><span>Your dashboard shows its first number</span></li>'+(isTeam()?'<li><span>You can invite colleagues</span></li>':"")+'</ul><button type="button" class="primary" data-act="go" data-val="sender">Continue</button>';
+ var head='<h1>Now send your first value</h1><p class="lead">Until it is in, your dashboard stays empty'+(isTeam()?' and you cannot invite colleagues':"")+'.'+(p?" One value of the set is enough.":"")+'</p>';
+ var later='<button type="button" class="link" data-act="go" data-val="sender">Do this later</button>';
+ if(S.how==="mail")return head+'<div class="mail"><div class="mailhead"><small>From Ziffr \u00b7 to you@company.com</small><b>What is '+esc(n)+'?</b></div><p>Reply to this email with the number.</p><label class="field" for="reply">Your reply<input type="text" inputmode="decimal" id="reply" data-bind="reply" maxlength="20" autocomplete="off" placeholder="For example, 45" value="'+esc(S.reply)+'"></label><button type="button" class="primary" data-act="send">Send reply</button></div><div class="actions"><button type="button" class="link" data-act="how" data-val="type">Type it in here instead</button>'+later+'</div>';
+ if(S.how==="type")return head+'<label class="field" for="reply">'+esc(n)+'<input type="text" inputmode="decimal" id="reply" data-bind="reply" maxlength="20" autocomplete="off" placeholder="For example, 45" value="'+esc(S.reply)+'"></label><button type="button" class="primary" data-act="send">Record value</button><div class="actions"><button type="button" class="link" data-act="how" data-val="mail">Ask me by email instead</button>'+later+'</div>';
+ return head+'<div class="group">'+nav("how","mail","Ask me by email","See how it works: Ziffr asks, you reply with the number")+nav("how","type","Type it in here","Quickest")+'</div>'+later}},
+sender:{ch:2,p:.85,note:"Who is asked from now on. Nothing is sent before the person chooses it. In a trial a colleague opens only after your own first value.",
+ h:function(){var p=thePack(),m=p?null:metricNow(),locked=isTeam()&&S.value===null;
+ return '<h1>'+(p?"Who provides these numbers from now on?":"Who provides this number from now on?")+'</h1><p class="lead">'+(p?"Ziffr asks by email on the days the set suggests.":esc(m.name||"Your metric")+": Ziffr asks by email "+(WHEN[m.freq]||WHEN.week)+".")+'</p><div class="group">'
+ +row("sender","me","I will","Ziffr asks you",S.sender==="me")+(locked?'<div class="row locked"><span class="dot" aria-hidden="true"></span><span class="txt"><b>A colleague (locked)</b><small>Opens once your own first value is in.</small></span><button type="button" class="link" data-act="go" data-val="value">Send it now</button></div>':row("sender","other",isTeam()?"A colleague":"Someone else","Ziffr asks them",S.sender==="other"))+row("sender","none","Nobody for now","You enter values when you like",S.sender==="none")+'</div>'
+ +(S.sender==="other"?'<label class="field" for="mail">Their email address<input type="email" id="mail" data-bind="mail" autocomplete="off" placeholder="name@company.com" value="'+esc(S.mail)+'"></label><button type="button" class="primary" data-act="go" data-val="done">Continue</button>':"")}},
+done:{ch:2,p:1,note:"The end. Anything still locked says why and how to open it. Today's steps 'Ways in and out' and 'Team' become optional next steps.",
+ h:function(){var p=thePack(),m=p?null:metricNow(),has=S.value!==null;
+ var ask=S.sender==="me"?"You, by email":S.sender==="other"?(S.mail||"A colleague")+", by email":"Nobody yet";
+ var invite=!isTeam()?"":has?nav("end","1","Invite your team","Let colleagues see the numbers"):'<div class="row locked"><span class="txt"><b>Invite your team (locked)</b><small>Send your first value to open invitations.</small></span><button type="button" class="link" data-act="go" data-val="value">Send it now</button></div>';
+ return '<h1>'+(has?"Your Workspace is ready":"One thing is still open")+'</h1>'+(has?"":'<p class="lead">Your first value is not in yet, so your dashboard is empty.</p>')+'<ul class="list"><li><span>Workspace</span><span>'+esc(S.ws.trim()||"My Workspace")+'</span></li><li><span>'+(p?"Ready-made set":"First metric")+'</span><span>'+(p?esc(p.name)+", "+p.n+" metrics":esc(m.name||"Your metric"))+'</span></li><li><span>First value</span><span>'+(has?esc(S.value):"Still waiting")+'</span></li><li><span>Asked for values</span><span>'+esc(ask)+'</span></li></ul>'
+ +(has?'<button type="button" class="primary" data-act="end">Open dashboard</button>':'<button type="button" class="primary" data-act="go" data-val="value">Send my first value</button>')+'<p class="label">Optional next steps</p><div class="group">'+invite+nav("end","2","Connect Slack or Telegram","Answer requests where you already work")+'</div>'}}
+};
+var ORDER=[["who","Who"],["role","Role"],["industry","Business"],["segment","Customers"],["topic","Private"],["workspace","Workspace"],["start","How to start"],["packs","Sets"],["pack","One set"],["first","First metric"],["own","Own metric"],["value","First value"],["sender","Who provides"],["done","Done"]];
+var CHAPTERS=["About you","Your Workspace","Your numbers"];
+function facts(i){
+ var f=[];
+ if(i===0){if(S.who)f.push(["For",isTeam()?"Team or business":"Just me"]);if(isTeam()){if(S.fn)f.push(["Role",label(FUNCS,S.fn)]);if(S.ind)f.push(["Business",label(INDUSTRIES,S.ind)]);if(S.seg)f.push(["Customers",label(SEGMENTS,S.seg)])}else if(S.topic)f.push(["Tracking",label(TOPICS,S.topic)])}
+ if(i===1&&S.ws.trim())f.push(["Name",S.ws.trim()]);
+ if(i===2){var p=thePack();if(p)f.push(["Set",p.name]);else if(metricNow().name&&(at==="value"||at==="sender"||at==="done"))f.push(["Metric",metricNow().name])}
+ return f;
+}
+function rail(){
+ var v=V[at];
+ $("steps").innerHTML=CHAPTERS.map(function(n,i){var f=facts(i);return '<li class="'+(i<v.ch?"done":"")+'"'+(i===v.ch?' aria-current="step"':"")+'><b>'+n+'</b>'+(f.length?'<dl>'+f.map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd></div>'}).join("")+'</dl>':"")+'</li>'}).join("");
+ $("stepline").textContent=(v.ch+1)+" of 3 · "+CHAPTERS[v.ch];
+ $("barfill").style.width=Math.round((v.ch+v.p)/3*100)+"%";
+}
+function draw(){
+ var v=V[at],el=$("screen");
+ el.innerHTML=(hist.length?'<button type="button" class="back" data-act="back">&#8592; Back</button>':"")+v.h()+(message?'<p class="note-line" role="status">'+esc(message)+'</p>':"");
+ if(moved){el.classList.remove("in");void el.offsetWidth;el.classList.add("in")}
+ rail();
+ $("over").style.visibility=hist.length?"visible":"hidden";
+ document.querySelector("main").classList.toggle("wide",at==="pack");
+ $("note").textContent=v.note;
+ $("jump").innerHTML=ORDER.map(function(o){return opt("jump",o[0],o[1],o[0]===at)}).join("");
+ moved=false;
+}
+function go(to){hist.push(at);at=to;moved=true;message="";if(to==="packs")S.pack=null;if(to==="first"){S.pack=null;S.metric=null}draw();window.scrollTo(0,0)}
+document.addEventListener("click",function(e){
+ var b=e.target.closest("[data-act]");if(!b||b.disabled)return;
+ var a=b.getAttribute("data-act"),x=b.getAttribute("data-val");
+ if(a==="go")go(x);
+ else if(a==="back"){if(hist.length){at=hist.pop();moved=true;message="";draw()}}
+ else if(a==="jump"){if(x==="done"&&!S.sender)S.sender="me";if(x==="pack"&&!S.pack)S.pack="forecast";if(x==="own"||x==="first")S.pack=null;hist.push(at);at=x;moved=true;message="";draw()}
+ else if(a==="who"){S.who=x;S.sender=null;go(x==="me"?"topic":"role")}
+ else if(a==="role"){S.fn=x;go("industry")}
+ else if(a==="industry"){S.ind=x;go("segment")}
+ else if(a==="more"){S.more=true;draw()}
+ else if(a==="segment"){S.seg=x;go("workspace")}
+ else if(a==="topic"){S.topic=x;go("workspace")}
+ else if(a==="facts"){message="Here the person changes time zone, currency and week start.";draw()}
+ else if(a==="all"){S.all=true;draw()}
+ else if(a==="pack"){clearValue();go("pack");S.pack=x;draw()}
+ else if(a==="metric"){var k=x.split(":");clearValue();go("value");S.metric=SUG[k[0]][+k[1]];draw()}
+ else if(a==="unit"){S.own.unit=x;draw()}
+ else if(a==="freq"){S.own.freq=x;draw()}
+ else if(a==="own"){S.metric=null;clearValue();go("value")}
+ else if(a==="sender"){S.sender=x;if(x==="other"){draw();var m=$("mail");if(m)m.focus()}else go("done")}
+ else if(a==="how"){S.how=x;message="";draw();var r=$("reply");if(r)r.focus()}
+ else if(a==="send"){if(/^\s*-?\d+([.,]\d+)?\s*$/.test(S.reply)){S.value=S.reply.trim();message=""}else message="Reply with a number, for example 45.";draw()}
+ else if(a==="end"){message="The end of the clickable screens.";draw()}
+});
+document.addEventListener("input",function(e){
+ var k=e.target.getAttribute("data-bind");if(!k)return;
+ if(k==="ws"){S.ws=e.target.value;var p=document.querySelector("#screen .primary");if(p)p.disabled=!S.ws.trim();rail()}
+ else if(k==="mail")S.mail=e.target.value;
+ else if(k==="reply")S.reply=e.target.value;
+ else if(k==="name"){var had=!!S.own.name.trim();S.own.name=e.target.value;if(had!==!!S.own.name.trim()){var pos=e.target.selectionStart;draw();var n=$("mname");n.focus();n.setSelectionRange(pos,pos)}}
+});
+document.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target.tagName==="INPUT"){e.preventDefault();var p=document.querySelector("#screen .primary");if(p&&!p.disabled)p.click()}});
+$("later").addEventListener("click",function(){message="In Ziffr this closes the setup. It can be picked up again at any time.";draw()});
+$("over").addEventListener("click",function(){reset();draw();window.scrollTo(0,0)});
+$("restart").addEventListener("click",function(){reset();draw();window.scrollTo(0,0)});
+reset();draw();
+})();
+</script>
