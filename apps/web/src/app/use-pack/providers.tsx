@@ -9,7 +9,11 @@ import type { StartRoom, StartStep } from "@ziffr/core/pack-start-steps";
 import { eligible, emptyPerson, stepProblem, type Answers, type ProviderDraft, type ProvidersDraft } from "./answers";
 import { Card, NOTE, PersonPick, StepForm, TEXT_BUTTON, Tick } from "./parts";
 
-type Props = { step: Extract<StartStep, { step: "providers" }>; answers: Answers; onChange: (answers: Answers) => void; onContinue: () => void; room: StartRoom; me: { name: string }; people: StartPickable[] };
+type Props = {
+  step: Extract<StartStep, { step: "providers" }>; answers: Answers; onChange: (answers: Answers) => void; onContinue: () => void; room: StartRoom; me: { name: string }; people: StartPickable[];
+  /** After a set-up, where somebody is chosen and saved: no "Nobody for now", the button's words, and what stands above it. */
+  choosing?: { label: string; under: React.ReactNode };
+};
 
 const NAMED = 4;
 
@@ -17,7 +21,7 @@ const NAMED = 4;
 export const namesWords = (names: string[]) => (names.length <= NAMED + 1 ? names.join(", ") : `${names.slice(0, NAMED).join(", ")} and ${names.length - NAMED} more`);
 
 /** Who provides the numbers. */
-export function ProvidersScreen({ step, answers, onChange, onContinue, room, me, people }: Props) {
+export function ProvidersScreen({ step, answers, onChange, onContinue, room, me, people, choosing }: Props) {
   const { providers } = answers;
   const set = (patch: Partial<ProvidersDraft>, next = answers.next) => onChange({ ...answers, providers: { ...providers, ...patch }, next });
   const here = eligible(people, ["submit"]);
@@ -29,11 +33,11 @@ export function ProvidersScreen({ step, answers, onChange, onContinue, room, me,
   return (
     <>
       <ScreenHeading title="Who provides these numbers?">{namesWords(step.metrics.map((m) => m.name))}</ScreenHeading>
-      <StepForm problem={stepProblem(step, answers)} onContinue={onContinue}>
+      <StepForm problem={stepProblem(step, answers)} onContinue={onContinue} label={choosing?.label}>
         <Card className="divide-y divide-border py-1">
           <Tick title="I do" hint={me.name} checked={providers.me} onChange={(on) => set({ me: on, nobody: false })} />
           <Tick title="Other people" hint={`Up to ${step.max}`} checked={providers.others} onChange={others} />
-          <Tick title="Nobody for now" hint="Nobody is asked. You can choose later." checked={providers.nobody} onChange={(on) => set(on ? { nobody: true, me: false, others: false } : { nobody: false })} />
+          {!choosing && <Tick title="Nobody for now" hint="Nobody is asked. You can choose later." checked={providers.nobody} onChange={(on) => set(on ? { nobody: true, me: false, others: false } : { nobody: false })} />}
         </Card>
         {providers.others && (
           <>
@@ -60,6 +64,7 @@ export function ProvidersScreen({ step, answers, onChange, onContinue, room, me,
           </>
         )}
         {!providers.nobody && <p className={NOTE}>Nothing is sent now. Whoever you name is asked from the next run.</p>}
+        {choosing?.under}
       </StepForm>
     </>
   );

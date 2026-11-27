@@ -77,7 +77,7 @@ const MAX_APPROVERS = 3;
 /** The same in the guided set-up: up to five others, and the person setting up may be ticked too. */
 const MAX_PROVIDERS = START_PROVIDERS_MAX + 1;
 /** The ways a person sends a value, which the guided set-up opens for a number it asks people for. */
-const PEOPLE_SOURCES = ["web_form", "mail", "slack", "telegram"];
+export const OPENED_SOURCES = ["web_form", "mail", "slack", "telegram"] as const;
 /** The longest slug a Metric can get: a name of 120 characters, and a suffix when the slug is taken. */
 const LONGEST_SLUG = 130;
 const KEY = /^[a-z][a-z0-9-]{0,39}$/;
@@ -390,7 +390,7 @@ function asking(actor: Actor, p: InstalledForSetup, input: PackSetupInput, guide
 function guidedMetric(m: PlannedMetric): PlannedMetric {
   if (!m.submitters.length) return { ...m, workflow: null };
   const sources = m.entry.sources ?? [];
-  return sources.includes("web_form") ? m : { ...m, sources: [...new Set([...sources, ...PEOPLE_SOURCES])] };
+  return sources.includes("web_form") ? m : { ...m, sources: [...new Set([...sources, ...OPENED_SOURCES])] };
 }
 
 /** The Metrics to make: those outside every Repeat, then line by line; in each part what takes values before what is

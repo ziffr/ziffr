@@ -108,7 +108,8 @@ type Source = { installId: number | null; included: string | null; pack: { id: s
 /** A Metric Catalog entry with what Sample Data reads of it. */
 type DrawnEntry = DeclaredEntry & Pick<EntryRow, "aggregation" | "unit" | "unit_position" | "format" | "decimals" | "polarity" | "target_min" | "target_max">;
 
-async function installedSource(actor: Actor, installId: number): Promise<Source> {
+/** An install of the actor's Workspace as a set-up reads it (Owners and Admins; Forbidden for anyone else's). */
+export async function installedSource(actor: Actor, installId: number): Promise<Source> {
   const p = await installedForSetup(actor, installId);
   const ws = actor.workspaceId;
   const [{ data: row, error }, { data: decks, error: unread }] = await Promise.all([
@@ -173,7 +174,7 @@ async function standing(actor: Actor, installId: number | null): Promise<{ open:
 }
 
 /** The room for a set-up; `made` Metrics of an unfinished one are there already and count as its own. */
-async function roomOf(actor: Actor, made: number): Promise<StartRoom> {
+export async function roomOf(actor: Actor, made: number): Promise<StartRoom> {
   const ws = actor.workspaceId;
   const [room, ends, practice] = await Promise.all([roomNow(actor, START_METRICS_MAX), trialEndsAt(ws), isPracticeWorkspace(ws)]);
   const metrics = room ? room.allowed + made : null;
@@ -185,7 +186,8 @@ async function roomOf(actor: Actor, made: number): Promise<StartRoom> {
   return { metrics, practice, trial: { metricCap: limits.metrics, places: Math.max(0, limits.people - Number(taken)), others: Math.max(0, (count ?? 0) - 1) } };
 }
 
-async function ended(actor: Actor): Promise<string | null> {
+/** Why nothing can be added here: a trial that has ended. */
+export async function ended(actor: Actor): Promise<string | null> {
   const ends = await trialEndsAt(actor.workspaceId);
   return ends && ends.getTime() <= Date.now() ? "This trial has ended: nothing can be added." : null;
 }
@@ -197,8 +199,8 @@ const typed = (choices: StartChoices): StartPerson[] => [
 ];
 
 /** Who is here, and which of the typed addresses belong to them. The person setting up comes first, then Members and
- * Guests before Contacts. Addresses stay on the server. */
-async function contextOf(actor: Actor, choices: StartChoices): Promise<StartContext> {
+ * Guests before Contacts. Addresses stay on the server. The caller has checked who asks. */
+export async function contextOf(actor: Actor, choices: StartChoices): Promise<StartContext> {
   const people = await setupPeople(actor);
   const me = people.get(actor.personId);
   if (!me) throw new Forbidden();
@@ -266,7 +268,8 @@ const many = <T>(v: unknown, most: number, one: (x: unknown) => T): T[] | undefi
 const word = (v: unknown, most: number): string => { must(typeof v === "string" && v.length <= most); return v as string; };
 const key = (v: unknown): string => { must(typeof v === "string" && KEY.test(v)); return v as string; };
 
-function person(v: unknown): StartPerson {
+/** One person as a browser names them, shape and sizes checked. */
+export function cleanPerson(v: unknown): StartPerson {
   const p = record(v);
   if (p.who === "me") return { who: "me" };
   if (p.who === "here") return { who: "here", id: word(p.id, 64) };
@@ -282,12 +285,12 @@ function cleanChoices(input: unknown): StartChoices {
     return {
       repeat: key(l.repeat),
       ...(l.name === undefined ? {} : { name: word(l.name, 240) }),
-      ...(l.person === undefined ? {} : { person: person(l.person) }),
-      ...(l.others === undefined ? {} : { others: many(l.others, 20, (o) => ({ position: key(record(o).position), person: person(record(o).person) })) ?? [] }),
+      ...(l.person === undefined ? {} : { person: cleanPerson(l.person) }),
+      ...(l.others === undefined ? {} : { others: many(l.others, 20, (o) => ({ position: key(record(o).position), person: cleanPerson(record(o).person) })) ?? [] }),
     };
   });
-  const who = many(c.who, 20, (v) => ({ position: key(record(v).position), person: person(record(v).person) }));
-  const providers = many(c.providers, 20, person);
+  const who = many(c.who, 20, (v) => ({ position: key(record(v).position), person: cleanPerson(record(v).person) }));
+  const providers = many(c.providers, 20, cleanPerson);
   const numbers = many(c.numbers, 600, (v) => {
     const n = record(v);
     must(typeof n.value === "number" && Number.isFinite(n.value) && (n.line === undefined || (Number.isInteger(n.line) && (n.line as number) >= 0 && (n.line as number) < 250)));
@@ -305,10 +308,12 @@ function cleanChoices(input: unknown): StartChoices {
 
 // ---- Setting up ----
 
-/** Adds the Contacts the plan names, and answers each one's id by its reference. Someone added meanwhile is used. */
-async function addContacts(actor: Actor, plan: StartPlan, choices: StartChoices, added: string[]): Promise<Map<string, string>> {
+/** Adds the Contacts the plan names, and answers each one's id by its reference. Someone added meanwhile is used.
+ * `beat` is called before each one. */
+export async function addContacts(actor: Actor, plan: Pick<StartPlan, "contacts" | "people">, choices: StartChoices, added: string[], beat?: () => Promise<void>): Promise<Map<string, string>> {
   const ids = new Map<string, string>([["me", actor.personId]]);
   for (const ref of plan.contacts) {
+    await beat?.();
     const p = plan.people.find((x) => x.ref === ref)!;
     try {
       ids.set(ref, await addContact(actor, { name: p.name, email: p.email! }));
@@ -350,7 +355,7 @@ type Made = Parameters<GuidedStep["after"]>[1];
 const madeId = (made: Made, m: PlannedMetric) => made.get(m.plan)!.id;
 
 /** Writes each number asked at set-up as the target of every period of its span, unchanged. */
-async function writeTargets(actor: Actor, d: StartDeclarations, targets: StartPlan["targets"], b: Blueprint, made: Made) {
+async function writeTargets(actor: Actor, d: StartDeclarations, targets: StartPlan["targets"], b: Blueprint, made: Made, beat: () => Promise<void>) {
   if (!targets.length) return;
   const ws = actor.workspaceId;
   const today = localTime(new Date(), (await workspaceClock(actor)).timeZone).day;
@@ -358,6 +363,7 @@ async function writeTargets(actor: Actor, d: StartDeclarations, targets: StartPl
     const metric = d.metrics.find((m) => m.key === t.metric)!;
     const planned = b.metrics.find((m) => m.entry.pack_key === t.metric && (m.line?.name ?? null) === t.line);
     if (!planned || !metric.ask) continue;
+    await beat();
     const [own, span] = await Promise.all([yearStartFor(ws, metric.period as Period), yearStartFor(ws, metric.ask.every)]);
     const periods = targetPeriods(today, metric.period, metric.ask.every, own, span);
     await saveSeriesRows(actor, madeId(made, planned), "target", periods.map((period) => ({ period, value: t.value })), `From the set-up of ${d.name}`);
@@ -373,6 +379,7 @@ async function makeDecks(actor: Actor, installId: number, d: StartDeclarations, 
   for (const t of wanted) {
     const template = data.find((x) => x.pack_key === t.key);
     if (!template) continue;
+    await kept.beat();
     const fills = t.slots.map((s) => b.metrics.filter((m) => m.entry.pack_key === s.suggests).map((m) => madeId(made, m)).slice(0, s.multiple ? 50 : 1));
     const id = await createFilledDeck(actor, { template: Number(template.id), name: String(template.name), fills });
     await kept.made({ kind: "deck", key: t.key, line: null, id });
@@ -380,7 +387,7 @@ async function makeDecks(actor: Actor, installId: number, d: StartDeclarations, 
 }
 
 /** The day of the next run that asks for a Workflow's Metrics: its own days, else the Workspace's daily run. */
-function nextRun(config: WorkflowConfig | undefined, clock: PackStartOptions["clock"]): string {
+export function nextRun(config: WorkflowConfig | undefined, clock: PackStartOptions["clock"]): string {
   if (config?.asking) return nextAskingRun(config.asking, clock.runHour, { day: clock.today, hour: clock.hour }) ?? clock.today;
   if (!clock.todayRan) return clock.today;
   return new Date(Date.parse(`${clock.today}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
@@ -460,7 +467,7 @@ async function resultOf(actor: Actor, source: Source, installId: number, setupId
 }
 
 /** Why the Workspace cannot take so many more Contacts, or null. */
-async function contactRoom(actor: Actor, adding: number): Promise<string | null> {
+export async function contactRoom(actor: Actor, adding: number): Promise<string | null> {
   if (!adding) return null;
   const [{ count, error }, most] = await Promise.all([db().from("contacts").select("person_id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId), sendingLimit("contactsPerWorkspace")]);
   if (error) throw new Error("The Contacts could not be counted.");
@@ -602,7 +609,7 @@ export async function startPackStep(actor: Actor, ref: PackStartRef, choices: St
   const added: string[] = [];
   try {
     // 3. Add the Contacts that are missing.
-    const ids = await addContacts(actor, plan, answers, added);
+    const ids = await addContacts(actor, plan, answers, added, kept.beat);
     const id = (r: string) => ids.get(r) ?? r;
     const installId = p.install.id;
     // 4 to 6. Set up in steps; at the end the Workflows by period, the targets and the decks.
@@ -610,8 +617,9 @@ export async function startPackStep(actor: Actor, ref: PackStartRef, choices: St
       record: kept,
       heldFor: new Map(plan.held.map((h) => [heldKey(h.line, h.position), id(h.for)])),
       after: async (b, metrics) => {
+        await kept.beat();
         await joinPeriodWorkflows(actor, b.metrics.filter((m) => !isComputed(m.entry) && !m.workflow && m.submitters.length > 0).map((m) => madeId(metrics, m)));
-        await writeTargets(actor, source.declarations, plan.targets, b, metrics);
+        await writeTargets(actor, source.declarations, plan.targets, b, metrics, kept.beat);
         await makeDecks(actor, installId, source.declarations, b, metrics, kept);
       },
     });

@@ -95,6 +95,28 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `startPackStep` (pack-start.ts): Packs
 - `checkStart` (pack-start.ts): Packs
 - `startDrawing` (pack-start.ts): Packs
+- `packAfter` (pack-after.ts): Packs
+- `packCards` (pack-after-card.ts): after a guided set-up, on the Pack's own screens
+- `holderPositions` (pack-after-holder.ts): after a guided set-up, on the Pack's own screens
+- `packHolders` (pack-after-holder.ts): after a guided set-up, on the Pack's own screens
+- `packHolderPlan` (pack-after-holder.ts): after a guided set-up, on the Pack's own screens
+- `changePackHolder` (pack-after-holder.ts): after a guided set-up, on the Pack's own screens; a program saves the Workflow, shares and chooses the Stand-in one by one
+- `packInvitees` (pack-after-invite.ts): Packs
+- `packInvite` (pack-after-invite.ts): after a guided set-up, on the Pack's own screens
+- `sendFirstPackNumber` (pack-after-invite.ts): after a guided set-up, on the Pack's own screens; a person's first value, typed by them
+- `invitePackPeople` (pack-after-invite.ts): after a guided set-up, on the Pack's own screens; inviting is a person's own press
+- `packNumbers` (pack-after-numbers.ts): after a guided set-up, on the Pack's own screens
+- `setPackNumbers` (pack-after-numbers.ts): after a guided set-up, on the Pack's own screens; a program sets targets with set_target_series
+- `packProviders` (pack-after-providers.ts): after a guided set-up, on the Pack's own screens
+- `setPackProviders` (pack-after-providers.ts): after a guided set-up, on the Pack's own screens; a program uses set_submitters and set_metric_workflow
+- `recordedHolders` (pack-setup-record.ts): Packs
+- `noteHolder` (pack-setup-record.ts): Packs
+- `installedSource` (pack-start.ts): Packs
+- `roomOf` (pack-start.ts): Packs
+- `ended` (pack-start.ts): Packs
+- `contextOf` (pack-start.ts): Packs
+- `addContacts` (pack-start.ts): Packs
+- `contactRoom` (pack-start.ts): Packs
 - `joinPeriodWorkflows` (period-workflows.ts): First Steps and a Pack's guided set-up put Metrics into a Workflow for their period; a program uses set_metric_workflow
 - `setUpStep` (pack-setup.ts): Packs
 - `setSendSnapshot` (workflows.ts): the dashboard a Set up from a Pack gives a Send Snapshot step; a program saves the Workflow

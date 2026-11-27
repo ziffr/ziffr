@@ -8,6 +8,13 @@ export const PACK_SET_UP_ON: boolean = false;
 /** The Packs page, where a person goes who leaves the flow. */
 export const PACKS_PAGE = "/settings/packs";
 
+/** The ways after a set-up, each a screen of its own. */
+export const AFTER_TASKS = ["providers", "targets", "approver", "invite"] as const;
+/** One of those ways. */
+export type AfterTask = (typeof AFTER_TASKS)[number];
+/** The address of one of those screens, for an install. */
+export const afterHref = (installId: number, task: AfterTask) => `/use-pack/${installId}/${task}`;
+
 const SLUG = /^([a-z0-9]+(?:-[a-z0-9]+)*)--([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 
 /** Which Pack an address of the flow names: an install's number, or one of Ziffr's own Packs by its id written with two

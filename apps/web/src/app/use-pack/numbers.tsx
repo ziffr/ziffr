@@ -28,7 +28,7 @@ type Props = {
 const decimalsOf = (n: number) => Math.min(4, (String(n).split(".")[1] ?? "").length);
 
 /** One asked number: its question, its fields and, where a Total adds them up, their sum. */
-function Ask({ ask, answers, onChange, rows, rowName, style, unit }: { ask: NumbersStep["asks"][number]; answers: Answers; onChange: Props["onChange"]; rows: (number | null)[]; rowName: Props["rowName"]; style: NumberStyle; unit?: Unit }) {
+export function Ask({ ask, answers, onChange, rows, rowName, style, unit }: { ask: NumbersStep["asks"][number]; answers: Answers; onChange: Props["onChange"]; rows: (number | null)[]; rowName: Props["rowName"]; style: NumberStyle; unit?: Unit }) {
   const values = rows.flatMap((id) => readNumber(answers.numbers[numberKey(ask.metric, id)] ?? "", style) ?? []);
   const sum = values.reduce((a, b) => a + b, 0);
   const written = formatNumber(sum, Math.max(0, ...values.map(decimalsOf)), style, { group: true });
