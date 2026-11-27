@@ -6,7 +6,7 @@
 // through the core, for Metrics they see), and adding goes through the caller, to the same placeWidget as before.
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { GripVertical, Info, Plus, Search, Sigma, StickyNote, Trash2, X } from "lucide-react";
+import { GripVertical, Info, Plus, Search, Sigma, StickyNote, Trash2 } from "lucide-react";
 import { tellApart } from "@ziffr/core/metric-names";
 import { inUse } from "@ziffr/core/metric-row";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
@@ -18,6 +18,7 @@ import { deleteSavedWidget, type DropSource } from "@/app/canvas-actions";
 import { placedAtOnce } from "@/app/gallery/widget-with";
 import { SeriesProvider, useCanvasSeries, useSeriesReady } from "@/canvas/series-store";
 import { useFreeLayouts } from "@/decks/slide-license";
+import { BesidePanel } from "@/components/beside-panel";
 import { Button } from "@/components/ui/button";
 import { told } from "@/lib/action-toast";
 import { setDrag } from "@/lib/drag";
@@ -50,28 +51,11 @@ type Props = {
 
 /** The panel beside the dashboard (`docked`), else in the Slide-over; there a card is tapped, not dragged. */
 export function AddWidget({ docked, onClose, onDrag, ...props }: Props & { docked: boolean; onClose: () => void }) {
-  const aside = useRef<HTMLElement>(null);
-  useEffect(() => { if (docked) aside.current?.focus({ preventScroll: true }); }, [docked]);
   if (!docked) return <SlideOverWindow title="Add widget" description="Tap a card to add it to the dashboard." onClose={onClose}><Cards {...props} /></SlideOverWindow>;
   return (
-    <aside
-      ref={aside}
-      id="add-widget"
-      tabIndex={-1}
-      aria-label="Add widget"
-      // A menu opened from a card is drawn elsewhere on the page: its Escape closes the menu, not the panel.
-      onKeyDown={(e) => { if (e.key === "Escape" && !e.defaultPrevented && e.currentTarget.contains(e.target as Node)) onClose(); }}
-      className="sticky top-4 flex max-h-[calc(100dvh-2rem)] min-w-0 flex-col self-start rounded-[var(--radius-card)] border border-border bg-[var(--color-paper-2)] outline-none"
-    >
-      <div className="border-b p-3">
-        <div className="flex items-center gap-2">
-          <h2 className="flex-1 text-sm font-semibold tracking-normal">Add widget</h2>
-          <Button variant="ghost" size="icon-sm" aria-label="Close Add widget" onClick={onClose}><X aria-hidden /></Button>
-        </div>
-        <p className="text-xs text-muted-foreground">Drag a card onto the dashboard, or press + for the next free place.</p>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-3"><Cards {...props} onDrag={onDrag} /></div>
-    </aside>
+    <BesidePanel id="add-widget" title="Add widget" hint="Drag a card onto the dashboard, or press + for the next free place." onClose={onClose}>
+      <Cards {...props} onDrag={onDrag} />
+    </BesidePanel>
   );
 }
 

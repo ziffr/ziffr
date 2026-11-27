@@ -7,7 +7,7 @@ import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { BookmarkCheck, ChartLine, GripVertical, Info, LayoutTemplate, Plus, Search, Sigma, X } from "lucide-react";
+import { BookmarkCheck, ChartLine, Check, GripVertical, Info, LayoutTemplate, Plus, Search, Sigma, X } from "lucide-react";
 import { sampleCanvasData } from "@ziffr/core/sample-data";
 import { sampleDesignWidget } from "@ziffr/core/design-files";
 import { TemplateMenu } from "./template-menu";
@@ -34,10 +34,15 @@ type Spot = { top: number; left: number };
 const PREVIEW_WIDTH = 288;
 const PREVIEW_HEIGHT = 340;
 
+/** The Pool inside a side panel (the Analysis Canvas): the panel has the title, the Metrics already `added` are marked, a
+ * row's ⓘ opens its Preview under it, and rows are dragged where a canvas stands beside them (`drag`), else tapped. */
+export type InPanel = { added: number[]; drag: boolean };
+
 /** GLOSSARY: Pool. Metrics the viewer can see, their saved Widgets and the Widget Templates, draggable onto any canvas.
  * Pointing at or focusing a template or saved widget shows its Preview (spec 0011). */
-export function Pool({ data, saved, onAdd, hint, metricsOnly }: { data: CanvasData; saved: Widget[]; onAdd?: (s: DropSource) => void; hint: string; metricsOnly?: boolean }) {
+export function Pool({ data, saved, onAdd, hint, metricsOnly, inPanel }: { data: CanvasData; saved: Widget[]; onAdd?: (s: DropSource) => void; hint?: string; metricsOnly?: boolean; inPanel?: InPanel }) {
   const [q, setQ] = useState("");
+  const [about, setAbout] = useState<number | null>(null);
   const [, start] = useTransition();
   const panel = useSlideOver();
   const people = Object.fromEntries(data.people.map((p) => [p.id, p]));
@@ -148,21 +153,23 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly }: { data: CanvasDa
   const metricShown = (m: Metric): Shown => ({ key: `m${m.id}`, name: m.name, whole: true, draw: () => <MetricPreview metric={m} data={data} /> });
 
   return (
-    <aside ref={aside} aria-label="Pool" className="flex max-h-[calc(100vh-7rem)] flex-col rounded-[var(--radius-card)] border border-border bg-[var(--color-paper-2)] lg:sticky lg:top-20">
-      <div className="border-b p-3">
-        <h2 className="text-sm font-semibold tracking-normal">Pool</h2>
-        <p className="text-xs text-muted-foreground">{hint}</p>
-        <label className="mt-3 flex items-center gap-1.5 rounded-[var(--radius-input)] border border-input bg-card px-2.5 focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring">
+    <aside ref={aside} aria-label="Pool" className={cn("flex flex-col", !inPanel && "max-h-[calc(100vh-7rem)] rounded-[var(--radius-card)] border border-border bg-[var(--color-paper-2)] lg:sticky lg:top-20")}>
+      <div className={inPanel ? "pb-3" : "border-b p-3"}>
+        {!inPanel && <h2 className="text-sm font-semibold tracking-normal">Pool</h2>}
+        {!inPanel && <p className="mb-3 text-xs text-muted-foreground">{hint}</p>}
+        <label className="flex items-center gap-1.5 rounded-[var(--radius-input)] border border-input bg-card px-2.5 focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring">
           <Search aria-hidden className="size-4 text-muted-foreground" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter" aria-label="Filter the pool" className="h-9 w-full bg-transparent text-sm outline-none" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter" aria-label="Filter the pool" className={cn("h-9 w-full bg-transparent text-sm outline-none", inPanel && "max-lg:h-11 max-sm:text-base")} />
         </label>
       </div>
-      <div className="flex-1 overflow-y-auto p-2" onScroll={close}>
+      <div className={inPanel ? undefined : "flex-1 overflow-y-auto p-2"} onScroll={close}>
         <Section title="Metrics">
           {metrics.map((m) => (
-            <Item key={`m${m.id}`} {...drag({ type: "metric", id: m.id })} onAdd={onAdd && (() => onAdd({ type: "metric", id: m.id }))} info={info(metricShown(m))}>
+            <Item key={`m${m.id}`} {...(inPanel && !inPanel.drag ? { draggable: false, onPointerEnter: () => prefetch({ type: "metric", id: m.id }) } : drag({ type: "metric", id: m.id }))} onAdd={onAdd && (() => onAdd({ type: "metric", id: m.id }))}
+              info={inPanel ? { shown: metricShown(m), open: about === m.id, onToggle: () => { prefetch({ type: "metric", id: m.id }); setAbout(about === m.id ? null : m.id); } } : info(metricShown(m))}
+              panel={inPanel && { added: inPanel.added.includes(m.id), below: about === m.id && <MetricPreview metric={m} data={data} /> }}>
               <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                <span className="truncate">{m.name}</span>
+                <span className={inPanel ? "break-words" : "truncate"}>{m.name}</span>
                 {m.formula && <Sigma aria-label="derived" className="size-3.5 shrink-0 text-muted-foreground" />}
               </span>
               {(m.owner_id !== data.viewer || notes.has(m.id)) && <span className="shrink-0 text-xs text-muted-foreground">{notes.get(m.id) ?? people[m.owner_id]?.name.split(" ")[0]}</span>}
@@ -304,29 +311,41 @@ function Section({ title, action, children }: { title: string; action?: React.Re
   );
 }
 
-type ItemProps = { children: React.ReactNode; onAdd?: () => void; info?: { shown: Shown; open: boolean; onToggle: (button: HTMLElement) => void } } & React.HTMLAttributes<HTMLLIElement> & { draggable: boolean };
+type ItemProps = { children: React.ReactNode; onAdd?: () => void; info?: { shown: Shown; open: boolean; onToggle: (button: HTMLElement) => void }; /** The row stands in a side panel: whether it is added, and what shows under it. */ panel?: { added: boolean; below: React.ReactNode } } & React.HTMLAttributes<HTMLLIElement> & { draggable: boolean };
 
-function Item({ children, onAdd, info, ...rest }: ItemProps) {
-  return (
-    <li {...rest} className={cn("group/item flex min-h-10 cursor-grab items-center gap-1.5 rounded-[var(--radius-input)] px-2 text-sm transition-colors outline-none hover:bg-[var(--color-cotton)] hover:shadow-[var(--edge-stock)] focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing")}>
-      <GripVertical aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+function Item({ children, onAdd, info, panel, ...rest }: ItemProps) {
+  // In a panel a row that is not dragged is tapped; the keyboard uses its buttons either way.
+  const tap = panel && !rest.draggable && !panel.added ? onAdd : undefined;
+  const line = (
+    <>
+      {(!panel || rest.draggable) && <GripVertical aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />}
       {children}
       {info && (
         <button
+          type="button"
           data-pool-info
           title="Preview"
           aria-label={`Preview of ${info.shown.name}`}
           aria-expanded={info.open}
-          aria-controls={info.open ? "pool-preview" : undefined}
-          onClick={(e) => info.onToggle(e.currentTarget)}
-          className={cn("flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden lg:group-hover/item:flex lg:group-focus-within/item:flex", info.open && "text-foreground lg:flex")}
+          aria-controls={info.open && !panel ? "pool-preview" : undefined}
+          onClick={(e) => { e.stopPropagation(); info.onToggle(e.currentTarget); }}
+          className={cn("flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground", panel ? "max-lg:size-11" : "lg:hidden lg:group-hover/item:flex lg:group-focus-within/item:flex", info.open && "text-foreground lg:flex")}
         >
           <Info className="size-3.5" />
         </button>
       )}
-      {onAdd && (
-        <button title="Add" aria-label={info ? `Add ${info.shown.name}` : "Add"} onClick={onAdd} className="flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-0 group-hover/item:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100"><Plus className="size-4" /></button>
-      )}
+      {/* Once added it stays the same button, so the keyboard keeps its place; it only says so. */}
+      {onAdd && (panel?.added ? (
+        <button key="add" type="button" aria-disabled="true" aria-label={`${info?.shown.name} is on the canvas`} onClick={(e) => e.stopPropagation()} className="flex h-7 shrink-0 items-center gap-1 rounded-[var(--radius-input)] px-1.5 text-xs text-muted-foreground max-lg:h-11"><Check aria-hidden className="size-3.5" /> Added</button>
+      ) : (
+        <button key="add" type="button" title="Add" aria-label={info ? `Add ${info.shown.name}` : "Add"} onClick={(e) => { e.stopPropagation(); onAdd(); }} className={cn("flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground", panel ? "border border-input max-lg:size-11" : "opacity-0 group-hover/item:opacity-100 focus-visible:opacity-100")}><Plus className="size-4" /></button>
+      ))}
+    </>
+  );
+  return (
+    <li {...rest} tabIndex={panel ? undefined : rest.tabIndex} onClick={tap} className={cn("group/item flex min-h-10 items-center gap-1.5 rounded-[var(--radius-input)] px-2 text-sm transition-colors outline-none hover:bg-[var(--color-cotton)] hover:shadow-[var(--edge-stock)] focus-visible:outline-2 focus-visible:outline-ring", rest.draggable ? "cursor-grab active:cursor-grabbing" : tap && "cursor-pointer", panel && "min-h-11 flex-wrap")}>
+      {line}
+      {panel?.below && <div className="stock mb-2 w-full cursor-default rounded-[var(--radius-card)] p-3" onClick={(e) => e.stopPropagation()}>{panel.below}</div>}
     </li>
   );
 }

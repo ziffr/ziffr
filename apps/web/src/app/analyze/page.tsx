@@ -31,7 +31,7 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
   const onCanvas = canvas.filter((id) => data.metrics.some((m) => m.id === id));
   return (
     <>
-      <PageHeader title="Analyze" sub="Ask a question of your numbers: drop Metrics on the canvas, pick a question, read the answer." />
+      <PageHeader title="Analyze" sub="Ask a question of your numbers: add a Metric, pick a question, read the answer." />
       {/* How many Heads-ups there are, in a block of its own; the list is in the side panel behind it. In a Workspace over the scan's cap
           the list scans the person's own Metrics: the page does not wait for it, and shows no block until it knows there is one. */}
       <Suspense fallback={null}>
