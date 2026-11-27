@@ -268,3 +268,10 @@ Proposed in the draft and accepted by the owner on 2026-11-19 as written; each i
 - **The Marketplace's address** defaults to `https://marketplace.ziffr.net`; the owner picks the domain. **Its public key** ships once Ziffr Cloud signs (`MARKETPLACE_PUBLIC_KEYS` is empty; a server may trust its own with `ZIFFR_MARKETPLACE_PUBLIC_KEY`).
 - **Not built yet:** an update badge outside the Packs page, a Marketplace signature recognised on an uploaded file, paid Packs.
 
+## Open points (2026-11-22)
+
+Recorded for the owner to decide before the first creator signs up (a split is hard to take back):
+
+- **The creator's share.** Decided as 80 % of the price without VAT (Decisions 8). Marketplaces that review and sign take more (15 to 30 %), and Ziffr also pays for the review and the signing; 70 % with a clear promise to raise it later is the cautious opening. Not changed here.
+- **Paid Packs on self-hosted Ziffr** are designed in spec 0044 (a signed Purchase Receipt).
+- **Fast starts:** a Pack can name Automation Templates that fill its Metrics (spec 0043).

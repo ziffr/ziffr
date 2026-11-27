@@ -261,3 +261,10 @@ Proposed in the draft and accepted by the owner on 2026-11-19, with the changes 
 - **Why the limit counts Metrics.** It is the number that grows with the value a Workspace gets from Ziffr, it is easy to see and to count, and it costs nothing to be generous elsewhere: a team can invite everyone, connect every Feed and ask every assistant.
 - **Why Ziffr Cloud cannot delete.** Deleting destroys a key and cannot be undone. The open code deletes only by its own rule, after a warning, and a single sign-in stops it. A key that only sets limits is a much smaller thing to lose.
 - **Letting trials invite.** It would show Ziffr's team features in the trial itself. But the hosted sign-up is public, and a trial that can invite turns Ziffr into a way to mail any address (ADR 0010). A Free Workspace after 14 days can invite, within the invitation limits Ziffr already has (50 a day per Workspace and per person, three a day per inbox). Booking lifts it at once. If trials convert badly because of this, a middle way is to allow a few invitations, each to an address at the Owner's own email domain.
+
+## Open points (2026-11-22)
+
+Recorded for the owner to decide with data, not decided here:
+
+- **A Size between Team and Business.** From €79 for 200 Metrics to €199 for 1,000 is a large step for a Workspace of about 250. Something near 500 Metrics at about €129 is a candidate. Wait until the Metric counts of real Workspaces show where people meet the limit; the open code needs no change, since a Size is only a limit with a name (ADR 0013).
+- **Business may be priced low** for a business of that size, which buys on trust and sign-in more than on price. The proposed paid sign-in add-on (ADR 0016) is one answer; a higher Business price is the other.
