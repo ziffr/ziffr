@@ -72,13 +72,28 @@ describe("the combined form's fields", () => {
     expect(host.textContent).toContain("7 recorded for Costs.");
   });
 
+  it("give way to the thank-you screen once all that was sent is recorded, and come back with Change it", async () => {
+    send.mockResolvedValueOnce({ rows: { 1: { ok: true, detail: "45 recorded for Revenue. Your note was saved." } } });
+    await mount(<CombinedFields code="c" rows={rows} numberStyle="1,234.5" notes intro={<h1>Your numbers</h1>} />);
+    await type("value-1", "45"); await type("note-1", "Two fairs");
+    await submit();
+    expect(host.querySelector("form")).toBeNull();
+    expect(host.querySelector("h1")?.textContent).toBe("Thank you");
+    expect(document.activeElement).toBe(host.querySelector("h1"));
+    expect(host.textContent).toContain("Note: Two fairs");
+    expect(host.textContent).toContain("You can close this tab.");
+    await act(async () => { ([...host.querySelectorAll("button")].find((b) => b.textContent === "Change it") as HTMLButtonElement).click(); });
+    expect(host.querySelector("h1")?.textContent).toBe("Your numbers");
+    expect(field("value-1")).not.toBeNull();
+    expect(host.textContent).toContain("45 recorded for Revenue.");
+  });
+
   it("ask for a note under a row that came without one, and save it by that row's code", async () => {
     send.mockResolvedValueOnce({ rows: { 1: { ok: true, detail: "45 recorded for Revenue.", ask: "q".repeat(43) } } });
     await mount(<CombinedFields code="c" rows={rows} numberStyle="1,234.5" notes />);
     await type("value-1", "45");
     await submit();
     expect(host.textContent).toContain("Anything behind it? (optional)");
-    // The row's own note field gives way to the question until a further number is typed.
     expect(field("note-1")).toBeNull();
     const words = [...host.querySelectorAll("textarea")].find((t) => t.getAttribute("aria-label")?.startsWith("Anything behind it?"))!;
     expect(words.getAttribute("aria-label")).toBe("Anything behind it? (optional) for Revenue, October 2026");

@@ -61,9 +61,6 @@ export default async function SubmitPage({ params, searchParams }: { params: Pro
     <div>
       <div className="rounded-2xl border bg-background p-4 shadow-sm sm:p-6">
         <BrandBar look={look} plain className="mb-4" />
-        <div className="text-xs text-muted-foreground">Hi {person.name.split(" ")[0]}, please report</div>
-        <h1 className="mt-1 text-xl font-semibold">{m.name}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
         <SubmitForm
           key={`${code} ${named?.start ?? ""}`}
           code={code}
@@ -72,6 +69,13 @@ export default async function SubmitPage({ params, searchParams }: { params: Pro
           placeholder={m.unit || (m.format === "currency" ? "€" : m.format === "percent" ? "%" : "Value")}
           named={extras && named ? { metricId: extras.metricId, period: named.start } : null}
           offer={offer}
+          intro={
+            <>
+              <div className="text-xs text-muted-foreground">Hi {person.name.split(" ")[0]}, please report</div>
+              <h1 className="mt-1 text-xl font-semibold">{m.name}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
+            </>
+          }
           rule={RULE_LABEL[m.submission_rule].toLowerCase()}
           // Said of the running period only: the answer it speaks of was for that one.
           answered={form.answeredOn != null && (

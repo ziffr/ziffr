@@ -52,7 +52,6 @@ import { ObservationDetailsProvider, cachedLoader } from "@/views/observation-ti
 import { observationDetailsAction } from "@/app/observation-actions";
 import { HistoryNotes } from "@/components/history-notes";
 import type { ShownNote } from "@ziffr/core/value-notes";
-import { markWidgetMenuSeen } from "@/lib/widget-menu-hint";
 import { designOf, duplicateAsDesign } from "@ziffr/core/design-files";
 import { downloadDesign } from "@/lib/design-download";
 import { Preview, TemplatePreview } from "./preview";
@@ -332,7 +331,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
 
   return (
     <>
-      <ContextMenu onOpenChange={(o) => { if (o) { markWidgetMenuSeen(data.viewer); setMenuOpened(true); } }}>
+      <ContextMenu onOpenChange={(o) => { if (o) { setMenuOpened(true); } }}>
         <ContextMenuTrigger
           ref={frame}
           style={widgetScaleStyle(scale)}
@@ -357,7 +356,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
             {ms.some(isArchived) && <span title={ms.length > 1 ? "Some of its Metrics are archived: they take no new values." : "Its Metric is archived: it takes no new values."} className="widget-text-xs flex shrink-0 items-center gap-1 text-muted-foreground"><Archive aria-hidden className="size-[1.15em]" /> Archived</span>}
             {open > 0 && <OpenActionsButton slugs={ms.map((x) => x.slug)} count={open} label={openText} />}
             {editable && mayWriteNote && <NoteEditButton called={called} onClick={() => setWriting(true)} />}
-            <DropdownMenu onOpenChange={(o) => { if (o) { markWidgetMenuSeen(data.viewer); setMenuOpened(true); } }}>
+            <DropdownMenu onOpenChange={(o) => { if (o) { setMenuOpened(true); } }}>
               <DropdownMenuTrigger aria-label={`Options for ${called}`} className={cn("-mr-1.5 flex size-8 max-md:size-11 max-md:-my-1.5 max-[420px]:order-2 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-60 group-hover/widget:opacity-100 hover:bg-muted focus-visible:opacity-100 data-popup-open:opacity-100", !(editable && mayWriteNote) && "ml-auto")} onMouseDown={(e) => e.stopPropagation()}>
                 <MoreHorizontal className="size-4" />
               </DropdownMenuTrigger>

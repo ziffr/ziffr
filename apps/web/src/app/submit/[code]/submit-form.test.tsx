@@ -6,7 +6,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-type Result = { ok: boolean; detail: string };
+type Result = { ok: boolean; detail: string; noteKept?: boolean; ask?: string };
 const submitWebForm = vi.fn(async (_code: string, _previous: unknown, _form: FormData): Promise<Result> => ({ ok: true, detail: "5 recorded." }));
 const recordValue = vi.fn(async (_id: number, _input: unknown): Promise<Result | { error: string }> => ({ ok: true, detail: "5 recorded for October." }));
 vi.mock("@/app/actions", () => ({ submitWebForm: (c: string, p: unknown, f: FormData) => submitWebForm(c, p, f) }));
@@ -62,6 +62,7 @@ describe("the period under For", () => {
     expect(select().value).toBe("2026-10-01");
     await send();
     expect(sent()).toBe("2026-10-01");
+    await act(async () => { button(/^Change it$/)!.click(); });
     submitWebForm.mockResolvedValueOnce({ ok: false, detail: "Type a number." });
     await pick("2026-11-01");
     await send();
@@ -69,6 +70,9 @@ describe("the period under For", () => {
     expect(select().value).toBe("2026-11-01");
     await send();
     expect(sent()).toBe("2026-11-01");
+    // The form comes back on the period that was sent.
+    await act(async () => { button(/^Change it$/)!.click(); });
+    expect(select().value).toBe("2026-11-01");
   });
 
   it("gives way to the period to start with once the picked one stops waiting", async () => {
@@ -89,19 +93,70 @@ describe("the period under For", () => {
   });
 });
 
+const type = async (name: string, words: string) => {
+  const el = host.querySelector(`[name=${name}]`) as HTMLInputElement;
+  const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(proto, "value")!.set!.call(el, words);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+};
+
 describe("after a recorded value", () => {
-  it("offers the next value that is due and gives the form back when asked", async () => {
+  const intro = <h1>Signups</h1>;
+
+  it("replaces the form with the thank-you screen and focuses its heading; Change it brings the form back", async () => {
+    submitWebForm.mockResolvedValueOnce({ ok: true, detail: "5 recorded for Signups. Your note was saved." });
+    await mount(<SubmitForm code="tk-abc" label="Signups" placeholder="Value" numberStyle="1,234.5" notes intro={intro} />);
+    await type("value", "5"); await type("note", "Two fairs");
+    await send();
+    expect(host.querySelector("form")).toBeNull();
+    expect(host.querySelectorAll("h1")).toHaveLength(1);
+    const heading = host.querySelector("h1")!;
+    expect(heading.textContent).toBe("Thank you");
+    expect(document.activeElement).toBe(heading);
+    expect(document.getElementById(heading.getAttribute("aria-describedby")!)!.textContent).toContain("5 recorded for Signups.");
+    expect(host.querySelector("[role=status]")?.textContent).toContain("Note: Two fairs");
+    expect(host.textContent).toContain("You can close this tab.");
+    await act(async () => { button(/^Change it$/)!.click(); });
+    expect(host.querySelector("h1")?.textContent).toBe("Signups");
+    expect(host.textContent).not.toContain("Thank you");
+    expect(document.activeElement).toBe(host.querySelector("input[name=value]"));
+  });
+
+  it("shows no note words when the note was not saved, and keeps them in the field", async () => {
+    submitWebForm.mockResolvedValueOnce({ ok: true, detail: "5 recorded. Your note was not saved. The note could not be saved. The value stands.", noteKept: true });
+    await mount(<SubmitForm code="tk-abc" label="Signups" placeholder="Value" numberStyle="1,234.5" notes />);
+    await type("value", "5"); await type("note", "Two fairs");
+    await send();
+    expect(host.textContent).not.toContain("Note: Two fairs");
+    await act(async () => { button(/^Change it$/)!.click(); });
+    expect((host.querySelector("[name=note]") as HTMLTextAreaElement).value).toBe("Two fairs");
+  });
+
+  it("asks for a note where the answer does", async () => {
+    submitWebForm.mockResolvedValueOnce({ ok: true, detail: "5 recorded.", ask: "q".repeat(43) });
+    await mount(<SubmitForm code="tk-abc" label="Signups" placeholder="Value" numberStyle="1,234.5" notes />);
+    await send();
+    expect(host.textContent).toContain("Anything behind it? (optional)");
+  });
+
+  it("does not offer to change a period the form no longer takes", async () => {
+    const at = (asked: string[]) => <SubmitForm code="tk-abc" label="Signups" placeholder="Value" numberStyle="1,234.5" asked={asked} />;
+    await mount(at(["2026-10-01"]));
+    await send();
+    await act(async () => { root.render(at([])); });
+    expect(button(/^Change it$/)).toBeUndefined();
+    await act(async () => { button(/Send another value/)!.click(); });
+    expect(host.querySelector("form")).not.toBeNull();
+  });
+
+  it("offers the next value that is due", async () => {
     await mount(<SubmitForm code="tk-abc" label="Signups" placeholder="Value" numberStyle="1,234.5" next={next} />);
     expect(host.querySelector("a")).toBeNull();
     await send();
-    expect(host.querySelector("[role=status]")?.textContent).toBe("5 recorded.");
     expect(host.querySelector("a")?.getAttribute("href")).toBe(next.href);
     expect(host.querySelector("a")?.textContent).toContain("Next: Visits");
-    // On a phone only: the form stays on a larger screen.
-    expect(form().className).toContain("max-sm:hidden");
-    await act(async () => { button(/Send another value/)!.click(); });
-    expect(form().className).not.toContain("max-sm:hidden");
-    expect(document.activeElement).toBe(host.querySelector("input[name=value]"));
   });
 
   it("says nothing is due only to a known person, and nothing of it to a link holder", async () => {
@@ -115,24 +170,30 @@ describe("after a recorded value", () => {
     expect(host.querySelector("a")).toBeNull();
   });
 
-  it("keeps the form after a refusal", async () => {
+  it("keeps the form and what was typed after a refusal", async () => {
     submitWebForm.mockResolvedValueOnce({ ok: false, detail: "Type a number." });
     await mount(<SubmitForm code="tk-abc" label="Signups" placeholder="Value" numberStyle="1,234.5" next={next} />);
+    await type("value", "abc");
     await send();
     expect(host.querySelector("[role=alert]")?.textContent).toBe("Type a number.");
+    expect((host.querySelector("input[name=value]") as HTMLInputElement).value).toBe("abc");
     expect(host.querySelector("a")).toBeNull();
-    expect(form().className).not.toContain("max-sm:hidden");
+    expect(host.textContent).not.toContain("Thank you");
   });
 });
 
-describe("the breakdown on a phone", () => {
-  it("is behind a button, and stays in the form", async () => {
+describe("the breakdown", () => {
+  it("is closed behind a button, stays in the form, and stays open once opened", async () => {
+    submitWebForm.mockResolvedValueOnce({ ok: false, detail: "Type a number." });
     await mount(<SubmitForm code="tk-abc" label="Signups" placeholder="Value" numberStyle="1,234.5" />);
     const part = host.querySelector("#breakdown-part")!;
     expect(part.querySelector("textarea[name=breakdown]")).not.toBeNull();
-    expect(part.className).toContain("max-sm:hidden");
+    expect(part.className).toBe("hidden");
     await act(async () => { button(/Add a breakdown/)!.click(); });
-    expect(part.className).not.toContain("max-sm:hidden");
-    expect(button(/Hide the breakdown/)!.getAttribute("aria-expanded")).toBe("true");
+    expect(part.className).not.toContain("hidden");
+    expect(document.activeElement).toBe(part.querySelector("textarea"));
+    expect(button(/Add a breakdown/)).toBeUndefined();
+    await send();
+    expect(host.querySelector("#breakdown-part")!.className).not.toContain("hidden");
   });
 });

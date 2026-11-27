@@ -1,11 +1,12 @@
 "use client";
 // The combined form's fields (GLOSSARY: Combined Prompt, Value Note, Breakdown; spec 0064): for each number of the
 // message one field, a note and a Breakdown, and one Submit for all. Empty rows are skipped and each row says what
-// became of it, in the core's own words handed back by the action; nothing from the address is ever shown. Fields are
+// became of it; once everything sent was recorded, the thank-you screen takes the list's place. Both speak in the core's own words handed back by the action; nothing from the address is ever shown. Fields are
 // named by the number a figure has in the message, the only thing about it a browser sends back.
 import { useActionState, useEffect, useRef, useState } from "react";
 import { submitCombinedWebForm } from "@/app/actions";
 import { StandInNote } from "@/app/submit/stand-in-note";
+import { NoteSaid, savedNote, ThankYou } from "@/app/submit/thank-you";
 import { BreakdownField } from "@/app/submit/[code]/breakdown-field";
 import { Button } from "@/components/ui/button";
 import { AskedNote } from "@/components/asked-note";
@@ -18,10 +19,13 @@ import type { NumberStyle } from "@ziffr/core/number-style";
 type Typed = { value: string; note: string };
 const EMPTY: Typed = { value: "", note: "" };
 
-type Props = { code: string; rows: CombinedFormRow[]; numberStyle: NumberStyle; notes: boolean };
+type Props = { code: string; rows: CombinedFormRow[]; numberStyle: NumberStyle; notes: boolean; /** What stands above the list and gives way with it. */ intro?: React.ReactNode };
+
+/** What became of each row, without the questions for a note: one is asked once. */
+const unasked = (rows: Record<number, CombinedRowResult>): Record<number, CombinedRowResult> => Object.fromEntries(Object.entries(rows).map(([position, { ok, detail, noteKept }]) => [position, { ok, detail, noteKept }]));
 
 /** The list of numbers with one Submit. */
-export function CombinedFields({ code, rows, numberStyle, notes }: Props) {
+export function CombinedFields({ code, rows, numberStyle, notes, intro }: Props) {
   const [result, action, pending] = useActionState<CombinedResult | null, FormData>(submitCombinedWebForm.bind(null, code), null);
   const [typed, setTyped] = useState<Record<number, Typed>>({});
   // What became of each row, kept over further tries for the rest.
@@ -29,7 +33,11 @@ export function CombinedFields({ code, rows, numberStyle, notes }: Props) {
   // Counts the times a row was recorded: a new count empties its Breakdown.
   const [rounds, setRounds] = useState<Record<number, number>>({});
   const form = useRef<HTMLFormElement>(null);
+  const [again, setAgain] = useState(false);
+  // What the last try was sent with, for the notes' words.
+  const [sent, setSent] = useState<Record<number, Typed>>({});
   useEffect(() => {
+    setAgain(false);
     if (!result) return;
     const answers = Object.entries(result.rows).map(([position, r]) => [Number(position), r] as const);
     setSaid((old) => ({ ...old, ...result.rows }));
@@ -40,10 +48,40 @@ export function CombinedFields({ code, rows, numberStyle, notes }: Props) {
     const refused = answers.find(([, r]) => !r.ok);
     if (refused) form.current?.querySelector<HTMLElement>(`[name="value-${refused[0]}"]`)?.focus();
   }, [result]);
-  const shown: Record<number, CombinedRowResult> = { ...said, ...result?.rows };
+  const shown: Record<number, CombinedRowResult> = again ? said : { ...said, ...result?.rows };
   const open = rows.some((r) => r.open);
+  // Focus goes to the first field when the form comes back.
+  useEffect(() => { if (again) form.current?.querySelector<HTMLElement>("input")?.focus(); }, [again]);
+  const answers = Object.values(result?.rows ?? {});
+  // The form is finished only when everything sent was taken: a refusal keeps it, with what was typed.
+  if (!again && result && !result.refused && answers.length > 0 && answers.every((r) => r.ok)) {
+    return (
+      <div className="mt-1">
+        <ThankYou onChange={() => { setSaid(unasked); setAgain(true); }}>
+          <ul className="flex flex-col gap-3">
+            {rows.filter((row) => shown[row.position]?.ok).map((row) => {
+              const r = shown[row.position];
+              const words = savedNote(r.detail, sent[row.position]?.note);
+              const ask = result.rows[row.position]?.ask;
+              return (
+                <li key={row.position}>
+                  <div role="status" className="rounded-lg border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] px-3 py-2">
+                    <p>{r.detail}</p>
+                    {words && <NoteSaid words={words} />}
+                  </div>
+                  {ask && <AskedNote key={ask} code={ask} about={row.name === null ? undefined : `for ${row.name}, ${row.periodLabel}`} className="mt-3" />}
+                </li>
+              );
+            })}
+          </ul>
+        </ThankYou>
+      </div>
+    );
+  }
   return (
-    <form ref={form} action={action} noValidate>
+    <>
+    {intro}
+    <form ref={form} action={action} onSubmit={() => setSent(typed)} noValidate>
       <ol className="mt-4 flex flex-col gap-3">
         {rows.map((row) => (
           <li key={row.position} className="rounded-lg border p-3" aria-labelledby={`figure-${row.position}`}>
@@ -75,7 +113,7 @@ export function CombinedFields({ code, rows, numberStyle, notes }: Props) {
       </ol>
       {/* On a phone Submit stays in reach however long the list is, above the tab bar of a signed-in person. */}
       <div className={cn("mt-4", open && "max-sm:sticky max-sm:bottom-0 max-sm:z-30 max-sm:border-t max-sm:bg-background max-sm:py-3 max-sm:[body:has(nav[aria-label=Tabs])_&]:bottom-[calc(3rem+1px+env(safe-area-inset-bottom))]")}>
-        {result && <Summary result={result} />}
+        {result && !again && <Summary result={result} />}
         {open ? (
           <Button type="submit" size="lg" className="w-full max-sm:h-12 max-sm:text-base" disabled={pending}>{pending ? "Sending…" : "Submit"}</Button>
         ) : (
@@ -83,19 +121,17 @@ export function CombinedFields({ code, rows, numberStyle, notes }: Props) {
         )}
       </div>
     </form>
+    </>
   );
 }
 
-/** What the last try came to, beside the button, since the row it speaks of may be off the screen. */
+/** What the last try came to where something was not taken, beside the button, since the row it speaks of may be off
+ * the screen. */
 function Summary({ result }: { result: CombinedResult }) {
   if (result.refused) return <p role="alert" className="mb-2 text-sm text-destructive">{result.refused}</p>;
   const all = Object.values(result.rows);
   const done = all.filter((r) => r.ok).length;
-  return (
-    <p role="status" className="mb-2 text-sm">
-      {done === all.length ? (done === 1 ? "Done. See the number above." : `All ${done} done. See each number above.`) : `${done} of ${all.length} done. See each number above for what happened.`}
-    </p>
-  );
+  return <p role="status" className="mb-2 text-sm">{done} of {all.length} done. See each number above for what happened.</p>;
 }
 
 /** What became of one row. Colour is never the only sign: a refusal starts with its own words. */

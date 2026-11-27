@@ -30,10 +30,19 @@ export default async function CombinedSubmitPage({ params }: { params: Promise<{
       <div>
         <div className="rounded-2xl border bg-background p-4 shadow-sm sm:p-6">
           <BrandBar look={look} plain className="mb-4" />
-          <div className="text-xs text-muted-foreground">Hi {form.firstName}, please report</div>
-          <h1 className="mt-1 text-xl font-semibold">Your numbers</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Fill in the ones you know and leave the rest empty. You can open this page again later.</p>
-          <CombinedFields code={code} rows={form.rows} numberStyle={form.numberStyle} notes={form.notes} />
+          <CombinedFields
+            code={code}
+            rows={form.rows}
+            numberStyle={form.numberStyle}
+            notes={form.notes}
+            intro={
+              <>
+                <div className="text-xs text-muted-foreground">Hi {form.firstName}, please report</div>
+                <h1 className="mt-1 text-xl font-semibold">Your numbers</h1>
+                <p className="mt-1 text-sm text-muted-foreground">Fill in the ones you know and leave the rest empty. You can open this page again later.</p>
+              </>
+            }
+          />
         </div>
         <p className="mt-4 text-center text-xs text-muted-foreground">This link is for you; anyone who has it can send these numbers. It works for 30 days.</p>
         {look.footer && <p className="mt-2 text-center text-xs text-muted-foreground">{look.footer}</p>}
