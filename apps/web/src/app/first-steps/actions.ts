@@ -69,15 +69,15 @@ export async function addFirstMetric(workspaceId: string, pick: unknown): Promis
   });
 }
 
-/** The ready-made sets offered, best fit first. It only reads. */
-export async function readSets(workspaceId: string) {
-  return attempt(async () => firstStepsSets(await drawnFor(workspaceId)));
+/** The ready-made sets offered, best fit first; the topic is the browser's, checked by the core. It only reads. */
+export async function readSets(workspaceId: string, topic: string | null) {
+  return attempt(async () => firstStepsSets(await drawnFor(workspaceId), topic));
 }
 
 /** One set's Preview and how the Workspace writes numbers; the browser names the set by its Pack id alone. It only reads. */
-export async function readSet(workspaceId: string, packId: string) {
+export async function readSet(workspaceId: string, packId: string, topic: string | null) {
   return attempt(async () => {
     const actor = await drawnFor(workspaceId);
-    return { preview: await firstStepsSet(actor, packId), numberStyle: await numberStyleOf(actor.workspaceId) };
+    return { preview: await firstStepsSet(actor, packId, topic), numberStyle: await numberStyleOf(actor.workspaceId) };
   });
 }

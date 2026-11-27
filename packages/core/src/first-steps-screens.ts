@@ -34,6 +34,20 @@ export type Topic = (typeof TOPICS)[number];
 /** The words for each topic. */
 export const TOPIC_LABEL: Record<Topic, string> = { health: "Health and fitness", money: "Money", habits: "Habits and time", club: "A club or hobby", other: "Something else" };
 
+/** Ziffr's own Packs for private use, each with the topics it fits. None so far: a Pack added here switches the
+ * ready-made sets on for "Just me" with one of its topics. */
+export const PRIVATE_SETS: readonly { pack: string; topics: readonly Topic[] }[] = [];
+
+/** The Pack ids of the private sets for a topic; none while no topic was chosen. */
+export function privateSets(topic: Topic | null): string[] {
+  return PRIVATE_SETS.filter((s) => topic !== null && s.topics.includes(topic)).map((s) => s.pack);
+}
+
+/** Whether ready-made sets are offered: always to a team, to a person alone only where there is one for their topic. */
+export function offersSets(who: UsedBy | null, topic: Topic | null): boolean {
+  return who !== "me" || privateSets(topic).length > 0;
+}
+
 /** The industries shown before "Show all industries"; the rest of the app's list follows on request. */
 export const FIRST_INDUSTRIES: readonly Industry[] = ["saas", "ecommerce", "professional_services", "agency", "retail", "manufacturing", "healthcare", "hospitality"];
 
@@ -103,10 +117,19 @@ export function questionScreens(who: UsedBy | null): FirstStepsScreen[] {
 /** Where the Owner of a made Workspace resumes, worked out from what the Workspace has. */
 export type FirstStepsResume = "start" | "value" | "sender" | "done" | "finished";
 
+// The choice between the two ways in, and the sets: nothing of these is for someone who is offered no set.
+const SET_SCREENS: readonly FirstStepsScreen[] = ["start", "sets", "set"];
+
 /** The screen to show for what `?step=` asks. Before the Workspace exists only the questions that apply open (anything
  * else is the first screen, or the Workspace screen once the first question is answered and a later one was asked).
- * Once it exists every question of its branch opens again (Start over) and so does every later screen. */
-export function screenFor(asked: string | null, who: UsedBy | null, resume: FirstStepsResume | null): FirstStepsScreen {
+ * Once it exists every question of its branch opens again (Start over) and so does every later screen. Where no
+ * ready-made set is offered, whatever would show the choice or the sets shows the first Metric instead. */
+export function screenFor(asked: string | null, who: UsedBy | null, resume: FirstStepsResume | null, sets: boolean = offersSets(who, null)): FirstStepsScreen {
+  const screen = screenAsked(asked, who, resume);
+  return !sets && SET_SCREENS.includes(screen) ? "first" : screen;
+}
+
+function screenAsked(asked: string | null, who: UsedBy | null, resume: FirstStepsResume | null): FirstStepsScreen {
   const screen = (FIRST_STEPS_SCREENS as readonly string[]).includes(asked ?? "") ? (asked as FirstStepsScreen) : null;
   const resumed: FirstStepsScreen = resume === null || resume === "finished" ? "who" : resume;
   if (!screen) return resumed;
@@ -115,4 +138,18 @@ export function screenFor(asked: string | null, who: UsedBy | null, resume: Firs
   const later = chapterOf(screen) === 2 || screen === "start";
   if (resume !== null) return later ? screen : resumed;
   return who !== null && later ? "workspace" : "who";
+}
+
+/** The screen before one that was opened or reloaded directly, where the browser has no step to go back to. */
+export function screenBefore(screen: FirstStepsScreen, who: UsedBy | null, sets: boolean): FirstStepsScreen {
+  // A set's list is the screen before it.
+  if (screen === "set") return "sets";
+  const questions = questionScreens(who);
+  const at = questions.indexOf(screen);
+  if (at > 0) return questions[at - 1];
+  if (screen === "start" || (screen === "first" && !sets)) return "workspace";
+  if (screen === "own") return "first";
+  if (screen === "sender") return "value";
+  if (screen === "done") return "sender";
+  return sets ? "start" : "first";
 }

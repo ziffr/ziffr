@@ -12,9 +12,9 @@ import type { ScreenProps } from "./types";
 const FIRST = 3;
 
 /** The sets to choose from. */
-export function SetsScreen({ context, go }: ScreenProps) {
+export function SetsScreen({ context, answers, go }: ScreenProps) {
   const ws = context.workspace?.id ?? "";
-  const { data, failed, reload } = useShown(() => readSets(ws));
+  const { data, failed, reload } = useShown(() => readSets(ws, answers.topic));
   // "Show all" is kept in the address, so coming back from a set finds the list as it was left.
   const all = useSearchParams().get("all") === "1";
   function showAll() {

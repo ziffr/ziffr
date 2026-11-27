@@ -3,7 +3,7 @@
 // and each step as an entry in the browser's history, so that a reload and the browser's Back both work.
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
-import { NO_ANSWERS, questionScreens, screenFor, type FirstStepsAnswers, type FirstStepsScreen } from "@ziffr/core/first-steps-screens";
+import { NO_ANSWERS, offersSets, questionScreens, screenBefore, screenFor, type FirstStepsAnswers, type FirstStepsScreen } from "@ziffr/core/first-steps-screens";
 import { useConfirm } from "@/components/confirm-dialog";
 import { browserDefaults } from "./browser";
 import { leaveFirstSteps } from "./actions";
@@ -40,7 +40,9 @@ function Flow({ context }: { context: FirstStepsContext }) {
     ? { ...made.answers, topic: made.answers.who === "me" ? loadTopic(context.personId) : null }
     : { ...NO_ANSWERS, ...browserDefaults(navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone) };
   const [answers, setAnswers] = useState(() => loadDraft(key) ?? fresh());
-  const screen = screenFor(useSearchParams().get("step"), answers.who, made?.resume ?? null);
+  // Once the Workspace exists, the sets follow whom it says it is for, not a changed answer that is not saved yet.
+  const sets = offersSets(made ? made.answers.who : answers.who, answers.topic);
+  const screen = screenFor(useSearchParams().get("step"), answers.who, made?.resume ?? null, sets);
   const { confirm, dialog } = useConfirm();
 
   // A page the browser brings back from its memory may show the Workspace as not made yet: load it anew.
@@ -66,13 +68,8 @@ function Flow({ context }: { context: FirstStepsContext }) {
   }
   function back() {
     if (depth() > 0) return window.history.back();
-    // A set opened or reloaded here: its list is the screen before it.
-    if (screen === "set") return window.history.replaceState({ firstSteps: 0 }, "", urlOf("sets"));
     // Opened or reloaded here: step to the screen before this one.
-    const questions = questionScreens(answers.who);
-    const at = questions.indexOf(screen);
-    const before = at > 0 ? questions[at - 1] : screen === "start" ? "workspace" : screen === "own" ? "first" : screen === "sender" ? "value" : screen === "done" ? "sender" : "start";
-    window.history.replaceState({ firstSteps: 0 }, "", urlOf(before));
+    window.history.replaceState({ firstSteps: 0 }, "", urlOf(screenBefore(screen, answers.who, sets)));
   }
   // Start over and signing out forget everything this browser kept.
   function forget() {
