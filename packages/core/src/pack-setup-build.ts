@@ -24,6 +24,7 @@ import { roomFor, type EntryRow, type InstalledForSetup, type TemplateRow } from
 import { addingTo, additionsFor, NO_ADDITIONS, type Additions, type AddingTo } from "./pack-setup-adding";
 import { entryInputs, entryTotal, isComputed, orderTotals } from "./pack-setup-totals";
 import { whyNot, type PersonKind, type Place } from "./pack-setup-who";
+import { START_PROVIDERS_MAX } from "./pack-start-steps";
 import type { Metric, ShareRole, WorkflowConfig, WorkflowStep, WorkflowTemplateBody } from "./types";
 
 /** A Dashboard Template to make, with the Metrics picked for the Slots no entry fills, by Slot. */
@@ -73,6 +74,10 @@ export const SETUP_ENTRIES_MAX = 50;
 const MAX_SUBMITTERS = 5;
 /** The most Approvers a Workflow's Approve step takes. */
 const MAX_APPROVERS = 3;
+/** The same in the guided set-up: up to five others, and the person setting up may be ticked too. */
+const MAX_PROVIDERS = START_PROVIDERS_MAX + 1;
+/** The ways a person sends a value, which the guided set-up opens for a number it asks people for. */
+const PEOPLE_SOURCES = ["web_form", "mail", "slack", "telegram"];
 /** The longest slug a Metric can get: a name of 120 characters, and a suffix when the slug is taken. */
 const LONGEST_SLUG = 130;
 const KEY = /^[a-z][a-z0-9-]{0,39}$/;
@@ -95,6 +100,8 @@ export type PlannedMetric = {
   slug?: string;
   /** The planned Metrics a Total counts. */
   parts?: number[];
+  /** The Metric's Sources where they differ from its entry's: the guided set-up lets its people send. */
+  sources?: string[];
 };
 /** A dashboard to make; each Slot's Metrics are ids, or below 0 for Metrics made here. */
 export type PlannedDashboard = { plan: number; key: string; line: BuiltLine | null; name: string; template: TemplateRow; fills: number[][] };
@@ -133,7 +140,7 @@ export type Blueprint = {
 
 /** That Submitters of a Set up unsubscribed, so no email asks them, as one sentence; null when none did. For the
  * person setting up, who will own these Metrics and so reads this on each of them. */
-export async function unsubscribedNote(actor: Actor, b: Blueprint): Promise<string | null> {
+export async function unsubscribedNote(actor: Actor, b: { metrics: readonly { submitters: string[] }[]; people: ReadonlyMap<string, { name: string }> }): Promise<string | null> {
   const stops = await stoppedWays(actor.workspaceId, [...new Set(b.metrics.flatMap((m) => m.submitters))]);
   const ids = [...stops].filter(([, ways]) => ways.has("email")).map(([id]) => id);
   if (!ids.length) return null;
@@ -146,8 +153,8 @@ export function withSlugs(formula: string, slug: (key: string) => string): strin
   return formula.replace(/\{([a-z0-9-]+)\}/g, (_all, k: string) => `{${slug(k)}}`);
 }
 
-/** Everyone who may be put into a place. */
-async function everyone(actor: Actor): Promise<Map<string, SetupPerson>> {
+/** Everyone who may be put into a place (for an Owner or Admin, whom the caller checks): names and what they are. */
+export async function setupPeople(actor: Actor): Promise<Map<string, SetupPerson>> {
   const [people, { data: members }] = await Promise.all([peopleIn(actor.workspaceId), db().from("memberships").select("user_id, role").eq("workspace_id", actor.workspaceId)]);
   const roles = new Map((members ?? []).map((m) => [m.user_id as string, m.role as string]));
   return new Map(people.map((p) => [p.id, { id: p.id, name: p.name, kind: !roles.has(p.id) ? "contact" : roles.get(p.id) === "guest" ? "guest" : "member" } satisfies SetupPerson]));
@@ -366,19 +373,29 @@ type Asked = (key: string, would: string[]) => Pick<PlannedMetric, "submitters" 
 
 /** A number the Pack says comes from elsewhere (another system sends it, or it is set as a target) is asked of nobody,
  * whether they were picked beside Positions or hold one: only of the person setting up, when they chose to be asked.
- * The Pack's word only ever asks fewer people, never more. */
-function asking(actor: Actor, p: InstalledForSetup, input: PackSetupInput): Asked {
+ * The Pack's word only ever asks fewer people, never more. In the guided set-up (`guided`) the people picked also send
+ * a system's number, as its screens say, until the system is connected. */
+function asking(actor: Actor, p: InstalledForSetup, input: PackSetupInput, guided: boolean): Asked {
   const elsewhere = new Map((p.overview?.numbers ?? []).flatMap((n): [string, Elsewhere][] => (n.by === "system" || n.by === "target" ? [[n.key, n.by]] : [])));
   return (key, would) => {
-    const by = elsewhere.get(key) ?? null;
+    const known = elsewhere.get(key) ?? null;
+    const by = guided && known === "system" ? null : known;
     const submitters = by === null ? would : would.filter((id) => input.askElsewhere === true && id === actor.personId);
     return { submitters, elsewhere: by, left: would.filter((id) => !submitters.includes(id)) };
   };
 }
 
+/** In the guided set-up a Metric follows a Workflow only once someone submits it, so that "nobody for now" asks and
+ * tells nobody; and its Sources hold the ways its people send. */
+function guidedMetric(m: PlannedMetric): PlannedMetric {
+  if (!m.submitters.length) return { ...m, workflow: null };
+  const sources = m.entry.sources ?? [];
+  return sources.includes("web_form") ? m : { ...m, sources: [...new Set([...sources, ...PEOPLE_SOURCES])] };
+}
+
 /** The Metrics to make: those outside every Repeat, then line by line; in each part what takes values before what is
  * computed from it. `beside` submit an entry that names no Position for that; `ask` says who is asked. */
-function plannedMetrics(f: Filling, entries: EntryRow[], workflows: PlannedWorkflow[], beside: string[], ask: Asked, to: AddingTo | null): { metrics: PlannedMetric[]; made: Made } {
+function plannedMetrics(f: Filling, entries: EntryRow[], workflows: PlannedWorkflow[], beside: string[], ask: Asked, to: AddingTo | null, guided: boolean): { metrics: PlannedMetric[]; made: Made } {
   const metrics: PlannedMetric[] = [];
   const byPlace = new Map<string, PlannedMetric>();
   const perOf = (key: string) => f.places.metrics.get(key)?.per;
@@ -406,7 +423,8 @@ function plannedMetrics(f: Filling, entries: EntryRow[], workflows: PlannedWorkf
         // Someone else's Stand-in all the same.
         if (submitters.length === 1) standIn = null;
       }
-      const m: PlannedMetric = { plan: -(metrics.length + 1), entry, line, name, submitters, standIn, workflow: plain ? flowFor(line) : null, elsewhere, left };
+      const laid: PlannedMetric = { plan: -(metrics.length + 1), entry, line, name, submitters, standIn, workflow: plain ? flowFor(line) : null, elsewhere, left };
+      const m = guided && plain ? guidedMetric(laid) : laid;
       metrics.push(m);
       byPlace.set(at(entry.pack_key, line), m);
     }
@@ -529,8 +547,10 @@ function oneLineOf(places: Places, input: PackSetupInput): string {
 }
 
 /** Checks what is asked for against the install and the Workspace, and lays out what would be made. For a further step
- * of a Set up, `earlier` names its record and counts the Metrics it made, which the Workspace Limit has counted. */
-export async function buildSetup(actor: Actor, p: InstalledForSetup, input: PackSetupInput, earlier?: { record: number; metrics: number }): Promise<Blueprint> {
+ * of a Set up, `earlier` names its record and counts the Metrics it made, which the Workspace Limit has counted.
+ * `guided` is the guided set-up (pack-start.ts), which only the server asks for: the people picked also submit a
+ * system's numbers, and whoever provides them may be a Contact. Every other rule is the same. */
+export async function buildSetup(actor: Actor, p: InstalledForSetup, input: PackSetupInput, earlier?: { record: number; metrics: number }, guided = false): Promise<Blueprint> {
   const entries = wantedEntries(p, input);
   const places = placeMaps(p.places, p.workflows);
   const existing = await getMetrics(actor.workspaceId);
@@ -540,14 +560,15 @@ export async function buildSetup(actor: Actor, p: InstalledForSetup, input: Pack
 
   // Who fills what, and the lines of each Repeat.
   const positions = positionUses(places, entries, boards, flows);
-  const base = { places, uses: new Map(positions.map((u) => [u.key, u])), people: await everyone(actor), problems: [] as string[], notes: [] as string[] };
+  const base = { places, uses: new Map(positions.map((u) => [u.key, u])), people: await setupPeople(actor), problems: [] as string[], notes: [] as string[] };
   for (const flow of flows) if (p.places?.workflows.some((w) => w.key === flow.row.pack_key) && !places.workflows.has(flow.row.pack_key)) base.notes.push(`The Positions of the Workflow ${flow.row.name} do not apply: this copy was kept from another version of the Pack.`);
   const global = fillsOf(input.people, undefined, base);
   const filling: Filling = { ...base, global, lines: builtLines(input.lines, base, to?.taken ?? []) };
 
   const { workflows, sends } = plannedWorkflows(filling, flows);
-  const beside = strings(input.submitters, MAX_SUBMITTERS);
-  const { metrics, made } = plannedMetrics(filling, entries, workflows, beside, asking(actor, p, input), to);
+  const most = guided ? MAX_PROVIDERS : MAX_SUBMITTERS;
+  const beside = strings(input.submitters, most);
+  const { metrics, made } = plannedMetrics(filling, entries, workflows, beside, asking(actor, p, input, guided), to, guided);
   const { dashboards, offered } = plannedDashboards(filling, boards, made);
   connectSends(filling, sends, dashboards);
   // Adding a line: one computed from a Metric that is not there to compute from is a problem said already, so its
@@ -559,10 +580,12 @@ export async function buildSetup(actor: Actor, p: InstalledForSetup, input: Pack
     const seen = new Set(choices.map((m) => m.id));
     if (offered.some((id) => !seen.has(id))) throw new Forbidden("Fill a Slot only with Metrics you see.");
   }
-  if (beside.length > MAX_SUBMITTERS) throw new Error(`Ask at most ${MAX_SUBMITTERS} people; add more on each Metric's page.`);
-  // Submitters and Approvers picked beside Positions are members of this Workspace: the page offers no one else.
-  const asMembers = [...beside, ...flows.flatMap((x) => (places.workflows.get(x.row.pack_key)?.steps.some((s) => s.by) ? [] : strings(x.pick.approvers, MAX_APPROVERS)))];
-  if (asMembers.some((id) => !filling.people.has(id) || filling.people.get(id)!.kind === "contact")) throw new Forbidden("Pick members of this Workspace.");
+  if (beside.length > most) throw new Error(`Ask at most ${most} people; add more on each Metric's page.`);
+  // Submitters and Approvers picked beside Positions are members of this Workspace: the page offers no one else. The
+  // guided set-up also takes Contacts as providers, whom an Owner or Admin may make Submitters by hand.
+  const approversBeside = flows.flatMap((x) => (places.workflows.get(x.row.pack_key)?.steps.some((s) => s.by) ? [] : strings(x.pick.approvers, MAX_APPROVERS)));
+  const asMembers = guided ? approversBeside : [...beside, ...approversBeside];
+  if (beside.some((id) => !filling.people.has(id)) || asMembers.some((id) => !filling.people.has(id) || filling.people.get(id)!.kind === "contact")) throw new Forbidden("Pick members of this Workspace.");
   // A Feed from the browser: a string naming a live Feed of this Workspace, or nothing.
   if (input.feed != null && typeof input.feed !== "string") throw new Error("Pick one of this Workspace's Feeds.");
   const feed = input.feed ? await liveFeed(actor.workspaceId, input.feed).then((x) => x.person_id as string, () => { throw new Forbidden("Pick one of this Workspace's Feeds."); }) : null;

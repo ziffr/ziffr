@@ -181,7 +181,8 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
 export function deckForLink(document: unknown, shown: Set<number>, records: string[] | null): unknown {
   type Rec = { type?: string; typeName?: string; props?: { metricIds?: unknown; settings?: unknown }; meta?: Record<string, unknown>; fromId?: string; toId?: string };
   const doc = document as { store?: Record<string, Rec> } | null;
-  if (!doc?.store) return document;
+  // A deck nobody opened yet holds its template and the ids that fill it, which a link does not carry.
+  if (!doc?.store) return (doc as { importSeed?: unknown } | null)?.importSeed ? null : document;
   const gone = new Set<string>();
   const keep = Object.entries(doc.store).filter(([key, r]) => {
     if (records && !records.includes(key)) return false;
