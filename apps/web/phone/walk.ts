@@ -50,6 +50,7 @@ export const WALK: Record<string, Walk> = {
   // Any other token shows the same page; a real Invitation is only made by a signed-in person.
   "/invite/[token]": { open: "/invite/no-such-invitation", sees: "This invitation does not work" },
   "/welcome": { skip: SIGNED_IN },
+  "/first-steps": { skip: "switched off until every screen is built (spec 0067)" },
   "/setup": { skip: SIGNED_IN },
   "/try": { skip: SIGNED_IN },
   "/try/start": { skip: SIGNED_IN },

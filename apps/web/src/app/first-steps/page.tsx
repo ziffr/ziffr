@@ -1,0 +1,50 @@
+// First Steps (spec 0067; GLOSSARY: First Steps): the questions that make a person's Workspace, and where its Owner comes
+// back to. Switched off (not found) until every screen is built. It is for someone signed in who has no Workspace or
+// asked for another (`?another=1`), and for the Owner of a Workspace it made and has not finished. Anyone else goes
+// Home. The browser gets that person's own id, their Workspace's answers and what they may ask to join, nothing more.
+import type { Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
+import { firstStepsState } from "@ziffr/core/first-steps";
+import { FIRST_STEPS_ON } from "@ziffr/core/first-steps-screens";
+import { joinableWorkspaces } from "@ziffr/core/invitations";
+import { trialEnded } from "@ziffr/core/trials";
+import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
+import { importOffered } from "@ziffr/core/workspace-import";
+import { demoOnly, isDemo, personFor, sessionUser, signedIn } from "@/lib/auth";
+import { currentActor, myWorkspaces } from "@/lib/viewer";
+import { FirstStepsFlow } from "./flow";
+import type { FirstStepsContext } from "./screens/types";
+
+export const metadata: Metadata = { title: "First steps" };
+
+export default async function FirstStepsPage({ searchParams }: { searchParams: Promise<{ another?: string; unsaved?: string }> }) {
+  if (!FIRST_STEPS_ON) notFound();
+  if (demoOnly()) redirect("/login");
+  if (await isDemo()) redirect("/");
+  const user = await sessionUser();
+  if (!user) redirect("/login");
+  const personId = await personFor(user);
+  const query = await searchParams;
+
+  let workspace: FirstStepsContext["workspace"] = null;
+  if (query.another !== "1" && (await myWorkspaces(personId)).length) {
+    const actor = await currentActor();
+    // First Steps is the Owner's; an ended trial has only the screen that says so.
+    if (actor.role !== "owner" || (await trialEnded(actor.workspaceId))) redirect("/");
+    const state = await firstStepsState(actor);
+    if (!state || state.resume === "finished") redirect("/");
+    workspace = { id: actor.workspaceId, ...state };
+  }
+
+  // What a newcomer is offered is read only while there is no Workspace to show.
+  const who = workspace ? null : await signedIn();
+  const context: FirstStepsContext = {
+    personId,
+    workspace,
+    joinable: who ? await joinableWorkspaces(who) : [],
+    trialDays: workspace ? null : ((await whatThisZiffrOffers()).trial?.days ?? null),
+    importOffered: !workspace && importOffered(),
+    unsaved: query.unsaved === "1",
+  };
+  return <FirstStepsFlow context={context} />;
+}
