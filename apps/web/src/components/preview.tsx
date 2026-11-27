@@ -5,6 +5,7 @@
 // Preview needs no Share check and sends nothing to the browser that the page did not have (spec 0011).
 import { useMemo } from "react";
 import { sampleCanvasData, sampleDashboard, sampleTeamWidget, sampleWidget, type SampleWidget } from "@ziffr/core/sample-data";
+import type { packSample } from "@ziffr/core/pack-sample";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { CanvasData, DashboardTemplate, TemplateId, WidgetTemplate } from "@ziffr/core/types";
 import { TEMPLATES } from "@/views/templates";
@@ -79,10 +80,14 @@ export function TemplatePreview({ template, viewer, numberStyle, width, classNam
 }
 
 /** A Dashboard Template's Preview (spec 0014, #191): its widgets where they sit on the 12-column grid, drawn with
- * Sample Data and scaled to `width`. Like a template's Preview, it shows none of the workspace's numbers. */
-export function DashboardTemplatePreview({ template, viewer, numberStyle, width = 520, className }: { template: { slots: DashboardTemplate["slots"]; body: DashboardTemplate["body"] }; viewer: string; numberStyle: NumberStyle; width?: number; className?: string }) {
-  const data = useMemo(() => sampleCanvasData(viewer, numberStyle), [viewer, numberStyle]);
-  const widgets = useMemo(() => sampleDashboard(template), [template]);
+ * Sample Data and scaled to `width`. A Pack's template is drawn with `pack`, Sample Data under the Pack's own Metric
+ * names. Like a template's Preview, it shows none of the workspace's numbers. */
+export function DashboardTemplatePreview({ template, viewer, numberStyle, width = 520, className, pack }: { template: { slots: DashboardTemplate["slots"]; body: DashboardTemplate["body"] }; viewer: string; numberStyle: NumberStyle; width?: number; className?: string; pack?: ReturnType<typeof packSample> }) {
+  const data = useMemo(() => {
+    const sample = sampleCanvasData(viewer, numberStyle);
+    return pack ? { ...sample, metrics: [...pack.data.metrics, ...sample.metrics], series: { ...sample.series, ...pack.data.series }, targets: { ...sample.targets, ...pack.data.targets } } : sample;
+  }, [viewer, numberStyle, pack]);
+  const widgets = useMemo(() => sampleDashboard(template, "month", pack?.fills(template.slots)), [template, pack]);
   const natural = { width: cellsToPixels({ w: 12, h: 1 }).width, height: Math.max(1, ...widgets.map((w) => w.y + w.h)) * (ROW + GAP) - GAP };
   const scale = Math.min(1, width / natural.width);
   return (

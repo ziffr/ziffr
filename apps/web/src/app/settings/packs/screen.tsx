@@ -13,6 +13,7 @@ import { PackGuideView } from "@/components/pack-guide";
 import { PackNumbersView } from "@/components/pack-numbers";
 import { PackGuideButton, useInstalledToast } from "@/components/pack-guide-help";
 import { DashboardTemplatePreview, Preview } from "@/components/preview";
+import { packSample } from "@ziffr/core/pack-sample";
 import { installPack, readPack } from "@/app/pack-actions";
 import { sampleDesignWidget } from "@ziffr/core/design-files";
 import { sampleCanvasData } from "@ziffr/core/sample-data";
@@ -222,7 +223,7 @@ export function PackPreviewCard({ preview, viewer, numberStyle, pending, okUnsig
       {preview.manifest.guide && <PackGuideView guide={preview.manifest.guide} author={preview.manifest.author.name} />}
       <PackNumbersView overview={preview.overview} />
       {preview.people && <PackPeopleList people={preview.people} />}
-      <PackItems items={preview.items} viewer={viewer} numberStyle={numberStyle} />
+      <PackItems items={preview.items} sample={preview.sample} viewer={viewer} numberStyle={numberStyle} />
       {preview.blocked ? <p role="alert" className="font-medium">{preview.blocked}</p> : (
         <div className="space-y-2">
           {preview.unsigned && <label className="flex items-start gap-2"><input type="checkbox" checked={okUnsigned} onChange={(e) => setOkUnsigned(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> I install a file the Marketplace did not check.</label>}
@@ -238,8 +239,9 @@ export function PackPreviewCard({ preview, viewer, numberStyle, pending, okUnsig
 }
 
 /** Every item of a Pack before it is installed: templates and designs drawn with Sample Data, the rest as text. */
-function PackItems({ items, viewer, numberStyle }: { items: PackPreviewItem[]; viewer: string; numberStyle: NumberStyle }) {
+function PackItems({ items, sample, viewer, numberStyle }: { items: PackPreviewItem[]; sample: PackPreview["sample"]; viewer: string; numberStyle: NumberStyle }) {
   const data = useMemo(() => sampleCanvasData(viewer, numberStyle), [viewer, numberStyle]);
+  const own = useMemo(() => packSample(sample.pack, sample.metrics), [sample]);
   return (
     <div className="space-y-4">
       {ORDER.map((kind) => {
@@ -251,7 +253,7 @@ function PackItems({ items, viewer, numberStyle }: { items: PackPreviewItem[]; v
             <ul className="grid gap-3 sm:grid-cols-2">
               {of.map((i) => (
                 <li key={i.key} className="rounded-[var(--radius-input)] border border-input p-2.5">
-                  {i.kind === "dashboard" && <div className="mb-2 overflow-hidden rounded bg-[var(--color-paper-2)] p-1.5"><DashboardTemplatePreview template={i} viewer={viewer} numberStyle={numberStyle} width={300} /></div>}
+                  {i.kind === "dashboard" && <div className="mb-2 overflow-hidden rounded bg-[var(--color-paper-2)] p-1.5"><DashboardTemplatePreview template={i} viewer={viewer} numberStyle={numberStyle} width={300} pack={own} /></div>}
                   {i.kind === "view" && <div className="mb-2"><Preview widget={sampleDesignWidget(i.body)} data={data} size={i.body.size} width={300} sample /></div>}
                   {i.kind === "theme" && <div className="mb-2 flex gap-1" aria-hidden>{[i.tokens.canvas, i.tokens.surface, i.tokens.ink, i.tokens.accent, ...i.tokens.data].map((c, k) => <span key={k} className="size-5 rounded-sm border border-input" style={{ background: /^#[0-9a-fA-F]{6}$/.test(c) ? c : "transparent" }} />)}</div>}
                   <p className="font-medium">{i.name}</p>
