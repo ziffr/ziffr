@@ -139,6 +139,26 @@ describe.each(["an ordinary Workspace", "a trial"])("every Pack Ziffr ships, in 
 const FORECAST = { included: "ziffr/sales-forecast" } as const;
 const forecast = (lead: StartPerson, ...sellers: StartPerson[]): StartChoices => ({ who: [{ position: "sales-lead", person: lead }], lines: sellers.map((person) => ({ repeat: "rep", person })), source: "typed", ...confirmed });
 
+describe("First Steps", () => {
+  const chosen = async (ws: string) => (await db().from("setup_guides").select("providers_chosen_at").eq("workspace_id", ws).maybeSingle()).data?.providers_chosen_at ?? null;
+  it("notes that providers were chosen when the Owner finishes a set-up in a Workspace it made", async () => {
+    const t = await space();
+    await db().from("setup_guides").upsert({ workspace_id: t.id, first_steps_at: new Date().toISOString() }, { onConflict: "workspace_id" });
+    await setUp(t.by, { included: "ziffr/sales" }, await preselected(t.by, "ziffr/sales"));
+    expect(await chosen(t.id)).not.toBeNull();
+  });
+  it("notes nothing for an Admin, or in a Workspace First Steps did not make", async () => {
+    const made = await space();
+    await db().from("setup_guides").upsert({ workspace_id: made.id, first_steps_at: new Date().toISOString() }, { onConflict: "workspace_id" });
+    const admin = made.actor(await made.person("admin", { email: address("admin") }));
+    await setUp(admin, { included: "ziffr/sales" }, await preselected(admin, "ziffr/sales"));
+    expect(await chosen(made.id)).toBeNull();
+    const other = await space();
+    await setUp(other.by, { included: "ziffr/sales" }, await preselected(other.by, "ziffr/sales"));
+    expect(await chosen(other.id)).toBeNull();
+  });
+});
+
 describe("people", () => {
   it("adds new people as Contacts, gives a Contact no role, and keeps the lead's place until they joined", async () => {
     const t = await space();

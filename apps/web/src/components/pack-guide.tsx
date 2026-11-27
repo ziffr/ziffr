@@ -4,8 +4,8 @@
 // `guideRuns`; nothing of it is read as Markdown or HTML, and nothing becomes a link, a picture or an attribute.
 import { guideRuns, PACK_GUIDE_SECTIONS, type PackGuide, type PackGuideBlock, type PackGuideSection } from "@ziffr/pack/pack-guide";
 
-/** The sections that answer "what is it for" and "how do I start": open when the guide appears. */
-const OPEN_FIRST: readonly PackGuideSection[] = ["whatItsFor", "firstSteps"];
+/** The sections that answer "what is it for", "what do I need" and "how do I start": open when the guide appears. */
+const OPEN_FIRST: readonly PackGuideSection[] = ["whatItsFor", "beforeYouStart", "firstSteps"];
 
 /** A paragraph or list entry: plain and bold runs, as text. */
 function Runs({ text }: { text: string }) {
@@ -27,8 +27,8 @@ function Block({ block }: { block: PackGuideBlock }) {
 /** Whether a guide has anything to read: one without a section draws nothing. */
 export const hasPackGuide = (guide: PackGuide): boolean => PACK_GUIDE_SECTIONS.some((s) => guide[s.key]?.length);
 
-/** A Pack's guide, section by section; a section opens and closes, and what the Pack is for and the first steps start
- * open (the first section there is, when the guide has neither). Draws nothing for a guide without a section. */
+/** A Pack's guide, section by section; a section opens and closes, and what the Pack is for, what you need and the first
+ * steps start open (the first section there is, when the guide has none of them). Draws nothing for a guide without a section. */
 export function PackGuideView({ guide, author }: { guide: PackGuide; author: string }) {
   const filled = PACK_GUIDE_SECTIONS.filter((s) => guide[s.key]?.length);
   if (!filled.length) return null;

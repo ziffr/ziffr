@@ -33,7 +33,7 @@ export function SetUpFromPack({ installId, viewer, practice = false }: { install
   const open = () => start(async () => {
     try { setOptions(unwrap(await packSetup(installId))); } catch (e) { toast.error("Not opened", { description: shown(e) }); }
   });
-  if (!options) return <Button variant="outline" size="sm" className="mt-3" disabled={pending} onClick={open}><Wand2 aria-hidden /> Set up from this Pack</Button>;
+  if (!options) return <Button variant="outline" size="sm" className="mt-3 max-sm:h-11" disabled={pending} onClick={open}><Wand2 aria-hidden /> Choose parts yourself</Button>;
   return <SetUpForm options={options} viewer={viewer} practice={practice} onClose={() => setOptions(null)} />;
 }
 
@@ -52,7 +52,7 @@ export function AddLine({ installId, repeat, name, viewer, practice = false }: {
       setForm({ options: found, adding: { repeat: found.repeats.find((r) => r.key === repeat)!, start: unwrap(begin) } });
     } catch (e) { toast.error("Not opened", { description: shown(e) }); }
   });
-  if (!form) return <Button variant="outline" size="sm" className="mt-3" disabled={pending} onClick={open}><Plus aria-hidden /> Add a {name}</Button>;
+  if (!form) return <Button variant="outline" size="sm" className="mt-3 max-sm:h-11" disabled={pending} onClick={open}><Plus aria-hidden /> Add a {name}</Button>;
   return <SetUpForm options={form.options} viewer={viewer} adding={form.adding} practice={practice} onClose={() => setForm(null)} />;
 }
 

@@ -36,7 +36,7 @@ import { START_METRICS_MAX, startSelection, startSteps, type StartChoices, type 
 import { joinPeriodWorkflows } from "./period-workflows";
 import { isPracticeWorkspace, verifiedSignInAddress } from "./practice";
 import { sendingLimit } from "./sending-limit";
-import { addContact } from "./team";
+import { addContact, DEMO_WORKSPACE_ID } from "./team";
 import { peopleIn } from "./submissions";
 import { trialLimitsInEffect } from "./trial-limits-in-effect";
 import { trialEndsAt } from "./trials";
@@ -583,6 +583,16 @@ function stopped(e: unknown, added: string[], installedNow: string | null): Erro
   return new Error([why ?? "Setting up stopped on something unexpected.", ...also].join(" "));
 }
 
+// The set-up asked who provides the numbers, so First Steps does not ask it again (spec 0068): the fact is noted once, by
+// the Owner, for a Workspace First Steps made. A note that cannot be written never fails the set-up.
+async function noteProvidersAsked(actor: Actor): Promise<void> {
+  if (actor.key || actor.role !== "owner" || actor.workspaceId === DEMO_WORKSPACE_ID) return;
+  const now = new Date().toISOString();
+  const { error } = await db().from("setup_guides").update({ providers_chosen_at: now, updated_at: now })
+    .eq("workspace_id", actor.workspaceId).not("first_steps_at", "is", null).is("providers_chosen_at", null);
+  if (error) console.error("The chosen providers could not be noted for First Steps:", error);
+}
+
 /** Takes one step of the guided set-up of a Pack (Owners and Admins). Everything is checked before anything is written.
  * While it answers `done: false`, send the same choices with its `run`. A step that stops leaves what was made, and
  * the same call without `run` (Try again) makes only what is missing; so does a second press. Sends nothing. */
@@ -634,6 +644,7 @@ export async function startPackStep(actor: Actor, ref: PackStartRef, choices: St
       await kept.stop();
       return { done: false, run: { id: kept.id, step: kept.step }, made: step.made, of: step.of };
     }
+    await noteProvidersAsked(actor);
     return { done: true, result: await resultOf(actor, source, installId, kept.id, answers) };
   } catch (e) {
     await kept.stop().catch((again: unknown) => console.error("A guided set-up's record could not be let go:", again));

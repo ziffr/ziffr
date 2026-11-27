@@ -16,7 +16,7 @@ import { HolderTask } from "./holder-task";
 import { InvitePanel, type InviteActions } from "./invite";
 import { NumbersTask } from "./numbers-task";
 import { ProvidersTask } from "./providers-task";
-import { afterHref, PACKS_PAGE } from "./switch";
+import { afterHref, PACKS_PAGE } from "./paths";
 
 /** What one screen shows, read by the page. */
 export type PackTaskData =

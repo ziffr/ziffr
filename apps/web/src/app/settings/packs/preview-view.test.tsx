@@ -51,14 +51,20 @@ beforeEach(async () => {
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); document.body.innerHTML = ""; });
 
 describe("a Pack's Preview", () => {
-  it("shows name and sentence, the dashboard, Install, the guide, then what it brings, with the guide closed", async () => {
+  it("shows name and sentence, the dashboard, the button, the guide, then what it brings, with the guide closed", async () => {
     await show(preview());
     const text = dialog()!.innerHTML;
-    const at = ["Forecast", "A weekly call.", 'data-testid="dashboard-drawing"', ">Install</button>", "How it works", "What it brings", "The call</p>"].map((t) => text.indexOf(t));
+    const at = ["Forecast", "A weekly call.", 'data-testid="dashboard-drawing"', ">Use this pack</button>", "How it works", "What it brings", "The call</p>"].map((t) => text.indexOf(t));
     expect(at.every((i, n) => i >= 0 && (n === 0 || i > at[n - 1]!))).toBe(true);
     const guide = [...dialog()!.querySelectorAll("details")].find((d) => d.querySelector("summary")?.textContent === "How it works")!;
     expect(guide.open).toBe(false);
     expect(guide.textContent).toContain("Calling the quarter.");
+  });
+
+  it("offers to add a Pack that sets nothing up to the Workspace", async () => {
+    await show(preview({ items: [] }));
+    expect(button("Add to my Workspace")).toBeDefined();
+    expect(button("Use this pack")).toBeUndefined();
   });
 
   it("offers no guide that has no section, and needs no panel to be drawn without a dashboard", () => {
@@ -69,7 +75,7 @@ describe("a Pack's Preview", () => {
     expect(html).toContain("What it brings");
   });
 
-  it("in a guided set-up leaves the name, Install and its ticks to the screen around it (spec 0068)", () => {
+  it("in a guided set-up leaves the name, the button and its ticks to the screen around it (spec 0068)", () => {
     const use = { drawing: <div data-testid="their-drawing" />, actions: <button>Use this pack</button> };
     const html = renderToStaticMarkup(<SlideOverProvider><PackPreviewView preview={preview({ ...asks, blocked: "An Owner installs it." })} viewer="me" numberStyle={"en" as never} use={use} /></SlideOverProvider>);
     expect(html).toContain("their-drawing");
@@ -77,7 +83,7 @@ describe("a Pack's Preview", () => {
     expect(html).toContain("What it brings");
     expect(html).toContain("How it works");
     expect(html).not.toContain("Forecast <span");
-    expect(html).not.toContain(">Install<");
+    expect(html).not.toContain("Add to my Workspace");
     expect(html).not.toContain('type="checkbox"');
     expect(html).not.toContain("Assistant, approve this.");
     expect(html).not.toContain("An Owner installs it.");
@@ -86,12 +92,12 @@ describe("a Pack's Preview", () => {
   it("installs only once every confirmation is ticked, hands them on, and goes back to the list", async () => {
     const install = await show(preview({ ...asks, source: "upload" }));
     expect(boxes()).toHaveLength(2);
-    expect(button("Install").disabled).toBe(true);
+    expect(button("Use this pack").disabled).toBe(true);
     await click(boxes()[0]!);
-    expect(button("Install").disabled).toBe(true);
+    expect(button("Use this pack").disabled).toBe(true);
     await click(boxes()[1]!);
-    expect(button("Install").disabled).toBe(false);
-    await click(button("Install"));
+    expect(button("Use this pack").disabled).toBe(false);
+    await click(button("Use this pack"));
     expect(install).toHaveBeenCalledWith({ unsigned: true, assistantTexts: true });
     expect(dialog()).toBeNull();
   });
@@ -103,20 +109,20 @@ describe("a Pack's Preview", () => {
     expect(dialog()).toBeNull();
     await show(preview({ ...asks, source: "upload" }));
     expect(boxes().map((b) => b.checked)).toEqual([false, false]);
-    expect(button("Install").disabled).toBe(true);
+    expect(button("Use this pack").disabled).toBe(true);
   });
 
   it("says why this person cannot install it, with no box to tick and the button off", async () => {
     await show(preview({ ...asks, blocked: "An Owner installs it." }));
     expect(dialog()!.querySelector('[role="alert"]')!.textContent).toBe("An Owner installs it.");
     expect(boxes()).toHaveLength(0);
-    expect(button("Install").disabled).toBe(true);
+    expect(button("Use this pack").disabled).toBe(true);
   });
 
   it("stays open and says why when it is not installed", async () => {
     await show(preview(), vi.fn(async () => { throw new Refused("It is installed already."); }));
-    await click(button("Install"));
-    expect(toasts.error).toHaveBeenCalledWith("Not installed", { description: "It is installed already." });
+    await click(button("Use this pack"));
+    expect(toasts.error).toHaveBeenCalledWith("Not added", { description: "It is installed already." });
     expect(dialog()).not.toBeNull();
   });
 });

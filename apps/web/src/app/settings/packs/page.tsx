@@ -15,7 +15,6 @@ import { PacksScreen } from "./screen";
 import { DesktopOnly } from "@/components/desktop-only";
 import { offersMadeUpNumbers } from "@ziffr/core/practice-fill";
 import { packCards } from "@ziffr/core/pack-after-card";
-import { PACK_SET_UP_ON } from "@/app/use-pack/switch";
 
 export default async function PacksPage() {
   const actor = await currentActor();
@@ -35,7 +34,7 @@ export default async function PacksPage() {
   // In their own Practice Workspace a Set up's Metrics can be filled with made-up numbers (spec 0063).
   const practice = manages && (await offersMadeUpNumbers(actor));
   // What is left to do after a Pack's set-up, while "Use this pack" is switched on (spec 0068).
-  const after = PACK_SET_UP_ON && manages ? await packCards(actor) : [];
+  const after = manages ? await packCards(actor) : [];
   return (
     <>
       <PageHeader title="Packs" sub="Ready-made Metric Catalog entries, templates, View Designs and Themes, each a file with no code. Installing one adds them to the Workspace; it makes no Metric until you use them." />

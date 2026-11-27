@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({ unstable_rethrow() {}, useSearchParams: () =
 vi.mock("./actions", () => ({ readSet: async () => ({}), readSets: async () => ({}) }));
 vi.mock("@/app/pack-actions", () => ({}));
 import { PackPreviewView } from "@/app/settings/packs/preview-view";
-import { packRefOf, packSetUpPath } from "@/app/use-pack/switch";
+import { packRefOf, packSetUpPath } from "@/app/use-pack/paths";
 import { SlideOverProvider } from "@/components/slide-over-host";
 import { bundledPacks, INCLUDED_PACK_ORDER } from "@ziffr/core/included-packs";
 import { DEFAULT_NUMBER_STYLE } from "@ziffr/core/number-style";

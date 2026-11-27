@@ -1,9 +1,9 @@
 "use client";
 // Ziffr's own Packs on the Packs page (spec 0052, ticket 4; GLOSSARY: Pack, Preview, Sample Data): the Packs that come
-// with Ziffr, each with what it brings, a Preview drawn with Sample Data and Install. The browser names a Pack only by its
+// with Ziffr, each with what it brings and "Use this pack", which opens the guided set-up at its preview (spec 0068).
+// A Pack with nothing to set up opens its Preview here and is added from it. The browser names a Pack only by its
 // id; the core looks it up in the list that comes with Ziffr, so no file and no Marketplace is needed.
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
@@ -12,17 +12,18 @@ import type { IncludedPackListing } from "@ziffr/core/included-packs";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import { PackUpdate } from "./marketplace";
 import { useOpenPackPreview } from "./preview-view";
-import { useInstalledToast } from "@/components/pack-guide-help";
+import { useAfterInstall } from "./after-install";
+import { PHONE_LINK_BUTTON } from "@/app/setup/phone";
+import { packSetUpPath, setsUp } from "@/app/use-pack/paths";
 
 const KIND: Record<IncludedPackListing["brings"][number]["kind"], [string, string]> = {
   metric: ["Metric", "Metrics"], dashboard: ["dashboard", "dashboards"], deck: ["deck", "decks"], workflow: ["Workflow", "Workflows"],
   view: ["View Design", "View Designs"], recipe: ["Analysis Recipe", "Analysis Recipes"], theme: ["Theme", "Themes"],
 };
 
-/** The list of Ziffr's own Packs: what each brings, Preview with Sample Data, and Install by a click. */
+/** The list of Ziffr's own Packs: what each brings, and the way to use it or add it. */
 export function IncludedPacks({ packs, viewer, numberStyle }: { packs: IncludedPackListing[]; viewer: string; numberStyle: NumberStyle }) {
-  const router = useRouter();
-  const installedToast = useInstalledToast();
+  const added = useAfterInstall();
   const openPreview = useOpenPackPreview();
   const [pending, start] = useTransition();
   const preview = (id: string) => start(async () => {
@@ -32,9 +33,7 @@ export function IncludedPacks({ packs, viewer, numberStyle }: { packs: IncludedP
       openPreview({
         preview: res.preview, viewer, numberStyle,
         install: async ({ assistantTexts }) => {
-          const installed = unwrap(await installIncludedPackFile(id, { assistantTexts }));
-          installedToast(installed, res.preview.manifest, "Its entries are in the Metric Catalog, its templates, designs and Themes where you start from them.");
-          router.refresh();
+          added(unwrap(await installIncludedPackFile(id, { assistantTexts })), res.preview);
         },
       });
     } catch (e) { toast.error("Not done", { description: shown(e) }); }
@@ -43,7 +42,7 @@ export function IncludedPacks({ packs, viewer, numberStyle }: { packs: IncludedP
     <section aria-labelledby="included-packs" className="space-y-3">
       <div>
         <h2 id="included-packs" className="text-sm font-medium">Ziffr&rsquo;s own Packs</h2>
-        <p className="text-sm text-muted-foreground">They come with Ziffr: nothing is downloaded. See one drawn with Sample Data first; installing makes no Metric, sends nothing and changes nothing already here.</p>
+        <p className="text-sm text-muted-foreground">They come with Ziffr: nothing is downloaded. Each is drawn with Sample Data first; nothing is made or sent before you confirm.</p>
       </div>
       <ul className="grid gap-3 sm:grid-cols-2">
         {packs.map((p) => (
@@ -53,7 +52,10 @@ export function IncludedPacks({ packs, viewer, numberStyle }: { packs: IncludedP
             <p className="mt-1 text-xs text-muted-foreground">{p.brings.map((b) => `${b.count} ${KIND[b.kind][b.count === 1 ? 0 : 1]}`).join(", ")}</p>
             {p.needsOwner && <p className="text-xs text-muted-foreground">Holds a Theme: an Owner installs it.</p>}
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              {!p.installed && <Button size="sm" variant="outline" disabled={pending} focusableWhenDisabled className="data-disabled:opacity-50" onClick={() => preview(p.id)}>Preview with Sample Data</Button>}
+              {!p.installed && (setsUp(p.brings.map((b) => b.kind))
+                // The guided set-up draws its own frame, so it is loaded as a whole page; its first screen is the preview.
+                ? <a href={packSetUpPath(p.id)} className={PHONE_LINK_BUTTON}>Use this pack<span className="sr-only">: {p.name}</span></a>
+                : <Button size="sm" variant="outline" disabled={pending} focusableWhenDisabled className="data-disabled:opacity-50 max-sm:h-11" onClick={() => preview(p.id)}>Preview with Sample Data</Button>)}
               {p.installed && <span className="text-xs text-muted-foreground">Installed, version {p.installed.version}.</span>}
             </div>
           </li>

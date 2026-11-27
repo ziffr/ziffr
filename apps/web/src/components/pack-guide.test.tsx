@@ -27,9 +27,9 @@ describe("a Pack Guide on a page", () => {
     expect(html).toContain("written by Ziffr");
   });
 
-  it("opens what it is for and the first steps, and the first section when it has neither", () => {
+  it("opens what it is for, what you need and the first steps, and the first section when it has none of them", () => {
     const opened = (html: string) => [...html.matchAll(/<details open=""[^>]*><summary[^>]*>([^<]*)</g)].map((m) => m[1]);
-    expect(opened(draw(guide))).toEqual(["What it&#x27;s for", "First steps"]);
+    expect(opened(draw(guide))).toEqual(["What it&#x27;s for", "What you need", "First steps"]);
     expect(opened(draw({ eachPart: guide.eachPart, questions: guide.questions }))).toEqual(["Each part"]);
   });
 

@@ -89,7 +89,7 @@ async function firstNumbers(actor: Actor, a: PackAfter): Promise<PackFirstNumber
 }
 
 /** The person's own open Self-checks on the Metrics made here, each with the value it is about. */
-async function ownChecks(actor: Actor, a: PackAfter): Promise<PackCheck[]> {
+export async function ownChecks(actor: Actor, a: PackAfter): Promise<PackCheck[]> {
   const ws = actor.workspaceId;
   const ids = a.metrics.map((m) => m.id);
   if (!ids.length) return [];

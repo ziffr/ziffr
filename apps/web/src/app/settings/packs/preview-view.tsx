@@ -1,9 +1,10 @@
 "use client";
 // A Pack's Preview (specs 0030, 0058 and 0068; GLOSSARY: Pack, Preview, Sample Data, Slide-over): a view of its own,
 // opened over the list it came from, for a file, one of Ziffr's own Packs and a Pack from the Marketplace, on the Packs
-// page and in the Setup Guide, and the first screen of a guided set-up, where "Use this pack" takes Install's place.
-// In this order: name and one sentence, the dashboard drawn with Sample Data, Install with everything to confirm first,
-// the guide closed behind "How it works", then what the Pack brings.
+// page, and the first screen of a guided set-up, which brings its own button.
+// In this order: name and one sentence, the dashboard drawn with Sample Data, "Use this pack" (or "Add to my
+// Workspace" where there is nothing to set up) with everything to confirm first, the guide closed behind "How it
+// works", then what the Pack brings.
 // Everything in a Pack is shown as text or drawn by Ziffr's own renderer; its only links are its listing's, shown as
 // plain links that tell the site nothing. The button only asks: the core checks the file, who installs and every
 // confirmation again.
@@ -15,6 +16,7 @@ import { shown } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { hasPackGuide, PackGuideView } from "@/components/pack-guide";
 import { PackNumbersView } from "@/components/pack-numbers";
+import { setsUp } from "@/app/use-pack/paths";
 import { DashboardTemplatePreview, Preview } from "@/components/preview";
 import { useSlideOver } from "@/components/slide-over-host";
 import { useBoxSize } from "@/views/use-box-size";
@@ -39,7 +41,7 @@ const STACKED_WIDGETS = 3;
 const ITEM_WIDTH = 300;
 const ITEM_FRAME = 34;
 
-/** What the person ticked before pressing Install. */
+/** What the person ticked before adding the Pack. */
 type PackConfirmed = { unsigned: boolean; assistantTexts: boolean };
 
 /** What a guided set-up puts into the Preview in place of its own parts. */
@@ -49,7 +51,7 @@ export type PackUse = {
   drawing?: React.ReactNode; drawn?: string;
   /** The words under the Preview's own drawing, where the usual ones do not fit. */
   caption?: string;
-  /** "Use this pack" and what stands with it, in place of Install and its confirmations. */
+  /** "Use this pack" and what stands with it, in place of the view's own button and confirmations. */
   actions: React.ReactNode;
 };
 
@@ -65,7 +67,7 @@ let openings = 0;
 /** Opens a Pack's Preview in the side panel, over the list; `title` and `description` replace the panel's usual ones. */
 export function useOpenPackPreview(): (view: InstallProps & { title?: string; description?: string }) => void {
   const panel = useSlideOver();
-  return ({ title = "Preview", description = "Drawn with Sample Data. Nothing is installed until you press Install.", ...view }) =>
+  return ({ title = "Preview", description = "Drawn with Sample Data. Nothing is added until you press the button below.", ...view }) =>
     panel.open({ title, description, wide: true, content: <PackPreviewView key={++openings} {...view} /> });
 }
 
@@ -89,7 +91,7 @@ export function PackPreviewView({ preview, viewer, numberStyle, install, use }: 
       // Only this view goes back: one the person has left meanwhile must not close what they opened since.
       if (view?.isConnected) panel.back();
     } catch (e) {
-      toast.error("Not installed", { description: shown(e) });
+      toast.error("Not added", { description: shown(e) });
     }
   });
   const { manifest } = preview;
@@ -120,7 +122,7 @@ export function PackPreviewView({ preview, viewer, numberStyle, install, use }: 
         {!use && preview.assistantTexts.length > 0 && (
           <div className="rounded-[var(--radius-input)] border border-input p-2.5">
             <p className="font-medium">Words aimed at AI assistants</p>
-            <p className="text-xs text-muted-foreground">These texts read like instructions to an assistant. Assistants connected to this Workspace read Metric descriptions; they can do only what their key allows, but read these before you install.</p>
+            <p className="text-xs text-muted-foreground">These texts read like instructions to an assistant. Assistants connected to this Workspace read Metric descriptions; they can do only what their key allows, but read these before you add it.</p>
             <ul className="mt-1 space-y-1 text-xs">{preview.assistantTexts.map((t) => <li key={t.path}><code>{t.path}</code>: &ldquo;{t.text}&rdquo;</li>)}</ul>
           </div>
         )}
@@ -128,13 +130,13 @@ export function PackPreviewView({ preview, viewer, numberStyle, install, use }: 
           <>
             {preview.blocked ? <p role="alert" className="font-medium">{preview.blocked}</p> : (
               <div className="space-y-2">
-                {preview.unsigned && <label className="flex items-start gap-2"><input type="checkbox" checked={okUnsigned} onChange={(e) => setOkUnsigned(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> I install a file the Marketplace did not check.</label>}
+                {preview.unsigned && <label className="flex items-start gap-2"><input type="checkbox" checked={okUnsigned} onChange={(e) => setOkUnsigned(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> I add a file the Marketplace did not check.</label>}
                 {preview.assistantTexts.length > 0 && <label className="flex items-start gap-2"><input type="checkbox" checked={okAssistant} onChange={(e) => setOkAssistant(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> I read the words aimed at assistants.</label>}
               </div>
             )}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button variant="outline" onClick={panel.back}><ArrowLeft aria-hidden /> Back to the list</Button>
-              <Button disabled={!ready || pending} onClick={press}>Install</Button>
+              <Button variant="outline" className="max-sm:h-11" onClick={panel.back}><ArrowLeft aria-hidden /> Back to the list</Button>
+              <Button className="max-sm:h-11" disabled={!ready || pending} onClick={press}>{setsUp(preview.items.map((i) => i.kind)) ? "Use this pack" : "Add to my Workspace"}</Button>
             </div>
           </>
         )}

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { PackPreviewView } from "@/app/settings/packs/preview-view";
 import { PHONE_ACTIONS, PHONE_BUTTON } from "@/app/setup/phone";
 import { Lines } from "@/app/use-pack/parts";
-import { packSetUpPath } from "@/app/use-pack/switch";
+import { fromPath, packSetUpPath } from "@/app/use-pack/paths";
 import { Button } from "@/components/ui/button";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { PackPreview } from "@ziffr/core/packs";
@@ -33,7 +33,7 @@ function OneSet({ id, context, go, leave }: ScreenProps & { id: string }) {
     <>
       <ScreenHeading title={manifest?.name ?? "Ready-made set"}>{manifest?.summary}</ScreenHeading>
       {data
-        ? <OneSetView preview={data.preview} numberStyle={data.numberStyle} viewer={context.personId} onUse={() => leave(packSetUpPath(data.preview.manifest.id))} onOthers={others} />
+        ? <OneSetView preview={data.preview} numberStyle={data.numberStyle} viewer={context.personId} onUse={() => leave(fromPath(packSetUpPath(data.preview.manifest.id), "first-steps"))} onOthers={others} />
         : (
           <div className="space-y-3">
             <Reading failed={failed} onRetry={() => void reload()} />
