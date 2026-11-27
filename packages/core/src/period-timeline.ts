@@ -23,6 +23,7 @@ import { widgetMetricIds } from "./widget-metrics";
 import { workingPeriod } from "./workflow-rules";
 import { localTime } from "./workspace-clock";
 import type { Action, ChecklistItem, Metric, Period, WorkflowConfig } from "./types";
+import { combinedListing } from "./internal/combined-delivery";
 
 /** What kind of thing happened. */
 export type TimelineKind = "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot" | "checklist_sent" | "checklist_given" | "checklist_done" | "snapshot_sent" | "finished";
@@ -247,8 +248,14 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
   const values = await openRows("observations", ws, (valueRows ?? []) as Record<string, unknown>[]);
   const promptIds = (prompts ?? []).map((p) => p.id as number);
   const { data: deliveries } = promptIds.length ? await db().from("deliveries").select("prompt_id, connector").eq("workspace_id", ws).in("prompt_id", promptIds) : { data: [] };
+  // A Prompt sent with others (GLOSSARY: Combined Prompt) has its way on the Delivery that lists it.
+  const listed = await combinedListing(ws, promptIds);
+  const { data: together } = listed.length ? await db().from("deliveries").select("id, connector").eq("workspace_id", ws).in("id", [...new Set(listed.map((l) => l.deliveryId))]) : { data: [] };
   const groups = c.groups;
-  const channelOf = new Map((deliveries ?? []).map((d) => [d.prompt_id as number, d.connector as ConnectorId]));
+  const channelOf = new Map([
+    ...listed.flatMap((l) => (together ?? []).filter((d) => d.id === l.deliveryId).map((d) => [l.promptId, d.connector as ConnectorId] as const)),
+    ...(deliveries ?? []).map((d) => [d.prompt_id as number, d.connector as ConnectorId] as const),
+  ]);
 
   // Threads: only the ones this viewer may read are opened at all.
   const owners = new Map(mine.map((m) => [m.id, m.owner_id]));

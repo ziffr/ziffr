@@ -22,6 +22,7 @@ import { editableWidget, updateWidget } from "./dashboards";
 import { feedTemplates, type FeedTemplateInfo } from "./feed-template-download";
 import { saveWorkflow, setSendSnapshot, setStandIn } from "./workflows";
 import { askForEndedPeriod } from "./workflow-engine";
+import { startAsking } from "./asking-run";
 import { share } from "./sharing";
 import { resumeSetupRecord, startSetupRecord, type MadeThing, type SetupRecord } from "./pack-setup-record";
 import { itemHash } from "./packs";
@@ -182,17 +183,23 @@ async function makeMetrics(actor: Actor, b: Blueprint, todo: PlannedMetric[], re
  * first requests was chosen (the actor no differently from anyone else), for the period that ended last, then their
  * Stand-ins. */
 async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | null, askNow: boolean, done: Progress) {
+  // A whole set up is one run: whoever sends several of its numbers can be asked in one message (GLOSSARY: Combined Prompt).
+  const run = askNow ? startAsking(actor.workspaceId, new Date().toISOString().slice(0, 10)) : null;
   const effects: MetricEffects = {
     ...metricEffects,
     promptSubmitter: async (metricId, submitter, by) => {
       if (!askNow) return false;
-      const sent = await askForEndedPeriod(metricId, submitter, by);
+      const sent = await askForEndedPeriod(metricId, submitter, by, run);
       if (sent) done.messages++;
       return sent;
     },
   };
   const taking = todo.filter((m) => !isComputed(m.entry)).map((m) => ({ ...m, id: done.metrics.get(m.plan)!.id }));
-  for (const m of taking) for (let i = 0; i < m.submitters.length; i += SUBMITTERS_PER_CHANGE) await addSubmitters(actor, m.id, m.submitters.slice(i, i + SUBMITTERS_PER_CHANGE), effects);
+  try {
+    for (const m of taking) for (let i = 0; i < m.submitters.length; i += SUBMITTERS_PER_CHANGE) await addSubmitters(actor, m.id, m.submitters.slice(i, i + SUBMITTERS_PER_CHANGE), effects);
+  } finally {
+    await run?.flush();
+  }
   for (const m of taking) if (m.standIn) for (const s of m.submitters) if (s !== m.standIn) await setStandIn(actor, m.id, s, m.standIn);
   if (feed) for (const m of taking) await addFeedToMetric(actor, m.id, feed);
 }

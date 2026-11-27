@@ -57,11 +57,31 @@ export async function waysFor(ws: string, recipientId: string, kind: DeliveryKin
   return list.length ? list : kind === "prompt" ? [...PROMPT_WAYS] : ["email"];
 }
 
+/** One figure a run is about to ask one person for, with everything its message needs, collected so that the run can put
+ * several into one (GLOSSARY: Combined Prompt). `routes` are the ways it goes by: for a reminder, the first alone. */
+export type Asking = {
+  workspaceId: string;
+  metric: { id: number; name: string; sources: SourceId[] };
+  person: Profile;
+  tokenId: number;
+  period: string;
+  periodWords: string;
+  question: string;
+  standsInFor: string | null;
+  senderId: string | null;
+  reminder: boolean;
+  queue: boolean;
+  routes: Awaited<ReturnType<typeof planPrompt>>["routes"];
+};
+
+/** Where a reply by this way records the value: the way's own Source, else only the form. */
+export const answerSourceFor = (r: Asking["routes"][number]): SourceId => (r.answerHere ? CONNECTORS[r.via].sourceId ?? "web_form" : "web_form");
+
 /** Makes one Delivery. A Prompt, reminder or Alert that will be sent while its recipient is in quiet hours (GLOSSARY:
  * Quiet Hours) is given a `not_before` at their end, so the sending queue holds it until then and never drops it; this is
  * the one place quiet hours are checked. Says whether it is held, so the caller does not send it at once. */
-async function insertDelivery(ws: string, row: { recipient_id: string; kind: string; mail_state: string } & Record<string, unknown>, holdAs: string = row.kind): Promise<{ id: number | undefined; held: boolean }> {
-  const until = row.mail_state === "queued" ? await holdFor(ws, row.recipient_id, holdAs) : null;
+export async function insertDelivery(ws: string, row: { recipient_id: string; kind: string; mail_state: string } & Record<string, unknown>, holdAs: string = row.kind, /** The state it is going to be in, where it is only filled in first. */ intended: string = row.mail_state): Promise<{ id: number | undefined; held: boolean }> {
+  const until = intended === "queued" ? await holdFor(ws, row.recipient_id, holdAs) : null;
   const [d] = await insertSealed("deliveries", ws, [until ? { ...row, not_before: until.toISOString() } : row]) as { id: number }[];
   return { id: d?.id, held: until !== null };
 }
@@ -122,7 +142,7 @@ export type PromptOutcome = { connector: ConnectorId; state: "sent" | "queued" |
 /** Asks a submitter for a value through their reminder Connector (GLOSSARY: Prompt). Returns false if nobody was asked
  * (no Token, a Feed, a Derived or Archived Metric), else what became of the Prompt, read back after sending.
  * With `queue`, an email is only queued, for the deliveries job to send. */
-export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; /** Ziffr asks `submitterId` in this person's place: the Prompt is a Stand-in's, whatever other Tokens they hold (spec 0046). */ standingInFor?: string; queue?: boolean; /** A reminder goes only by the first of the person's ways, so several ways never ping three times. */ reminder?: boolean }): Promise<false | PromptOutcome> {
+export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; /** Ziffr asks `submitterId` in this person's place: the Prompt is a Stand-in's, whatever other Tokens they hold (spec 0046). */ standingInFor?: string; queue?: boolean; /** A reminder goes only by the first of the person's ways, so several ways never ping three times. */ reminder?: boolean; /** Takes the figure to be sent with others of the same run, instead of sending it now (GLOSSARY: Combined Prompt). One no way reaches is still kept as "Not sent" at once. */ into?: (asking: Asking) => void; /** A figure only added to a reminder: when no way reaches the person, nothing is kept or told again. */ quietly?: boolean }): Promise<false | PromptOutcome> {
   // A Feed is a program (spec 0012): it is never asked, and its form link must never go out in a message.
   if ((await feedIdsAmong([input.submitterId])).size) return false;
   const [{ data: metricRow }, { data: person }, { data: tokens }] = await Promise.all([
@@ -177,26 +197,44 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const chosen = input.via && CONNECTOR_IDS.includes(input.via) ? [input.via] : await waysFor(metric.workspace_id, person.id, "prompt");
   const accepts = metric.sources as SourceId[];
   const plan = await planPrompt(metric.workspace_id, person.id, accepts, chosen, true);
-  if (!plan.routes.length) return keepNotSent({ metric: { id: metric.id, name: metric.name, slug: metric.slug as string, ownerId: metric.owner_id as string, workspaceId: metric.workspace_id }, person: person as Profile, tokenId: token.id, chosen: chosen[0], question, reason: notSentReason(accepts, plan.mailReplies, plan.reach) });
+  if (!plan.routes.length) return input.quietly ? false : keepNotSent({ metric: { id: metric.id, name: metric.name, slug: metric.slug as string, ownerId: metric.owner_id as string, workspaceId: metric.workspace_id }, person: person as Profile, tokenId: token.id, chosen: chosen[0], question, reason: notSentReason(accepts, plan.mailReplies, plan.reach) });
   // A reminder goes only by the first way; the first Prompt, by all of them.
   const routes = input.reminder ? plan.routes.slice(0, 1) : plan.routes;
-  const answersBy = (r: (typeof routes)[number]): string => (r.answerHere ? CONNECTORS[r.via].sourceId ?? "web_form" : "web_form");
-  // One Prompt however many ways it goes by, so the first answer on any of them closes it for all (prompt-ways.ts).
-  // The question names the Metric, so it is sealed with the Workspace Key (spec 0028).
-  const [prompt] = await insertSealed("prompts", metric.workspace_id, [{ metric_id: metric.id, submitter_id: person.id, source: answersBy(routes[0]), text: question, period_start: period, stands_in_for: promptStandsInFor }]) as { id: number }[];
+  const asking: Asking = {
+    workspaceId: metric.workspace_id, metric: { id: metric.id, name: metric.name, sources: accepts }, person: person as Profile, tokenId: token.id,
+    period, periodWords: periodLabel(period, metric.period as Period, ys), question, standsInFor: promptStandsInFor,
+    senderId: input.senderId ?? null, reminder: Boolean(input.reminder), queue: Boolean(input.queue), routes,
+  };
+  if (input.into) {
+    input.into(asking);
+    return { connector: routes[0].via, chosen: routes[0].chosen, state: "queued" };
+  }
+  const promptId = await insertPromptRow(asking);
   let first: PromptOutcome | null = null;
   for (const route of routes) {
-    const via: ConnectorId = route.via;
-    const c = CONNECTORS[via];
-    const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period, ys), answerHere: route.answerHere, formLink: route.formLink ? FORM_LINK : "" });
-    const mail_state = await initialDeliveryState(via, metric.workspace_id, person.id);
-    const d = await insertDelivery(metric.workspace_id, { connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, mail_state, form_token_id: token.id, answer_source: answersBy(route) });
-    if (!input.queue && !d.held) await sendQueuedNow(d.id, mail_state, via);
-    // What really happened is read back: a send that failed leaves the Delivery in another state than it started in.
-    const now = d.id && mail_state === "queued" && !input.queue && !d.held ? (await db().from("deliveries").select("mail_state").eq("id", d.id).maybeSingle()).data?.mail_state : mail_state;
-    first ??= { connector: via, chosen: route.chosen, state: (now === "sending" ? "queued" : ["sent", "queued", "outbox", "failed"].includes(now) ? now : mail_state) as PromptOutcome["state"] };
+    const state = await sendSingle(asking, promptId, route);
+    first ??= { connector: route.via, chosen: route.chosen, state };
   }
   return first!;
+}
+
+/** The Prompt of one figure: one however many ways it goes by, so the first answer on any of them closes it for all
+ * (prompt-ways.ts). The question names the Metric, so it is sealed with the Workspace Key (spec 0028). */
+export async function insertPromptRow(a: Asking): Promise<number | undefined> {
+  const [prompt] = await insertSealed("prompts", a.workspaceId, [{ metric_id: a.metric.id, submitter_id: a.person.id, source: answerSourceFor(a.routes[0]), text: a.question, period_start: a.period, stands_in_for: a.standsInFor }]) as { id: number }[];
+  return prompt?.id;
+}
+
+/** The message of one figure by one way, made and (unless queued or held) sent. Returns what became of it. */
+export async function sendSingle(a: Asking, promptId: number | undefined, route: Asking["routes"][number]): Promise<PromptOutcome["state"]> {
+  const via: ConnectorId = route.via;
+  const { subject, body } = CONNECTORS[via].renderPrompt!({ recipient: a.person, metric: a.metric.name, question: a.question, period: a.periodWords, answerHere: route.answerHere, formLink: route.formLink ? FORM_LINK : "" });
+  const mail_state = await initialDeliveryState(via, a.workspaceId, a.person.id);
+  const d = await insertDelivery(a.workspaceId, { connector: via, recipient_id: a.person.id, sender_id: a.senderId, kind: "prompt", prompt_id: promptId ?? null, subject, body, mail_state, form_token_id: a.tokenId, answer_source: answerSourceFor(route) });
+  if (!a.queue && !d.held) await sendQueuedNow(d.id, mail_state, via);
+  // What really happened is read back: a send that failed leaves the Delivery in another state than it started in.
+  const now = d.id && mail_state === "queued" && !a.queue && !d.held ? (await db().from("deliveries").select("mail_state").eq("id", d.id).maybeSingle()).data?.mail_state : mail_state;
+  return (now === "sending" ? "queued" : ["sent", "queued", "outbox", "failed"].includes(now) ? now : mail_state) as PromptOutcome["state"];
 }
 
 /** A Prompt no allowed way reaches the person with: one Delivery that stays in the Outbox as "Not sent: …" (the reason

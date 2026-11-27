@@ -12,6 +12,7 @@ import { telegramOnIn } from "./telegram-connection";
 import { SOURCE_LABEL } from "./format";
 import type { SourceId } from "./types";
 import { isPracticeWorkspace } from "./practice";
+import { combinedAsItStands, combinedListing } from "./internal/combined-delivery";
 
 /** What a reply on this Delivery may answer: the Source it was offered on, or `web_form` when only a form link answers.
  * Deliveries made before several ways existed hold none and answer where their Prompt does. */
@@ -42,7 +43,27 @@ export async function closePrompt(ws: string, promptId: number, source: SourceId
       // Nothing more to do here.
     }
   }
+  for (const l of await combinedListing(ws, [promptId])) await markCombined(ws, l.deliveryId, (_, own) => source !== own);
   return true;
+}
+
+/** A Combined Prompt after one of its figures was answered: the Delivery counts as answered once every figure in it is,
+ * and a sent chat message is edited, where `tell` says so, to mark each figure that needs nothing more. The message is
+ * never replaced as a whole, and no value is put in it. */
+async function markCombined(ws: string, deliveryId: number, tell: (answeredOn: (string | null)[], own: string | undefined) => boolean): Promise<void> {
+  const { data: d } = await db().from("deliveries").select("id, connector, mail_state, slack_channel, slack_ts, telegram_chat_id, telegram_message_id").eq("id", deliveryId).eq("workspace_id", ws).maybeSingle();
+  if (!d) return;
+  // An edit that fails changes nothing about the answer: the old message stays, and the form says what is answered.
+  try {
+    const now = await combinedAsItStands(ws, deliveryId, (s) => (s && s in SOURCE_LABEL ? SOURCE_LABEL[s as SourceId] : "another way"));
+    if (!now) return;
+    if (now.allAnswered) await db().from("deliveries").update({ status: "answered" }).eq("id", d.id).eq("workspace_id", ws).eq("status", "sent");
+    if (d.mail_state !== "sent" || !tell(now.answeredOn, CONNECTORS[d.connector as keyof typeof CONNECTORS].sourceId)) return;
+    if (d.connector === "slack" && d.slack_channel && d.slack_ts) await editSlack(ws, d.slack_channel, d.slack_ts, now.text);
+    else if (d.connector === "telegram" && d.telegram_chat_id && d.telegram_message_id) await editTelegram(ws, Number(d.telegram_chat_id), Number(d.telegram_message_id), now.text);
+  } catch {
+    // Nothing more to do here.
+  }
 }
 
 /** The message as Slack shows it after the Prompt is answered: its text, no buttons, no attachment. */
@@ -86,7 +107,9 @@ export async function settlePrompts(i: { ws: string; prompt: { id: number; answe
  * in between the check before sending and the send) is edited at once, as the others were. Best effort, like closePrompt. */
 export async function tellIfAnswered(ws: string, deliveryId: number): Promise<void> {
   const { data: d } = await db().from("deliveries").select("id, connector, kind, prompt_id, slack_channel, slack_ts, telegram_chat_id, telegram_message_id").eq("id", deliveryId).eq("workspace_id", ws).maybeSingle();
-  if (!d || d.kind !== "prompt" || !d.prompt_id) return;
+  if (!d || d.kind !== "prompt") return;
+  // A Combined Prompt names no single Prompt.
+  if (!d.prompt_id) return markCombined(ws, deliveryId, (answeredOn, own) => answeredOn.some((s) => s !== own));
   const { data: p } = await db().from("prompts").select("answered_source").eq("id", d.prompt_id).eq("workspace_id", ws).not("answered_at", "is", null).maybeSingle();
   if (!p?.answered_source || CONNECTORS[d.connector as keyof typeof CONNECTORS].sourceId === p.answered_source) return;
   const text = `Answered on ${SOURCE_LABEL[p.answered_source as SourceId] ?? "another way"}.`;
