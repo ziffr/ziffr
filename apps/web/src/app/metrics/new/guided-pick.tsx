@@ -13,9 +13,7 @@ import { HOW_OFTEN, type Suggestion } from "@/lib/metric-suggestions";
 
 const link = "inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground sm:min-h-0";
 
-/** The first screen of "Explore on my own". `notes` is the Workspace Limit's note, when there is one to show.
- * The links to the form are plain `<a>`, a full page load: in the production build the app router often fetches this
- * page's new search parameters and then never shows them, so a tap seemed to do nothing. */
+/** The first screen of "Explore on my own". `notes` is the Workspace Limit's note, when there is one to show. */
 export function GuidedPick({ suggestions, items, fit, money, numberStyle, notes }: { suggestions: Suggestion[]; items: CatalogMetric[]; fit: CatalogFit | null; money: { unit: string; unit_position: UnitPosition }; numberStyle: NumberStyle; notes?: React.ReactNode }) {
   return (
     <>
@@ -27,18 +25,17 @@ export function GuidedPick({ suggestions, items, fit, money, numberStyle, notes 
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {suggestions.map(({ entry, line }) => (
           <li key={entry.id} className="flex">
-            <a href={`/metrics/new?catalog=${entry.id}&setup=1`} className="stock flex w-full flex-col rounded-[var(--radius-card)] p-4 transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)]">
+            <Link href={`/metrics/new?catalog=${entry.id}&setup=1`} className="stock flex w-full flex-col rounded-[var(--radius-card)] p-4 transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)]">
               <span className="font-medium">{entry.name}</span>
               <span className="mt-1 text-sm text-muted-foreground">{line}</span>
               <span className="mt-auto pt-2 text-xs text-[var(--color-ink-2)] max-sm:text-sm">{HOW_OFTEN[entry.period]}</span>
-            </a>
+            </Link>
           </li>
         ))}
       </ul>
       <h2 className="mt-8 text-base font-medium">Or define it yourself</h2>
       <p className="mt-1 mb-3 text-sm text-muted-foreground">Anything you can count or measure.</p>
-      {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- a full page load on purpose, see above */}
-      <a href="/metrics/new?scratch=1&setup=1" className={buttonVariants({ variant: "outline", size: "lg", className: "h-11 w-full sm:w-auto" })}><PenLine aria-hidden className="size-4" /> Define it yourself</a>
+      <Link href="/metrics/new?scratch=1&setup=1" className={buttonVariants({ variant: "outline", size: "lg", className: "h-11 w-full sm:w-auto" })}><PenLine aria-hidden className="size-4" /> Define it yourself</Link>
       <details className="group mt-8 border-t border-border pt-2">
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-base font-medium [&::-webkit-details-marker]:hidden">
           <ChevronDown aria-hidden className="size-4 -rotate-90 transition-transform group-open:rotate-0" /> Show all suggestions

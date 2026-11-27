@@ -24,8 +24,6 @@ const suits = (c: CatalogMetric, fit: CatalogFit) =>
 /** The catalog as a searchable list of cards, grouped by category; with a Workspace Profile, a filter for the
  * Metrics written for its industry. */
 export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { items: CatalogMetric[]; fit?: CatalogFit | null; money: { unit: string; unit_position: UnitPosition }; numberStyle: NumberStyle; /** Shown to someone from the Setup Guide: plain cards (name, definition, how often) whose links keep `setup=1`. */ fromGuide?: boolean }) {
-  // From the guide a full page load, as on the screen above it (see GuidedPick).
-  const Card = fromGuide ? "a" : Link;
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const suited = useMemo(() => (fit ? items.filter((c) => suits(c, fit)) : []), [items, fit]);
@@ -71,7 +69,7 @@ export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { 
               <h3 className="mb-2 text-sm font-medium tracking-normal text-muted-foreground">{cat}</h3>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {list!.map((c) => (
-                  <Card key={c.id} href={`/metrics/new?catalog=${c.id}${fromGuide ? "&setup=1" : ""}`} className="stock rounded-[var(--radius-card)] p-4 transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)]">
+                  <Link key={c.id} href={`/metrics/new?catalog=${c.id}${fromGuide ? "&setup=1" : ""}`} className="stock rounded-[var(--radius-card)] p-4 transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)]">
                     <div className="font-medium">{c.name}</div>
                     <p className="mt-1 line-clamp-3 text-sm text-muted-foreground sm:text-xs">{c.description}</p>
                     {fromGuide ? <p className="mt-2 text-xs text-[var(--color-ink-2)] max-sm:text-sm">{HOW_OFTEN[c.period]}</p> : <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-[var(--color-ink-2)] max-sm:text-sm">
@@ -80,7 +78,7 @@ export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { 
                       <span className="rounded bg-muted px-1.5 py-0.5">Target {targetText({ ...c, ...(c.format === "currency" ? money : {}), target_min: c.target_min === null ? null : Number(c.target_min), target_max: c.target_max === null ? null : Number(c.target_max) }, numberStyle)}</span>
                       {(c.tags ?? []).map((t) => <span key={t} className="rounded-full border border-[var(--color-rule-2)] px-1.5 py-0.5">{t}</span>)}
                     </div>}
-                  </Card>
+                  </Link>
                 ))}
               </div>
             </section>
