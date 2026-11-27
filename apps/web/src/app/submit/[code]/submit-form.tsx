@@ -10,6 +10,7 @@ import { recordValue } from "@/app/series-actions";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TuckedNote } from "@/components/value-note-tuck";
 import { cn } from "@/lib/utils";
 import { BreakdownField } from "./breakdown-field";
 import type { PeriodOffer } from "./period-choices";
@@ -34,6 +35,8 @@ type Props = {
   next?: { href: string; name: string; periodLabel: string } | null;
   /** True when the person is known and nothing else of theirs is due. */
   nothingDue?: boolean;
+  /** Whether the form offers a note on the value (GLOSSARY: Value Note). */
+  notes?: boolean;
 };
 
 /** Sends the form through the operation that fits: the form link's own, or, for a named earlier period, the signed-in
@@ -44,18 +47,20 @@ export function sendForm(code: string, named: Props["named"]) {
     // Another period picked from the list is the form link's to record: it takes the running one and those asked for.
     const picked = form.get("period");
     if (picked !== null && picked !== named.period) return submitWebForm(code, previous, form);
-    const r = await recordValue(named.metricId, { value: String(form.get("value") ?? ""), breakdown: String(form.get("breakdown") ?? ""), period: named.period });
+    const note = form.get("note");
+    const r = await recordValue(named.metricId, { value: String(form.get("value") ?? ""), breakdown: String(form.get("breakdown") ?? ""), period: named.period, ...(note ? { note: String(note) } : {}) });
     return "error" in r ? { ok: false, detail: r.error } : r;
   };
 }
 
 /** The period and the form, posting to the server action; unless the address names an earlier period it works without
  * JavaScript too. */
-export function SubmitForm({ code, label, placeholder, numberStyle, named = null, offer, rule, answered, children, next = null, nothingDue = false }: Props) {
+export function SubmitForm({ code, label, placeholder, numberStyle, named = null, offer, rule, answered, children, next = null, nothingDue = false, notes = false }: Props) {
   const [result, action, pending] = useActionState<WebFormResult, FormData>(sendForm(code, named), null);
   // Controlled, so a refusal does not empty the field (React resets uncontrolled fields after an action); the
   // value is cleared only when it was recorded.
   const [value, setValue] = useState("");
+  const [note, setNote] = useState("");
   const [breakdown, setBreakdown] = useState(false);
   const [again, setAgain] = useState(false);
   // What the person picked holds while the form offers it; a period that stopped waiting gives way to the one to start with.
@@ -71,7 +76,11 @@ export function SubmitForm({ code, label, placeholder, numberStyle, named = null
   const done = Boolean(result?.ok) && !again;
   useEffect(() => {
     setAgain(false);
-    if (result?.ok) setValue("");
+    if (result?.ok) {
+      setValue("");
+      // A note that was not saved stays in its field.
+      if (!result.noteKept) setNote("");
+    }
     // Focus goes back to the wrong field after a refusal; the value field is the first and the only required one.
     else if (result) input.current?.focus();
   }, [result]);
@@ -122,6 +131,7 @@ export function SubmitForm({ code, label, placeholder, numberStyle, named = null
         <div id="breakdown-part" className={breakdown ? undefined : "max-sm:hidden"}>
           <BreakdownField numberStyle={numberStyle} />
         </div>
+        {notes && <div className="mt-1 sm:mt-4"><TuckedNote value={note} onChange={setNote} /></div>}
         <Button type="submit" size="lg" className="mt-4 w-full max-sm:h-12 max-sm:text-base" disabled={pending}>Submit</Button>
       </form>
     </>

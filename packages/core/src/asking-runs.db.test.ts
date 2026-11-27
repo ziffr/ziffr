@@ -47,9 +47,10 @@ describe("a Workflow on its own schedule", () => {
     // Thursday 3 December: not before 14:00, then once.
     expect(await runAskingWorkflowsIfDue(clock(w), at("2026-12-03", "13:59"))).toEqual({ ran: 0, failed: 0 });
     expect(await runAskingWorkflowsIfDue(clock(w), at("2026-12-03", "14:00"))).toEqual({ ran: 1, failed: 0 });
-    // It asked, and reminded in the same run: the reminder's day (the day before the Due Date) had come.
+    // Asking and reminding fell in the same run (the reminder's day, the day before the Due Date, had come): one
+    // message, one Prompt (GLOSSARY: Combined Prompt).
     expect(await rows(id)).toEqual([{ day: "2026-12-03", trigger: "schedule", state: "done", prompts: 1, reminders: 1, escalations: 0 }]);
-    expect(await asks(m.id)).toBe(2);
+    expect(await asks(m.id)).toBe(1);
   });
   it("runs a day once, however often and however many at once the job is called", async () => {
     const { w, id } = await withWorkflow(THURSDAY);
@@ -73,7 +74,7 @@ describe("a Workflow on its own schedule", () => {
     expect(await runAskingWorkflowsIfDue(clock(w), at("2026-12-07", "14:30"))).toEqual({ ran: 1, failed: 0 });
     expect(await runAskingWorkflowsIfDue(clock(w), at("2026-12-14", "14:30"))).toEqual({ ran: 1, failed: 0 });
     expect((await rows(id)).map((r) => [r.day, r.prompts, r.reminders, r.escalations])).toEqual([["2026-12-07", 1, 1, 1], ["2026-12-14", 0, 0, 0]]);
-    expect(await asks(m.id)).toBe(2);
+    expect(await asks(m.id)).toBe(1);
   });
   it("leaves a Workflow without a schedule to the Workspace's run, which asks about it at once", async () => {
     const { w, m, id } = await withWorkflow();

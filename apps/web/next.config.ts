@@ -40,6 +40,11 @@ const nextConfig: NextConfig = {
       source: "/v/open/:path*",
       headers: [{ key: "Cache-Control", value: "private, no-store" }],
     }, {
+      // The combined form (spec 0064): its address opens the form, so no cache keeps the page, no search engine lists it
+      // and the address is told to no other site. "same-origin" and not "no-referrer", which would send forms with no origin.
+      source: "/submit/all/:path*",
+      headers: [{ key: "Cache-Control", value: "private, no-store" }, { key: "Referrer-Policy", value: "same-origin" }, { key: "X-Robots-Tag", value: "noindex, nofollow" }],
+    }, {
       // The service worker (#143): always asked of the server, so a fixed worker reaches everyone at once.
       source: "/sw.js",
       headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],

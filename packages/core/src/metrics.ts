@@ -3,7 +3,7 @@
 import { closeForSystem } from "./system-closes";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
-import { forgetInCombined } from "./internal/combined-delivery";
+import { forgetInCombined, holdCombined } from "./internal/combined-delivery";
 import { openNames, openOne, openRows, reserveIds, sealRow, sealedPatch } from "./sealed-columns";
 import { CONNECTORS } from "./connectors/index";
 import type { FirstAsk } from "./asked-message";
@@ -281,7 +281,8 @@ export async function deleteMetric(actor: Actor, metricId: number, confirmName: 
   const forget = await forgetInCombined(ws, metricId);
   const { data: gone, error } = await db().from("metrics").delete().eq("id", metricId).eq("workspace_id", ws).select("id");
   if (error || !gone?.length) throw new Error("The Metric could not be deleted.");
-  await forget();
+  // The Metric is gone: a message that could not be tidied up is logged, and the deletion is still recorded.
+  await forget().catch((e) => console.error("Messages that named a deleted Metric could not be tidied up:", e instanceof Error ? e.message : "unknown"));
   await audit(actor, { kind: "metric.deleted", object: { type: "metric", id: metricId, name: m.name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { values: count ?? 0 } });
   return { values: count ?? 0 };
 }
@@ -486,6 +487,15 @@ async function holdLatePrompts(ws: string, metricId: number, ids: string[]): Pro
   await holdPrompts(ws, "prompt_id", found.flatMap((r) => (r.data ?? []).map((p) => p.id as number)));
 }
 
+/** The messages with several figures that listed a removed person's Prompts for this Metric are written again without
+ * them, once the Tokens are gone; one with nothing left is not sent. */
+async function holdCombinedOfRemoved(ws: string, metricId: number, ids: string[]): Promise<void> {
+  const prompts = () => db().from("prompts").select("id").eq("workspace_id", ws).eq("metric_id", metricId).is("answered_at", null).order("id", { ascending: false }).limit(1000);
+  const found = await Promise.all([prompts().in("submitter_id", ids).is("stands_in_for", null), prompts().in("stands_in_for", ids)]);
+  if (found.some((r) => r.error)) throw new Error("The Submitters could not be removed.");
+  await holdCombined(ws, found.flatMap((r) => (r.data ?? []).map((p) => p.id as number)), ["queued", "outbox"], REMOVED_BEFORE_SENT);
+}
+
 /** Stops people submitting to a Metric, for its owner and its Editors: their Tokens go, and those of anyone standing
  * in for them on it, and Prompts to those Tokens that wait or are kept in the Outbox are not sent. Their earlier values
  * stay, as do the Threads, Tasks and Approver steps they are in. Returns who was removed. */
@@ -497,6 +507,7 @@ export async function removeSubmitters(actor: Actor, metricId: number, personIds
   await db().from("tokens").delete().eq("metric_id", m.id).eq("workspace_id", actor.workspaceId).in("stands_in_for", ids);
   const removed = [...new Set((gone ?? []).map((t) => t.submitter_id as string))];
   await holdLatePrompts(actor.workspaceId, m.id as number, ids);
+  await holdCombinedOfRemoved(actor.workspaceId, m.id as number, ids);
   await auditSubmitters(actor, { id: m.id as number, name: m.name as string }, "metric.submitter_removed", removed);
   if (removed.length) await recordVersion("metric", m.id, actor.personId, { message: removed.length === 1 ? "Removed a Submitter" : `Removed ${removed.length} Submitters` });
   return removed;

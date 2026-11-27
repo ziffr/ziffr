@@ -104,9 +104,12 @@ export const NOTE_CHARS = 1000;
 /** A note from a reply: its words, and whether it was longer than a note may be and so was cut. */
 export type ReplyNote = { text: string; cut: boolean };
 
-// Control characters other than the line break, and the characters that change the direction text is shown in, which
-// can make words read differently from what they say.
-const HIDDEN = /(?!\n)[\p{Cc}\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu;
+// Control characters other than the line break, and characters that show nothing or change the direction text is shown
+// in, which can make words read differently from what they say: soft hyphen, Arabic letter mark, Hangul fillers,
+// Mongolian vowel separator, zero-width space, direction marks and controls, line and paragraph separators, the word
+// joiner and invisible operators, the blank Braille pattern, the byte order mark and tag characters. The same as
+// demo-text.ts; the zero-width non-joiner and joiner (U+200C, U+200D) stay, since words and emoji need them.
+const HIDDEN = /(?!\n)[\p{Cc}\u00ad\u061c\u115f\u1160\u180e\u200b\u200e\u200f\u2028\u2029\u202a-\u202e\u2060-\u2069\u2800\u3164\ufeff\uffa0\u{e0000}-\u{e007f}]/gu;
 
 /** A reply's lines as a note: hidden characters removed (a tab becomes a space), trimmed, cut at NOTE_CHARS
  * characters; null when nothing is left. */

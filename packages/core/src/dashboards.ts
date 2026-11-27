@@ -6,7 +6,9 @@
 import { db } from "./db";
 import { insertSealed, openOne, openRows, sealedPatch, sealRow } from "./sealed-columns";
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
-import { visibleDashboards, readableActions } from "./access";
+import { visibleDashboards, readableActions, visibleMetricIds, seriesFor } from "./access";
+import { getMetrics } from "./workspace-data";
+import { currentValueNotes } from "./value-notes";
 import { assertSeesMetrics } from "./sharing";
 import { fillsComplete, fromTemplate } from "./team-templates";
 import { widgetMetricIds } from "./widget-metrics";
@@ -431,6 +433,9 @@ async function markExplained(actor: Actor, metricId: number) {
   await db().from("analysis_canvas").update({ explains: true }).eq("user_id", actor.personId).eq("workspace_id", actor.workspaceId).eq("metric_id", metricId);
 }
 
+// How many periods back the history panel is sent Value Notes for: what its list of values shows.
+const NOTE_PERIODS = 60;
+
 /** A Metric's history for the history popover: every value, the Actions the actor may read, superseded values. */
 export async function metricHistory(actor: Actor, metricId: number) {
   await assertSeesMetrics(actor, [metricId]);
@@ -445,7 +450,15 @@ export async function metricHistory(actor: Actor, metricId: number) {
   const [observations, history] = await Promise.all([opened(obs, "observations"), opened(superseded, "observation_history")]);
   // A Guest does not see who submitted a value or who entered it for them (GLOSSARY: Guest): both ids go together.
   const forGuest = <T extends Record<string, unknown>>(rows: T[]) => (actor.role === "guest" ? rows.map(({ submitter_id: _s, entered_by: _e, ...rest }) => rest as unknown as T) : rows); // eslint-disable-line @typescript-eslint/no-unused-vars
-  return { observations: forGuest(observations), actions, superseded: forGuest(history) };
+  // The Value Notes of the periods the panel lists (spec 0064), as the note core gives them to this person. A calculated
+  // Metric has no rows of its own, so its periods come from its series.
+  const metrics = await getMetrics(ws);
+  const metric = metrics.find((m) => m.id === metricId);
+  const periods = metric?.formula
+    ? ((await seriesFor(ws, metrics, await visibleMetricIds(ws, actor.personId, metrics), [metricId])).series[metric.slug] ?? []).slice(-NOTE_PERIODS).map((p) => p.period)
+    : [...new Set(observations.map((o) => String((o as { period_start?: unknown }).period_start)))].slice(0, NOTE_PERIODS);
+  const notes = await currentValueNotes(actor, metricId, periods);
+  return { observations: forGuest(observations), actions, superseded: forGuest(history), notes };
 }
 
 /** The Metrics on the actor's Analysis Canvas in this workspace, in order. */

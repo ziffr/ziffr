@@ -82,6 +82,7 @@ const OUTSIDE: readonly string[] = [
   "auth-actions:switchWorkspace",
   "first-steps/actions:makeWorkspace",
   "first-steps/actions:saveAnswers",
+  "first-steps/actions:addFirstMetric",
   "first-steps/value-actions:askByEmail",
   "first-steps/value-actions:chooseProvider",
   "first-steps/value-actions:emailAgain",
@@ -276,6 +277,8 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   ],
   // Promises what does not happen in the demo (an Alert, a Heads-up, an automatic Snapshot) or records nothing there.
   "does-nothing": [
+    // The demo asks for each figure in a message of its own, so no combined form link exists there (spec 0064).
+    "actions:submitCombinedWebForm",
     "alert-actions:createAlert",
     "alert-actions:deleteAlert",
     "alert-actions:updateAlert",
@@ -317,6 +320,10 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "metric-delete-actions:deleteMetrics",
     "series-actions:handOverMetricTo",
     "submitter-actions:removeSubmitter",
+    "value-note-actions:correctNote",
+    "value-note-actions:deleteNoteForGood",
+    "value-note-actions:removeNote",
+    "value-note-actions:writeNote",
     "workflow-actions:deleteWorkflow",
     "workflow-actions:saveWorkflow",
     "workflow-actions:setMetricWorkflow",

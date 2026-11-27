@@ -7,6 +7,7 @@ import { countView } from "@/lib/count-view";
 import { followDemoSuccessor } from "@/lib/demo-follow";
 import { readKeptNumbers } from "@ziffr/core/deck-snapshots";
 import { keptRequests } from "@ziffr/core/snapshot-parts";
+import { deckTemplateSeed, importSeedOf } from "@ziffr/core/deck-templates";
 
 export default async function DeckPresentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ at?: string }> }) {
   const id = Number((await params).id);
@@ -17,12 +18,17 @@ export default async function DeckPresentPage({ params, searchParams }: { params
   const deck = view?.deck;
   if (!deck) notFound();
   void countView(actor, { kind: "deck", id });
+  // A deck made from a Deck Template that nobody opened yet holds only the template and its fills: its slides are laid
+  // out now. The core gives them only to someone who sees every Metric that fills them.
+  const waiting = importSeedOf(deck.document);
+  const templateSeed = waiting ? await deckTemplateSeed(actor, waiting.template, waiting.fills).catch(() => null) : null;
   // A slideshow draws only the deck's widgets: only their series go to the browser.
-  const data = await getCanvasData(viewer, deckMetricIds(deck.document));
+  const data = await getCanvasData(viewer, templateSeed ? templateSeed.fills.flat() : deckMetricIds(deck.document));
   // And of the Snapshots its slides keep numbers from, what this viewer may see (spec 0061).
   const asked = keptRequests(deck.document);
   const kept = { asked, read: await readKeptNumbers(actor, asked) };
   // Someone who may only present has no deck page to go back to (it sends them here again): they go to the list.
   const back = view.role === "viewer" ? "/decks" : `/decks/${id}`;
-  return <SlideshowLoader back={back} deck={{ id: deck.id, name: deck.name, document: deck.document, theme_id: deck.theme_id, footer: deck.footer }} data={data} kept={kept} start={Number((await searchParams).at) || 0} />;
+  const keep = view.role === "owner" || view.role === "editor";
+  return <SlideshowLoader back={back} deck={{ id: deck.id, name: deck.name, document: waiting ? null : deck.document, theme_id: deck.theme_id, footer: deck.footer }} data={data} kept={kept} templateSeed={templateSeed} keep={keep} start={Number((await searchParams).at) || 0} />;
 }

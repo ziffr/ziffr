@@ -87,6 +87,23 @@ describe("answers by Slack", () => {
     expect((await sent(w.id, ann)).status).toBe("answered");
   });
 
+  it("saves later words as the note, offers the other number in the thread and records it on yes (spec 0064)", async () => {
+    const { w, sara, bot, ann, annSlack, m } = await setup();
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "slack" });
+    const d = await sent(w.id, ann);
+    const say = (text: string) => receiveSlackEvent(message(bot, annSlack, d.slack_channel, d.slack_ts, text));
+    const said = () => String(slack.of("chat.postMessage").at(-1)!.params.text);
+    expect(await say("17")).toEqual({ outcome: "recorded" });
+    expect(await say("actually 18, one came late")).toEqual({ outcome: "noted" });
+    expect(said()).toBe("Saved as your note. Your value is still 17. To change it to 18, reply yes.");
+    expect(await valuesOf(m.id)).toMatchObject([{ value: 17 }]);
+    expect(await say("yes")).toEqual({ outcome: "recorded" });
+    expect(await valuesOf(m.id)).toMatchObject([{ value: 18 }]);
+    const before = slack.of("chat.postMessage").length;
+    expect(await say("thanks")).toEqual({ outcome: "closed" });
+    expect(slack.of("chat.postMessage")).toHaveLength(before);
+  });
+
   it("reads a sentence as the answer, and asks back for several numbers or another period (spec 0022)", async () => {
     const { w, sara, bot, ann, annSlack, m } = await setup();
     await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "slack" });
