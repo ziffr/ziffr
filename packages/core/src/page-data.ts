@@ -450,7 +450,7 @@ export async function createWorkspace(personId: string, name: string): Promise<s
   // Never a copy of another workspace's Theme (logo, footer).
   await db().from("themes").insert({ ...STARTER_THEME, owner_id: personId, is_default: true, workspace_id: ws.id });
   if (trials) {
-    // A trial starts without Metrics or dashboards (#1292): only its ways of sending and the guide's starting point.
+    // A trial starts without Metrics or dashboards (#1292): only its ways of sending and the Setup Guide.
     // Loaded here, not at the top: the seed uses the operations that themselves read this module. A step that fails
     // leaves the trial as it is, not none.
     const { startTrialWorkspace } = await import("./trial-seed");
