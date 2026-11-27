@@ -2,6 +2,7 @@
 // by Slack, mail, a personal form link, a program with an Access Key or a Feed, and are recorded under their sender,
 // members, Contacts and Feeds alike; a Metric owner
 // accepts or declines Corrections. Every lookup stays inside one Workspace.
+import { decideProposedNote, notesAfterValue, noteWithProposal, type NoteArriving, type NoteSaved } from "./value-note-store";
 import { announceNewAction } from "./action-state";
 import { askedPeriods } from "./asked-periods";
 import { db } from "./db";
@@ -41,6 +42,9 @@ export type SubmissionInput = {
   sender: string;
   text: string;
   promptId?: number;
+  /** A note sent with the value (GLOSSARY: Value Note; spec 0064), untrusted: checked where it is saved, after the
+   * value, which it never blocks. A program's longer note is not saved; any other is cut. */
+  valueNote?: unknown;
   /** A program's value as it sent it, instead of a number found in `text` (source "api" only). */
   value?: { value: number; breakdown?: BreakdownInput[] };
   /** The period a program names; otherwise the current one, or the Prompt's (source "api" only). */
@@ -72,7 +76,7 @@ export type SubmissionInput = {
 };
 
 /** What became of a submission, in words for the sender. */
-export type SubmissionResult = { outcome: string; detail: string; ok: boolean; metricSlug?: string; imported?: boolean };
+export type SubmissionResult = { outcome: string; detail: string; ok: boolean; metricSlug?: string; imported?: boolean; /** What became of the note sent with the value; absent when none was sent. */ valueNote?: NoteSaved };
 
 /** What the intake log marks a value with: `paste` for a cell of a paste, and `import` beside it when it was recorded
  * as history (spec 0026). Read by the Metric's history and the intake log. */
@@ -123,7 +127,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
       observation_id: r.observationId ?? null,
       marks,
     }]);
-    return { outcome: r.outcome, detail: r.detail, ok: r.ok, metricSlug: r.metricSlug, ...(r.imported ? { imported: true } : {}) };
+    return { outcome: r.outcome, detail: r.detail, ok: r.ok, metricSlug: r.metricSlug, ...(r.imported ? { imported: true } : {}), ...(r.valueNote ? { valueNote: r.valueNote } : {}) };
   };
 
   // 1. Who sent it? The Token is implied by the sender's identity on this Source.
@@ -221,7 +225,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   if (condensedDay) return log({ ...base, ok: false, outcome: "rejected_period_condensed", detail: condensedRefusal(condensedDay) });
 
   // A locked period takes no more values: a late one becomes a proposal for the metric owner (GLOSSARY: Lock).
-  if (await isLocked(metric.id, period)) return log({ ...base, ...(await lateValue({ ws: workspaceId, metric, period, value, senderName: sender?.name, senderId, preview, fv, when, notify: effects.notifyCorrection }, { filled: Boolean(filled || ownerFill), source: input.source, token, prompt })) });
+  if (await isLocked(metric.id, period)) return log({ ...base, ...(await lateValue({ ws: workspaceId, metric, period, value, note: noteOf(input, senderId), senderName: sender?.name, senderId, preview, fv, when, notify: effects.notifyCorrection }, { filled: Boolean(filled || ownerFill), source: input.source, token, prompt })) });
 
   // A Stand-in's answer to a Prompt sent in someone's place is the submitter's value, entered by the Stand-in; asked after
   // the Lock, so a late one is still proposed as a Correction, as any late value is.
@@ -264,13 +268,15 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   // A Filled-in Value closes every open Prompt of its Metric and period, the submitter's and the Stand-in's (spec 0046),
   // is recorded in the Audit Log, and tells the submitter. None of it can fail the value.
   if (result.ok && !preview && filled) result.detail = await settleFilled(workspaceId, { metric, period, value: fv(value), when, forId: filled.forId, by: filled.by, as: filled.as, awayBy: filled.awayBy, observationId: Number(data.observation_id), source: input.source, forName: profiles.find((p) => p.id === filled!.forId)?.name, detail: result.detail });
+  // The period's notes follow the value (spec 0064): a replaced value's notes become history, and its own is added.
+  const valueNote = await notesOfRecorded(workspaceId, input, { result, preview, filled, submitterId, metricId: metric.id, period, before, data });
   // The metric's Workflow takes it from here: check, approval, publish.
   if (result.ok && submitterId) {
     const next = await effects.afterValue(metric.id, period, submitterId, afterOptions(byLink, imported));
     if (next.length) result.detail += ` Workflow: ${next.join("; ")}.`;
   }
   // The value it became, so the intake log and the Metric's history can say how it arrived.
-  return log({ ...base, ...result, observationId: result.ok ? data.observation_id : null });
+  return log({ ...base, ...result, valueNote, observationId: result.ok ? data.observation_id : null });
 }
 
 /** Who sent a submission and which Tokens of theirs it may use: the Token a form link or a key names, or the Tokens of the
@@ -377,16 +383,32 @@ function breakdownWords(breakdown: { rows: BreakdownInput[]; total: number | nul
 /** A value for a locked period: refused for a Stand-in outside what their Token is narrowed to (spec 0046: no Access Key,
  * only the periods they were asked about), otherwise proposed as a Correction as any late value is. A Filled-in Value
  * already decided on (by the Metric's or the Workflow's owner) is not a Stand-in's answer and goes straight to the proposal. */
-async function lateValue(i: Parameters<typeof proposeLate>[0], by: { filled: boolean; source: SourceId; token: Token; prompt: AnsweredPrompt | null }): Promise<{ ok: false; outcome: string; detail: string }> {
+async function lateValue(i: Parameters<typeof proposeLate>[0], by: { filled: boolean; source: SourceId; token: Token; prompt: AnsweredPrompt | null }): ReturnType<typeof proposeLate> {
   const standsFor = by.token.stands_in_for ?? by.prompt?.stands_in_for ?? null;
   const refused = by.filled ? null : await standInLateRefusal(i.ws, i.metric, i.period, { source: by.source }, i.senderId, standsFor);
   if (refused) return { ok: false, outcome: "rejected_fill_in", detail: refused };
   return proposeLate(i);
 }
 
+// The note that came with a value, by who sent it; nothing when none came or nobody is known to have sent it.
+function noteOf(input: SubmissionInput, authorId: string | null | undefined): NoteArriving | undefined {
+  if (input.valueNote === undefined || input.valueNote === null || !authorId) return undefined;
+  return { words: input.valueNote, authorId, source: input.source, tooLong: input.source === "api" ? "refuse" : "cut" };
+}
+
+// What a recorded value does to its period's notes; nothing for a preview, a value that was not taken, or one that
+// brings no note and replaces nothing. The author is who entered the value, also for someone else.
+async function notesOfRecorded(ws: string, input: SubmissionInput, v: { result: { ok: boolean }; preview: boolean; filled?: { by: string } | null; submitterId: string | null | undefined; metricId: number; period: string; before: number | null; data: { observation_id: unknown; outcome: string; after: unknown; replacedFilledIn?: unknown } }): Promise<NoteSaved | undefined> {
+  const note = noteOf(input, v.filled?.by ?? v.submitterId);
+  const replaces = v.data.outcome === "overwritten";
+  if (!v.result.ok || v.preview || !(note || replaces)) return undefined;
+  return notesAfterValue(ws, { metricId: v.metricId, period: v.period, observationId: Number(v.data.observation_id), before: v.before, after: Number(v.data.after), replaces, replacedFilledIn: Boolean(v.data.replacedFilledIn) }, note);
+}
+
 /** A value for a locked period (GLOSSARY: Lock, Correction): it changes nothing; it becomes a proposal for the Metric's owner,
  * or, in a preview, says that it would. Returns the intake's outcome and words. */
-async function proposeLate(i: { ws: string; metric: Metric; period: string; value: number; senderName: string | undefined; senderId: string | null; preview: boolean; fv: (v: number) => string; when: string; notify: SubmissionEffects["notifyCorrection"] }): Promise<{ ok: false; outcome: string; detail: string }> {
+async function proposeLate(i: { ws: string; metric: Metric; period: string; value: number; senderName: string | undefined; senderId: string | null; note?: NoteArriving; preview: boolean; fv: (v: number) => string; when: string; notify: SubmissionEffects["notifyCorrection"] }): Promise<{ ok: false; outcome: string; detail: string; valueNote?: NoteSaved }> {
+  let valueNote: NoteSaved | undefined;
   const { ws, metric, period, value, senderId, fv, when } = i;
   const owner = metric.owner_id === senderId ? "you" : "the metric owner";
   if (i.preview) return { ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} would go to ${owner} as a proposed correction.` };
@@ -398,10 +420,12 @@ async function proposeLate(i: { ws: string; metric: Metric; period: string; valu
   }]) as { id: number }[];
   if (a) {
     await announceNewAction(a.id, { type: "system" });
-    await insertSealed("thread_messages", ws, [{ action_id: a.id, author_id: senderId, body: "Late value for a locked period.", correction_value: value, correction_status: "proposed" }]);
+    const [message] = await insertSealed("thread_messages", ws, [{ action_id: a.id, author_id: senderId, body: "Late value for a locked period.", correction_value: value, correction_status: "proposed" }]);
+    // Its note waits with the proposal and becomes the period's only if the Correction is accepted.
+    if (i.note) valueNote = await noteWithProposal(ws, { messageId: Number(message!.id), metricId: metric.id, period, value }, i.note);
     if (senderId) await i.notify({ actionId: a.id, senderId, ownerId: metric.owner_id, value });
   }
-  return { ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} went to ${owner} as a proposed correction.` };
+  return { ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} went to ${owner} as a proposed correction.`, ...(valueNote ? { valueNote } : {}) };
 }
 
 /** What a sender is told when rows cannot be added to the Breakdown already recorded, whatever the reason. */
@@ -629,6 +653,8 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
   const act = msg.actions as { metric_id: number; period_start: string; observation_id: number | null };
   if (accept) {
     let written: { error: { code?: string } | null };
+    let writtenTo = act.observation_id;
+    let before: number | null = null;
     // The proposed value is sealed in the message; it is opened here and sealed again for the value's row.
     const [opened] = await openRows("thread_messages", actor.workspaceId, [msg as Record<string, unknown>]);
     const proposed = opened.correction_value;
@@ -639,6 +665,7 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
       if (!obs) throw new Forbidden();
       const [was] = await openRows("observations", actor.workspaceId, [obs as Record<string, unknown>]);
       const original = was.original_value ?? was.value;
+      if (typeof was.value === "number") before = was.value;
       if (typeof original !== "number") throw new Error("The Correction could not be saved. Try again in a moment.");
       const sealedNow = await sealRow("observations", actor.workspaceId, { id: act.observation_id, value: proposed, original_value: original });
       delete sealedNow.id;
@@ -648,6 +675,7 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
     } else {
       // The new value's id is taken first: its number is sealed for that row.
       const [id] = await reserveIds("observations", 1);
+      writtenTo = id!;
       const sealedNew = await sealRow("observations", actor.workspaceId, { id, value: proposed });
       written = await db().from("observations").insert({ ...sealedNew, metric_id: act.metric_id, period_start: act.period_start, submitter_id: msg.author_id, source: "web_form", workspace_id: actor.workspaceId });
     }
@@ -662,7 +690,12 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
       await db().from("thread_messages").update({ correction_status: "proposed" }).eq("id", messageId).eq("workspace_id", actor.workspaceId).eq("correction_status", "accepted");
       throw new Error(written.error.code === ARCHIVED_CODE ? ARCHIVED_REFUSAL : "The Correction could not be saved. Try again in a moment.");
     }
+    // The replaced value's notes become history; the note sent with the proposal is now the period's (spec 0064).
+    await notesAfterValue(actor.workspaceId, { metricId: act.metric_id, period: act.period_start, observationId: Number(writtenTo), before, after: proposed, replaces: true });
+    await decideProposedNote(actor.workspaceId, messageId, { metricId: act.metric_id, period: act.period_start, observationId: Number(writtenTo), sameNumber: before === proposed });
   }
+  // A declined proposal takes its note with it: it never was a Value Note.
+  if (!accept) await decideProposedNote(actor.workspaceId, messageId, null);
   if (accept) {
     await db().from("period_states").update({ state: "submitted" }).eq("metric_id", act.metric_id).eq("period_start", act.period_start);
     await effects.afterValue(act.metric_id, act.period_start, msg.author_id);

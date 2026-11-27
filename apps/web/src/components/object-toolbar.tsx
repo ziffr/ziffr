@@ -42,7 +42,7 @@ export type ObjectToolbarProps = {
 type SheetRow = { label: string; icon: React.ReactNode; checked?: boolean; go: () => void };
 
 /** One entry of a page's ⋯ menu. */
-export type MenuEntry = { label: string; icon: React.ReactNode; onSelect?: () => void; sub?: { key: string | number; label: string; onSelect: () => void; separated?: boolean }[]; danger?: boolean; separated?: boolean; checked?: boolean; dimmed?: boolean; hint?: string };
+export type MenuEntry = { label: string; icon: React.ReactNode; onSelect?: () => void; sub?: { key: string | number; label: string; onSelect: () => void; separated?: boolean }[]; danger?: boolean; separated?: boolean; checked?: boolean; dimmed?: boolean; hint?: string; /** Only in the phone's sheet: a bigger screen has a button of its own for it. */ phoneOnly?: boolean };
 
 /** Share as the main button, the page's own buttons, and a ⋯ menu with Who can see this, View links, Theme and Versions. */
 export function ObjectToolbar({ type, id, people, children, phone, share, viewLinks, theme, menu, lead }: ObjectToolbarProps) {
@@ -58,7 +58,8 @@ export function ObjectToolbar({ type, id, people, children, phone, share, viewLi
   return (
     <div className="flex flex-wrap items-center gap-2">
       {lead}
-      {phone ? <><div className="flex flex-wrap items-center gap-2 max-md:hidden">{children}</div>{phone}</> : children}
+      {/* From 768 px the page's buttons wrap one by one with Share and ⋯, so a narrower page (beside a panel) has no half-empty rows. */}
+      {phone ? <><div className="contents max-md:hidden">{children}</div>{phone}</> : children}
       {share && (
         <ShareSheet
           primary={!lead}
@@ -98,7 +99,7 @@ export function ObjectToolbar({ type, id, people, children, phone, share, viewLi
           <MoreHorizontal aria-hidden />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
-          {menu?.map((m) => (
+          {menu?.filter((m) => !m.phoneOnly).map((m) => (
             <MenuRow key={m.label} m={m} />
           ))}
           <DropdownMenuItem onClick={() => setTimeout(() => showWho(type, id), 0)}><Eye aria-hidden /> Who can see this</DropdownMenuItem>

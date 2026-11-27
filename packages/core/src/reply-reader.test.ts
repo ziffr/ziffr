@@ -163,6 +163,13 @@ table("a later reply", [
   ["", "nothing"],
 ], () => [filled()]);
 
+// A "Correction:" line without a number is never a value, so never 0 (#1350).
+const NO_NUMBER = ["Correction:\n\ntoo low", "Correction: \ntoo low", "Correction: ,", "Correction:"];
+table("a first reply with a Correction line without a number", NO_NUMBER.map((t): Case => [t, "not_read no_number"]));
+it.each(NO_NUMBER)("takes %j for a filled figure as no value", (text) => {
+  expect(read(text, [filled()]).kind).not.toBe("values");
+});
+
 table("a later reply in German", [
   ["47", "values 0=47"],
   ["eigentlich 47", 'note "eigentlich 47" offer overwrite 47'],

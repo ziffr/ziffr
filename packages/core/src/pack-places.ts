@@ -1,16 +1,19 @@
 // What each Position and Repeat of a Pack does (spec 0058, #1178; GLOSSARY: Position, Repeat, Pack, Share, Workflow
-// Template): the places of a checked ziffr.pack/2 file taken off its items' wrappers into one small document the
-// install keeps, and that document said in words for the Packs page, before and after installing.
-// Security: a Pack is untrusted input. What is kept holds keys, the Pack's own Position and Repeat names and a share in
-// percent, never a person, and is read back defensively. A Position grants nothing by itself: who fills it, and what is
-// shared, is decided at Set up by the server.
+// Template): the places of a checked ziffr.pack/2 or /3 file taken off its items' wrappers into one small document the
+// install keeps, and that document said in words for the Packs page, before and after installing. With them go the
+// questions and the numbers asked at set-up of a /3 Pack (spec 0068).
+// Security: a Pack is untrusted input. What is kept holds keys, the Pack's own Position and Repeat names, its questions
+// as plain text of limited length and a share in percent, never a person, and is read back defensively. A Position grants
+// nothing by itself: who fills it, and what is shared, is decided at Set up by the server.
 import type { PackPosition, PackRepeat } from "@ziffr/pack/pack-positions";
+import { PACK_ASK_EVERY, PACK_SET_UP_LIMITS as L, type PackAsk } from "@ziffr/pack/set-up";
+import { PLAIN, textPasses } from "./file-text";
 import type { Pack } from "./pack";
 import type { WorkflowTemplateStep } from "./types";
 
-/** The places of one Metric Catalog entry: the Repeat that makes it once per line, and the Positions that submit it,
- * stand in for its Submitters and are proposed a Share of it. */
-export type PlacedMetric = { key: string; per?: string; submitters?: string[]; standIn?: string; viewers?: string[]; editors?: string[] };
+/** The places of one Metric Catalog entry: the Repeat that makes it once per line, the Positions that submit it,
+ * stand in for its Submitters and are proposed a Share of it, and the number asked at set-up for it. */
+export type PlacedMetric = { key: string; per?: string; submitters?: string[]; standIn?: string; viewers?: string[]; editors?: string[]; ask?: PackAsk };
 /** The places of one Dashboard Template: its Repeat and the Positions it is proposed to be shared with. */
 export type PlacedDashboard = { key: string; per?: string; viewers?: string[]; editors?: string[] };
 /** The Positions one step of a stored Workflow Template names; `at` is the step's place in the stored template. */
@@ -20,19 +23,19 @@ export type PlacedTell = { condition: { kind: "share_of_target" | "changed_more"
 /** The places of one Workflow Template. `mark` identifies the stored steps the places were read for: a copy kept from
  * another version does not match it, and its places are left alone. */
 export type PlacedWorkflow = { key: string; per?: string; mark: string; steps: PlacedStep[]; tells: PlacedTell[] };
-/** What an install keeps of a Pack's Positions and Repeats. */
+/** What an install keeps of a Pack's Positions and Repeats, and of what its set-up asks. */
 export type PackPlaces = { positions: PackPosition[]; repeats: PackRepeat[]; metrics: PlacedMetric[]; dashboards: PlacedDashboard[]; workflows: PlacedWorkflow[] };
 
 /** The fields of `o` that are there, of those named. */
 function given<T extends object, K extends keyof T>(o: T, fields: readonly K[]): Pick<T, K> {
   return Object.fromEntries(fields.filter((f) => o[f] !== undefined).map((f) => [f, o[f]])) as Pick<T, K>;
 }
-const METRIC_FIELDS = ["per", "submitters", "standIn", "viewers", "editors"] as const;
+const METRIC_FIELDS = ["per", "submitters", "standIn", "viewers", "editors", "ask"] as const;
 const DASHBOARD_FIELDS = ["per", "viewers", "editors"] as const;
 const STEP_FIELDS = ["by", "assignee", "standIn", "to", "dashboard"] as const;
 
-/** The places of a checked Pack, or null when it has none. `mark` identifies the steps of a Workflow Template as they
- * are stored (every step but a Tell step, in the file's order). */
+/** The places of a checked Pack, or null when it has none and asks no number at set-up. `mark` identifies the steps
+ * of a Workflow Template as they are stored (every step but a Tell step, in the file's order). */
 export function packPlaces(pack: Pick<Pack, "positions" | "repeats" | "contents">, mark: (key: string) => string): PackPlaces | null {
   const metrics = (pack.contents.metrics ?? []).map((m): PlacedMetric => ({ key: m.key, ...given(m, METRIC_FIELDS) })).filter((m) => Object.keys(m).length > 1);
   const dashboards = (pack.contents.dashboards ?? []).map((d): PlacedDashboard => ({ key: d.key, ...given(d, DASHBOARD_FIELDS) })).filter((d) => Object.keys(d).length > 1);
@@ -51,7 +54,7 @@ export function packPlaces(pack: Pick<Pack, "positions" | "repeats" | "contents"
   });
   const positions = pack.positions ?? [];
   const repeats = pack.repeats ?? [];
-  return positions.length || repeats.length || workflows.length ? { positions, repeats, metrics, dashboards, workflows } : null;
+  return positions.length || repeats.length || workflows.length || metrics.some((m) => m.ask) ? { positions, repeats, metrics, dashboards, workflows } : null;
 }
 
 const isText = (v: unknown): v is string => typeof v === "string";
@@ -60,8 +63,19 @@ const isKey = (v: unknown) => v === undefined || isText(v);
 const rows = (v: unknown): Record<string, unknown>[] | null => (Array.isArray(v) && v.every((x) => x && typeof x === "object") ? (v as Record<string, unknown>[]) : null);
 const sound = (v: unknown, one: string[], several: string[]) => rows(v)?.every((x) => isText(x.key) && one.every((f) => isKey(x[f])) && several.every((f) => isKeys(x[f]))) ?? false;
 
+/** Whether a stored text of a set-up is one a Pack may declare: plain text, with something in it, within its limit. */
+const words = (max: number) => (v: unknown) => isText(v) && v.trim() !== "" && [...v].length <= max && textPasses(PLAIN, v);
+const asked = (v: unknown) => {
+  const a = v as Partial<PackAsk> | null;
+  return !!a && words(L.question)(a.question) && words(L.name)(a.name) && PACK_ASK_EVERY.some((e) => e === a.every);
+};
+/** A stored row without those of `fields` that do not fit: the row stays, and a set-up uses Ziffr's own words. */
+const without = <T extends object>(row: T, fields: Record<string, (v: unknown) => boolean>): T =>
+  Object.fromEntries(Object.entries(row).filter(([k, v]) => !Object.hasOwn(fields, k) || fields[k](v))) as T;
+
 /** The places an install keeps, read back from the database: null when it has none, or when what is there does not have
- * the shape installing wrote (then the Pack is treated as one without Positions). */
+ * the shape installing wrote (then the Pack is treated as one without Positions). A question, hint or number asked that
+ * is not what installing wrote is left out on its own. */
 export function readPlaces(raw: unknown): PackPlaces | null {
   const p = raw as Partial<Record<keyof PackPlaces, unknown>> | null | undefined;
   if (!p || typeof p !== "object") return null;
@@ -72,7 +86,18 @@ export function readPlaces(raw: unknown): PackPlaces | null {
     && (rows(p.workflows)?.every((w) => isText(w.key) && isKey(w.per) && isText(w.mark)
       && (rows(w.steps)?.every((s) => Number.isInteger(s.at) && ["assignee", "standIn", "dashboard"].every((f) => isKey(s[f])) && isKeys(s.by) && isKeys(s.to)) ?? false)
       && (rows(w.tells)?.every((t) => { const c = t.condition as { kind?: unknown; share?: unknown } | null; return (c?.kind === "share_of_target" || c?.kind === "changed_more") && isText(c.share) && isKeys(t.to); }) ?? false)) ?? false);
-  return ok ? (p as PackPlaces) : null;
+  if (!ok) return null;
+  const kept = p as PackPlaces;
+  return {
+    ...kept,
+    positions: kept.positions.map((x) => without(x, { question: words(L.question), hint: words(L.hint) })),
+    repeats: kept.repeats.map((x) => without(x, { question: words(L.question) })),
+    metrics: kept.metrics.map((x) => {
+      // Rebuilt field by field, so that nothing else stored beside a number asked is passed on.
+      const { ask, ...m } = x;
+      return asked(ask) ? { ...m, ask: { question: ask!.question, name: ask!.name, every: ask!.every } } : m;
+    }),
+  };
 }
 
 /** A Pack's Positions, Repeats and proposed Shares in words, as the Packs page shows them. */
