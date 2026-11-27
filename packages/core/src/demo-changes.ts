@@ -91,6 +91,8 @@ const OUTSIDE: readonly string[] = [
   "first-steps/value-actions:readFirstValue",
   "first-steps/value-actions:readSender",
   "first-steps/value-actions:typeValue",
+  "use-pack/actions:checkPackStart",
+  "use-pack/actions:takePackStartStep",
   "installation-actions:addInstallationAdmin",
   "installation-actions:blockUser",
   "installation-actions:extendTrial",
