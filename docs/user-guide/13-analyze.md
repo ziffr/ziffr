@@ -114,7 +114,7 @@ You can turn Heads-ups off for yourself, or have the strongest ones sent to you 
 
 ## Reading the results
 
-The Analyses Forecast, Correlation, Drivers and Correlation matrix are also Widgets, which you place on a dashboard from the **Analyses** group of the Pool; the results of **Choose a method** say the same things in a Takeaway. A Widget has a title saying what it compares, such as "Forecast: Revenue", "Return rate vs. Support tickets", "Drivers of Cost" or "Correlation matrix (5 metrics)".
+The Analyses Forecast, Correlation, Drivers and Correlation matrix are also Widgets, which you add to a dashboard from the **Analyses** group of [Add widget](12-dashboards.md#adding-a-widget); the results of **Choose a method** say the same things in a Takeaway. A Widget has a title saying what it compares, such as "Forecast: Revenue", "Return rate vs. Support tickets", "Drivers of Cost" or "Correlation matrix (5 metrics)".
 
 ### Forecast
 
@@ -154,13 +154,13 @@ Metrics of every period are compared, each on the longer of its own period and t
 
 ### Correlation matrix
 
-Place it on a dashboard from the **Analyses** group of the Pool. A grid with every Metric on both sides. Each square holds the link number r of that pair. The stronger the link, the deeper its colour; pairs that move opposite ways are shaded in the warning colour. A pair counted at different periods (monthly against weekly) is compared on the longer one. Pointing at a square shows its link number, whether growth was removed ("Compared by change, growth removed" or "Compared by value") and, for such a pair, "Compared by month (18 months)". A pair with no result shows "–", and pointing at it says why, such as "Not enough months in common (4 of 6)." Below the grid, Ziffr names every Metric kept to its own period by an Aggregation of none.
+Add it to a dashboard from the **Analyses** group of [Add widget](12-dashboards.md#adding-a-widget). A grid with every Metric on both sides. Each square holds the link number r of that pair. The stronger the link, the deeper its colour; pairs that move opposite ways are shaded in the warning colour. A pair counted at different periods (monthly against weekly) is compared on the longer one. Pointing at a square shows its link number, whether growth was removed ("Compared by change, growth removed" or "Compared by value") and, for such a pair, "Compared by month (18 months)". A pair with no result shows "–", and pointing at it says why, such as "Not enough months in common (4 of 6)." Below the grid, Ziffr names every Metric kept to its own period by an Aggregation of none.
 
 ## View Designs
 
 **Workspace → Library** (Settings) is where View Designs, Analysis Recipes and the Playground are kept. They are for people who build things, so they are not on the Analyze screen. The old addresses (`/analyze/designs` and `/analyze/playground`) lead on to the Library. The **View Designs** part of the Library lists the designs. A **View Design** is a View written as a file: which Metrics it takes, what it draws and in which Theme colours. It holds no code. Ziffr checks the file and draws it with its own renderer, and every number in it is one Ziffr computes.
 
-- **The Workspace's View Designs**: the designs Owners and Admins added. Everyone in the Workspace finds them in the Pool, under **The Workspace's View Designs**, and places them like a built-in View.
+- **The Workspace's View Designs**: the designs Owners and Admins added. Everyone in the Workspace finds them under **The Workspace's View Designs**, in a dashboard's **Add widget** and a deck's Pool, and places them like a built-in View.
 - **Built-in View Designs**: every built-in View and Analysis, drawn with Sample Data.
 - **Export** downloads the design's file and a Sample Data file that fits it. Neither holds any of your Workspace's values. The file starts with a `$schema` line, so an editor such as VS Code gives you completion and help on every field.
 - **How to write a View Design** at the top right of the Library opens the guide in a new tab: every field, with examples.
@@ -197,9 +197,9 @@ Results are not kept when you leave the screen; save the ones you want. A result
 | --- | --- |
 | **History** | The first Metric's history: its values, Comparisons, questions and tasks. |
 | **Ask a question…** / **Assign a task…** | Ask someone about a value of the first Metric. See [Actions](15-actions.md). |
-| **Save as Widget** | Saves the result to **My Widgets** in your Pool, under a name you choose, so you can place it on any dashboard or slide later. Not for Guests. |
+| **Save as Widget** | Saves the result to **My Widgets**, under a name you choose, so you can place it on any dashboard or slide later. Not for Guests. |
 | **Add to dashboard** | Places the result on one of the dashboards you may change, at once. Shown only when there is one. |
 | **Open metric** | Opens the Metric's page; with several Metrics, one entry for each. |
 
-A result placed on a dashboard keeps working there: it is drawn again from the latest values each time the dashboard opens. You can also place an Analysis on a dashboard directly, from the **Analyses** group of Widget Templates in the dashboard's Pool. See [Dashboards and Findings](12-dashboards.md#the-pool).
+A result placed on a dashboard keeps working there: it is drawn again from the latest values each time the dashboard opens. You can also place an Analysis on a dashboard directly, from the **Analyses** group in the dashboard's **Add widget** panel. See [Dashboards and Findings](12-dashboards.md#adding-a-widget).
 

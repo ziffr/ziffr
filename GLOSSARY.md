@@ -303,7 +303,7 @@ A widget that holds an artboard of its own, laid out like a slide: widgets from 
 _Avoid_: Canvas, drawing, board, freeform widget
 
 **Pool**:
-The side panel that holds everything a user can drag onto a canvas: the metrics they can see, their saved widgets and the Widget Templates.
+The panel that holds everything a user can put on a canvas: the metrics they can see, their saved widgets and the Widget Templates. On a deck, a Free Layout and the Analysis Canvas it is a list titled Pool; on a dashboard it opens with **Add widget** and shows them as cards drawn with a Metric, as the Gallery does.
 _Avoid_: Library, palette, sidebar
 
 **Preview**:
