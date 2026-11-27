@@ -37,6 +37,13 @@ describe("Comparisons outside Edit mode", () => {
     expect(draw({ editable: true })).toContain(OFFERED);
   });
 
+  it("offers Target first, only for a Metric that has one", () => {
+    const withTarget = (target_min: number | null) =>
+      draw({ editable: true, data: { ...data, targets: {}, metrics: [{ ...data.metrics[0], target_min, target_max: null }] } });
+    expect(withTarget(1)).toMatch(/\/svg> Target<[\s\S]*vs previous period/);
+    expect(withTarget(null)).not.toMatch(/\/svg> Target</);
+  });
+
   it("is not offered where the frame is given neither right: to a Viewer, in Present or in Read", () => {
     expect(draw()).not.toContain(OFFERED);
     expect(draw({ editable: false, mayWrite: false, mayCompare: false })).not.toContain(OFFERED);

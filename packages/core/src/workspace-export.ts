@@ -148,7 +148,7 @@ const SOURCES = new Set(["web_form", "mail", "slack", "telegram", "api"]);
 
 /** A widget's settings as the template made them, with the View Design and Comparisons of the widget it was made from. */
 function withSource(templated: WidgetSettings, source: WidgetSettings | undefined): WidgetSettings {
-  return { ...templated, ...(source?.compare?.length ? { compare: source.compare } : {}), ...(source?.design ? { design: source.design } : {}) };
+  return { ...templated, ...(source?.compare ? { compare: source.compare } : {}), ...(source?.compareTarget === false ? { compareTarget: false } : {}), ...(source?.design ? { design: source.design } : {}) };
 }
 /** The settings of a widget shape on a slide, which the editor keeps as JSON text. */
 function sourceSettings(shape: SlideShape | undefined): WidgetSettings | undefined {

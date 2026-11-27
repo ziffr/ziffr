@@ -24,11 +24,11 @@ import { templatesFor, TEMPLATES, templateOf } from "@/views/templates";
 import { StoryEditor } from "@/components/story-editor";
 import { CompareStrip, DEFAULT_COMPARE } from "@/components/compare-strip";
 import { CompareTable } from "@/components/compare-table";
+import { ComparisonsMenu } from "@/components/comparisons-menu";
 import { openQuickLook, QuickLookButton } from "@/components/metric-quick-look";
 import { OpenActionsButton } from "@/components/metric-actions-panel";
 import { VersionsPanel } from "@/components/versions-panel";
 import { resolverFrom } from "@ziffr/core/compare";
-import { comparisonsFor, COMPARE_LABEL, type CompareKey } from "@ziffr/core/compare";
 import { applyTemplate, assignInPlace, getHistory, placeWidget, removeWidget, saveToPool, updateWidget, type DropSource } from "@/app/canvas-actions";
 import { formatValue, SOURCE_LABEL } from "@ziffr/core/format";
 import type { Action, ActionKind, CanvasData, Observation, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "@ziffr/core/types";
@@ -168,7 +168,6 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
   // A change the core refuses says why; nothing else on the widget would.
   const change = (patch: Parameters<typeof updateWidget>[1]) => start(async () => { told(await updateWidget(widget.id!, patch), "Not changed"); });
   const restyle = (template: TemplateId) => widget.id && change({ template });
-  const setCompare = (keys: CompareKey[]) => widget.id && change({ settings: { ...widget.settings, compare: keys } });
   const setDisplay = (display: DisplayPeriod | undefined) => {
     if (!widget.id) return;
     const { display: _old, ...rest } = widget.settings;
@@ -242,24 +241,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
         </K.Sub>
       )}
       {m && templateOf(widget).kind === "metric" && (editable || mayCompare) && widget.id && (
-        <K.Sub>
-          <K.SubTrigger><Scale /> Comparisons</K.SubTrigger>
-          <K.SubContent>
-            {comparisonsFor(m.period).map((k) => {
-              const keys = widget.settings.compare ?? DEFAULT_COMPARE;
-              const on = keys.includes(k);
-              return (
-                <K.Item key={k} onClick={() => setCompare(on ? keys.filter((x) => x !== k) : [...keys, k])}>
-                  <Check aria-hidden className={on ? "" : "invisible"} /> {COMPARE_LABEL[k]}
-                </K.Item>
-              );
-            })}
-            <K.Separator />
-            <K.Item onClick={() => widget.id && change({ settings: { ...widget.settings, fullPeriods: !widget.settings.fullPeriods } })}>
-              <Check aria-hidden className={widget.settings.fullPeriods ? "" : "invisible"} /> Full periods instead of to date
-            </K.Item>
-          </K.SubContent>
-        </K.Sub>
+        <ComparisonsMenu K={K} metric={m} targets={data.targets[m.id]} settings={widget.settings} onChange={(settings) => change({ settings })} />
       )}
       {m && SHOWN_BY.includes(widget.template) && editable && widget.id && displayPeriodsFor(m.period).length > 0 && (
         <K.Sub>
@@ -377,7 +359,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
                 {widget.settings.tagView.more > 0 && <Link href={`/metrics?tag=${encodeURIComponent(widget.settings.tagView.name)}`} className="underline underline-offset-2">and {widget.settings.tagView.more} more</Link>}
               </p>
             )}
-            {m && templateOf(widget).kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}
+            {m && templateOf(widget).kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} target={widget.settings.compareTarget} full={widget.settings.fullPeriods} />}
           </div>
           </>)}
           </ObservationDetailsProvider>
