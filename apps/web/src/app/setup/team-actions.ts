@@ -7,14 +7,16 @@ import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { refuseInDemo } from "@ziffr/core/demo";
-import { addSubmitters } from "@ziffr/core/metrics";
+import { addSubmitterWithAnswer } from "@ziffr/core/who-submits";
 
-/** Makes one person a Submitter of one Metric. Untrusted input: both ids are checked by the core, never used in a filter as text. */
+/** Makes one person a Submitter of one Metric and asks them, once a day at most; answers what was sent, in words.
+ * Untrusted input: both ids are checked by the core, never used in a filter as text. */
 export async function askForMetric(metricId: number, personId: string) {
   return attempt(async () => {
     const actor = await currentActor();
     refuseInDemo(actor);
-    await addSubmitters(actor, Number(metricId), [String(personId ?? "")]);
+    const answer = await addSubmitterWithAnswer(actor, Number(metricId), String(personId ?? ""), true);
     revalidatePath("/setup");
+    return answer;
   });
 }

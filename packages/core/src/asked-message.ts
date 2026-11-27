@@ -4,6 +4,9 @@
 /** One person asked for a value: by which way, and whether it left Ziffr, waits to, or stays in the Outbox. */
 export type FirstAsk = { personId: string; name: string; connector: string; label: string; state: "sent" | "queued" | "outbox" | "failed" };
 
+/** Why a Prompt queued for someone who was then taken off a Metric's Submitters did not go out, as the Outbox shows it. */
+export const REMOVED_BEFORE_SENT = "They were removed as a Submitter before it went out.";
+
 const WAY = (a: FirstAsk) => (a.connector === "email" ? "by email" : `through ${a.label}`);
 const names = (list: FirstAsk[]) => list.map((a) => a.name).join(", ");
 

@@ -806,7 +806,7 @@ export function createServer(ziffr: Ziffr): McpServer {
 
   server.registerTool("set_submitters", {
     title: "Change a Metric's Submitters",
-    description: "Adds and removes who sends in a Metric's values: up to 20 ids each, people and Contacts from list_people, Feeds from list_feeds. Each person or Contact added is asked for the value at once by their own Delivery Preference (at most once a day per Metric, and five times a day per person), and from then on by the Metric's Workflow; a Feed added turns the API Source on. Removing one ends their Token; earlier values stay. Only after the user confirmed the names; only the Metric's owner and its Editors may; needs a key that may change metrics.",
+    description: "Adds and removes who sends in a Metric's values: up to 20 ids each, people and Contacts from list_people, Feeds from list_feeds. Each person or Contact added is asked for the value at once by their own Delivery Preference (at most once a day per Metric, and five times a day per person), and from then on by the Metric's Workflow; a Feed added turns the API Source on. Removing one ends their Token; earlier values stay. Only after the user confirmed the names; only the Metric's owner and its Editors may; an Editor may add only people who see the Metric already, so for anyone else say that the owner has to add them; needs a key that may change metrics.",
     inputSchema: { slug, add: submitterIds.optional(), remove: submitterIds.optional() },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   }, ({ slug, add, remove }) => guarded(async () => {

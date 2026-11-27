@@ -140,7 +140,11 @@ describe("Who is asked for what", () => {
     // The Admin sees their own Metric and not the Owner's, until it is shared with them as an Editor.
     expect((await teamSetup(w.actor(admin, "admin"))).asks.map((a) => a.metricId)).toEqual([theirs.id]);
     await db().from("shares").insert({ workspace_id: w.id, object_type: "metric", object_id: mine.id, user_id: admin, role: "editor" });
-    expect((await teamSetup(w.actor(admin, "admin"))).asks.map((a) => a.metricId).sort()).toEqual([mine.id, theirs.id].sort());
+    const asEditor = (await teamSetup(w.actor(admin, "admin"))).asks;
+    expect(asEditor.map((a) => a.metricId).sort()).toEqual([mine.id, theirs.id].sort());
+    // As its Editor the Admin is offered only those who see the Metric; their own Metric offers everyone.
+    expect(asEditor.find((a) => a.metricId === mine.id)!.limited!.sort()).toEqual([owner, admin, ben].sort());
+    expect(asEditor.find((a) => a.metricId === theirs.id)!.limited).toBeUndefined();
   });
 
   it("suggests the people whose function matches the Pack the Metric came from, and assigns nothing until someone is asked", async () => {
