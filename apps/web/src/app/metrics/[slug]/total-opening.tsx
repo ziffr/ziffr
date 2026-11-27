@@ -18,7 +18,7 @@ import type { Period } from "@ziffr/core/types";
 const shownText = (s: Shown) => (s.count === 0 ? "None." : `${s.count}${s.names.length ? `: ${s.names.join(", ")}${s.count > s.names.length ? " and others" : ""}` : ""}`);
 
 /** The button that opens a Total (after its lists are confirmed) or closes it. */
-export function TotalOpening({ metricId, open, period, yearStart }: { metricId: number; open: boolean; period: Period; yearStart: YearStart }) {
+export function TotalOpening({ metricId, open, addedTargets, period, yearStart }: { metricId: number; open: boolean; /** The Total's target is its Metrics' targets added up, which an open Total shows too. */ addedTargets: boolean; period: Period; yearStart: YearStart }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [shown, setShown] = useState<Opening | null>(null);
@@ -51,7 +51,7 @@ export function TotalOpening({ metricId, open, period, yearStart }: { metricId: 
           {shown && (
             <>
               <DialogTitle className="pr-10 leading-snug [overflow-wrap:anywhere]">Show {shown.name} to people who do not see every Metric?</DialogTitle>
-              <DialogDescription>Each of them learns the sum of every period, past ones included, and through subtraction the sum of the Metrics they do not see. No name, row or value of those is shown to them.{shown.parts.some((p) => countsFromFirstValue(p.first)) ? " Where a Metric counts from its first value, history pasted or sent later for earlier periods is shown to them too." : ""}</DialogDescription>
+              <DialogDescription>Each of them learns the sum of every period, past ones included, and through subtraction the sum of the Metrics they do not see. No name, row or value of those is shown to them.{addedTargets ? " They also learn the sum of the targets of its Metrics, future periods included." : ""}{shown.parts.some((p) => countsFromFirstValue(p.first)) ? " Where a Metric counts from its first value, history pasted or sent later for earlier periods is shown to them too." : ""}</DialogDescription>
               <dl className="space-y-3 text-sm [overflow-wrap:anywhere]">
                 <div>
                   <dt className="font-medium">It adds up</dt>
@@ -61,7 +61,7 @@ export function TotalOpening({ metricId, open, period, yearStart }: { metricId: 
                   <dt className="font-medium">Who will newly see its numbers</dt>
                   <dd>
                     {shown.people.length === 0 ? "Nobody it is shared with now. Whoever you share it with later learns them." : (
-                      <ul>{shown.people.map((p, i) => <li key={i}>{p.name}{p.learns ? <strong className="font-medium">: sees every other Metric, so can work out {p.learns}</strong> : null}</li>)}</ul>
+                      <ul>{shown.people.map((p, i) => <li key={i}>{p.name}{p.learns ? <strong className="font-medium">: sees every other Metric, so can work out {p.learns}{addedTargets ? ", its target included" : ""}</strong> : null}</li>)}</ul>
                     )}
                   </dd>
                 </div>

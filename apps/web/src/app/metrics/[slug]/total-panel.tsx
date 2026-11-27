@@ -136,7 +136,7 @@ export function TotalPanel({ metric, data, values, yearStart, numberStyle, perio
         </div>
       )}
       {data.open && !data.mayChange && <p className="mt-3 text-xs text-muted-foreground">While it is open, only its owner changes what it adds up.</p>}
-      {data.mayOpen && <TotalOpening metricId={metric.id} open={data.open} period={metric.period} yearStart={yearStart} />}
+      {data.mayOpen && <TotalOpening metricId={metric.id} open={data.open} addedTargets={data.targets === "parts"} period={metric.period} yearStart={yearStart} />}
     </section>
   );
 }
