@@ -6,7 +6,7 @@ import { db } from "./db";
 import { combinedPromptsOn } from "./combined-switch";
 import { combinedChunks } from "./combined-words";
 import { answerSourceFor, deliverPrompt, insertDelivery, insertPromptRow, sendSingle, type Asking } from "./deliveries";
-import { storeCombinedWords } from "./internal/combined-delivery";
+import { combinedListing, storeCombinedWords } from "./internal/combined-delivery";
 import { initialDeliveryState, sendQueuedNow } from "./outbound";
 import { openWorkflowRows } from "./workflow-rows";
 import { dueDate } from "./workflow-rules";
@@ -90,12 +90,22 @@ async function askPerson(ws: string, asOf: string, asked: Asking[]): Promise<voi
   if (asked.some((a) => a.reminder)) figures.push(...(await stillMissing(ws, asOf, asked[0], new Set(unique.keys()))));
   const flows = await workflowsOf(ws, figures.map((a) => a.metric.id));
   const rows: (Asking & { promptId: number; due: string | null })[] = [];
-  for (const a of figures) {
-    const promptId = await insertPromptRow(a);
-    if (!promptId) throw new Error("A Prompt could not be made.");
-    const flow = flows.get(a.metric.id);
-    rows.push({ ...a, promptId, due: flow ? dueDate(a.period, flow.period, flow.config) : null });
+  try {
+    for (const a of figures) {
+      const promptId = await insertPromptRow(a);
+      if (!promptId) throw new Error("A Prompt could not be made.");
+      const flow = flows.get(a.metric.id);
+      rows.push({ ...a, promptId, due: flow ? dueDate(a.period, flow.period, flow.config) : null });
+    }
+    await sendRows(ws, rows);
+  } catch (e) {
+    await dropUnsent(ws, rows.map((r) => r.promptId));
+    throw e;
   }
+}
+
+/** One person's Prompts, one message per way. */
+async function sendRows(ws: string, rows: (Asking & { promptId: number; due: string | null })[]): Promise<void> {
   for (const via of new Set(rows.flatMap((r) => r.routes.map((x) => x.via)))) {
     const here = rows.flatMap((r) => {
       const route = r.routes.find((x) => x.via === via);
@@ -107,6 +117,19 @@ async function askPerson(ws: string, asOf: string, asked: Asking[]): Promise<voi
       else await sendCombined(ws, via, chunk);
     }
   }
+}
+
+/** Removes the Prompts of a failed turn that no message carries. One left open would count as asked, and the next run or
+ * Ask for missing values would pass the person over. */
+async function dropUnsent(ws: string, promptIds: number[]): Promise<void> {
+  if (!promptIds.length) return;
+  const [{ data: alone }, listed] = await Promise.all([
+    db().from("deliveries").select("prompt_id").eq("workspace_id", ws).in("prompt_id", promptIds),
+    combinedListing(ws, promptIds),
+  ]);
+  const carried = new Set([...(alone ?? []).map((d) => d.prompt_id as number), ...listed.map((l) => l.promptId)]);
+  const unsent = promptIds.filter((id) => !carried.has(id));
+  if (unsent.length) await db().from("prompts").delete().eq("workspace_id", ws).in("id", unsent);
 }
 
 type Figure = Asking & { promptId: number; due: string | null; route: Asking["routes"][number] };

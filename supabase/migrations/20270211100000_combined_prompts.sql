@@ -7,7 +7,11 @@
 alter table deliveries add column combined boolean not null default false;
 alter table deliveries add constraint deliveries_combined_check check (not combined or (kind = 'prompt' and prompt_id is null and form_token_id is null));
 
+-- The key is a number of its own on purpose: with the Delivery and the Prompt in the primary key, the API would read this
+-- table as a second relation between the two, and every query that embeds a Delivery's Prompt would fail as ambiguous,
+-- also in a running app of the version before.
 create table delivery_prompts (
+  id bigint generated always as identity primary key,
   workspace_id uuid not null references workspaces(id) on delete cascade,
   delivery_id bigint not null references deliveries(id) on delete cascade,
   prompt_id int not null references prompts(id) on delete cascade,
@@ -25,7 +29,7 @@ create table delivery_prompts (
   -- "Still missing" rather than "New".
   still_missing boolean not null default false,
   due_date date,
-  primary key (delivery_id, prompt_id),
+  unique (delivery_id, prompt_id),
   unique (delivery_id, position)
 );
 create index on delivery_prompts (prompt_id);

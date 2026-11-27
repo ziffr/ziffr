@@ -27,6 +27,22 @@ export async function combinedListing(ws: string, promptIds: number[]): Promise<
   return (data ?? []).map((r) => ({ promptId: r.prompt_id as number, deliveryId: r.delivery_id as number }));
 }
 
+/** Call before a Metric is deleted. The function it returns, called afterwards, writes the Combined Prompts that listed
+ * it again without it and removes one with nothing left to ask: their list rows go with the Metric, but their words
+ * would go on naming it. */
+export async function forgetInCombined(ws: string, metricId: number): Promise<() => Promise<void>> {
+  const { data, error } = await db().from("delivery_prompts").select("delivery_id").eq("workspace_id", ws).eq("metric_id", metricId);
+  if (error) throw new Error("The Metric could not be deleted.");
+  const ids = [...new Set((data ?? []).map((r) => r.delivery_id as number))];
+  return async () => {
+    for (const id of ids) {
+      if (await storeCombinedWords(ws, id)) continue;
+      const { error: kept } = await db().from("deliveries").delete().eq("id", id).eq("workspace_id", ws);
+      if (kept) throw new Error("A message that named the Metric could not be removed.");
+    }
+  };
+}
+
 /** The recipient and way of a Combined Prompt, or null when this Delivery is none. */
 async function combinedOf(ws: string, deliveryId: number): Promise<{ via: ConnectorId; recipientId: string } | null> {
   const { data } = await db().from("deliveries").select("connector, recipient_id, combined").eq("id", deliveryId).eq("workspace_id", ws).maybeSingle();
