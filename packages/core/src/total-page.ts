@@ -8,7 +8,7 @@ import { shareableBy } from "./derived-metrics";
 import { periodStart, shiftPeriod } from "./periods";
 import { partsProblem } from "./total-rules";
 import { readParts, unapprovedTotals } from "./total-parts";
-import { totalStanding, type TotalStanding } from "./totals";
+import { listedStanding, totalStanding, type TotalStanding } from "./totals";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { getLatestObservations, getMetrics } from "./workspace-data";
 import { yearStartFor } from "./fiscal-year";
@@ -65,7 +65,8 @@ export async function totalPage(actor: Actor, totalId: number): Promise<TotalPag
   // The latest periods by the calendar, so the list itself says nothing of what a hidden Metric has a value for.
   const current = periodStart(new Date(), total.period as Period, await yearStartFor(ws, total.period as Period));
   const latest = Array.from({ length: LISTED_PERIODS }, (_, i) => shiftPeriod(current, total.period as Period, -i));
-  const periods = total.inputs_withheld ? [] : totalStanding(parts, (part, period) => there.has(`${part} ${period}`), latest, total.total.open, (id) => seen.has(id));
+  const standing = total.inputs_withheld ? [] : totalStanding(parts, (part, period) => there.has(`${part} ${period}`), latest, total.total.open, (id) => seen.has(id));
+  const periods = listedStanding(standing, parts, latest[1], values.filter((o) => seen.has(o.metric_id)).map((o) => o.period_start));
   const shown: Point[] = periods.filter((p) => p.state === "shown").map((p) => ({ period: p.period, value: 0 }));
   const [mine, owners] = mayChange ? await Promise.all([shareableBy(ws, actor.personId, all), shareableBy(ws, total.owner_id, all)]) : [new Set<number>(), new Set<number>()];
   const counted = new Set(parts.map((p) => p.part));

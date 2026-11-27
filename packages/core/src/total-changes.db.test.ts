@@ -45,12 +45,30 @@ describe("making a Total", () => {
     const { w, sara, ana, eva, make, stored, parts, kinds } = await setup();
     const total = await make({ targets: "parts" });
     expect(await stored(total.id)).toEqual({ formula: "{-}", total_targets: "parts", total_opened_at: null, aggregation: "last", sources: [], target_min: null });
-    expect(await parts(total.id)).toEqual([ana, eva].map((m) => ({ part_id: m.id, first_period: "2026-01-01", last_period: null })));
+    expect(await parts(total.id)).toEqual([ana, eva].map((m) => ({ part_id: m.id, first_period: "1900-01-01", last_period: null })));
     const read = await allSeriesFor(w.actor(sara));
     expect(read.series[total.slug]).toEqual([{ period: "2026-01-01", value: 17 }]);
     expect(read.targets[total.id]).toContainEqual({ period: "2026-01-01", value: 150 });
     expect((await metricQuickLook(w.actor(sara), total.slug)).metric).toMatchObject({ total: { targets: "parts" }, derived: false, formula: null });
     expect(await kinds()).toEqual([["metric.total_changed", { change: "made" }]]);
+  });
+
+  it("made before there is any value, counts history and what comes later, but only from a named period where one was picked", async () => {
+    const { w, sara, make } = await setup();
+    const owner = w.actor(sara);
+    const fresh = [await w.metric(sara, { name: "Closed Ana", aggregation: "last", unit: "EUR" }), await w.metric(sara, { name: "Closed Eva", aggregation: "last", unit: "EUR" })];
+    const parts = fresh.map((m) => m.id);
+    const open = await make({ name: "Closed", parts });
+    const named = await make({ name: "Closed from March", parts, from: "2026-03-15" });
+    for (const [period, ana, eva] of [["2024-05-01", 1, 2], ["2026-03-01", 3, 4]] as const) {
+      await w.value(fresh[0].id, period, ana);
+      await w.value(fresh[1].id, period, eva);
+    }
+    // One missing: no sum for that period, never a smaller one.
+    await w.value(fresh[0].id, "2026-04-01", 9);
+    const { series } = await allSeriesFor(owner);
+    expect(series[open.slug]).toEqual([{ period: "2024-05-01", value: 3 }, { period: "2026-03-01", value: 7 }]);
+    expect(series[named.slug]).toEqual([{ period: "2026-03-01", value: 7 }]);
   });
 
   it("refuses what cannot be added up, and leaves nothing behind", async () => {
@@ -86,7 +104,7 @@ describe("a Total's list", () => {
 
   it("is changed by its owner and Editors: ending, counting again, removing and adding", async () => {
     const { w, ben, ed, ana, eva, make, shareWith, parts } = await setup();
-    const total = await make();
+    const total = await make({ from: "2026-01-01" });
     await shareWith(total);
     const editor = w.actor(ed);
     expect((await totalsCounting(editor, ana.id)).map((t) => [t.id, t.last])).toEqual([[total.id, "2026-01-01"]]);

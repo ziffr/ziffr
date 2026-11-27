@@ -13,8 +13,8 @@ import { runs, valueText } from "./test/reference/check";
 import { isNearestDouble } from "./test/reference/exact";
 import { referenceTotal, referenceTotalTargets, type ReferencePart } from "./test/reference/totals";
 import { whatIfRecipe } from "./takeaways/what-if-takeaway";
-import { countedParts, mayShow, restsOnTotal, totalNote, totalStanding, totalUnapproved, type TotalPart, type TotalsRead } from "./totals";
-import { NOT_ALL_IN, noValuesWords, NOT_SHOWN, OWNER_CANNOT_SHARE, partsProblem, READS_UNSHOWN_TOTAL, TOTAL_MAX_PARTS } from "./total-rules";
+import { countedParts, listedStanding, mayShow, restsOnTotal, totalNote, totalStanding, totalUnapproved, type TotalPart, type TotalsRead } from "./totals";
+import { countsFromFirstValue, firstValueMark, NOT_ALL_IN, noValuesWords, NOT_SHOWN, OWNER_CANNOT_SHARE, partsProblem, READS_UNSHOWN_TOTAL, TOTAL_MAX_PARTS } from "./total-rules";
 import type { Metric, Observation, Point } from "./types";
 
 const { numRuns, seed } = runs();
@@ -190,5 +190,26 @@ describe("how a Total stands, and what may go into one", () => {
     for (const [change, word] of [[{ period: "week" }, "period"], [{ unit: "km" }, "unit"], [{ format: "percent" }, "number format"], [{ aggregation: "sum" }, "Aggregation"]] as const) {
       expect(partsProblem([like, { ...like, name: "Other", ...change }])).toBe(`Other and Commit, Ana differ in ${word}. A Total adds up Metrics that share it.`);
     }
+  });
+});
+
+describe("a Metric counted from its first value", () => {
+  it("is stored as the first period of its length that starts in 1900, whatever the fiscal year", () => {
+    expect((["day", "week", "month", "quarter", "year"] as const).map((span) => firstValueMark(span, 1))).toEqual(Array(5).fill("1900-01-01"));
+    expect([firstValueMark("quarter", 2), firstValueMark("year", 4)]).toEqual(["1900-02-01", "1900-04-01"]);
+    expect([countsFromFirstValue(firstValueMark("year", 12)), countsFromFirstValue("2026-01-05")]).toEqual([true, false]);
+  });
+  it("counts in every period before a Metric added later, which counts from its own period only", () => {
+    const parts: TotalPart[] = [{ part: 1, first: "1900-01-01", last: null }, { part: 2, first: "2026-03-01", last: null }];
+    expect([countedParts(parts, "2019-01-01"), countedParts(parts, "2026-03-01")]).toEqual([[1], [1, 2]]);
+  });
+  it("lists no period before the values the reader sees, but every one with a sum or a named first period", () => {
+    const parts: TotalPart[] = [{ part: 1, first: "1900-01-01", last: null }, { part: 2, first: "1900-01-01", last: null }];
+    const at = ["2026-05-01", "2026-04-01", "2026-03-01", "2026-02-01", "2026-01-01"];
+    const standing = at.map((period) => ({ period, state: period === "2026-01-01" ? "shown" as const : "waiting" as const }));
+    const periods = (known: string[], of = parts) => listedStanding(standing, of, "2026-04-01", known).map((s) => s.period);
+    expect(periods([])).toEqual(["2026-05-01", "2026-04-01", "2026-01-01"]);
+    expect(periods(["2026-03-01"])).toEqual(["2026-05-01", "2026-04-01", "2026-03-01", "2026-01-01"]);
+    expect(periods([], [parts[0], { part: 2, first: "2026-02-01", last: null }])).toEqual(at);
   });
 });

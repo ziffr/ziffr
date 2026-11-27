@@ -10,6 +10,7 @@ import { isActionError, UNEXPECTED, type ActionError } from "@/lib/action-error"
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { periodLabel, type YearStart } from "@ziffr/core/periods";
+import { countsFromFirstValue } from "@ziffr/core/total-rules";
 import type { Shown, TotalOpening as Opening } from "@ziffr/core/total-opening";
 import type { Period } from "@ziffr/core/types";
 
@@ -54,7 +55,7 @@ export function TotalOpening({ metricId, open, period, yearStart }: { metricId: 
               <dl className="space-y-3 text-sm [overflow-wrap:anywhere]">
                 <div>
                   <dt className="font-medium">It adds up</dt>
-                  <dd><ul>{shown.parts.map((p) => <li key={p.name + p.first}>{p.name}, from {name(p.first)}{p.last ? ` up to ${name(p.last)}` : ""}</li>)}</ul></dd>
+                  <dd><ul>{shown.parts.map((p) => <li key={p.name + p.first}>{p.name}, from {countsFromFirstValue(p.first) ? "its first value" : name(p.first)}{p.last ? ` up to ${name(p.last)}` : ""}</li>)}</ul></dd>
                 </div>
                 <div>
                   <dt className="font-medium">Who will newly see its numbers</dt>

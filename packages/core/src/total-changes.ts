@@ -12,15 +12,15 @@ import { shareableBy } from "./derived-metrics";
 import { createMetric, deleteMetric, editableMetric, metricEffects, type MetricEffects } from "./metrics";
 import { periodStart } from "./periods";
 import { sealedPatch } from "./sealed-columns";
-import { partsProblem, TOTAL_MAX_PARTS } from "./total-rules";
+import { firstValueMark, partsProblem, TOTAL_MAX_PARTS } from "./total-rules";
 import { recordVersion } from "./versions";
 import { getMetrics } from "./workspace-data";
 import { yearStartFor } from "./fiscal-year";
 import type { Metric, Period, Polarity } from "./types";
 
 /** A new Total as it is described, before it is checked. `parts` are the ids of the Metrics it adds up, `from` a day in
- * the first period they count in (left out: the first any of them has a value for, else the running one). Unit, number
- * format, period and Aggregation are the parts'. */
+ * the first period they count in (left out: from the first period any of them has a value for, also a value that comes
+ * later). Unit, number format, period and Aggregation are the parts'. */
 export type TotalInput = {
   name: string;
   description?: string;
@@ -91,13 +91,9 @@ export async function createTotal(actor: Actor, input: TotalInput, effects: Metr
   const why = partsProblem(parts);
   if (why) throw new Refused(why);
   const first = parts[0];
-  let from: string;
-  if (input.from) from = await periodOf(ws, first.period, input.from);
-  else {
-    const { data, error } = await db().from("observations").select("period_start").eq("workspace_id", ws).in("metric_id", ids).order("period_start").limit(1);
-    if (error) throw new Error("The Total could not be made.");
-    from = (data?.[0]?.period_start as string | undefined) ?? periodStart(new Date(), first.period, await yearStartFor(ws, first.period));
-  }
+  // Left out, they count from their first value, not from today: a Total is often made before there is any value (Set up
+  // from a Pack), and history pasted or sent afterwards belongs in it. A Metric added later keeps the period it is given.
+  const from = input.from ? await periodOf(ws, first.period, input.from) : firstValueMark(first.period, await yearStartFor(ws, first.period));
   const targets = input.targets === "parts" ? "parts" : "own";
   const name = String(input.name ?? "").trim().slice(0, 120);
   // Made with Aggregation none, so no default Retention condenses a Metric that holds no values; the parts' follows.
