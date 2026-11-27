@@ -22,6 +22,8 @@ export type SetupRecord = {
   step: number;
   /** Notes one thing that was made. */
   made: (thing: Omit<MadeThing, "line"> & { line: BuiltLine | null }) => Promise<void>;
+  /** Says the step is still at work, so that nobody takes its record up meanwhile; only the guided set-up has it. */
+  beat?: () => Promise<void>;
   /** Keeps how many requests went out, for the next step. */
   keep: (messages: number) => Promise<void>;
   /** Ends the Set up: it takes no further step. */
@@ -157,8 +159,10 @@ export async function setupStates(actor: Actor, installId: number): Promise<Setu
   return (data ?? []).map((r, i) => ({ id: Number(r.id), guided: r.guided === true, by: (r.made_by as string | null) ?? null, mark: (r.input_mark as string | null) ?? null, step: Number(r.step), finished: r.finished_at !== null, made: counts[i].count ?? 0 }));
 }
 
-/** How long a step of the guided set-up holds its record when it never answers. */
+/** How long a step of the guided set-up holds its record without a sign of life. */
 const STALE_MS = 3 * 60_000;
+/** How old that sign may be before the next one is written: far below STALE_MS, so a step at work is not taken over. */
+const BEAT_MS = 15_000;
 const BUSY = "This Pack is being set up right now. Wait a moment, then try again.";
 const TABLES = { metric: "metrics", dashboard: "dashboards", workflow: "workflows", deck: "decks" } as const;
 
@@ -196,6 +200,8 @@ export type GuidedRecord = SetupRecord & {
   staffed: (metricIds: number[]) => Promise<void>;
   /** Writes the lines it does not hold yet, and who is in each Position as answered now. */
   layOut: (lines: BuiltLine[], people: Map<string, string[]>, heldFor: ReadonlyMap<string, string>) => Promise<void>;
+  /** Says the step is still at work. Refused once another step holds the record, so two never make things at once. */
+  beat: () => Promise<void>;
   /** Ends this step, so that another may take the record up. A record that made nothing is taken away instead. */
   stop: () => Promise<void>;
 };
@@ -257,10 +263,20 @@ export async function claimGuidedRecord(actor: Actor, install: { id: number; ver
   const made = await stillThere(ws, madeThings(items, byId));
   const waiting = new Set((items ?? []).filter((i) => i.kind === "metric" && i.people_done !== true).map((i) => Number(i.object_id)));
   const record = recordOf(ws, id, step, (line) => lineIds.get(lineKey(line))!);
+  // Every write that holds or lets go of the record names this step: a step that was taken over changes nothing of it.
+  const setups = () => db().from("pack_setups");
+  let beaten = Date.now();
   return {
     ...record,
+    beat: async () => {
+      if (Date.now() - beaten < BEAT_MS) return;
+      const { data, error: unsaid } = await setups().update({ working_since: new Date().toISOString() }).eq("id", id).eq("workspace_id", ws).eq("step", step).is("finished_at", null).select("id");
+      failed(unsaid);
+      if (!data?.length) throw new Error(BUSY);
+      beaten = Date.now();
+    },
     finish: async (messages) => {
-      failed((await db().from("pack_setups").update({ messages, input_mark: marks.done, finished_at: new Date().toISOString(), working_since: null }).eq("id", id).eq("workspace_id", ws)).error);
+      failed((await setups().update({ messages, input_mark: marks.done, finished_at: new Date().toISOString(), working_since: null }).eq("id", id).eq("workspace_id", ws).eq("step", step)).error);
     },
     madeBefore: made,
     unstaffed: new Set(made.filter((m) => m.kind === "metric" && waiting.has(m.id)).map((m) => m.id)),
@@ -278,8 +294,52 @@ export async function claimGuidedRecord(actor: Actor, install: { id: number; ver
     },
     stop: async () => {
       const { count, error: unread } = await db().from("pack_setup_items").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("setup_id", id);
-      if (!unread && count === 0) return record.drop();
-      failed((await db().from("pack_setups").update({ working_since: null }).eq("id", id).eq("workspace_id", ws)).error);
+      if (!unread && count === 0) {
+        failed((await setups().delete().eq("id", id).eq("workspace_id", ws).eq("step", step)).error);
+        return;
+      }
+      failed((await setups().update({ working_since: null }).eq("id", id).eq("workspace_id", ws).eq("step", step)).error);
     },
   };
+}
+
+/** Who a Set up put into a Position, of a line (by its Repeat and name) or of none, and whom that holder stands in for
+ * until they have joined. It says where to look and decides nothing. */
+export type RecordedHolder = { position: string; line: { repeat: string; name: string } | null; person: string; heldFor: string | null };
+
+/** The holders these Set ups of the actor's Workspace recorded (for an Owner or Admin, whom the caller checks). */
+export async function recordedHolders(actor: Actor, setupIds: number[]): Promise<RecordedHolder[]> {
+  const ws = actor.workspaceId;
+  if (!setupIds.length) return [];
+  const [{ data: lineRows, error: unread }, { data, error }] = await Promise.all([
+    db().from("pack_setup_lines").select("id, repeat_key, name").eq("workspace_id", ws).in("setup_id", setupIds),
+    db().from("pack_setup_people").select("position_key, person_id, held_for, line_id").eq("workspace_id", ws).in("setup_id", setupIds).order("id"),
+  ]);
+  failed(unread);
+  failed(error);
+  const lines = await openedLines(ws, lineRows);
+  return (data ?? []).map((r) => ({ position: String(r.position_key), line: r.line_id === null ? null : lines.get(Number(r.line_id)) ?? null, person: String(r.person_id), heldFor: (r.held_for as string | null) ?? null }));
+}
+
+/** Notes that one person holds a Position now (of a line, or of none), in each of these Set ups that recorded a holder
+ * for it, and that nobody is held for there any more. */
+export async function noteHolder(actor: Actor, setupIds: number[], position: string, line: { repeat: string; name: string } | null, person: string): Promise<void> {
+  const ws = actor.workspaceId;
+  for (const setup of setupIds) {
+    let lineId: number | null = null;
+    if (line) {
+      const { data, error } = await db().from("pack_setup_lines").select("id, repeat_key, name").eq("workspace_id", ws).eq("setup_id", setup);
+      failed(error);
+      const found = [...(await openedLines(ws, data))].find(([, l]) => l.repeat === line.repeat && l.name === line.name);
+      if (!found) continue;
+      lineId = found[0];
+    }
+    const held = db().from("pack_setup_people").select("id").eq("workspace_id", ws).eq("setup_id", setup).eq("position_key", position);
+    const { data: rows, error } = await (lineId === null ? held.is("line_id", null) : held.eq("line_id", lineId)).order("id");
+    failed(error);
+    const [first, ...others] = (rows ?? []).map((r) => Number(r.id));
+    if (first === undefined) continue;
+    failed((await db().from("pack_setup_people").update({ person_id: person, held_for: null }).eq("workspace_id", ws).eq("id", first)).error);
+    if (others.length) failed((await db().from("pack_setup_people").delete().eq("workspace_id", ws).in("id", others)).error);
+  }
 }
