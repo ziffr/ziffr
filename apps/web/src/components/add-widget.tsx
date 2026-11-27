@@ -1,12 +1,12 @@
 "use client";
 // A dashboard's Add widget panel (GLOSSARY: Pool, Widget Template, Preview, Slot, Slide-over; #1338): the Pool as cards. Every
-// style is drawn with the picked Metric, as in the Gallery, then come the Metrics, the saved widgets, the team's templates, the
-// View Designs and the layout. On a wide screen it stands beside the dashboard, so cards are dragged onto it; on a narrower one
+// style is drawn with the picked Metric, as in the Gallery, after the Note Widget; then come the Metrics, the saved widgets, the
+// team's templates, the View Designs and, where this Ziffr can draw one, the free layout. On a wide screen it stands beside the dashboard, so cards are dragged onto it; on a narrower one
 // it is the Slide-over and a card is tapped. It draws only what the page holds of the person (series it lacks are fetched
 // through the core, for Metrics they see), and adding goes through the caller, to the same placeWidget as before.
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { GripVertical, Info, Plus, Search, Sigma, Trash2, X } from "lucide-react";
+import { GripVertical, Info, Plus, Search, Sigma, StickyNote, Trash2, X } from "lucide-react";
 import { tellApart } from "@ziffr/core/metric-names";
 import { inUse } from "@ziffr/core/metric-row";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
@@ -17,12 +17,13 @@ import type { CanvasData, Widget, WidgetTemplate } from "@ziffr/core/types";
 import { deleteSavedWidget, type DropSource } from "@/app/canvas-actions";
 import { placedAtOnce } from "@/app/gallery/widget-with";
 import { SeriesProvider, useCanvasSeries, useSeriesReady } from "@/canvas/series-store";
+import { useFreeLayouts } from "@/decks/slide-license";
 import { Button } from "@/components/ui/button";
 import { told } from "@/lib/action-toast";
 import { setDrag } from "@/lib/drag";
 import { useMedia } from "@/lib/use-media";
 import { cn } from "@/lib/utils";
-import { designTemplate, templateOf } from "@/views/templates";
+import { designTemplate, TEMPLATES, templateOf } from "@/views/templates";
 import { MetricPreview } from "./pool";
 import { Preview } from "./preview";
 import { SlideOverWindow } from "./slide-over-window";
@@ -100,12 +101,15 @@ function Offered({ data, ensure, saved, metricId, onPick, onAdd, onDrag }: Props
   const [about, setAbout] = useState<number | null>(null);
 
   const match = (...words: string[]) => words.some((w) => w.toLowerCase().includes(q.trim().toLowerCase()));
-  const styles = TEMPLATE_GROUPS.map((g) => ({ ...g, items: builtinTemplates(true).filter((t) => t.kind === g.kind && match(t.label, t.blurb)) })).filter((g) => g.items.length);
+  // A free layout is offered only where this Ziffr has the key of the editor that draws it; the core refuses it elsewhere.
+  const freeLayouts = useFreeLayouts();
+  const note = match(TEMPLATES.note.label, TEMPLATES.note.blurb, "text", "words");
+  const styles = TEMPLATE_GROUPS.map((g) => ({ ...g, items: builtinTemplates(freeLayouts).filter((t) => t.kind === g.kind && match(t.label, t.blurb)) })).filter((g) => g.items.length);
   const metrics = choices.filter((m) => match(m.name));
-  const widgets = saved.filter((w) => !gone.includes(`w${w.id}`) && match(w.title ?? "", templateOf(w).label));
+  const widgets = saved.filter((w) => !gone.includes(`w${w.id}`) && (freeLayouts || w.template !== "canvas") && match(w.title ?? "", templateOf(w).label));
   const templates = data.templates.filter((t): t is WidgetTemplate => t.kind === "widget" && !gone.includes(`t${t.id}`) && match(t.name, t.description));
   const designs = (data.designs ?? []).filter((d) => match(d.name, d.body.description ?? ""));
-  const nothing = !!q && !styles.length && !metrics.length && !widgets.length && !templates.length && !designs.length;
+  const nothing = !!q && !note && !styles.length && !metrics.length && !widgets.length && !templates.length && !designs.length;
   const startWith = metric ? [metric.id] : [];
 
   /** What makes something draggable where it can be dragged. */
@@ -146,6 +150,21 @@ function Offered({ data, ensure, saved, metricId, onPick, onAdd, onDrag }: Props
     );
   };
 
+  /** A line of the list: dragged or tapped like a card, with + for the next free place. */
+  const row = ({ name, source, onPointerEnter, children, more }: { name: string; source: DropSource; onPointerEnter?: () => void; children: React.ReactNode; more?: React.ReactNode }) => {
+    const add = () => onAdd(source, startWith);
+    return (
+      <div {...drag(source)} onPointerEnter={onPointerEnter} onClick={onDrag ? undefined : add} className={cn("flex min-h-11 items-center gap-2 rounded-[var(--radius-input)] px-2 text-sm hover:bg-[var(--color-cotton)]", onDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer")}>
+        {onDrag && <GripVertical aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />}
+        <span className="min-w-0 flex-1 py-1">{children}</span>
+        <span className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          {more}
+          <Button variant="outline" size="icon-sm" className="max-lg:size-11" title="Add" aria-label={`Add ${name}`} onClick={add}><Plus aria-hidden /></Button>
+        </span>
+      </div>
+    );
+  };
+
   const styleCards = (g: (typeof styles)[number]) => (
     <Section key={g.kind} title={g.title}>
       <ul className={CARDS}>
@@ -181,31 +200,37 @@ function Offered({ data, ensure, saved, metricId, onPick, onAdd, onDrag }: Props
         </div>
       </div>
       <p role="status" className="text-sm text-muted-foreground empty:hidden">{nothing ? "Nothing matches." : ""}</p>
+      {note && (
+        <Section title="Your words">
+          <div data-card="note">
+            {row({
+              name: TEMPLATES.note.label,
+              source: { type: "spec", template: "note", metricIds: [] },
+              children: <><span className="flex items-center gap-1.5"><StickyNote aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />{TEMPLATES.note.label}</span><span className="block text-xs text-muted-foreground">{TEMPLATES.note.blurb}</span></>,
+            })}
+          </div>
+        </Section>
+      )}
       {styles.filter((g) => g.kind !== "layout").map(styleCards)}
       {metrics.length > 0 && (
         <Section title="Metrics" hint="On its own, as Number + sparkline.">
           <ul className="space-y-0.5">
-            {metrics.map((m) => {
-              const source: DropSource = { type: "metric", id: m.id };
-              const add = () => onAdd(source, startWith);
-              return (
-                <li key={m.id}>
-                  {/* Pointing at it starts fetching its series, so it is usually there by the time it is dropped (ticket #125). */}
-                  <div {...drag(source)} onPointerEnter={() => void ensure([m.id])} onClick={onDrag ? undefined : add} className={cn("flex min-h-11 items-center gap-2 rounded-[var(--radius-input)] px-2 text-sm hover:bg-[var(--color-cotton)]", onDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer")}>
-                    {onDrag && <GripVertical aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />}
-                    <span className="min-w-0 flex-1 py-1">
-                      <span className="flex items-center gap-1.5"><span className="break-words">{m.name}</span>{m.formula && <Sigma aria-label="derived" className="size-3.5 shrink-0 text-muted-foreground" />}</span>
-                      <span className="block text-xs text-muted-foreground">{notes.get(m.id) ?? [PERIOD_LABEL[m.period], m.owner_id !== data.viewer && firstName(m.owner_id)].filter(Boolean).join(", ")}</span>
-                    </span>
-                    <span className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon-sm" className="max-lg:size-11" title="About it" aria-label={`About ${m.name}`} aria-expanded={about === m.id} onClick={() => { void ensure([m.id]); setAbout(about === m.id ? null : m.id); }}><Info aria-hidden /></Button>
-                      <Button variant="outline" size="icon-sm" className="max-lg:size-11" title="Add" aria-label={`Add ${m.name}`} onClick={add}><Plus aria-hidden /></Button>
-                    </span>
-                  </div>
-                  {about === m.id && <div className="stock mx-2 mb-2 rounded-[var(--radius-card)] p-3"><MetricPreview metric={m} data={data} /></div>}
-                </li>
-              );
-            })}
+            {metrics.map((m) => (
+              <li key={m.id}>
+                {/* Pointing at it starts fetching its series, so it is usually there by the time it is dropped (ticket #125). */}
+                {row({
+                  name: m.name,
+                  source: { type: "metric", id: m.id },
+                  onPointerEnter: () => void ensure([m.id]),
+                  more: <Button variant="ghost" size="icon-sm" className="max-lg:size-11" title="About it" aria-label={`About ${m.name}`} aria-expanded={about === m.id} onClick={() => { void ensure([m.id]); setAbout(about === m.id ? null : m.id); }}><Info aria-hidden /></Button>,
+                  children: <>
+                    <span className="flex items-center gap-1.5"><span className="break-words">{m.name}</span>{m.formula && <Sigma aria-label="derived" className="size-3.5 shrink-0 text-muted-foreground" />}</span>
+                    <span className="block text-xs text-muted-foreground">{notes.get(m.id) ?? [PERIOD_LABEL[m.period], m.owner_id !== data.viewer && firstName(m.owner_id)].filter(Boolean).join(", ")}</span>
+                  </>,
+                })}
+                {about === m.id && <div className="stock mx-2 mb-2 rounded-[var(--radius-card)] p-3"><MetricPreview metric={m} data={data} /></div>}
+              </li>
+            ))}
           </ul>
         </Section>
       )}

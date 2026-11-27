@@ -41,7 +41,10 @@ import { AddToDeckDialog } from "@/components/add-to-deck-dialog";
 import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@ziffr/core/connectors/index";
 import { useSlotFill } from "@/components/slot-dialog";
 import { WidgetTitleEditor } from "./widget-title-editor";
-import { ReadOnlyFrame, frameTitle, type FrameWidget } from "./read-only-frame";
+import { ReadOnlyFrame, frameTitle, NOTE_HEADING, type FrameWidget } from "./read-only-frame";
+import { NoteEditButton, NoteEditor, NoteStart } from "./note-editor";
+import { noteCardClass, noteTextOf } from "@/views/note-view";
+import { useFreeLayouts } from "@/decks/slide-license";
 import { WidgetScaleProvider, widgetScaleStyle, useMeasuredWidgetScale } from "@/views/widget-scale";
 import { HEADER_FITS, HeaderStatusProvider, type HeaderStatus } from "@/views/header-status";
 import { TargetChip } from "@/components/target-chip";
@@ -72,6 +75,8 @@ type Props = {
   dragHandle?: boolean;
   /** Saved widgets, for the Pool inside the layout editor. */
   saved?: Widget[];
+  /** The viewer may change this dashboard but is not editing it: an empty Note Widget still offers to be written. */
+  mayWrite?: boolean;
   /** View Links: the card and its numbers only, no menus and nothing that calls the server. */
   readOnly?: boolean;
 };
@@ -89,7 +94,7 @@ export function WidgetFrame(props: Props) {
 }
 
 /** A widget seen through a View Link (GLOSSARY: View Link): what it shows, nothing it can do. */
-function InteractiveFrame({ widget, data, targets, editable = false, className, dragHandle, saved = [] }: Props) {
+function InteractiveFrame({ widget, data, targets, editable = false, className, dragHandle, saved = [], mayWrite = false }: Props) {
   const [layoutOpen, setLayoutOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [deckOpen, setDeckOpen] = useState(false);
@@ -110,20 +115,33 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
   const takeawayHost = useMemo<TakeawayHost>(() => ({ mode: "panel", open: takeawayOpen, setOpen: setTakeawayOpen, setHas: setHasTakeaway }), [takeawayOpen]);
   const [period, setPeriod] = useState<string | null>(null);
   const [kind, setKind] = useState<ActionKind>("question");
-  const [, start] = useTransition();
+  const [pending, start] = useTransition();
   const ms = widgetMetrics(widget, data);
   const m = ms[0];
-  const isMetricWidget = templateOf(widget).kind !== "analysis";
+  // A Note Widget is words, written in its own card.
+  const isNote = widget.template === "note";
+  const [writing, setWriting] = useState(false);
+  const mayWriteNote = isNote && !!widget.id && (editable || mayWrite);
+  const unwritten = isNote && !noteTextOf(widget.settings);
+  const saveNote = (note: Parameters<typeof updateWidget>[1]) => start(async () => { if (told(await updateWidget(widget.id!, note), "Not saved")) return; setWriting(false); });
+  const isMetricWidget = templateOf(widget).kind !== "analysis" && !isNote;
   const isStory = templateOf(widget).kind === "story";
   const hasBreakdown = !!m && Object.keys(data.breakdowns[m.id] ?? {}).length > 0;
   const [row, setRow] = useState<string | null>(null);
   // A story carries its own headline, so its frame header stays quiet.
   const isLayout = templateOf(widget).kind === "layout";
+  // Whether Free Layouts are offered here, asked for a Free Layout and once a menu is opened. Where they are not, one is
+  // only kept: nothing in its menu changes it or makes another.
+  const [menuOpened, setMenuOpened] = useState(false);
+  const freeLayouts = useFreeLayouts(menuOpened || isLayout);
+  const keptOnly = isLayout && !freeLayouts;
   // The View Design the widget is drawn with, to take away as a file: none for a Finding or a Free layout.
   const ownDesign = designOf(widget);
   const title = frameTitle(widget, ms, data);
+  // What the card is called where it has no title of its own: in the names of its menu and buttons.
+  const called = title || templateOf(widget).label;
   const open = ms.reduce((n, x) => n + (data.openActions[x.id] ?? 0), 0);
-  const openText = `${open} open ${open === 1 ? "question or task" : "questions or tasks"} for ${title}`;
+  const openText = `${open} open ${open === 1 ? "question or task" : "questions or tasks"} for ${called}`;
   const source: DropSource = widget.id ? { type: "widget", id: widget.id } : { type: "spec", template: widget.template, metricIds: widget.metric_ids, settings: widget.settings, title: widget.title ?? undefined };
 
   const openPanel = (p: Panel, k?: ActionKind) => {
@@ -165,13 +183,13 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
       {m && <K.Item onClick={() => openPanel("ask", "question")}><MessageCircleQuestion /> Ask a question…</K.Item>}
       {m && <K.Item onClick={() => openPanel("ask", "task")}><ListTodo /> Assign a task…</K.Item>}
       <K.Separator />
-      {isMetricWidget && editable && (
+      {isMetricWidget && !keptOnly && editable && (
         <K.Sub>
           <K.SubTrigger><Palette /> Change view</K.SubTrigger>
           <K.SubContent className="flex items-stretch p-0" onPointerLeave={() => setLook(null)}>
             <div className="min-w-52 p-1">
               {/* Plain items: Base UI's radio group did not fire inside this nested context submenu. */}
-              {templatesFor(hasBreakdown).map((t) => (
+              {templatesFor(hasBreakdown).filter((t) => freeLayouts || t.kind !== "layout").map((t) => (
                 <K.Item key={t.id} onClick={() => restyle(t.id)} onPointerEnter={() => setLook({ kind: "builtin", id: t.id })} onFocus={() => setLook({ kind: "builtin", id: t.id })} aria-current={widget.template === t.id ? "true" : undefined}>
                   <Check aria-hidden className={widget.template === t.id ? "" : "invisible"} /> {t.label}
                 </K.Item>
@@ -278,27 +296,29 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           </K.SubContent>
         </K.Sub>
       )}
-      {editable && widget.id && !isLayout && <K.Item onClick={() => openPanel("title")}><PencilLine /> Title…</K.Item>}
+      {editable && widget.id && !isLayout && !isNote && <K.Item onClick={() => openPanel("title")}><PencilLine /> Title…</K.Item>}
+      {/* Once the menu has closed, so the focus lands in the form. */}
+      {editable && mayWriteNote && <K.Item onClick={() => setTimeout(() => setWriting(true), 0)}><PencilLine /> Edit words…</K.Item>}
       {isStory && editable && widget.id && <K.Item onClick={() => openPanel("story")}><PencilLine /> Edit Finding…</K.Item>}
-      {isLayout && editable && widget.id && <K.Item onClick={() => setTimeout(() => setLayoutOpen(true), 0)}><PencilLine /> Edit layout…</K.Item>}
+      {isLayout && freeLayouts && editable && widget.id && <K.Item onClick={() => setTimeout(() => setLayoutOpen(true), 0)}><PencilLine /> Edit layout…</K.Item>}
       {widget.id && <K.Item onClick={() => openPanel("versions")}><GitBranch /> Versions…</K.Item>}
       {hasTakeaway && <K.Item onClick={() => setTimeout(() => setTakeawayOpen(true), 0)}><Lightbulb /> Takeaway…</K.Item>}
-      <WidgetKeepMenu
+      {!keptOnly && <WidgetKeepMenu
         K={K as unknown as KeepMenuKit}
         targets={targets}
         saved={!!widget.id}
-        canSaveTemplate={!isLayout}
+        canSaveTemplate={!isLayout && !isNote}
         hasDesign={!!ownDesign}
         onAddToDashboard={(d) => start(async () => { if (told(await placeWidget(d.id, source), "Not added")) return; toast.success(`Added to ${d.name}`); })}
         onAddToDeck={() => setTimeout(() => setDeckOpen(true), 0)}
         onSaveWidget={() => {
-          const name = window.prompt("Save to your widgets as:", title ?? "My widget");
+          const name = window.prompt("Save to your widgets as:", isNote ? called : title ?? "My widget");
           if (name) start(async () => { if (told(await saveToPool(source, name), "Not saved")) return; toast.success("Saved to My Widgets", { description: "Add it to any dashboard with Add widget." }); });
         }}
         onSaveTemplate={() => setTimeout(() => setSaveTemplateOpen(true), 0)}
         onSaveDesign={() => ownDesign && downloadDesign(duplicateAsDesign(widget, ownDesign))}
         onDownloadDesign={() => ownDesign && downloadDesign(ownDesign)}
-      />
+      />}
       {ms.map((x) => <K.Item key={`q${x.id}`} onClick={() => openQuickLook(x.slug)}><PanelRightOpen /> Quick look{ms.length > 1 ? ` at ${x.name}` : ""}</K.Item>)}
       {ms.map((x) => <K.Item key={x.id} onClick={() => router.push(`/metrics/${x.slug}`)}><ExternalLink /> Open {ms.length > 1 ? x.name : "metric"}</K.Item>)}
       {editable && widget.id && (
@@ -312,29 +332,33 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
 
   return (
     <>
-      <ContextMenu onOpenChange={(o) => { if (o) markWidgetMenuSeen(data.viewer); }}>
+      <ContextMenu onOpenChange={(o) => { if (o) { markWidgetMenuSeen(data.viewer); setMenuOpened(true); } }}>
         <ContextMenuTrigger
           ref={frame}
           style={widgetScaleStyle(scale)}
-          className={cn("stock group/widget @container/frame flex h-full flex-col overflow-hidden rounded-[var(--radius-card)]", panel && "outline-2 outline-offset-2 outline-ring", className)}
+          className={cn("stock group/widget @container/frame flex h-full flex-col overflow-hidden rounded-[var(--radius-card)]", noteCardClass(widget), (panel || writing) && "outline-2 outline-offset-2 outline-ring", className)}
           onContextMenuCapture={() => { setPeriod(null); setRow(null); }}
         >
           <WidgetScaleProvider value={scale}>
           <HeaderStatusProvider value={setStatus}>
           <TakeawayHostProvider value={takeawayHost}>
           <ObservationDetailsProvider value={details}>
+          {writing && mayWriteNote ? (
+            <NoteEditor widget={widget} pending={pending} onCancel={() => setWriting(false)} onSave={saveNote} />
+          ) : (<>
           <div className={cn("flex items-center gap-2 px-4 pt-3 pb-1 max-[420px]:flex-wrap", dragHandle && "widget-drag cursor-grab active:cursor-grabbing")}>
             {dragHandle && <GripVertical aria-hidden className="-ml-2 size-3.5 max-[420px]:hidden text-muted-foreground opacity-0 group-hover/widget:opacity-100" />}
             {/* On a small phone the title takes the first line (two lines at most) with the menu beside it, and the status chip and
                 buttons wrap under it, so no title is cut to "R..." (#1123). */}
-            <span className="widget-text-sm truncate font-semibold max-[420px]:order-1 max-[420px]:line-clamp-2 max-[420px]:min-w-0 max-[420px]:flex-[1_1_calc(100%-3.5rem)] max-[420px]:whitespace-normal max-[420px]:break-words">{title}</span>
+            <span className={cn("widget-text-sm truncate font-semibold max-[420px]:order-1 max-[420px]:line-clamp-2 max-[420px]:min-w-0 max-[420px]:flex-[1_1_calc(100%-3.5rem)] max-[420px]:whitespace-normal max-[420px]:break-words", isNote && NOTE_HEADING, isNote && "min-w-0", editable && mayWriteNote && "max-[420px]:flex-[1_1_calc(100%-6.5rem)]")}>{title}</span>
             {status && <span className={cn("shrink-0 max-[420px]:order-3", HEADER_FITS.showHeader)}><TargetChip {...status} /></span>}
             {ms.length === 1 && <QuickLookButton slug={ms[0].slug} name={ms[0].name} className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground max-md:size-11 max-md:-my-2.5 max-[420px]:order-3 opacity-0 outline-none hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover/widget:opacity-100 max-md:opacity-100" />}
             {/* It keeps drawing an Archived Metric's history, and says that no new values come (GLOSSARY: Archived Metric). */}
             {ms.some(isArchived) && <span title={ms.length > 1 ? "Some of its Metrics are archived: they take no new values." : "Its Metric is archived: it takes no new values."} className="widget-text-xs flex shrink-0 items-center gap-1 text-muted-foreground"><Archive aria-hidden className="size-[1.15em]" /> Archived</span>}
             {open > 0 && <OpenActionsButton slugs={ms.map((x) => x.slug)} count={open} label={openText} />}
-            <DropdownMenu onOpenChange={(o) => { if (o) markWidgetMenuSeen(data.viewer); }}>
-              <DropdownMenuTrigger aria-label={`Options for ${title}`} className="-mr-1.5 ml-auto flex size-8 max-md:size-11 max-md:-my-1.5 max-[420px]:order-2 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-60 group-hover/widget:opacity-100 hover:bg-muted focus-visible:opacity-100 data-popup-open:opacity-100" onMouseDown={(e) => e.stopPropagation()}>
+            {editable && mayWriteNote && <NoteEditButton called={called} onClick={() => setWriting(true)} />}
+            <DropdownMenu onOpenChange={(o) => { if (o) { markWidgetMenuSeen(data.viewer); setMenuOpened(true); } }}>
+              <DropdownMenuTrigger aria-label={`Options for ${called}`} className={cn("-mr-1.5 flex size-8 max-md:size-11 max-md:-my-1.5 max-[420px]:order-2 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-60 group-hover/widget:opacity-100 hover:bg-muted focus-visible:opacity-100 data-popup-open:opacity-100", !(editable && mayWriteNote) && "ml-auto")} onMouseDown={(e) => e.stopPropagation()}>
                 <MoreHorizontal className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">{items(DM)}</DropdownMenuContent>
@@ -343,7 +367,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           <div className="flex min-h-0 flex-1 flex-col gap-1.5 px-4 pb-3">
             {/* A size container: values and story words scale with the card, from phone to wall screen. */}
             <div className="@container min-h-0 flex-1">
-            <WidgetBody widget={widget} data={data} onPointContext={(_, p) => setPeriod(p)} onRowContext={(_, label, p) => { setPeriod(p); setRow(label); }} />
+            {unwritten && mayWriteNote ? <NoteStart onClick={() => setWriting(true)} /> : <WidgetBody widget={widget} data={data} onPointContext={(_, p) => setPeriod(p)} onRowContext={(_, label, p) => { setPeriod(p); setRow(label); }} />}
             </div>
             {/* "All Metrics tagged X": what it follows and, when the viewer sees more than it draws, where to see them all. */}
             {widget.settings.tagView?.name && (
@@ -354,6 +378,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
             )}
             {m && templateOf(widget).kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}
           </div>
+          </>)}
           </ObservationDetailsProvider>
           </TakeawayHostProvider>
           </HeaderStatusProvider>

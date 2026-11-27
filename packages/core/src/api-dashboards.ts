@@ -29,9 +29,9 @@ export class Unusable extends Error {
   constructor(message: string) { super(message); this.name = "Unusable"; }
 }
 
-/** Built-in views a key may place: not a Free Layout (a drawing), not a composed Finding (its panels need the
- * editor); Findings are added with addFindingWithKey instead. */
-export const KEY_VIEWS = (Object.keys(TEMPLATES) as TemplateId[]).filter((id) => !["layout", "slide"].includes(TEMPLATES[id].kind) && id !== "story" && id !== "design");
+/** Built-in views a key may place: not a Free Layout (a drawing), not a Note Widget (a key reads one, and people write
+ * them), not a composed Finding (its panels need the editor); Findings are added with addFindingWithKey instead. */
+export const KEY_VIEWS = (Object.keys(TEMPLATES) as TemplateId[]).filter((id) => !["layout", "note", "slide"].includes(TEMPLATES[id].kind) && id !== "story" && id !== "design");
 
 /** The few settings a key may set; anything else a widget can hold stays with the editor. */
 export type KeySettings = { window?: number; showTarget?: boolean; showForecast?: boolean; rows?: number; display?: DisplayPeriod | null };
@@ -47,7 +47,14 @@ export type ApiDashboardSummary = { id: number; name: string; role: "owner" | "e
 
 /** One widget as a program sees it: what it shows, never its settings (which can hold a Free Layout's drawing and
  * are not needed to decide what to change) and never values (read those per Metric). */
-export type ApiWidget = { id: number; view: TemplateId; title: string | null; metrics: string[]; x: number; y: number; w: number; h: number; words?: FindingWords; display?: DisplayPeriod };
+export type ApiWidget = { id: number; view: TemplateId; title: string | null; metrics: string[]; x: number; y: number; w: number; h: number; words?: FindingWords; note?: ApiNote; display?: DisplayPeriod };
+
+/** What a Note Widget says, for a program: its plain text and whether it is highlighted. Its heading is the title. */
+export type ApiNote = { text: string; highlighted: boolean };
+
+/** The note of a widget as a program sees it, or nothing for any other widget. */
+export const noteOf = (w: Pick<Widget, "template" | "settings">): { note?: ApiNote } =>
+  (w.template === "note" ? { note: { text: String(w.settings?.note ?? ""), highlighted: w.settings?.noteHighlight === true } } : {});
 
 /** A dashboard with its introduction and its widgets, in reading order. */
 export type ApiDashboard = ApiDashboardSummary & { intro: string; widgets: ApiWidget[] };
@@ -171,6 +178,7 @@ async function asSeen(actor: Pick<Actor, "workspaceId" | "personId">, id: number
     id: w.id, view: w.template, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h,
     metrics: [...new Set(widgetMetricIds(w.metric_ids ?? [], w.settings))].map((m) => byId.get(m)?.slug).filter((s): s is string => Boolean(s)),
     ...(isFinding(w) ? { words: wordsOf(w.settings ?? {}) } : {}),
+    ...noteOf(w),
     // The one setting that changes which numbers a widget shows, so a program can tell quarters from months.
     ...(isDisplayPeriod(w.settings?.display) ? { display: w.settings.display } : {}),
   }));

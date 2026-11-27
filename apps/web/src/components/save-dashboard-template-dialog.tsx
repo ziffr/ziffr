@@ -1,7 +1,7 @@
 "use client";
 // Saving a dashboard as a team Dashboard Template (spec 0014, GLOSSARY: Dashboard Template, Slot). The core makes the
 // draft from the stored widgets: one Slot per Metric (or set of Metrics) however many widgets show it. The viewer names
-// the Slots; Free Layouts stay behind, and the panel says so (spec 0050).
+// the Slots; Note Widgets and Free Layouts stay behind, and the panel says so (spec 0050).
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
@@ -65,7 +65,7 @@ function SaveDashboardTemplateForm({ dashboardId, dashboardName, metricName, onC
             </fieldset>
             {(draft.leftOut.length > 0 || draft.notices.length > 0) && (
               <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-                {draft.leftOut.length > 0 && <li>Left out, because a template cannot keep free layouts yet: {draft.leftOut.join(", ")}.</li>}
+                {draft.leftOut.length > 0 && <li>Left out, because a template keeps no note widgets or free layouts: {draft.leftOut.join(", ")}.</li>}
                 {draft.notices.map((n) => <li key={n}>{n}</li>)}
               </ul>
             )}

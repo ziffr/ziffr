@@ -4,7 +4,7 @@
 // creator, through the same function the web app uses, so only a dashboard they own or edit, only of a period that is
 // over. A key never shows, deletes or rewrites a Snapshot: that stays with people.
 import { assertCan, assertScope, Forbidden, Refused, type Actor, type KeyActor } from "./actor";
-import { Unusable } from "./api-dashboards";
+import { noteOf, Unusable, type ApiNote } from "./api-dashboards";
 import { listSnapshots, openSnapshot, takeSnapshot, type SnapshotSummary } from "./snapshots";
 import { SNAPSHOT_PERIOD_KINDS, type SnapshotPeriodKind } from "./snapshot-periods";
 import { widgetMetricIds } from "./widget-metrics";
@@ -24,7 +24,7 @@ export type ApiSnapshotSummary = {
  * creator does not see (never which). `corrections` are kept values that differ from the ones recorded now. */
 export type ApiSnapshot = ApiSnapshotSummary & {
   name: string; intro: string; hiddenWidgets: number;
-  widgets: { id: number; view: string; title: string | null; metrics: string[]; words?: Record<string, string> }[];
+  widgets: { id: number; view: string; title: string | null; metrics: string[]; words?: Record<string, string>; note?: ApiNote }[];
   metrics: { slug: string; name: string; unit: string; values: { period: string; value: number }[] }[];
   corrections: { metric: string; period: string; was: number; now: number | null }[];
 };
@@ -52,7 +52,7 @@ export async function getSnapshotWithKey(actor: KeyActor, snapshotId: number): P
     const settings = (w.settings ?? {}) as Record<string, unknown>;
     const words: Record<string, string> = {};
     if (TEMPLATES[w.template]?.kind === "story") for (const k of ["kicker", "headline", "subline", "footnote", "source"]) if (typeof settings[k] === "string" && settings[k]) words[k] = settings[k] as string;
-    return { id: w.id, view: String(w.template), title: w.title, metrics: [...new Set(widgetMetricIds(w.metric_ids ?? [], w.settings))].map((m) => slugOf.get(m)).filter((x): x is string => Boolean(x)), ...(Object.keys(words).length ? { words } : {}) };
+    return { id: w.id, view: String(w.template), title: w.title, metrics: [...new Set(widgetMetricIds(w.metric_ids ?? [], w.settings))].map((m) => slugOf.get(m)).filter((x): x is string => Boolean(x)), ...(Object.keys(words).length ? { words } : {}), ...noteOf(w) };
   });
   return {
     ...summaryOf(s), name: s.name, intro: s.intro, hiddenWidgets: s.hiddenParts, widgets,

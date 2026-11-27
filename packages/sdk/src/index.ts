@@ -429,8 +429,12 @@ export type DashboardSummary = { id: number; name: string; role: "owner" | "edit
 /** A Finding's words; Placeholders such as {metric} or {change yoy} are filled in when it is drawn. */
 export type FindingWords = { kicker?: string; headline?: string; subline?: string; footnote?: string; source?: string };
 
-/** One widget: its view, the slugs of the Metrics it draws and where it sits; a Finding has its words too. */
-export type Widget = { id: number; view: string; title: string | null; metrics: string[]; x: number; y: number; w: number; h: number; words?: FindingWords; display?: DisplayPeriod };
+/** What a Note Widget says: plain text, the workspace's own words; its heading is the widget's title. A key reads it only. */
+export type Note = { text: string; highlighted: boolean };
+
+/** One widget: its view, the slugs of the Metrics it draws and where it sits; a Finding has its words too, a Note Widget
+ * its note. */
+export type Widget = { id: number; view: string; title: string | null; metrics: string[]; x: number; y: number; w: number; h: number; words?: FindingWords; note?: Note; display?: DisplayPeriod };
 
 /** A dashboard with its introduction and its widgets in reading order. */
 export type Dashboard = DashboardSummary & { intro: string; widgets: Widget[] };
@@ -453,8 +457,8 @@ export type Snapshot = SnapshotSummary & {
   corrections: { metric: string; period: string; was: number; now: number | null }[];
 };
 
-/** A widget of a Snapshot: a Finding carries its words. */
-export type SnapshotWidget = { id: number; view: string; title: string | null; metrics: string[]; words?: Record<string, string> };
+/** A widget of a Snapshot: a Finding carries its words, a Note Widget its note. */
+export type SnapshotWidget = { id: number; view: string; title: string | null; metrics: string[]; words?: Record<string, string>; note?: Note };
 
 /** A Metric of a Snapshot with the values it kept. */
 export type SnapshotMetric = { slug: string; name: string; unit: string; values: { period: string; value: number }[] };
