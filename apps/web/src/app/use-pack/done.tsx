@@ -2,10 +2,10 @@
 // The end of a guided Pack set-up (spec 0068; GLOSSARY: Pack, Submitter, Prompt, Outbox, Automation Template): who is
 // asked and from when, what is still missing, and the ways to what was made. It shows only what the server answered to
 // this Owner or Admin about what they just made.
-import Link from "next/link";
 import { ScreenHeading } from "@/app/first-steps/parts";
 import { PHONE_ACTIONS, PHONE_TEXT_LINK } from "@/app/setup/phone";
 import { FillFromN8n } from "@/components/fill-from-n8n";
+import { FullLoadLink } from "@/components/guided-frame";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDate } from "@ziffr/core/format";
 import type { PackStartResult } from "@ziffr/core/pack-start";
@@ -57,9 +57,9 @@ export function DoneScreen({ result, declarations, feeds, addedPeople, invites }
       <div className="space-y-5">
         {first && panel}
         <div className={PHONE_ACTIONS}>
-          {board && <Link href={`/dashboards/${board.id}`} className={main}>Open the dashboard</Link>}
-          {deck && <Link href={`/decks/${deck.id}/present`} className={board ? ALSO : main}>Open the slides</Link>}
-          {!board && !deck && <Link href="/metrics" className={main}>Open your Metrics</Link>}
+          {board && <FullLoadLink href={`/dashboards/${board.id}`} className={main}>Open the dashboard</FullLoadLink>}
+          {deck && <FullLoadLink href={`/decks/${deck.id}/present`} className={board ? ALSO : main}>Open the slides</FullLoadLink>}
+          {!board && !deck && <FullLoadLink href="/metrics" className={main}>Open your Metrics</FullLoadLink>}
         </div>
         {!first && panel}
         <Lines title="Who is asked" items={askedLines(result)} />
@@ -71,12 +71,11 @@ export function DoneScreen({ result, declarations, feeds, addedPeople, invites }
             <h2 className="text-sm font-medium text-muted-foreground">Nobody provides these yet</h2>
             <ul className="stock divide-y divide-border rounded-[var(--radius-card)] px-4 text-sm">
               {result.unasked.map((m) => (
-                <li key={m.id} className="py-1 break-words"><Link href={`/metrics/${m.slug}`} className="inline-flex min-h-11 items-center underline underline-offset-4 sm:min-h-8">{m.name}</Link></li>
+                <li key={m.id} className="py-1 break-words"><FullLoadLink href={`/metrics/${m.slug}`} className="inline-flex min-h-11 items-center underline underline-offset-4 sm:min-h-8">{m.name}</FullLoadLink></li>
               ))}
             </ul>
             {invites
-              // A plain link: another screen of the set-up, read anew.
-              ? <a href={afterHref(result.pack.installId, "providers")} className={cn(buttonVariants({ variant: "outline" }), "h-11 w-full sm:h-9 sm:w-auto")}>Choose who provides them</a>
+              ? <FullLoadLink href={afterHref(result.pack.installId, "providers")} className={ALSO}>Choose who provides them</FullLoadLink>
               : <p className="text-sm text-muted-foreground">Open one to choose who provides it.</p>}
           </section>
         )}
@@ -98,8 +97,8 @@ export function DoneScreen({ result, declarations, feeds, addedPeople, invites }
         )}
         {(boards.length > 0 || decks.length > 0) && (
           <p className="flex flex-wrap gap-x-4 text-sm">
-            {boards.map((d) => <Link key={d.id} href={`/dashboards/${d.id}`} className={PHONE_TEXT_LINK}>{d.name}</Link>)}
-            {decks.map((d) => <Link key={d.id} href={`/decks/${d.id}/present`} className={PHONE_TEXT_LINK}>{d.name}</Link>)}
+            {boards.map((d) => <FullLoadLink key={d.id} href={`/dashboards/${d.id}`} className={PHONE_TEXT_LINK}>{d.name}</FullLoadLink>)}
+            {decks.map((d) => <FullLoadLink key={d.id} href={`/decks/${d.id}/present`} className={PHONE_TEXT_LINK}>{d.name}</FullLoadLink>)}
           </p>
         )}
       </div>

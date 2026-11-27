@@ -3,12 +3,13 @@
 // Switched off (not found) until every entry point switches over, and never in the demo. Only an Owner or Admin opens
 // one; anyone else is told to ask one. The browser gets what the core's read answers to this person for that screen.
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Forbidden, type Actor } from "@ziffr/core/actor";
 import { packHolders } from "@ziffr/core/pack-after-holder";
 import { packInvite } from "@ziffr/core/pack-after-invite";
 import { packNumbers } from "@ziffr/core/pack-after-numbers";
 import { packProviders } from "@ziffr/core/pack-after-providers";
+import { trialEnded } from "@ziffr/core/trials";
 import { numberStyleOf } from "@ziffr/core/workspace-settings";
 import { isDemo } from "@/lib/auth";
 import { currentActor } from "@/lib/viewer";
@@ -35,6 +36,8 @@ export default async function PackTaskPage({ params }: { params: Promise<{ ref: 
   const way = AFTER_TASKS.find((t) => t === task);
   if (!install || !("install" in install) || !way) notFound();
   const actor = await currentActor();
+  // An ended trial has only the screen that says so, which the app around Home draws.
+  if (await trialEnded(actor.workspaceId)) redirect("/");
   if (actor.role !== "owner" && actor.role !== "admin") return <AskAnOwner />;
   // A Pack that is not here, or not of this Workspace, is not found.
   const data = await READ[way](actor, install.install).catch((e: unknown) => { if (e instanceof Forbidden) notFound(); throw e; });

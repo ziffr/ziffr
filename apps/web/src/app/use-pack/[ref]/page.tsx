@@ -4,12 +4,13 @@
 // (the Pack's words, the room as counts, the people of the Workspace by name), the Pack's Preview, and the names of the
 // Feeds and n8n templates a template download offers.
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Forbidden } from "@ziffr/core/actor";
 import { feedTemplates } from "@ziffr/core/feed-template-download";
 import { feedChoices } from "@ziffr/core/feeds";
 import { readIncludedPack } from "@ziffr/core/included-packs";
 import { startDrawing, startOptions } from "@ziffr/core/pack-start";
+import { trialEnded } from "@ziffr/core/trials";
 import { numberStyleOf } from "@ziffr/core/workspace-settings";
 import { isDemo } from "@/lib/auth";
 import { currentActor } from "@/lib/viewer";
@@ -26,6 +27,8 @@ export default async function UsePackPage({ params }: { params: Promise<{ ref: s
   const ref = packRefOf(segment);
   if (!ref) notFound();
   const actor = await currentActor();
+  // An ended trial has only the screen that says so, which the app around Home draws.
+  if (await trialEnded(actor.workspaceId)) redirect("/");
   if (actor.role !== "owner" && actor.role !== "admin") return <AskAnOwner />;
   // A Pack that is not here, or not of this Workspace, is not found.
   const found = <T,>(read: Promise<T>) => read.catch((e: unknown) => { if (e instanceof Forbidden) notFound(); throw e; });

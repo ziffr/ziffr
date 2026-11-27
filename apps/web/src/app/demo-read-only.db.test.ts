@@ -86,6 +86,7 @@ const CASES: Record<string, Case> = {
   "auth-actions:createWorkspace": { outside: "a Workspace of one's own, never the demo; refused during a demo visit" },
   "first-steps/actions:makeWorkspace": { outside: "First Steps makes a Workspace of one's own, never the demo; switched off" },
   "first-steps/actions:saveAnswers": { outside: "the Owner answers First Steps again; the core refuses a demo actor; switched off" },
+  "first-steps/actions:addFirstMetric": { outside: "the Owner adds the first Metric in First Steps; the core refuses a demo actor; switched off" },
   "first-steps/value-actions:askByEmail": { outside: "First Steps' last screens, for the Owner of a Workspace it made; the core refuses a demo actor; switched off" },
   "first-steps/value-actions:chooseProvider": { outside: "First Steps' last screens, for the Owner of a Workspace it made; the core refuses a demo actor; switched off" },
   "first-steps/value-actions:emailAgain": { outside: "First Steps' last screens, for the Owner of a Workspace it made; the core refuses a demo actor; switched off" },
