@@ -148,7 +148,7 @@ Owners, Admins and Members create Metrics. Guests create nothing: they see no **
 | **All** | Shows the whole catalog. |
 | A category, such as Finance | Shows only that category. Click it again to show all. |
 
-Each card shows the Metric's name, what it counts, its period, which way is good and its target. Click a card to open the form, already filled in. If nothing matches, try another word or start from scratch.
+Each card shows the Metric's name, what it counts, its period, which way is good and its target. Click or tap a card to open the form, already filled in; **Catalog** at the top of the form brings you back. If nothing matches, try another word or start from scratch.
 
 ### Your first metric, from the Setup Guide
 
