@@ -77,12 +77,11 @@ export type ReplyReading =
 /** The longest reply read, in characters, as long as the longest email or chat message taken today. */
 const REPLY_CHARS = 5000;
 
-/** The reply as trimmed lines, without the email's quoted text and greeting, from the first line with something on it.
- * Long runs of spaces are shortened, so no pattern has much to retry. */
+/** The reply as trimmed lines, without the email's quoted text and greeting, from the first line with something on it. */
 function linesOf(text: string, ctx: ReplyContext, languages: readonly string[]): string[] {
   const bounded = String(text).slice(0, REPLY_CHARS);
   const body = ctx.email ? newText(bounded) : bounded;
-  const lines = body.split(/\r\n?|[\n\u2028\u2029]/).map((l) => l.replace(/\s{4,}/g, "   ").trim());
+  const lines = body.split(/\r\n?|[\n\u2028\u2029]/).map((l) => l.trim());
   const from = (at: number) => {
     const first = lines.findIndex((l, i) => i >= at && l !== "");
     return first < 0 ? lines.length : first;
@@ -135,7 +134,7 @@ function reader(ctx: ReplyContext) {
   };
 
   const answerFor = (figure: ReplyFigure, text: string): AnswerReading =>
-    readAnswer(text.replace(/\n{4,}/g, "\n\n\n"), { style: ctx.style, today: ctx.today, yearStart: ctx.yearStart, languages, monthFirst: ctx.monthFirst, period: figure.period, promptPeriod: figure.promptPeriod });
+    readAnswer(text, { style: ctx.style, today: ctx.today, yearStart: ctx.yearStart, languages, monthFirst: ctx.monthFirst, period: figure.period, promptPeriod: figure.promptPeriod });
 
   return { ctx, languages, today, analyse, answerFor };
 }

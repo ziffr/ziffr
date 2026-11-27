@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { parseBreakdown } from "./parse";
 import { readAnswer } from "./numbers";
 import { ANSWER_LANGUAGES } from "./numbers/languages";
-import { parseBreakdown } from "./parse";
 import { isGreeting, isSignature, noteFrom, NOTE_CHARS, plainLine, replyWords } from "./reply-cleaning";
 import { readReply, type ReplyContext, type ReplyFigure, type ReplyReading } from "./reply-reader";
 
@@ -365,28 +365,26 @@ describe("a note", () => {
   });
 });
 
-describe("hostile input", () => {
+describe("long input is read quickly", () => {
   const fifty = () => Array.from({ length: 50 }, (_, i) => filled(i, { name: `Metric ${i}` }));
+  const LINES = [" ", "a", "1", ",", ":", "!", "'", "\t"].map((c, i): [string, string] => [`long line ${i + 1}`, `yes a${c.repeat(2400)}1${c.repeat(2400)}x`]);
   const TEXTS: [string, string][] = [
+    ...LINES,
     ["a very long line", "x".repeat(2_000_000)],
-    ["digits that end in a letter", `a ${"1 ".repeat(2490)}x`],
-    ["short runs of spaces around digits", `a${"   1".repeat(1240)}   x`],
-    ["spaces around a number", `a${" ".repeat(1600)}1${" ".repeat(1600)}x\n`.repeat(2)],
-    ["single spaces and digits", "1 ".repeat(2500)],
+    ["numbers and words in turn", `a ${"1 ".repeat(2490)}x`],
     ["many lines", "1\n".repeat(100_000)],
     ["many empty lines", `45${"\n".repeat(5000)}x`],
     ["many rows", "a 1\n".repeat(1250)],
     ["many numbered lines", "1: 1\n".repeat(1000)],
-    ["many colons", "a:".repeat(2500)],
-    ["a long run of endings", `yes${"!".repeat(4990)}x`],
     ["a long quote line", `On ${"wrote ".repeat(800)}x`],
     ["many period words", "October ".repeat(600)],
     ["many greetings", "Hi\n".repeat(1600)],
   ];
-  it.each(TEXTS)("reads %s quickly", (_name, text) => {
+  // A generous bound: six readings by the reply reader, two as a Breakdown.
+  it.each(TEXTS)("by both readers: %s", (_name, text) => {
     const started = performance.now();
     for (const figures of [[open()], [filled()], fifty()]) for (const over of [{}, email]) read(text, figures, over);
-    // Six readings; a generous bound, so that only a pattern that blows up fails on a slow machine.
+    for (const parents of [false, true]) parseBreakdown(`Name\tValue\tParent\n${text}`, "1,234.5", { parents });
     expect(performance.now() - started).toBeLessThan(6000);
   });
 });

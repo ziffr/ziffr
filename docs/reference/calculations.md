@@ -218,6 +218,9 @@ Which periods look alike: the periods of 2 to 6 Metrics put into 2 to 4 kinds, n
 Mutation testing changes the code on purpose and expects a test to fail. A change that leaves every result the same cannot fail a test. Such a mutant is left out in the code with a `// Stryker disable next-line <mutator>: <reason>` comment, and listed here as `file` · mutator · reason. The catalogue test fails when a comment has no line here.
 
 <!-- mutants: one line per disabled mutant, "- `src/file.ts` · Mutator · reason" -->
+- `src/parse.ts` · UnaryOperator · In reading a row, the position that stands for none passed yet is only compared with positions after a label; 1 is passed over as -1 is.
+- `src/parse.ts` · EqualityOperator · In reading a row, a digit follows a label, so it never stands at the start of a line, and nothing closes a line at a digit; the comparisons with `<=` or `>=` give the same.
+- `src/parse.ts` · ConditionalExpression · In a CSV row, a cell without a digit has no closing comma either, so the row is null with or without the early return.
 - `src/method-picker-fit.ts` · ConditionalExpression · An entry with no checks of its own (the shares, the bridge) has no minimum of periods to read; without the guard the minimum is undefined and no count is below it, so the result is the same.
 - `src/method-picker-run.ts` · ConditionalExpression · A Metric has no Breakdown rows under an undefined period either, so looking them up without the test finds none.
 - `src/method-picker-run.ts` · ArrayDeclaration · A Metric whose values were not read has none; a single made-up element is one value, far below every minimum of every Method, and is refused in the same words (the lookup of a Metric's values for a Method and for its own period).
@@ -247,7 +250,6 @@ Mutation testing changes the code on purpose and expects a test to fail. A chang
 - `src/format.ts` · EqualityOperator · In `compactValue`, `v < 0` as `v <= 0` cannot differ: a value there is at least 10,000 in size, so it is never 0.
 - `src/format.ts` · EqualityOperator · In `formatChange`, `pct > 0` as `pct >= 0` cannot differ: a change of 0 has no 1-9 in its digits and is written "±" before the sign is asked.
 - `src/format.ts` · StringLiteral · `formatPercent` puts "%" on the side "after"; every side but "before" stands after, so an empty side writes the same.
-- `src/parse.ts` · Regex · In `readRow`, the line pattern without its `^` finds the same first match: a match that starts later in the line also starts at 0, because the lazy label `(.+?)` takes any prefix.
 - `src/numbers/period-words.ts` · EqualityOperator · Two period words never touch, so one never starts at the position where another ends: every pattern ends with a lookahead that forbids a letter or digit right after it, and every pattern starts with a digit or a letter (the words a pattern can start with are checked to start with a letter in `numbers.test.ts`). So `<` and `<=` keep the same words.
 - `src/compare.ts` · ConditionalExpression · Attainment by distance where higher is better: without a lower bound the percentage is null either way, as `pct` gives null for a target that is not a finite number and Number.isFinite(null) is false.
 - `src/compare.ts` · ConditionalExpression · Attainment by distance where lower is better: without an upper bound the percentage is null either way, for the same reason.

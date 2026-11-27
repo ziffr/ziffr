@@ -17,8 +17,7 @@ export function newText(text: string): string {
 
 const ENDINGS = " ,.!…";
 
-/** A line as it is compared with a word list: lower case, single spaces, without the punctuation it ends in. A loop
- * takes the ending off, so a long run of it costs no more than its length. */
+/** A line as it is compared with a word list: lower case, single spaces, without the punctuation it ends in. */
 export function plainLine(line: string): string {
   const s = line.normalize("NFC").toLowerCase().replace(/\s+/g, " ").trim();
   let end = s.length;
