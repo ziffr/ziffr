@@ -63,7 +63,7 @@ function Flow({ context }: { context: FirstStepsContext }) {
     // Opened or reloaded here: step to the screen before this one.
     const questions = questionScreens(answers.who);
     const at = questions.indexOf(screen);
-    const before = at > 0 ? questions[at - 1] : screen === "start" ? "workspace" : "start";
+    const before = at > 0 ? questions[at - 1] : screen === "start" ? "workspace" : screen === "sender" ? "value" : screen === "done" ? "sender" : "start";
     window.history.replaceState({ firstSteps: 0 }, "", urlOf(before));
   }
   function leave(url: string) {

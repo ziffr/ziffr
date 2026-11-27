@@ -9,11 +9,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { useSlideOver } from "@/components/slide-over-host";
 import { isActionError, shown, unwrap, UNEXPECTED } from "@/lib/action-error";
 import { installIncludedPackFile, readIncludedPackFile } from "@/app/pack-actions";
 import { packSetup } from "@/app/pack-setup-actions";
-import { PackPreviewCard } from "@/app/settings/packs/screen";
+import { useOpenPackPreview } from "@/app/settings/packs/preview-view";
 import { dashboardNeeds, guideStart } from "@/app/settings/packs/setup-defaults";
 import { chooseExplore, setUpFromPackInGuide, skipStep } from "./actions";
 import { ownRequests, RequestsAfterSetUp, SendFirstRequests } from "@/components/first-requests";
@@ -137,36 +136,39 @@ export function StartingPoint(p: Props) {
 /** One Pack: why it fits, what it brings, Preview, Install, and once installed, Set up from this Pack. */
 function PackRow({ pack, p }: { pack: RecommendedPack; p: Props }) {
   const router = useRouter();
-  const slideOver = useSlideOver();
+  const openPreview = useOpenPackPreview();
   const [pending, start] = useTransition();
   const [form, setForm] = useState<PackSetupOptions | null>(null);
   const blocked = pack.needsOwner && !p.isOwner;
 
+  const installed = () => {
+    toast.success(`${pack.name} installed`, { description: "Set up its first Metrics next, or go on." });
+    router.refresh();
+  };
+  // The same Preview as on the Packs page. For anyone but an Owner, a Pack with a Theme says why it cannot be installed.
+  const show = (preview: PackPreview, heading?: { title: string; description: string }) => openPreview({
+    ...heading, viewer: p.viewer, numberStyle: p.numberStyle,
+    preview: blocked ? { ...preview, blocked: "This Pack holds a Theme, so an Owner installs it." } : preview,
+    install: async ({ assistantTexts }) => { unwrap(await installIncludedPackFile(pack.id, { assistantTexts })); installed(); },
+  });
   const preview = () => start(async () => {
     try {
       const r = unwrap(await readIncludedPackFile(pack.id));
       if (!r.ok) throw new Error();
-      slideOver.open({
-        title: `Preview: ${r.preview.manifest.name}`, description: "Drawn with Sample Data. Nothing is installed or changed until you press Install.", widthToggle: true,
-        content: <PreviewPanel packId={pack.id} preview={r.preview} viewer={p.viewer} numberStyle={p.numberStyle} blocked={blocked} onDone={() => slideOver.close()} />,
-      });
+      show(r.preview);
     } catch (e) { toast.error("Not opened", { description: shown(e) }); }
   });
   // Installing is the click: a Pack that holds words aimed at assistants shows its Preview first, with the confirmation.
   const install = () => start(async () => {
     try {
       const r = unwrap(await readIncludedPackFile(pack.id));
-      if (!r.ok || r.preview.blocked || r.preview.assistantTexts.length > 0) {
-        if (!r.ok) throw new Error();
-        slideOver.open({
-          title: `Install ${r.preview.manifest.name}`, description: "Read this first.", widthToggle: true,
-          content: <PreviewPanel packId={pack.id} preview={r.preview} viewer={p.viewer} numberStyle={p.numberStyle} blocked={blocked} onDone={() => slideOver.close()} />,
-        });
+      if (!r.ok) throw new Error();
+      if (r.preview.blocked || r.preview.assistantTexts.length > 0) {
+        show(r.preview, { title: `Install ${r.preview.manifest.name}`, description: "Read this first." });
         return;
       }
       unwrap(await installIncludedPackFile(pack.id, { assistantTexts: false }));
-      toast.success(`${pack.name} installed`, { description: "Set up its first Metrics next, or go on." });
-      router.refresh();
+      installed();
     } catch (e) { toast.error("Not installed", { description: shown(e) }); }
   });
   const openSetUp = () => start(async () => {
@@ -187,7 +189,7 @@ function PackRow({ pack, p }: { pack: RecommendedPack; p: Props }) {
           {blocked && <p className="mt-2 text-xs text-muted-foreground">Includes a Theme (a look for your Workspace); only an Owner can install this Pack.</p>}
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          {!pack.installed && <Button type="button" size="sm" variant="outline" className="h-11 sm:h-8" disabled={pending} onClick={preview}>Preview</Button>}
+          {!pack.installed && <Button type="button" size="sm" variant="outline" className="h-11 data-disabled:opacity-50 sm:h-8" disabled={pending} focusableWhenDisabled onClick={preview}>Preview</Button>}
           {!pack.installed && <Button type="button" size="sm" className="h-11 sm:h-8" disabled={pending || blocked} onClick={install}>Install</Button>}
           {pack.installed && <span className="text-xs text-muted-foreground">Installed</span>}
           {pack.installed && pack.installId !== null && !form && <Button type="button" size="sm" className="h-11 sm:h-8" disabled={pending} onClick={openSetUp}>Set up from this Pack</Button>}
@@ -195,27 +197,6 @@ function PackRow({ pack, p }: { pack: RecommendedPack; p: Props }) {
       </div>
       {form && (form.positions ? <SetUpOnPacks name={form.install.name} onClose={() => setForm(null)} /> : <SetUpHere options={form} viewer={p.viewer} following={p.following} onClose={() => setForm(null)} />)}
     </li>
-  );
-}
-
-/** The Preview in the Slide-over, with its Install: the same card as the Packs page. Closing leaves everything as it was. */
-function PreviewPanel({ packId, preview, viewer, numberStyle, blocked, onDone }: { packId: string; preview: PackPreview; viewer: string; numberStyle: NumberStyle; blocked: boolean; onDone: () => void }) {
-  const router = useRouter();
-  const [okAssistant, setOkAssistant] = useState(false);
-  const [pending, start] = useTransition();
-  const install = () => start(async () => {
-    try {
-      unwrap(await installIncludedPackFile(packId, { assistantTexts: okAssistant }));
-      toast.success(`${preview.manifest.name} installed`, { description: "Set up its first Metrics next, or go on." });
-      onDone();
-      router.refresh();
-    } catch (e) { toast.error("Not installed", { description: shown(e) }); }
-  });
-  return (
-    <div className="space-y-3">
-      {blocked && <p role="status" className="text-sm">This Pack holds a Theme, so an Owner installs it.</p>}
-      <PackPreviewCard preview={blocked ? { ...preview, blocked: "This Pack holds a Theme, so an Owner installs it." } : preview} viewer={viewer} numberStyle={numberStyle} pending={pending} okUnsigned={false} setOkUnsigned={() => {}} okAssistant={okAssistant} setOkAssistant={setOkAssistant} onCancel={onDone} onInstall={install} />
-    </div>
   );
 }
 

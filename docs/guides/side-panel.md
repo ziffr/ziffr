@@ -19,7 +19,7 @@ const panel = useSlideOver();
 ```
 
 - `open` shows the panel in place of what is open and keeps what was open one step back; the panel then shows a **Back** button. `replace` swaps the content without a step back. `back` and `close` do what they say. Going to another page closes the panel.
-- The host sets the shape (on a phone see below; 26 rem on a desktop; a reading panel such as Help sets `widthToggle: true` and gets a "Wider" / "Narrower" button, about 48 rem, kept for the session), moves focus into the panel when it opens and gives it back to the button that opened it when it closes. Escape and the close button close it. The title names the panel for screen readers, so every panel has one.
+- The host sets the shape (on a phone see below; 26 rem on a desktop; a reading panel such as Help sets `widthToggle: true` and gets a "Wider" / "Narrower" button, about 48 rem, kept for the session; a view of its own, such as a Pack's Preview, sets `wide: true` and has that width from the start, with no button, and opens at its top with focus on the view itself, not on its first control), moves focus into the panel when it opens and gives it back to the button that opened it when it closes. Escape and the close button close it. The title names the panel for screen readers, so every panel has one.
 - The panel is a window for keyboard use like any other: Tab stays inside it while it is open, and Escape always leaves. Every control inside needs a name.
 - `content` is what the page already may show. Anything that depends on who is asking is read on the server with the person as the actor and passed in; the host holds no data and never fetches.
 - A panel that should have its own address (a Metric's quick look, shared by link) uses `?panel=…` through `usePanel` in `apps/web/src/lib/panel-param.ts`, as the panels below do today.
@@ -49,6 +49,7 @@ This is the state when the rule was written. Later tickets of spec 0050 move the
 | Versions of a team template | `template-menu.tsx` |
 | Save as template (widget, slide layout, Deck Template, dashboard) | `save-template-dialog.tsx`, `save-dashboard-template-dialog.tsx` |
 | Add to deck | `add-to-deck-dialog.tsx` |
+| Add widget on a dashboard, below 1024 px (wider screens: a column of the page, so cards can be dragged onto the dashboard) | `add-widget.tsx` |
 
 Share, Who can see this and View Links open on top of one another with a **Back** button, so Share can lead to Who can see this and View Links and back. None of the three asks for a confirmation: revoking a View Link and answering a request for access act at once and can be undone by making the link again or granting later.
 

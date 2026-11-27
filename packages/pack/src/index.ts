@@ -1,8 +1,9 @@
 // @ziffr/pack (GLOSSARY: Pack): the Pack format and the formats of the things in it, with the checks Ziffr runs on
 // every Pack it is given. Plain data, no code: a Pack this kit accepts is one Ziffr accepts.
-export { checkPack, checkPackValue, FEED_TEMPLATE_IDS, PACK_2_SCHEMA, PACK_FORMAT, PACK_FORMAT_2, PACK_LICENSES, PACK_LIMITS, PACK_SCHEMA, UNSIGNED_WARNING, versionBelow, type Pack, type PackCheck, type PackItem, type PackKind, type PackSource } from "./pack.js";
+export { checkPack, checkPackValue, FEED_TEMPLATE_IDS, PACK_2_SCHEMA, PACK_3_SCHEMA, PACK_FORMAT, PACK_FORMAT_2, PACK_FORMAT_3, PACK_LICENSES, PACK_LIMITS, PACK_SCHEMA, UNSIGNED_WARNING, versionBelow, type Pack, type PackCheck, type PackItem, type PackKind, type PackSource } from "./pack.js";
 export { PACK_POSITION_LIMITS, type PackPosition, type PackRepeat } from "./pack-positions.js";
 export type { PackTotal } from "./pack-totals.js";
+export { PACK_ASK_EVERY, PACK_SET_UP_LIMITS, type PackAsk, type PackAskEvery, type PackSetUpWords } from "./set-up.js";
 export { COMES_FROM_BY, COMES_FROM_LIMITS, comesFromGroups, comesFromWords, FEED_TEMPLATE_LABELS, includedAndNeeded, keptOverview, packOverview, readOverview, targetKeys, targetsRead, WORKFLOW_DOES, type ComesFromGroup, type KeptOverview, type PackComesFrom, type PackNumber, type PackOverview, type PackWorkflowSummary } from "./comes-from.js";
 export { guideRuns, PACK_GUIDE_LIMITS, PACK_GUIDE_SCHEMA, PACK_GUIDE_SECTIONS, type PackGuide, type PackGuideBlock, type PackGuideSection } from "./pack-guide.js";
 export { checkMetricFile, METRIC_FILE_2_SCHEMA, METRIC_FILE_SCHEMA, type MetricFile } from "./metric-file.js";

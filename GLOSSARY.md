@@ -303,7 +303,7 @@ A widget that holds an artboard of its own, laid out like a slide: widgets from 
 _Avoid_: Canvas, drawing, board, freeform widget
 
 **Pool**:
-The side panel that holds everything a user can drag onto a canvas: the metrics they can see, their saved widgets and the Widget Templates.
+The panel that holds everything a user can put on a canvas: the metrics they can see, their saved widgets and the Widget Templates. On a deck, a Free Layout and the Analysis Canvas it is a list titled Pool; on a dashboard it opens with **Add widget** and shows them as cards drawn with a Metric, as the Gallery does.
 _Avoid_: Library, palette, sidebar
 
 **Preview**:
@@ -534,7 +534,7 @@ The private service that runs hosted Ziffr's billing: Sizes, prices, payments, i
 _Avoid_: Billing service, SaaS, hosted edition
 
 **Pack**:
-A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Setting up from it keeps a record of what was made and who fills its Positions, which decides nothing and goes when the Pack is uninstalled. Ziffr's own Packs (the thirteen of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs. It may say whom it is for (its Pack Audience), which ranks it in the Setup Guide.
+A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Setting up from it keeps a record of what was made and who fills its Positions, which decides nothing and goes when the Pack is uninstalled. Ziffr's own Packs (the thirteen of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs. It may say whom it is for (its Pack Audience), which ranks it in the Setup Guide. It may declare what its set-up shows and asks, in short plain text only: a line, what happens and what is needed, a question for each Position and Repeat, and numbers to be written as targets. It brings no screen, markup or code for it.
 _Avoid_: Plugin, add-on, integration, app, bundle
 
 **Pack Audience**:

@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/2",
+  "format": "ziffr.pack/3",
   "id": "ziffr/workspace-usage",
   "name": "Workspace usage",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "summary": "Your own Workspace's usage as Metrics, with a dashboard: views of dashboards, decks and Metrics, values by Source, and what goes unused. Counts only, never who looked. For Owners and Admins.",
   "author": {
     "name": "Ziffr"
@@ -11,6 +11,18 @@
   "ziffr": ">=0.21",
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "See how your own Workspace is used. Counts only, never who looked.",
+    "happens": [
+      "A program sends your usage counts once a day",
+      "The dashboard shows what is used and what goes unused"
+    ],
+    "needs": [
+      "Someone who can run the Usage Feed once a day",
+      "A Feed with a Feed Key, which the program sends the counts with",
+      "An Access Key with “Read usage figures” for that program"
+    ]
   },
   "guide": {
     "whatItsFor": [
