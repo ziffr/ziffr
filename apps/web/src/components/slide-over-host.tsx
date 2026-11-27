@@ -17,7 +17,7 @@ export type SlideOverContent = {
   content: React.ReactNode;
   /** Shows a "Wider" / "Narrower" button in the header (reading panels such as Help); the choice is kept for the session. Other panels keep their one width. */
   widthToggle?: boolean;
-  /** A view of its own, such as a Pack's Preview: the wider width from the start, with no button to choose. */
+  /** A view of its own, such as a Pack's Preview: the wider width from the start, with no button to choose. It opens at its top, to be read: focus goes to the view itself, not to its first control. */
   wide?: boolean;
   /** A short panel (Share, Alert me, one choice): on a phone it opens from the bottom and leaves the top of the page in view. Work panels leave this out and cover the screen. */
   short?: boolean;
@@ -96,7 +96,7 @@ export function SlideOverProvider({ children }: { children: React.ReactNode }) {
       {children}
       <Sheet open={Boolean(current)} onOpenChange={(o) => { if (!o) close(); }}>
         {current && (
-          <SheetContent short={current.short} className={isWide ? "max-w-[min(48rem,100vw)] sm:w-[48rem]" : "sm:w-[26rem]"} data-slide-over finalFocus={opener}>
+          <SheetContent short={current.short} className={isWide ? "max-w-[min(48rem,100vw)] sm:w-[48rem]" : "sm:w-[26rem]"} data-slide-over finalFocus={opener} initialFocus={current.wide ? scroller : undefined}>
             <SheetHeader>
               {steps.length > 1 && (
                 <Button variant="ghost" size="sm" className="-ml-2 w-fit" onClick={back}><ArrowLeft aria-hidden /> Back</Button>
@@ -112,7 +112,8 @@ export function SlideOverProvider({ children }: { children: React.ReactNode }) {
               </div>
               {current.description && <SheetDescription>{current.description}</SheetDescription>}
             </SheetHeader>
-            <div ref={scroller} className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{current.content}</div>
+            {/* Focusable only for a view of its own, so focus can start there and the arrow keys scroll it. */}
+            <div ref={scroller} tabIndex={current.wide ? -1 : undefined} className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] outline-none">{current.content}</div>
           </SheetContent>
         )}
       </Sheet>

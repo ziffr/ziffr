@@ -39,7 +39,7 @@ const ITEM_WIDTH = 300;
 const ITEM_FRAME = 34;
 
 /** What the person ticked before pressing Install. */
-export type PackConfirmed = { unsigned: boolean; assistantTexts: boolean };
+type PackConfirmed = { unsigned: boolean; assistantTexts: boolean };
 
 type ViewProps = {
   preview: PackPreview; viewer: string; numberStyle: NumberStyle;
@@ -113,7 +113,7 @@ export function PackPreviewView({ preview, viewer, numberStyle, install }: ViewP
           <Button variant="outline" onClick={panel.back}><ArrowLeft aria-hidden /> Back to the list</Button>
           <Button disabled={!ready || pending} onClick={press}>Install</Button>
         </div>
-        <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+        <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground max-md:[&_a]:inline-flex max-md:[&_a]:min-h-11 max-md:[&_a]:min-w-11 max-md:[&_a]:items-center">
           <span>Under {manifest.license}.</span>
           <ListingLink href={manifest.listing?.homepage} unsigned={preview.unsigned}>Its page</ListingLink>
           {preview.report && <ReportLink href={preview.report} name={manifest.name} />}
