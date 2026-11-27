@@ -20,6 +20,25 @@ const hasParentHeader = (text: string): boolean => {
   return first?.split(/[\t,]/).some((c) => PARENT_HEADER.test(c.trim().replace(/^["']|["']$/g, ""))) === true;
 };
 
+/** One line of a Breakdown as a row: its label, its number and, in a table with a parent column, its parent; null for a
+ * line that is no row. A line naming the total is a row too. */
+export function readRow(raw: string, style: NumberStyle, parents = false): { label: string; value: number; parent?: string } | null {
+  // Trimmed first, so a quote after leading spaces still opens the label. An empty line matches nothing below.
+  // A trailing comma is an empty last cell of a CSV line.
+  const line = raw.trim().replace(/,$/, "");
+  // A tab, colon or comma, or spaces, between label and number: "Germany\t1 234,5" is Germany and 1234.5. One
+  // pattern is enough: the lines are already split at ";", and every other separator is one of these.
+  const withParent = parents ? line.match(WITH_PARENT) ?? line.match(WITH_PARENT_CSV) : null;
+  // Stryker disable next-line Regex: without the ^, a match found later in the line would also start at 0, since (.+?) takes any prefix; the first match is the same.
+  const m = withParent ?? line.match(/^["']?(.+?)["']?(?:\s*[:\t,]\s*|\s+)["']?([+\-−]?\d[\d.,'’ \u00a0\u202f]*)\s*(%|€|eur|k)?["']?$/i);
+  if (!m) return null;
+  const label = m[1].trim();
+  const value = readNumber(`${m[2].trim()}${m[3]?.toLowerCase() === "k" ? "k" : ""}`, style);
+  if (value === null || !label || /^\d/.test(label)) return null;
+  const parent = withParent?.[4].trim();
+  return parent ? { label, value, parent } : { label, value };
+}
+
 /** Reads "label value" lines (from Excel, CSV or a chat) into rows, each with the label of its parent when the header names a parent column and a third cell names one. Needs two or more rows to count as a breakdown. */
 export function parseBreakdown(text: string, style: NumberStyle, options: { parents?: boolean } = {}): { rows: { label: string; value: number; parent?: string }[]; total: number | null } | null {
   const rows: { label: string; value: number; parent?: string }[] = [];
@@ -27,21 +46,10 @@ export function parseBreakdown(text: string, style: NumberStyle, options: { pare
   const parents = options.parents === true && hasParentHeader(text);
   let total: number | null = null;
   for (const raw of text.split(/\r?\n|;/)) {
-    // Trimmed first, so a quote after leading spaces still opens the label. An empty line matches nothing below.
-    // A trailing comma is an empty last cell of a CSV line.
-    const line = raw.trim().replace(/,$/, "");
-    // A tab, colon or comma, or spaces, between label and number: "Germany\t1 234,5" is Germany and 1234.5. One
-    // pattern is enough: the lines are already split at ";", and every other separator is one of these.
-    const withParent = parents ? line.match(WITH_PARENT) ?? line.match(WITH_PARENT_CSV) : null;
-    // Stryker disable next-line Regex: without the ^, a match found later in the line would also start at 0, since (.+?) takes any prefix; the first match is the same.
-    const m = withParent ?? line.match(/^["']?(.+?)["']?(?:\s*[:\t,]\s*|\s+)["']?([+\-−]?\d[\d.,'’ \u00a0\u202f]*)\s*(%|€|eur|k)?["']?$/i);
-    if (!m) continue;
-    const label = m[1].trim();
-    const value = readNumber(`${m[2].trim()}${m[3]?.toLowerCase() === "k" ? "k" : ""}`, style);
-    if (value === null || !label || /^\d/.test(label)) continue;
-    const parent = withParent?.[4].trim();
-    if (TOTAL.test(label)) total = value;
-    else rows.push(parent ? { label, value, parent } : { label, value });
+    const row = readRow(raw, style, parents);
+    if (!row) continue;
+    if (TOTAL.test(row.label)) total = row.value;
+    else rows.push(row);
   }
   return rows.length >= 2 ? { rows, total } : null;
 }

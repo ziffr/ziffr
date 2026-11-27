@@ -1,0 +1,79 @@
+// Cleaning a text reply before and after it is read (spec 0064; GLOSSARY: Prompt, Answer Language): what of an email
+// was written now, which lines are a greeting or a signature, and a note's words as they may be kept. Pure. The words
+// are in the Answer Languages' word files, so a language is data.
+import { wordsFor } from "./numbers/period-words";
+import type { AnswerWords } from "./numbers/languages";
+
+/** What the person wrote now: the text above the quoted message ("On … wrote:", "> …", "-----Original Message-----",
+ * the German "Am … schrieb") and above a signature ("-- "), at most 5,000 characters. */
+export function newText(text: string): string {
+  const out: string[] = [];
+  for (const line of String(text).replace(/\r\n?/g, "\n").split("\n")) {
+    if (/^>/.test(line) || /^-- ?$/.test(line) || /^-{2,}\s*(Original Message|Ursprüngliche Nachricht)/i.test(line) || /^(On|Am) .+ (wrote|schrieb)\b.*:\s*$/i.test(line) || /^From: .+/i.test(line) && out.length > 0) break;
+    out.push(line);
+  }
+  return out.join("\n").trim().slice(0, 5000);
+}
+
+const ENDINGS = " ,.!…";
+
+/** A line as it is compared with a word list: lower case, single spaces, without the punctuation it ends in. A loop
+ * takes the ending off, so a long run of it costs no more than its length. */
+export function plainLine(line: string): string {
+  const s = line.normalize("NFC").toLowerCase().replace(/\s+/g, " ").trim();
+  let end = s.length;
+  while (end > 0 && ENDINGS.includes(s[end - 1])) end--;
+  return s.slice(0, end);
+}
+
+/** One list of the reply words of these languages. */
+export function replyWords(languages: readonly string[], list: keyof AnswerWords["byHand"]["reply"]): string[] {
+  return wordsFor(languages).flatMap((l) => l.byHand.reply[list]);
+}
+
+/** The longest line taken for a greeting or for a mail app's line: anything longer is something the person wrote. */
+const SHORT = 80;
+
+/** Whether a line only greets: a greeting, at most four more words (a name) and no digit. */
+export function isGreeting(line: string, languages: readonly string[]): boolean {
+  if (line.length > SHORT || /\p{N}/u.test(line)) return false;
+  const plain = plainLine(line);
+  return replyWords(languages, "greetings").some((g) => {
+    if (plain !== g && !plain.startsWith(`${g} `) && !plain.startsWith(`${g},`)) return false;
+    return plain.slice(g.length).split(/[ ,]+/).filter(Boolean).length <= 4;
+  });
+}
+
+/** Whether a line starts an email's signature: a closing, a mail app's "Sent from my …", or the sender's name alone. */
+export function isSignature(line: string, languages: readonly string[], senderName?: string | null): boolean {
+  if (line.length > SHORT) return false;
+  const plain = plainLine(line);
+  const full = plainLine(senderName ?? "");
+  const names = full ? [full, full.split(" ")[0]] : [];
+  if (names.includes(plain)) return true;
+  // A closing alone, or followed by the sender's name ("Best regards, Anna").
+  if (replyWords(languages, "closings").some((c) => plain === c || names.some((n) => plain === `${c} ${n}` || plain === `${c}, ${n}`))) return true;
+  return replyWords(languages, "sentFrom").some((pattern) => {
+    const [before, after] = pattern.split("…").map((p) => p.trim());
+    return plain.startsWith(`${before} `) && plain.endsWith(after);
+  });
+}
+
+/** The longest note, in characters (spec 0064, "Untrusted input"). */
+export const NOTE_CHARS = 1000;
+
+/** A note from a reply: its words, and whether it was longer than a note may be and so was cut. */
+export type ReplyNote = { text: string; cut: boolean };
+
+// Control characters other than the line break, and the characters that change the direction text is shown in, which
+// can make words read differently from what they say.
+const HIDDEN = /(?!\n)[\p{Cc}\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu;
+
+/** A reply's lines as a note: hidden characters removed (a tab becomes a space), trimmed, cut at NOTE_CHARS
+ * characters; null when nothing is left. */
+export function noteFrom(lines: readonly string[]): ReplyNote | null {
+  const all = [...lines.join("\n").replace(/\t/g, " ").replace(HIDDEN, "").trim()];
+  if (!all.length) return null;
+  const cut = all.length > NOTE_CHARS;
+  return { text: all.slice(0, NOTE_CHARS).join("").trimEnd(), cut };
+}

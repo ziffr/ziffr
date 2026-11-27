@@ -16,6 +16,9 @@ import { inboxOf } from "./sign-in-limits";
 import { createHash } from "node:crypto";
 import { takeReplyTest } from "./installation-replies";
 import { holdReply } from "./held-replies";
+import { newText } from "./reply-cleaning";
+
+export { newText };
 
 /** Largest raw message taken, in bytes. */
 export const MAX_INBOUND_BYTES = 1024 * 1024;
@@ -134,17 +137,6 @@ export async function parseInbound(raw: ArrayBuffer | Uint8Array | string): Prom
 /** HTML as plain text, for replies that have no text part. */
 function stripHtml(html: string): string {
   return html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, "").replace(/<br\s*\/?>|<\/p>|<\/div>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
-}
-
-/** What the person wrote now: the text above the quoted message ("On … wrote:", "> …", "-----Original Message-----",
- * the German "Am … schrieb") and above a signature ("-- "), at most 5,000 characters. */
-export function newText(text: string): string {
-  const out: string[] = [];
-  for (const line of String(text).replace(/\r\n?/g, "\n").split("\n")) {
-    if (/^>/.test(line) || /^-- ?$/.test(line) || /^-{2,}\s*(Original Message|Ursprüngliche Nachricht)/i.test(line) || /^(On|Am) .+ (wrote|schrieb)\b.*:\s*$/i.test(line) || /^From: .+/i.test(line) && out.length > 0) break;
-    out.push(line);
-  }
-  return out.join("\n").trim().slice(0, 5000);
 }
 
 /** Whether one more message may be counted against this key this hour, and counts it if so. A database that does not
