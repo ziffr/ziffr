@@ -8,7 +8,7 @@ The owner agreed on 2026-11-27 to build this, with decision 2 as written here, a
 
 1. **What the setting offers, and its default.** Recommended: **Ask for a note** with **Always** (whenever only a number came in), **Only when off target or unusual** and **Never**; the default is **Always**, for existing Metrics too. Context: the question is a line in a confirmation Ziffr already shows or sends, so asking creates no extra email.
 2. **How a later reply is read.** Agreed: once a person's value is in, only a number standing alone changes it, and any other words are the note. Where those words hold one other number, Ziffr also offers it: "reply yes". Context: this changes today's behaviour, where "actually 45" overwrites or adds to the value, but a note such as "3 deals slipped" must never become the value unless the person says so. Rules read the reply; no model guesses.
-3. **How several figures are answered by text.** Recommended: one line each ("1: 45"), and plain numbers in order only when there is exactly one for every open figure; anything else is asked back. Context: guessing which figure a number belongs to would record wrong numbers without a sound.
+3. **How several figures are answered by text.** Recommended: one line each ("1: 45"), and plain numbers in order only when there is exactly one for every figure the message numbered, those answered or closed meanwhile included, whose numbers are then skipped; anything else is asked back, a lone number with one figure still open too. Context: guessing which figure a number belongs to would record wrong numbers without a sound.
 4. **One link for all figures.** Recommended: the one message carries one link that opens a form for exactly those figures without sign-in, for 30 days. Context: a forwarded message then opens several figures, where today's form link opens one.
 5. **Notes after Approval or Lock.** Recommended: a note may still be added or corrected, is marked "added later", and starts no new Approval. Context: the value is recorded at once, so the note often arrives after the Approver was asked.
 6. **Who may write a note.** Recommended: whoever sent the value (their own), and the Metric Owner and Editors (any period, Derived Metrics and Totals included); Approvers and Viewers read it. Context: the Approver already has the Thread for questions, and one clear author keeps the note trustworthy.
@@ -221,7 +221,7 @@ One pure function reads every text reply, for single and Combined Prompts.
 
 - A reply is a **Breakdown** when its first value line is a labelled row and there are at least two rows, or when a lone number is followed only by at least two rows that add up to it. Lines after the rows are the note. Otherwise lines under a lone number are the note.
 
-**The first reply, several figures.** A value line is "1: 45" or the Metric's full name, a colon and a number that stands alone (unit, currency or percent sign allowed). Lines under it are its note. Without any such line, number-only lines are taken in order, only if there are exactly as many as open figures (decision 3). Each figure read clearly is recorded; the rest are listed as still open. The confirmation names every figure, value and saved note.
+**The first reply, several figures.** A value line is "1: 45" or the Metric's full name, a colon and a number that stands alone (unit, currency or percent sign allowed). Lines under it are its note. Without any such line, number-only lines are taken in order, only if there are exactly as many as the figures the message numbered, closed and answered ones included (decision 3); a number that falls on one of those is skipped, and the answer says so. Any other count records nothing and asks which figure each number is for. Each figure read clearly is recorded; the rest are listed as still open. The confirmation names every figure, value and saved note.
 
 **A later reply,** once this person's value for the Prompt's period is in, by whichever way (decision 2):
 
@@ -234,6 +234,7 @@ One pure function reads every text reply, for single and Combined Prompts.
 | Nothing left | Nothing |
 
 - Before a value is in, words alone are not a note: they are refused as today.
+- In a message with several figures, a number alone changes a value only with its figure in front ("1: 45"), or as part of the full set in order (decision 3).
 
 **The offer.** Rules never guess whether words holding a number correct the value or explain it, so Ziffr asks the person.
 

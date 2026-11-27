@@ -199,7 +199,7 @@ export async function sendMail(mail: OutgoingMail, workspaceId: string | null, t
   const settings = await settingsInEffect();
   if (!mailEnabled(settings)) throw new Error("Email is not set up.");
   if (!isAddress(mail.to)) throw new Error("Not one plain email address.");
-  return (await transport(composed({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text), ...(mail.html ? { html: mail.html } : {}), ...(mail.logo ? { logo: mail.logo } : {}), ...(mail.fromName ? { fromName: mail.fromName } : {}), ...(mail.unsubscribe ? { unsubscribe: mail.unsubscribe } : {}), ...(mail.action ? { action: mail.action } : {}) }))).messageId;
+  return (await transport(composed({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text), ...(mail.html ? { html: mail.html } : {}), ...(mail.logo ? { logo: mail.logo } : {}), ...(mail.fromName ? { fromName: mail.fromName } : {}), ...(mail.replyTo ? { replyTo: mail.replyTo } : {}), ...(mail.unsubscribe ? { unsubscribe: mail.unsubscribe } : {}), ...(mail.action ? { action: mail.action } : {}) }))).messageId;
 }
 
 /** Whether replies by email come back into Ziffr with these settings (spec 0004, ticket #73): sending works,
