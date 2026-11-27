@@ -163,6 +163,7 @@ ZIFFR_ADMIN_URL=https://admin.example.com
 With it set:
 
 - the pages and their actions answer only a request whose `Host` header names that host; on `ZIFFR_SITE_URL` they are "not found";
+- unusual host spellings of either name, such as one with a closing dot, are refused;
 - the Admin Address serves signing in and those pages, and nothing else of Ziffr;
 - sign-in links asked for there lead back there. You sign in there separately, as the session belongs to the address.
 
