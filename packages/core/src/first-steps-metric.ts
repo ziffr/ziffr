@@ -1,5 +1,5 @@
 // First Steps' clean slate through the core (spec 0067; GLOSSARY: First Steps, Metric, Metric Catalog, Dashboard): the
-// Owner's first Metric, picked from the catalog or defined by name, unit and how often, put on a dashboard named after
+// Owner's first Metric, picked from the catalog or defined by name, unit, how often and Polarity, put on a dashboard named after
 // the Workspace and kept as the guide's first Metric. It asks nobody: no Submitter, so no Token and no message. Nothing
 // calculated is accepted. What the browser sends is untrusted and checked here. Only the Owner of a Workspace First
 // Steps made may make one.
@@ -7,7 +7,7 @@ import { type Actor, Forbidden, Refused } from "./actor";
 import { createDashboard, placeWidget } from "./dashboards";
 import { db } from "./db";
 import { ownersFirstSteps } from "./first-steps";
-import { FIRST_METRIC_NAME_FIELD, OWN_PERIODS, OWN_UNITS, SUGGESTED_PERIODS, type FirstMetricPick, type OwnUnit } from "./first-steps-screens";
+import { FIRST_METRIC_NAME_FIELD, OWN_PERIODS, OWN_POLARITIES, OWN_UNITS, SUGGESTED_PERIODS, type FirstMetricPick, type OwnUnit } from "./first-steps-screens";
 import { createMetric, type MetricInput } from "./metrics";
 import { metricCatalog } from "./page-data";
 import { HIDDEN_CHARACTERS } from "./profile";
@@ -30,7 +30,8 @@ const OWN: Record<OwnUnit, Pick<MetricInput, "format" | "unit" | "unitPosition" 
   hours: { format: "number", unit: "h", unitPosition: "after", decimals: 1, aggregation: "sum" },
 };
 
-/** The pick from untrusted input: a catalog id, with how often where one was chosen, or a name, a unit and how often. */
+/** The pick from untrusted input: a catalog id, with how often where one was chosen, or a name, a unit, how often and which way
+ * is good. */
 export function checkFirstMetric(input: unknown): FirstMetricPick {
   const again = () => new FirstMetricRefused("Pick a suggestion or define your own.");
   if (!input || typeof input !== "object" || Array.isArray(input)) throw again();
@@ -44,7 +45,7 @@ export function checkFirstMetric(input: unknown): FirstMetricPick {
     if (!chosen) throw new FirstMetricRefused("Pick how often.");
     return { catalogId: id, period: chosen };
   }
-  if (!only("name", "unit", "period")) throw again();
+  if (!only("name", "unit", "period", "polarity")) throw again();
   // The length is bounded before any work on the text.
   const long = () => new FirstMetricRefused(`Keep the name to ${FIRST_METRIC_NAME_FIELD} characters.`);
   if (typeof raw.name !== "string") throw new FirstMetricRefused("Give the metric a name.");
@@ -57,7 +58,9 @@ export function checkFirstMetric(input: unknown): FirstMetricPick {
   if (!unit) throw new FirstMetricRefused("Pick a unit.");
   const period = OWN_PERIODS.find((p) => p === raw.period);
   if (!period) throw new FirstMetricRefused("Pick how often.");
-  return { name, unit, period };
+  const polarity = OWN_POLARITIES.find((p) => p === raw.polarity);
+  if (!polarity) throw new FirstMetricRefused("Pick which way is good.");
+  return { name, unit, period, polarity };
 }
 
 // What createMetric gets for a pick. From the catalog, an entry's description of the number is taken and its target is
@@ -65,7 +68,7 @@ export function checkFirstMetric(input: unknown): FirstMetricPick {
 // How often is the entry's, except that a monthly one is kept as chosen on the screen.
 // Neither kind names Sources, Submitters or a Workflow, so every Source is open and nobody is asked.
 async function inputFor(actor: Actor, pick: FirstMetricPick): Promise<MetricInput> {
-  if (!("catalogId" in pick)) return { name: pick.name, period: pick.period, submissionRule: "overwrite", polarity: "higher", ...OWN[pick.unit] };
+  if (!("catalogId" in pick)) return { name: pick.name, period: pick.period, submissionRule: "overwrite", polarity: pick.polarity, ...OWN[pick.unit] };
   // The catalog as this Workspace has it, so another Workspace's entry and a calculated one are not there to pick.
   const entry = ((await metricCatalog(actor)) as unknown as CatalogMetric[]).find((c) => c.id === pick.catalogId);
   if (!entry) throw new FirstMetricRefused("That suggestion is not available. Pick another one.");

@@ -64,7 +64,7 @@ Before the Workspace exists, your answers are kept in this browser only: reloadi
 ### A ready-made set or a clean slate
 
 - **A ready-made set** is a [Pack](19-packs.md): Metrics, a dashboard and reminders for your kind of work. **Choose a ready-made set** shows the three that fit you best, and all of them on request. A set shows its dashboard drawn with sample numbers. **Use this set** opens its [guided set-up](19-packs.md#use-this-pack); nothing is installed before you press **Set it up**.
-- **A clean slate** asks for your first metric, one number you follow over time. Choose how often, **Weekly** (suggested) or **Monthly**, and pick one of the suggestions, or **Define your own** with a name, a unit and how often. Ziffr makes the Metric and a dashboard that shows it.
+- **A clean slate** asks for your first metric, one number you follow over time. Choose how often, **Weekly** (suggested) or **Monthly**, and pick one of the suggestions, or **Define your own** with a name, a unit, how often, and under **Which way is good?** whether **Higher** (chosen already) or **Lower** is better, as for costs or complaints. A suggestion brings its own answer. Ziffr makes the Metric and a dashboard that shows it.
 
 ### Your first value
 
