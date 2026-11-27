@@ -34,6 +34,7 @@ Everything under `byHand` is yours. Every word is written in lower case. An apos
 | `fiscalYear` | Words before a Fiscal Year ("exercice 2026/27") | `["exercice", "fy"]` |
 | `ordinal` | What follows a number to make it an ordinal | `["e", "er", "ème"]` |
 | `dateWords` | Words between a day, its month and its year | Spanish `["de"]` for "12 de noviembre de 2026" |
+| `reply` | The words a text reply is read with (spec 0064): `yes` (takes an offer; never "ok" or thanks) and `no` (a refusal or thanks), both the whole reply; `greetings` (how a greeting line starts); `closings` (a line that closes an email); `sentFrom` (the line a mail app adds, with "…" for the device). Each without the punctuation it ends in | `{ yes: ["oui"], no: ["non", "merci"], greetings: ["bonjour"], closings: ["cordialement"], sentFrom: ["envoyé de mon …"] }` |
 
 Leave out number words ("deux", "a dozen"): "one of our customers" would otherwise hold a value.
 

@@ -47,5 +47,12 @@ export const en: AnswerWords = {
     fiscalYear: ["fy"],
     ordinal: ["st", "nd", "rd", "th"],
     dateWords: ["of"],
+    reply: {
+      yes: ["yes", "yes please", "yes, please"],
+      no: ["no", "no thanks", "no, thanks", "no thank you", "no, thank you", "nope", "thanks", "thank you", "thanks a lot", "many thanks", "thx"],
+      greetings: ["hi", "hello", "hey", "dear", "good morning", "good afternoon", "good evening"],
+      closings: ["best", "best regards", "kind regards", "warm regards", "regards", "best wishes", "all the best", "many thanks", "thanks", "thank you", "thanks and regards", "cheers", "sincerely", "yours sincerely", "br"],
+      sentFrom: ["sent from my …", "get outlook for …"],
+    },
   },
 };
