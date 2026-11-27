@@ -205,7 +205,7 @@ From now on, Ziffr sends the Prompts by itself. Each person chooses under **Your
 
 ### Build a dashboard
 
-Go to **Dashboards** and choose **Create dashboard**. Start from a Dashboard Template, such as **Overview**, and fill its Slots with your Metrics, or start empty and drag Metrics from the **Pool** on the side. Each Metric can be drawn in different ways; pick the Widget Template that tells its story best.
+Go to **Dashboards** and choose **Create dashboard**. Start from a Dashboard Template, such as **Overview**, and fill its Slots with your Metrics, or start empty and press **Add widget**: pick a Metric and drag the way of showing it that tells its story best onto the dashboard, or press **+**.
 
 Give the dashboard an introduction, then **Share** it with a Group. Everyone you share it with can see the Metrics on it. Choose your **Home** dashboard, the one Ziffr opens on.
 

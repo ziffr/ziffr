@@ -49,6 +49,7 @@ This is the state when the rule was written. Later tickets of spec 0050 move the
 | Versions of a team template | `template-menu.tsx` |
 | Save as template (widget, slide layout, Deck Template, dashboard) | `save-template-dialog.tsx`, `save-dashboard-template-dialog.tsx` |
 | Add to deck | `add-to-deck-dialog.tsx` |
+| Add widget on a dashboard, below 1024 px (wider screens: a column of the page, so cards can be dragged onto the dashboard) | `add-widget.tsx` |
 
 Share, Who can see this and View Links open on top of one another with a **Back** button, so Share can lead to Who can see this and View Links and back. None of the three asks for a confirmation: revoking a View Link and answering a request for access act at once and can be undone by making the link again or granting later.
 
