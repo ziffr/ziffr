@@ -15,10 +15,11 @@ import type { Pack } from "./pack.js";
 export const PACK_POSITION_LIMITS = { positions: 20, repeats: 5, name: 60, lines: 50, people: 20 } as const;
 
 /** A named place that people fill when the Pack is set up (GLOSSARY: Position); `per` names the Repeat it belongs to,
- * so that each line has its own. */
-export type PackPosition = { key: string; name: string; people: "one" | "several"; per?: string };
-/** A part of a Pack made once for each line of a list (GLOSSARY: Repeat); `max` is the most lines it takes. */
-export type PackRepeat = { key: string; name: string; max?: number };
+ * so that each line has its own. In ziffr.pack/3, `question` and `hint` are what asks for its holder. */
+export type PackPosition = { key: string; name: string; people: "one" | "several"; per?: string; question?: string; hint?: string };
+/** A part of a Pack made once for each line of a list (GLOSSARY: Repeat); `max` is the most lines it takes. In
+ * ziffr.pack/3, `question` is asked above the lines. */
+export type PackRepeat = { key: string; name: string; max?: number; question?: string };
 
 const L = PACK_POSITION_LIMITS;
 const named = { ...plainText(L.name), minLength: 1 };

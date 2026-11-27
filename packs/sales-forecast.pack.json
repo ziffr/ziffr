@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/2",
+  "format": "ziffr.pack/3",
   "id": "ziffr/sales-forecast",
   "name": "Sales forecast",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "summary": "A weekly sales forecast for a team: each salesperson's commit, best case, closed this quarter and pipeline, the team's figures added up, the gap to quota and pipeline coverage worked out, a dashboard and a deck for the weekly meeting and a Workflow that asks on Monday and has the sales lead approve.",
   "author": {
     "name": "Ziffr"
@@ -16,6 +16,18 @@
   },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "A weekly forecast meeting, prepared for you.",
+    "happens": [
+      "Monday: your salespeople are asked for their figures",
+      "The sales lead approves them",
+      "The dashboard and meeting slides fill in"
+    ],
+    "needs": [
+      "Names and email addresses of your salespeople",
+      "Their quotas (can come later)"
+    ]
   },
   "guide": {
     "whatItsFor": [
@@ -277,6 +289,11 @@
         "key": "commit",
         "comesFrom": {
           "by": "person"
+        },
+        "ask": {
+          "question": "What is each quota this quarter?",
+          "name": "Quota",
+          "every": "quarter"
         },
         "metric": {
           "format": "ziffr.metric/2",
@@ -2213,7 +2230,9 @@
     {
       "key": "sales-lead",
       "name": "Sales lead",
-      "people": "one"
+      "people": "one",
+      "question": "Who approves the figures?",
+      "hint": "This person checks the numbers each week and sees the whole team."
     },
     {
       "key": "seller",
@@ -2226,7 +2245,8 @@
     {
       "key": "rep",
       "name": "Salesperson",
-      "max": 30
+      "max": 30,
+      "question": "Who is in your sales team?"
     }
   ]
 }
