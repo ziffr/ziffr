@@ -1,13 +1,15 @@
 "use client";
 // The list of the methods panel (GLOSSARY: Analysis Canvas, Method; spec 0041, ticket 16; the owner's words of 2026-11-24): the
 // questions grouped by what a person wants to know, as headings only. What fits the canvas comes first. A question that cannot work on the
-// canvas as it is stays in the list, greyed, with the reason in one line beside it: never silently missing. Choosing a title opens it
+// canvas as it is stays in the list, greyed, with the reason in one line beside it (where history is short, how close it is): never silently
+// missing. Choosing a title opens it
 // in place: what it is, Use it when / Don't use it when, and (as `children`) the fields for its settings. Only what the core gave for
 // this person is shown (it names no Metric they may not see).
 import { ChevronRight, Lock } from "lucide-react";
 import type { ReactNode } from "react";
 import type { EntryView, PickerList } from "@ziffr/core/analysis-picker";
 import { cn } from "@/lib/utils";
+import { ShortHelp } from "./short-help";
 
 /** What a Method is and when to use it: plain text a person reads once they have chosen it. */
 function EntryDetails({ e }: { e: EntryView }) {
@@ -43,9 +45,10 @@ function EntryRow({ e, open, onPick, children }: { e: EntryView; open: boolean; 
           : <Lock aria-hidden className="mt-0.5 size-3 shrink-0 text-muted-foreground" />}
         <span className="min-w-0 flex-1">
           <span dir="auto" className={cn("break-words", ok ? "font-medium text-foreground" : "font-medium")}>{e.name}</span>
-          {!e.fit.ok && <span dir="auto" className="block break-words text-xs text-foreground/80" role="note"><span className="font-medium">Not now.</span> {e.fit.reason}</span>}
+          {!e.fit.ok && <span dir="auto" className="block break-words text-xs text-foreground/80" role="note">{e.short ? e.short.words : <><span className="font-medium">Not now.</span> {e.fit.reason}</>}</span>}
         </span>
       </button>
+      {!ok && <ShortHelp entry={e} />}
       {ok && open && <div id={panel} className="space-y-3 border-t border-[var(--color-rule-2)] p-2.5"><EntryDetails e={e} />{children}</div>}
     </li>
   );

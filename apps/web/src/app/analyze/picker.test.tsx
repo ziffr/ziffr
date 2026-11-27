@@ -17,6 +17,8 @@ let answer: PickerRun;
 let canvas: CanvasFact[] = [];
 const saved = vi.fn(async (source: unknown, name: string) => { void source; void name; return {}; });
 vi.mock("server-only", () => ({}));
+// The picker offers Fill past periods, whose actions are the server's.
+vi.mock("@/app/paste-actions", () => ({ pasteTemplateFile: vi.fn() }));
 vi.mock("@/app/picker-actions", () => ({
   pickerList: async (ids: number[]) => { asked.push(ids); return listFor(canvas); },
   pickerRun: async (request: unknown) => { ran.push(request); return answer; },
