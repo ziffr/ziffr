@@ -40,7 +40,8 @@ export function GuidedFrame({ steps, current, answers, ways, onBack, wide, child
   const within = current >= 0 && current < steps.length;
   return (
     <div className="flex min-h-svh flex-col bg-background md:flex-row">
-      <aside className="hidden w-64 shrink-0 flex-col gap-6 border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:flex">
+      {/* It stays in view beside a long screen, so the ways out are always at its foot. */}
+      <aside className="sticky top-0 hidden h-svh w-64 shrink-0 flex-col gap-6 overflow-y-auto border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:flex">
         <Brand />
         <ol className="space-y-1 text-sm">
           {steps.map((name, i) => (

@@ -4,10 +4,9 @@
 // happens and what the person needs. For one of Ziffr's own Packs it is the Pack's Preview as the Packs page shows it,
 // with the button in Install's place. The drawing holds made-up numbers only, never the Workspace's.
 import { useMemo } from "react";
-import Link from "next/link";
 import { ScreenHeading } from "@/app/first-steps/parts";
 import { PackPreviewView } from "@/app/settings/packs/preview-view";
-import { PHONE_ACTIONS, PHONE_BUTTON, PHONE_TEXT_LINK } from "@/app/setup/phone";
+import { PHONE_ACTIONS, PHONE_BUTTON } from "@/app/setup/phone";
 import { DashboardTemplatePreview } from "@/components/preview";
 import { SlidesPreview } from "@/components/slide-preview";
 import { Button } from "@/components/ui/button";
@@ -64,12 +63,13 @@ export function PreviewScreen({ step, view, drawing, drawn, viewer, numberStyle,
   const drawingNode = drawing && <PackDrawing drawing={drawing} viewer={viewer} numberStyle={numberStyle} />;
   const actions = (
     <div className="space-y-5">
-      {unfinished && !blocked && <p className={NOTE}>You started this before. Made so far: {namesWords(unfinished)}. Going on makes only what is missing. Keep the same names on your lists.</p>}
+      {unfinished && !blocked && <p className={NOTE}>You started this before. Made so far: {namesWords(unfinished)}. To finish it, name the same people as before; only what is missing is made.</p>}
       {blocked && <p role="alert" className={NOTE}>{blocked}</p>}
       {!step.setsUp && !blocked && <p className={NOTE}>There is nothing to set up: this Pack is in your Workspace.</p>}
       <div className={PHONE_ACTIONS}>
         {step.setsUp && <Button type="button" className={`${PHONE_BUTTON} sm:px-6`} disabled={blocked !== null} onClick={onUse}>{unfinished ? "Finish setting up" : "Use this pack"}</Button>}
-        <Link href={exit} className={`${PHONE_TEXT_LINK} justify-center self-center text-sm`}>All packs</Link>
+        {/* A plain link: the app around the Packs page is not drawn here, so it is loaded anew. */}
+        <a href={exit} className="inline-flex min-h-11 items-center justify-center text-sm underline underline-offset-4 sm:min-h-9">All packs</a>
       </div>
       <Lines title={step.heading} items={step.happens} />
       <Lines title="You need" items={step.needs} />

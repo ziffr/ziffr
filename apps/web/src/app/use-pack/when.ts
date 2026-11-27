@@ -23,18 +23,23 @@ function periodDays(period: Period): { words: string; days: AskingDays } {
 export function askedWhen(plan: Pick<StartPlan, "metrics">, declarations: Pick<StartDeclarations, "metrics">, clock: SetUpClock): string[] {
   const periodOf = new Map(declarations.metrics.map((m) => [m.key, m.period]));
   const out = new Set<string>();
+  const byPack = new Set<Period>();
   for (const m of plan.metrics) {
     const period = periodOf.get(m.key);
     if (!m.submitters.length || !period) continue;
-    if (m.workflow === "pack") {
-      const run = clock.todayRan ? addDaysTo(clock.today, 1) : clock.today;
-      out.add(`After each ${period} ends, from the daily run on ${formatDate(run)}, ${hourWords(clock)}.`);
-    } else {
+    if (m.workflow === "pack") byPack.add(period);
+    else {
       const { words, days } = periodDays(period);
       // A new schedule never runs for a day that has begun.
       const first = nextAskingDay(days, addDaysTo(clock.today, 1));
       out.add(`${words}, ${hourWords(clock)}${first ? `, first on ${formatDate(first)}` : ""}.`);
     }
+  }
+  if (byPack.size) {
+    const run = clock.todayRan ? addDaysTo(clock.today, 1) : clock.today;
+    const periods = [...byPack].map((p) => `each ${p}`);
+    const ends = periods.length > 1 ? `${periods.slice(0, -1).join(", ")} and ${periods.at(-1)}` : periods[0];
+    out.add(`After ${ends} ends, from the daily run on ${formatDate(run)}, ${hourWords(clock)}.`);
   }
   return [...out];
 }

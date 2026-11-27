@@ -36,6 +36,8 @@ const askedLines = (result: Pick<PackStartResult, "asked">) => result.asked.map(
 export function DoneScreen({ result, declarations, feeds }: Props) {
   const system = new Set(declarations.metrics.filter((m) => m.comesFrom === "system").map((m) => m.key));
   const fromSystem = result.metrics.filter((m) => system.has(m.key));
+  // Those of them somebody provides: choosing a person opens the ways a person answers.
+  const alsoTyped = fromSystem.filter((m) => !result.unasked.some((u) => u.id === m.id));
   const waits = result.asked.some((a) => !a.from);
   const [board, ...boards] = result.dashboards;
   const [deck, ...decks] = result.decks;
@@ -50,6 +52,7 @@ export function DoneScreen({ result, declarations, feeds }: Props) {
         </div>
         <Lines title="Who is asked" items={askedLines(result)} />
         {waits && <p className={NOTE}>Where nothing asks by itself, ask from the Metric&rsquo;s page, or give it a Workflow.</p>}
+        {alsoTyped.length > 0 && <p className={NOTE}>{namesWords(alsoTyped.map((m) => m.name))} can come from a system. Because you chose someone to provide {alsoTyped.length === 1 ? "it" : "them"}, the web form, email, Slack and Telegram are open for {alsoTyped.length === 1 ? "it" : "them"} too.</p>}
         {!result.mail && result.asked.length > 0 && <p className={NOTE}>Email is not set up here, so requests wait in the Outbox.</p>}
         {result.unasked.length > 0 && (
           <section aria-label="Nobody provides these yet" className="space-y-1.5">

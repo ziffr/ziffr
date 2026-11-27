@@ -247,5 +247,7 @@ describe("a Pack without Positions", () => {
     await press("Set it up");
     expect(actions.takeStep.mock.calls[0][0]).toMatchObject({ providers: [], source: "system" });
     expect(host.querySelector('[data-testid="n8n"]')?.textContent).toBe("1/1");
+    // Somebody provides it, so the done screen says which ways that opens.
+    expect(text()).toContain("the web form, email, Slack and Telegram are open for it too.");
   });
 });

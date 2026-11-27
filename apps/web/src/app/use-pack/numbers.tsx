@@ -58,7 +58,7 @@ function Ask({ ask, answers, onChange, rows, rowName, style, unit }: { ask: Numb
         })}
         {ask.total && rows.length > 0 && (
           <li className="flex flex-wrap items-center justify-between gap-x-3 py-3 text-sm font-medium">
-            <span>{ask.total}</span>
+            <span className="min-w-0 break-words">Total for {ask.total}</span>
             <output className="tabular-nums">{unit?.unit && unit.unit_position === "before" ? `${unit.unit} ` : ""}{written}{unit?.unit && unit.unit_position === "after" ? ` ${unit.unit}` : ""}</output>
           </li>
         )}

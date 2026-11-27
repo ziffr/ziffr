@@ -110,7 +110,8 @@ export function PackPreviewView({ preview, viewer, numberStyle, install, use }: 
       <div className="space-y-3 break-words">
         {preview.unsigned
           ? <p className="flex items-start gap-2 rounded-[var(--radius-input)] bg-muted p-2.5"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> {UNSIGNED}</p>
-          : <p className="rounded-[var(--radius-input)] bg-muted p-2.5">{preview.source === "included" ? "One of Ziffr’s own Packs: it comes with this version of Ziffr. Ziffr checked the whole file as well." : "From the Marketplace: its signature holds. Ziffr checked the whole file as well."}</p>}
+          // A guided set-up has said above who publishes it; a warning is the one thing it repeats.
+          : !use && <p className="rounded-[var(--radius-input)] bg-muted p-2.5">{preview.source === "included" ? "One of Ziffr’s own Packs: it comes with this version of Ziffr. Ziffr checked the whole file as well." : "From the Marketplace: its signature holds. Ziffr checked the whole file as well."}</p>}
         {!use && preview.assistantTexts.length > 0 && (
           <div className="rounded-[var(--radius-input)] border border-input p-2.5">
             <p className="font-medium">Words aimed at AI assistants</p>
@@ -144,13 +145,32 @@ export function PackPreviewView({ preview, viewer, numberStyle, install, use }: 
           <PackGuideView guide={manifest.guide} author={manifest.author.name} />
         </details>
       )}
-      <section aria-label="What it brings" className="space-y-4 border-t border-border pt-4">
-        <h3 className="font-semibold">What it brings <span className="fig font-normal text-muted-foreground">{preview.items.length} item{preview.items.length === 1 ? "" : "s"}</span></h3>
+      <Brings closed={Boolean(use)} count={preview.items.length}>
         <PackNumbersView overview={preview.overview} />
         {preview.people && <PackPeopleList people={preview.people} />}
         <PackItems items={preview.items} drawn={use ? use.drawn : dashboard?.key} pack={own} viewer={viewer} numberStyle={numberStyle} width={w ? Math.min(ITEM_WIDTH, w - ITEM_FRAME) : ITEM_WIDTH} />
-      </section>
+      </Brings>
     </div>
+  );
+}
+
+/** What the Pack brings: open on the Preview, closed behind its heading in a guided set-up, which is about the few
+ * questions. */
+function Brings({ closed, count, children }: { closed: boolean; count: number; children: React.ReactNode }) {
+  const heading = <>What it brings <span className="fig font-normal text-muted-foreground">{count} item{count === 1 ? "" : "s"}</span></>;
+  if (closed) {
+    return (
+      <details className="border-t border-border">
+        <summary className="cursor-pointer py-3 font-medium">{heading}</summary>
+        <div className="space-y-4">{children}</div>
+      </details>
+    );
+  }
+  return (
+    <section aria-label="What it brings" className="space-y-4 border-t border-border pt-4">
+      <h3 className="font-semibold">{heading}</h3>
+      {children}
+    </section>
   );
 }
 
