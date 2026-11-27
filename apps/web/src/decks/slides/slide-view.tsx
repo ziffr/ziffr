@@ -40,7 +40,7 @@ function paragraphs(body: TextBody, paint: Paint): ReactNode {
           const style: CSSProperties = { color: r.color && paint.colour(r.color), fontSize: r.size, fontFamily: r.face && paint.font(r.face), fontWeight: r.bold === undefined ? undefined : r.bold ? 700 : 400 };
           // A drawing's links are Ziffr's own (about.ts); nothing but a web address is ever followed.
           return r.href && /^https?:\/\//i.test(r.href) ? (
-            <a key={j} href={r.href} target="_blank" rel="noreferrer" style={{ ...style, textDecoration: "underline" }}>
+            <a key={j} href={r.href} target="_blank" rel="noreferrer" style={{ ...style, color: style.color ?? "inherit", textDecoration: "underline" }}>
               {r.t}
             </a>
           ) : (

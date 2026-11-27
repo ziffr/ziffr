@@ -32,7 +32,7 @@ function block({ pen, measure }: Region, figure: SummaryFigure, x: number, y: nu
   return [
     pen.rect({ x, y, w, h: 2 }, "ink"),
     pen.text({ x, y: y + 8, w, h: 36 }, [name], { size: 14, bold: true, line: 1.25 }),
-    pen.text({ x, y: y + 46, w, h: 52 }, [measure.fit(figure.latest, w, { size, face: "head", bold: true }, 1)], { size, face: "head", bold: true, line: 1.2, valign: "bottom" }),
+    pen.text({ x, y: y + 43, w, h: 58 }, [measure.fit(figure.latest, w, { size, face: "head", bold: true }, 1)], { size, face: "head", bold: true, line: 1.2, valign: "middle" }),
     pen.text({ x, y: y + 102, w, h: 32 }, [when], { size: 12, color: "muted", line: 1.25 }),
     pen.text({ x, y: y + 136, w, h: 18 }, [measure.fit(status, w, { size: 12 }, 1)], { size: 12, bold: figure.onTarget === false, color: figure.onTarget === false ? "bad" : "muted" }),
   ];

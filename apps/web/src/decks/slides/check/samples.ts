@@ -22,7 +22,7 @@ type Made = { name: string; was?: number | null; is?: number | null; /** The val
 
 /** A slide's sample of made-up Metrics, listed in the order given, with their values of two months and their Breakdowns. */
 function listing(made: Made[], options: Record<string, unknown> = {}, more: Partial<CanvasData> = {}): Sample {
-  const metrics = made.map((m, i) => ({ id: i + 1, slug: `m${i + 1}`, name: m.name, formula: null, polarity: "higher", period: "month", decimals: 1, unit: "€", unit_position: "after", ...m.more }) as Metric);
+  const metrics = made.map((m, i) => ({ id: i + 1, slug: `m${i + 1}`, name: m.name, formula: null, polarity: "higher", period: "month", decimals: 1, unit: "€", unit_position: "after", target_min: null, target_max: null, ...m.more }) as Metric);
   const dated = (m: Made) => m.past?.map((value, i) => [MONTHS[MONTHS.length - m.past!.length + i]!, value] as const) ?? ([[BEFORE, m.was], [NOW, m.is]] as const);
   const points = (m: Made) => dated(m).flatMap(([period, value]) => (typeof value === "number" ? [{ period: period as string, value }] : []));
   const rows = (m: Made) => Object.fromEntries([[BEFORE, m.rowsBefore], [NOW, m.rows]].filter(([, list]) => list));

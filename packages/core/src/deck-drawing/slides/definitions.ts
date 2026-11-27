@@ -6,7 +6,7 @@ import type { Measure } from "../measure";
 import type { Metric } from "../../types";
 import type { Region, SlideType } from "../slide-type";
 import { listedData, nameOf, NOT_THERE, sourceOf } from "./listed";
-import { FOOT, pagesOf, rowsShown, tableCell } from "./rows";
+import { FOOT, pagesOf, rowsShown } from "./rows";
 
 /** One Metric's row. */
 export type Definition = { name: string; description: string; calculated: string };
@@ -14,12 +14,14 @@ export type Definition = { name: string; description: string; calculated: string
 /** What a definitions slide shows. `rows` are those of this slide, from row `from` of `of`. */
 export type DefinitionsContent = { rows: Definition[]; from: number; of: number };
 
-const HEAD = 36;
+const HEAD = 32;
 const NAME = 220;
+const GAP = 24;
 const SIZE = 13;
-/** The most lines one cell takes, so that one row always fits a slide. */
+/** The most lines one column of a row takes, so that one row always fits a slide. */
 const MOST = 10;
 const REST = "The rest is in Ziffr.";
+const HEADINGS = ["Metric", "What it is", "How it is calculated"];
 
 /** How a Metric is calculated, in the words written for it or, without any, what Ziffr itself knows. */
 function howCalculated(metric: Metric) {
@@ -29,24 +31,27 @@ function howCalculated(metric: Metric) {
   return metric.formula ? "Calculated from a formula." : "No calculation described.";
 }
 
-/** The two columns of words, which share what the name leaves. */
-const columns = (w: number) => [NAME, (w - NAME) / 2, (w - NAME) / 2];
-
-/** The lines a cell's words take. */
-const linesOf = (measure: Measure, words: string, width: number) => measure.wrap(words, width - 16, { size: SIZE });
-
-/** Words cut to what a cell holds, saying where the rest is. */
-function held(measure: Measure, words: string, width: number) {
-  const plain = words.replace(/\s+/g, " ").trim();
-  const lines = linesOf(measure, plain, width);
-  return lines.length <= MOST ? plain : `${lines.slice(0, MOST - 2).join(" ")} ${REST}`;
+/** The three columns: the name, and two of words, which share what the name leaves. */
+function columns(x: number, w: number) {
+  const each = (w - NAME - 2 * GAP) / 2;
+  return [
+    { x, w: NAME },
+    { x: x + NAME + GAP, w: each },
+    { x: x + NAME + 2 * GAP + each, w: each },
+  ];
 }
 
-/** A row's cells as they are written, and the height they need. */
-function set({ w, measure }: Region, row: Definition) {
-  const words = [row.name, row.description, row.calculated].map((text, i) => held(measure, text, columns(w)[i]!));
-  const lines = Math.max(...words.map((text, i) => Math.min(MOST, linesOf(measure, text, columns(w)[i]!).length)));
-  return { words, height: Math.max(36, Math.ceil(lines * SIZE * 1.2) + 14) };
+/** Words broken into the lines of a column, cut to what a row holds, saying where the rest is. */
+function held(measure: Measure, words: string, width: number, bold: boolean) {
+  const lines = measure.wrap(words.replace(/\s+/g, " ").trim(), width, { size: SIZE, bold });
+  return lines.length <= MOST ? lines : [...lines.slice(0, MOST - 1), REST];
+}
+
+/** A row's words as they are written, and the height they need. */
+function set({ x, w, measure }: Region, row: Definition) {
+  const cells = [row.name, row.description, row.calculated].map((words, i) => held(measure, words, columns(x, w)[i]!.w, i === 0));
+  const tall = Math.ceil(Math.max(...cells.map((lines) => lines.length)) * SIZE * 1.35);
+  return { cells, tall, height: tall + 18 };
 }
 
 /** The definitions. */
@@ -73,22 +78,21 @@ export const definitions: SlideType<DefinitionsContent> = {
       return page;
     });
   },
-  /** The table and, where it goes on, which rows these are. */
+  /** The headings, each Metric over a rule and, where it goes on, which rows these are. */
   draw(content, region) {
-    const { x, y, w, pen, measure } = region;
-    const cols = columns(w);
-    const rows = content.rows.map((row) => set(region, row));
-    const table = pen.table(
-      x,
-      y,
-      cols,
-      [
-        { h: HEAD, header: true, cells: ["Metric", "What it is", "How it is calculated"].map((words, i) => tableCell(measure, words, cols[i]!, { header: true })) },
-        ...rows.map((row) => ({ h: row.height, cells: row.words.map((words, i) => tableCell(measure, words, cols[i]!, { lines: MOST })) })),
-      ],
-      "What each Metric is and how it is calculated",
-    );
-    const under = y + HEAD + rows.reduce((sum, row) => sum + row.height, 0) + 4;
-    return [table, ...rowsShown(pen, { x, y: under, w }, content.from, content.rows.length, content.of)];
+    const { x, y, w, pen } = region;
+    const cols = columns(x, w);
+    const head = HEADINGS.map((words, i) => pen.text({ ...cols[i]!, y, h: 18 }, [words], { size: 12, bold: true, color: "muted" }));
+    let top = y + HEAD;
+    const rows = content.rows.flatMap((row) => {
+      const { cells, tall, height } = set(region, row);
+      const objects = [
+        pen.rect({ x, y: top - 6, w, h: 1 }, "rule"),
+        ...cells.map((lines, i) => pen.text({ ...cols[i]!, y: top + 2, h: tall }, [lines.join("\n")], { size: SIZE, bold: i === 0, line: 1.35 })),
+      ];
+      top += height;
+      return objects;
+    });
+    return [...head, ...rows, ...rowsShown(pen, { x, y: top, w }, content.from, content.rows.length, content.of)];
   },
 };

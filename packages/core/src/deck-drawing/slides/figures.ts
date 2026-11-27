@@ -128,7 +128,7 @@ export function trendOf(metric: Metric, data: CanvasData, options: ChartOptions)
   if (options.target) {
     const aims = periods.map((p) => {
       const t = targetFor(metric, p, data.targets[metric.id]);
-      const aim = t.value ?? t.min ?? t.max;
+      const aim = t.value ?? t.min ?? t.max ?? null;
       return aim === null ? null : Number(aim);
     });
     if (aims.some((a) => a !== null)) {

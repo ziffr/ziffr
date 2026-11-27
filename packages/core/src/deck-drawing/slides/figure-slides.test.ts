@@ -39,7 +39,7 @@ const deckOf = (slides: DeckDrawingInput["slides"], from: CanvasData, more: Part
   );
 const cells = (objects: Obj[]) => flatten(objects).flatMap((o) => (o.type === "table" ? o.rows.flatMap((r) => r.cells.flatMap((c) => c.body.paras.flatMap((p) => p.runs))) : []));
 /** Every word of each slide, those in tables too. */
-const words = (drawn: ReturnType<typeof deckOf>) => drawn.slides.map((s) => [text(s.objects), ...cells(s.objects).map((run) => run.t.replaceAll("\n", " "))].join(" "));
+const words = (drawn: ReturnType<typeof deckOf>) => drawn.slides.map((s) => [text(s.objects), ...cells(s.objects).map((run) => run.t)].join(" ").replaceAll("\n", " "));
 const links = (drawn: ReturnType<typeof deckOf>) => drawn.slides.flatMap((s) => cells(s.objects).flatMap((run) => run.href ?? []));
 
 describe.each([summary, chartSlide, table, definitions] as SlideType[])("a $id slide", (type) => {
