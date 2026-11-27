@@ -29,7 +29,7 @@ const count = (n: number, one: string, many = `${one}s`) => (n === 0 ? null : `$
 const together = (parts: string[]) => (parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0] ?? "Nothing");
 
 /** The rows of the summary: what each question was answered with, as the plan reads it. */
-export function summaryRows(steps: StartStep[], plan: StartPlan, answers: Answers, declarations: StartDeclarations, clock: SetUpClock): [string, string][] {
+function summaryRows(steps: StartStep[], plan: StartPlan, answers: Answers, declarations: StartDeclarations, clock: SetUpClock): [string, string][] {
   const nameOf = (ref: string) => (ref === "me" ? "You" : plan.people.find((p) => p.ref === ref)?.name ?? "");
   const names = (refs: string[]) => refs.map(nameOf).join(", ");
   const rows: [string, string][] = [];

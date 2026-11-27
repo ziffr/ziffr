@@ -26,7 +26,7 @@ const OPEN = cn(buttonVariants({ variant: "default" }), "h-11 w-full sm:h-9 sm:w
 const ALSO = cn(buttonVariants({ variant: "outline" }), "h-11 w-full sm:h-9 sm:w-auto");
 
 /** One line for each person asked: how many numbers, and from when. */
-export const askedLines = (result: Pick<PackStartResult, "asked">) => result.asked.map((a) => {
+const askedLines = (result: Pick<PackStartResult, "asked">) => result.asked.map((a) => {
   const who = a.you ? "You" : a.name;
   const when = a.from ? `asked from ${formatDate(a.from)}` : "nothing asks by itself";
   return `${who}: ${count(a.metrics.length)}, ${when}.`;

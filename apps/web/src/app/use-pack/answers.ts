@@ -70,7 +70,7 @@ export function startAnswers(steps: StartStep[], room: StartRoom): Answers {
 const blankPerson = (p: PersonDraft) => (p.who === "new" ? !p.name.trim() && !p.email.trim() : p.who === "here" ? !p.here : false);
 
 /** Whether a line holds nothing: such a line is not sent. */
-export function blankLine(step: LinesStep, line: LineDraft): boolean {
+function blankLine(step: LinesStep, line: LineDraft): boolean {
   const named = step.asksName && line.name.trim() !== "";
   const person = step.person !== null && !blankPerson(line.person);
   const others = step.others.some((o) => { const p = line.others[o.position]; return p !== undefined && p.who !== "me" && !blankPerson(p); });
@@ -141,7 +141,7 @@ export const eligible = (people: StartPickable[], places: Iterable<Place>) => {
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** What is missing about one typed person, or null. `of` says whose, such as "line 2". */
-export function personProblem(p: PersonDraft, of: string): string | null {
+function personProblem(p: PersonDraft, of: string): string | null {
   if (p.who === "me") return null;
   if (p.who === "here") return p.here ? null : `Pick a person for ${of}.`;
   const name = p.name.trim();

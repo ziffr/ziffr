@@ -27,7 +27,7 @@ const STACKED_WIDGETS = 3;
 type Look = { viewer: string; numberStyle: NumberStyle };
 
 /** What the Pack draws before it is set up: its dashboard, or else its deck's first slides. */
-export function PackDrawing({ drawing, viewer, numberStyle }: Look & { drawing: PackStartDrawing }) {
+function PackDrawing({ drawing, viewer, numberStyle }: Look & { drawing: PackStartDrawing }) {
   const [box, { w }] = useBoxSize<HTMLDivElement>();
   const own = useMemo(() => packSample(drawing.sample.pack, drawing.sample.metrics), [drawing.sample]);
   const { dashboard, deck } = drawing;
@@ -64,7 +64,7 @@ export function PreviewScreen({ step, view, drawing, drawn, viewer, numberStyle,
   const drawingNode = drawing && <PackDrawing drawing={drawing} viewer={viewer} numberStyle={numberStyle} />;
   const actions = (
     <div className="space-y-5">
-      {unfinished && !blocked && <p className={NOTE}>You started this before. Made so far: {namesWords(unfinished)}. Going on makes only what is missing.</p>}
+      {unfinished && !blocked && <p className={NOTE}>You started this before. Made so far: {namesWords(unfinished)}. Going on makes only what is missing. Keep the same names on your lists.</p>}
       {blocked && <p role="alert" className={NOTE}>{blocked}</p>}
       {!step.setsUp && !blocked && <p className={NOTE}>There is nothing to set up: this Pack is in your Workspace.</p>}
       <div className={PHONE_ACTIONS}>
