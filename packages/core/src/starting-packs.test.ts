@@ -34,13 +34,38 @@ describe("the starting Packs", () => {
     const res = checkPack(startingPack(file));
     if (!res.ok) throw new Error("does not pass");
     const { format, guide, contents } = res.pack;
-    expect(format).toBe("ziffr.pack/2");
+    expect(format).toBe("ziffr.pack/3");
     for (const section of ["whatItsFor", "beforeYouStart", "firstSteps", "eachPart", "questions"] as const) expect(guide?.[section], section).toBeTruthy();
     expect(guide!.firstSteps!.slice(0, 1)).toEqual([{ type: "heading", text: "Start here" }]);
     expect(guide!.firstSteps!.some((b) => b.type === "list" && b.numbered === true && b.items.length >= 4)).toBe(true);
     // Spelled as the Pack spells them, so the person finds them on the screens the guide sends them to.
     const said = JSON.stringify(guide);
     for (const item of [...(contents.dashboards ?? []), ...(contents.decks ?? []), ...(contents.workflows ?? [])]) expect(said).toContain(`**${item.template.name}**`);
+  });
+
+  it.each(STARTING_PACKS)("%s says in everyday words what its set-up shows: a line, what happens and what is needed", (file) => {
+    const res = checkPack(startingPack(file));
+    if (!res.ok) throw new Error("does not pass");
+    const { setUp } = res.pack;
+    expect(setUp?.line).toBeTruthy();
+    expect(setUp!.happens.length).toBeGreaterThan(0);
+    expect(setUp!.needs?.length).toBeGreaterThan(0);
+    // Not the words of a programmer or of Ziffr's own screens for what the person has not met yet.
+    expect(JSON.stringify(setUp)).not.toMatch(/\b(?:Submitter|Approver|Position|Repeat|Slot|Source)s?\b/);
+  });
+
+  it("Sales forecast asks its set-up in the spec's words, the quota for every quarter", () => {
+    const res = checkPack(startingPack("sales-forecast.pack.json"));
+    if (!res.ok) throw new Error("does not pass");
+    const { setUp, positions, repeats, contents } = res.pack;
+    expect(setUp).toEqual({
+      line: "A weekly forecast meeting, prepared for you.",
+      happens: ["Monday: your salespeople are asked for their figures", "The sales lead approves them", "The dashboard and meeting slides fill in"],
+      needs: ["Names and email addresses of your salespeople", "Their quotas (can come later)"],
+    });
+    expect(repeats![0].question).toBe("Who is in your sales team?");
+    expect(positions!.find((p) => p.key === "sales-lead")).toMatchObject({ question: "Who approves the figures?", hint: "This person checks the numbers each week and sees the whole team." });
+    expect(contents.metrics!.flatMap((e) => (e.ask ? [[e.key, e.ask]] : []))).toEqual([["commit", { question: "What is each quota this quarter?", name: "Quota", every: "quarter" }]]);
   });
 
   // 0.21 is the first release that reads a Pack with a Calculation Note beside its guide and comesFrom.
@@ -63,7 +88,7 @@ describe("the starting Packs", () => {
     const res = checkPack(startingPack("sales-forecast.pack.json"));
     if (!res.ok) throw new Error("does not pass");
     const { contents, positions, repeats } = res.pack;
-    expect(repeats).toEqual([{ key: "rep", name: "Salesperson", max: 30 }]);
+    expect(repeats).toMatchObject([{ key: "rep", name: "Salesperson", max: 30 }]);
     expect(positions!.map((p) => [p.key, p.per ?? null])).toEqual([["sales-lead", null], ["seller", "rep"]]);
     const each = ["commit", "best-case", "closed-quarter", "pipeline"];
     expect(contents.metrics!.filter((e) => e.per).map((e) => [e.key, e.per, e.submitters])).toEqual(each.map((k) => [k, "rep", ["seller"]]));
@@ -142,7 +167,7 @@ describe("the starting Packs", () => {
     const res = checkPack(startingPack("saas-metrics.pack.json"));
     if (!res.ok) throw new Error("does not pass");
     const c = res.pack.contents;
-    expect(res.pack.version).toBe("2.3.0");
+    expect(res.pack.version).toBe("2.4.0");
     expect(res.pack.logo).toMatch(/^data:image\/svg\+xml;base64,/);
     expect(c.metrics!.every((e) => (e.metric.tags ?? []).length > 0)).toBe(true);
     expect(c.decks!.map((d) => d.key)).toEqual(["monthly-report", "quarterly-board"]);
