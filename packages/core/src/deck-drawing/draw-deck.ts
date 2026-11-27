@@ -8,7 +8,7 @@ import { DECK_DESIGNS, type DeckDesignId } from "./designs";
 import { deckFonts, type DeckFonts, type FontSet } from "./fonts";
 import { cannotObjects, contentLayout, frame, logoObjects, panelObject, type Logo, type SlideForm, type SlideLayout } from "./frame";
 import { createMeasure } from "./measure";
-import { createPen, SLIDE, type Box, type Obj } from "./objects";
+import { createPen, SLIDE, type Box, type Obj, type Pen } from "./objects";
 import type { AgendaEntry, DeckFacts, SlideSource, SlideType } from "./slide-type";
 import { SLIDE_TYPES } from "./slides";
 import { deckSlots, roleColours, type Emphasis, type Role, type Slots } from "./theme";
@@ -37,6 +37,8 @@ export type DeckLook = { design: DeckDesignId; emphasis: Emphasis; fonts: DeckFo
 export type SlideDrawing = {
   /** The slide's id in the description. */
   id: string;
+  /** Which of the slides it goes on over, counted from 0; absent on the first. */
+  part?: number;
   type: string;
   form: SlideForm;
   layout: SlideLayout;
@@ -90,7 +92,9 @@ export function drawDeck(input: DeckDrawingInput, types: Record<string, SlideTyp
   const sections = [...new Set(content.map((s) => s.type.section))];
   const agenda = agendaOf(content);
 
-  const slides: SlideDrawing[] = shown.map(({ source, type }) => {
+  // Content slides are numbered as they are drawn: one that goes on to a second slide takes two numbers.
+  let number = 0;
+  const slides = shown.flatMap(({ source, type }): SlideDrawing[] => {
     const pen = createPen();
     const base = { id: source.id, type: source.type };
     if (type.cover) {
@@ -98,30 +102,45 @@ export function drawDeck(input: DeckDrawingInput, types: Record<string, SlideTyp
       const whole: Box = { x: 0, y: 0, w: SLIDE.w, h: SLIDE.h };
       const objects = "cannot" in filled ? cannotObjects(pen, measure, whole, filled.cannot) : type.draw(filled.content, { ...whole, design, pen, measure });
       const layout = { name: `${design.id}, cover`, objects: [panelObject(design.cover.panel), ...logoObjects(logo, { ...design.cover.logo, onPanel: true }, "left", input.emphasis)] };
-      return { ...base, form: "cover", layout, objects, regions: [whole], headline: filled.headline };
+      return [{ ...base, form: "cover", layout, objects, regions: [whole], headline: filled.headline }];
     }
-    const index = content.findIndex((s) => s.source === source);
-    const { filled, headline } = content[index]!;
+    const { filled, headline } = content.find((s) => s.source === source)!;
     const aside = "cannot" in filled ? undefined : filled.aside;
     // A design that keeps its so-what in a column of the content's width gives the content that width where there is none.
     const form = type.wide || (design.full.aside === "lead" && !aside) ? "wide" : "full";
-    const framed = frame({
-      design,
-      form,
-      pen,
-      measure,
-      headline,
-      sections,
-      section: type.section,
-      source: filled.source,
-      note: "cannot" in filled ? undefined : filled.note,
-      footer: facts.footer,
-      page: theme.show_slide_number ? index + 1 : null,
-      logo,
-      aside,
+    const framing = (on: Pen, page: number) =>
+      frame({
+        design,
+        form,
+        pen: on,
+        measure,
+        headline,
+        sections,
+        section: type.section,
+        source: filled.source,
+        note: "cannot" in filled ? undefined : filled.note,
+        footer: facts.footer,
+        page: theme.show_slide_number ? page : null,
+        logo,
+        aside,
+      });
+    // The room is the same on every slide it goes on over, so it is asked once, with a pen whose objects are not kept.
+    const spare = createPen();
+    const pieces = "cannot" in filled ? [null] : (type.pages?.(filled.content, { ...framing(spare, number + 1).body, design, pen: spare, measure }) ?? [filled.content]);
+    return pieces.map((piece, part): SlideDrawing => {
+      const on = part ? createPen() : pen;
+      const framed = framing(on, ++number);
+      const own = "cannot" in filled ? cannotObjects(on, measure, framed.body, filled.cannot) : type.draw(piece, { ...framed.body, design, pen: on, measure });
+      return {
+        ...base,
+        ...(part ? { part } : {}),
+        form,
+        layout: contentLayout(design, form, logo, input.emphasis),
+        objects: [...framed.objects, ...own],
+        regions: framed.regions,
+        headline,
+      };
     });
-    const own = "cannot" in filled ? cannotObjects(pen, measure, framed.body, filled.cannot) : type.draw(filled.content, { ...framed.body, design, pen, measure });
-    return { ...base, form, layout: contentLayout(design, form, logo, input.emphasis), objects: [...framed.objects, ...own], regions: framed.regions, headline };
   });
   return { look, slides };
 }
