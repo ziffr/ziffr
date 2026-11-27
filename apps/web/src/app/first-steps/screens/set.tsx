@@ -24,9 +24,9 @@ export function SetScreen(props: ScreenProps) {
   return id ? <OneSet key={id} id={id} {...props} /> : <SetsScreen {...props} />;
 }
 
-function OneSet({ id, context, go, leave }: ScreenProps & { id: string }) {
+function OneSet({ id, context, answers, go, leave }: ScreenProps & { id: string }) {
   const ws = context.workspace?.id ?? "";
-  const { data, failed, reload } = useShown(() => readSet(ws, id));
+  const { data, failed, reload } = useShown(() => readSet(ws, id, answers.topic));
   const manifest = data?.preview.manifest;
   const others = () => go("sets");
   return (

@@ -1,7 +1,7 @@
 // First Steps' answers in the browser (spec 0067; GLOSSARY: First Steps): what is read back from the browser's storage,
 // what the browser's settings propose, and which screen `?step=` opens.
 import { describe, expect, it } from "vitest";
-import { answersToSend, NO_ANSWERS, questionScreens, screenFor } from "@ziffr/core/first-steps-screens";
+import { answersToSend, NO_ANSWERS, questionScreens, screenBefore, screenFor } from "@ziffr/core/first-steps-screens";
 import { browserDefaults } from "./browser";
 import { draftKey, readDraft } from "./draft";
 
@@ -51,7 +51,29 @@ describe("the screen a step opens", () => {
     expect(screenFor(null, "team", "sender")).toBe("sender");
     expect(screenFor("who", "team", "value")).toBe("who");
     expect(screenFor("first", "me", "start")).toBe("first");
-    expect(screenFor("role", "me", "start")).toBe("start");
+    expect(screenFor("role", "me", "start")).toBe("first");
+  });
+
+  it("never shows a person alone the choice or the sets while there is none for them", () => {
+    for (const asked of [null, "start", "sets", "set", "nonsense"]) expect(screenFor(asked, "me", "start"), String(asked)).toBe("first");
+    for (const asked of ["start", "sets", "set"]) {
+      expect(screenFor(asked, "me", "value"), asked).toBe("first");
+      expect(screenFor(asked, "me", null), asked).toBe("workspace");
+      expect(screenFor(asked, "team", "start"), asked).toBe(asked);
+    }
+    // Where there is a set for them, the choice is back.
+    expect(screenFor(null, "me", "start", true)).toBe("start");
+  });
+
+  it("steps back past the choice only where there is one", () => {
+    expect(screenBefore("first", "me", false)).toBe("workspace");
+    expect(screenBefore("value", "me", false)).toBe("first");
+    expect(screenBefore("own", "me", false)).toBe("first");
+    expect(screenBefore("workspace", "me", false)).toBe("topic");
+    expect(screenBefore("first", "team", true)).toBe("start");
+    expect(screenBefore("start", "team", true)).toBe("workspace");
+    expect(screenBefore("set", "team", true)).toBe("sets");
+    expect(screenBefore("sets", "team", true)).toBe("start");
   });
 
   it("asks one branch's questions and sends only its answers", () => {

@@ -3,11 +3,11 @@
 // from yet. Suggestions that are monthly in the catalog are asked weekly unless Monthly is chosen.
 import { useState } from "react";
 import { PenLine } from "lucide-react";
-import { SUGGESTED_PERIODS, type SuggestedPeriod } from "@ziffr/core/first-steps-screens";
+import { offersSets, SUGGESTED_PERIODS, type SuggestedPeriod } from "@ziffr/core/first-steps-screens";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
 import { Button } from "@/components/ui/button";
 import { HOW_OFTEN } from "@/lib/metric-suggestions";
-import { Choice, Choices, Options, ScreenHeading } from "../parts";
+import { Choice, Choices, Options, ScreenHeading, Unsaved } from "../parts";
 import { Added, useAddMetric } from "./add-metric";
 import type { ScreenProps } from "./types";
 
@@ -25,6 +25,8 @@ export function FirstScreen({ context, answers, go, leave }: ScreenProps) {
   return (
     <>
       <ScreenHeading title="Let’s add your first metric together">A metric is one number you follow over time. Pick a suggestion or define your own.</ScreenHeading>
+      {/* Where no set is offered, this is the first screen after the Workspace is made. */}
+      {context.unsaved && !offersSets(answers.who, answers.topic) && <Unsaved />}
       {offers.some((o) => o.monthly) && <Options legend="How often" options={SUGGESTED_PERIODS} labels={PERIOD_LABEL} value={often} onPick={setOften} className="grid-cols-2" />}
       <div className="mt-4">
         <Choices>

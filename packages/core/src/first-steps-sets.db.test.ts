@@ -1,5 +1,5 @@
 // First Steps' ready-made sets against the real database (spec 0067; GLOSSARY: First Steps, Pack, Pack Audience): Owners
-// and Admins get the offered list ordered by the Workspace's answers, a person alone gets the private one, a Member, a
+// and Admins get the offered list ordered by the Workspace's answers, a person alone gets none while there is none for private use, a Member, a
 // Guest, an Access Key and the demo get none, a browser can open only an offered Pack by its id, and nothing is written.
 import { afterEach, describe, expect, it } from "vitest";
 import type { Actor } from "./actor";
@@ -38,13 +38,14 @@ describe("firstStepsSets", () => {
     expect(await firstStepsSets(admin)).toEqual(r);
   });
 
-  it("gives a Workspace for one person the Sports club only", async () => {
+  it("gives a Workspace for one person no set, whatever the topic says", async () => {
     const { owner } = await fresh();
     const { error } = await db().from("workspaces").update({ used_by: "me" }).eq("id", owner.workspaceId);
     expect(error).toBeNull();
-    const r = await firstStepsSets(owner);
-    expect(r).toMatchObject({ alone: true, sets: [{ id: "ziffr/sports-club" }] });
-    await expect(firstStepsSet(owner, "ziffr/sales")).rejects.toThrow("not offered");
+    for (const topic of [undefined, "money", "club", "nonsense", { topic: "club" }]) {
+      expect(await firstStepsSets(owner, topic)).toEqual({ alone: true, sets: [] });
+    }
+    for (const id of ["ziffr/sales", "ziffr/sports-club"]) await expect(firstStepsSet(owner, id, "club")).rejects.toThrow("not offered");
   });
 
   it("gives a Member, a Guest, an Access Key and the demo none", async () => {
