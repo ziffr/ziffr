@@ -19,6 +19,8 @@ type Props = {
   declarations: StartDeclarations;
   /** The Feeds a template download may send through. */
   feeds: { id: string; name: string }[];
+  /** Someone who is not in Ziffr yet was added. */
+  addedPeople: boolean;
 };
 
 const count = (n: number) => `${n} ${n === 1 ? "number" : "numbers"}`;
@@ -33,7 +35,7 @@ const askedLines = (result: Pick<PackStartResult, "asked">) => result.asked.map(
 });
 
 /** What was made, who is asked, what is missing. */
-export function DoneScreen({ result, declarations, feeds }: Props) {
+export function DoneScreen({ result, declarations, feeds, addedPeople }: Props) {
   const system = new Set(declarations.metrics.filter((m) => m.comesFrom === "system").map((m) => m.key));
   const fromSystem = result.metrics.filter((m) => system.has(m.key));
   // Those of them somebody provides: choosing a person opens the ways a person answers.
@@ -68,6 +70,7 @@ export function DoneScreen({ result, declarations, feeds }: Props) {
         <Lines title="Good to know" items={[
           ...result.held.map((h) => (h.approves ? `You approve until ${h.for.name} has joined.` : `You are ${h.name} until ${h.for.name} has joined.`)),
           ...(result.targets ? [`Targets are set for ${count(result.targets)}.`] : []),
+          ...(addedPeople && result.dashboards.length ? ["Share the dashboard with new people once they have joined."] : []),
           ...(result.needsFirstValue && result.invite.length ? ["Your colleagues can be invited once you have sent one value yourself."] : []),
         ].filter((v, i, all) => all.indexOf(v) === i)} />
         <Lines title="Left out" items={result.leftOut.map((l) => `Not made: ${l.name}. ${l.why}`)} />

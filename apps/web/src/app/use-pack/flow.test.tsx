@@ -158,6 +158,7 @@ describe("a Pack with Positions and a Repeat", () => {
     expect(choices.lines?.map((l) => l.person)).toEqual([{ who: "new", name: "Ana", email: "ana@x.test" }, { who: "new", name: "Ben", email: "ben@x.test" }]);
     expect(choices.numbers).toEqual([{ metric: "commit", line: 0, value: 1000 }, { metric: "commit", line: 1, value: 2000 }]);
     expect(text()).toContain("Ana: 1 number, asked from 28 Nov 2026.");
+    expect(text()).toContain("Share the dashboard with new people once they have joined.");
     expect(host.querySelector('a[href="/dashboards/7"]')?.textContent).toBe("Open the dashboard");
     expect(host.querySelector('a[href="/decks/9/present"]')?.textContent).toBe("Open the slides");
     expect(window.sessionStorage.length).toBe(0);

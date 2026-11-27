@@ -116,6 +116,8 @@ function Flow({ data, actions, keep }: Props) {
   // The choices being set up, from "Set it up" until it is done or the person goes back to the answers.
   const [sent, setSent] = useState<StartChoices | null>(null);
   const [result, setResult] = useState<PackStartResult | null>(null);
+  // Whether "Set it up" added someone who is not in Ziffr yet: nothing can be shared with them for now.
+  const [addedPeople, setAddedPeople] = useState(false);
   const { confirm, dialog } = useConfirm();
 
   const choices = toChoices(answers, steps, numberStyle);
@@ -171,7 +173,7 @@ function Flow({ data, actions, keep }: Props) {
   const shared = { answers, onChange: change, onContinue: next };
   const everyone = { room, me, people };
   function screen() {
-    if (result) return <DoneScreen result={result} declarations={declarations} feeds={data.feeds} />;
+    if (result) return <DoneScreen result={result} declarations={declarations} feeds={data.feeds} addedPeople={addedPeople} />;
     if (sent) return <SettingUp takeStep={takeStep} onDone={done} onChange={() => setSent(null)} />;
     switch (step.step) {
       case "preview":
@@ -187,7 +189,7 @@ function Flow({ data, actions, keep }: Props) {
             steps={steps} answers={answers} onChange={change} plan={plan} failed={failed} declarations={declarations} clock={clock} room={room} blocked={options.blocked}
             // Ziffr's own Packs are installed by "Set it up", so their confirmations stand here.
             assistantTexts={options.pack.installId === null ? options.assistantTexts : []}
-            onSetUp={() => setSent({ ...choices, shares: tickedShares(plan!.shares, answers) })}
+            onSetUp={() => { setAddedPeople(plan!.contacts.length > 0); setSent({ ...choices, shares: tickedShares(plan!.shares, answers) }); }}
           />
         );
     }
