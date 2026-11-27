@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/2",
+  "format": "ziffr.pack/3",
   "id": "ziffr/agency",
   "name": "Agency or freelancer",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "summary": "Billable hours, utilisation, revenue, the effective hourly rate, open invoices and pipeline, with a monthly dashboard and a Workflow that asks for hours on Fridays.",
   "author": {
     "name": "Ziffr"
@@ -21,6 +21,18 @@
   },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "Your hours, revenue and open money in one place.",
+    "happens": [
+      "The week's billable hours are asked for",
+      "Each month the money and project figures are asked for",
+      "The dashboard fills in as the numbers arrive"
+    ],
+    "needs": [
+      "The week's billable hours",
+      "Monthly hours worked, revenue, open invoices and open deals"
+    ]
   },
   "guide": {
     "whatItsFor": [

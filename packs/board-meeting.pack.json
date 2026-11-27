@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/2",
+  "format": "ziffr.pack/3",
   "id": "ziffr/board-meeting",
   "name": "Board meeting deck",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "summary": "A Deck Template for a quarterly board meeting, a Theme for it, and the Workflow for the quarter's close.",
   "author": {
     "name": "Ziffr"
@@ -17,6 +17,18 @@
   },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "Your quarterly board meeting, with the slides ready for the figures.",
+    "happens": [
+      "Revenue, cash and runway are asked for monthly, headcount quarterly",
+      "Each figure is approved before it is locked",
+      "The meeting slides fill in"
+    ],
+    "needs": [
+      "Revenue, cash balance and months of runway",
+      "The number of people you employ"
+    ]
   },
   "guide": {
     "whatItsFor": [
