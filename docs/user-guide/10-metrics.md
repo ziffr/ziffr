@@ -34,7 +34,7 @@ Under a Metric's name, its **Tags** show as small chips, at most three and then 
 
 On a phone (under 640 px wide) each Metric is a small card instead of a table row: its name with the quick-look button, how often and where its values come from, the target, then the latest value with its status and date, and the change as an arrow and a signed percentage. Nothing is cut off at the side, text is at least 14 px, and the whole card is one tap. In the **Metric Catalog** on **New metric**, the category chips are one row that scrolls sideways, so the first entries stay on screen. On **Paste values** the labels sit above their fields and the fields and buttons are 44 px tall. Click a row to open the Metric's page. **New metric** (top right) starts a new one. **Paste values** opens a page that records many values at once from a spreadsheet (see [Paste values from a spreadsheet](#paste-values-from-a-spreadsheet)). With no Metrics yet, the list says "No metrics yet" and offers **New metric**.
 
-Each row also has a **Quick look** button beside the Metric's name (it shows on hover or keyboard focus, and always on a phone). It opens a panel on the right, over the list, with the latest value and its on-target label, the change, a trend line, the **Target** and **Owner**, **How it is calculated** where it is written down (closed until you open it; for a Derived Metric with its formula) and the latest six values, with **Open the Metric** at the bottom. For a Metric you submit, the panel also has **Record a value**, the same form as on the Metric's page (see below). The same button sits beside a Widget's title on a dashboard. **Esc** or **Close** closes it and you are back where you were; while it is open the keys stay inside it, and on a phone it fills the screen, with a long owner name or address wrapping onto a second line. The page address ends in `?panel=metric-` and the Metric's short name, so a link to it opens the panel.
+Each row also has a **Quick look** button beside the Metric's name (it shows on hover or keyboard focus, and always on a phone). It opens a panel on the right, over the list, with the latest value and its on-target label, the change, that value's newest [Value Note](#value-notes) if it has one, a trend line, the **Target** and **Owner**, **How it is calculated** where it is written down (closed until you open it; for a Derived Metric with its formula) and the latest six values, with **Open the Metric** at the bottom. For a Metric you submit, the panel also has **Record a value**, the same form as on the Metric's page (see below). The same button sits beside a Widget's title on a dashboard. **Esc** or **Close** closes it and you are back where you were; while it is open the keys stay inside it, and on a phone it fills the screen, with a long owner name or address wrapping onto a second line. The page address ends in `?panel=metric-` and the Metric's short name, so a link to it opens the panel.
 
 ### Download values
 
@@ -227,6 +227,8 @@ The top of the page shows the Metric's name, a **Derived** badge if it is calcul
 
 A Metric with no values says so where its chart would be. If you submit it on the web form, the page says "The line appears after your first value." and offers **Record today's value** (**Record a value** for a Metric that is not daily).
 
+Under the boxes stands the newest [Value Note](#value-notes) of the latest value, if it has one, with a link to the period's page; if it has none and you may write one, the link reads **Add a note on …**.
+
 Then come five tabs: **Overview**, **Analysis**, **Targets**, **History** and **Description**. On a phone the three boxes sit two to a row, and the tabs do not all fit: swipe them sideways, a fade at the edge shows where more are, and the open tab is brought into view.
 
 ### Handing a Metric over
@@ -347,7 +349,9 @@ The Metric Owner and the Metric's **Editors** change this tab. Everyone else see
 | **From** | The Source it arrived through, such as Web form or Slack. For a value from a program, also the name of the **Access Key** or **Feed Key** it used. |
 | **Submitted by** | The person, Contact or Feed who sent it. A value that someone else entered for them (see [Filling in a value for someone](#filling-in-a-value-for-someone)) says "entered by" and the name of who typed it; a Guest is not told that someone entered it. A value that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) shows the name the file gave, with "(imported)" after it, and the name of who entered it, if the file had one; Guests do not see these names. |
 
-A Derived Metric has no values of its own, so it has no such list. If you submit values for the Metric on the web form, **Paste history** beside the heading opens [Paste values](#paste-values-from-a-spreadsheet) for this Metric.
+Where one of these periods has a [Value Note](#value-notes), the table has a **Note** column (on a narrower screen the note stands under its value) with the newest note cut to a few lines; **Read in full**, or **2 more**, leads to the period's page.
+
+A Derived Metric and a [Total](#adding-up-metrics-a-total) have no values sent to them, so they have no such table. Where a period of theirs has a note, or you may write one, **Latest values** lists the last 12 periods with their value and note instead. If you submit values for the Metric on the web form, **Paste history** beside the heading opens [Paste values](#paste-values-from-a-spreadsheet) for this Metric.
 
 **Questions and tasks** lists every **Action** on this Metric that you may read, with its status (**Open**, **Answered**, **Done** for a finished task, or **Closed**), its period and its **Assignee**. Click one to open its Thread. With none yet, the tab reminds you to click a point on the chart.
 
@@ -358,9 +362,29 @@ Click a period on the History tab, or **Open this period** after clicking a poin
 - the Metric, the period and its state (for example **Locked** or **Waiting for Approval**), with the value in large figures; after a Correction, the value it was submitted as is struck through;
 - **History**: every step of that period's value in order, with the person, the channel and the date: submitted, entered by someone for the person ("Entered 42 by Ben for Sara"), replaced by a newer value, a Correction proposed, accepted or declined, approved, sent back, published, locked, and unlocked with its reason. A replaced value is struck through, and a value entered for someone that they replaced stays in the list with who entered it;
 - **Fill in for …** under the value, for those who may (see [Filling in a value for someone](#filling-in-a-value-for-someone));
+- **Notes**: the period's [Value Notes](#value-notes), where they are written and changed;
 - **Threads**: the Questions and tasks about the period that you may read, each with its first message and how many replies follow. Click one to open and answer it.
 
 You see the page only for a Metric you see. A Thread you may not read, and the Corrections proposed in it, are left out, as if there were none.
+
+### Value Notes
+
+A **Value Note** says what is behind one period's value, such as "Two trade fairs fell into October." It never changes the number. Everyone who sees the value can read it, and nobody else; a Guest reads no names in it, neither of whoever wrote it nor inside the words. It is not the Calculation Note (how a Metric is calculated) and not a Thread (a Question or Task and its replies).
+
+On the period's page, under **Notes**:
+
+| Control | Who has it | What it does |
+| --- | --- | --- |
+| **Add a note** | Who sent or entered a value of the period; the Metric Owner and Editors on any period | Opens a field of at most 1,000 characters, then **Save note** |
+| **Correct** | Its author, the Metric Owner and Editors | Replaces the words; the earlier ones stay in the history |
+| **Remove** | Its author, the Metric Owner and Editors | Hides the words; the history says who removed the note |
+| **Delete the words for good** | The Metric Owner | For something that should never have been written: every version is emptied. Messages and files already sent keep the words |
+
+- Each line says who wrote the note and when, "corrected by …" after a correction, and "added later" for one written after the value was approved or its period locked. A note added later starts no new Approval.
+- When the value is replaced, its notes leave the current view and stay under **History of the notes**, with the number they were said of. Where the values of several people are added up or all kept, each one's note stays.
+- A Derived Metric and a Total have only the notes written on them by their owner and Editors, never those of the Metrics they are calculated from. Once the number differs, a note says "written when it showed" and the number then; for a Total, and a Metric calculated from one, only its owner is told that earlier number, because it may have counted a Metric you never saw. Where a Total shows you no number, it shows you no note.
+- Where the values of several people are added up, the one shared value belongs to whoever sent first: someone who adds to it later cannot write a note here afterwards, unless they are the Metric's owner or an Editor.
+- Nobody writes a note on an Archived Metric or on a value that was condensed by Retention, and the demo takes no notes.
 
 ## The Description tab
 
@@ -460,7 +484,7 @@ A part of a total is often one person's number, so a Total's numbers are held mo
 - Its owner must own or edit every Metric it adds up. If they no longer do, it shows no values to anyone.
 - Which Metrics it adds up is listed to each person only as far as they may see them.
 
-Its owner can open it: **Also show this total to people who do not see every Metric…** on its page first lists what it adds up, who will newly see its numbers, whether one of them can then work out a single Metric's numbers, and the View Links, Snapshots and formulas that show it. After **Show it to them**, everyone who sees the Total sees its sums, past periods included, though never a name or value of a Metric they do not see. Where the Total takes its target from its Metrics (**Its Metrics’ targets added up**), they also learn the sum of those targets, future periods included, and whoever can work out a single Metric's numbers can work out its target too. For a Metric counted **from its first value**, as those of a Total set up from a Pack are, that includes history pasted or sent later for earlier periods, also periods before the Total was made. If one of those lists changed in the meantime, Ziffr shows them again. **Stop showing it to them** closes it at once; files already made cannot be taken back. Only the owner opens a Total, in the app: not an Editor, not an Admin, no program or assistant, and not in the demo. Handing it over closes it. The Audit Log records both.
+Its owner can open it: **Also show this total to people who do not see every Metric…** on its page first lists what it adds up, who will newly see its numbers, whether one of them can then work out a single Metric's numbers, and the View Links, Snapshots and formulas that show it. After **Show it to them**, everyone who sees the Total sees its sums, past periods included, and reads the [Value Notes](#value-notes) written on the Total, though never a name or value of a Metric they do not see. Where the Total takes its target from its Metrics (**Its Metrics’ targets added up**), they also learn the sum of those targets, future periods included, and whoever can work out a single Metric's numbers can work out its target too. For a Metric counted **from its first value**, as those of a Total set up from a Pack are, that includes history pasted or sent later for earlier periods, also periods before the Total was made. If one of those lists changed in the meantime, Ziffr shows them again. **Stop showing it to them** closes it at once; files already made cannot be taken back. Only the owner opens a Total, in the app: not an Editor, not an Admin, no program or assistant, and not in the demo. Handing it over closes it. The Audit Log records both.
 
 The same rule holds everywhere, judged at the time of reading:
 

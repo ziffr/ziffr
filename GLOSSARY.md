@@ -178,7 +178,7 @@ A Workflow step that, once a period is finished, takes and shows the period's Sn
 _Avoid_: Pack, board pack, report, distribution, mailing
 
 **Period Timeline**:
-What happened in one period of a Workflow, in order: who was asked and reminded, which values came in (marked when someone entered one for its submitter) and which Checklist Items were sent, given and ticked off ("5 of 6 in" counts values and those Tasks together), Approvals and Actions, what published and locked, when the period finished, and the Snapshots made and sent. It records nothing of its own and shows each person only what they may see: a Metric they cannot see is only a count ("1 value"), and a Thread's words appear only as first words, for a Thread they may read. On the Workflow page, and as the `period_status` tool.
+What happened in one period of a Workflow, in order: who was asked and reminded, which values came in (marked when someone entered one for its submitter) and which Checklist Items were sent, given and ticked off ("5 of 6 in" counts values and those Tasks together), Approvals and Actions, what published and locked, when the period finished, and the Snapshots made and sent. A value with a Value Note is marked "with a note", never with its words. It records nothing of its own and shows each person only what they may see: a Metric they cannot see is only a count ("1 value"), and a Thread's words appear only as first words, for a Thread they may read. On the Workflow page, and as the `period_status` tool.
 _Avoid_: Activity feed, audit trail, history
 
 **Workflow Template**:
@@ -218,7 +218,7 @@ A value that changes more than a set share against the period before, or falls o
 _Avoid_: Outlier, anomaly
 
 **Approval**:
-Confirming a value before it counts, by each Approver in order: an Unusual Value, or every value where the Workflow's Approve step says so. An Import of a Feed's history does not wait for it. An approver can approve it, send it back to the submitter with a comment, or correct it. Until it is approved the value shows, marked as not approved yet. Nobody approves their own value, nor a Filled-in Value they entered or that was entered for them: when nobody else could, the Approve step says whether a Self-check takes its place or the value counts without Approval, with a note saying so.
+Confirming a value before it counts, by each Approver in order: an Unusual Value, or every value where the Workflow's Approve step says so. An Import of a Feed's history does not wait for it. An approver can approve it, send it back to the submitter with a comment, or correct it. Until it is approved the value shows, marked as not approved yet. The Approval's task shows the period's Value Notes, and its message quotes the newest as it leaves. Nobody approves their own value, nor a Filled-in Value they entered or that was entered for them: when nobody else could, the Approve step says whether a Self-check takes its place or the value counts without Approval, with a note saying so.
 _Avoid_: Sign-off, review, verification
 
 **Self-check**:
@@ -226,7 +226,7 @@ The submitter checking their own value when an Approval is needed but nobody els
 _Avoid_: Self-approval, own approval
 
 **Period Record**:
-One Metric's page for one period (`/metrics/churn-rate/2026-03-01`): its value and state, every step the value went through in order (submitted, entered by someone for its submitter, replaced, Correction proposed and decided, approved, sent back, published, locked, unlocked with its reason) with person, channel and date, and the Threads about it that the person may read. Only for people who see the Metric.
+One Metric's page for one period (`/metrics/churn-rate/2026-03-01`): its value and state, every step the value went through in order (submitted, entered by someone for its submitter, replaced, Correction proposed and decided, approved, sent back, published, locked, unlocked with its reason) with person, channel and date, the Threads about it that the person may read, and its Value Notes with their history, which are written and corrected there. Only for people who see the Metric.
 _Avoid_: Value page, audit trail, timeline (a Workflow's timeline lists many periods)
 
 **Search**:

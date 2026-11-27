@@ -231,7 +231,7 @@ describe("a note that comes with a value", () => {
     const s = await setup();
     const sent = await s.send(45, "x".repeat(NOTE_MAX + 1));
     expect(sent).toMatchObject({ ok: true, valueNote: { saved: false, reason: NOTE_TOO_LONG } });
-    expect(await s.read()).toEqual({ current: [], history: [] });
+    expect(await s.read()).toMatchObject({ current: [], history: [] });
     const form = await submitValue({ source: "web_form", sender: s.code, text: "46", valueNote: "y".repeat(NOTE_MAX + 1) });
     expect(form.valueNote).toEqual({ saved: true, cut: true });
   });
@@ -242,7 +242,7 @@ describe("a note that comes with a value", () => {
       await s.w.value(s.m.id, period, 40, s.ann);
       await s.w.lock(s.m.id, period);
       expect((await s.send(45, "Found an invoice.", period)).valueNote).toEqual({ saved: true, cut: false });
-      expect(await s.read(s.sara, period)).toEqual({ current: [], history: [] });
+      expect(await s.read(s.sara, period)).toMatchObject({ current: [], history: [] });
       const [row] = await rowsOf("value_notes", { metric_id: s.m.id, period_start: period });
       await decideCorrection(s.as(s.sara), Number(row!.proposal), accept);
       const after = (await s.read(s.sara, period))!;

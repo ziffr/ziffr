@@ -47,6 +47,24 @@ export const CUSTOMER_LABEL: Record<Segment, string> = { b2b: "Businesses", b2c:
 /** The most characters a Workspace's name takes in the field. */
 export const FIRST_STEPS_NAME_FIELD = 60;
 
+/** The units "Define your metric" offers. */
+export const OWN_UNITS = ["number", "money", "percent", "hours"] as const;
+/** One unit. */
+export type OwnUnit = (typeof OWN_UNITS)[number];
+/** The words for each unit. */
+export const OWN_UNIT_LABEL: Record<OwnUnit, string> = { number: "Number", money: "Money", percent: "Percent", hours: "Hours" };
+
+/** How often "Define your metric" lets a value be due. */
+export const OWN_PERIODS = ["day", "week", "month"] as const;
+/** One of them. */
+export type OwnPeriod = (typeof OWN_PERIODS)[number];
+
+/** The most characters a first Metric's name takes. */
+export const FIRST_METRIC_NAME_FIELD = 80;
+
+/** What adding the first Metric says: an entry of the Metric Catalog, or a Metric of one's own. */
+export type FirstMetricPick = { catalogId: number } | { name: string; unit: OwnUnit; period: OwnPeriod };
+
 /** Everything the questions and the Workspace screen ask. Null means skipped or not read. */
 export type FirstStepsAnswers = {
   who: UsedBy | null;
