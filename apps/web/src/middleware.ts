@@ -74,6 +74,9 @@ export async function middleware(req: NextRequest) {
   // First Steps (spec 0067) has a frame of its own: the root layout learns it from a header only this sets.
   headers.delete("x-ziffr-first-steps");
   if (path === "/first-steps") headers.set("x-ziffr-first-steps", "1");
+  // So has "Use this pack" (spec 0068).
+  headers.delete("x-ziffr-use-pack");
+  if (path.startsWith("/use-pack/")) headers.set("x-ziffr-use-pack", "1");
   if (path.startsWith("/v/")) {
     headers.set("x-ziffr-view-link", "1");
     return NextResponse.next({ request: { headers } });

@@ -6,6 +6,8 @@ import { notFound, redirect } from "next/navigation";
 import { createFirstStepsWorkspace, saveFirstStepsAnswers } from "@ziffr/core/first-steps";
 import { makeFirstMetric } from "@ziffr/core/first-steps-metric";
 import { FIRST_STEPS_ON } from "@ziffr/core/first-steps-screens";
+import { firstStepsSet, firstStepsSets } from "@ziffr/core/first-steps-sets";
+import { numberStyleOf } from "@ziffr/core/workspace-settings";
 import type { ActionError } from "@/lib/action-error";
 import { attempt } from "@/lib/action-result";
 import { DEMO_COOKIE, personFor, sessionUser } from "@/lib/auth";
@@ -51,5 +53,20 @@ export async function addFirstMetric(workspaceId: string, pick: unknown): Promis
   return attempt(async () => {
     await makeFirstMetric(await drawnFor(workspaceId), pick);
     return { added: true as const };
+  });
+}
+
+/** The ready-made sets offered, best fit first. It only reads. */
+export async function readSets(workspaceId: string) {
+  if (!FIRST_STEPS_ON) notFound();
+  return attempt(async () => firstStepsSets(await drawnFor(workspaceId)));
+}
+
+/** One set's Preview and how the Workspace writes numbers; the browser names the set by its Pack id alone. It only reads. */
+export async function readSet(workspaceId: string, packId: string) {
+  if (!FIRST_STEPS_ON) notFound();
+  return attempt(async () => {
+    const actor = await drawnFor(workspaceId);
+    return { preview: await firstStepsSet(actor, packId), numberStyle: await numberStyleOf(actor.workspaceId) };
   });
 }
