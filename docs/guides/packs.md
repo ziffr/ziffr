@@ -18,7 +18,7 @@ The exact formats are JSON Schemas in `docs/reference/`, generated from the defi
 
 | What | Format | Schema |
 | --- | --- | --- |
-| The Pack and its manifest | `ziffr.pack/1` or `ziffr.pack/2` | [`pack.schema.json`](../reference/pack.schema.json) and [`pack-2.schema.json`](../reference/pack-2.schema.json), see [Who does what](#who-does-what-ziffrpack2) |
+| The Pack and its manifest | `ziffr.pack/1`, `/2` or `/3` | [`pack.schema.json`](../reference/pack.schema.json), [`pack-2.schema.json`](../reference/pack-2.schema.json) and [`pack-3.schema.json`](../reference/pack-3.schema.json), see [Who does what](#who-does-what-ziffrpack2) and [What the set-up asks](#what-the-set-up-asks-ziffrpack3) |
 | A Metric Catalog entry | `ziffr.metric/1` or `ziffr.metric/2` | [`metric.schema.json`](../reference/metric.schema.json) and [`metric-2.schema.json`](../reference/metric-2.schema.json), see [How a Metric is calculated](#how-a-metric-is-calculated) |
 | A Dashboard Template | `ziffr.dashboard-template/1` | [`dashboard-template.schema.json`](../reference/dashboard-template.schema.json) |
 | A Deck Template | `ziffr.deck-template/1`, `/2` or `/3` | [`deck-template.schema.json`](../reference/deck-template.schema.json), [`deck-template-2.schema.json`](../reference/deck-template-2.schema.json) and [`deck-template-3.schema.json`](../reference/deck-template-3.schema.json), see [Slides that look designed](#slides-that-look-designed) and [Live values in text and boxes](#live-values-in-text-and-boxes) |
@@ -190,7 +190,7 @@ A Pack in the format `ziffr.pack/2` may also say who does what, as **Positions**
 
 Ziffr checks all of it and installs such a Pack. The Packs page shows its Positions, Repeats and proposed Shares before and after installing. **Set up from this Pack** asks who fills each Position, shows who will then see what and which messages go out, and writes the people into the ordinary places; a proposed Share is made only when ticked, and one that would show someone more starts unticked. Nobody is asked for a number the Pack says another system sends or one set as a target, also not whoever holds a Position that submits it, unless the person setting up chooses to be asked themselves; for such a holder Set up proposes a ticked Viewer Share, so they still see the number. For each Repeat it takes the lines a person types or pastes (at most 50, and at most 200 Metrics in one Set up), names each line's Metrics "<entry>, <line>", makes a Workflow and a dashboard of the Repeat once per line, and fills a Slot for several Metrics of a dashboard outside the Repeat with every line's. Each Total is made over the Metrics of every line, closed. **Add a …** on the installed Pack makes one more line, and offers to add its Metrics to the shared Workflow and to the widgets that show the lines (a widget's offer starts unticked where it would show someone more). It also offers to count the new Metrics in the Totals that add them up. A Workflow Template stored by the Workspace holds neither Positions nor Tell steps: Set up reads them from the install. **Export as Pack** does not write Repeats or Totals yet.
 
-Keep a file in `ziffr.pack/1` unless it uses something below: an older Ziffr refuses a `/2` file, saying which formats it reads. A whole example:
+Keep a file in `ziffr.pack/1` unless it uses something below (or [what the set-up asks](#what-the-set-up-asks-ziffrpack3), which needs `/3`): an older Ziffr refuses a `/2` file, saying which formats it reads. A whole example:
 
 ```json
 {
@@ -296,6 +296,48 @@ A section is a list of blocks:
 
 Put `**` before and after words to show them **bold**; there is no other formatting. A guide holds no link, web or email address, image, HTML or code: every text is plain, as any name in a Pack is, also as it reads without the bold marks. The whole guide is at most 32,768 bytes, with at most 60 blocks in a section, 20 entries in a list, 80 characters in a heading and 600 in a paragraph or entry. Words in it that read like instructions to an AI assistant are listed for whoever installs.
 
+## What the set-up asks (`ziffr.pack/3`)
+
+A Pack in the format `ziffr.pack/3` holds everything a `/2` file holds, and may also declare what its set-up shows and asks, so that someone who has never seen your Pack is asked in your words. Ziffr draws every Pack the same way: a Pack brings **short plain text only**, no screens, markup, code or web addresses. Every field below is optional. Ziffr 0.21 or later reads it, so say so in `ziffr`; an older Ziffr refuses a `/3` file, saying which formats it reads. The guided set-up that asks these questions is not switched on yet; installing keeps them.
+
+| Field | Limit | What it is |
+| --- | --- | --- |
+| `setUp.line` | needed in `setUp`, 120 characters | one sentence under the Pack's name |
+| `setUp.happens` | needed in `setUp`, 1 to 4 lines of 90 | the lines under "Every week" (Ziffr writes the heading): what happens once it is set up |
+| `setUp.needs` | 0 to 4 lines of 90 | the lines under "You need" |
+| a Position's `question` and `hint` | 90 and 140 | the question that fills the Position, and a line under it |
+| a Repeat's `question` | 90 | the question that lists its lines |
+| a Metric Catalog entry's `ask`, on its wrapper | `question` 90, `name` 40, `every`: `month`, `quarter` or `year`; all three needed; at most 3 in a Pack | a number asked at set-up, one field per line where the entry is made per line, written **unchanged** as the Metric's target for every period of the span (not divided) |
+
+`ask` is refused on a Derived Metric and a [Total](#totals), and on a Metric whose period is longer than `every`. A text must hold words: spaces or punctuation alone are refused. Write everyday words, as you would say them to the person: not "Submitter" or "Position". Without these fields, as in a `/1` or `/2` Pack, Ziffr uses words of its own: your `summary`, "Who is" and the Position's name, and no number is asked.
+
+```json
+{
+  "format": "ziffr.pack/3",
+  "id": "ziffr/site-visits",
+  "name": "Site visits",
+  "version": "1.0.0",
+  "summary": "Visits per site, reported every week.",
+  "author": { "name": "Ziffr" },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.21",
+  "setUp": {
+    "line": "See every week how busy each site was.",
+    "happens": ["Each site manager is asked for the week's visits"],
+    "needs": ["Names and email addresses of your site managers"]
+  },
+  "positions": [{ "key": "site-manager", "name": "Site manager", "people": "one", "per": "site", "question": "Who runs this site?" }],
+  "repeats": [{ "key": "site", "name": "Site", "question": "Which sites do you have?" }],
+  "contents": {
+    "metrics": [
+      { "key": "visits", "per": "site", "submitters": ["site-manager"], "ask": { "question": "What is each site's goal this quarter?", "name": "Weekly goal", "every": "quarter" }, "metric": { "format": "ziffr.metric/1", "name": "Visits", "period": "week", "aggregation": "sum", "polarity": "higher" } }
+    ]
+  }
+}
+```
+
+**Export as Pack** does not write these fields yet: add them to the file by hand.
+
 ## The logo
 
 A Pack may bring **one logo**, optionally, as a data address in the manifest's `logo` (beside `listing`, never in `contents`): `"logo": "data:image/png;base64,…"`. Its `author` is the publisher it is shown with. A Theme of the Pack may say `"slides": { "logo": "pack" }` to use it; that is the only value the field takes, a Theme file on its own may not say it, and neither may a Theme of a Pack without a logo. A Pack with a logo needs a Ziffr that knows the field, so set `ziffr` to the version that does. A Pack's licence covers its contents, not anyone's trademark: the logo stays the publisher's. Installing checks the logo again on the server and keeps only the form Ziffr wrote out itself (an SVG is serialized again from what was read); a Theme that says `"pack"` is installed with it, and installing never makes a Theme the team default.
@@ -315,7 +357,8 @@ Ziffr checks a Pack in full on its server before it shows or installs anything:
 - a Workflow Template that names a person: an Approve step says only how many Approvers to pick, and in `/2` which Positions of the Pack they are;
 - in `ziffr.pack/2`: a Position, Repeat or credited Pack that is not listed or is listed twice, a Position for several people where one is needed, a Tell step with a level, and everything else the rules under [Who does what](#who-does-what-ziffrpack2) refuse;
 - a Pack Guide with a link, an address, markup or code in it, or over its limits;
-- a field of `ziffr.pack/2` in a `ziffr.pack/1` file;
+- a field of `ziffr.pack/2` in a `ziffr.pack/1` file, or one of `ziffr.pack/3` in a `/1` or `/2` file;
+- in `ziffr.pack/3`: a text of the set-up over its limit, without words, or holding markup or an address; more than three numbers asked; a number asked on a Derived Metric or a Total, or for a span shorter than the Metric's period;
 - an item that its own format's checks refuse, with the problem named by its place in the Pack, such as `contents.views[0].design.parts[2].show`, and its line;
 - a reference to an item that is not in the Pack.
 

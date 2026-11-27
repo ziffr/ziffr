@@ -14,6 +14,11 @@ overrides:
   qs@<6.16.1: ^6.16.1
   form-data@<4.0.6: ^4.0.6
 
+patchedDependencies:
+  next@15.5.29:
+    hash: cddada5c65f7b0fdaae074066bae03de8cde0140424ef6e192db1dad0a8d641c
+    path: patches/next@15.5.29.patch
+
 importers:
 
   .:
@@ -131,7 +136,7 @@ importers:
         version: 16.4.1
       next:
         specifier: 15.5.29
-        version: 15.5.29(@babel/core@7.29.13)(@opentelemetry/api@1.10.0)(@playwright/test@1.65.0)(@types/node@20.19.43)(react-dom@19.2.9(react@19.2.9))(react@19.2.9)
+        version: 15.5.29(patch_hash=cddada5c65f7b0fdaae074066bae03de8cde0140424ef6e192db1dad0a8d641c)(@babel/core@7.29.13)(@opentelemetry/api@1.10.0)(@playwright/test@1.65.0)(@types/node@20.19.43)(react-dom@19.2.9(react@19.2.9))(react@19.2.9)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.9(react@19.2.9))(react@19.2.9)
@@ -14442,7 +14447,7 @@ snapshots:
       react: 19.2.9
       react-dom: 19.2.9(react@19.2.9)
 
-  next@15.5.29(@babel/core@7.29.13)(@opentelemetry/api@1.10.0)(@playwright/test@1.65.0)(@types/node@20.19.43)(react-dom@19.2.9(react@19.2.9))(react@19.2.9):
+  next@15.5.29(patch_hash=cddada5c65f7b0fdaae074066bae03de8cde0140424ef6e192db1dad0a8d641c)(@babel/core@7.29.13)(@opentelemetry/api@1.10.0)(@playwright/test@1.65.0)(@types/node@20.19.43)(react-dom@19.2.9(react@19.2.9))(react@19.2.9):
     dependencies:
       '@next/env': 15.5.29
       '@swc/helpers': 0.5.15

@@ -2,6 +2,7 @@
 // Lock, Feed).
 // Entry points that take an id from outside look it up in one Workspace only. Time-based steps run once a day by the
 // clock (scheduled-runs.ts, spec 0005), or as of a pretended day in the demo.
+import { notesAfterValue } from "./value-note-store";
 import { openWorkflowRow, openWorkflowRows } from "./workflow-rows";
 import { format } from "date-fns";
 import { db } from "./db";
@@ -505,7 +506,9 @@ export async function correctSelfCheck(ws: string, actionId: number, by: string,
   const patch = await sealRow("observations", ws, { id: obs.id, value, original_value: original });
   delete patch.id;
   // The number is the submitter's own now, typed by them: a value someone else had entered for them is theirs (spec 0046).
-  await db().from("observations").update({ ...patch, entered_by: null }).eq("id", obs.id).eq("workspace_id", ws).eq("metric_id", a.metric_id);
+  const { error: unwritten } = await db().from("observations").update({ ...patch, entered_by: null }).eq("id", obs.id).eq("workspace_id", ws).eq("metric_id", a.metric_id);
+  // The notes of the value it replaced become history (spec 0064).
+  if (!unwritten) await notesAfterValue(ws, { metricId: a.metric_id, period: a.period_start, observationId: Number(obs.id), before: typeof was.value === "number" ? was.value : null, after: value, replaces: true });
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Corrected by the submitter.", correction_value: value, correction_status: "accepted" }]);
   const m = await openOne("metrics", ws, (await db().from("metrics").select("id, name").eq("id", a.metric_id).eq("workspace_id", ws).maybeSingle()).data);
   await recordAudit(ws, by, { kind: "self_check.corrected", object: { type: "metric", id: a.metric_id, name: m?.name ?? null }, details: { period: a.period_start, action_id: actionId } });

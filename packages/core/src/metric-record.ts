@@ -4,6 +4,7 @@
 // what it held, and the deletion asks for that fingerprint again, so it is allowed only while nothing changed.
 // Visibility: only the Metric Owner gets it, and of it only what they may see (an input of a formula or a part of a
 // Total that is not theirs to see stays unnamed; calculated numbers are what the app shows them).
+import { noteEntries, noteThreads, wordsShown } from "./value-note-store";
 import { createHash } from "node:crypto";
 import { getCanvasData, visibleMetricIds } from "./access";
 import { Forbidden, Refused, type Actor } from "./actor";
@@ -219,6 +220,21 @@ async function conversationFile(s: Shared, m: Metric): Promise<RecordFile> {
   return csv(s.style, "questions-and-tasks.csv", ["thread_id", "kind", "period_start", "breakdown_row", "status", "asked_by", "asked_to", "due_date", "entry", "written_by", "written_at", "via", "text", "proposed_value", "proposal"], rows);
 }
 
+/** The Value Notes and their history. A calculated Metric's only for the periods whose number the actor is shown, so
+ * that a Total's notes never reach someone who may not see what is added up. */
+async function notesFile(s: Shared, m: Metric): Promise<RecordFile> {
+  const ws = s.actor.workspaceId;
+  const [entries, data] = await Promise.all([noteEntries(ws, m.id), m.formula ? getCanvasData(ws, s.actor.personId, { seriesOf: [m.id] }) : null]);
+  const shown = data ? new Set((data.series[m.slug] ?? []).map((p) => p.period)) : null;
+  const threads = noteThreads(shown ? entries.filter((e) => shown.has(e.period_start)) : entries).reverse();
+  const name = await namesOf(ws, entries.map((e) => e.author_id));
+  const rows: Cell[][] = threads.flatMap((t) => t.entries.map((e): Cell[] => [
+    word(e.period_start), word(t.first.id), word(e.kind), name(e.author_id), word(e.created_at), word(e.source), word(wordsShown(e, t)),
+    value(e.said_of), word(e.added_later ? "yes" : ""), word(t.replaced ? "yes" : ""), word(t.erased ? "yes" : ""),
+  ]));
+  return csv(s.style, "value-notes.csv", ["period_start", "note_id", "entry", "written_by", "written_at", "via", "words", "said_of", "added_later", "value_since_replaced", "words_deleted_for_good"], rows);
+}
+
 /** The numbers of a Derived Metric or a Total as the app shows them to the actor now. */
 async function calculatedFile(s: Shared, m: Metric): Promise<RecordFile> {
   const data = await getCanvasData(s.actor.workspaceId, s.actor.personId, { seriesOf: [m.id] });
@@ -235,7 +251,7 @@ async function recordOf(s: Shared, m: Metric): Promise<{ metric: RecordedMetric;
   const full = { ...stored[0], ...m } as Metric & Row;
   const values = await valueFiles(s, m);
   // What is stored for the Metric and goes with it, apart from how it is set up and what is calculated from others.
-  const kept = [...values.files, ...(await seriesFiles(s, m)), await conversationFile(s, m)];
+  const kept = [...values.files, ...(await seriesFiles(s, m)), await conversationFile(s, m), await notesFile(s, m)];
   const files = [await definitionFile(s, full), ...kept, ...(m.formula ? [await calculatedFile(s, m)] : [])];
   const folder = m.slug.replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 80) || "metric";
   return { metric: { id: m.id, name: m.name, folder, files, digest: fingerprint(files), stored: fingerprint(kept) }, rows: values.rows };
