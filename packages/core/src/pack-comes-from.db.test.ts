@@ -193,8 +193,8 @@ describe("where a Pack's numbers come from", () => {
     const { data: entry } = await db().from("catalog_metrics").select("id").eq("workspace_id", w.id).eq("pack_key", "commit").single();
     const draft = await draftPackGuide(actor, "northwind/week", { metrics: [made.metrics[0].id], catalog: [Number(entry!.id)] });
     expect(draft.numbers).toEqual([
-      { ref: `metric:${made.metrics[0].id}`, name: "Closed", said: { by: "system", system: "CRM", note: "The won deals." } },
-      { ref: `catalog:${entry!.id}`, name: "Commit", said: { by: "person" } },
+      { ref: `metric:${made.metrics[0].id}`, name: "Closed", period: "week", said: { by: "system", system: "CRM", note: "The won deals." } },
+      { ref: `catalog:${entry!.id}`, name: "Commit", period: "week", said: { by: "person" } },
     ]);
     const other = await ws(); const eve = await other.person("owner");
     expect((await draftPackGuide(other.actor(eve), "northwind/week", { metrics: [made.metrics[0].id], catalog: [Number(entry!.id)] })).numbers).toEqual([]);
