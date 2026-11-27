@@ -7,7 +7,7 @@ import { Forbidden, Refused, type Actor } from "./actor";
 import { db } from "./db";
 import { createDashboard, placeWidget } from "./dashboards";
 import { homeDashboard, setHomeDashboard, switchableDashboards } from "./home";
-import { skipSetupStep } from "./setup-guide";
+import { startSetupGuide } from "./setup-guide";
 import { firstMetricStep } from "./setup-first-metric";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { chooseTrialExample, exampleNote, removeTrialExample, startChoices } from "./trial-example";
@@ -36,12 +36,16 @@ describe("where to start", () => {
   it("offers the Owner of an empty trial every choice, and others only what they may use", async () => {
     const { w, o } = await trial();
     expect(await home(o)).toEqual({ pack: true, example: true, setup: null, askColleague: false });
-    await skipSetupStep(o, "about");
-    expect((await home(o))!.setup).toEqual({ done: 1, total: 5 });
+    // A Workspace First Steps made leads its Owner back to the next open step; no other Owner or Admin is offered one.
+    await startSetupGuide(o);
+    expect((await home(o))!.setup).toBeNull();
+    await db().from("setup_guides").update({ first_steps_at: new Date().toISOString() }).eq("workspace_id", w.id);
+    expect((await home(o))!.setup).toBe("/first-steps?step=start");
     const admin = w.actor(await w.person("admin"), "admin");
     expect(await home(admin)).toMatchObject({ pack: true, example: false, askColleague: true });
+    expect((await home(admin))!.setup).toBeNull();
     const member = w.actor(await w.person("member"), "member");
-    expect(await home(member)).toMatchObject({ pack: false, example: false, askColleague: true });
+    expect(await home(member)).toMatchObject({ pack: false, example: false, askColleague: true, setup: "/setup" });
     expect(await home(w.actor(await w.person("guest"), "guest"))).toBeNull();
     expect(await startChoices({ ...o, workspaceId: DEMO_WORKSPACE_ID }, [])).toBeNull();
   });

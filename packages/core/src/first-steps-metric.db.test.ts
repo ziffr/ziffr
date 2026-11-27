@@ -12,7 +12,6 @@ import { firstStepsValue } from "./first-steps-value";
 import { NO_ANSWERS, OWN_UNITS } from "./first-steps-screens";
 import { createWorkspace } from "./page-data";
 import { openOne, openRows } from "./sealed-columns";
-import { setupGuide } from "./setup-guide";
 import { canSee } from "./sharing";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
@@ -135,7 +134,7 @@ describe("a metric of one's own", () => {
     expect(dashboards).toEqual([{ id: expect.any(Number), name: "Nord Co", owner_id: owner.personId }]);
     const { data: widgets } = await db().from("widgets").select("dashboard_id, metric_ids").eq("workspace_id", ws);
     expect(widgets).toEqual([{ dashboard_id: dashboards![0].id, metric_ids: [metricId] }]);
-    expect((await setupGuide(owner))!.firstMetric).toEqual({ id: metricId, name: "Visitors" });
+    expect((await db().from("setup_guides").select("first_metric_id").eq("workspace_id", ws).single()).data).toEqual({ first_metric_id: metricId });
     expect(await firstStepsMetric(owner)).toEqual({ id: metricId, name: "Visitors" });
     expect([await count("tokens", ws), await count("deliveries", ws), await count("prompts", ws)]).toEqual([0, 0, 0]);
   });

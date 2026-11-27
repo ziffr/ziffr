@@ -7,7 +7,10 @@ import { Forbidden, type Actor } from "./actor";
 import { myBusinessFunction } from "./business-function";
 import { createDashboard } from "./dashboards";
 import { db } from "./db";
-import { AnswerRefused, createFirstStepsWorkspace, firstStepsState, saveFirstStepsAnswers } from "./first-steps";
+import {
+  AnswerRefused, createFirstStepsWorkspace, firstStepsState, hideFirstStepsLine, leadToFirstSteps, noteFirstStepsLeft,
+  openFirstSteps, saveFirstStepsAnswers,
+} from "./first-steps";
 import { NO_ANSWERS } from "./first-steps-screens";
 import { createWorkspace } from "./page-data";
 import { setupGuidePending } from "./setup-guide";
@@ -228,6 +231,49 @@ describe("where the Owner resumes", () => {
     await metric(workspaceId, owner.personId);
     await db().from("setup_guides").update({ providers_chosen_at: new Date().toISOString() }).eq("workspace_id", workspaceId);
     expect((await firstStepsState(owner))!.resume).toBe("done");
+  });
+});
+
+describe("the way back to unfinished First Steps", () => {
+  it("leads the Owner there once, names the next step and is gone when both are done", async () => {
+    const { workspaceId, owner } = await made();
+    expect(await openFirstSteps(owner)).toEqual({ next: "start", hidden: false, invitesClosed: false });
+    expect(await leadToFirstSteps(owner)).toBe(true);
+    expect(await leadToFirstSteps(owner)).toBe(false);
+    await hideFirstStepsLine(owner);
+    expect(await openFirstSteps(owner)).toMatchObject({ hidden: true });
+    const m = await metric(workspaceId, owner.personId);
+    await value(workspaceId, m, owner.personId);
+    await db().from("setup_guides").update({ providers_chosen_at: new Date().toISOString() }).eq("workspace_id", workspaceId);
+    expect(await openFirstSteps(owner)).toBeNull();
+  });
+
+  it("does not lead an Owner back who left on purpose", async () => {
+    const { owner } = await made();
+    await noteFirstStepsLeft(owner);
+    expect(await leadToFirstSteps(owner)).toBe(false);
+    expect(await openFirstSteps(owner)).not.toBeNull();
+  });
+
+  it("is nothing for an Admin, a Member, the demo or a Workspace First Steps did not make", async () => {
+    const { workspaceId, owner } = await made();
+    const refused: Actor[] = [{ ...owner, workspaceId: DEMO_WORKSPACE_ID }];
+    for (const role of ["admin", "member"] as const) {
+      const personId = await newcomer();
+      await db().from("memberships").insert({ workspace_id: workspaceId, user_id: personId, role });
+      refused.push({ personId, workspaceId, role }, { personId, workspaceId, role: "owner" });
+    }
+    const elsewhere = await newcomer();
+    refused.push({ personId: elsewhere, workspaceId: await createWorkspace(elsewhere, "Made elsewhere"), role: "owner" });
+    for (const actor of refused) {
+      expect(await openFirstSteps(actor)).toBeNull();
+      expect(await leadToFirstSteps(actor)).toBe(false);
+      await noteFirstStepsLeft(actor).catch(() => {});
+      await expect(hideFirstStepsLine(actor)).rejects.toBeInstanceOf(Forbidden);
+    }
+    expect(await openFirstSteps(owner)).toMatchObject({ hidden: false });
+    expect(await leadToFirstSteps(owner)).toBe(true);
+    await db().from("memberships").delete().eq("workspace_id", workspaceId).neq("user_id", owner.personId);
   });
 });
 

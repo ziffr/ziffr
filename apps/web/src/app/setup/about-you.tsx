@@ -1,28 +1,19 @@
 "use client";
-// About you, the Setup Guide's first step (spec 0052; GLOSSARY: Setup Guide, Workspace Profile, Business Function). One
-// question to a row, each optional and each saying what it is for. Owners and Admins answer for the Workspace (its
-// Workspace Profile, its time zone and year start); a Member sees those read-only and answers only their own Business
-// Function. Every value is checked again by the core against its list.
-import { useEffect, useState, useTransition } from "react";
+// About you, the Setup Guide's first step (spec 0052, spec 0067; GLOSSARY: Setup Guide, Workspace Profile, Business
+// Function). A Member reads what the Workspace answered about the business and answers only their own Business Function,
+// which is optional and says what it is for. The core checks the value against its list.
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PrivacyStatement } from "@/components/privacy-statement";
 import { isActionError, UNEXPECTED } from "@/lib/action-error";
-import { saveAboutYou, skipStep, type AboutYouInput } from "./actions";
+import { saveAboutYou, skipStep } from "./actions";
 import { BUSINESS_FUNCTIONS, BUSINESS_FUNCTION_LABELS, type BusinessFunction } from "@ziffr/pack/business-functions";
-import {
-  currencyFor, EMPLOYEE_BANDS, INDUSTRIES, INDUSTRY_LABEL, REVENUE_BANDS, REVENUE_LABEL, SEGMENTS, SEGMENT_LABEL,
-  type WorkspaceProfile,
-} from "@ziffr/core/workspace-profile";
-import { monthName, type YearStart } from "@ziffr/core/periods";
 
 // 44 px tall and 16 px text on a phone (a smaller text makes iPhone Safari zoom in on focus); the compact size from the small breakpoint.
 const field = "block h-11 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-base disabled:opacity-70 sm:h-9 sm:text-sm";
 const SKIP = "Skip this question";
-
-/** A country or currency with the name it is shown by. */
-export type Named = { code: string; name: string };
 
 /** One question: the label and what it is for on the left, the answer on the right. */
 function Row({ id, label, hint, children }: { id: string; label: string; hint: string; children: React.ReactNode }) {

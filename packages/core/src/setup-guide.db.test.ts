@@ -1,19 +1,16 @@
-// The Setup Guide against the real database (spec 0052, ticket 1; GLOSSARY: Setup Guide, Business Function): each tick
-// from real rows, skips that cannot lose each other, who has a guide, the tables being the core's alone, a person's
-// rows going with their membership, and the move of the Trial Guide's columns into the new tables.
+// The Setup Guide against the real database (spec 0052, spec 0067; GLOSSARY: Setup Guide, Business Function): each tick
+// from real rows, who has a guide (a Member only), the first Metric an Owner picks, the tables being the core's alone,
+// a person's rows going with their membership, and the move of the Trial Guide's columns into the new tables.
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
 import { setPreference } from "./questions";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { setWorkspaceClock } from "./workspace-clock";
-import { setWorkspaceProfile } from "./workspace-settings";
 import {
-  chooseExploreOnMyOwn, hideSetupGuide, markSetupGuideSeen, reopenSetupGuide, setSetupFirstMetric, setupGuide, setupGuidePending,
+  hideSetupGuide, markSetupGuideSeen, reopenSetupGuide, seenFirstMetric, setSetupFirstMetric, setupGuide, setupGuidePending,
   setupLine, skipSetupStep, startSetupGuide,
 } from "./setup-guide";
-import { SETUP_STEPS } from "./setup-steps";
 import { workspace } from "./test/db-fixtures";
 
 const MAIL = { ZIFFR_SMTP_URL: process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test" };
@@ -32,30 +29,36 @@ async function fresh() {
   return { w, owner, o: w.actor(owner, "owner") };
 }
 const ids = async (a: Parameters<typeof setupGuide>[0]) => (await setupGuide(a))!.steps.filter((s) => s.ticked).map((s) => s.id);
+async function withMember() {
+  const f = await fresh();
+  const person = await f.w.person("member");
+  return { ...f, person, member: f.w.actor(person, "member") };
+}
+const firstMetricId = async (ws: string) => (await db().from("setup_guides").select("first_metric_id").eq("workspace_id", ws).single()).data!.first_metric_id as number | null;
 
 describe("who has a guide", () => {
-  it("is for Owners, Admins and Members, never a Guest, and never the demo", async () => {
-    const { w, o } = await fresh();
-    const admin = w.actor(await w.person("admin"), "admin");
-    const member = w.actor(await w.person("member"), "member");
-    const guest = w.actor(await w.person("guest"), "guest");
-    expect((await setupGuide(o))!.steps.map((s) => s.id)).toEqual([...SETUP_STEPS]);
-    expect((await setupGuide(admin))!.steps).toHaveLength(5);
+  it("is a Member's only: no Owner, Admin or Guest has one, and never the demo", async () => {
+    const { w, o, member } = await withMember();
+    await startSetupGuide(o);
     expect((await setupGuide(member))!.steps.map((s) => s.id)).toEqual(["about", "ways"]);
-    expect(await setupGuide(guest)).toBeNull();
-    expect(await setupGuidePending(guest)).toBe(false);
-    await expect(skipSetupStep(guest, "about")).rejects.toBeInstanceOf(Forbidden);
-    await expect(hideSetupGuide(guest)).rejects.toBeInstanceOf(Forbidden);
-    const demo = { personId: o.personId, workspaceId: DEMO_WORKSPACE_ID, role: "owner" as const };
+    for (const a of [o, w.actor(await w.person("admin"), "admin"), w.actor(await w.person("guest"), "guest")]) {
+      expect(await setupGuide(a)).toBeNull();
+      expect(await setupGuidePending(a)).toBe(false);
+      expect(await setupLine(a)).toEqual({ applies: false, shown: false, done: 0, total: 0, next: null });
+      await expect(skipSetupStep(a, "about")).rejects.toBeInstanceOf(Forbidden);
+      await expect(hideSetupGuide(a)).rejects.toBeInstanceOf(Forbidden);
+      await expect(reopenSetupGuide(a)).rejects.toBeInstanceOf(Forbidden);
+      await expect(markSetupGuideSeen(a)).rejects.toBeInstanceOf(Forbidden);
+    }
+    const demo = { personId: o.personId, workspaceId: DEMO_WORKSPACE_ID, role: "member" as const };
     expect(await setupGuide(demo)).toBeNull();
     expect(await setupGuidePending(demo)).toBe(false);
     // The demo shows none of it: no line, and every write is refused (spec 0052, ticket 12).
     expect(await setupLine(demo)).toEqual({ applies: false, shown: false, done: 0, total: 0, next: null });
-    await expect(chooseExploreOnMyOwn(demo)).rejects.toBeInstanceOf(Forbidden);
-    await expect(setSetupFirstMetric(demo, null)).rejects.toBeInstanceOf(Forbidden);
+    await expect(setSetupFirstMetric({ ...demo, role: "owner" }, null)).rejects.toBeInstanceOf(Forbidden);
     await expect(skipSetupStep(demo, "about")).rejects.toBeInstanceOf(Forbidden);
     // The demo guard refuses the row even to the service role.
-    await expect(startSetupGuide(demo)).resolves.toBeUndefined();
+    await expect(startSetupGuide({ ...demo, role: "owner" })).resolves.toBeUndefined();
     expect((await db().from("setup_guides").select("workspace_id").eq("workspace_id", DEMO_WORKSPACE_ID)).data).toEqual([]);
     await expect((async () => { await db().from("setup_guides").insert({ workspace_id: DEMO_WORKSPACE_ID }); })()).rejects.toThrow(/demo/i);
     await expect((async () => { await db().from("business_functions").insert({ workspace_id: DEMO_WORKSPACE_ID, person_id: o.personId, function: "sales" }); })()).rejects.toThrow(/demo/i);
@@ -64,200 +67,110 @@ describe("who has a guide", () => {
 });
 
 describe("the ticks from real rows", () => {
-  it("About you: the profile and a saved clock, a UTC Workspace ticks by saving", async () => {
-    const { o } = await fresh();
-    expect(await ids(o)).toEqual([]);
-    await setWorkspaceProfile(o, { industry: "saas", country: "DE" });
-    expect(await ids(o)).toEqual([]);
-    // Saved as it already is (UTC): still a save.
-    await setWorkspaceClock(o, { timeZone: "UTC", runHour: 8 });
-    expect(await ids(o)).toEqual(["about"]);
+  it("About you: the Member's own function", async () => {
+    const { w, owner, person, member } = await withMember();
+    await db().from("business_functions").insert({ workspace_id: w.id, person_id: owner, function: "finance" });
+    expect(await ids(member)).toEqual([]);
+    await db().from("business_functions").insert({ workspace_id: w.id, person_id: person, function: "sales" });
+    expect(await ids(member)).toEqual(["about"]);
   });
 
-  it("Starting point: exploring alone, a Metric or a Pack", async () => {
-    const a = await fresh();
-    await chooseExploreOnMyOwn(a.o);
-    expect(await ids(a.o)).toEqual(["start"]);
-    expect((await setupGuide(a.o))!.startingPoint).toBe("scratch");
-    const b = await fresh();
-    await b.w.metric(b.owner);
-    expect(await ids(b.o)).toEqual(["start"]);
-  });
-
-  it("Ways in and out: a Delivery Preference whose first way is real here, a Member's own only", async () => {
-    const { w, o } = await fresh();
-    await setPreference(o, o.personId, "reminder", "email");
-    // No mail server: email is only simulated, so it does not count.
-    expect(await ids(o)).toEqual([]);
+  it("Ways in and out: a Delivery Preference whose first way is real here, the Member's own only", async () => {
+    const { o, person, member } = await withMember();
     Object.assign(process.env, MAIL);
-    expect(await ids(o)).toEqual(["ways"]);
-    // A Member's own preference counts, not the Owner's.
-    const member = w.actor(await w.person("member"), "member");
+    await setPreference(o, o.personId, "reminder", "email");
+    expect(await ids(member)).toEqual([]);
+    await setPreference(member, person, "reminder", "email");
+    expect(await ids(member)).toEqual(["ways"]);
+    // No mail server: email is only simulated, so it does not count.
+    for (const k of Object.keys(MAIL)) delete process.env[k];
     expect(await ids(member)).toEqual([]);
   });
+});
 
-  it("Team: another member, an invitation waiting, Domain Joining, or a Contact who submits", async () => {
-    const a = await fresh();
-    expect(await ids(a.o)).toEqual([]);
-    await a.w.person("member");
-    expect(await ids(a.o)).toEqual(["team"]);
-    const b = await fresh();
-    await db().from("invitations").insert({ workspace_id: b.w.id, token: randomUUID(), role: "member", created_by: b.owner, expires_at: new Date(Date.now() - 1000).toISOString() });
-    expect(await ids(b.o)).toEqual([]);
-    await db().from("invitations").insert({ workspace_id: b.w.id, token: randomUUID(), role: "member", created_by: b.owner, expires_at: new Date(Date.now() + 86_400_000).toISOString(), revoked_at: new Date().toISOString() });
-    expect(await ids(b.o)).toEqual([]);
-    await db().from("invitations").insert({ workspace_id: b.w.id, token: randomUUID(), role: "member", created_by: b.owner, expires_at: new Date(Date.now() + 86_400_000).toISOString() });
-    expect(await ids(b.o)).toEqual(["team"]);
-    const c = await fresh();
-    await db().from("workspaces").update({ join_domain: "guide-co.test" }).eq("id", c.w.id);
-    expect(await ids(c.o)).toEqual(["team"]);
-    const d = await fresh();
-    const contact = await d.w.contact({ email: "field@contact.test" });
-    expect(await ids(d.o)).toEqual([]);
-    const m = await d.w.metric(d.owner);
-    await d.w.token(m.id, contact);
-    expect(await ids(d.o)).toEqual(["start", "team"]);
-  });
-
-  it("First Metric: a Prompt out and a value in, by the viewer, for the guide's Metric; ticks for any Admin who did both", async () => {
-    const { w, owner, o } = await fresh();
+describe("the first Metric", () => {
+  it("is picked by an Owner or Admin, and only a Metric they see in the Workspace is accepted", async () => {
+    const { w, owner, o, member } = await withMember();
     const m = await w.metric(owner);
-    await startSetupGuide(o);
     await setSetupFirstMetric(o, m.id);
-    expect((await setupGuide(o))!.firstMetric).toEqual({ id: m.id, name: "Field visits" });
-    expect(await ids(o)).toEqual(["start"]);
-    const { data: p } = await db().from("prompts").insert({ metric_id: m.id, submitter_id: owner, source: "email", text: "Field visits?", period_start: "2027-01-01", workspace_id: w.id }).select("id").single();
-    const delivery = { workspace_id: w.id, connector: "email", recipient_id: owner, kind: "prompt", subject: "Field visits?", body: "x", prompt_id: p!.id };
-    await db().from("deliveries").insert({ ...delivery, mail_state: "outbox" });
-    expect(await ids(o)).toEqual(["start"]);
-    // Held by Quiet Hours counts as asked; sent counts too.
-    await db().from("deliveries").insert({ ...delivery, mail_state: "queued", not_before: new Date(Date.now() + 3_600_000).toISOString() });
-    await w.value(m.id, "2027-01-01", 5, owner);
-    expect(await ids(o)).toEqual(["start", "first_metric"]);
-    // Someone else's value does not count for another viewer, but the Admin who did both ticks it for the Workspace's guide.
-    const admin = await w.person("admin");
-    expect(await ids(w.actor(admin, "admin"))).toEqual(["start", "team"]);
-  });
-
-  it("First Metric: a value from before the guide, or by another person, does not count; only a seen Metric is accepted", async () => {
-    const { w, owner, o } = await fresh();
-    const m = await w.metric(owner);
-    const other = await w.person("member");
-    await w.value(m.id, "2026-12-01", 3, owner);
-    await startSetupGuide(o);
-    await setSetupFirstMetric(o, m.id);
-    await w.value(m.id, "2027-01-01", 9, other);
-    const { data: p } = await db().from("prompts").insert({ metric_id: m.id, submitter_id: owner, source: "email", text: "?", period_start: "2027-01-01", workspace_id: w.id }).select("id").single();
-    await db().from("deliveries").insert({ workspace_id: w.id, connector: "email", recipient_id: owner, kind: "prompt", subject: "s", body: "b", prompt_id: p!.id, mail_state: "sent" });
-    expect(await ids(o)).not.toContain("first_metric");
-    // A Metric of another Workspace, a made-up id and a bad value are refused.
+    expect(await firstMetricId(w.id)).toBe(m.id);
+    // A Metric of another Workspace, a made-up id, a bad value and a Member are refused.
     const x = await fresh();
     const foreign = await x.w.metric(x.owner);
     await expect(setSetupFirstMetric(o, foreign.id)).rejects.toBeInstanceOf(Forbidden);
     await expect(setSetupFirstMetric(o, 1.5)).rejects.toBeInstanceOf(Forbidden);
-    await expect(setSetupFirstMetric(w.actor(other, "member"), m.id)).rejects.toBeInstanceOf(Forbidden);
+    await expect(setSetupFirstMetric(member, m.id)).rejects.toBeInstanceOf(Forbidden);
     await setSetupFirstMetric(o, null);
-    expect((await setupGuide(o))!.firstMetric).toBeNull();
+    expect(await firstMetricId(w.id)).toBeNull();
   });
 
-  it("the guide's Metric is not named to a viewer who may not see it", async () => {
-    const { w, owner, o } = await fresh();
+  it("is not named to a viewer who may not see it", async () => {
+    const { w, owner, o, member } = await withMember();
     const m = await w.metric(owner);
-    await startSetupGuide(o);
-    await setSetupFirstMetric(o, m.id);
-    const member = await w.person("member");
-    await db().from("setup_guides").update({ first_metric_id: m.id }).eq("workspace_id", w.id);
-    // A Member has no First Metric step, and a Member who cannot see the Metric is never told its name.
-    expect((await setupGuide(w.actor(member, "member")))!.firstMetric).toBeNull();
-    expect((await setupGuide(o))!.firstMetric?.name).toBe("Field visits");
+    expect(await seenFirstMetric(member, m.id)).toBeNull();
+    expect((await seenFirstMetric(o, m.id))?.name).toBe("Field visits");
   });
 });
 
-describe("skips, hiding and finishing", () => {
-  it("two Admins skipping at once lose neither, and the same skip is written once", async () => {
-    const { w, o } = await fresh();
-    await startSetupGuide(o);
-    const admin = w.actor(await w.person("admin"), "admin");
-    await Promise.all([skipSetupStep(o, "about"), skipSetupStep(admin, "ways"), skipSetupStep(o, "team"), skipSetupStep(admin, "team")]);
-    const { data } = await db().from("setup_guides").select("skipped").eq("workspace_id", w.id).single();
-    expect([...(data!.skipped as string[])].sort()).toEqual(["about", "team", "ways"]);
-    const { data: log } = await db().from("audit_events").select("details").eq("workspace_id", w.id).eq("kind", "setup.step_skipped");
-    expect(log).toHaveLength(3);
-    // Step names only: no person, address or Metric (details may be sealed where the Workspace has a key).
-    expect(JSON.stringify(log).includes("@")).toBe(false);
-    // Skipped for the Workspace: the other Admin sees it too, and it is not a tick.
-    const g = (await setupGuide(admin))!;
-    expect(g.steps.find((s) => s.id === "about")).toMatchObject({ skipped: true, ticked: false });
-  });
-
-  it("a Member skips only their own two steps, on their own row", async () => {
-    const { w, o } = await fresh();
-    const m = await w.person("member");
-    const member = w.actor(m, "member");
+describe("skips, hiding and opening", () => {
+  it("a Member skips only the guide's two steps, on their own row", async () => {
+    const { w, member } = await withMember();
+    const other = w.actor(await w.person("member"), "member");
+    await skipSetupStep(member, "about");
     await skipSetupStep(member, "about");
     await expect(skipSetupStep(member, "team")).rejects.toBeInstanceOf(Forbidden);
     await expect(skipSetupStep(member, "nowhere")).rejects.toBeInstanceOf(Forbidden);
-    await expect(skipSetupStep(o, "nowhere")).rejects.toBeInstanceOf(Forbidden);
     expect((await setupGuide(member))!.steps.map((s) => s.skipped)).toEqual([true, false]);
-    // Not the Owner's: an Owner's skips are the Workspace's.
-    expect((await setupGuide(o))!.steps.find((s) => s.id === "about")!.skipped).toBe(false);
+    expect((await setupGuide(other))!.steps.map((s) => s.skipped)).toEqual([false, false]);
     expect((await db().from("setup_guides").select("skipped").eq("workspace_id", w.id)).data ?? []).toEqual([]);
-    await expect(chooseExploreOnMyOwn(member)).rejects.toBeInstanceOf(Forbidden);
+    // Step names only: no person, address or Metric (details may be sealed where the Workspace has a key).
+    const { data: log } = await db().from("audit_events").select("details").eq("workspace_id", w.id).eq("kind", "setup.step_skipped");
+    expect(log).toHaveLength(1);
+    expect(JSON.stringify(log).includes("@")).toBe(false);
   });
 
-  it("finishes once, when every step an Owner sees is done, and the line goes for everyone", async () => {
-    const { w, o } = await fresh();
+  it("a guide finished before stays quiet", async () => {
+    const { w, o, member } = await withMember();
     await startSetupGuide(o);
-    const member = w.actor(await w.person("member"), "member");
     expect((await setupGuide(member))!.lineShown).toBe(true);
-    for (const s of SETUP_STEPS) await skipSetupStep(o, s);
-    // (The Member just added ticks Team; the other four were skipped.)
-    const g = (await setupGuide(o))!;
-    expect(g).toMatchObject({ finished: true, workspaceFinished: true, lineShown: false, ticked: 1 });
-    await setupGuide(o);
-    expect((await db().from("audit_events").select("id").eq("workspace_id", w.id).eq("kind", "setup.finished")).data).toHaveLength(1);
+    await db().from("setup_guides").update({ finished_at: new Date().toISOString() }).eq("workspace_id", w.id);
     expect((await setupGuide(member))!.lineShown).toBe(false);
-    // Unticking later does not reopen it, and the true state is still shown.
-    expect((await db().from("setup_guides").select("finished_at").eq("workspace_id", w.id).single()).data!.finished_at).not.toBeNull();
   });
 
-  it("hides and reopens for the person only; a Workspace without a row gets one when it is reopened", async () => {
-    const { w, o } = await fresh();
-    const admin = w.actor(await w.person("admin"), "admin");
-    expect((await setupGuide(o))!.started).toBe(false);
-    expect((await setupGuide(o))!.lineShown).toBe(false);
-    expect(await setupGuidePending(o)).toBe(false);
-    await reopenSetupGuide(o);
-    expect((await setupGuide(o))!).toMatchObject({ started: true, lineShown: true, hidden: false });
-    await hideSetupGuide(o);
-    expect((await setupGuide(o))!).toMatchObject({ hidden: true, lineShown: false });
-    expect((await setupGuide(admin))!).toMatchObject({ hidden: false, lineShown: true });
-    await reopenSetupGuide(o);
-    expect((await setupGuide(o))!.hidden).toBe(false);
+  it("hides and reopens for the person only; a Workspace without a row shows no line", async () => {
+    const { w, o, member } = await withMember();
+    const other = w.actor(await w.person("member"), "member");
+    expect((await setupGuide(member))!.lineShown).toBe(false);
+    expect(await setupGuidePending(member)).toBe(false);
+    await startSetupGuide(o);
+    await hideSetupGuide(member);
+    expect((await setupGuide(member))!).toMatchObject({ hidden: true, lineShown: false });
+    expect((await setupGuide(other))!).toMatchObject({ hidden: false, lineShown: true });
+    await reopenSetupGuide(member);
+    expect((await setupGuide(member))!).toMatchObject({ hidden: false, lineShown: true });
   });
 
-  it("opens by itself once per person, and not for a Workspace made before the guide", async () => {
-    const { w, owner, o } = await fresh();
-    expect(await setupGuidePending(o)).toBe(false);
+  it("opens by itself once per person", async () => {
+    const { w, o, person, member } = await withMember();
+    expect(await setupGuidePending(member)).toBe(false);
     await startSetupGuide(o);
     await startSetupGuide(o);
-    expect(await setupGuidePending(o)).toBe(true);
-    const member = w.actor(await w.person("member"), "member");
+    const other = w.actor(await w.person("member"), "member");
     expect(await setupGuidePending(member)).toBe(true);
-    await markSetupGuideSeen(o);
-    await markSetupGuideSeen(o);
-    expect(await setupGuidePending(o)).toBe(false);
-    expect(await setupGuidePending(member)).toBe(true);
-    expect((await setupGuide(o))!.seen).toBe(true);
-    expect((await db().from("setup_guide_people").select("first_seen_at").eq("person_id", owner)).data).toHaveLength(1);
+    await markSetupGuideSeen(member);
+    await markSetupGuideSeen(member);
+    expect(await setupGuidePending(member)).toBe(false);
+    expect(await setupGuidePending(other)).toBe(true);
+    expect((await setupGuide(member))!.seen).toBe(true);
+    expect((await db().from("setup_guide_people").select("first_seen_at").eq("person_id", person)).data).toHaveLength(1);
   });
 });
 
 describe("the tables are the core's alone", () => {
   it("cannot be read or written by the public roles, nor their functions", async () => {
-    const { w, owner, o } = await fresh();
+    const { w, owner, o, member } = await withMember();
     await startSetupGuide(o);
-    await markSetupGuideSeen(o);
+    await markSetupGuideSeen(member);
     await db().from("business_functions").insert({ workspace_id: w.id, person_id: owner, function: "finance" });
     const { createClient } = await import("@supabase/supabase-js");
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "http://127.0.0.1:54321";
@@ -328,46 +241,25 @@ describe("the move of the Trial Guide's state", () => {
     expect((await row(open.w.id))!.skipped).toEqual(["team"]);
   });
 
-  it("makes the trial's Test Metric the First Metric the Owner sees, with the start ticked", async () => {
+  it("keeps the trial's Test Metric as the first Metric the Owner sees", async () => {
     const t = await trialWith({ trial_guide_step: "ask" });
     await db().rpc("setup_guide_move_trial_state");
-    const g = (await setupGuide(t.w.actor(t.owner, "owner")))!;
-    expect(g.firstMetric).toEqual({ id: t.m.id, name: "Cups of coffee" });
-    expect(g.steps.find((s) => s.id === "start")!.ticked).toBe(true);
-  });
-  it("the Setup line: shown while steps are left, quiet when hidden, none for a Guest or the demo, and one person's Hide never hides it for another", async () => {
-    const { w, o } = await fresh();
-    const admin = w.actor(await w.person("admin"), "admin");
-    const member = w.actor(await w.person("member"), "member");
-    const guest = w.actor(await w.person("guest"), "guest");
-    // No row yet: the guide applies to them (the menus offer it), the line is not drawn.
-    expect(await setupLine(o)).toMatchObject({ applies: true, shown: false });
-    await startSetupGuide(o);
-    expect(await setupLine(o)).toMatchObject({ applies: true, shown: true, total: 5 });
-    expect(await setupLine(member)).toMatchObject({ applies: true, shown: true, total: 2 });
-    expect(await setupLine(guest)).toEqual({ applies: false, shown: false, done: 0, total: 0, next: null });
-    await hideSetupGuide(o);
-    expect(await setupLine(o)).toMatchObject({ applies: true, shown: false });
-    expect(await setupLine(admin)).toMatchObject({ shown: true });
-    expect(await setupLine(member)).toMatchObject({ shown: true });
-    await reopenSetupGuide(o);
-    expect(await setupLine(o)).toMatchObject({ shown: true });
-    expect(await setupLine({ ...o, workspaceId: DEMO_WORKSPACE_ID })).toMatchObject({ applies: false, shown: false });
+    const owner = t.w.actor(t.owner, "owner");
+    expect(await seenFirstMetric(owner, await firstMetricId(t.w.id))).toEqual({ id: t.m.id, name: "Cups of coffee" });
   });
 
-  it("hiding is per Workspace: the same person hides one Workspace's guide and still sees the other's", async () => {
-    const first = await fresh();
+  it("hiding is per Workspace: the same person hides one Workspace's line and still sees the other's", async () => {
+    const first = await withMember();
     const second = await workspace("Second Guide Co");
     made.push(second);
-    const person = first.owner;
-    await db().from("memberships").insert({ workspace_id: second.id, user_id: person, role: "owner" });
-    const a = first.o;
-    await startSetupGuide(a);
+    await db().from("memberships").insert({ workspace_id: second.id, user_id: first.person, role: "member" });
+    const a = first.member;
+    await startSetupGuide(first.o);
     await hideSetupGuide(a);
     expect(await setupLine(a)).toMatchObject({ shown: false });
     // The other Workspace has its own row for the same person: nothing was hidden there.
     const b = { ...a, workspaceId: second.id };
-    await startSetupGuide(b);
-    expect(await setupLine(b)).toMatchObject({ shown: true });
+    await startSetupGuide({ ...b, role: "owner" });
+    expect(await setupLine(b)).toMatchObject({ shown: true, total: 2 });
   });
 });

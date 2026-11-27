@@ -83,8 +83,8 @@ describe("the person's own Delivery Preference", () => {
     expect(await ticked(member)).toBe(false);
     await setMyPromptWays(member, ["email"]);
     expect(await ticked(member)).toBe(true);
-    // The Member's choice does not tick the Owner's step.
-    expect(await ticked(owner)).toBe(false);
+    // An Owner has no Setup Guide at all.
+    expect(await setupGuide(owner)).toBeNull();
   });
 });
 
