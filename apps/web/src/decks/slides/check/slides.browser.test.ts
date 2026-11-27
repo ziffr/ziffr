@@ -1,7 +1,7 @@
 // The browser check of the deck slides (spec 0069; GLOSSARY: Slide, Slide Type, Deck Design, Theme): every slide type in
 // both designs, both emphases, every check Theme and both font sets, drawn by the screen renderer in a headless
 // Chromium and measured there (quality-check.ts). ZIFFR_SLIDE_PICTURES=<folder> also saves pictures of the slides.
-import { readdirSync, readFileSync, mkdirSync } from "node:fs";
+import { readdirSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,6 +19,9 @@ import { createPen, TYPE_SCALE } from "@ziffr/core/deck-drawing/objects";
 import { SLIDE_TYPES } from "@ziffr/core/deck-drawing/slides/index";
 
 import { deckFontFiles } from "../../../../../../scripts/deck-fonts.mjs";
+import { misplaced, readParts, type ScreenPlaces } from "../../file/check/against-screen";
+import { everySlide } from "../../file/check/deck";
+import { FILE_FONTS, writeDeckFile, type DeckFileKind } from "../../file/write-pptx";
 import { slideFontStack } from "../fonts";
 import { SlideView } from "../slide-view";
 import type { CheckPlan } from "./quality-check";
@@ -26,6 +29,9 @@ import { CONTENT_TYPES, DECK, hardDeck, SAMPLES, slideOf, THEMES } from "./sampl
 
 const ROOT = fileURLToPath(new URL("../../../../../../", import.meta.url));
 const PICTURES = process.env.ZIFFR_SLIDE_PICTURES;
+const DECK_FILES = process.env.ZIFFR_DECK_FILES;
+// One transparent pixel stands for the pictures a browser would draw: only their place is checked.
+const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
 const TYPES = { ...SLIDE_TYPES, ...CONTENT_TYPES };
 const DESIGNS = Object.keys(DECK_DESIGNS) as DeckDesignId[];
 
@@ -94,6 +100,25 @@ const realistic = (design: DeckDesignId, theme: string, more: Partial<DeckDrawin
   slides: [slideOf("cover"), ...Object.keys(CONTENT_TYPES).map((type) => slideOf(type))],
   ...more,
 });
+
+/** Where the slide on the page has each object, in the slide's own pixels. */
+const places = (): Promise<ScreenPlaces> =>
+  page.evaluate(() => {
+    const canvas = document.querySelector("[data-canvas]")!.getBoundingClientRect();
+    return Object.fromEntries(
+      [...document.querySelectorAll("[data-canvas] [data-id]")].map((el) => {
+        const { x, y, width, height } = el.getBoundingClientRect();
+        return [el.getAttribute("data-id")!, { x: x - canvas.x, y: y - canvas.y, w: width, h: height }];
+      }),
+    );
+  });
+
+/** Writes a deck file into the folder the validator reads, where one is named. */
+function keepFile(name: string, file: Uint8Array) {
+  if (!DECK_FILES) return;
+  mkdirSync(DECK_FILES, { recursive: true });
+  writeFileSync(path.join(DECK_FILES, `${name}.pptx`), file);
+}
 
 /** Every name written in the shipped Packs, the longest first. */
 function packNames(): string[] {
@@ -225,6 +250,38 @@ describe("the deck slides in a browser", () => {
       expect(await rows()).toEqual(wide);
     }
     await page.evaluate(() => { document.getElementById("root")!.style.width = "1280px"; });
+  });
+
+  // Screen against file: the same drawing as a PowerPoint file has every object where the browser has it. The files are
+  // kept for Microsoft's validator when ZIFFR_DECK_FILES names a folder.
+  it.each(DESIGNS)("have the PowerPoint file's objects where the screen has them, %s design", async (design) => {
+    for (const kind of Object.keys(FILE_FONTS) as DeckFileKind[]) {
+      const input = { ...everySlide(design, FILE_FONTS[kind], "franklin"), address: "https://ziffr.example.com" };
+      const drawing = drawDeck(input);
+      const file = await writeDeckFile(drawing, { title: input.name, kind, address: input.address, rasterize: async () => PIXEL });
+      keepFile(`${design}-${kind}`, file);
+      const parts = await readParts(file);
+      const found: string[] = [];
+      for (const [i, slide] of drawing.slides.entries()) {
+        await show(slide, drawing);
+        const screen = await places();
+        found.push(...misplaced(parts, i, slide, screen).map((m) => `${kind} ${i + 1} ${slide.type}: ${m}`));
+        // The check sees a miss of 3 px.
+        if (i === 1) {
+          const moved = Object.fromEntries(Object.entries(screen).map(([id, at]) => [id, { ...at, x: at.x + 3 }]));
+          expect(misplaced(parts, i, slide, moved).length).toBeGreaterThan(0);
+        }
+      }
+      expect(found.slice(0, 40)).toEqual([]);
+    }
+  });
+
+  // Words that try to be markup, with characters XML forbids: the validator opens this file too.
+  it.runIf(DECK_FILES)("keeps a file of hostile words", async () => {
+    const words = `\u0000\u000b￾\uD800<a:t b="1" c='2'>&amp;</a:t>`;
+    const base = everySlide("band", FILE_FONTS.office);
+    const input = { ...base, name: words, data: { ...base.data, metrics: base.data.metrics.map((m) => ({ ...m, name: `${words} ${m.id}`, description: words })) } };
+    keepFile("hostile", await writeDeckFile(drawDeck(input), { title: words, kind: "office", rasterize: async () => PIXEL }));
   });
 
   it.runIf(PICTURES)("saves pictures", async () => {

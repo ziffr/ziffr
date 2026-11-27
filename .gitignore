@@ -14,6 +14,9 @@ node_modules
 coverage
 # the phone check (apps/web/phone): screenshots of failed pages
 apps/web/test-results/
+# what building the PowerPoint validator leaves behind (scripts/pptx-validate)
+scripts/pptx-validate/bin/
+scripts/pptx-validate/obj/
 # mutation testing (Stryker): its sandbox and reports
 .stryker-tmp/
 packages/core/reports/

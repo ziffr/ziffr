@@ -31,7 +31,9 @@ fi
 
 if ! $quick; then
   step "The deck slides in a headless browser (needs: pnpm --filter @ziffr/web exec playwright install chromium-headless-shell)"
-  pnpm --filter @ziffr/web test:slides
+  decks=$(mktemp -d)
+  ZIFFR_DECK_FILES="$decks" pnpm --filter @ziffr/web test:slides
+  if command -v dotnet >/dev/null; then dotnet run --project scripts/pptx-validate -- "$decks"; else echo "dotnet not installed: PowerPoint files not validated (brew install dotnet)"; fi
 fi
 
 step "Security"
