@@ -815,7 +815,7 @@
           "type": "array",
           "minItems": 1,
           "maxItems": 60,
-          "description": "The section “Before you start”.",
+          "description": "The section “What you need”.",
           "items": {
             "oneOf": [
               {

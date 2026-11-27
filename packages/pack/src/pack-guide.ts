@@ -10,7 +10,7 @@ import { PLAIN, plainText, textPasses } from "./file-text.js";
 /** The sections of a Pack Guide, in the order they are shown, with the titles Ziffr writes over them. */
 export const PACK_GUIDE_SECTIONS = [
   { key: "whatItsFor", title: "What it's for" },
-  { key: "beforeYouStart", title: "Before you start" },
+  { key: "beforeYouStart", title: "What you need" },
   { key: "firstSteps", title: "First steps" },
   { key: "eachPart", title: "Each part" },
   { key: "questions", title: "Questions" },

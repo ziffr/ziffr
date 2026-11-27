@@ -2,7 +2,7 @@
   "format": "ziffr.pack/3",
   "id": "ziffr/sales",
   "name": "Sales",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "summary": "New and qualified leads, deals won and lost, closed-won value, pipeline, sales cycle, win rate and average deal size, with a monthly dashboard and a Workflow that asks for the month's figures.",
   "author": {
     "name": "Ziffr"
@@ -32,52 +32,22 @@
     "whatItsFor": [
       {
         "type": "text",
-        "text": "For a sales team that reports its month: leads, deals won and lost, what they were worth, the pipeline and how long a sale takes."
+        "text": "For a sales team that reports its month. The figures are asked for on the second working day, and a dashboard shows leads, deals won and lost, their value, win rate, deal size, pipeline and how long a sale takes."
       }
     ],
     "beforeYouStart": [
       {
         "type": "list",
         "items": [
-          "The month's figures from your sales system: new and qualified leads, deals won and lost, closed-won value, pipeline value and sales cycle.",
-          "Free room for the Metrics in your Workspace's size: the Set up form says how many it makes and how many fit."
-        ]
-      }
-    ],
-    "firstSteps": [
-      {
-        "type": "heading",
-        "text": "Start here"
-      },
-      {
-        "type": "list",
-        "numbered": true,
-        "items": [
-          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
-          "Keep the Metrics you want ticked, up to all 9, with the dashboard **Sales monthly** and the Workflow **Monthly sales figures**. Leave **Make me the Submitter of their values** ticked if you send the figures yourself, else untick it. Setting up sends no request unless you tick **Send the first requests now**. Choose **Set up**.",
-          "**New leads** and **Deals won** are marked as sent by a CRM, so Set up does not make you their Submitter. Connect HubSpot with **Fill from n8n** under **Who submits** on each of the two, or tick **Ask me also for** them to type them.",
-          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
-          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
-          "Open **Dashboards** and then **Sales monthly**. It fills as values come in."
-        ]
-      }
-    ],
-    "eachPart": [
-      {
-        "type": "list",
-        "items": [
-          "**New leads**, **Qualified leads**, **Deals won** and **Deals lost**.",
-          "**Closed-won value**, **Pipeline value** and **Sales cycle** in days.",
-          "Ziffr works out **Win rate** and **Average deal size**.",
-          "The dashboard **Sales monthly**.",
-          "The Workflow **Monthly sales figures** asks on the second working day after the month and publishes. A figure that is still missing after its Due Date is raised with the Metric's owner."
+          "From your sales system or a spreadsheet: new and qualified leads, deals won and lost, closed-won value, pipeline value and sales cycle.",
+          "Room for 9 Metrics in your Workspace."
         ]
       }
     ],
     "questions": [
       {
         "type": "heading",
-        "text": "Do you have a weekly forecast?"
+        "text": "Is there a weekly forecast?"
       },
       {
         "type": "text",

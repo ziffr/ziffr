@@ -2,7 +2,7 @@
   "format": "ziffr.pack/3",
   "id": "ziffr/sales-forecast",
   "name": "Sales forecast",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "summary": "A weekly sales forecast for a team: each salesperson's commit, best case, closed this quarter and pipeline, the team's figures added up, the gap to quota and pipeline coverage worked out, a dashboard and a deck for the weekly meeting and a Workflow that asks on Monday and has the sales lead approve.",
   "author": {
     "name": "Ziffr"
@@ -33,128 +33,18 @@
     "whatItsFor": [
       {
         "type": "text",
-        "text": "For a sales team that calls its quarter every week. On Monday each salesperson's figures for the week just ended come in, the sales lead approves them, and the team reads its **commit**, gap to quota and pipeline coverage."
-      },
-      {
-        "type": "text",
-        "text": "For the weekly forecast meeting it brings:"
-      },
-      {
-        "type": "list",
-        "items": [
-          "Figures for each salesperson, and the team's figures added up from them.",
-          "A **dashboard** with this week's call against quota, each salesperson's commit against theirs and the last 13 weeks.",
-          "A **deck** of seven slides that fills in its own figures, with the gap by salesperson.",
-          "A **Workflow** that asks, has each value approved, locks the week and sends its Snapshot.",
-          "n8n templates that send figures from HubSpot, Salesforce, Pipedrive, Google Sheets or Microsoft Excel."
-        ]
+        "text": "For a sales team that calls its quarter every week. Every Monday your salespeople are asked for last week's figures, and the sales lead approves them. A dashboard and meeting slides show **commit**, gap to quota and pipeline coverage. Money is in euro."
       }
     ],
     "beforeYouStart": [
       {
         "type": "list",
         "items": [
-          "An **Owner** installs the Pack, because it holds three Themes. An Owner or Admin sets it up.",
-          "Your salespeople, up to 30. Invite them on the **Members** page, or add them as Contacts, so that you can pick them.",
-          "A **sales lead**, a member of the Workspace, who approves the figures. Nobody approves their own value while someone else can.",
-          "Each salesperson's **quota** for the quarter. It is a weekly target on their **Commit**: every week of the quarter gets the quarter's quota. The team's quota is those targets added up.",
-          "Where **Closed this quarter** and **Pipeline value** come from: your CRM or a sheet through n8n, or people who type them.",
-          "Room in your Workspace's size: **4 Metrics** for each salesperson and **8** for the team. Ten salespeople make 48.",
-          "The money figures are in euro. If yours differ, change the **Unit** with **Edit details…** on each Metric's **Description** tab."
-        ]
-      }
-    ],
-    "firstSteps": [
-      {
-        "type": "heading",
-        "text": "Start here"
-      },
-      {
-        "type": "text",
-        "text": "Do these in order. After that the week runs by itself."
-      },
-      {
-        "type": "list",
-        "numbered": true,
-        "items": [
-          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
-          "Under **List each Salesperson**, add a line for each one: type their name and answer **Who is the Salesperson?** Under **Who does what**, answer **Who is the Sales lead?**",
-          "Keep the Metrics ticked, with the dashboard **Weekly forecast meeting** and the Workflow **Weekly sales forecast**.",
-          "Under **Shares the Pack proposes**, choose **Tick all for** the sales lead: a team figure is shown only to someone who sees every salesperson's figure it adds up.",
-          "Choose **Set up**. No request goes out unless you tick **Send the first requests now**; otherwise people are asked at the Workflow's next run.",
-          "Set the quotas: open each salesperson's **Commit**, go to the **Targets** tab and give every week of the quarter their quarter's quota. **Paste from a spreadsheet** takes the weeks in one go; then choose **Save**. Only a Commit's owner and its Editors can do this: see **Questions** for who that is, and for a team quota of its own.",
-          "To connect a CRM or a sheet, choose **Fill from n8n** on the page Set up shows. In n8n, leave the settings for the team's figures empty and give each salesperson a line in the node **Owners**.",
-          "Without a CRM or a sheet, nobody is asked for **Closed this quarter** and **Pipeline value** yet. Open each of these Metrics, go to the **Description** tab and, under **Who submits**, choose **Add a person**, pick the salesperson and choose **Add…**.",
-          "Send this week's figures: whoever submits answers the request, or opens the Metric and chooses **Record a value**. The sales lead then approves them.",
-          "Open **Decks**, choose **From a Deck Template**, pick **Weekly forecast meeting** and a Metric for each Slot. Each Slot is named like the Metric it takes."
-        ]
-      },
-      {
-        "type": "heading",
-        "text": "Every week after that"
-      },
-      {
-        "type": "list",
-        "numbered": true,
-        "items": [
-          "On Monday Ziffr asks the people who send figures for the week just ended, and the n8n templates send theirs. The figures are due on Tuesday, with a reminder that day.",
-          "The sales lead approves each value. It is then published and the week is locked.",
-          "Before the meeting, open the deck and write what only you know over the questions on its slides, such as why the pipeline moved and what you ask for.",
-          "Once the week is finished, the sales lead gets a link to its Snapshot. Add others in the Workflow's **Send Snapshot** step and share the dashboard with them. A shared dashboard shows every salesperson's **Commit**: see **Who sees what?** under **Questions**.",
-          "When a new quarter starts, add its weeks and quotas on each **Commit**'s **Targets** tab."
-        ]
-      },
-      {
-        "type": "heading",
-        "text": "When the team changes"
-      },
-      {
-        "type": "list",
-        "items": [
-          "Someone joins: under this Pack choose **Add a Salesperson**, tick the team figures that count the new one, then set their quota.",
-          "Someone leaves: archive their Metrics. Ziffr asks up to which week each team figure counts them, and earlier weeks stay."
-        ]
-      }
-    ],
-    "eachPart": [
-      {
-        "type": "heading",
-        "text": "The figures of each salesperson"
-      },
-      {
-        "type": "list",
-        "items": [
-          "**Commit**: what they commit to closing by the end of the quarter, deals already won included. Its target is their quota, week by week on its **Targets** tab.",
-          "**Best case**: what the quarter reaches if the open deals that may still close do, deals already won included.",
-          "**Closed this quarter**: the value of the deals won since the quarter began. It starts again from 0 each quarter.",
-          "**Pipeline value**: all open deals that can still close this quarter, those in the commit included, those already won not."
-        ]
-      },
-      {
-        "type": "heading",
-        "text": "The team's figures"
-      },
-      {
-        "type": "list",
-        "items": [
-          "**Team commit**, **Team best case**, **Team closed this quarter** and **Team pipeline value**: Totals that add up the figures of all salespeople. Nobody sends them.",
-          "**Quota**: the target of **Team commit**. That is the salespeople's quotas added up, unless you give the team a quota of its own.",
-          "**Commit gap to quota**: Team commit minus the quota. Below 0, the commit is that much short.",
-          "**Commit as share of quota**: Team commit as a percentage of the quota. 100 % or more covers it.",
-          "**Pipeline coverage**: Team pipeline value divided by what is still missing, which is the quota minus Team closed this quarter."
-        ]
-      },
-      {
-        "type": "heading",
-        "text": "Dashboard, deck, Workflow and Themes"
-      },
-      {
-        "type": "list",
-        "items": [
-          "The dashboard **Weekly forecast meeting**: the call against quota, the change on last week, the last 13 weeks and each salesperson's commit against their quota.",
-          "The deck **Weekly forecast meeting**: a cover, the call, where the gap sits by salesperson, the change since last week, the weeks of the quarter, pipeline coverage, and the risks and asks.",
-          "The Workflow **Weekly sales forecast**: asks on Monday, reminds on Tuesday, tells the Metric's owner about a missing value on Wednesday, marks a change of more than 25 % as unusual, has every value approved, locks the week and sends its Snapshot.",
-          "**Forecast Navy**, **Forecast Coral** and **Forecast Forest**: three Themes. The deck starts with Navy. Add your logo to the Theme you use under **Themes** in **Settings**."
+          "Names and email addresses of your salespeople, up to 30.",
+          "A **sales lead**, a member of the Workspace, to approve the figures.",
+          "Each salesperson's quota for the quarter. It can come later.",
+          "An **Owner** to install the Pack, because it holds three Themes.",
+          "Room for **4 Metrics** per salesperson and **8** for the team."
         ]
       }
     ],
@@ -165,19 +55,15 @@
       },
       {
         "type": "text",
-        "text": "Each salesperson sees their own figures. The sales lead sees everyone's once the proposed Shares are ticked. A team figure is shown only to someone who sees every salesperson's figure it adds up; the Metric's owner can show a team figure to others on its page."
-      },
-      {
-        "type": "text",
-        "text": "Sharing the dashboard **Weekly forecast meeting** also shows its Metrics. A salesperson you share it with sees every salesperson's **Commit** and quota, and with them **Team commit**, **Quota**, the gap and the share of quota. Ziffr warns of this in the **Share** panel. Share the dashboard only with people who may see all of that."
+        "text": "Each salesperson sees their own figures, and the sales lead everyone's once the proposed Shares are ticked. Whoever you share the dashboard with sees every salesperson's commit and quota, and the team figures made from them, so share it only with people who may see that."
       },
       {
         "type": "heading",
-        "text": "Who can set the quotas?"
+        "text": "Where can the figures come from?"
       },
       {
         "type": "text",
-        "text": "The owner of each **Commit**, who is whoever set the Pack up, and its Editors. A sales lead who did not set the Pack up only sees the figures. To let them set quotas, the owner opens each **Commit**, chooses **Share** and makes them **Editor**."
+        "text": "People type them, or n8n sends them from HubSpot, Salesforce, Pipedrive, Google Sheets or Microsoft Excel."
       },
       {
         "type": "heading",
@@ -185,101 +71,7 @@
       },
       {
         "type": "text",
-        "text": "It has a value for a week once every salesperson's figure is in: someone with nothing sends 0. The quota, and what follows from it, also needs a target on every salesperson's **Commit** for that week."
-      },
-      {
-        "type": "heading",
-        "text": "How do we give the team a quota of its own?"
-      },
-      {
-        "type": "text",
-        "text": "To begin with, the team's quota is the salespeople's quotas added up. For another one, such as a quota with a margin on top, the owner or an Editor of **Team commit** does this:"
-      },
-      {
-        "type": "list",
-        "numbered": true,
-        "items": [
-          "Open **Metrics**, then **Team commit**. On the **Overview** tab, find **What it adds up**.",
-          "Under **Target**, choose **Its own target**. Ziffr says **Target changed**.",
-          "Open the **Targets** tab. Choose **Add row** for each week, or **Paste from a spreadsheet** with two columns: the week and the quota.",
-          "Give every week of the quarter the team's quota for the quarter, also past weeks you still want to read. Then press the **Save** button below the rows."
-        ]
-      },
-      {
-        "type": "text",
-        "text": "**Quota**, **Commit gap to quota**, **Commit as share of quota** and **Pipeline coverage** then use the team's own quota, on the dashboard and on the slides. A week without one has none of these, past weeks too."
-      },
-      {
-        "type": "text",
-        "text": "The slide with the gap by salesperson stays as it was: each row compares a salesperson with their own quota. So the rows need not add up to the team's gap."
-      },
-      {
-        "type": "text",
-        "text": "For one quota that holds in every week, choose **Edit details…** on the **Description** tab and fill in **Target from**. It keeps no history: changing it changes past weeks too."
-      },
-      {
-        "type": "text",
-        "text": "While **Team commit** is shown to people who do not see every salesperson's figure, only its owner changes the target, and ticks the box that asks them to confirm."
-      },
-      {
-        "type": "heading",
-        "text": "How do we go back to the quotas added up?"
-      },
-      {
-        "type": "list",
-        "numbered": true,
-        "items": [
-          "Open **Team commit**, and on the **Overview** tab under **Target** choose **Its Metrics’ targets added up**.",
-          "Check that each salesperson's **Commit** has a target for the weeks you read: a week has a team quota only when every one of them has one."
-        ]
-      },
-      {
-        "type": "text",
-        "text": "This removes a **Target from** or **Target up to** set on **Team commit**. The weekly quotas you entered for it are kept but not used, and count again if you choose **Its own target** later."
-      },
-      {
-        "type": "heading",
-        "text": "Can the figures come from our CRM?"
-      },
-      {
-        "type": "text",
-        "text": "Yes. n8n can send **Closed this quarter** and **Pipeline value** for each salesperson every Monday from HubSpot, Salesforce or Pipedrive. HubSpot and Salesforce can also send **Commit** and **Best case** if you switch them on; Commit is otherwise a person's call. n8n runs on your side, and Ziffr never holds your CRM login."
-      },
-      {
-        "type": "heading",
-        "text": "Can they come from a spreadsheet, or can we type them?"
-      },
-      {
-        "type": "text",
-        "text": "Both. **Fill from n8n** also offers Google Sheets and Microsoft Excel templates, and any figure of a salesperson can be typed by whoever submits it."
-      },
-      {
-        "type": "text",
-        "text": "Figures of earlier weeks can be brought in with **Paste values**. It takes only Metrics you submit values for, and refuses the others even to their owner. So first add yourself under **Who submits** on each of those Metrics, with **Ask them for the current value now** unticked. As their owner, tick **Record as history** so that nobody is asked to approve old weeks, and remove yourself afterwards."
-      },
-      {
-        "type": "heading",
-        "text": "Which week does a figure belong to?"
-      },
-      {
-        "type": "text",
-        "text": "Each week holds the figures as they stood at its end. A reply to Monday's request counts for the week just ended. In a week that spans two quarters, send the figures of the quarter the week starts in."
-      },
-      {
-        "type": "heading",
-        "text": "We set the Pack up before version 2"
-      },
-      {
-        "type": "text",
-        "text": "What was set up stays as it is and keeps working. To change to figures for each salesperson, update the Pack and set it up again."
-      },
-      {
-        "type": "heading",
-        "text": "Is this the same as the Sales Pack?"
-      },
-      {
-        "type": "text",
-        "text": "No. The Sales Pack counts a month's leads and deals. Sales forecast is a Pack of its own, and you can have both."
+        "text": "It needs every salesperson's figure for the week, so someone with nothing sends 0. The quota also needs every salesperson's quota for that week."
       }
     ]
   },

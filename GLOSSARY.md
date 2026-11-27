@@ -566,7 +566,7 @@ A Derived Metric that adds up a list of Metrics it keeps, its parts, such as the
 _Avoid_: Roll-up, consolidation, group sum
 
 **Pack Guide**:
-What a Pack's creator tells people about it, in five set sections whose titles Ziffr writes: What it's for, Before you start, First steps, Each part, and Questions. Headings, paragraphs, lists and bold words only; read before installing and, with the installed Pack, in Help. Not the user guide, which is Ziffr's own, not the Setup Guide, and not the summary of one or two sentences.
+What a Pack's creator tells people about it, in five set sections whose titles Ziffr writes: What it's for, What you need, First steps, Each part, and Questions. Headings, paragraphs, lists and bold words only; read before installing and, with the installed Pack, in Help. Not the user guide, which is Ziffr's own, not the Setup Guide, and not the summary of one or two sentences.
 _Avoid_: Readme, manual, documentation, tutorial
 
 **Marketplace**:

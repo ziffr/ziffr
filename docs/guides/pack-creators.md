@@ -10,7 +10,7 @@ The easiest way is **Workspace → Packs → Export as Pack…**: pick what goes
 
 Say **where each number comes from** (`comesFrom`): a person types it, another system sends it, or it is set once as a target. Ziffr shows it before installing, and the Marketplace lists a Pack only when every number that takes values has it; [the format](packs.md#where-each-number-comes-from) says how.
 
-A Pack may carry a **Pack Guide**: what it is for, what to have ready, the first steps, each part and common questions, as headings, paragraphs, lists and bold words, written in the file's `guide` (format `ziffr.pack/2`). No links, images, HTML or code. Ziffr checks it and shows it in the preview before installing and in Help afterwards; [the format](packs.md#the-pack-guide) says how to write one.
+A Pack may carry a **Pack Guide**: what it is for, what you need, the first steps, each part and common questions, as headings, paragraphs, lists and bold words, written in the file's `guide` (format `ziffr.pack/2`). No links, images, HTML or code. Ziffr checks it and shows it in the preview before installing and in Help afterwards; [the format](packs.md#the-pack-guide) says how to write one.
 
 ## Your logo
 
