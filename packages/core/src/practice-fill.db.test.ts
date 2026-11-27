@@ -108,7 +108,11 @@ describe("a made-up sales forecast and its Workflow", () => {
     });
     // The targets someone sets next are each salesperson's quota.
     expect(made.targetsToSet.map((m) => m.name).sort()).toEqual(["Commit, Anna", "Commit, Ben"]);
+    const asking = () => Promise.all(["actions", "deliveries", "prompts"].map(async (table) => (await db().from(table).select("id").eq("workspace_id", w.id)).data!.length));
+    const before = await asking();
     await fill(actor, install);
+    // Filling asks nobody and gives nobody anything to do.
+    expect(await asking()).toEqual(before);
     const read = await allSeriesFor(actor);
     const metric = (name: string) => read.metrics.find((m) => m.name === name)!;
     const series = (name: string) => new Map(read.series[metric(name).slug]!.map((p) => [p.period, p.value]));
@@ -135,7 +139,8 @@ describe("a made-up sales forecast and its Workflow", () => {
     const asked = workingPeriod(today, "week", JANUARY);
     const { data: states } = await db().from("period_states").select("period_start, state").eq("metric_id", metric("Commit, Anna").id);
     expect(states).toEqual([{ period_start: asked, state: "asked" }]);
-    expect((await db().from("actions").select("purpose").eq("workspace_id", w.id)).data).toEqual([]);
+    // Nothing made up waits to be approved or checked; late in a week the run may follow up what is still missing.
+    expect((await db().from("actions").select("purpose").eq("workspace_id", w.id).in("purpose", ["approval", "self_check"])).data).toEqual([]);
     const { data: prompts } = await db().from("prompts").select("submitter_id, period_start").eq("workspace_id", w.id);
     expect(prompts).toEqual(expect.arrayContaining([{ submitter_id: anna, period_start: asked }, { submitter_id: ben, period_start: asked }]));
   });
