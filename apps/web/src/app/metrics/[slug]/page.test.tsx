@@ -21,7 +21,7 @@ vi.mock("server-only", () => ({}));
 vi.hoisted(() => Object.assign(process.env, { SUPABASE_URL: "http://localhost:1", SUPABASE_SERVICE_ROLE_KEY: "none" }));
 vi.mock("@/lib/data", () => ({
   getAllSeries: async () => ({ metrics: [SEEN, UNSEEN, DERIVED], series: { "seen-input": points, "unseen-input": points, result: points }, targets: {}, condensed: {} }),
-  getProfiles: async () => [], getYearStart: async () => 1, getNumberStyle: async () => "1,234.5", getAttainmentMethod: async () => "ratio",
+  getProfiles: async () => [], getYearStart: async () => 1, getToday: async () => "2026-03-15", getNumberStyle: async () => "1,234.5", getAttainmentMethod: async () => "ratio",
   getBreakdowns: async () => ({}), getLastValues: async () => [], getSeriesValues: async () => ({ targets: {}, projections: {} }),
 }));
 vi.mock("@/lib/access", () => ({
