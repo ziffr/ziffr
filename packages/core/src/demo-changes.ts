@@ -267,6 +267,8 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   ],
   // Promises what does not happen in the demo (an Alert, a Heads-up, an automatic Snapshot) or records nothing there.
   "does-nothing": [
+    // The demo asks for each figure in a message of its own, so no combined form link exists there (spec 0064).
+    "actions:submitCombinedWebForm",
     "alert-actions:createAlert",
     "alert-actions:deleteAlert",
     "alert-actions:updateAlert",
