@@ -24,6 +24,9 @@ function Block({ block }: { block: PackGuideBlock }) {
   );
 }
 
+/** Whether a guide has anything to read: one without a section draws nothing. */
+export const hasPackGuide = (guide: PackGuide): boolean => PACK_GUIDE_SECTIONS.some((s) => guide[s.key]?.length);
+
 /** A Pack's guide, section by section; a section opens and closes, and what the Pack is for and the first steps start
  * open (the first section there is, when the guide has neither). Draws nothing for a guide without a section. */
 export function PackGuideView({ guide, author }: { guide: PackGuide; author: string }) {

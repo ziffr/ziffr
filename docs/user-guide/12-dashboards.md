@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/page.tsx, apps/web/src/app/dashboards/**, apps/web/src/app/gallery/**, apps/web/src/app/stories/**, apps/web/src/app/v/**, apps/web/src/views/**, apps/web/src/components/dashboard-*.tsx, apps/web/src/components/pool.tsx, apps/web/src/components/preview.tsx, apps/web/src/components/widget-frame.tsx, apps/web/src/components/panel-editor.tsx, apps/web/src/components/story-editor.tsx, apps/web/src/components/template-*.tsx, apps/web/src/components/slot-dialog.tsx, apps/web/src/components/save-*.tsx, apps/web/src/components/new-dashboard-dialog.tsx, apps/web/src/components/snapshot-menu.tsx, apps/web/src/components/present-dashboard.tsx, apps/web/src/components/read-only-frame.tsx, apps/web/src/components/share-sheet.tsx, apps/web/src/components/view-links.tsx, apps/web/src/components/who-can-see.tsx, apps/web/src/components/versions-*.tsx, apps/web/src/components/object-toolbar.tsx, apps/web/src/canvas/layout-editor.tsx -->
+<!-- screens: apps/web/src/app/page.tsx, apps/web/src/app/dashboards/**, apps/web/src/app/gallery/**, apps/web/src/app/stories/**, apps/web/src/app/v/**, apps/web/src/views/**, apps/web/src/components/dashboard-*.tsx, apps/web/src/components/pool.tsx, apps/web/src/components/add-widget.tsx, apps/web/src/components/dashboard-add.tsx, apps/web/src/components/view-cards.tsx, apps/web/src/components/preview.tsx, apps/web/src/components/widget-frame.tsx, apps/web/src/components/panel-editor.tsx, apps/web/src/components/story-editor.tsx, apps/web/src/components/template-*.tsx, apps/web/src/components/slot-dialog.tsx, apps/web/src/components/save-*.tsx, apps/web/src/components/new-dashboard-dialog.tsx, apps/web/src/components/snapshot-menu.tsx, apps/web/src/components/present-dashboard.tsx, apps/web/src/components/read-only-frame.tsx, apps/web/src/components/share-sheet.tsx, apps/web/src/components/view-links.tsx, apps/web/src/components/who-can-see.tsx, apps/web/src/components/versions-*.tsx, apps/web/src/components/object-toolbar.tsx, apps/web/src/canvas/layout-editor.tsx -->
 # Dashboards and Findings
 
 A **Dashboard** is where you watch your Metrics as their values come in. This chapter goes through every screen and option that belongs to dashboards: the list of dashboards, building one, the menus of each Widget, Findings, presenting, sharing, View Links, Snapshots and Versions.
@@ -71,6 +71,7 @@ The buttons to the right of the name are:
 
 | Button | Who sees it | What it does |
 | --- | --- | --- |
+| **Add widget** | The owner and Editors, in Grid | Opens the panel with everything you can put on the dashboard (see [Adding a widget](#adding-a-widget)). |
 | **Grid** / **Read** | Everyone | Switches between the two ways a dashboard reads (see [Grid and Read](#grid-and-read)). |
 | **Snapshots** | Everyone, once there is a Snapshot; the owner and Editors always | The dashboard as it stood for a past period (see [Snapshots](#snapshots)). |
 | **Present** | Everyone | Shows the dashboard on the whole screen (see [Presenting](#presenting)). |
@@ -100,14 +101,14 @@ A deck's **⋯** menu has the same **Who can see this** and **View links…** en
 
 **Gallery** (the button beside **New dashboard** on the Dashboards page) shows the ways to draw a Metric, so you can see what is possible before you build anything. It lists every built-in view in groups (**Views**, **Analyses**, **Findings**), each drawn with one of your own Metrics: pick it under **Show them with**, or choose **Sample data** to see made-up numbers. Views that compare Metrics (a correlation, a matrix, Drivers, a Scoreboard) use your other Metrics that share the most months with the one you picked. A view your Metric cannot fill, such as a Finding that needs a breakdown it does not have, is drawn with sample data and says so under the card. On a phone each view is drawn as wide as the screen, as a dashboard there draws it, so its labels can be read (a Scoreboard is made a little smaller so every column shows), and **Use this…** sits under the description.
 
-Two ways in lead to the same cards. Start from a Metric: pick it at the top and see every view drawn with it. Start from a view: press **Use this…** on a card, choose the Metric (or Metrics) in the dialog, then choose where it goes: one of the dashboards you may change, or **A new dashboard with it**. The widget lands as an independent copy, like one placed from the Pool. Only Metrics you can see are offered. In the demo adding works only where visitors may change it (see Trying dashboards in the demo); otherwise it is refused ("The demo can't be changed").
+Two ways in lead to the same cards. Start from a Metric: pick it at the top and see every view drawn with it. Start from a view: press **Use this…** on a card, choose the Metric (or Metrics) in the dialog, then choose where it goes: one of the dashboards you may change, or **A new dashboard with it**. The widget lands as an independent copy, like one added with [Add widget](#adding-a-widget), which draws the same cards. Only Metrics you can see are offered. In the demo adding works only where visitors may change it (see Trying dashboards in the demo); otherwise it is refused ("The demo can't be changed").
 
 ## Creating a dashboard
 
 **New dashboard** in the switcher, **From a template…** on the list, and **Create dashboard** on an empty start screen all open the **New dashboard** window.
 
 1. **Name**: required, up to 120 characters.
-2. **Start from**: pick one choice. **Empty dashboard** means you add Widgets from the Pool yourself. Each **Dashboard Template** shows a **Preview** drawn with **Sample Data**, its description and how many Widgets it has; "from Ziffr" marks the built-in ones. (A [Pack's Preview](19-packs.md#ziffrs-own-packs), before you install it, draws the Pack's Dashboard Templates under the Pack's own Metric names.) Ziffr ships eight (Overview, One metric in depth, Two metrics side by side, Scorecard, Trends board, Target tracker, Weekly check-in and Board pack), described in [Templates](05-templates.md#dashboard-templates). Charts inside a small Preview, such as a Finding's period bars, are drawn like the rest.
+2. **Start from**: pick one choice. **Empty dashboard** means you add Widgets yourself with [Add widget](#adding-a-widget). Each **Dashboard Template** shows a **Preview** drawn with **Sample Data**, its description and how many Widgets it has; "from Ziffr" marks the built-in ones. (A [Pack's Preview](19-packs.md#ziffrs-own-packs), before you install it, draws the Pack's Dashboard Templates under the Pack's own Metric names. On a phone the first of them shows its first three Widgets, one below the other.) Ziffr ships eight (Overview, One metric in depth, Two metrics side by side, Scorecard, Trends board, Target tracker, Weekly check-in and Board pack), described in [Templates](05-templates.md#dashboard-templates). Charts inside a small Preview, such as a Finding's period bars, are drawn like the rest.
 3. When you pick a template, it asks for its **Slots**: one list per Slot, such as "Metric", reading **Choose a metric**. A Slot marked "one or more" shows tick boxes instead, for small multiples. A "one or more" Slot that only a Widget of that kind uses can also be filled by choosing **All Metrics tagged …** instead of ticking Metrics; the new Widget then follows the Tag (see [Metrics by Tag](#metrics-by-tag)). One Slot can fill several Widgets, so you choose each Metric only once. If you can see the Metric the template was made with, it is chosen already.
 4. Press **Create dashboard**. Ziffr makes the dashboard and opens it.
 
@@ -115,9 +116,9 @@ The new dashboard is yours and independent of the template: changing the templat
 
 ## Viewing and editing
 
-A dashboard opens for looking. Its owner and Editors switch into editing on purpose with **Edit**; the button then reads **Done**. An empty dashboard that you may change opens in edit mode right away, since there is nothing to look at yet.
+A dashboard opens for looking. Its owner and Editors add to it with [**Add widget**](#adding-a-widget), and switch into editing on purpose with **Edit**; the button then reads **Done**.
 
-If you may only look, an empty dashboard says "This dashboard is empty." If you may change it, it says "Press Edit to add widgets."
+While a dashboard has fewer than four Widgets, someone who may change it also sees an empty card with a dashed edge, **+ Add widget**, in the next free place of the grid ("Show your first number" on an empty one, then "Show another number"). It opens the same panel as the button. People who may only look never see it, nor does anyone in **Read**, when presenting, in a Snapshot or on a View Link; an empty dashboard says "This dashboard is empty." to someone who may only look.
 
 A value that waits for **Approval** shows, marked "not approved yet" next to it, or "unapproved" in a table row; a locked period shows a lock. The Metric's own page marks such a value the same way.
 
@@ -125,43 +126,42 @@ A Widget with no values to draw says so in words in place of an empty chart. If 
 
 ### What edit mode adds
 
-- **The Pool** appears on the left side (below the dashboard on a narrow screen).
 - **Name** and **Introduction** fields appear under the heading. The introduction says what the dashboard tells, in a sentence or two, up to 4,000 characters. It is shown above the dashboard and first in its Read view. Once you change either field, a **Save name and introduction** button appears.
-- **Widgets can be moved and resized.** Drag a Widget by its title bar (a grip appears when you point at it). Drag its lower right corner to resize it. A Widget is at least 2 columns wide and 3 rows high, out of 12 columns. The new layout is saved as soon as you let go.
+- **Widgets can be moved and resized.** Drag a Widget by its title bar (a grip appears when you point at it). Drag its lower right corner to resize it. A Widget is at least 2 columns wide and 3 rows high, out of 12 columns. The new layout is saved as soon as you let go. On a wide screen you can move and resize Widgets while **Add widget** is open too.
 
 Changes are saved for everyone who opens the dashboard. Each one is recorded as a Version.
 
-On a narrow screen, such as a phone, the dashboard becomes one column in reading order, top to bottom and left to right. Widgets cannot be moved there. The toolbar is one row there, also on the smallest phones, where **Grid** and **Read** show only their icons: **Grid** and **Read**, **Share** and **⋯**; **⋯** opens a sheet from the bottom with the rest (**Home dashboard**, **Pinned**, **Snapshots**, **Present**, **Edit**, and the entries of the ⋯ menu), and the hint about a widget's ⋯ menu is left out. A widget's title may take two lines; its status (such as **Too low**), the quick look and the comments button sit under it, and every button is at least 44 pixels to tap.
+On a narrow screen, such as a phone, the dashboard becomes one column in reading order, top to bottom and left to right. Widgets cannot be moved there. The toolbar is one row there, also on the smallest phones, where **Grid** and **Read** show only their icons: **Grid** and **Read**, **Share** and **⋯**; **⋯** opens a sheet from the bottom with the rest (**Snapshots**, **Present**, **Edit**, **Add widget**, **Home dashboard**, **Pinned** and the entries of the ⋯ menu), and the hint about a widget's ⋯ menu is left out. A widget's title may take two lines; its status (such as **Too low**), the quick look and the comments button sit under it, and every button is at least 44 pixels to tap.
 
-On a phone, edit mode shows a note at the top that this is easier on a larger screen, with **Send me the link** and **Look at it**, which leaves editing; see [Screens made for a larger screen](07-getting-started.md#screens-made-for-a-larger-screen).
+On a phone, edit mode shows a note at the top that this is easier on a larger screen, with **Send me the link** and **Look at it**, which leaves editing; see [Screens made for a larger screen](07-getting-started.md#screens-made-for-a-larger-screen). Adding a Widget shows no such note.
 
-### The Pool
+### Adding a widget
 
-Metrics that share a name show their owner (or, for one owner, the period and unit) next to the name in the Pool, so you can tell them apart.
+**Add widget** (in the toolbar, or the empty card on the grid) opens a panel with everything you can put on the dashboard, drawn as cards like those in the [Gallery](#gallery). On a wide screen (1024 pixels and more) the panel stands on the right and the dashboard stays in view and usable beside it; where that leaves little room, the dashboard keeps its arrangement and is drawn smaller while the panel is open. On a narrower screen the panel opens over the page (it covers a phone). Close it with **×** or Escape.
 
-A widget that shows an **Archived Metric** keeps drawing its history and is marked **Archived** next to its title; the Pool, a template's Slots and a panel's list of Metrics no longer offer it (a panel keeps one it already shows, so you can take it out).
+- **Show:** picks the Metric the cards are drawn with. It starts with the first Metric by name that the dashboard does not show yet. Metrics that share a name show their owner (or, for one owner, the period and unit) next to the name.
+- **Search** narrows everything in the panel by name.
+- **Views**, **Analyses** and **Findings** are the built-in **Widget Templates**, each drawn with the picked Metric. A card that your Metric cannot fill is drawn with **Sample Data**; on a phone the reason is written under it, on a wider screen it shows when you point at the card.
+- **Metrics**: every Metric you can see, except **Archived Metrics**, to add on its own. A derived Metric has a Σ mark. **ⓘ** shows what a Metric is before you add it: how often it is counted and in which unit, its description, its latest value with the period, and a small line of its recent values. If you see no Metric yet, the panel links to **Describe your first one**.
+- **My Widgets**: the Widgets you saved (see [Saving a widget](#saving-a-widget)), drawn with your own values. The bin on a card deletes it from your saved Widgets, without asking; Widgets already placed from it stay.
+- **The team's templates**: Widget Templates colleagues saved, drawn with Sample Data. Each has its own **⋯** menu. Everyone sees **Versions…**, which opens the versions in a panel beside the page. Only the person who saved it sees **Rename…** (its name and "What it is for") and **Delete**. Deleting asks first; Widgets made from it stay as they are.
+- **The Workspace's View Designs**, when Owners or Admins added some (see [View Designs](13-analyze.md#view-designs)).
+- **Layout**: the [Free layout](#free-layout).
 
-The **Pool** holds everything you can put on the dashboard. **Filter** at the top narrows all of it by name. It has three parts:
+The full list of built-in templates is in [Templates](05-templates.md#widget-templates). An Analysis on a dashboard reads as it does in [Analyze](13-analyze.md#reading-the-results): Metrics counted at different periods are compared on the longer one, and the result says so.
 
-- **Metrics**: every Metric you can see, except **Archived Metrics**. A derived Metric has a Σ mark. Metrics owned by someone else show that person's first name. If you see none yet, the Pool links to **Describe your first one**.
-- **My Widgets**: the Widgets you saved (see [Saving a widget](#saving-a-widget)). Each shows its name and its Widget Template. The **×** next to one deletes it from your Pool, without asking; Widgets already placed from it stay.
-- **Templates**: the built-in **Widget Templates** in four groups, **Views**, **Analyses**, **Findings** and **Layout**; **The Workspace's View Designs**, when Owners or Admins added some (see [View Designs](13-analyze.md#view-designs)); and then **The team's**: Widget Templates colleagues saved, each with its number of Slots and who made it. The full list of built-in templates is in [Templates](05-templates.md#widget-templates). An Analysis on a dashboard reads as it does in [Analyze](13-analyze.md#reading-the-results): Metrics counted at different periods are compared on the longer one, and the result says so.
+To add something, **drag** its card onto the place on the dashboard where you want it, or press **+** on it: it then lands in the next free place, and the page scrolls to it. Where the panel covers the page, as on a phone, tap the card; the panel closes and the dashboard shows the new Widget. With a keyboard, move to a card's **+** and press Enter. [Slide Elements](14-decks-and-themes.md#slide-elements), such as a figure or a gap table, are for slides only; a dashboard holds Widgets.
 
-To place something, drag it onto the dashboard where you want it, or point at it and press **+** to add it. [Slide Elements](14-decks-and-themes.md#slide-elements), such as a figure or a gap table, are for slides only; a dashboard holds Widgets.
-
-- **A Metric** lands as **Number + sparkline**. The sparkline keeps a small, fixed height, also in a tall card on a phone, so small dips do not look dramatic. You can change that afterwards with **Change view**.
+- **A style for one Metric** (such as **Line chart** or **Gauge**) asks nothing: it lands with the picked Metric.
+- **A style that needs more** (such as **Correlation** or **Scoreboard**), a team template and a View Design ask for their Slots first (see below), starting from the picked Metric.
+- **A Metric** on its own lands as **Number + sparkline**. The sparkline keeps a small, fixed height, also in a tall card on a phone, so small dips do not look dramatic. You can change that afterwards with **Change view**.
 - **A saved Widget** lands as a copy. Changing the copy does not change your saved Widget, nor the other way round.
-- **A Widget Template** first asks for its Slots (see below), then lands with the chosen Metrics.
 
-Pointing at a template or saved Widget for a moment shows its Preview beside the Pool. The **ⓘ** button on a row opens the Preview and keeps it open until you press **ⓘ** again, press Escape or tap elsewhere; on a touch screen or a narrow window it opens over the page just below the row, and the list never moves. A template's Preview always uses Sample Data. A saved Widget's Preview draws your own values. A Metric's Preview is a small card: its name, how often it is counted and in which unit, its description, its latest value with the period, and a small line of its recent values.
-
-**Browse…** next to **Templates** opens **Browse templates** in a panel beside the dashboard: every template as a larger Preview, one under the other, grouped as in the Pool, with **Filter** and a **Use** button on each. **Use** closes the panel and goes on as the Pool's **+** does; Escape or **Close** leaves without adding anything.
-
-A team Widget Template in the Pool has its own **⋯** menu. Everyone sees **Versions…**, which opens the versions in a panel beside the page. Only the person who saved it sees **Rename…** (its name and "What it is for") and **Delete**. Deleting asks first; Widgets made from it stay as they are.
+A widget that shows an **Archived Metric** keeps drawing its history and is marked **Archived** next to its title; the panel, a deck's Pool, a template's Slots and a panel's list of Metrics no longer offer it (a panel keeps one it already shows, so you can take it out).
 
 ### Filling a Widget Template's Slots
 
-When a template lands, a panel beside the page, named after the template, asks for each Slot, such as "Metric", "Metric with a breakdown", "First metric" and "Second metric", or "Metrics, one or more". A team template also says which Metrics it was made with ("In the original: …"), as far as you can see them. Once every Slot is filled, a Preview shows the Widget with your Metrics, drawn as wide as the panel allows, also on a narrow screen. Press **Add** (built-in templates) or **Use template** (team templates), or **Cancel**; Escape and **Close** cancel too, and nothing is placed.
+When a style or template that needs Metrics is added, a panel beside the page, named after it, asks for each Slot, such as "Metric", "Metric with a breakdown", "First metric" and "Second metric", or "Metrics, one or more". A team template also says which Metrics it was made with ("In the original: …"), as far as you can see them. Once every Slot is filled, a Preview shows the Widget with your Metrics, drawn as wide as the panel allows, also on a narrow screen. Press **Add** (built-in templates) or **Use template** (team templates), or **Cancel**; Escape and **Close** cancel too, and nothing is placed.
 
 ### Words in a widget's title
 
@@ -291,7 +291,7 @@ A Widget that takes a list of Metrics, such as the Correlation matrix, can show 
 
 ### Saving a widget
 
-**Save as…** → **Widget** asks for a name ("Save to your widgets as:") and keeps a copy in **My Widgets** in your Pool. From there you can drag it onto any dashboard or slide. Each placement is an independent copy.
+**Save as…** → **Widget** asks for a name ("Save to your widgets as:") and keeps a copy in **My Widgets**. From there you can add it to any dashboard with [Add widget](#adding-a-widget), or drag it onto a slide from a deck's Pool. Each placement is an independent copy.
 
 **Save as…** → **Template…** saves the Widget as a team Widget Template that everyone in the Workspace can use with their own Metrics. Only you can change it later. The panel asks:
 
@@ -303,13 +303,13 @@ A Widget that takes a list of Metrics, such as the Correlation matrix, can show 
 | **Slots** | Each Metric becomes a Slot, filled in when the template is used. Give each a name; the line says whether it takes one Metric or one or more, and which Metric it holds now. The Metric's name in the text becomes the Placeholder {metric}. |
 | **Notes tied to one period or row** | A callout or Annotation fixed to "March" or "France" would not fit another Metric. For each, choose a rule it follows instead (**Latest period**, **Highest value**, **Lowest value**, **Biggest change**, **First period shown**; for rows **Largest row**, **Smallest row**), or **Leave out**. |
 
-Press **Save template**. You find it under **Templates** in the Pool, and in **Change view**.
+Press **Save template**. You find it under **The team's templates** in **Add widget**, under **Templates** in a deck's Pool, and in **Change view**.
 
 The same panel saves a slide as a layout and a deck as a Deck Template. There it also leaves out numbers typed into text boxes, unless you tick to keep them (see [Saving a slide as a layout](14-decks-and-themes.md#saving-a-slide-as-a-layout)).
 
 ## Findings
 
-A **Finding** is a Widget set as an editorial graphic: a headline that states what happened, a short line under it, the chart, and a source line. Findings read like the sections of an article in a dashboard's Read view, and work well on slides. You place one from the **Findings** group in the Pool:
+A **Finding** is a Widget set as an editorial graphic: a headline that states what happened, a short line under it, the chart, and a source line. Findings read like the sections of an article in a dashboard's Read view, and work well on slides. You add one from the **Findings** group in [Add widget](#adding-a-widget):
 
 | Finding | What it draws |
 | --- | --- |
@@ -391,7 +391,7 @@ An Annotation stays with what it is about, not with a place in the chart. "The h
 
 ## Free layout
 
-A **Free layout** is a Widget you arrange freely, like a slide: other Widgets, text, arrows and shapes on one artboard the size of the Widget. Place it from the **Layout** group in the Pool, then choose **Edit layout…** in its menu (in edit mode).
+A **Free layout** is a Widget you arrange freely, like a slide: other Widgets, text, arrows and shapes on one artboard the size of the Widget. Add it from the **Layout** group in [Add widget](#adding-a-widget), then choose **Edit layout…** in its menu (in edit mode).
 
 The layout editor fills the screen. On the left is a Pool ("Drag widgets onto the artboard; use the toolbar for text, arrows and shapes."). Drag Metrics, saved Widgets and Widget Templates onto the artboard, and use the drawing toolbar for text, arrows and shapes. Links and pages from other sites cannot be placed on it; paste or drop an image file itself instead. Press **Save layout** to keep it, or **Cancel**.
 
@@ -408,7 +408,7 @@ A dashboard reads two ways. Switch with **Grid** and **Read** in the toolbar.
 
 ## Presenting
 
-**Present** shows the dashboard in its Theme on the whole screen, without the Pool or menus.
+**Present** shows the dashboard in its Theme on the whole screen, without panels or menus.
 
 | Option | What it does |
 | --- | --- |

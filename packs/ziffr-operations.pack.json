@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/2",
+  "format": "ziffr.pack/3",
   "id": "ziffr/ziffr-operations",
   "name": "Ziffr operations",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "summary": "The figures of the Usage Feed as Metrics, with a dashboard: people, Workspaces, signups, trials, values by Source, calls and views. For whoever runs a Ziffr Installation.",
   "author": {
     "name": "Ziffr"
@@ -11,6 +11,18 @@
   "ziffr": ">=0.21",
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "The daily figures of your Ziffr Installation. Counts only.",
+    "happens": [
+      "A program sends the counts once a day",
+      "The dashboard shows people, Workspaces, signups, values and calls"
+    ],
+    "needs": [
+      "An Installation Admin, who makes the Usage Key",
+      "A Feed with a Feed Key in this Workspace",
+      "Room for 36 Metrics"
+    ]
   },
   "guide": {
     "whatItsFor": [
