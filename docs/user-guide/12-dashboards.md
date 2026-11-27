@@ -180,7 +180,7 @@ If a Widget's Metric has open questions or tasks, its title bar shows a speech b
 | **Ask a question…** | Everyone | Ask someone about a value, right here. |
 | **Assign a task…** | Everyone | Give someone a task about a value. |
 | **Change view** | The owner and Editors, in edit mode | Draws the Widget another way (see below). Not offered for Analyses. |
-| **Comparisons** | The owner and Editors, in edit mode, for Views | Which Comparisons the Widget shows (see below). |
+| **Comparisons** | The owner and Editors, in Grid (also outside edit mode), for Views | Which Comparisons the Widget shows (see below). |
 | **Show by** | The owner and Editors, in edit mode, for Number + sparkline, Line chart, Bars per period, History table and Forecast | Shows the Metric by a longer period, such as quarters or years (see below). |
 | **Edit words…** | The owner and Editors, in edit mode, for a Note widget | Turns the Widget into the form for its heading and words (see [Note widget](#note-widget)). |
 | **Title…** | The owner and Editors, in edit mode | Opens the Widget's title in a panel beside it: the field shows the default title greyed, and under it the title as it will read, with the Placeholders filled in. Leave it empty to get the default back. **Save title** keeps it. Not for a Free layout or a Note widget. |
@@ -258,12 +258,13 @@ When a Widget has room and shows a number alone (no trend line yet), the number 
 
 ### Comparisons
 
-Views show a strip of **Comparisons** under the value. **Comparisons** lets you choose which:
+Views show a strip of **Comparisons** under the value. **Comparisons** in the Widget's menu lets you choose which. The owner and Editors find it in the Grid, while looking at the dashboard as well as in edit mode; it is not in the **Read** view or on a Widget opened large. What you choose is saved at once for everyone who opens the dashboard and recorded as a Version. In a demo that visitors may not change, it is offered only in edit mode, where the change is refused. You can choose:
 
+- **Target**, listed first where the Metric has a target: the **Attainment** at the start of the strip (see below). It is ticked unless you untick it, and it does not depend on the other ticks: with every period unticked, the strip shows the target alone. With nothing ticked, the Widget has no strip.
 - **vs previous period**, and **DoD**, **WoW**, **MoM**, **QoQ**, **HoH** and **YoY**, as far as they make sense for the Metric's period (a monthly Metric has no DoD or WoW). Quarters and half-years start from the Workspace's fiscal year. A tick marks each one shown. By default a Widget shows **vs previous period** and **YoY**.
 - **Full periods instead of to date**: for spans longer than the Metric's period, Ziffr normally compares the span so far with the same stretch before (month to date against the same days last month). Tick this to compare whole periods instead.
 
-When the Metric has a target, the strip starts with its **Attainment**, such as "92 % of target". Where there is no percentage, or it would be below 0 % (a margin of −6.5 % against a target of 13 %, by distance), the strip shows the gap instead, such as "6.5 pts below target" or "8,000 € below target". Point at it to see the target and the method it is computed with, by ratio or by distance (see [Metrics](10-metrics.md#comparisons)). The table in **History** shows the same number. A Snapshot keeps the method it was taken with.
+When the Metric has a target and **Target** is ticked, the strip starts with its **Attainment**, such as "92 % of target". Where there is no percentage, or it would be below 0 % (a margin of −6.5 % against a target of 13 %, by distance), the strip shows the gap instead, such as "6.5 pts below target" or "8,000 € below target". Point at it to see the target and the method it is computed with, by ratio or by distance (see [Metrics](10-metrics.md#comparisons)). The table in **History** shows the same number. A Snapshot keeps the method it was taken with.
 
 ### Show by
 

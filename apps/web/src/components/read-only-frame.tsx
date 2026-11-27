@@ -59,7 +59,7 @@ export function ReadOnlyFrame({ widget, data, className, wordsUnder = false }: {
       {(title || !note) && <div className="px-4 pt-3 pb-1"><span className={cn("widget-text-sm truncate font-semibold max-sm:line-clamp-2 max-sm:whitespace-normal", note && NOTE_HEADING)}>{title}</span></div>}
       <div className={cn("flex min-h-0 flex-1 flex-col gap-1.5 px-4 pb-3", note && !title && "pt-3")}>
         <div className="@container min-h-0 flex-1"><WidgetBody widget={widget} data={data} /></div>
-        {m && kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}
+        {m && kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} target={widget.settings.compareTarget} full={widget.settings.fullPeriods} />}
       </div>
       </TakeawayHostProvider>
       </WidgetScaleProvider>

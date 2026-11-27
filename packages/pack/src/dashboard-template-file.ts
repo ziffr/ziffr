@@ -25,7 +25,7 @@ export type PanelFile = {
 };
 /** What a widget of a template is set to: the settings a template keeps. */
 export type WidgetSettingsFile = {
-  window?: number; display?: DisplayPeriod; showTarget?: boolean; showForecast?: boolean; rows?: number; fullPeriods?: boolean; compare?: CompareKey[];
+  window?: number; display?: DisplayPeriod; showTarget?: boolean; showForecast?: boolean; rows?: number; fullPeriods?: boolean; compare?: CompareKey[]; compareTarget?: boolean;
   kicker?: string; headline?: string; subline?: string; footnote?: string; source?: string; callouts?: RuleNote[]; panels?: PanelFile[];
   /** A View Design, written out, or in a Pack the key of one of the Pack's View Designs. */
   design?: ViewDesign | string;
@@ -77,6 +77,7 @@ export const WIDGET_DEFS: Record<string, Schema> = {
       rows: count("How many rows a table shows."),
       fullPeriods: { type: "boolean", description: "Leave out a period that is not over yet." },
       compare: list({ enum: ["prev", "dod", "wow", "mom", "qoq", "hoh", "yoy"] }, 7, "The Comparisons it shows."),
+      compareTarget: { type: "boolean", description: "Whether its Comparisons start with the Attainment of the target; left out, they do." },
       kicker: words(L.words), headline: words(L.words), subline: words(L.words), footnote: words(L.words), source: words(L.words),
       callouts: list(note({}), L.notes, "A story's callouts, each at the period a rule picks."),
       panels: list({ $ref: "#/$defs/panel" }, L.panels, "A story's Panels."),

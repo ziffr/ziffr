@@ -141,6 +141,10 @@
           },
           "description": "The Comparisons it shows."
         },
+        "compareTarget": {
+          "type": "boolean",
+          "description": "Whether its Comparisons start with the Attainment of the target; left out, they do."
+        },
         "kicker": {
           "type": "string",
           "maxLength": 200,
