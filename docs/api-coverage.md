@@ -211,7 +211,6 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `askFirstStepsByEmail` (first-steps-value.ts): the Owner asks Ziffr to email them; a program cannot message a person
 - `allowFirstStepsEmail` (first-steps-value.ts): one's own email choices
 - `sendFirstStepsValue` (first-steps-value.ts): a value typed in First Steps; a program sends values with submit_value
-- `joinPeriodWorkflows` (period-workflows.ts): First Steps and a Pack's guided set-up put Metrics into a Workflow for their period; a program uses set_metric_workflow
 - `firstStepsSender` (first-steps-providers.ts): First Steps' question of who provides the numbers, for the app
 - `chooseProviders` (first-steps-providers.ts): First Steps' answer to it, in the app; a program changes Submitters with set_submitters
 - `firstStepsDone` (first-steps-providers.ts): First Steps' closing screen, for the app
