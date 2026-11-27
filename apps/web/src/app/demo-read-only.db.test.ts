@@ -72,6 +72,7 @@ const CASES: Record<string, Case> = {
   "connector-actions:recordSimulatedTicketClose": { open: (i) => [i.ticketDelivery] },
   "connector-actions:recordSimulatedPromptAnswer": { open: (i) => [i.promptDelivery, "42"] },
   "actions:submitWebForm": { open: (i) => [i.formCode, null, form({ value: "42" })] },
+  "actions:submitCombinedWebForm": { nothing: "the demo asks for each figure in a message of its own, so it has no combined form link", blocked: () => ["x".repeat(43), null, form({ "value-1": "42" })] },
   "actions:createAction": { open: (i) => [{ metricId: i.metric, period: i.period, assigneeId: "ben", question: "Why?" }] },
   "actions:replyToAction": { open: (i) => [i.action, form({ body: "A reply" })] },
   "actions:decideCorrection": { nothing: "the demo holds no proposed Correction", open: (i) => [i.message, true] },
