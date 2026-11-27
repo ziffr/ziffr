@@ -14,6 +14,7 @@ import { PEOPLE_SOURCES, replyWords, sentWords } from "./first-steps-words";
 import { combinedListing } from "./internal/combined-delivery";
 import { inviteGate } from "./invite-gate";
 import { addSubmitters, metricEffects, removeSubmitters, type MetricEffects } from "./metrics";
+import { STOPPED_SELF } from "./prompt-route";
 import { openRows } from "./sealed-columns";
 import { askForFirstMetric, askMeForFirstMetric, firstMetricStep, pickFirstMetric, sendFirstMetricValue, setupFirstValue, type FirstMetricAsked } from "./setup-first-metric";
 import { setSetupFirstMetric } from "./setup-guide";
@@ -213,7 +214,7 @@ export async function askFirstStepsByEmail(actor: Actor): Promise<void> {
   const { metric } = await currentMetric(actor);
   if (!metric) throw new Refused("Add a metric first.");
   const { state } = await emailWay(actor, metric);
-  if (state === "stopped") throw new Refused("You stopped emails that ask you for numbers. Switch them on again first.");
+  if (state === "stopped") throw new Refused(`${STOPPED_SELF.email} Switch them on again first.`);
   if (state !== "offered") throw new Refused("Ziffr cannot ask you for this by email. Type it in here.");
   if (!(await submits(actor, metric.id))) return askMeForFirstMetric(actor, "email");
   const { results } = await askForFirstMetric(actor, ["email"]);

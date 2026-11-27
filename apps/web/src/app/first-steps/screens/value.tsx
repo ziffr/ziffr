@@ -5,6 +5,7 @@
 // the core.
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FirstValueProgress, FirstValueView } from "@ziffr/core/first-steps-value";
+import { STOPPED_SELF } from "@ziffr/core/prompt-route";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { answered, Facts, MAIN_BUTTON, Panel, Quiet, Reading, useShown } from "../closing-parts";
@@ -154,8 +155,8 @@ export function SendFirst({ ws, view, reload, go }: SendProps) {
       {email.state === "off" && <Panel>This Ziffr cannot send email yet. Whoever runs it can set that up in the Installation settings.</Panel>}
       {email.state === "stopped" && (
         <Panel>
-          <p>You stopped emails that ask you for numbers, so Ziffr does not ask you by email.</p>
-          <Button type="button" variant="outline" className="h-11 md:h-9" disabled={busy} onClick={() => void act(async () => { if (await answered(() => emailAgain(ws), setRefusal)) await reload(); })}>Switch these emails on again</Button>
+          <p>{STOPPED_SELF.email} Ziffr does not ask you that way until you switch it on again.</p>
+          <Button type="button" variant="outline" className="h-11 md:h-9" disabled={busy} onClick={() => void act(async () => { if (await answered(() => emailAgain(ws), setRefusal)) await reload(); })}>Get them by email again</Button>
         </Panel>
       )}
       {mode !== "type" && view.quiet && !request && email.state === "offered" && <Panel>{view.quiet}</Panel>}

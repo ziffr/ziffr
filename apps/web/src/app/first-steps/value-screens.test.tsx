@@ -43,8 +43,8 @@ describe("Now send your first value", () => {
   });
   it("says the person stopped these emails and offers to switch them on, instead of asking", () => {
     const h = value({ email: { state: "stopped", address: "anna@example.test", reply: true } });
-    expect(h).toContain("You stopped emails that ask you for numbers");
-    expect(buttons(h)).toContain("Switch these emails on again");
+    expect(h).toContain("You stopped requests for numbers by email.");
+    expect(buttons(h)).toContain("Get them by email again");
     expect(h).not.toContain("Ask me by email");
   });
   it("shows where the request went, waits for the number, and has the help and the ways on", () => {

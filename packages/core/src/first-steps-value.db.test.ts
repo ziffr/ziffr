@@ -226,7 +226,7 @@ describe("Ask me by email", () => {
     const { w, o } = await fresh();
     await optOutOfEmail(o);
     expect((await firstStepsValue(o))!.email.state).toBe("stopped");
-    await expect(askFirstStepsByEmail(o)).rejects.toThrow(/stopped emails/);
+    await expect(askFirstStepsByEmail(o)).rejects.toThrow(/stopped requests for numbers by email/);
     expect((await deliveries(w.id)).filter((d) => d.kind === "prompt")).toEqual([]);
     await allowFirstStepsEmail(o);
     await askFirstStepsByEmail(o);
