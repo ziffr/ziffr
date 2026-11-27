@@ -12,7 +12,7 @@ type Ctx = { params: Promise<{ token: string }> };
 const unknown = () => page("Link not known", "<p>This link does not work. It may have been sent by an older version of Ziffr.</p>", 404);
 
 /** How someone gets the requests again once the Undo is over. */
-const BACK_LATER = "To get these emails again, sign in to Ziffr and switch them on under Your Deliveries. If you do not sign in to Ziffr, ask the person who asks you for the numbers to have Ziffr send you an email that switches them on.";
+const BACK_LATER = "To get these emails again, sign in to Ziffr and switch them on under Your Deliveries. If you do not sign in to Ziffr, ask the person who asks you for the numbers to have Ziffr send you an email with which you can switch them on.";
 const KEEPS_COMING = "Questions and tasks for you, and replies in your threads, keep coming.";
 
 /** The longest body read: the Undo's secret or a mail client's one line. */
