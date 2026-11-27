@@ -134,9 +134,9 @@ const ENDPOINTS: Endpoint[] = [
   {
     method: "post", path: "/metrics/{slug}/submitters", scope: "metrics:edit", body: S.ChangeSubmitters, ok: { status: 200, name: "SubmittersChanged", schema: S.SubmittersChanged },
     summary: "Change a Metric's Submitters",
-    description: "Adds and removes up to 20 Submitters each, as the key's creator, only when they own the Metric or are its Editor, as on its page. A person or Contact added gets a Token and a first Prompt, unless already asked for this Metric in the last 24 hours or five times that day; a Feed added turns the API Source on. Removing one ends their Token and their Stand-ins' on it; earlier values stay. Everything is checked first.",
+    description: "Adds and removes up to 20 Submitters each, as the key's creator, only when they own the Metric or are its Editor, as on its page. The owner adds anyone of the workspace; an Editor adds only people who see the Metric already. A person or Contact added gets a Token and a first Prompt, unless already asked for this Metric in the last 24 hours or five times that day; a Feed added turns the API Source on. Removing one ends their Token and their Stand-ins' on it; earlier values stay. Everything is checked first.",
     errors: [
-      { status: 403, description: "Or the key's creator sees the Metric but may not change it, or their role may not create (Guests)." },
+      { status: 403, description: "Or the key's creator sees the Metric but may not change it, or their role may not create (Guests), or they are its Editor and named someone who does not see it yet; nothing was changed." },
       { status: 422, description: "An id that is not one of the workspace's people, Contacts or Feeds, or a Derived Metric; nothing was changed." },
     ],
   },

@@ -121,6 +121,8 @@ If you may only look, an empty dashboard says "This dashboard is empty." If you 
 
 A value that waits for **Approval** shows, marked "not approved yet" next to it, or "unapproved" in a table row; a locked period shows a lock. The Metric's own page marks such a value the same way.
 
+A Widget with no values to draw says so in words in place of an empty chart. If you submit its Metric on the web form, it says what will appear, such as "The line appears after your first value.", with **Record today's value** under it (**Record a value** for a Metric that is not daily), which opens the same form as on the [Metric's page](10-metrics.md#the-buttons-at-the-top). Otherwise it says "No values to show yet." The button is in the grid only: the **Read** view, a Widget opened large, presenting, [View Links](#view-links), [Snapshots](#snapshots) and decks show the words alone. The words are the same whether there are no values or none that you may see. A [Total](10-metrics.md#adding-up-metrics-a-total) with no number still says why, and a View that explains itself (a row per Metric, or "has no breakdown yet.") keeps its own words. A Widget you have just added offers the button after the page is next loaded.
+
 ### What edit mode adds
 
 - **The Pool** appears on the left side (below the dashboard on a narrow screen).

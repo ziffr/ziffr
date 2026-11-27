@@ -68,29 +68,46 @@ The [Setup Guide](07-getting-started.md#the-setup-guide) offers the same Packs i
 
 ## The Sales forecast Pack
 
-**Sales forecast** is for a team that calls its quarter every week. It is a Pack of its own: the monthly **Sales** Pack stays as it is, and you can have both. **Set up from this Pack** makes:
+**Sales forecast** is for a team that calls its quarter every week. It is a Pack of its own: the monthly **Sales** Pack stays as it is, and you can have both. It has two [Positions](#who-does-what-in-a-pack), **Sales lead** and **Salesperson**, and a [Repeat](#who-does-what-in-a-pack) of up to 30 salespeople. **Set up from this Pack** asks you to list each salesperson and to say who the sales lead is, and makes:
 
 | What | What it does |
 | --- | --- |
-| **Commit** and **Best case** | The week's two forecast calls for the quarter, deals already won included. |
-| **Closed this quarter**, **Pipeline value** | What was won since the quarter began, and the open deals that can still close in it. |
-| **Quota** | Worked out, not sent: [the target](10-metrics.md#reading-a-target) of **Commit** for the week. |
-| **Commit gap to quota**, **Commit as share of quota** | Commit minus its target, and Commit as a percentage of it. 0 or more, and 100 % or more, cover the quota. |
-| **Pipeline coverage** | Pipeline value divided by what is still missing (the quota minus Closed this quarter). 3 times means the open deals are worth three times what is missing. |
-| **Quota split** | Optional: the quota split by salesperson, as a breakdown, only for the deck's gap by salesperson slide. Untick it if you do not want that table. |
-| The dashboard **Weekly forecast meeting** | This week's call against quota and the change on last week, then the last 13 weeks, and the latest commit by salesperson. On a phone the call against quota comes first. |
-| The Workflow **Weekly sales forecast** | Asks on Monday for the week just ended. The values are due on Tuesday, with a reminder that day; the Metric Owner is told on Wednesday about a value still missing. A change of more than 25 % is marked unusual. The sales lead you pick as Approver approves every value, which is then published and locked. Once the week is finished it sends a dashboard's Snapshot to the people you pick. |
+| **Commit** and **Best case**, one for each salesperson | The week's two forecast calls for the quarter, deals already won included. Each salesperson sends their own; the sales lead stands in for them. The target of a salesperson's **Commit** is their quota. |
+| **Closed this quarter**, **Pipeline value**, one for each salesperson | What they won since the quarter began, and their open deals that can still close in it. A CRM sends them, so nobody is asked unless you choose it. |
+| **Team commit**, **Team best case**, **Team closed this quarter**, **Team pipeline value** | [Totals](10-metrics.md#adding-up-metrics-a-total) that add up the figures of all salespeople. Nobody sends them. |
+| **Quota** | Worked out, not sent: [the target](10-metrics.md#reading-a-target) of **Team commit** for the week, which is the salespeople's quotas added up. |
+| **Commit gap to quota**, **Commit as share of quota** | Team commit minus the quota, and Team commit as a percentage of it. 0 or more, and 100 % or more, cover the quota. |
+| **Pipeline coverage** | Team pipeline value divided by what is still missing (the quota minus Team closed this quarter). 3 times means the open deals are worth three times what is missing. |
+| The dashboard **Weekly forecast meeting** | This week's call against quota and the change on last week, then the last 13 weeks, and each salesperson's commit against their quota. On a phone the call against quota comes first. |
+| The Workflow **Weekly sales forecast** | Asks each salesperson on Monday for the week just ended. The values are due on Tuesday, with a reminder that day; the Metric Owner is told on Wednesday about a value still missing. A change of more than 25 % is marked unusual. The sales lead approves every value, which is then published and locked. Once the week is finished it sends the dashboard's Snapshot to the sales lead. |
 
-All nine Metrics are weekly. Those that people send have the **Aggregation** last value, so a widget shown by quarter shows each quarter's latest figure, never the weeks added up.
+That is 4 Metrics for each salesperson and 8 for the team: ten salespeople make 48. All are weekly. Those that people send, and their sums, have the **Aggregation** last value, so a widget shown by quarter shows each quarter's latest figure, never the weeks added up.
+
+**Who sees what.** Each salesperson sees their own figures. The check before you set up proposes to share every figure with the sales lead: choose **Tick all for** them. A team figure is shown only to someone who sees [every salesperson's figure it adds up](10-metrics.md#who-sees-its-numbers); its owner can show it to others on its page.
+
+**The team's quota.** To begin with it is the salespeople's quotas added up, so you set each quota once, on a salesperson's **Commit**. A week has a team quota only when every salesperson has a target for it.
+
+To give the team a quota of its own instead, such as one with a margin on top (the owner or an Editor of **Team commit**; only the owner while it is open):
+
+1. Open **Team commit** and, on the **Overview** tab, find **What it adds up**.
+2. Under **Target**, choose **Its own target**.
+3. Open the **Targets** tab. **Add row** for each week, or **Paste from a spreadsheet** with two columns, the week and the quota.
+4. Give every week of the quarter the team's quota for the quarter, also past weeks you still read, and press the **Save** button below the rows.
+
+**Quota**, the gap, the share and the coverage then use the team's own quota, on the dashboard and the slides; a week without one has none of these, past weeks too. The slide with the gap by salesperson stays as it was: each row compares a salesperson with their own quota, so the rows need not add up to the team's gap. For one quota that holds in every week, use **Edit details…** on the **Description** tab and **Target from** instead; it keeps no history, so changing it changes past weeks too.
+
+To go back, choose **Its Metrics’ targets added up** under **Target** on the **Overview** tab. This removes a **Target from** or **Target up to** set on **Team commit**. The weekly quotas you entered for it are kept but not used, and count again if you choose **Its own target** later.
+
+**A new salesperson** joins with **Add a Salesperson** under the installed Pack (see [Add a line](#add-a-line)): tick the team figures that should count them, then set their quota. **Someone who leaves:** archive their Metrics, choosing up to which week each team figure counts them; earlier weeks stay.
 
 The Pack also has a Deck Template, **Weekly forecast meeting**, drawn from [Slide Elements](14-decks-and-themes.md#slide-elements), so every colour and font follows the deck's Theme and the words fill themselves in each week:
 
 | Slide | What it shows |
 | --- | --- |
 | Cover | The deck's title, the week of the quarter and the agenda. |
-| The call | "The commit covers … of quota with … left", Commit, Quota, Best case and Pipeline coverage as figures, and the weeks of the quarter as columns against the quota. |
-| Where the gap sits | Quota and commit by salesperson with the gap as bars. It needs the latest breakdown of both **Commit** and **Quota split**, with the same names. Write what you ask the meeting for in the line below. |
-| Change since last week | Every figure with last week's, the change and an 8-week trend. |
+| The call | "The commit covers … of quota with … left", the team's Commit, Quota, Best case and Pipeline coverage as figures, and the weeks of the quarter as columns against the quota. |
+| Where the gap sits | A [gap table of the Total](14-decks-and-themes.md#gap-table-of-a-total) **Team commit**: each salesperson's quota and commit with the gap as bars. Each reader gets the rows of the figures they may see. Write what you ask the meeting for in the line below. |
+| Change since last week | Every team figure with last week's, the change and an 8-week trend. |
 | The weeks of the quarter | Best case and commit by week against the quota. |
 | Pipeline coverage | Coverage by week, with **What happened**, **Why** and **Decision needed** beside it. |
 | Risks, and what we need | **Deals at risk** and **Could still move in** as numbered rows, and **What we need** under them, to write in. |
@@ -99,26 +116,17 @@ Three Themes come with the Pack, **Forecast Navy** (the deck starts with it), **
 
 **Which week a figure belongs to.** Each week holds the figures as they stood at the end of that week. A reply to Monday's request counts for the week just ended. The form link in it starts at that week while the request is unanswered, and you can pick the running week under **For** instead (see [While a request waits](10-metrics.md#while-a-request-waits)). Once a value is in for the week, the link no longer offers it: to change that figure, also one sent back at **Approval**, sign in, choose **Record a value** and pick the week. In a week that spans two quarters, send the figures of the quarter the week starts in, as Ziffr counts that week to it. Earlier weeks can be brought in with [Paste values](10-metrics.md#paste-values-from-a-spreadsheet).
 
-**Set the quota as the target of Commit.** Open **Commit**, go to [the Targets tab](10-metrics.md#the-targets-tab) and give every week of the quarter the quarter's quota (**Paste from a spreadsheet** takes the weeks in one go). **Quota**, the gap, the share, the coverage, the dashboard and the slides follow, and nobody sends the quota. A week without a quota, or without a Commit, has none of these. At the start of a new quarter, add its weeks.
+**Set the quotas.** Open each salesperson's **Commit**, go to [the Targets tab](10-metrics.md#the-targets-tab) and give every week of the quarter their quarter's quota (**Paste from a spreadsheet** takes the weeks in one go). At the start of a new quarter, add its weeks.
 
-For a first try, a Target Range is quicker: under **Edit details…** on Commit, type the quota into **Target from** and leave **Target up to** empty. It has no history, though: changing it for the next quarter also rewrites the gap, share and coverage of every past week that has no value of its own on the Targets tab. Prefer the Targets tab.
+**A set-up made with an earlier version of the Pack** keeps working as it is: its Metrics, formulas and decks are your own. To change to figures for each salesperson, update the Pack and set it up again.
 
-**A set-up made while the Quota was still a Metric people send** keeps working as it is: its Metrics, formulas and decks are your own. To change over, set Commit's target as above, then make new calculated Metrics with `{commit} - target({commit})` and the like, with your own slugs in the brackets (or change the formulas through the [API](../guides/api.md)), and point the dashboard and deck at them.
-
-**Empty or below 0.** A calculated Metric has no value while one of its figures, or the quota it reads, is missing. Pipeline coverage also has none when exactly the quota is closed, and is below 0 when more is closed: then nothing is left to cover. The Pack sets no Target Range for coverage; set your own on the Metric's page with **Edit details...**.
+**Empty or below 0.** A team figure has no value in a week while one salesperson's figure is missing: someone with nothing sends 0. A calculated Metric has no value while one of its figures, or the quota it reads, is missing. Pipeline coverage also has none when exactly the quota is closed, and is below 0 when more is closed: then nothing is left to cover. The Pack sets no Target Range for coverage; set your own on the Metric's page with **Edit details…**.
 
 **In a Workspace of one**, nobody else can approve, so every value waits for your own check. Change the Approve step to **Unusual values only** if that is more than you want.
 
-**By salesperson.** The simplest way is a **Breakdown**: one person, such as the sales lead, sends the team's figure with one line for each salesperson, such as `Ana 205,000`, and leaves the value empty so the lines are added up. The dashboard shows the latest commit by salesperson. A newer value replaces the earlier one with its lines, so send all lines together. When each salesperson sends their own figure instead:
+**From your CRM.** Instead of asking people, n8n can send each salesperson's **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, and from the first two also **Commit** and **Best case** if you like. Choose **Fill from n8n** on one of these Metrics and a forecast template, leave its settings for the team's figures empty, since those are Totals and take no values, and give each salesperson a line in its **Owners** node ([what they send and when](../automations/crm-forecast-feeds.md)). A figure that came from the CRM is approved like any other, but its first value is not checked for being unusual. The Pack marks **Closed this quarter** and **Pipeline value** as sent by a CRM, so **Set up from this Pack** asks nobody for them; a salesperson is proposed as their Viewer instead.
 
-1. On **Commit**, choose **⋯** → **Duplicate**, name it after the person, such as "Commit Ana", and make that person its only Submitter. Keep the **Workflow** ticked.
-2. Do the same for each salesperson.
-3. Choose **New metric**, then [Calculated from other Metrics](10-metrics.md#calculated-from-other-metrics), and add them up into "Commit, sum of salespeople". It has a value in a week once all of them have one.
-4. The team's **Commit** stays the sales lead's call. Add the sum to the dashboard to see both side by side.
-
-**From your CRM.** Instead of asking people, n8n can send **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, and from the first two also **Commit** and **Best case** if you like, for the team and for salespeople with Metrics of their own. Choose **Fill from n8n** on one of these Metrics and a forecast template ([what they send and when](../automations/crm-forecast-feeds.md)). A figure that came from the CRM is approved like any other, but its first value is not checked for being unusual. The Pack marks **Closed this quarter** and **Pipeline value** as sent by a CRM, so **Set up from this Pack** does not make you their Submitter; to type them yourself, tick **Ask me also for …** there.
-
-**Sending the Snapshot.** The Workflow has a **Send Snapshot** step; **Set up from this Pack** leaves the dashboard and the people open. Open the Workflow, pick **Weekly forecast meeting** and the people in the step (see [The steps](11-workflows.md#the-steps)), and share the dashboard with them, or the link is not sent to them.
+**The Snapshot.** Set up connects the Workflow's **Send Snapshot** step with the dashboard and the sales lead. To send it to others too, open the Workflow, add them in the step (see [The steps](11-workflows.md#the-steps)) and share the dashboard with them, or the link is not sent to them.
 
 ## Where a Pack's numbers come from
 
@@ -160,7 +168,7 @@ The form opens with the whole Pack chosen: every Metric ticked, the dashboard an
 | --- | --- |
 | **Metrics to make** | One box per Metric Catalog entry of the Pack. A Derived Metric, such as Average order value, is computed from other entries; ticking it ticks those too, and they are made first. A [Total](10-metrics.md#adding-up-metrics-a-total), such as the team's commit, adds up one entry of every line of a Repeat; ticking it ticks that entry too. |
 | **Tags on an entry** | An entry may bring up to 5 Tags, shown under its name. The Metric made from it gets them, matched by name with the Tags the Workspace has (so `finance` and `Finance` are one Tag, in its first spelling) and new ones made. If a limit is reached (10 Tags on a Metric, 200 in the Workspace) the Metric is still made, and the result says which Tags stayed off it: merge or delete Tags you do not need, then add them by hand. |
-| **Make me the Submitter of their values** | Makes you the Submitter of the Metrics that take values. It sends nothing by itself. Untick it to add Submitters later on each Metric's page. |
+| **Make me the Submitter of their values** | Makes you the Submitter of the Metrics that take values. It sends nothing by itself. Untick it to add Submitters later under [Who submits](10-metrics.md#who-submits) on each Metric's page. |
 | **Values come from the Feed** | Shown when the Workspace has a Feed. Makes that Feed the Submitter of every Metric that takes values and turns on the API Source, so a program such as the [Usage Feed](../guides/usage.md) fills them and nobody is asked. Only Feeds of this Workspace are offered. |
 | **Dashboard** | One of the Pack's Dashboard Templates, or none. Each Slot is filled with the Metric made from the entry it suggests; a Slot whose entry you do not make asks you to pick one of your Metrics. |
 | **Workflow** | One of the Pack's Workflow Templates, or none. If its Approve step asks for Approvers, pick each one, members of the Workspace. The Metrics that take values follow this Workflow. |

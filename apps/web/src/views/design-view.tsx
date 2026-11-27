@@ -27,6 +27,7 @@ import { useRecipeBudget } from "./recipe-budget";
 import type { RecipeResults } from "@ziffr/core/recipe-run";
 import { drawnOutputs } from "@ziffr/core/analysis-recipe";
 import { StatusChip } from "./header-status";
+import { hasNoValues, NoValuesNote } from "./no-values-note";
 import { cn } from "@/lib/utils";
 import { ApprovalMark } from "./approval-mark";
 import { DesignPlot } from "./design-plot";
@@ -46,7 +47,7 @@ import { useWidgetScale } from "./widget-scale";
 
 type Props = {
   design: ViewDesign;
-  widget: Pick<Widget, "metric_ids" | "settings">;
+  widget: Pick<Widget, "metric_ids" | "settings"> & Partial<Pick<Widget, "template">>;
   /** The widget's Metrics, in Slot order, as the person may see them. */
   metrics: Metric[];
   data: CanvasData;
@@ -149,6 +150,9 @@ function usage(d: ViewDesign) {
   };
 }
 
+/** Marks that draw words, not an empty drawing, when there is nothing: a row per Metric, or why there is no tree. */
+const SAYS_ITSELF: Part["mark"][] = ["scoreboard", "progress", "tree"];
+
 /** A widget drawn from its View Design. */
 export function DesignView({ design, widget, metrics, data, onPointContext }: Props) {
   // Show the numbers: "values" is the older comparison on the values as they are, never growth removed.
@@ -177,6 +181,8 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   // What the design needs and does not have says why, in the core's words where it has them.
   if (v.matrix && metrics.length < 2) return <Empty>{design.empty ?? "Needs at least two Metrics."}</Empty>;
   if (usage(design).pairs && !metrics[1]) return <Empty>{design.empty ?? "Needs two Metrics."}</Empty>;
+  // Nothing to draw: plain words in place of bare axes and dashes, unless the design's mark says in words why itself.
+  if (hasNoValues(metrics, data) && !design.parts.some((p) => SAYS_ITSELF.includes(p.mark))) return <NoValuesNote metrics={metrics} template={widget.template ?? ""} past={Boolean(widget.settings.asOf)} />;
   if (v.correlation && !v.correlation.ok) return <Empty>{v.correlation.reason}</Empty>;
   // Where the checks refuse (too few different values, too many gaps), the words say so and no number is shown.
   if (v.correlationTake?.kind === "refusal") return <Empty>{v.correlationTake.refusal}</Empty>;

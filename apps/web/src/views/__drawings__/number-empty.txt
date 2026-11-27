@@ -1,2 +1,1 @@
-"–"
-"No values yet"
+"No values to show yet."

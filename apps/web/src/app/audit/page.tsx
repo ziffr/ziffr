@@ -60,6 +60,8 @@ function detailText(e: AuditEvent, nameOf: (id: string) => string | undefined): 
     case "metric.created": return d.key_name ? `with the key ${d.key_name}` : "";
     case "metric.deleted": return `${d.values ?? 0} values went with it`;
     case "metric.details_changed": return `changed: ${((d.fields as string[] | undefined) ?? []).join(", ")}`;
+    case "metric.submitter_added": return `${d.person_name ?? "someone"}, ${d.ask_now ? "with a first request" : "without a first request"}`;
+    case "metric.submitter_removed": return String(d.person_name ?? "");
     case "metric.workflow_set": return d.workflow_name ? `now ${d.workflow_name}` : "no Workflow now";
     case "period.locked": case "period.unlocked": case "approval.given": case "approval.sent_back": case "approval.skipped": case "self_check.confirmed": case "self_check.corrected": case "correction.accepted": case "correction.declined": return String(d.period ?? "");
     case "away.set": return `${d.from} to ${d.to}`;

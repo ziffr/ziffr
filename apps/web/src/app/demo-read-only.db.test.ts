@@ -369,6 +369,8 @@ const CASES: Record<string, Case> = {
   "setup/first-metric-actions:tryExampleHere": { nothing: "the demo is no trial, and the core refuses a demo actor", blocked: () => [] },
   "setup/first-metric-actions:checkFirstMetric": { reads: () => [] },
   "setup/team-actions:askForMetric": { blocked: (i) => [i.metric, "someone"] },
+  "submitter-actions:addSubmitter": { blocked: (i) => [i.metric, "ben", true] },
+  "submitter-actions:removeSubmitter": { blocked: (i) => [i.metric, "ben"] },
   "try/n8n/actions:makeN8nKey": { outside: "a Trial Workspace's key for n8n, never the demo" },
   "version-actions:listVersions": { reads: (i) => ["dashboard", i.dashboard] },
   "version-actions:nameVersion": { nothing: "the demo has no Versions", open: () => [1, "Named"] },
