@@ -4,7 +4,7 @@
 // team's templates, the View Designs and, where this Ziffr can draw one, the free layout. On a wide screen it stands beside the dashboard, so cards are dragged onto it; on a narrower one
 // it is the Slide-over and a card is tapped. It draws only what the page holds of the person (series it lacks are fetched
 // through the core, for Metrics they see), and adding goes through the caller, to the same placeWidget as before.
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { GripVertical, Info, Plus, Search, Sigma, StickyNote, Trash2 } from "lucide-react";
 import { tellApart } from "@ziffr/core/metric-names";
