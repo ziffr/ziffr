@@ -57,6 +57,6 @@ describe("Didn't arrive?", () => {
     expect(c.find((x) => x.text.includes("Messages tab"))?.href).toBe("/connectors");
     expect(c.find((x) => x.text.includes("blocked the bot") || x.text.includes("block the bot"))?.href).toBe("/connectors");
     expect(c.find((x) => x.text.startsWith("Your Quiet Hours until 07:00"))?.href).toBe("/settings/deliveries");
-    expect(c.some((x) => x.href === "/setup?step=ways")).toBe(true);
+    expect(c.some((x) => x.href?.startsWith("/setup"))).toBe(false);
   });
 });

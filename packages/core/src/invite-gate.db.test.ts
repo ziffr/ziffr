@@ -35,13 +35,13 @@ describe("the invite gate", () => {
     const theirs = await w.metric(admin, { name: "Admin's own" });
     await w.token(theirs.id, admin);
     await w.trial(day(7));
-    expect(await inviteGate(o)).toEqual({ state: "waiting", you: true, metric: null });
+    expect(await inviteGate(o)).toEqual({ state: "waiting", you: true, firstSteps: false, metric: null });
     const mine = await w.metric(owner, { name: "Cash at hand" });
     await w.token(mine.id, owner);
     const old = await w.metric(owner, { name: "Old", archived_at: new Date().toISOString() });
     await w.token(old.id, owner);
     expect(await inviteGate(o)).toMatchObject({ state: "waiting", you: true, metric: { id: mine.id, name: "Cash at hand", slug: mine.slug, canAsk: true, offer: { metricId: mine.id } } });
-    expect(await inviteGate(w.actor(admin, "admin"))).toEqual({ state: "waiting", you: false, metric: null });
+    expect(await inviteGate(w.actor(admin, "admin"))).toEqual({ state: "waiting", you: false, firstSteps: false, metric: null });
   });
 
   it("opens with the Owner's own value, is full when every place is taken, and says when the trial ended", async () => {

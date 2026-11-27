@@ -12,7 +12,7 @@ Each Pack shows "by" its author, with its logo when it has one, in a bordered bo
 
 ## Use this pack
 
-**Use this pack** sets a Pack up one question at a time. It is on Ziffr's own Packs, on the preview of a Pack from the Marketplace or from a file, and in the [Setup Guide](07-getting-started.md#the-setup-guide). It is for Owners and Admins. A Pack with nothing to set up (no Dashboard, Deck or Workflow Template) has **Add to my Workspace** instead: it adds the Pack and says what was added and where it is.
+**Use this pack** sets a Pack up one question at a time. It is on Ziffr's own Packs, on the preview of a Pack from the Marketplace or from a file, and in [First Steps](07-getting-started.md#a-ready-made-set-or-a-clean-slate). It is for Owners and Admins. A Pack with nothing to set up (no Dashboard, Deck or Workflow Template) has **Add to my Workspace** instead: it adds the Pack and says what was added and where it is.
 
 | Screen | When you see it | What it asks |
 | --- | --- | --- |
@@ -96,7 +96,7 @@ Ziffr makes thirteen starting Packs: SaaS metrics, Online shop, Agency or freela
 
 Installing by itself makes no Metric, Workflow, dashboard or deck, sends nothing and changes nothing already in the Workspace. Its Metric Catalog entries appear under **New metric** (a Derived Metric's entry only through setting the Pack up), its templates where you start a dashboard, deck or Workflow, its View Designs under **Workspace → Library** (an Analysis Recipe as a View Design that draws it), and its Themes on the Themes page. Two Packs may describe the same Metric, such as Revenue: the Metric Catalog then lists both, each under its Pack. A Pack that is installed already is not installed again: update it instead.
 
-The [Setup Guide](07-getting-started.md#the-setup-guide) offers the same Packs in its **Starting point** step, ranked for your Workspace, with the same **Use this pack** and **Add to my Workspace**.
+[First Steps](07-getting-started.md#a-ready-made-set-or-a-clean-slate) offers Ziffr's own Packs to someone who makes a Workspace, ranked by their answers.
 
 ## The Sales forecast Pack
 
@@ -190,7 +190,7 @@ Both are in Help with an installed Pack, also one without a guide (the Pack then
 
 ## A Pack's guide
 
-A Pack may carry a **Pack Guide**: what its creator tells you about it. The Preview holds it under **How it works**, closed until you choose it, for a file, one of Ziffr's own Packs and a Pack from the Marketplace, also in the Setup Guide.
+A Pack may carry a **Pack Guide**: what its creator tells you about it. The Preview holds it under **How it works**, closed until you choose it, for a file, one of Ziffr's own Packs and a Pack from the Marketplace.
 
 Each of Ziffr's own Packs has a short one: what it is for, what you need and up to three questions. A Pack of one of them installed from an earlier version of Ziffr gets this guide when you update it.
 

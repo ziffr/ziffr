@@ -18,7 +18,7 @@ import { InviteLock, seeGate, useInviteGate } from "./invite-lock";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const offer = { metricId: 7, name: "Cash at hand", rule: "One value per period", periods: [{ start: "2026-11-01", label: "November 2026", has: null }], placeholder: "1,200", numberStyle: "en" } as never;
-const waiting = (metric: Extract<InviteGate, { state: "waiting" }>["metric"], you = true): InviteGate => ({ state: "waiting", you, metric });
+const waiting = (metric: Extract<InviteGate, { state: "waiting" }>["metric"], you = true, firstSteps = false): InviteGate => ({ state: "waiting", you, metric, firstSteps });
 const both = { id: 7, name: "Cash at hand", slug: "cash-at-hand", canAsk: true, offer };
 const html = (gate: InviteGate) => renderToStaticMarkup(<InviteLock gate={gate} was={null} id="why" />).replaceAll("&#x27;", "'");
 const buttons = (h: string) => [...h.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].replace(/<[^>]*>/g, "").trim());
@@ -38,11 +38,19 @@ describe("an Owner whose first value is still missing", () => {
     expect(html(waiting({ ...both, canAsk: false }))).toContain("yourself: record it here.");
     expect(buttons(html(waiting({ ...both, offer: null })))).toEqual(["Ask me now"]);
   });
-  it("with no Metric to send, is told to make one or take the First Metric step", () => {
-    const h = html(waiting(null));
+  it("with no Metric to send, is led to First Steps", () => {
+    const h = html(waiting(null, true, true));
     expect(h).toContain("You do not send values for any Metric yet");
+    expect(h).toContain('href="/first-steps?step=value"');
+    expect(h).toContain("Send your first value");
+    expect(h).not.toContain("/setup");
+  });
+  it("with no Metric to send in a Workspace without First Steps, is told to make one or look at the Metrics", () => {
+    const h = html(waiting(null));
     expect(h).toContain('href="/metrics/new"');
-    expect(h).toContain('href="/setup?step=first_metric"');
+    expect(h).toContain('href="/metrics"');
+    expect(h).not.toContain("/first-steps");
+    expect(h).not.toContain("/setup");
   });
 });
 

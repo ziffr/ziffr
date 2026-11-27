@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { NO_ANSWERS, questionScreens, screenFor, type FirstStepsAnswers, type FirstStepsScreen } from "@ziffr/core/first-steps-screens";
 import { useConfirm } from "@/components/confirm-dialog";
 import { browserDefaults } from "./browser";
+import { leaveFirstSteps } from "./actions";
 import { draftKey, dropDraft, keepDraft, keepTopic, loadDraft, loadTopic } from "./draft";
 import { SCREENS } from "./screens/registry";
 import type { FirstStepsContext } from "./screens/types";
@@ -78,9 +79,14 @@ function Flow({ context }: { context: FirstStepsContext }) {
     dropDraft(key);
     keepTopic(context.personId, null);
   }
+  // Leaving on purpose is noted first, so that Home does not lead the Owner back; the way out never waits on its success.
+  function away(url: string) {
+    const noted = made ? leaveFirstSteps(made.id).catch(() => {}) : Promise.resolve();
+    void noted.finally(() => window.location.assign(url));
+  }
   function leave(url: string) {
     dropDraft(key);
-    window.location.assign(url);
+    away(url);
   }
   async function startOver() {
     if (made && !(await confirm({ title: "Start the questions again?", description: "Nothing you made is deleted.", confirmLabel: "Start over", destructive: false }))) return;
@@ -91,7 +97,7 @@ function Flow({ context }: { context: FirstStepsContext }) {
 
   const Screen = SCREENS[screen];
   return (
-    <Shell screen={screen} answers={answers} made={made !== null} onBack={screen === "who" ? null : back} onStartOver={() => void startOver()} onSignOut={forget}>
+    <Shell screen={screen} answers={answers} made={made !== null} onBack={screen === "who" ? null : back} onStartOver={() => void startOver()} onSignOut={forget} onLater={() => away("/")}>
       <Screen key={screen} context={context} answers={answers} update={update} go={go} next={next} leave={leave} />
       {dialog}
     </Shell>

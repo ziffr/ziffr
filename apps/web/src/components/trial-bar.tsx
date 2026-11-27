@@ -1,5 +1,4 @@
-// The bar of a Trial Workspace (spec 0021, ticket 9): on every page, how long the trial has left, with the Setup Guide
-// (ticket 193), Try it and the download of its values; and the screen that replaces the app once it has ended.
+// The bar of a Trial Workspace (spec 0021, ticket 9): on every page, how long the trial has left, with Try it and the download of its values; and the screen that replaces the app once it has ended.
 import Link from "next/link";
 import { trialEndedMemberWords, trialMemberWords } from "@ziffr/core/trial-words";
 import { EndTrialButton } from "./end-trial-button";
@@ -18,7 +17,6 @@ export function TrialBar({ daysLeft, endsAt, isOwner, keeps, usage }: { daysLeft
       <span>Your trial ends {daysLeft <= 1 ? "within a day" : `in ${daysLeft} days`}, on {endsAt.slice(0, 10)}. {keeps ? "Your Workspace then stays." : <>Subscribe to keep it{isOwner ? <>, or take the <Link href="/settings/export" className="underline underline-offset-2 hover:text-foreground">Workspace Export</Link> and run Ziffr yourself</> : ""}.</>}</span>
       {/* Owners and Admins only (the core decides): what the trial has used of its limits, and any that is reached. */}
       {usage && <span>{usage.line}.{usage.reached.length > 0 && <> {usage.reached.join(" ")}</>}</span>}
-      <Link href="/setup" className="underline underline-offset-2 hover:text-foreground">Setup Guide</Link>
       <Link href="/try" className="underline underline-offset-2 hover:text-foreground">Try it</Link>
       <a href="/try/download" className="underline underline-offset-2 hover:text-foreground">Download your values</a>
     </p>

@@ -38,7 +38,9 @@ import { AnnouncementLine } from "@/components/announcement-line";
 import { DEMO_RESET_ANNOUNCEMENT, announcementScope, announcementsFor, fromInstallation } from "@/lib/announcements";
 import { shellOrder } from "@/lib/announcement-state";
 import { activeInstallationAnnouncements } from "@ziffr/core/installation-announcements";
-import { FIRST_STEPS_ON } from "@ziffr/core/first-steps-screens";
+import { openFirstSteps } from "@ziffr/core/first-steps";
+import { FIRST_STEPS_PATH } from "@ziffr/core/first-steps-screens";
+import { FirstStepsLine } from "@/components/first-steps-line";
 import { activeWorkspaceAnnouncements } from "@ziffr/core/workspace-announcements";
 import { DemoVisitPrefs } from "@/components/demo-visit-prefs";
 import { switchableDashboards } from "@ziffr/core/home";
@@ -112,7 +114,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // (spec 0068) for someone who has a Workspace.
   const asks = await headers();
   const usesPack = workspaces.length > 0 && asks.get("x-ziffr-use-pack") === "1";
-  if (!demo && ((FIRST_STEPS_ON && asks.get("x-ziffr-first-steps") === "1") || usesPack)) {
+  if (!demo && (asks.get("x-ziffr-first-steps") === "1" || usesPack)) {
     const lines = user ? fromInstallation(await activeInstallationAnnouncements({ demo: false })) : [];
     // A Practice Workspace says so on every page (spec 0063), also in this frame; First Steps never runs in one.
     const practice = usesPack && (await isPracticeWorkspace(await currentWorkspaceId()).catch(() => false));
@@ -155,6 +157,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // The Setup Guide's line (spec 0052): only for someone it applies to (never a Guest or the demo: the core says no), and
   // only counts and a step name go to the browser. A trial that has ended shows its own screen instead.
   const setup = demo || practice || trial?.ended ? { applies: false, shown: false, done: 0, total: 0, next: null } : await setupLine(actor).catch(() => ({ applies: false, shown: false, done: 0, total: 0, next: null }));
+  // First Steps (spec 0067): while its Owner has a step left, the core says which; nothing for anyone else.
+  const firstSteps = demo || practice || trial?.ended ? null : await openFirstSteps(actor).catch(() => null);
   const feedback = demo || practice ? null : await feedbackPromptFor(actor).catch(() => null);
   const offersTrials = demo && Boolean((await whatThisZiffrOffers()).trial);
   // Only the real person behind the session, never a demo visitor.
@@ -191,6 +195,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         : <TrialBarForMembers owner={trial.ownerName} endsAt={trial.endsAt} />)}
       {/* Under the trial bar (spec 0052). */}
       {setup.shown && <SetupLine done={setup.done} total={setup.total} next={setup.next} />}
+      {firstSteps && !firstSteps.hidden && <FirstStepsLine next={firstSteps.next} invitesClosed={firstSteps.invitesClosed} />}
       {overLimit && <OverLimitBar words={overLimit} />}
     </>
   );
@@ -205,7 +210,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <PrefsScope visit={visitPrefs}>
-        <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} setup={{ applies: setup.applies, shown: setup.shown }} banners={<>{demoNote}{banners}</>}>
+        <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} setup={{ applies: setup.applies, shown: setup.shown, continueHref: firstSteps ? `${FIRST_STEPS_PATH}?step=${firstSteps.next}` : null }} banners={<>{demoNote}{banners}</>}>
           {trial?.ended ? (role === "owner" || role === "admin" ? <TrialEnded deletedAt={trial.deletedAt} cancelled={trial.cancelled} isOwner={role === "owner"} workspaceExport={role === "owner" ? await workspaceExportState(actor, { sessionStartedAt: await sessionStartedAt() }).catch(() => null) : null} /> : <TrialEndedForMembers owner={trial.ownerName} cancelled={trial.cancelled} />) : children}
         </AppShell>
         </PrefsScope>

@@ -7,7 +7,7 @@ import { neverRouted } from "@ziffr/core/practice";
 import { forBrowser } from "@/lib/auth-settings";
 import { authClient, DEMO_COOKIE, demoOnly, sessionUser, personFor, signedIn } from "@/lib/auth";
 import { acceptInvitation, requestToJoin } from "@ziffr/core/invitations";
-import { createWorkspace as coreCreateWorkspace, isMemberOf } from "@ziffr/core/page-data";
+import { isMemberOf } from "@ziffr/core/page-data";
 import { currentActor, WORKSPACE_COOKIE } from "@/lib/viewer";
 import { endTrialNow as coreEndTrialNow } from "@ziffr/core/trial-end";
 import { safeNext, enabledProviders, type Provider } from "@/lib/sign-in";
@@ -69,28 +69,6 @@ export async function signOut() {
 export async function signInAgainForExport() {
   await (await authClient()).auth.signOut();
   redirect(`/login?next=${encodeURIComponent("/settings/export")}`);
-}
-
-/** A signed-in person without a workspace creates one and becomes its Owner (GLOSSARY: Workspace, Workspace Role).
- * Why a trial could not be made comes back as words, not as a thrown error, whose message production builds hide. */
-export async function createWorkspace(name: string): Promise<{ error: string } | void> {
-  const user = await sessionUser();
-  if (!user) redirect("/login");
-  const person = await personFor(user);
-  let ws: { id: string };
-  try {
-    ws = { id: await coreCreateWorkspace(person, String(name ?? "")) };
-  } catch (e) {
-    // A trial that may not be made, or a name the core refuses, says why; anything else is logged and stays here.
-    const words = forPeople(e);
-    if (words !== null) return { error: words };
-    throw e;
-  }
-  const jar = await cookies();
-  jar.set(WORKSPACE_COOKIE, ws.id, { httpOnly: true, sameSite: "lax", path: "/" });
-  jar.delete(DEMO_COOKIE); // working in one's own workspace ends a demo visit
-  // Every new Workspace, a trial included, opens on the Setup Guide (spec 0052): a fixed path.
-  redirect("/setup");
 }
 
 /** Switches to another of the person's workspaces. */

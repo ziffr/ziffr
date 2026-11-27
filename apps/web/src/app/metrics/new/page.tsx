@@ -28,9 +28,6 @@ import { CalculationNoteField } from "../calculation-note-field";
 import { AskNoteField } from "../ask-note-field";
 import { ASK_NOTE_DEFAULT } from "@ziffr/core/ask-note";
 import { CatalogBrowser } from "./catalog-browser";
-import { GuidedPick } from "./guided-pick";
-import { suggestMetrics } from "@/lib/metric-suggestions";
-import { myBusinessFunction } from "@ziffr/core/business-function";
 import { DesktopOnly } from "@/components/desktop-only";
 import { DerivedForm } from "./derived-form";
 import { TotalForm } from "./total-form";
@@ -66,15 +63,10 @@ const BLANK: MetricDescription = {
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 
-export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string; copy?: string; derived?: string; add?: string; setup?: string }> }) {
+export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string; copy?: string; derived?: string; add?: string }> }) {
   const sp = await searchParams;
   // The Metric Catalog and the form are for people who may create; the core refuses a Guest too.
   if (!can(await currentActor(), "create")) notFound();
-  // Opened from the Setup Guide (spec 0052) by someone who has that step, an Owner or Admin outside the demo: everyday
-  // words, a way back, and the new Metric becomes the guide's. The parameter comes from the address, so it changes
-  // wording and layout only; for anyone else, and for a duplicate, the page is as it is without it.
-  const { role, key } = await currentActor();
-  const guided = sp.setup === "1" && !sp.copy && !key && (role === "owner" || role === "admin") && !(await isDemo());
   const items = (await metricCatalog(await currentActor())) as unknown as CatalogMetric[];
   const picked = sp.catalog ? items.find((c) => c.id === Number(sp.catalog)) : undefined;
   // A duplicate starts from a Metric the person sees; the core refuses Guests and Metrics hidden from them.
@@ -115,11 +107,6 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
     // The Workspace Profile's industry and segment suggest Metrics; only these two keys go to the browser.
     const [profile, numberStyle, refusal] = await Promise.all([workspaceProfile(await currentActor()), getNumberStyle(), newMetricRefusal(await currentActor())]);
     const fit = profile.industry ? { industry: profile.industry, segment: profile.segment, label: INDUSTRY_LABEL[profile.industry] } : null;
-    if (guided) {
-      // The person's own Business Function chooses the suggestions here, on the server; it is not sent to the browser.
-      const ownFunction = await myBusinessFunction(await currentActor());
-      return <GuidedPick suggestions={suggestMetrics(items, { function: ownFunction, industry: profile.industry, segment: profile.segment })} items={items} fit={fit} money={moneyUnit(profile.currency)} numberStyle={numberStyle} notes={<LimitNotes refusal={refusal} note={note} />} />;
-    }
     return (
       <>
         <PageHeader title="New metric" sub="Start from the Metric Catalog, or describe one from scratch. You can change everything afterwards." />
@@ -155,12 +142,11 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
     <>
       {copy
         ? <Link href={`/metrics`} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> Metrics</Link>
-        : <Link href={guided ? "/metrics/new?setup=1" : "/metrics/new"} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> {guided ? "Back to the suggestions" : "Catalog"}</Link>}
+        : <Link href="/metrics/new" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-sm:min-h-11"><ArrowLeft className="size-4" /> Catalog</Link>}
       <PageHeader
         title={copy ? `Duplicate “${copy.original}”` : picked ? `New metric from “${picked.name}”` : "New metric"}
         sub={copy
           ? "A new metric of yours with the same description. Values, Shares, Target Series and history stay with the original."
-          : guided ? `${picked ? "The details are filled in. Check the name" : "Give it a name (the rest can stay as it is)"}, then press “Create metric” at the bottom. After that you are back in the Setup Guide.`
           : picked ? "Copied from the Metric Catalog. It’s your metric now: change anything, it won’t follow later catalog changes." : "Describe the metric before anyone can report values for it."}
       />
       <DesktopOnly path="/metrics/new" />
@@ -168,7 +154,6 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
       <form action={createMetric} className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <input type="hidden" name="from_catalog_id" value={copy ? "" : picked?.id ?? ""} />
         <input type="hidden" name="duplicate_of" value={copy?.duplicateOf ?? ""} />
-        {guided && <input type="hidden" name="setup" value="1" />}
         <UnitProvider format={d.format} unit={d.unit} unitPosition={d.unit_position} decimals={d.decimals} money={money} numberStyle={numberStyle} maxDecimals={4} idPrefix="new">
         <div className="space-y-6">
           <Section title="What is it?">

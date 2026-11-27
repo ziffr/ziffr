@@ -1,28 +1,19 @@
 "use client";
-// About you, the Setup Guide's first step (spec 0052; GLOSSARY: Setup Guide, Workspace Profile, Business Function). One
-// question to a row, each optional and each saying what it is for. Owners and Admins answer for the Workspace (its
-// Workspace Profile, its time zone and year start); a Member sees those read-only and answers only their own Business
-// Function. Every value is checked again by the core against its list.
-import { useEffect, useState, useTransition } from "react";
+// About you, the Setup Guide's first step (spec 0052, spec 0067; GLOSSARY: Setup Guide, Workspace Profile, Business
+// Function). A Member reads what the Workspace answered about the business and answers only their own Business Function,
+// which is optional and says what it is for. The core checks the value against its list.
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PrivacyStatement } from "@/components/privacy-statement";
 import { isActionError, UNEXPECTED } from "@/lib/action-error";
-import { saveAboutYou, skipStep, type AboutYouInput } from "./actions";
+import { saveAboutYou, skipStep } from "./actions";
 import { BUSINESS_FUNCTIONS, BUSINESS_FUNCTION_LABELS, type BusinessFunction } from "@ziffr/pack/business-functions";
-import {
-  currencyFor, EMPLOYEE_BANDS, INDUSTRIES, INDUSTRY_LABEL, REVENUE_BANDS, REVENUE_LABEL, SEGMENTS, SEGMENT_LABEL,
-  type WorkspaceProfile,
-} from "@ziffr/core/workspace-profile";
-import { monthName, type YearStart } from "@ziffr/core/periods";
 
 // 44 px tall and 16 px text on a phone (a smaller text makes iPhone Safari zoom in on focus); the compact size from the small breakpoint.
 const field = "block h-11 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-base disabled:opacity-70 sm:h-9 sm:text-sm";
 const SKIP = "Skip this question";
-
-/** A country or currency with the name it is shown by. */
-export type Named = { code: string; name: string };
 
 /** One question: the label and what it is for on the left, the answer on the right. */
 function Row({ id, label, hint, children }: { id: string; label: string; hint: string; children: React.ReactNode }) {
@@ -79,111 +70,6 @@ function useStep(following: string) {
     } catch { setError(UNEXPECTED); }
   });
   return { pending, error, run };
-}
-
-/** Owners and Admins: the Workspace's answers, the Workspace's day, and their own function. */
-export function AboutYouWorkspace({ profile, countries, timeZone, runHour, weekStart, yearStart, allowedMonths, whyMonths, businessFunction, following }: {
-  profile: WorkspaceProfile; countries: Named[]; timeZone: string; runHour: number; weekStart: 0 | 1; yearStart: YearStart; allowedMonths: YearStart[]; whyMonths: string | null;
-  businessFunction: BusinessFunction | null; following: string;
-}) {
-  const { pending, error, run } = useStep(following);
-  const [p, setP] = useState(profile);
-  const [fn, setFn] = useState<string>(businessFunction ?? "");
-  const [zone, setZone] = useState(timeZone);
-  const [hour, setHour] = useState(runHour);
-  const [month, setMonth] = useState<YearStart>(yearStart);
-  const [first, setFirst] = useState<0 | 1>(weekStart);
-  const [weekProposed, setWeekProposed] = useState(false);
-  const [zones, setZones] = useState<string[]>(["UTC"]);
-  const [proposed, setProposed] = useState<string | null>(null);
-
-  // The zones this browser knows, and, while the Workspace still has the default UTC, this browser's own as the proposal
-  // (the Setup Guide asks the Owner to confirm the day; the core checks the zone against its list again).
-  useEffect(() => {
-    const all = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [];
-    setZones(["UTC", ...all.filter((z) => z !== "UTC")]);
-    const mine = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (timeZone === "UTC" && mine && mine !== "UTC" && all.includes(mine)) { setZone(mine); setProposed(mine); }
-  }, [timeZone]);
-  // While the Workspace still has the default Monday, this browser's locale may propose Sunday (the core checks the value again).
-  useEffect(() => {
-    if (weekStart !== 1) return;
-    const loc = new Intl.Locale(navigator.language) as Intl.Locale & { getWeekInfo?: () => { firstDay: number }; weekInfo?: { firstDay: number } };
-    const day = (loc.getWeekInfo?.() ?? loc.weekInfo)?.firstDay;
-    if (day === 7) { setFirst(0); setWeekProposed(true); }
-  }, [weekStart]);
-
-  const set = (k: keyof WorkspaceProfile, v: string) => setP((old) => {
-    const next = { ...old, [k]: v || null } as WorkspaceProfile;
-    // A new country proposes its own currency while none was picked, or the old one was the old country's.
-    if (k === "country") {
-      if (!v) { if (old.currency === (old.country && currencyFor(old.country))) next.currency = null; }
-      else if (!old.currency || old.currency === (old.country && currencyFor(old.country))) next.currency = currencyFor(v);
-    }
-    return next;
-  });
-  const pick = (k: keyof WorkspaceProfile, id: string, options: { v: string; label: string }[]) => (
-    <select id={id} aria-describedby={["about-country", "about-revenue"].includes(id) ? `${id}-hint` : undefined} value={p[k] ?? ""} disabled={pending} onChange={(e) => set(k, e.target.value)} className={field}>
-      <option value="">{SKIP}</option>
-      {options.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
-    </select>
-  );
-  const hh = (h: number) => `${String(h).padStart(2, "0")}:00`;
-  const save = () => {
-    const input: AboutYouInput = { profile: p, clock: { timeZone: zone, runHour: hour, weekStart: first }, businessFunction: fn || null };
-    if (month !== yearStart) input.yearStart = month;
-    run(() => saveAboutYou(input), "Saved");
-  };
-  return (
-    <form onSubmit={(e) => { e.preventDefault(); save(); }} aria-label="About you and your business">
-      <ol className="border-t border-border">
-        <Row id="about-industry" label="What does your business do?" hint="">
-          {pick("industry", "about-industry", INDUSTRIES.map((v) => ({ v, label: INDUSTRY_LABEL[v] })))}
-        </Row>
-        <Row id="about-segment" label="Who do you sell to?" hint="">
-          {pick("segment", "about-segment", SEGMENTS.map((v) => ({ v, label: SEGMENT_LABEL[v] })))}
-        </Row>
-        <Row id="about-country" label="Where is it based?" hint="So numbers and money are written the way you write them.">
-          {pick("country", "about-country", countries.map(({ code, name }) => ({ v: code, label: name })))}
-          <p className="mt-1.5 text-xs text-muted-foreground" aria-live="polite">
-            {p.currency ? `Currency: ${p.currency}. ` : ""}The country proposes the currency, number style and answer languages until someone sets them on Workspace → General.
-          </p>
-        </Row>
-        <Row id="about-people" label="How many people work there?" hint="">
-          {pick("employeeBand", "about-people", EMPLOYEE_BANDS.map((v) => ({ v, label: v === "1000+" ? "More than 1,000" : v.replace("-", " to ") })))}
-        </Row>
-        <Row id="about-revenue" label="Revenue in a year" hint="In the currency above, roughly.">
-          {pick("revenueBand", "about-revenue", REVENUE_BANDS.map((v) => ({ v, label: `${REVENUE_LABEL[v]}${p.currency ? ` ${p.currency}` : ""}` })))}
-        </Row>
-        <FunctionRow value={fn} onChange={setFn} disabled={pending} />
-        <Row id="about-zone" label="Your Workspace's time zone" hint="So Ziffr knows which day it is for your team and when each day's requests go out.">
-          <select id="about-zone" aria-describedby="about-zone-hint" value={zone} disabled={pending} onChange={(e) => { setZone(e.target.value); setProposed(null); }} className={field}>
-            {(zones.includes(zone) ? zones : [zone, ...zones]).map((z) => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
-          </select>
-          {proposed && <p className="mt-1.5 text-xs text-muted-foreground">Proposed from this browser. Choose another if your team works elsewhere.</p>}
-        </Row>
-        <Row id="about-hour" label="Ziffr asks for numbers at" hint="The hour of the morning your Workflows ask, remind and escalate.">
-          <select id="about-hour" aria-describedby="about-hour-hint" value={hour} disabled={pending} onChange={(e) => setHour(Number(e.target.value))} className={field}>
-            {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{hh(h)}</option>)}
-          </select>
-        </Row>
-        <Row id="about-week" label="The week starts on" hint="The first day of the week in the Schedule.">
-          <select id="about-week" aria-describedby="about-week-hint" value={first} disabled={pending} onChange={(e) => { setFirst(Number(e.target.value) === 0 ? 0 : 1); setWeekProposed(false); }} className={field}>
-            <option value={1}>Monday</option>
-            <option value={0}>Sunday</option>
-          </select>
-          {weekProposed && <p className="mt-1.5 text-xs text-muted-foreground">Proposed from this browser. Choose Monday if your team works that way.</p>}
-        </Row>
-        <Row id="about-year" label="Your year starts in" hint="Where quarters, half-years and years begin. January is the calendar year.">
-          <select id="about-year" aria-describedby="about-year-hint" value={month} disabled={pending} onChange={(e) => setMonth(Number(e.target.value) as YearStart)} className={field}>
-            {Array.from({ length: 12 }, (_, i) => (i + 1) as YearStart).map((m) => <option key={m} value={m} disabled={!allowedMonths.includes(m)}>{monthName(m)}</option>)}
-          </select>
-          {whyMonths && <p className="mt-1.5 text-xs text-muted-foreground">{whyMonths}</p>}
-        </Row>
-      </ol>
-      <Footer pending={pending} error={error} onSkip={() => run(() => skipStep("about"))} />
-    </form>
-  );
 }
 
 /** A Member: the Workspace's answers as they stand, and their own function to answer. */

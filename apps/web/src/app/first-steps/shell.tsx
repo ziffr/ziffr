@@ -31,18 +31,20 @@ type ShellProps = {
   onBack: (() => void) | null;
   onStartOver: () => void;
   onSignOut: () => void;
+  /** Finish later: leaves for Home. */
+  onLater: () => void;
   children: React.ReactNode;
 };
 
 /** The chapters and answers beside a screen, and Back, Start over, and Sign out or Finish later. */
-export function Shell({ screen, answers, made, onBack, onStartOver, onSignOut, children }: ShellProps) {
+export function Shell({ screen, answers, made, onBack, onStartOver, onSignOut, onLater, children }: ShellProps) {
   const ways = (
     <>
       {screen !== "who" && <Button type="button" variant="ghost" className={TAP} onClick={onStartOver}>Start over</Button>}
       {made ? (
         // A plain link: the app around Home is not drawn here, so it is loaded anew.
         // eslint-disable-next-line @next/next/no-html-link-for-pages
-        <a href="/" className={cn(buttonVariants({ variant: "ghost" }), TAP)}>Finish later</a>
+        <a href="/" className={cn(buttonVariants({ variant: "ghost" }), TAP)} onClick={(e) => { e.preventDefault(); onLater(); }}>Finish later</a>
       ) : (
         <form action={signOut} onSubmit={onSignOut}><Button type="submit" variant="ghost" className={TAP}>Sign out</Button></form>
       )}

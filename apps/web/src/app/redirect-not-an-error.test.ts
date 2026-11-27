@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UNEXPECTED } from "@/lib/action-error";
 
 const seen = vi.hoisted(() => ({ set: [] as unknown[], work: [] as Promise<void>[] }));
-const actions = vi.hoisted(() => ({ createWorkspace: vi.fn(), acceptInvite: vi.fn() }));
+const actions = vi.hoisted(() => ({ acceptInvite: vi.fn() }));
 // These tests have no browser: each component is called as a function, with state and transitions that only record.
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
@@ -16,7 +16,6 @@ vi.mock("react", async (original) => ({
 vi.mock("@/app/auth-actions", () => actions);
 
 import { JoinButton } from "./invite/[token]/join";
-import { WelcomeForm } from "./welcome/form";
 
 type Handler = (e: { preventDefault(): void }) => void;
 
@@ -33,7 +32,6 @@ function redirectSignal(): unknown {
 }
 
 const screens = [
-  { screen: "Create workspace", action: actions.createWorkspace, find: () => handler(WelcomeForm(), "onSubmit") },
   { screen: "Join", action: actions.acceptInvite, find: () => handler(JoinButton({ token: "t" }), "onClick") },
 ];
 

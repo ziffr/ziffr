@@ -2,10 +2,10 @@
 // First Steps' server actions (spec 0067; GLOSSARY: First Steps, Workspace). They hand what the browser sent to the core
 // unread: it checks every answer, who may give it, and whether another Workspace may be made.
 import { cookies } from "next/headers";
-import { notFound, redirect } from "next/navigation";
-import { createFirstStepsWorkspace, saveFirstStepsAnswers } from "@ziffr/core/first-steps";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { createFirstStepsWorkspace, hideFirstStepsLine, noteFirstStepsLeft, saveFirstStepsAnswers } from "@ziffr/core/first-steps";
 import { makeFirstMetric } from "@ziffr/core/first-steps-metric";
-import { FIRST_STEPS_ON } from "@ziffr/core/first-steps-screens";
 import { firstStepsSet, firstStepsSets } from "@ziffr/core/first-steps-sets";
 import { numberStyleOf } from "@ziffr/core/workspace-settings";
 import type { ActionError } from "@/lib/action-error";
@@ -16,7 +16,6 @@ import { currentActor, WORKSPACE_COOKIE } from "@/lib/viewer";
 /** Makes the Workspace from the answers, for whoever is signed in, and makes it the one they look at. `saved` is false
  * when the Workspace stands but not every answer was kept. */
 export async function makeWorkspace(input: unknown): Promise<{ saved: boolean } | ActionError> {
-  if (!FIRST_STEPS_ON) notFound();
   const user = await sessionUser();
   if (!user) redirect("/login");
   return attempt(async () => {
@@ -38,10 +37,25 @@ async function drawnFor(workspaceId: string) {
 
 /** Saves the answers again, after Start over, in the Workspace the screen was drawn for. */
 export async function saveAnswers(workspaceId: string, input: unknown): Promise<{ saved: true } | ActionError> {
-  if (!FIRST_STEPS_ON) notFound();
   return attempt(async () => {
     await saveFirstStepsAnswers(await drawnFor(workspaceId), input);
     return { saved: true as const };
+  });
+}
+
+/** Notes that the Owner left First Steps on purpose, so that Home does not lead them back to it. */
+export async function leaveFirstSteps(workspaceId: string) {
+  return attempt(async () => {
+    await noteFirstStepsLeft(await drawnFor(workspaceId));
+    return { noted: true as const };
+  });
+}
+
+/** Hides the line about the next open step, for the Owner who pressed Hide. */
+export async function hideNextStepLine() {
+  return attempt(async () => {
+    await hideFirstStepsLine(await currentActor());
+    revalidatePath("/", "layout");
   });
 }
 
@@ -49,7 +63,6 @@ export async function saveAnswers(workspaceId: string, input: unknown): Promise<
  * for; a pick of null goes on with the one there is. The core checks the pick and who makes it; the browser is told no
  * more than that it is there. */
 export async function addFirstMetric(workspaceId: string, pick: unknown): Promise<{ added: true } | ActionError> {
-  if (!FIRST_STEPS_ON) notFound();
   return attempt(async () => {
     await makeFirstMetric(await drawnFor(workspaceId), pick);
     return { added: true as const };
@@ -58,13 +71,11 @@ export async function addFirstMetric(workspaceId: string, pick: unknown): Promis
 
 /** The ready-made sets offered, best fit first. It only reads. */
 export async function readSets(workspaceId: string) {
-  if (!FIRST_STEPS_ON) notFound();
   return attempt(async () => firstStepsSets(await drawnFor(workspaceId)));
 }
 
 /** One set's Preview and how the Workspace writes numbers; the browser names the set by its Pack id alone. It only reads. */
 export async function readSet(workspaceId: string, packId: string) {
-  if (!FIRST_STEPS_ON) notFound();
   return attempt(async () => {
     const actor = await drawnFor(workspaceId);
     return { preview: await firstStepsSet(actor, packId), numberStyle: await numberStyleOf(actor.workspaceId) };

@@ -10,16 +10,16 @@ import type { StartChoices } from "@ziffr/core/trial-example";
 import { StartScreen } from "./start-screen";
 import { ExampleNote, removeWords } from "./example-note";
 
-const all: StartChoices = { pack: true, example: true, setup: { done: 1, total: 5 }, askColleague: false };
+const all: StartChoices = { pack: true, example: true, setup: "/first-steps?step=value", askColleague: false };
 const start = (over: Partial<StartChoices> = {}) => renderToStaticMarkup(<StartScreen choices={{ ...all, ...over }} />);
 
 describe("Where would you like to start?", () => {
   it("offers a trial's Owner all four choices", () => {
     const h = start();
-    for (const words of ["Where would you like to start?", "Create your first figure", "Install a Pack", "Try the example", "Continue setup (1 of 5)", "Ziffr asks you once a day how many cups of coffee you drank, so you see how it works."]) expect(h).toContain(words);
+    for (const words of ["Where would you like to start?", "Create your first figure", "Install a Pack", "Try the example", "Continue setting up", "Ziffr asks you once a day how many cups of coffee you drank, so you see how it works."]) expect(h).toContain(words);
     expect(h).toContain('href="/metrics/new"');
     expect(h).toContain('href="/settings/packs"');
-    expect(h).toContain('href="/setup"');
+    expect(h).toContain('href="/first-steps?step=value"');
     expect(h).not.toContain("ask a colleague");
   });
   it("offers nothing a person cannot use", () => {

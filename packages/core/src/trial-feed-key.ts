@@ -1,5 +1,5 @@
 // The Feed Key a trial's Owner makes for n8n (spec 0021 ticket 193, kept by spec 0052 ticket 12; GLOSSARY: Feed, Feed Key,
-// Test Metric, Trial Workspace): one of the Setup Guide's "More ways" in a trial. The Owner of a running trial makes a Feed
+// Test Metric, Trial Workspace): linked from Try it and from the ways in and out. The Owner of a running trial makes a Feed
 // and a key that works until the trial ends and sends the Test Metric's values; the secret is shown once and never kept.
 import { openOne } from "./sealed-columns";
 import { db } from "./db";

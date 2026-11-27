@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSlideOver } from "@/components/slide-over-host";
 import { SetupGuideButton, useSetupState } from "@/components/setup-panel";
+import { cn } from "@/lib/utils";
 import { PackGuideList, PackGuidePage, usePackGuides } from "@/components/pack-guide-help";
 import type { HelpIndex } from "@/lib/help-index-build";
 import { chapterForPath } from "@/lib/help-routes";
@@ -199,6 +200,8 @@ function HelpContent({ path, guide, start, load = loadIndex }: { path: string; g
         </div>
       )}
       {!packsFirst && packList}
+      {/* A plain link: First Steps draws its own frame, so the page is loaded anew. */}
+      {setup.continueHref && <p><a href={setup.continueHref} className={cn(linkCls, "inline-flex min-h-11 items-center sm:min-h-0")}>Continue setting up</a></p>}
       <p className="border-t border-border pt-3"><GuideAnchor href={guide}>Open the full guide</GuideAnchor></p>
     </div>
   );

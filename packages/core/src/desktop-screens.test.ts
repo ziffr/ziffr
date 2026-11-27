@@ -6,7 +6,7 @@ import { SCREEN_LINK_SUBJECT, screenLinkLimitWords, screenLinkText } from "./scr
 
 describe("desktopScreen", () => {
   it.each([
-    "/dashboards/12", "/decks/3", "/workflows", "/workflows?id=4", "/connectors", "/connectors/send", "/connectors/sources", "/connectors/who-gets-what",
+    "/dashboards/12", "/decks/3", "/workflows", "/workflows?id=4", "/connectors/send", "/connectors/sources", "/connectors/who-gets-what",
     "/settings/packs", "/settings/library/playground", "/installation", "/installation/feedback", "/analyze", "/metrics/new",
     "/welcome/import", "/welcome/import/0f8fad5b-d9cb-469f-a165-70867728950e",
   ])("knows %s", (path) => {
@@ -15,7 +15,7 @@ describe("desktopScreen", () => {
   });
 
   it.each([
-    "/", "/dashboards", "/dashboards/12/present", "/decks/3/present", "/metrics/revenue", "/connectors/outbox", "/settings",
+    "/", "/dashboards", "/dashboards/12/present", "/decks/3/present", "/metrics/revenue", "/connectors", "/connectors/outbox", "/settings",
     "https://evil.example/decks/3", "//evil.example/decks/3", "/\\evil.example", "decks/3", "/decks/3/", "/decks/03", "/decks/0", "/decks/3?next=//evil.example",
     "/decks/3#x", "/decks/3\n", "/decks/3\nhttps://evil.example", " /decks/3", "/decks/../login", "/workflows?id=4&x=1", "/metrics/new?copy=1", "/dashboards/1234567890",
   ])("refuses %j", (path) => {

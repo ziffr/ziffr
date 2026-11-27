@@ -26,7 +26,7 @@ If there is no dashboard yet, the list says "No dashboards yet" and suggests nam
 
 ### Your Home dashboard
 
-Ziffr opens on your Home dashboard. You choose it yourself: open the dashboard, open its **⋯** menu and choose **Home dashboard**. The entry then shows a tick until you choose another. If you never chose one, Ziffr opens on the first dashboard you made, or else the first one shared with you. If your Home is no longer shared with you, the same rule picks another. A new Workspace, a trial included, opens on the Setup Guide first.
+Ziffr opens on your Home dashboard. You choose it yourself: open the dashboard, open its **⋯** menu and choose **Home dashboard**. The entry then shows a tick until you choose another. If you never chose one, Ziffr opens on the first dashboard you made, or else the first one shared with you. If your Home is no longer shared with you, the same rule picks another. Whoever makes a new Workspace, a trial included, goes through [First Steps](07-getting-started.md#first-steps) first.
 
 While you have no dashboard (or only a trial's untouched example that you did not choose as Home) and see no other Metric, Home asks [Where would you like to start?](07-getting-started.md#where-would-you-like-to-start) instead.
 
@@ -34,7 +34,7 @@ A trial's example dashboard, **Your coffee**, has a line above it that says what
 
 ### A new Workspace
 
-A new Workspace opens on the Setup Guide, not on an empty dashboard list; see [Getting started](07-getting-started.md#the-setup-line-and-opening-by-itself). Until you make or are shown a dashboard, the list says "No dashboards yet", and Home offers [where to start](07-getting-started.md#where-would-you-like-to-start).
+A new Workspace starts with First Steps, not with an empty dashboard list; see [Getting started](07-getting-started.md#first-steps). Until you make or are shown a dashboard, the list says "No dashboards yet", and Home offers [where to start](07-getting-started.md#where-would-you-like-to-start).
 
 ## Opening a dashboard
 
@@ -457,7 +457,7 @@ A Widget whose Tag you cannot see is left out as well. Note widgets and Free lay
 
 Only a dashboard's owner shares it. **Share** opens a panel on the right, over the page, listing the people in the Workspace (not Contacts, who have no login) and, under **Groups, including whoever joins later**, every **Group** with its members. For each, choose:
 
-**Invite someone…** at the bottom of the Share panel is for someone who is not in the Workspace yet, such as when you are the only one in it. Owners and Admins enter an email address and choose **Member** or **Guest** (a Guest sees only what is shared with them), and Ziffr invites them the same way as the **Members and Groups** page: it emails the link when mail is set up and shows it to send yourself. A person is shared with once they have joined and appear in the list. Everyone else sees "Ask an Owner or Admin to invite them" (for a dashboard or deck). In a trial that cannot invite yet, or has no free place, the fields are greyed out and a box above them says why and what opens them ([the Team step](07-getting-started.md#team)).
+**Invite someone…** at the bottom of the Share panel is for someone who is not in the Workspace yet, such as when you are the only one in it. Owners and Admins enter an email address and choose **Member** or **Guest** (a Guest sees only what is shared with them), and Ziffr invites them the same way as the **Members and Groups** page: it emails the link when mail is set up and shows it to send yourself. A person is shared with once they have joined and appear in the list. Everyone else sees "Ask an Owner or Admin to invite them" (for a dashboard or deck). In a trial that cannot invite yet, or has no free place, the fields are greyed out and a box above them says why and what opens them ([Invitations that are not open yet](16-workspace-settings.md#invitations-that-are-not-open-yet)).
 
 - **No access**.
 - **Viewer**: can look, inspect history and ask questions, but not change the dashboard.

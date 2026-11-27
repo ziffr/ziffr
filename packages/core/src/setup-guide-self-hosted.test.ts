@@ -84,16 +84,12 @@ describe("the Setup Guide on every kind of Installation", () => {
         for (const c of cards) expect(`${c.label} ${c.line} ${c.limit ?? ""}`).not.toMatch(HOSTED);
       }
 
-      // Nothing is lost on the way: with every messenger missing the steps still finish by skipping what cannot work
-      // here, and the First Metric step ticks from a Prompt out and a value in (web form), whatever else is there.
-      const none: SetupFacts = {
-        profileAnswered: true, clockSet: true, packInstalled: false, metrics: 1, startedFromScratch: true, preferenceReal: false,
-        testMessageSent: false, promptOut: true, valueIn: true, hasOtherMember: false, openInvitation: false, domainJoining: false,
-        contactSubmits: false, businessFunctionSet: true,
-      };
-      const done = setupSteps(none, "owner", { workspace: ["ways", "team"], person: [] });
+      // Nothing is lost on the way: with every messenger missing a Member's steps still finish by skipping what cannot
+      // work here.
+      const none: SetupFacts = { preferenceReal: false, testMessageSent: false, businessFunctionSet: true };
+      const done = setupSteps(none, "member", ["ways"]);
       expect(done.finished).toBe(true);
-      expect(done.steps.find((x) => x.id === "first_metric")!.ticked).toBe(true);
+      expect(done.steps.find((x) => x.id === "about")!.ticked).toBe(true);
 
       // Trials: only on hosted Ziffr. A self-hoster who sets trial days without a Ziffr Cloud key gets none (the same
       // refusal as the sign-in), and a hosted one offers a trial whose Slack, Telegram and email states agree with the above.
@@ -117,7 +113,7 @@ describe("the Setup Guide on every kind of Installation", () => {
 
 describe("no step of the Setup Guide depends on Ziffr Cloud or the Marketplace", () => {
   // The guide's own code reads the Installation's settings and the Workspace, never the hosted or Marketplace checks.
-  const FILES = ["setup-guide.ts", "setup-steps.ts", "setup-first-metric.ts", "setup-from-pack.ts", "included-packs.ts", "ways-in-and-out.ts", "team-setup.ts", "first-metric-loop.ts", "test-message.ts"];
+  const FILES = ["setup-guide.ts", "setup-steps.ts", "setup-first-metric.ts", "included-packs.ts", "ways-in-and-out.ts", "first-metric-loop.ts", "test-message.ts"];
   for (const file of FILES) {
     it(file, () => {
       let text: string;

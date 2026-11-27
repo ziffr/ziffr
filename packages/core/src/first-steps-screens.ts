@@ -3,10 +3,6 @@
 import type { BusinessFunction } from "@ziffr/pack/business-functions";
 import type { Industry, Segment } from "@ziffr/pack/audience";
 
-/** Whether this Ziffr offers First Steps. While off, `/first-steps` answers not found and nothing leads to it. A
- * constant on purpose: it is switched on in code once every screen is built (spec 0067), never by a setting. */
-export const FIRST_STEPS_ON: boolean = false;
-
 /** The page's path. */
 export const FIRST_STEPS_PATH = "/first-steps";
 

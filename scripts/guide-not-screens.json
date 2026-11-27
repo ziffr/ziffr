@@ -3,6 +3,5 @@
   "apps/web/src/app/guide/page.tsx": { "kind": "internal", "reason": "the user guide itself" },
   "apps/web/src/app/guide/[chapter]/page.tsx": { "kind": "internal", "reason": "the user guide itself" },
   "apps/web/src/app/use-pack/[ref]/page.tsx": { "kind": "internal", "reason": "the guided Pack set-up is switched off until spec 0068's last ticket (#1347), which describes it in the guide and removes this line" },
-  "apps/web/src/app/use-pack/[ref]/[task]/page.tsx": { "kind": "internal", "reason": "the screens after a guided Pack set-up, switched off until spec 0068's last ticket (#1347), which describes them in the guide and removes this line" },
-  "apps/web/src/app/first-steps/page.tsx": { "kind": "internal", "reason": "First Steps is switched off until spec 0067's last ticket (#1331), which describes it in the guide and removes this line" }
+  "apps/web/src/app/use-pack/[ref]/[task]/page.tsx": { "kind": "internal", "reason": "the screens after a guided Pack set-up, switched off until spec 0068's last ticket (#1347), which describes them in the guide and removes this line" }
 }

@@ -28,7 +28,6 @@ export type DemoClass =
 const READS: readonly string[] = [
   "access-actions:whoCanSee",
   "actions:simulateMessage",
-  "setup/first-metric-actions:checkFirstMetric",
   "setup/actions:readSetupSteps",
   "canvas-actions:getHistory",
   "connector-actions:simulatePromptAnswer",
@@ -73,7 +72,6 @@ const OUTSIDE: readonly string[] = [
   "actions:setViewer",
   "auth-actions:acceptInvite",
   "auth-actions:askToJoin",
-  "auth-actions:createWorkspace",
   "auth-actions:endMyTrial",
   "auth-actions:sendSignInLink",
   "auth-actions:signInAgainForExport",
@@ -83,6 +81,8 @@ const OUTSIDE: readonly string[] = [
   "first-steps/actions:makeWorkspace",
   "first-steps/actions:saveAnswers",
   "first-steps/actions:addFirstMetric",
+  "first-steps/actions:hideNextStepLine",
+  "first-steps/actions:leaveFirstSteps",
   "first-steps/actions:readSet",
   "first-steps/actions:readSets",
   "first-steps/value-actions:askByEmail",
@@ -197,9 +197,6 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   // Messages: email, Slack, Telegram, an invitation, a Webhook.
   sends: [
     "connector-actions:connectSlack",
-    "setup/ways-actions:connectSlackFromGuide",
-    "setup/first-metric-actions:askFirstMetric",
-    "setup/team-actions:askForMetric",
     "submitter-actions:addSubmitter",
     "submitter-actions:askToGetEmailsAgain",
     "connector-actions:disconnectSlack",
@@ -243,8 +240,6 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "setup/actions:skipStep",
     "setup/actions:hideSetup",
     "setup/actions:reopenSetup",
-    "setup/actions:chooseExplore",
-    "setup/first-metric-actions:pickMetric",
     "total-actions:addTotalPart",
     "total-actions:closeTotal",
     "total-actions:createTotal",
@@ -312,7 +307,6 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     // A trial's example: the demo is no trial and has none.
     "home-actions:tryExample",
     "home-actions:removeExample",
-    "setup/first-metric-actions:tryExampleHere",
     "home-actions:setHome",
     "pin-actions:pinDashboard",
     "pin-actions:reorderPinned",
@@ -328,8 +322,6 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   "not-yet": [
     "deck-workflow-template-actions:createWorkflowFromTemplate",
     "deck-workflow-template-actions:saveAsWorkflowTemplate",
-    "setup/first-metric-actions:askMeForIt",
-    "setup/first-metric-actions:sendFirstValue",
     "metric-delete-actions:archiveInstead",
     "metric-delete-actions:deleteMetrics",
     "series-actions:handOverMetricTo",

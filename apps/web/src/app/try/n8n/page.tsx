@@ -1,5 +1,5 @@
-// A key for n8n in a trial (spec 0052, ticket 12; GLOSSARY: Feed, Feed Key, Test Metric): one of the Setup Guide's More ways.
-// Only the Owner of a running Trial Workspace has it; everyone else, and the demo, goes on to the Setup Guide or home.
+// A key for n8n in a trial (spec 0052, ticket 12; GLOSSARY: Feed, Feed Key, Test Metric): linked from Try it.
+// Only the Owner of a running Trial Workspace has it; everyone else, and the demo, goes on to Home.
 import { redirect } from "next/navigation";
 import { currentActor } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
@@ -12,7 +12,7 @@ import { N8nKey } from "./n8n-key";
 export default async function TrialN8nPage() {
   if (await isDemo()) redirect("/");
   const found = await trialFeedKey(await currentActor());
-  if (!found) redirect("/setup");
+  if (!found) redirect("/");
   // Only the Test Metric's name and slug and the key's prefix and last day reach the browser, never a secret.
   return (
     <>

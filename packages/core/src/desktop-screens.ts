@@ -15,7 +15,7 @@ export const DESKTOP_SCREENS: readonly DesktopScreen[] = [
   screen(`/dashboards/${ID}`, "a dashboard", "Dashboards are laid out with a mouse or a trackpad."),
   screen(`/decks/${ID}`, "a deck", "Slides are laid out with a mouse or a trackpad. On a phone you can read and present this deck."),
   screen(`/workflows(\\?id=${ID})?`, "Workflows", "A Workflow has many settings that need room. On a phone you can read its steps."),
-  screen("/connectors(/(send|sources|who-gets-what))?", "Connectors", "Connecting other tools means copying addresses, keys and settings between them."),
+  screen("/connectors/(send|sources|who-gets-what)", "Connectors", "Connecting other tools means copying addresses, keys and settings between them."),
   screen("/settings/packs", "Packs", "Installing a Pack starts with a file and a look at everything it adds."),
   screen("/settings/library/playground", "the Playground", "A View Design is written beside its drawing, which needs room."),
   screen("/installation(/feedback)?", "the Installation settings", "These settings are long, with addresses and keys to copy in."),

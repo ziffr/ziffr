@@ -79,7 +79,7 @@ export const ROUTE_TIERS = {
 
   "/decks/[id]": "desktop-first",
   "/workflows": "desktop-first",
-  "/connectors": "desktop-first",
+  "/connectors": "phone-ok",
   "/connectors/send": "desktop-first",
   "/connectors/sources": "desktop-first",
   "/connectors/who-gets-what": "desktop-first",

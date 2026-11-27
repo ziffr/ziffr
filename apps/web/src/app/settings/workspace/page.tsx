@@ -11,10 +11,7 @@ import { workspaceAnswerLanguages, workspaceAttainmentMethod, workspaceName, wor
 import { ANSWER_LANGUAGES } from "@ziffr/core/numbers";
 import { COUNTRIES, CURRENCIES } from "@ziffr/core/workspace-profile";
 import { workspaceEncrypted } from "@ziffr/core/workspace-keys";
-import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
-import { buttonVariants } from "@/components/ui/button";
-import { setupGuide } from "@ziffr/core/setup-guide";
 import { WorkspaceClock } from "./clock";
 import { quietHours } from "@ziffr/core/quiet-hours";
 import { setWorkspaceQuietHours } from "@/app/settings-actions";
@@ -48,8 +45,6 @@ export default async function WorkspaceSettingsPage() {
   const retention = actor.role === "owner" || actor.role === "admin" ? await defaultRetention(actor) : null;
   // The limits Owners and Admins may lower for the Workspace (ticket #518); the demo shows none.
   const limits = (actor.role === "owner" || actor.role === "admin") && !demo ? await workspaceSettableLimits(actor) : null;
-  // Setup: n of 5 steps done (spec 0052), for Owners and Admins, who share the Workspace's progress; none in the demo.
-  const setup = (actor.role === "owner" || actor.role === "admin") && !demo ? await setupGuide(actor) : null;
   // The Workspace's Announcements are for Owners and Admins to manage (spec 0054); the demo has none.
   const announcements = (actor.role === "owner" || actor.role === "admin") && !demo ? await workspaceAnnouncements(actor) : null;
   const countryName = (c: string | null) => c && (new Intl.DisplayNames(["en"], { type: "region" }).of(c) ?? c);
@@ -62,12 +57,6 @@ export default async function WorkspaceSettingsPage() {
         <WorkspaceNameForm name={name} canEdit={canEdit} />
         {/* About your business comes right after the name: the answers are what suggestions are made from (spec 0052). */}
         <WorkspaceProfileForm profile={profile} canEdit={canEdit} countries={named(COUNTRIES, "region").sort((a, b) => a.name.localeCompare(b.name, "en"))} currencies={named(CURRENCIES, "currency")} />
-        {setup && (
-          <section aria-labelledby="setup-heading" className="flex flex-wrap items-center gap-3 border-t border-border pt-6">
-            <h2 id="setup-heading" className="font-medium">Setup: {setup.steps.filter((s) => s.done).length} of {setup.total} steps done</h2>
-            <Link href="/setup" className={buttonVariants({ variant: "outline", size: "sm" })}>Open the Setup Guide</Link>
-          </section>
-        )}
         {/* Size and usage: Owners and Admins only (spec 0029); the demo has no limit to show. */}
         {usage && !demo && <div id="size" className="scroll-mt-4"><SizeAndUsage usage={usage} cloud={handoverOffered(actor)} /></div>}
         {/* The demo is never scheduled: its clock is the pretend date on the Workflows page. */}

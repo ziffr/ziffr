@@ -10,7 +10,7 @@ import { db } from "./db";
 import { setMyQuietHours } from "./quiet-hours";
 import { setPreference } from "./questions";
 import { askForFirstMetric, askMeForFirstMetric, firstMetricStep, pickFirstMetric, sendFirstMetricValue, setupFirstValue } from "./setup-first-metric";
-import { setSetupFirstMetric, setupGuide, startSetupGuide } from "./setup-guide";
+import { setSetupFirstMetric, startSetupGuide } from "./setup-guide";
 import { finishSlackInstall, startSlackInstall } from "./slack-connection";
 import { setTelegramEnabled } from "./telegram-connection";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -48,7 +48,6 @@ async function fresh(over: { submits?: boolean } = {}) {
   await setSetupFirstMetric(o, m.id);
   return { w, owner, o, m, code, email };
 }
-const ticked = async (a: Actor) => (await setupGuide(a))!.steps.filter((s) => s.ticked).map((s) => s.id);
 /** Puts a value as the viewer's own, through a Source, in the way a reply, an answer or a form would have. */
 const answer = async (w: { id: string }, metricId: number, submitter: string, source: string, value = 5) => {
   await db().from("observations").insert({ metric_id: metricId, period_start: "2027-01-01", value, submitter_id: submitter, source, workspace_id: w.id });
@@ -68,7 +67,6 @@ describe("out and in, each on its own and together", () => {
     const s = await firstMetricStep(o);
     expect(s).toMatchObject({ out: true, in: false, value: null, works: null, formCode: code });
     expect(s.asked.map((a) => [a.connector, a.state, a.held])).toEqual([["email", "sent", false]]);
-    expect(await ticked(o)).not.toContain("first_metric");
     expect(await setupFirstValue(o)).toEqual({ out: true, in: false, value: null, works: null });
     // Before asking, no form code reached the browser.
     const before = await fresh();
@@ -82,7 +80,6 @@ describe("out and in, each on its own and together", () => {
     const s = await firstMetricStep(o);
     expect(s).toMatchObject({ out: false, in: true, works: null });
     expect(s.value).toMatchObject({ value: "5 EUR", source: "web_form" });
-    expect(await ticked(o)).not.toContain("first_metric");
   });
 
   it("both: a typed value through the form's own intake ticks the step, and the step says what arrived", async () => {
@@ -93,7 +90,6 @@ describe("out and in, each on its own and together", () => {
     const s = await firstMetricStep(o);
     expect(s).toMatchObject({ out: true, in: true });
     expect(s.works).toMatch(/^MRR for .+: 48.?200 EUR, through the form\. The loop works\.$/);
-    expect(await ticked(o)).toContain("first_metric");
     const p = await setupFirstValue(o);
     expect(p).toMatchObject({ out: true, in: true, works: s.works });
     expect(Object.keys(p).sort()).toEqual(["in", "out", "value", "works"]);
@@ -111,7 +107,6 @@ describe("out and in, each on its own and together", () => {
     await db().from("observations").update({ created_at: new Date(Date.now() - 86_400_000).toISOString() }).eq("metric_id", m.id).eq("submitter_id", owner);
     await db().from("setup_guides").update({ started_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("workspace_id", w.id);
     expect(await setupFirstValue(o)).toMatchObject({ out: true, in: false });
-    expect(await ticked(o)).not.toContain("first_metric");
     // The viewer's own, afterwards, counts.
     await answer(w, m.id, owner, "mail", 9);
     expect(await setupFirstValue(o)).toMatchObject({ out: true, in: true });
@@ -182,12 +177,10 @@ describe("Slack and Telegram, answered", () => {
     expect(r.results.map((x) => [x.connector, x.state])).toEqual([["slack", "sent"], ["telegram", "sent"]]);
     expect(r.results[0].look).toContain("direct message from the Ziffr app in Slack");
     expect(r.results[1].look).toContain("message from Ziffr’s bot in Telegram");
-    expect(await ticked(o)).not.toContain("first_metric");
     // The answer comes back on Telegram, then it ticks; an answer on Slack would do the same.
     await answer(w, m.id, sara, "telegram", 12);
     const s = await firstMetricStep(o);
     expect(s.works).toMatch(/^Coffee for .+: 12, by Telegram answer\. The loop works\.$/);
-    expect(await ticked(o)).toContain("first_metric");
     await db().from("observations").delete().eq("metric_id", m.id);
     await answer(w, m.id, sara, "slack", 13);
     expect((await firstMetricStep(o)).works).toContain("by Slack answer");
@@ -280,7 +273,7 @@ describe("Ask me for it is limited like Ask me now", () => {
 });
 
 describe("a trial's Test Metric", () => {
-  it("is the First Metric from the start, the Owner's own value ticks the in half, and Ask me for it works as anywhere", async () => {
+  it("is the First Metric from the start, the Owner's own value counts as in, and Ask me for it works as anywhere", async () => {
     const w = await workspace("Trial Co"); made.push(w);
     const owner = await w.person("owner", { email: address("trial") });
     const o = w.actor(owner, "owner");

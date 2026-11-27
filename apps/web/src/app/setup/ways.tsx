@@ -10,10 +10,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CheckCircle2, Circle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AnsweredForm } from "@/components/answered-form";
 import { isActionError, UNEXPECTED } from "@/lib/action-error";
 import { sendTestMessage, setTelegram, slackLinkCode, telegramLinkStart } from "@/app/connector-actions";
-import { connectSlackFromGuide, saveAskMeBy } from "./ways-actions";
+import { saveAskMeBy } from "./ways-actions";
 import { skipStep } from "./actions";
 import { PHONE_ACTIONS, PHONE_BUTTON, PHONE_BUTTON_SM, PHONE_FIELD, PHONE_FOOTER, PHONE_LINK_BUTTON, PHONE_TEXT_LINK } from "./phone";
 import type { CardStatus, WayCard, WaysInAndOut } from "@ziffr/core/ways-in-and-out";
@@ -67,7 +66,6 @@ function Card({ card }: { card: WayCard }) {
         </p>
       )}
       <div className={`mt-2 sm:pl-6 ${PHONE_ACTIONS} sm:items-start`}>
-        {card.action === "add-slack" && <AnsweredForm action={connectSlackFromGuide}><Button type="submit" size="sm" className={PHONE_BUTTON_SM}>Add to Slack</Button></AnsweredForm>}
         {card.action === "turn-on-telegram" && <Button size="sm" className={PHONE_BUTTON_SM} disabled={pending} onClick={() => run(() => setTelegram(true), () => toast.success("Telegram is on"))}>Turn on Telegram</Button>}
         {card.action === "connect-telegram" && !telegram && <Button size="sm" className={PHONE_BUTTON_SM} disabled={pending} onClick={() => run(async () => telegramLinkStart(), (r) => setTelegramLink(r as { url: string; minutes: number }))}>Connect my Telegram</Button>}
         {card.action === "paste" && <Link href="/paste-values" className={PHONE_LINK_BUTTON}>Try it</Link>}
@@ -89,8 +87,8 @@ function Card({ card }: { card: WayCard }) {
   );
 }
 
-/** The step. `following` is the next step's name, or null after the last; `notice` says what "Add to Slack" came to. */
-export function WaysInAndOutStep({ data, following, notice }: { data: WaysInAndOut; following: string | null; notice: string | null }) {
+/** The step, for a Member. `following` is the next step's name, or null after the last. */
+export function WaysInAndOutStep({ data, following }: { data: WaysInAndOut; following: string | null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -116,9 +114,8 @@ export function WaysInAndOutStep({ data, following, notice }: { data: WaysInAndO
   const nothingWorks = data.askable.length === 0;
   return (
     <div className="space-y-8">
-      {notice && <p role="status" className="text-sm font-medium">{notice}</p>}
       <section aria-labelledby="ways-in">
-        <h3 id="ways-in" className="text-base font-medium">{data.manages ? "How should numbers come in?" : "How can you send numbers?"}</h3>
+        <h3 id="ways-in" className="text-base font-medium">How can you send numbers?</h3>
         <p className="mb-3 mt-1 text-sm text-muted-foreground">Each way says whether it works on this Ziffr, and what is missing when it does not. Use the ones that suit you.</p>
         <ul className="space-y-3">{data.cards.map((c) => <Card key={c.way} card={c} />)}</ul>
         {data.more.length > 0 && (
@@ -132,7 +129,7 @@ export function WaysInAndOutStep({ data, following, notice }: { data: WaysInAndO
       </section>
 
       <section aria-labelledby="ways-out">
-        <h3 id="ways-out" className="text-base font-medium">{data.manages ? "How should people be asked and told?" : "How should you be asked?"}</h3>
+        <h3 id="ways-out" className="text-base font-medium">How should you be asked?</h3>
         <p className="mb-3 mt-1 text-sm text-muted-foreground">Your own choice, saved for you. Ziffr tries the first way, and the others when you pick more than one; others are asked by what they choose, and the default is the first way that reaches them.</p>
         {nothingWorks ? (
           <p className="text-sm">No way of asking reaches you on this Ziffr yet. Requests wait in the Outbox, and every request still carries a personal form link.</p>
@@ -151,16 +148,6 @@ export function WaysInAndOutStep({ data, following, notice }: { data: WaysInAndO
           </div>
         )}
         {data.locked.length > 0 && <p className="mt-2 text-sm text-muted-foreground">{data.locked.map((w) => w === "slack" ? "Link your Slack account" : "Press Connect my Telegram").join(" and ")} above first: until then it cannot be chosen, because requests would have nowhere to arrive.</p>}
-        {data.manages && (
-          <div className="mt-3 text-sm text-muted-foreground">
-            <p>Telling people later needs a Metric or a dashboard first. How it works:</p>
-            <ul className="mt-1 sm:flex sm:flex-wrap sm:gap-x-4">
-              <li><Link href="/guide/your-settings" className={PHONE_TEXT_LINK}>Alerts</Link></li>
-              <li><Link href="/guide/workflows" className={PHONE_TEXT_LINK}>A Workflow&rsquo;s Tell step</Link></li>
-              <li><Link href="/guide/dashboards" className={PHONE_TEXT_LINK}>Snapshots by email and View Links</Link></li>
-            </ul>
-          </div>
-        )}
       </section>
 
       <div className="space-y-3 border-t border-border pt-4">
