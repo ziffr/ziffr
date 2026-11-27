@@ -128,7 +128,7 @@ export async function notesAfterValue(ws: string, value: ValueWritten, note?: No
   try {
     const entries = await noteEntries(ws, value.metricId, value.period);
     const standing = noteThreads(entries).filter((t) => !isPast(t));
-    const there = words !== null && standing.some((t) => t.latest.words === words && t.latest.said_of === value.after);
+    const there = words !== null && standing.some((t) => t.first.observation_id === value.observationId && t.latest.words === words && t.latest.said_of === value.after);
     const full = entries.filter((e) => e.kind !== "removed").length >= NOTES_PER_PERIOD;
     // With the same number, notes give way only to other words that can be kept in their place.
     const replaced = value.replaces && (value.before !== value.after || Boolean(value.replacedFilledIn) || (words !== null && !there && !full));

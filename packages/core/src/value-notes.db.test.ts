@@ -84,6 +84,18 @@ describe("writing, correcting and removing", () => {
     expect((await s.read())!.current).toHaveLength(49);
   });
 
+  it("keeps the note of each of two senders who say the same of the same number", async () => {
+    const s = await setup({ submission_rule: "keep_both" });
+    const other = await s.w.token(s.m.id, s.ben);
+    await s.send(4, "Trade fair.");
+    const sent = await submitValue({ source: "api", sender: other, text: "4", value: { value: 4 }, period: P, valueNote: "Trade fair.", workspaceId: s.w.id });
+    expect(sent.valueNote).toEqual({ saved: true, cut: false });
+    expect(await s.words()).toEqual(["Trade fair.", "Trade fair."]);
+    const rows = await rowsOf("value_notes", { metric_id: s.m.id });
+    expect(new Set(rows.map((r) => r.observation_id)).size).toBe(2);
+    expect(rows.map((r) => r.author_id).sort()).toEqual([s.ann, s.ben].sort());
+  });
+
   it("gives none of the 50 places to a note that waits with a proposal", async () => {
     const s = await setup();
     await s.send(45);
