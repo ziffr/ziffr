@@ -150,7 +150,7 @@ describe("First Steps", () => {
   it("notes nothing for an Admin, or in a Workspace First Steps did not make", async () => {
     const made = await space();
     await db().from("setup_guides").upsert({ workspace_id: made.id, first_steps_at: new Date().toISOString() }, { onConflict: "workspace_id" });
-    const admin = made.actor(await made.person("admin", { email: address("admin") }));
+    const admin = made.actor(await made.person("admin", { email: address("admin") }), "admin");
     await setUp(admin, { included: "ziffr/sales" }, await preselected(admin, "ziffr/sales"));
     expect(await chosen(made.id)).toBeNull();
     const other = await space();
