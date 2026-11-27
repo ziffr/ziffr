@@ -46,5 +46,12 @@ export const nl: AnswerWords = {
     fiscalYear: ["boekjaar", "bj", "fy"],
     ordinal: ["e", "ste", "de"],
     dateWords: [],
+    reply: {
+      yes: ["ja", "ja graag", "ja, graag"],
+      no: ["nee", "nee bedankt", "nee, bedankt", "bedankt", "dank je", "dank u", "dankjewel", "dank je wel"],
+      greetings: ["hallo", "hoi", "beste", "geachte", "goedemorgen", "goedemiddag", "goedenavond"],
+      closings: ["groet", "groeten", "groetjes", "met vriendelijke groet", "met vriendelijke groeten", "vriendelijke groet", "mvg", "bedankt"],
+      sentFrom: ["verzonden vanaf mijn …", "verstuurd vanaf mijn …"],
+    },
   },
 };
