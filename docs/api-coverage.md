@@ -437,6 +437,11 @@ Ticketed. MCP follows where the ticket says so.
 - `createWorkflowFromTemplate` (workflow-templates.ts): Workflows for programs, #433
 - `runTodayNow` (workflows.ts): running a Workflow now, with Workflows for programs, #433
 - `closeWorkflowPeriod` (workflows.ts): closing a period, with Workflows for programs, #433
+- `periodValueNotes` (value-notes.ts): Value Notes for programs, #1313
+- `writeValueNote` (value-notes.ts): Value Notes for programs, #1313
+- `correctValueNote` (value-notes.ts): Value Notes for programs, #1313
+- `removeValueNote` (value-notes.ts): Value Notes for programs, #1313
+- `deleteValueNoteForGood` (value-notes.ts): Value Notes for programs, #1313
 
 ## internal: not for programs
 

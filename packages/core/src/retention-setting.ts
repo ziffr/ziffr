@@ -6,6 +6,7 @@
 // Metric's own is set by its Metric Owner, an Owner or an Admin. A program never sets one (the API and the MCP Server
 // only read it). The preview holds counts and the names of Snapshots the person may open, never a value; the setting
 // itself is not part of the Metric rows that reach browsers, View Links and Snapshots (`retentionFor` reads it).
+import { noteEntries, noteThreads, wordsShown } from "./value-note-store";
 import { createHash, randomUUID } from "node:crypto";
 import { db } from "./db";
 import { keptIds } from "./snapshots";
@@ -50,6 +51,8 @@ export type RetentionPreview = {
   breakdownRows: number;
   /** Superseded Values (earlier values and replaced Breakdown rows) of those periods. */
   supersededValues: number;
+  /** Value Notes of those periods, which go with their values; the download before a delete holds them. */
+  valueNotes: number;
   /** Target rows that go (delete) or are folded into a Condensed Value (condense). */
   targets: number;
   /** Projections of past periods older than the Retention: deleted in both modes. */
@@ -171,8 +174,8 @@ export async function planRetention(ws: string, m: Pick<Row, "id" | "slug" | "pe
  * come from the database per period, so a Metric with years of values is one call, not one per value. */
 async function previewMetric(actor: Actor, m: Row, setting: Retention, today: string, ys: YearStart, ctx: { metrics: Metric[]; visible: Set<number>; dashboards: Map<number, string> }): Promise<RetentionPreview> {
   const ws = actor.workspaceId;
-  const empty: Omit<RetentionPreview, "fingerprint"> = { metricId: m.id, name: m.name, setting, keptFrom: keptFrom(today, setting.keep_months), firstPeriod: null, lastPeriod: null, periods: 0, values: 0, condensedValues: 0, breakdownRows: 0, supersededValues: 0, targets: 0, projections: 0, lockedPeriods: 0, heldBack: 0, heldBackValues: 0, uneven: 0, derivedReaders: 0, snapshots: 0, viewLinks: 0, snapshotNames: [], problem: null };
-  const finish = (p: Omit<RetentionPreview, "fingerprint">): RetentionPreview => ({ ...p, fingerprint: fingerprintOf([p.setting, p.keptFrom, p.firstPeriod, p.lastPeriod, p.periods, p.values, p.condensedValues, p.breakdownRows, p.supersededValues, p.targets, p.projections, p.lockedPeriods, p.heldBack, p.uneven, p.derivedReaders, p.snapshots, p.viewLinks, p.problem]) });
+  const empty: Omit<RetentionPreview, "fingerprint"> = { metricId: m.id, name: m.name, setting, keptFrom: keptFrom(today, setting.keep_months), firstPeriod: null, lastPeriod: null, periods: 0, values: 0, condensedValues: 0, breakdownRows: 0, supersededValues: 0, valueNotes: 0, targets: 0, projections: 0, lockedPeriods: 0, heldBack: 0, heldBackValues: 0, uneven: 0, derivedReaders: 0, snapshots: 0, viewLinks: 0, snapshotNames: [], problem: null };
+  const finish = (p: Omit<RetentionPreview, "fingerprint">): RetentionPreview => ({ ...p, fingerprint: fingerprintOf([p.setting, p.keptFrom, p.firstPeriod, p.lastPeriod, p.periods, p.values, p.condensedValues, p.breakdownRows, p.supersededValues, p.valueNotes, p.targets, p.projections, p.lockedPeriods, p.heldBack, p.uneven, p.derivedReaders, p.snapshots, p.viewLinks, p.problem]) });
   const r = await planRetention(ws, m, setting, today, ys, ctx.metrics);
   empty.derivedReaders = r.derivedReaders;
   if (r.problem) return finish({ ...empty, problem: r.problem });
@@ -194,6 +197,7 @@ async function previewMetric(actor: Actor, m: Row, setting: Retention, today: st
   return finish({
     ...empty, firstPeriod: sorted[0] ?? null, lastPeriod: sorted[sorted.length - 1] ?? null,
     periods: affected.size, values: sum("values_held"), condensedValues: plan.condense.length, breakdownRows: sum("breakdown_rows"), supersededValues: sum("superseded"),
+    valueNotes: noteThreads((await noteEntries(ws, m.id)).filter((e) => affected.has(e.period_start))).length,
     targets, projections, lockedPeriods: setting.then === "delete" ? plan.deletedLocked : plan.condense.filter((c) => c.locked).length,
     heldBack: plan.heldBack.length, heldBackValues: held.filter((h) => heldBack.has(h.period_start)).reduce((n, h) => n + h.values_held, 0), uneven: plan.uneven.length, snapshots, viewLinks, snapshotNames: names,
   });
@@ -590,6 +594,9 @@ export async function retentionValuesCsv(actor: Actor, metricId: number, rawSett
     }
   }
   for (const t of inPeriods(targets)) lines.push([t.period_start, "target", t.value, "", "", ""]);
+  // The Value Notes of those periods go too, so the copy holds them with their history; removed words stay hidden.
+  const notes = noteThreads((await noteEntries(ws, m.id)).filter((e) => periods.has(e.period_start)));
+  for (const t of notes) for (const e of t.entries) lines.push([e.period_start, `note ${e.kind}`, e.said_of ?? "", wordsShown(e, t) ?? "", String(e.created_at).slice(0, 10), e.source]);
   if (lines.length > EXPORT_ROWS) throw new Error("There are too many values to download at once. Ask whoever runs Ziffr for a copy of the database instead.");
   lines.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
   await audit(actor, { kind: "export.retention_values", object: { type: "metric", id: m.id, name: m.name }, details: { periods: periods.size, rows: lines.length } });

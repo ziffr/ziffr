@@ -18,6 +18,10 @@ _Avoid_: Settings, config, schema
 How a Metric is calculated, in words; screens call it **How it is calculated**: exactly what counts and what does not, where the figure comes from and which adjustments are made (for annual recurring revenue: one-off fees, discounts, contracts not yet started), while the Metric's description says what the number is and why it matters. It is part of the Metric Description: its owner and Editors change it, each change is a Version that says so, it is sealed with the Workspace Key, and it is shown to nobody who may not see the Metric, never on a View Link, a Snapshot shown outside the Workspace or the form link. A Derived Metric's formula stands beside it and is not it.
 _Avoid_: Methodology, counting rules, business logic
 
+**Value Note**:
+Words about one period's value of a Metric saying what is behind it, written by who sent the value or by who looks after the Metric. It never changes a number and is seen by whoever sees the value. Not the Calculation Note (how a Metric is calculated) and not a Thread.
+_Avoid_: comment, annotation, remark, commentary
+
 **Period**:
 How often a Metric has a value: a day, week, month, quarter or year. Weeks run Monday to Sunday; quarters and years are those of the Fiscal Year. A period is named by its first day ("Week of 9 Nov 2026", "October 2026", "Q3 2026", "FY 2026/27").
 _Avoid_: Frequency, interval
