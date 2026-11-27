@@ -14,7 +14,7 @@ import { NotApprovedMark } from "@/views/approval-mark";
 import { formatValue } from "@ziffr/core/format";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import { periodLabel, type YearStart } from "@ziffr/core/periods";
-import { NOT_ALL_IN, NOT_SHOWN, OWNER_CANNOT_SHARE } from "@ziffr/core/total-rules";
+import { countsFromFirstValue, NOT_ALL_IN, NOT_SHOWN, OWNER_CANNOT_SHARE } from "@ziffr/core/total-rules";
 import type { TotalPageData } from "@ziffr/core/total-page";
 import type { Metric, Point } from "@ziffr/core/types";
 import type { PeriodChoice } from "../period-choices";
@@ -90,7 +90,7 @@ export function TotalPanel({ metric, data, values, yearStart, numberStyle, perio
           <li key={p.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="min-w-0">
               <Link href={`/metrics/${p.slug}`} className="inline-block py-1 [overflow-wrap:anywhere]">{p.name}</Link>
-              <div className="text-xs text-muted-foreground">Counted from {name(p.first)}{p.last ? ` up to ${name(p.last)}` : ""}</div>
+              <div className="text-xs text-muted-foreground">Counted from {countsFromFirstValue(p.first) ? "its first value" : name(p.first)}{p.last ? ` up to ${name(p.last)}` : ""}</div>
             </div>
             {data.mayChange && (removing === p.id ? (
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

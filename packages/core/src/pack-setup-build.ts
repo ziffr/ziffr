@@ -56,7 +56,7 @@ export type PackSetupInput = {
   lines?: RepeatLine[];
   /** The ids of the proposed Shares that are ticked. No other Share is made. */
   shares?: string[];
-  /** Send the first requests for the current period now, to every Submitter picked, the person setting up included.
+  /** Send the first requests, for the period that ended last, now, to every Submitter picked, the person setting up included.
    * Without it nothing is sent: a Metric's Workflow asks at its next run. */
   askNow?: boolean;
   /** Adds one line to what was set up before: only what is made once for each line of its Repeat is made. `ticked` are

@@ -5,10 +5,10 @@
 
 /** Where the Installation's pages answer: wherever Ziffr does ("off", nothing set), only at the Admin Address ("on"),
  * or nowhere ("closed": the setting is there but wrong, so nothing is opened by a typing mistake). */
-export type AdminAddress = { state: "off" } | { state: "closed"; why: string } | { state: "on"; origin: string; host: string; port: string | null };
+export type AdminAddress = { state: "off" } | { state: "closed"; why: string } | { state: "on"; origin: string; host: string; port: string | null; app: string | null };
 
 /** Which side of an Installation with an Admin Address a request reached; "mixed" when its two host headers disagree
- * about it, which no proxy set up as the guide says ever sends. */
+ * about it or spell one of the two hosts unusually, which no proxy set up as the guide says ever sends. */
 export type RequestSide = "app" | "admin" | "mixed";
 
 type Env = { ZIFFR_ADMIN_URL?: string; ZIFFR_SITE_URL?: string };
@@ -23,6 +23,8 @@ function hostParts(host: string): { name: string; port: string | null } {
   return { name: m?.[1] ?? "", port: port === "80" || port === "443" ? null : port };
 }
 
+const withoutDots = (name: string) => name.replace(/\.+$/, "");
+
 /** The Admin Address as the server sets it. It must be an http(s) address with nothing but a host (and a port), and
  * its host must differ from the one of ZIFFR_SITE_URL: the same host would leave nothing for the app to answer on. */
 export function adminAddress(env: Env = fromProcess()): AdminAddress {
@@ -34,14 +36,15 @@ export function adminAddress(env: Env = fromProcess()): AdminAddress {
     return { state: "closed", why: "ZIFFR_ADMIN_URL must be an address such as https://admin.example.com, with no path." };
   }
   const { name, port } = hostParts(url.host);
+  if (name !== withoutDots(name)) return { state: "closed", why: "ZIFFR_ADMIN_URL must name its host without a closing dot." };
+  let app: string | null = null;
   try {
-    if (env.ZIFFR_SITE_URL && hostParts(new URL(env.ZIFFR_SITE_URL).host).name === name) {
-      return { state: "closed", why: "ZIFFR_ADMIN_URL must name another host than ZIFFR_SITE_URL." };
-    }
+    if (env.ZIFFR_SITE_URL) app = hostParts(new URL(env.ZIFFR_SITE_URL).host).name;
   } catch {
     // A site address that cannot be read names no host to clash with.
   }
-  return { state: "on", origin: url.origin, host: name, port };
+  if (app !== null && withoutDots(app) === name) return { state: "closed", why: "ZIFFR_ADMIN_URL must name another host than ZIFFR_SITE_URL." };
+  return { state: "on", origin: url.origin, host: name, port, app };
 }
 
 /** Which side a request reached, by its Host header; X-Forwarded-Host (the first value) must agree when there is one.
@@ -49,6 +52,13 @@ export function adminAddress(env: Env = fromProcess()): AdminAddress {
  * and this answer are about the same name. A port counts only when the Admin Address names one. */
 export function requestSide(headers: { get(name: string): string | null }, address: AdminAddress = adminAddress()): RequestSide {
   if (address.state !== "on") return "app";
+  // Unusual spellings of either host are refused, never read as the usual one: the proxy in front may read them otherwise.
+  const unusual = (value: string) => {
+    const { name } = hostParts(value);
+    const plain = withoutDots(name);
+    return name !== plain && name !== address.app && (plain === address.host || plain === (address.app && withoutDots(address.app)));
+  };
+  if ([headers.get("host") ?? "", ...(headers.get("x-forwarded-host")?.split(",") ?? [])].some(unusual)) return "mixed";
   const isAdmin = (value: string) => {
     const h = hostParts(value);
     return h.name === address.host && (address.port === null || h.port === address.port);

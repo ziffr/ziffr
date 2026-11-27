@@ -6,8 +6,9 @@
 import { db } from "./db";
 import { isArchived } from "./metric-row";
 import { isPeriodStart, type YearStart } from "./periods";
-import { periodsStillDue } from "./schedule";
+import { periodsStillDue, scheduleReach } from "./schedule";
 import type { Metric, Token } from "./types";
+import { allRows, mustRead } from "./workspace-data";
 
 /** The most Prompts looked at for one form: far more than the reminders of every period the Schedule still reaches. */
 const PROMPTS_READ = 1000;
@@ -25,4 +26,25 @@ export async function askedPeriods(ws: string, metric: Metric, token: Pick<Token
   // A Prompt from before the Metric's period was changed may name no period of it any more.
   const starts = [...new Set((data ?? []).map((p) => String(p.period_start)))].filter((s) => isPeriodStart(s, metric.period, yearStart));
   return periodsStillDue(ws, metric, starts);
+}
+
+/** One Metric a person records for: the Token they record by, the periods a form offers and those that hold a value. */
+export type Recordable = { metric: Metric; token: Pick<Token, "stands_in_for">; starts: readonly string[]; has: { has(period: string): boolean } };
+
+/** For each of these Metrics, by its id, the first day of the oldest period among those offered that the person was asked
+ * for and still owes: where Record a value starts. One read of the requests for all. A request counts only for the Token
+ * it was sent for, as above. Internal to the core: it checks no Actor, and `person` must be the one asking. */
+export async function oldestAsked(ws: string, person: string, wanted: readonly Recordable[]): Promise<Map<number, string>> {
+  const out = new Map<number, string>();
+  if (!wanted.length) return out;
+  const rows = await allRows<{ metric_id: number; period_start: string; stands_in_for: string | null }>((from, to) =>
+    mustRead(db().from("prompts").select("metric_id, period_start, stands_in_for").eq("workspace_id", ws).eq("submitter_id", person).in("metric_id", wanted.map((w) => w.metric.id)).is("answered_at", null).order("period_start").order("id").range(from, to), "What was asked for could not be read. Try again in a moment."),
+  );
+  if (!rows.length) return out;
+  const reaches = await scheduleReach(ws);
+  for (const { metric, token, starts, has } of wanted) {
+    const found = rows.find((r) => r.metric_id === metric.id && (r.stands_in_for ?? null) === (token.stands_in_for ?? null) && starts.includes(r.period_start) && !has.has(r.period_start) && reaches(metric, r.period_start));
+    if (found) out.set(metric.id, found.period_start);
+  }
+  return out;
 }

@@ -7,7 +7,6 @@ import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { isAddress } from "./mail";
 import { installationHref } from "./admin-address";
-import { personBlocked } from "./user-block";
 import { wellFormed } from "./announcement-rules";
 
 /** A signed-in person acting on the Installation, outside any Workspace. Every function here checks who they are. */
@@ -146,16 +145,18 @@ export async function installationAdmins(actor: InstallationActor): Promise<Inst
 
 /** Adds an Installation Admin by the address of a person who has signed in to this Installation before. */
 export async function addInstallationAdmin(actor: InstallationActor, email: string): Promise<void> {
-  await assertInstallationAdmin(actor);
+  const me = await actingAdmin(actor);
   const address = String(email ?? "").trim().toLowerCase();
   if (!isAddress(address)) throw new Error("Enter one email address.");
   const { data: person } = await db().from("profiles").select("id, name").eq("email", address).not("auth_user_id", "is", null).maybeSingle();
   // The same answer for "nobody" and "someone without a sign-in": the form says nothing about Contacts.
   if (!person) throw new Error("Nobody has signed in here with that address yet. Ask them to sign in once, then add them.");
-  if (await personBlocked(person.id as string)) throw new Error(`${person.name} is blocked. Unblock them under Users first.`);
-  const { error } = await db().from("installation_admins").insert({ person_id: person.id, added_by: actor.personId });
-  if (error?.code === "23505") throw new Error(`${person.name} is an Installation Admin already.`);
-  if (error) throw new Error("They could not be added. Try again.");
+  // Checked and stored in one database step under the lock of blocking, so nobody is added while being blocked.
+  const { data, error } = await db().rpc("add_installation_admin", { p_actor: actor.personId, p_actor_on_server: me.onServer, p_person: person.id });
+  if (data === "forbidden") throw new Forbidden("Only Installation Admins may do this.");
+  if (data === "blocked") throw new Error(`${person.name} is blocked. Unblock them under Users first.`);
+  if (data === "exists") throw new Error(`${person.name} is an Installation Admin already.`);
+  if (error || data !== "ok") throw new Error("They could not be added. Try again.");
   await recordInstallationEvent(actor.personId, "installation_admin.added", person.name as string);
 }
 

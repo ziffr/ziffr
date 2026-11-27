@@ -168,6 +168,7 @@ A team wants "the commit of all salespeople", and the list of salespeople change
 #### New and leaving lines
 
 - Each part has a **first period** and, once it has left, a **last period**. Past totals do not change when the list does.
+- **The parts a Total is made with count from their first value**, whenever it comes, unless a first period is named: Set up makes a Total before any value exists, and history pasted or sent later, and the period that ended last, belong in it. Stored as a first period in 1900. A part added later counts from the period it is given.
 - **A new person's figure joins a Total through Add a line, ticked and confirmed** (decided by the owner). Add a line (below) offers, ticked and listed, to count the new Metrics in each Total that Set up made, from the first period the line is asked for (shown, and changeable), where this person may change the Total and its owner may share the part. What it cannot change, it lists.
 - **A line leaves** by ending its parts: "Count it up to <period>", by default its last period with a value. Archiving a Metric that a Total counts asks this. Counting it again is the same screen.
 - Removing a part altogether is possible and says in words that past totals change. A Metric a Total names cannot be deleted, and Retention treats the Total like a Derived Metric that reads it.

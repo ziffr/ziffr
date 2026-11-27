@@ -19,6 +19,7 @@ import type { NumberStyle } from "./number-style";
 import { openNames, openRows } from "./sealed-columns";
 import { tagSight } from "./tag-sight";
 import { readParts } from "./total-parts";
+import { countsFromFirstValue } from "./total-rules";
 import type { Aggregation, Metric } from "./types";
 import { valueStateWords } from "./value-state";
 import { allRows, getMetrics, mustRead } from "./workspace-data";
@@ -146,7 +147,7 @@ async function definitionFile(s: Shared, m: Metric & Row): Promise<RecordFile> {
   }
   if (m.total) {
     rows.push(["total takes its target", m.total.targets === "parts" ? "from the Metrics it adds up" : "of its own"], ["total is open to everyone who sees it", m.total.open ? "yes" : "no"]);
-    for (const p of parts[m.id] ?? []) rows.push(["adds up", `${named(s.all.find((x) => x.id === p.part))}, from ${p.first}${p.last ? ` to ${p.last}` : ""}`]);
+    for (const p of parts[m.id] ?? []) rows.push(["adds up", `${named(s.all.find((x) => x.id === p.part))}, from ${countsFromFirstValue(p.first) ? "its first value" : p.first}${p.last ? ` to ${p.last}` : ""}`]);
   }
   for (const t of tokens ?? []) rows.push(t.stands_in_for ? ["stand-in", `${name(t.submitter_id)} for ${name(t.stands_in_for)}`] : ["submitter", name(t.submitter_id)]);
   return csv(s.style, "definition.csv", ["setting", "value"], rows.map(([k, v]) => [k, v]));

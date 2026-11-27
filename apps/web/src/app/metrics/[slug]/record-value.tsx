@@ -36,7 +36,8 @@ export function RecordSheet({ offer, open, onOpenChange, children }: { offer: Re
 
 /** The period, the value and an optional Breakdown, and the answer to the last try. */
 function RecordForm({ offer }: { offer: RecordingOffer }) {
-  const [period, setPeriod] = useState(offer.periods[0].start);
+  // The oldest period they were asked for and still owe, else the current one.
+  const [period, setPeriod] = useState(offer.asked ?? offer.periods[0].start);
   const [value, setValue] = useState("");
   const [breakdown, setBreakdown] = useState(false);
   const [answer, setAnswer] = useState<Answer>(null);
@@ -59,7 +60,7 @@ function RecordForm({ offer }: { offer: RecordingOffer }) {
       <label className="block text-sm">
         <span className="mb-1 block font-medium">Period</span>
         <select value={period} onChange={(e) => { setPeriod(e.target.value); setAnswer(null); }} className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm">
-          {offer.periods.map((p, i) => <option key={p.start} value={p.start}>{p.label}{i === 0 ? ", now" : ""}</option>)}
+          {offer.periods.map((p, i) => <option key={p.start} value={p.start}>{p.label}{i === 0 ? ", now" : ""}{p.start === offer.asked ? ", asked for" : ""}</option>)}
         </select>
         {chosen.has !== null && <span className="mt-1 block text-xs text-muted-foreground">Already has <span className="fig">{chosen.has}</span>.</span>}
       </label>

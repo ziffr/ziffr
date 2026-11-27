@@ -10,6 +10,7 @@ import { isActionError, UNEXPECTED, type ActionError } from "@/lib/action-error"
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { periodLabel, type YearStart } from "@ziffr/core/periods";
+import { countsFromFirstValue } from "@ziffr/core/total-rules";
 import type { Shown, TotalOpening as Opening } from "@ziffr/core/total-opening";
 import type { Period } from "@ziffr/core/types";
 
@@ -50,11 +51,11 @@ export function TotalOpening({ metricId, open, period, yearStart }: { metricId: 
           {shown && (
             <>
               <DialogTitle className="pr-10 leading-snug [overflow-wrap:anywhere]">Show {shown.name} to people who do not see every Metric?</DialogTitle>
-              <DialogDescription>Each of them learns the sum of every period, past ones included, and through subtraction the sum of the Metrics they do not see. No name, row or value of those is shown to them.</DialogDescription>
+              <DialogDescription>Each of them learns the sum of every period, past ones included, and through subtraction the sum of the Metrics they do not see. No name, row or value of those is shown to them.{shown.parts.some((p) => countsFromFirstValue(p.first)) ? " Where a Metric counts from its first value, history pasted or sent later for earlier periods is shown to them too." : ""}</DialogDescription>
               <dl className="space-y-3 text-sm [overflow-wrap:anywhere]">
                 <div>
                   <dt className="font-medium">It adds up</dt>
-                  <dd><ul>{shown.parts.map((p) => <li key={p.name + p.first}>{p.name}, from {name(p.first)}{p.last ? ` up to ${name(p.last)}` : ""}</li>)}</ul></dd>
+                  <dd><ul>{shown.parts.map((p) => <li key={p.name + p.first}>{p.name}, from {countsFromFirstValue(p.first) ? "its first value" : name(p.first)}{p.last ? ` up to ${name(p.last)}` : ""}</li>)}</ul></dd>
                 </div>
                 <div>
                   <dt className="font-medium">Who will newly see its numbers</dt>

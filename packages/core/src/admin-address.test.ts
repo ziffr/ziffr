@@ -14,11 +14,11 @@ describe("the setting", () => {
   });
 
   it("takes an address with only a host and a port", () => {
-    expect(on).toEqual({ state: "on", origin: "https://admin.example.com", host: "admin.example.com", port: null });
+    expect(on).toEqual({ state: "on", origin: "https://admin.example.com", host: "admin.example.com", port: null, app: "app.example.com" });
     expect(adminAddress({ ZIFFR_ADMIN_URL: "http://Admin.Localhost:3200/", ZIFFR_SITE_URL: "http://localhost:3200" })).toMatchObject({ state: "on", host: "admin.localhost", port: "3200" });
   });
 
-  it.each(["admin.example.com", "ftp://admin.example.com", "https://admin.example.com/panel", "https://a@admin.example.com", "https://admin.example.com?x=1", "https://app.example.com", "https://APP.example.com:8443"])(
+  it.each(["admin.example.com", "ftp://admin.example.com", "https://admin.example.com/panel", "https://a@admin.example.com", "https://admin.example.com?x=1", "https://app.example.com", "https://APP.example.com:8443", "https://admin.example.com.", "https://app.example.com."])(
     "closes the panel when it is wrong: %s", (value) => {
       const address = adminAddress({ ZIFFR_ADMIN_URL: value, ZIFFR_SITE_URL: "https://app.example.com" });
       expect(address.state).toBe("closed");
@@ -37,7 +37,18 @@ describe("which side a request reached", () => {
     ["app.example.com", undefined, "app"],
     ["app.example.com", "app.example.com", "app"],
     ["admin.example.com.evil.test", undefined, "app"],
-    ["admin.example.com.", undefined, "app"],
+    // A closing dot on either name, in either header, is refused rather than read as that name.
+    ["admin.example.com.", undefined, "mixed"],
+    ["Admin.Example.com.:443", "admin.example.com", "mixed"],
+    ["admin.example.com..", undefined, "mixed"],
+    ["admin.example.com", "admin.example.com.", "mixed"],
+    ["app.example.com", "admin.example.com.", "mixed"],
+    ["app.example.com.", undefined, "mixed"],
+    ["APP.example.com.:8443", "app.example.com", "mixed"],
+    ["app.example.com", "app.example.com.", "mixed"],
+    ["app.example.com", "app.example.com, admin.example.com.", "mixed"],
+    ["admin.example.com", "app.example.com.", "mixed"],
+    ["other.example.com.", undefined, "app"],
     ["", undefined, "app"],
     ["app.example.com", "admin.example.com", "mixed"],
     ["app.example.com", "admin.example.com, app.example.com", "mixed"],
@@ -84,6 +95,15 @@ describe("what each side serves", () => {
 
   it.each(["/", "/metrics", "/login", "/api/v1/installation/usage", "/api/slide-license"])("the app serves %s", (path) => {
     expect(adminRoute(path, app, on)).toBe("pass");
+  });
+
+  it("answers nothing, on any path, to a closing dot on either name", () => {
+    for (const host of ["admin.example.com.", "app.example.com."]) {
+      for (const path of ["/", "/installation", "/login", "/metrics"]) {
+        expect(adminRoute(path, headers(host), on)).toBe("not_found");
+        expect(adminRoute(path, headers("app.example.com", host), on)).toBe("not_found");
+      }
+    }
   });
 
   it("answers nothing to headers that disagree", () => {

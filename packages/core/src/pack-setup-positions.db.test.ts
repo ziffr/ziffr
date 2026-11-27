@@ -13,6 +13,10 @@ import { removeMember } from "./handover";
 import { removeContact } from "./team";
 import { visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
+import { runWorkflows } from "./workflow-engine";
+import { workingPeriod } from "./workflow-rules";
+import { localTime } from "./workspace-clock";
+import { JANUARY } from "./periods";
 import { openRows } from "./sealed-columns";
 import { openWorkflowRow } from "./workflow-rows";
 import { SALES_TEAM, salesTeamText } from "./test/sales-team-pack";
@@ -102,11 +106,20 @@ describe("setting up with Positions", () => {
     expect(await count("deliveries", t.w.id)).toBe(0);
   });
 
-  it("asks the others for the current period at once when that is ticked", async () => {
+  it("asks the others at once, when that is ticked, for the period that ended last, and the Workflow's run does not ask again", async () => {
     const t = await team();
     const made = await setUpFromPack(t.w.actor(t.sara), t.install, { ...t.input, askNow: true });
     expect(await askedFor(t)).toEqual([t.anna, t.ben, t.lena].sort());
     expect(made.messages).toBe(3);
+    const { data: ws } = await db().from("workspaces").select("time_zone").eq("id", t.w.id).single();
+    const today = localTime(new Date(), String(ws!.time_zone)).day;
+    const week = workingPeriod(today, "week", JANUARY);
+    const ids = made.metrics.map((m) => m.id);
+    expect([...new Set((await db().from("prompts").select("period_start").in("metric_id", ids)).data!.map((p) => p.period_start))]).toEqual([week]);
+    expect((await db().from("period_states").select("state").in("metric_id", ids).eq("period_start", week)).data).toEqual(Array(3).fill({ state: "asked" }));
+    // A line that says "due" is the run asking; reminders and Escalations may follow, by the day it is.
+    const log = await runWorkflows(t.w.id, today, t.sara, { queue: true });
+    expect(log.filter((line) => line.includes(", due "))).toEqual([]);
   });
 
   it("sends the person setting up nothing either, unless sending was chosen", async () => {

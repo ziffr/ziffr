@@ -21,6 +21,7 @@ import { createDashboardFromTemplate, metricChoices } from "./dashboard-template
 import { editableWidget, updateWidget } from "./dashboards";
 import { feedTemplates, type FeedTemplateInfo } from "./feed-template-download";
 import { saveWorkflow, setSendSnapshot, setStandIn } from "./workflows";
+import { askForEndedPeriod } from "./workflow-engine";
 import { share } from "./sharing";
 import { resumeSetupRecord, startSetupRecord, type MadeThing, type SetupRecord } from "./pack-setup-record";
 import { itemHash } from "./packs";
@@ -178,13 +179,14 @@ async function makeMetrics(actor: Actor, b: Blueprint, todo: PlannedMetric[], re
 }
 
 /** Puts the people and the Feed on the Metrics just made: Submitters, who are asked at once only when sending the
- * first requests was chosen (the actor no differently from anyone else), then their Stand-ins. */
+ * first requests was chosen (the actor no differently from anyone else), for the period that ended last, then their
+ * Stand-ins. */
 async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | null, askNow: boolean, done: Progress) {
   const effects: MetricEffects = {
     ...metricEffects,
     promptSubmitter: async (metricId, submitter, by) => {
       if (!askNow) return false;
-      const sent = await metricEffects.promptSubmitter(metricId, submitter, by);
+      const sent = await askForEndedPeriod(metricId, submitter, by);
       if (sent) done.messages++;
       return sent;
     },

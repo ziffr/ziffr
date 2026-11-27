@@ -217,9 +217,26 @@ async function approversFor(ctx: Ctx, step: Extract<WorkflowStep, { type: "appro
 /** Whether a period is history for a Workflow as of today: before the period it works on (the last one that ended),
  * in the workspace's own time zone. */
 async function beforeWorkingPeriod(ctx: Ctx, period: string): Promise<boolean> {
-  const { data } = await db().from("workspaces").select("time_zone").eq("id", ctx.ws).maybeSingle();
-  const today = localTime(new Date(), String(data?.time_zone ?? "UTC")).day;
-  return period < workingPeriod(today, ctx.m.period, ctx.yearStart);
+  return period < workingPeriod(await todayIn(ctx.ws), ctx.m.period, ctx.yearStart);
+}
+
+/** Today in the Workspace's own time zone. */
+async function todayIn(ws: string): Promise<string> {
+  const { data } = await db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle();
+  return localTime(new Date(), String(data?.time_zone ?? "UTC")).day;
+}
+
+/** The first request for a new Metric's value (a Set up from a Pack): for the period that ended last, which is what a
+ * Workflow's run asks for. On a Metric with a Workflow the period is marked asked, so the next run reminds and
+ * escalates for it without asking a second time. Internal to the core: its caller has checked who may ask. */
+export async function askForEndedPeriod(metricId: number, submitterId: string, by: string): ReturnType<typeof deliverPrompt> {
+  const { data: m } = await db().from("metrics").select("workspace_id, period, workflow_id").eq("id", metricId).maybeSingle();
+  if (!m) return false;
+  const ws = String(m.workspace_id);
+  const period = workingPeriod(await todayIn(ws), m.period as Period, await yearStartFor(ws, m.period as Period));
+  const sent = await deliverPrompt({ metricId, submitterId, senderId: by, period });
+  if (sent && m.workflow_id && !(await getState(metricId, period))) await setState(metricId, period, { state: "asked", done_steps: [] });
+  return sent;
 }
 
 /** What a Metric's Workflow would do with a new value from a submitter, for a preview that writes nothing (spec 0026):
@@ -242,8 +259,7 @@ export async function valueOutlook(metricId: number, submitterId: string, entere
   const steps = ctx.wf.config.steps;
   const check = steps.find((s): s is Extract<WorkflowStep, { type: "check" }> => s.type === "check") ?? null;
   const approve = steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve");
-  const { data } = await db().from("workspaces").select("time_zone").eq("id", ctx.ws).maybeSingle();
-  const today = localTime(new Date(), String(data?.time_zone ?? "UTC")).day;
+  const today = await todayIn(ctx.ws);
   const approves = Boolean(approve?.approvers.length);
   return {
     check,
@@ -300,6 +316,8 @@ async function workflowStep(metricId: number, period: string, submitterId: strin
   if (!ctx) return [];
   const value = await latestValue(ctx.ws, metricId, period);
   if (!value) return [];
+  // The value is no longer missing, so the owner's request to follow it up is done, however the value is judged next.
+  await closeActions(ctx.ws, { metricId, period, kind: "question", purposes: ["escalation"] }, { type: "workflow" }, "done");
   const steps = ctx.wf.config.steps;
   const check = steps.find((s): s is Extract<WorkflowStep, { type: "check" }> => s.type === "check");
   const approve = steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve");
