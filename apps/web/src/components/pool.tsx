@@ -16,6 +16,7 @@ import { deleteSavedWidget, type DropSource } from "@/app/canvas-actions";
 import { told } from "@/lib/action-toast";
 import { designTemplate, type TemplateDef, templateOf } from "@/views/templates";
 import type { CanvasData, Metric, Widget, WidgetTemplate } from "@ziffr/core/types";
+import { targetFor } from "@ziffr/core/compare";
 import { formatValue, health } from "@ziffr/core/format";
 import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 import { Sparkline } from "@/views/sparkline";
@@ -356,6 +357,10 @@ export function MetricPreview({ metric: m, data }: { metric: Metric; data: Canva
   const ready = useSeriesReady([m.id], data);
   const points = data.series[m.slug] ?? [];
   const last = points[points.length - 1];
+  // The trend is coloured by the target in effect for the latest value's period (Target Series, else Target Range),
+  // picked as Attainment picks it. The targets came with the series, for Metrics the viewer sees.
+  const aim = last && targetFor(m, last.period, data.targets[m.id]);
+  const against = aim ? { target_min: aim.min, target_max: aim.max } : m;
   return (
     <div className="space-y-2">
       <div>
@@ -368,7 +373,7 @@ export function MetricPreview({ metric: m, data }: { metric: Metric; data: Canva
           <div className="fig truncate text-lg font-semibold">{last ? formatValue(m, last.value, data.numberStyle) : "–"}</div>
           <div className="text-xs text-muted-foreground">{last ? periodLabel(last.period, m.period, data.yearStart, true) : ready ? noValuesWords(m) : "Loading…"}</div>
         </div>
-        {points.length > 1 && <div className="w-28 shrink-0"><Sparkline points={points.slice(-24)} height={36} tone={health(m, last.value)} /></div>}
+        {points.length > 1 && <div className="w-28 shrink-0"><Sparkline points={points.slice(-24)} height={36} tone={health(against, last?.value)} /></div>}
       </div>
     </div>
   );
