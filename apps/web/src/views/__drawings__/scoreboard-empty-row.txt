@@ -23,6 +23,8 @@
 <path d=M7 17 17 7>
 "+4.0 %"
 <td>
+<span title=141,728 € against a target of ≥ 172,069 €>
+"Too low"
 <td>
 <svg style=width: 100%; height: 100%; display: block;>
 <rect height=230 width=470 x=5 y=5>

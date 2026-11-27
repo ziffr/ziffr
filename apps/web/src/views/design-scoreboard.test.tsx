@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { compare, resolverFrom } from "@ziffr/core/compare";
 import { shownSeries } from "@ziffr/core/display-periods";
-import { formatChange, formatValue, targetLabel, targetStatus } from "@ziffr/core/format";
+import { formatChange, formatValue, targetLabel, targetStatus, targetText } from "@ziffr/core/format";
 import { BUILT_IN_DESIGNS } from "@ziffr/core/built-in-designs";
 import { sampleCanvasData } from "@ziffr/core/sample-data";
 import type { CanvasData, WidgetSettings } from "@ziffr/core/types";
@@ -52,9 +52,21 @@ describe("scoreboard", () => {
   it("says on or off target in words for a Metric that has a Target Range, and nothing for one that has none", () => {
     const m = data.metrics.find((x) => x.id === CHURN)!;
     const last = shownSeries(m, data, undefined, {}).points.at(-1)!;
-    const body = rows(draw(ids));
+    // Revenue's made-up data has a Target Series; without it Revenue has no target at all.
+    const body = rows(draw(ids, { window: 12 }, { ...data, targets: {} }));
     expect(words(body[0])).toContain(targetLabel(m.polarity, targetStatus(m, last.value)!));
     expect(words(body[1])).not.toMatch(/On target|Too low|Too high|Above target|Below target/);
+  });
+
+  it("judges a row by its Target Series for the latest value's period, and by the Target Range for other periods", () => {
+    const m = data.metrics.find((x) => x.id === REVENUE)!;
+    const last = shownSeries(m, data, undefined, {}).points.at(-1)!;
+    const aimed = (period: string): CanvasData => ({ ...data, targets: { ...data.targets, [REVENUE]: [{ period, value: last.value * 2 }] } });
+    const now = rows(draw([REVENUE, ORDERS, CHURN], { window: 12 }, aimed(last.period)))[0];
+    expect(words(now)).toContain(targetLabel(m.polarity, "below"));
+    expect(now).toContain(`against a target of ${targetText({ ...m, target_min: last.value * 2, target_max: null }, data.numberStyle)}`);
+    // Revenue has no Target Range, so a target for another period leaves it unjudged.
+    expect(words(rows(draw([REVENUE, ORDERS, CHURN], { window: 12 }, aimed("2020-01-01")))[0])).not.toMatch(/On target|Too low/);
   });
 
   it("says so for a Metric with no value yet, and draws the others", () => {

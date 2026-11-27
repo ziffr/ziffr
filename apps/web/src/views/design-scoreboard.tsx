@@ -6,7 +6,7 @@
 // It reaches no Metric outside the widget's own, as the person may see them.
 import { noValuesWords } from "@ziffr/core/total-rules";
 import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
-import { compare, resolverFrom } from "@ziffr/core/compare";
+import { compare, resolverFrom, targetFor } from "@ziffr/core/compare";
 import { dayAfter, heldText, isPartial, pointName, shownSeries, type DisplayPoint } from "@ziffr/core/display-periods";
 import { compactValue, formatChange, formatValue, MINUS } from "@ziffr/core/format";
 import { periodLabel } from "@ziffr/core/periods";
@@ -19,23 +19,29 @@ import type { DesignValues } from "./design-view";
 /** A row's change against the previous period, written: the arrow's direction and the text after it. */
 type Change = { dir: "up" | "down" | "flat"; text: string; title: string };
 
-/** What one row says about its Metric, all of it from the core. */
-type Row = { m: Metric; last: DisplayPoint | undefined; trend: Point[]; by: ReturnType<typeof shownSeries>["by"]; change: Change | null; why: string | null };
+/** What one row says about its Metric, all of it from the core. `against` is the Metric with the bounds its latest value
+ * is judged by: the target in effect for that value's period. */
+type Row = { m: Metric; against: Metric; last: DisplayPoint | undefined; trend: Point[]; by: ReturnType<typeof shownSeries>["by"]; change: Change | null; why: string | null };
 
 function rowOf(m: Metric, v: DesignValues): Row {
   const { data, settings } = v;
   const shown = shownSeries(m, data, undefined, { today: settings.asOf ? dayAfter(settings.asOf) : undefined });
   const last = shown.points[shown.points.length - 1];
   const trend = shown.points.slice(-v.win).map((p) => ({ period: p.period, value: p.value }));
-  if (!last) return { m, last, trend, by: shown.by, change: null, why: null };
+  if (!last) return { m, against: m, last, trend, by: shown.by, change: null, why: null };
+  // The Target Series where it has this period, else the Target Range, picked by targetFor as Attainment picks it; a
+  // Condensed Value takes its whole span's target. Only from the targets the widget's data already holds.
+  const t = last.condensed ? { min: null, max: null, ...shown.targets?.at[last.period], fromSeries: true } : targetFor(m, last.period, data.targets[m.id]);
+  // A period's own target is stated as it is, also on a Total whose targets are added up.
+  const against: Metric = { ...m, target_min: t.min, target_max: t.max, total: t.fromSeries ? undefined : m.total };
   // The comparison the strip under a number Widget calls "vs prev.": the same engine, so the two never disagree.
   const c = compare(m, resolverFrom(data.metrics, data.series, data), { keys: ["prev"], yearStart: data.yearStart })[0];
   const ns = data.numberStyle;
-  if (!c?.available) return { m, last, trend, by: shown.by, change: null, why: c?.reason ?? null };
+  if (!c?.available) return { m, against, last, trend, by: shown.by, change: null, why: c?.reason ?? null };
   const delta = c.pct ?? c.abs ?? 0;
   const text = c.pct === null || c.pct === undefined ? `${c.abs! > 0 ? "+" : c.abs! < 0 ? MINUS : "±"}${compactValue(m, Math.abs(c.abs!), ns)}` : formatChange(c.pct, ns);
   return {
-    m, last, trend, by: shown.by, why: null,
+    m, against, last, trend, by: shown.by, why: null,
     change: { dir: delta > 0 ? "up" : delta < 0 ? "down" : "flat", text, title: `${c.currentSpan}: ${formatValue(m, c.current, ns)} against ${c.previousSpan}: ${formatValue(m, c.previous, ns)}` },
   };
 }
@@ -70,7 +76,7 @@ export function ScoreboardMark({ v }: { v: DesignValues }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ m, last, trend, by, change, why }, i) => {
+          {rows.map(({ m, against, last, trend, by, change, why }, i) => {
             if (!last)
               return (
                 <tr key={`${m.id}-${i}`} className="border-t border-border">
@@ -97,7 +103,7 @@ export function ScoreboardMark({ v }: { v: DesignValues }) {
                     <span className="text-muted-foreground" title={why ?? undefined}>–</span>
                   )}
                 </td>
-                <td className={`py-[0.43em] pl-2 ${TARGET_FROM}`}><TargetChip metric={m} value={last.value} numberStyle={ns} /></td>
+                <td className={`py-[0.43em] pl-2 ${TARGET_FROM}`}><TargetChip metric={against} value={last.value} numberStyle={ns} /></td>
                 <td className={`w-[28%] min-w-12 py-[0.43em] pl-2 ${TREND_FROM}`}>
                   {trend.length > 1 ? (
                     <span role="img" aria-label={`${m.name}: ${formatValue(m, trend[0].value, ns)} to ${formatValue(m, last.value, ns)} over ${trend.length} periods`} className="block">
