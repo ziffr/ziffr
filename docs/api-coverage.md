@@ -191,6 +191,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `setupLine` (setup-guide.ts): the Setup line's counts for the app's layout, the viewer's own
 - `markSetupGuideSeen` (setup-guide.ts): that a person opened the guide, for the app
 - `chooseExploreOnMyOwn` (setup-guide.ts): the guide's starting point, for the app
+- `saveFirstStepsAnswers` (first-steps.ts): the Owner answers First Steps again, in the app
 - `firstMetricStep` (setup-first-metric.ts): the Setup Guide's First Metric step for the viewer, in words; for the app's page only (spec 0052)
 - `setupFirstValue` (setup-first-metric.ts): the viewer's own progress of the First Metric loop, polled by the app's step; no program sets up a Workspace
 - `askForFirstMetric` (setup-first-metric.ts): Ask me now from the Setup Guide, by the viewer's own ways; a program cannot message a person (spec 0052)
