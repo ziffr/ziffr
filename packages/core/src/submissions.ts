@@ -284,9 +284,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   if (result.ok && !preview && filled) result.detail = await settleFilled(workspaceId, { metric, period, value: fv(value), when, forId: filled.forId, by: filled.by, as: filled.as, awayBy: filled.awayBy, observationId: Number(data.observation_id), source: input.source, forName: profiles.find((p) => p.id === filled!.forId)?.name, detail: result.detail });
   // The period's notes follow the value (spec 0064): a replaced value's notes become history, and its own is added.
   const valueNote = await notesOfRecorded(workspaceId, input, { result, preview, filled, submitterId, metricId: metric.id, period, before, data });
-  const numberOnly = result.ok && !preview && !imported && !valueNote && submitterId && mayAskNote(input, workspaceId, pasted !== null)
-    ? { metricId: metric.id, period, authorId: filled?.by ?? submitterId, value: Number(data.after), observationId: Number(data.observation_id) }
-    : undefined;
+  const numberOnly = valueWithoutNote(input, workspaceId, pasted !== null, { result, preview, imported, valueNote, filled, submitterId, metricId: metric.id, period, data });
   // The metric's Workflow takes it from here: check, approval, publish.
   if (result.ok && submitterId) {
     const next = await effects.afterValue(metric.id, period, submitterId, afterOptions(byLink, imported));
@@ -413,6 +411,13 @@ async function lateValue(i: Parameters<typeof proposeLate>[0], by: { filled: boo
 // no notes and whose simulated channels hand the whole result to the browser.
 function mayAskNote(input: SubmissionInput, ws: string, pasted: boolean): boolean {
   return ws !== DEMO_WORKSPACE_ID && input.source !== "api" && !pasted && (input.valueNote === undefined || input.valueNote === null);
+}
+
+// What a note may be asked about after a value that was recorded: nothing for a preview, an Import, one that brought a
+// note or one nobody may be asked about. The author is who entered the value, also for someone else.
+function valueWithoutNote(input: SubmissionInput, ws: string, pasted: boolean, v: { result: { ok: boolean }; preview: boolean; imported: boolean; valueNote: NoteSaved | undefined; filled?: { by: string } | null; submitterId: string | null | undefined; metricId: number; period: string; data: { observation_id: unknown; after: unknown } }): NumberOnly | undefined {
+  if (!v.result.ok || v.preview || v.imported || v.valueNote || !v.submitterId || !mayAskNote(input, ws, pasted)) return undefined;
+  return { metricId: v.metricId, period: v.period, authorId: v.filled?.by ?? v.submitterId, value: Number(v.data.after), observationId: Number(v.data.observation_id) };
 }
 
 // The note that came with a value, by who sent it; nothing when none came or nobody is known to have sent it.

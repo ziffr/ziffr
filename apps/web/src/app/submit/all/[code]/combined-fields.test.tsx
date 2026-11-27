@@ -9,6 +9,8 @@ import type { CombinedFormRow, CombinedResult } from "@ziffr/core/combined-form"
 
 const send = vi.fn(async (_code: string, _previous: unknown, _form: FormData): Promise<CombinedResult> => ({ rows: {} }));
 vi.mock("@/app/actions", () => ({ submitCombinedWebForm: (c: string, p: unknown, f: FormData) => send(c, p, f) }));
+const saveNote = vi.fn(async (_code: string, _words: string) => ({ saved: true, detail: "Your note was saved." }));
+vi.mock("@/app/value-note-actions", () => ({ saveFormNote: (c: string, w: string) => saveNote(c, w) }));
 import { CombinedFields } from "./combined-fields";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -68,6 +70,26 @@ describe("the combined form's fields", () => {
     await submit();
     expect(host.textContent).toContain("45 recorded for Revenue.");
     expect(host.textContent).toContain("7 recorded for Costs.");
+  });
+
+  it("ask for a note under a row that came without one, and save it by that row's code", async () => {
+    send.mockResolvedValueOnce({ rows: { 1: { ok: true, detail: "45 recorded for Revenue.", ask: "q".repeat(43) } } });
+    await mount(<CombinedFields code="c" rows={rows} numberStyle="1,234.5" notes />);
+    await type("value-1", "45");
+    await submit();
+    expect(host.textContent).toContain("Anything behind it? (optional)");
+    // The row's own note field gives way to the question until a further number is typed.
+    expect(field("note-1")).toBeNull();
+    const words = [...host.querySelectorAll("textarea")].find((t) => t.getAttribute("aria-label")?.startsWith("Anything behind it?"))!;
+    expect(words.getAttribute("aria-label")).toBe("Anything behind it? (optional) for Revenue, October 2026");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(words, "Two fairs.");
+      words.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => { ([...host.querySelectorAll("button")].find((b) => b.textContent?.startsWith("Save note")) as HTMLButtonElement).click(); });
+    expect(saveNote.mock.calls[0]!.slice(0, 2)).toEqual(["q".repeat(43), "Two fairs."]);
+    expect(host.textContent).toContain("Your note was saved.");
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it("say why nothing was looked at", async () => {
