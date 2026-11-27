@@ -5,9 +5,9 @@ import { DEFAULT_TRIAL_MAX, trialSettings, trialsOffered } from "./trials";
 const CLOUD = { ZIFFR_CLOUD_KEY: "k".repeat(32) };
 
 describe("trialSettings", () => {
-  it("offers 14 days on hosted Ziffr unless the days are 0 (Ziffr Cloud's explicit off), and nothing without the key", () => {
-    expect(trialSettings({ ...CLOUD })).toEqual({ days: 14, max: DEFAULT_TRIAL_MAX });
-    expect(trialSettings({ ...CLOUD, ZIFFR_TRIAL_DAYS: " ", ZIFFR_TRIAL_MAX: "5" })).toEqual({ days: 14, max: 5 });
+  it("offers 30 days on hosted Ziffr unless the days are 0 (Ziffr Cloud's explicit off), and nothing without the key", () => {
+    expect(trialSettings({ ...CLOUD })).toEqual({ days: 30, max: DEFAULT_TRIAL_MAX });
+    expect(trialSettings({ ...CLOUD, ZIFFR_TRIAL_DAYS: " ", ZIFFR_TRIAL_MAX: "5" })).toEqual({ days: 30, max: 5 });
     expect(trialSettings({ ...CLOUD, ZIFFR_TRIAL_DAYS: "0", ZIFFR_TRIAL_MAX: "5" })).toBeNull();
     expect(trialSettings({})).toBeNull();
   });

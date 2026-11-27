@@ -2,7 +2,7 @@
 import type { FirstStepsAnswers, FirstStepsResume, FirstStepsScreen, Topic } from "@ziffr/core/first-steps-screens";
 
 /** One suggested first Metric: its catalog id, name, plain sentence and how often it is due. */
-export type FirstStepsOffer = { id: number; name: string; line: string; often: string };
+export type FirstStepsOffer = { id: number; name: string; line: string; often: string; monthly: boolean };
 
 /** What the clean slate's screens show: the name of the first Metric once there is one, and the suggestions for a team
  * and, by topic, for someone alone. */

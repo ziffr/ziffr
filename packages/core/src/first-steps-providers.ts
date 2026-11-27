@@ -103,16 +103,51 @@ function checkProviderChoice(input: unknown): { choice: "me" | "nobody" } | { ch
   return { choice, email };
 }
 
+// The Contacts First Steps added itself: only these may a choice made again take back.
+async function addedContacts(ws: string): Promise<string[]> {
+  const { data, error } = await db().from("setup_guides").select("first_steps_contacts").eq("workspace_id", ws).single();
+  if (error) throw new Error("The earlier choice could not be read.");
+  return data.first_steps_contacts as string[];
+}
+
+async function keepAddedContacts(ws: string, ids: string[]): Promise<void> {
+  const { error } = await db().from("setup_guides").update({ first_steps_contacts: ids, updated_at: new Date().toISOString() }).eq("workspace_id", ws);
+  if (error) throw new Error("Your choice could not be saved.");
+}
+
+// A new Contact, noted as added here. One that cannot be noted is removed again, so none is left that is never taken back.
+async function addNotedContact(actor: Actor, name: string, email: string): Promise<string> {
+  const id = await addContact(actor, { name, email });
+  try {
+    await keepAddedContacts(actor.workspaceId, [...(await addedContacts(actor.workspaceId)), id]);
+  } catch (e) {
+    await removeContact(actor, id);
+    throw e;
+  }
+  return id;
+}
+
+// Whether this Owner's invitation to the address already went out since First Steps began: choosing another colleague
+// and then this one again must not email them each time.
+async function emailedBefore(actor: Actor, email: string, since: string): Promise<boolean> {
+  const { count, error } = await db().from("invitations").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("created_by", actor.personId).eq("email", email).gte("created_at", since).gt("email_sends", 0).is("email_error", null);
+  if (error) throw new Error("The invitations could not be read.");
+  return Boolean(count);
+}
+
+const NOT_AGAIN = "Ziffr emailed them an invitation before and sends no second one. That link no longer works: send them this one.";
+
 type Colleague = { id: string; name: string; state: ColleagueState; note: string | null; link: string | null };
 
 // The colleague with this address: a Member or Contact who is there already, else a new Contact. In a trial a Contact is
 // reached by nothing until they accept, so one invitation as a Guest is made, tied to the Contact so their Tokens move to
-// them. Refused, a new Contact is removed again and nothing else has changed.
-async function colleagueFor(actor: Actor, email: string, transport?: MailTransport): Promise<Colleague> {
+// them. Refused, a new Contact is removed again and nothing else has changed. An address Ziffr emailed here before gets
+// no second email: the Owner is given the new link. `since`: when First Steps began.
+async function colleagueFor(actor: Actor, email: string, since: string, transport?: MailTransport): Promise<Colleague> {
   const ws = actor.workspaceId;
   const known = (await peopleIn(ws, { contactDetails: true })).find((p) => p.email?.toLowerCase() === email);
   const name = known?.name ?? contactName(email);
-  const id = known?.id ?? (await addContact(actor, { name, email }));
+  const id = known?.id ?? (await addNotedContact(actor, name, email));
   const [trial, here] = await Promise.all([trialEndsAt(ws), whatWorksHere(actor)]);
   const found = { id, name, note: null, link: null };
   if (!trial || (known && !known.contact)) return { ...found, state: here.find((w) => w.way === "email")?.state === "real" ? "asked" : "outbox" };
@@ -120,25 +155,26 @@ async function colleagueFor(actor: Actor, email: string, transport?: MailTranspo
   if (error) throw new Error("The invitations could not be read.");
   if (count) return { ...found, state: "waiting" };
   let made: { token: string; emailed: boolean };
+  const again = await emailedBefore(actor, email, since);
   try {
-    made = await inviteByEmail(actor, { email, role: "guest", contactPersonId: id }, transport);
+    made = await inviteByEmail(actor, { email, role: "guest", contactPersonId: id }, transport, !again);
   } catch (e) {
     if (!known) await removeContact(actor, id);
     throw e;
   }
   if (made.emailed) return { ...found, state: "invited" };
   const { data } = await db().from("invitations").select("email_error").eq("workspace_id", ws).eq("token", made.token).maybeSingle();
-  return { ...found, state: "link", note: (data?.email_error as string | null) ?? null, link: linkTo(`/invite/${made.token}`) };
+  return { ...found, state: "link", note: again ? NOT_AGAIN : ((data?.email_error as string | null) ?? null), link: linkTo(`/invite/${made.token}`) };
 }
 
-// A choice made again takes an earlier colleague back, so a mistyped address is not asked: only a Contact this Owner
-// typed in since First Steps began and who never sent a value. Their invitation is revoked and, if nothing else names
-// them, the Contact removed. Members, accepted invitations and older Contacts are never touched.
-async function takeBackTyped(actor: Actor, metrics: MadeMetric[], since: string, keep: string | null): Promise<void> {
+// A choice made again takes an earlier colleague back, so a mistyped address is not asked: only a Contact First Steps
+// added itself and who never sent a value. Their invitation is revoked and, if nothing else names them, the Contact
+// removed. Members, accepted invitations and Contacts added any other way are never touched.
+async function takeBackTyped(actor: Actor, metrics: MadeMetric[], keep: string | null): Promise<void> {
   const ws = actor.workspaceId;
-  const { data: typed, error } = await db().from("contacts").select("person_id").eq("workspace_id", ws).eq("created_by", actor.personId).gte("created_at", since);
-  if (error) throw new Error("The earlier choice could not be read.");
-  for (const id of (typed ?? []).map((c) => c.person_id as string).filter((c) => c !== keep)) {
+  const added = await addedContacts(ws);
+  const taken: string[] = [];
+  for (const id of added.filter((c) => c !== keep)) {
     const [tokens, values] = await Promise.all([
       db().from("tokens").select("metric_id").eq("workspace_id", ws).eq("submitter_id", id).is("stands_in_for", null).in("metric_id", metrics.map((m) => m.id)),
       db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("submitter_id", id),
@@ -150,7 +186,9 @@ async function takeBackTyped(actor: Actor, metrics: MadeMetric[], since: string,
     for (const i of open ?? []) await revokeInvitation(actor, i.id as number);
     const named = await Promise.all((["submitter_id", "stand_in_id"] as const).map((column) => db().from("tokens").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq(column, id)));
     if (named.every((n) => n.count === 0)) await removeContact(actor, id);
+    taken.push(id);
   }
+  if (taken.length) await keepAddedContacts(ws, added.filter((c) => !taken.includes(c)));
 }
 
 /** What choosing did: the choice as it was taken (the Owner's own address means "me"), and for a colleague what to tell
@@ -177,10 +215,10 @@ export async function chooseProviders(actor: Actor, input: unknown, transport?: 
     const { data: me, error } = await db().from("profiles").select("email").eq("id", actor.personId).single();
     if (error) throw new Error("Your profile could not be read.");
     if (String(me.email ?? "").toLowerCase() === wanted.email) choice = "me";
-    else colleague = await colleagueFor(actor, wanted.email, transport);
+    else colleague = await colleagueFor(actor, wanted.email, guide.firstStepsAt, transport);
     if (colleague?.id === actor.personId) { colleague = null; choice = "me"; }
   }
-  if (guide.chosenAt) await takeBackTyped(actor, made, guide.firstStepsAt, colleague?.id ?? null);
+  if (guide.chosenAt) await takeBackTyped(actor, made, colleague?.id ?? null);
   for (const m of sent) {
     // The new Submitter first, so a failure half way never leaves a Metric with nobody.
     await addSubmitters(actor, m.id, [colleague?.id ?? actor.personId], ASK_NOBODY);

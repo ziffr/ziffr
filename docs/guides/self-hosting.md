@@ -330,7 +330,7 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 
 | Setting | On the page | Example or choices | What it does |
 | --- | --- | --- | --- |
-| `ZIFFR_TRIAL_DAYS` | Days a trial lasts | `14` | Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Hosted Ziffr offers trials with 14 days unless set; Ziffr Cloud sets 0 (null in its API) to switch trials off, and trials that run go on until they end. Applies to trials made afterwards. 1 to 30; empty: 14. |
+| `ZIFFR_TRIAL_DAYS` | Days a trial lasts | `30` | Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Hosted Ziffr offers trials with 30 days unless set; Ziffr Cloud sets 0 (null in its API) to switch trials off, and trials that run go on until they end. Applies to trials made afterwards. 1 to 30; empty: 30. |
 | `ZIFFR_TRIAL_GRACE_DAYS` | Days a trial's data stays after it ends | `7` | After the trial ends nothing can be added, and its Owner can still download everything; then it is deleted. Applies to every trial that has ended and is waiting, too: a smaller number deletes them sooner. 1 to 60; empty: 7. |
 | `ZIFFR_TRIAL_MAX` | Trials at once | `500` | The most trials that may run at the same time. 1 to 100,000; empty: 500. |
 | `ZIFFR_TRIAL_LIMIT_PEOPLE` | People in a trial | `5` | The people one trial holds: Members, Admins and Guests, the Owner and the invitations that are still open included. 1 to 25; empty: 5. |
@@ -386,7 +386,7 @@ A Trial Workspace is something hosted Ziffr (ziffr.net) offers, not something an
 
 | Setting | Trial Limit | Range | Default |
 | --- | --- | --- | --- |
-| `ZIFFR_TRIAL_DAYS` | Days a trial lasts | 1 to 30 | 14 (0 switches trials off) |
+| `ZIFFR_TRIAL_DAYS` | Days a trial lasts | 1 to 30 | 30 (0 switches trials off) |
 | `ZIFFR_TRIAL_GRACE_DAYS` | Days a trial's data stays after it ends | 1 to 60 | 7 |
 | `ZIFFR_TRIAL_MAX` | Trials at once | 1 to 100,000 | 500 |
 | `ZIFFR_TRIAL_LIMIT_PEOPLE` | People in a trial | 1 to 25 | 5 |

@@ -29,11 +29,15 @@ The most important requirement: where something needs a first number first, say 
 | `start` | "How would you like to start?" "Either way, everything can be changed later." | "Start with a ready-made set: Metrics, a dashboard and reminders, prepared for your kind of work." / "Start from a clean slate: An empty Workspace. We add your first metric together." Nothing preselected. |
 | `sets` | "Choose a ready-made set" "In Ziffr these are called Packs." | Three best matches with "Matches your …", "Show all N sets", "Start from a clean slate instead". |
 | `set` | The Pack's name and summary | Its real dashboard drawn with Sample Data ("Example dashboard, shown with sample numbers."), some Metric names, **Use this set**, "See other sets". |
-| `first` | "Let's add your first metric together" "A metric is one number you follow over time. Pick a suggestion or define your own." | Up to five suggestions, "Define your own". Nothing calculated. |
-| `own` | "Define your metric" | Name; then Unit (Number, Money, Percent, Hours); then How often (Daily, Weekly, Monthly); then **Add metric**. Each appears once the one before is answered. |
+| `first` | "Let's add your first metric together" "A metric is one number you follow over time. Pick a suggestion or define your own." | "How often" (Weekly chosen already, or Monthly), up to five suggestions, "Define your own". Nothing calculated. A suggestion the catalog has monthly is made as chosen; any other keeps how often the catalog has it. |
+| `own` | "Define your metric" | Name; then Unit (Number, Money, Percent, Hours); then How often (Daily, Weekly, Monthly; Weekly chosen already); then **Add metric**. Name and Unit are asked one after the other; How often and the button come with the Unit. |
 | `value` | "Now send your first value" "Until it is in, your dashboard stays empty and you cannot invite colleagues." | "Ask me by email" / "Type it in here" / "Do this later". See below. |
 | `sender` | "Who provides this number from now on?" (a set: "these numbers") | "I will" / "A colleague" / "Nobody for now". See below. |
 | `done` | "Your Workspace is ready", or "One thing is still open" | Summary (Workspace, set or Metric, first value, who is asked). **Open dashboard** or **Send my first value**. Optional: "Invite your team" (open, or locked with the reason), "Connect Slack or Telegram". |
+
+### How often Ziffr asks
+
+First Steps suggests **weekly** (decided 2026-11-27). A first value sent today counts for the current period, so a monthly request would come only the month after, which can be past a trial's end. Monthly stays possible, and the `sender` screen names when Ziffr first asks. A ready-made set keeps how often its Pack says.
 
 ## What a first value unlocks
 

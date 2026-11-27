@@ -59,11 +59,17 @@ export const OWN_PERIODS = ["day", "week", "month"] as const;
 /** One of them. */
 export type OwnPeriod = (typeof OWN_PERIODS)[number];
 
+/** How often First Steps offers a suggestion the Metric Catalog has monthly. The first is chosen already: asked weekly,
+ * the next request comes soon after the first value, within a trial too. */
+export const SUGGESTED_PERIODS = ["week", "month"] as const;
+/** One of them. */
+export type SuggestedPeriod = (typeof SUGGESTED_PERIODS)[number];
+
 /** The most characters a first Metric's name takes. */
 export const FIRST_METRIC_NAME_FIELD = 80;
 
 /** What adding the first Metric says: an entry of the Metric Catalog, or a Metric of one's own. */
-export type FirstMetricPick = { catalogId: number } | { name: string; unit: OwnUnit; period: OwnPeriod };
+export type FirstMetricPick = { catalogId: number; period?: SuggestedPeriod } | { name: string; unit: OwnUnit; period: OwnPeriod };
 
 /** Everything the questions and the Workspace screen ask. Null means skipped or not read. */
 export type FirstStepsAnswers = {

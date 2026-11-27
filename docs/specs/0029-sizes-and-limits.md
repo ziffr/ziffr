@@ -106,6 +106,8 @@ The rule, in the core (`workspace-limits.ts`) and in the trigger, with the same 
 
 ### Trials on hosted Ziffr: 14 days, then Free
 
+> Since 2026-11-27 the default is 30 days ([spec 0040](0040-team-trials.md)); where this section says 14 days of a trial, read the days set. The 14 days over a limit and before an unused Workspace is deleted are unchanged.
+
 - **The trial is spec 0021's Trial Workspace.** Hosted Ziffr sets `ZIFFR_TRIAL_DAYS=14`, so every new Workspace starts as one, with every feature. Spec 0021's note that a paid trial "needs a different word" is answered: the owner chose to keep the one word.
 - **A new setting, `ZIFFR_TRIAL_THEN`:** `delete` (the default, as spec 0021 has it today, for the public demo) or `keep`. With `keep`, at `trial_ends_at` the Workspace is not closed. It becomes an ordinary Workspace with the Installation's default limit (10 Metrics, "Free" on hosted Ziffr). `trial_ends_at` stays as a record, and `trial_kept_at` is set.
 - **What changes at that moment:** invitations open, Connectors reach everyone as in any Workspace, and Access Keys and Feed Keys keep the end date they were made with instead of the trial's. A trial with more than 10 Metrics is then over its limit, and the grace above applies.

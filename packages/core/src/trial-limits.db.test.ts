@@ -77,7 +77,7 @@ describe("Ziffr Cloud sets the Trial Limits", () => {
     forgetStoredSettings();
     await setCloudTrialLimits(caller, { metrics: 30, keys: 4 });
     const second = await setCloudTrialLimits(caller, { keys: 5 });
-    expect(second.limits).toMatchObject({ metrics: 30, keys: 5, feeds: 7, days: 14 });
+    expect(second.limits).toMatchObject({ metrics: 30, keys: 5, feeds: 7, days: 30 });
     const third = await setCloudTrialLimits(caller, { metrics: null, feeds: null, days: 9 });
     expect(third.limits).toMatchObject({ metrics: 25, keys: 5, feeds: 2, days: 9 });
     // Explicitly off: null days means no trials, and nothing else changes.
@@ -121,7 +121,7 @@ describe("Ziffr Cloud sets the Trial Limits", () => {
     await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_GRACE_DAYS", value: "30", sealed: false });
     forgetStoredSettings();
     const before = await cloudTrialLimits(caller);
-    expect(before.limits).toMatchObject({ days: 14, graceDays: 7 });
+    expect(before.limits).toMatchObject({ days: 30, graceDays: 7 });
     expect(before.sources).toMatchObject({ days: "default", graceDays: "default" });
     const after = await setCloudTrialLimits(caller, { days: 10, graceDays: 3 });
     expect(after.limits).toMatchObject({ days: 10, graceDays: 3 });

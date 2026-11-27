@@ -50,7 +50,7 @@ describe("the first number and the invitations", () => {
     expect(button("Invite them")).toBeUndefined();
     await type(host.querySelector("input")!, "5");
     await press("Record value");
-    expect(actions.send).toHaveBeenCalledWith(4, "5");
+    expect(actions.send).toHaveBeenCalledWith(4, "5", null);
     expect(text()).toContain("Your number is on record.");
     expect(actions.invite).not.toHaveBeenCalled();
     // Only as many are ticked as there are places, whoever needs a role first.
@@ -79,6 +79,19 @@ describe("what could keep the loop open", () => {
     await show(<InvitePanel actions={actions} providersHref="/x" />);
     expect(text()).toContain("This will count as Sam’s number for week 48.");
     expect(actions.send).not.toHaveBeenCalled();
+  });
+
+  it("reads again when a number is refused because its provider changed", async () => {
+    let now = view({ first: { you: true, numbers: [{ id: 4, name: "Commit", unit: "€", period: "week 48", whose: null }], choose: false } });
+    const actions: InviteActions = {
+      read: vi.fn(async () => now),
+      send: vi.fn(async () => { now = view({ first: { you: true, numbers: [{ id: 4, name: "Commit", unit: "€", period: "week 48", whose: "Sam" }], choose: false } }); return { error: "Check whose number this is." }; }),
+      confirm: vi.fn(), invite: vi.fn(),
+    };
+    await show(<InvitePanel actions={actions} providersHref="/x" />);
+    await type(host.querySelector("input")!, "5");
+    await press("Record value");
+    expect(text()).toContain("This will count as Sam’s number for week 48.");
   });
 
   it("shows a value that waits for the person's check, with the button that confirms it", async () => {

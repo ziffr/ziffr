@@ -69,9 +69,38 @@ async function save(actor: Actor, a: FirstStepsAnswers & { who: "team" | "me" })
   await setMyBusinessFunction(actor, a.role);
 }
 
+const UNMARKED_FOR = 60 * 60 * 1000;
+
+// The Workspace an attempt a moment ago made and could not mark as First Steps': made within the hour with this name,
+// the person its Owner and the only one in it, with no Metric, dashboard, Contact or invitation and no saved Workspace
+// Profile, so that nothing made by hand is overwritten. It is taken up instead of making a second one, which a trial or
+// the limit of one Workspace per person would refuse.
+async function leftUnmarked(personId: string, name: string): Promise<string | null> {
+  const unread = () => new Error("The Workspace could not be created.");
+  const { data: mine, error } = await db().from("memberships").select("workspace_id").eq("user_id", personId).eq("role", "owner");
+  if (error) throw unread();
+  if (!mine.length) return null;
+  const since = new Date(Date.now() - UNMARKED_FOR).toISOString();
+  const { data: recent, error: unfound } = await db().from("workspaces").select("id").in("id", mine.map((m) => m.workspace_id as string)).eq("name", name).gte("created_at", since).is("practice_for", null).is("importing_at", null)
+    .is("industry", null).is("segment", null).is("country", null).is("currency", null).is("employee_band", null).is("revenue_band", null);
+  if (unfound) throw unread();
+  for (const { id } of recent) {
+    const count = (table: string) => db().from(table).select("workspace_id", { count: "exact", head: true }).eq("workspace_id", id);
+    const [members, guide, ...made] = await Promise.all([
+      count("memberships"),
+      db().from("setup_guides").select("first_steps_at").eq("workspace_id", id).maybeSingle(),
+      ...["metrics", "dashboards", "contacts", "invitations"].map(count),
+    ]);
+    if (members.error || guide.error || made.some((x) => x.error)) throw unread();
+    if (members.count === 1 && !guide.data?.first_steps_at && made.every((x) => x.count === 0)) return id as string;
+  }
+  return null;
+}
+
 /** Makes a Workspace from the answers and returns its id; the person becomes its Owner. Every answer is checked first,
  * so a refused one makes nothing; the rules for trials and for how many Workspaces a person may own are those of
- * `createWorkspace`. `saved` is false when the Workspace was made but an answer could not be written: it is not made
+ * `createWorkspace`. Where an earlier attempt made the Workspace and could not start First Steps for it, pressing again
+ * takes that one up. `saved` is false when the Workspace was made but an answer could not be written: it is not made
  * again, and Start over saves the answers. */
 export async function createFirstStepsWorkspace(personId: string, input: unknown): Promise<{ workspaceId: string; saved: boolean }> {
   const answers = checkFirstStepsAnswers(input);
@@ -79,11 +108,11 @@ export async function createFirstStepsWorkspace(personId: string, input: unknown
   const { data: demo, error: unread } = await db().from("memberships").select("user_id").eq("workspace_id", DEMO_WORKSPACE_ID).eq("user_id", personId).maybeSingle();
   if (unread) throw new Error("The Workspace could not be created.");
   if (demo) throw new Forbidden("The demo's people make no Workspace.");
-  const workspaceId = await createWorkspace(personId, answers.name);
+  const workspaceId = (await leftUnmarked(personId, answers.name)) ?? (await createWorkspace(personId, answers.name));
   const actor: Actor = { personId, workspaceId, role: "owner" };
   // The mark that this flow made it comes first: with it the Owner can come back here whatever happens next.
   const { error } = await db().from("setup_guides").upsert({ workspace_id: workspaceId, first_steps_at: new Date().toISOString() }, { onConflict: "workspace_id" });
-  if (error) throw new Error("Your Workspace was made, but First Steps could not be started for it.");
+  if (error) throw new Refused("Your Workspace was made, but First Steps could not be started for it. Press the button again.");
   try {
     // First Steps takes the place of the Setup Guide for its Owner: Home does not lead them there.
     await markSetupGuideSeen(actor);

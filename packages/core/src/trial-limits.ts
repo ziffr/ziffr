@@ -16,8 +16,8 @@ export type TrialLimit = { key: TrialLimitKey; name: string; label: string; help
 
 /** Every Trial Limit, in the order the page shows them. */
 export const TRIAL_LIMITS: TrialLimit[] = [
-  { key: "days", name: "ZIFFR_TRIAL_DAYS", label: "Days a trial lasts", min: 1, max: 30, default: 14,
-    help: "Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Hosted Ziffr offers trials with 14 days unless set; Ziffr Cloud sets 0 (null in its API) to switch trials off, and trials that run go on until they end. Applies to trials made afterwards." },
+  { key: "days", name: "ZIFFR_TRIAL_DAYS", label: "Days a trial lasts", min: 1, max: 30, default: 30,
+    help: "Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Hosted Ziffr offers trials with 30 days unless set; Ziffr Cloud sets 0 (null in its API) to switch trials off, and trials that run go on until they end. Applies to trials made afterwards." },
   { key: "graceDays", name: "ZIFFR_TRIAL_GRACE_DAYS", label: "Days a trial's data stays after it ends", min: 1, max: 60, default: 7,
     help: "After the trial ends nothing can be added, and its Owner can still download everything; then it is deleted. Applies to every trial that has ended and is waiting, too: a smaller number deletes them sooner." },
   { key: "max", name: "ZIFFR_TRIAL_MAX", label: "Trials at once", min: 1, max: 100_000, default: 500,

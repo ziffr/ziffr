@@ -61,8 +61,8 @@ export async function readPackInvite(installId: number) {
 }
 
 /** Records the Owner's first number of a set-up, without any message. */
-export async function sendPackNumber(installId: number, metricId: number, text: string) {
-  return changed((actor) => sendFirstPackNumber(actor, installId, metricId, text));
+export async function sendPackNumber(installId: number, metricId: number, text: string, whose: string | null) {
+  return changed((actor) => sendFirstPackNumber(actor, installId, metricId, text, whose));
 }
 
 /** Confirms the person's own check of a value of a set-up. */

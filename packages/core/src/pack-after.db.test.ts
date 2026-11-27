@@ -13,6 +13,7 @@ import { changePackHolder, packHolderPlan, packHolders } from "./pack-after-hold
 import { confirmPackNumber, invitePackPeople, packInvite, sendFirstPackNumber } from "./pack-after-invite";
 import { packNumbers, setPackNumbers } from "./pack-after-numbers";
 import { packProviders, setPackProviders } from "./pack-after-providers";
+import { packLineStart } from "./pack-setup-adding";
 import { claimGuidedRecord, setupStates } from "./pack-setup-record";
 import { startPackStep, type PackStartRef, type PackStartResult } from "./pack-start";
 import type { StartChoices, StartPerson } from "./pack-start-steps";
@@ -83,12 +84,12 @@ describe("a trial after the set-up", () => {
 
     const tokens = await count("tokens", t.id);
     await expect(sendFirstPackNumber(t.by, id, 999_999_999, "5")).rejects.toBeInstanceOf(Forbidden);
-    await expect(sendFirstPackNumber(t.by, id, number.id, "x".repeat(41))).rejects.toThrow(/Type a number/);
-    expect((await sendFirstPackNumber(t.by, id, number.id, "not a number")).ok).toBe(false);
+    await expect(sendFirstPackNumber(t.by, id, number.id, "x".repeat(41), number.whose)).rejects.toThrow(/Type a number/);
+    expect((await sendFirstPackNumber(t.by, id, number.id, "not a number", number.whose)).ok).toBe(false);
     expect(await count("tokens", t.id)).toBe(tokens);
     // A second number: the first period holds the contact's value above.
     const own = before.first!.numbers[1];
-    expect((await sendFirstPackNumber(t.by, id, own.id, "1200")).ok).toBe(true);
+    expect((await sendFirstPackNumber(t.by, id, own.id, "1200", own.whose)).ok).toBe(true);
     expect(await count("tokens", t.id)).toBe(tokens);
     expect(await sent(t.id)).toEqual(NOTHING);
 
@@ -109,7 +110,7 @@ describe("a trial after the set-up", () => {
     const result = await setUp(t.by, FORECAST, forecast(someone("Lead"), ...[1, 2, 3, 4].map((n) => someone(`Seller ${n}`))));
     const id = result.pack.installId;
     const first = (await packInvite(t.by, id)).first!.numbers[0];
-    await sendFirstPackNumber(t.by, id, first.id, "5");
+    await sendFirstPackNumber(t.by, id, first.id, "5", first.whose);
     const view = await packInvite(t.by, id);
     expect(view.people).toHaveLength(5);
     const done = await invitePackPeople(t.by, id, view.people.map((p) => p.id), mail);
@@ -150,6 +151,10 @@ describe("which number is offered first", () => {
     const numbers = (await packInvite(t.by, result.pack.installId)).first!.numbers;
     expect(numbers.length).toBeGreaterThan(0);
     expect(new Set(numbers.map((n) => n.whose))).toEqual(new Set(["Sam Seller"]));
+    // A screen that did not say whose it is, because Sam was chosen since it was read, records nothing.
+    await expect(sendFirstPackNumber(t.by, result.pack.installId, numbers[0].id, "5")).rejects.toThrow(/would count as theirs/);
+    expect(await count("observations", t.id)).toBe(0);
+    expect((await sendFirstPackNumber(t.by, result.pack.installId, numbers[0].id, "5", "Sam Seller")).ok).toBe(true);
   });
 });
 
@@ -160,7 +165,7 @@ describe("a first number that waits for the Owner's own check", () => {
     const id = result.pack.installId;
     const number = (await packInvite(t.by, id)).first!.numbers[0];
     const tokens = await count("tokens", t.id);
-    expect((await sendFirstPackNumber(t.by, id, number.id, "12500")).ok).toBe(true);
+    expect((await sendFirstPackNumber(t.by, id, number.id, "12500", number.whose)).ok).toBe(true);
     expect(await count("tokens", t.id)).toBe(tokens);
 
     const task = async () => (await rows("actions", t.id, "id, purpose, status, assignee_id, metric_id")).filter((a) => a.purpose === "self_check");
@@ -366,6 +371,34 @@ describe("changing who approves", () => {
     const config = flow.config as WorkflowConfig;
     await saveWorkflow(t.by, Number(flow.id), String(flow.name), { ...config, steps: config.steps.map((s) => (s.type === "send_snapshot" ? { ...s, people: [stranger] } : s)) });
     expect(await snapshotPeople(t.id)).toEqual([stranger]);
+  });
+
+  it("names both holders while a Snapshot stays for want of a Share, moves the Approve step again and starts a new line with the latest choice", async () => {
+    const t = await space();
+    const result = await setUp(t.by, FORECAST, forecast(someone("Lea Lead"), someone("Sam Seller")));
+    const id = result.pack.installId;
+    const [other, ben, cal] = [await t.person("admin"), await t.person("member"), await t.person("member")];
+    // No Share to tick: the dashboard is someone else's now.
+    await db().from("dashboards").update({ owner_id: other }).eq("workspace_id", t.id);
+    const change = async (person: string) => {
+      const pick = { position: "sales-lead", line: null, person };
+      const plan = await packHolderPlan(t.by, id, pick);
+      return changePackHolder(t.by, id, { ...pick, shares: [], mark: plan.mark });
+    };
+    expect((await change(ben)).byHand.join(" ")).toContain("cannot open the dashboard");
+    expect(await snapshotPeople(t.id)).toEqual([t.owner]);
+    expect((await packHolders(t.by, id)).positions[0].holders).toHaveLength(2);
+    const approvers = async () => ((await flows(t.id))[0].config as WorkflowConfig).steps.flatMap((s) => (s.type === "approve" ? s.approvers : []));
+    const startsWith = async () => (await packLineStart(t.by, id, "rep")).people["sales-lead"];
+    expect(await startsWith()).toEqual([ben]);
+    await change(cal);
+    expect(await approvers()).toEqual([cal]);
+    expect(await startsWith()).toEqual([cal]);
+    // Someone the record names already becomes the latest choice again.
+    await change(ben);
+    expect(await approvers()).toEqual([ben]);
+    expect(await startsWith()).toEqual([ben]);
+    expect((await packHolders(t.by, id)).positions[0].holders).toHaveLength(3);
   });
 
   it("shows the changes first and then puts a Member into the Position's places", async () => {

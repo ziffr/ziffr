@@ -165,14 +165,18 @@ export async function packInvite(actor: Actor, installId: number): Promise<PackI
 
 /** The Owner's first number, typed after the set-up while a trial's invitations wait for it: they are made its
  * Submitter without any message, the value goes through the web form's intake, and who was not a Submitter before is
- * not one afterwards. The Metric id and the text are a browser's: the Metric must be one this set-up offers. */
-export async function sendFirstPackNumber(actor: Actor, installId: number, metricId: unknown, text: unknown): Promise<{ ok: boolean; detail: string }> {
+ * not one afterwards. The Metric id, the text and `whose` are a browser's: the Metric must be one this set-up offers,
+ * and a number that is a colleague's now is recorded only if the screen said so (`whose`, as it was offered). */
+export async function sendFirstPackNumber(actor: Actor, installId: number, metricId: unknown, text: unknown, whose: unknown = null): Promise<{ ok: boolean; detail: string }> {
   const a = await packAfter(actor, installId);
   await assertStillOpen(actor);
   const gate = await inviteGate(actor);
   if (gate.state !== "waiting" || !gate.you) throw new Refused("A first number is not needed from you here. Reload this page.");
   const metric = typable(actor, a).find((x) => x.metric.id === metricId)?.metric;
   if (!metric) throw new Forbidden("Pick one of the numbers this set-up made.");
+  // Someone may have been chosen as its provider since the screen was read.
+  const now = (await firstNumbers(actor, a)).find((n) => n.id === metric.id)?.whose ?? null;
+  if (now !== null && now !== whose) throw new Refused(`${now} provides this number now, so it would count as theirs. Check it, then press the button again.`);
   if (typeof text !== "string" || !text.trim() || text.length > 40) throw new Refused("Type a number.");
   const had = a.submitters.some((s) => s.metric === metric.id && s.person === actor.personId);
   if (!had) await addSubmitters(actor, metric.id, [actor.personId], ASK_NOBODY);

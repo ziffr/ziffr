@@ -60,10 +60,11 @@ Everything below is proposed by this spec and marked so in Decisions. The owner'
 ### Trial Limits
 
 Defaults are what hosted Ziffr starts with; the range is what the setting accepts (a value outside it is ignored and the default applies, as for other Installation Settings). They are constants in one file, `packages/core/src/trial-limits.ts`, with one test that every limit is listed in the self-hosting reference, the user guide and the Cloud API reference.
+Since 2026-11-27 a trial lasts **30 days** unless set (it was 14): long enough for numbers asked weekly to come in more than once. A server with the days set explicitly keeps its value.
 
 | Trial Limit | Default | Range | Today |
 | --- | --- | --- | --- |
-| Days a trial lasts | 14 | 1 to 30 | `ZIFFR_TRIAL_DAYS` (14 on hosted Ziffr, spec 0029) |
+| Days a trial lasts | 30 | 1 to 30 | `ZIFFR_TRIAL_DAYS` (14 on hosted Ziffr, spec 0029) |
 | Days its data stays after the end | 7 | 1 to 60 | `ZIFFR_TRIAL_GRACE_DAYS` |
 | Trials at once | 500 | 1 to 100,000 | `ZIFFR_TRIAL_MAX` (200) |
 | People in a trial (Members, Admins and Guests, counting the Owner and invitations still open) | 5 | 1 to 25 | none: 1 |
@@ -159,7 +160,7 @@ Checked today: there is no export of a Workspace and no import. What exists is t
 **Accepted by the owner on 2026-11-22, after reading the proposals (#671):**
 
 1. A trial exists only where `ZIFFR_CLOUD_KEY` is set; the trial settings, the settings page's Trials section and the sign-in column disappear without it. This is a product choice, not DRM. There are no self-hosted Installations yet, so no transition is written: without the key there are simply no trials and no trial settings.
-2. Trial Limits and their defaults as in the table: 14 days, 7 grace days, 5 people, 10 invitation emails a day (500 for all trials together), **25 Metrics**, 100 messages a day, 2 keys, 2 Feeds, 1 assistant, 2 Webhooks, 5 View Links.
+2. Trial Limits and their defaults as in the table (the days were 14 until 2026-11-27, now 30): 30 days, 7 grace days, 5 people, 10 invitation emails a day (500 for all trials together), **25 Metrics**, 100 messages a day, 2 keys, 2 Feeds, 1 assistant, 2 Webhooks, 5 View Links.
 3. Ziffr Cloud sets Trial Limits through its signed API, the hosted settings page shows them (read-only where Cloud set them), the environment wins, a change applies to running trials at once, and the database reads them from one row.
 4. Invitations open after the Owner's first value; Guests allowed; Domain Joining off; Contacts stay simulated; View Links allowed and end with the trial.
 5. Invited people are told it is a trial, until when and what happens after; the invitation email has a one-click "Do not invite me again" that works across the Installation.

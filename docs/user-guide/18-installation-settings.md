@@ -266,7 +266,7 @@ On hosted Ziffr this section holds what happens when a trial ends and whether tr
 
 Like Trials, this section exists only on hosted Ziffr. It lists the Trial Limits, the numbers that bound every trial, each with its range:
 
-- **Days a trial lasts** (1 to 30; empty: 14). Applies to trials made afterwards.
+- **Days a trial lasts** (1 to 30; empty: 30). Applies to trials made afterwards.
 - **Days a trial's data stays after it ends** (1 to 60; empty: 7).
 - **Trials at once** (1 to 100,000; empty: 500).
 - **People in a trial** (1 to 25; empty: 5). Members, Admins and Guests, the Owner and the invitations that are still open included.

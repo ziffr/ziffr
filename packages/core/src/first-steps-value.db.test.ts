@@ -11,7 +11,8 @@ import { firstStepsState } from "./first-steps";
 import { chooseProviders, firstStepsDone, firstStepsSender } from "./first-steps-providers";
 import { allowFirstStepsEmail, askFirstStepsByEmail, firstStepsProgress, firstStepsValue, pickFirstStepsMetric, sendFirstStepsValue } from "./first-steps-value";
 import { acceptInvitation, inviteByEmail } from "./invitations";
-import { DEMO_WORKSPACE_ID } from "./team";
+import { addSubmitters } from "./metrics";
+import { addContact, DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 
 const SETTINGS = { ZIFFR_SMTP_URL: process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test", ZIFFR_JOB_SECRET: "s".repeat(40) };
@@ -51,7 +52,7 @@ async function fresh(over: { trial?: boolean; metric?: Record<string, unknown> }
 const deliveries = async (ws: string) => (await db().from("deliveries").select("recipient_id, kind, connector").eq("workspace_id", ws)).data!;
 const submitters = async (metricId: number) => (await db().from("tokens").select("submitter_id").eq("metric_id", metricId).is("stands_in_for", null)).data!.map((t) => t.submitter_id as string).sort();
 const contacts = async (ws: string) => (await db().from("contacts").select("person_id").eq("workspace_id", ws)).data!.map((c) => c.person_id as string);
-const invitations = async (ws: string) => (await db().from("invitations").select("email, role, contact_person_id, revoked_at, accepted_at").eq("workspace_id", ws).order("id")).data!;
+const invitations = async (ws: string) => (await db().from("invitations").select("email, role, contact_person_id, revoked_at, accepted_at, email_sends").eq("workspace_id", ws).order("id")).data!;
 const chosenAt = async (ws: string) => (await db().from("setup_guides").select("providers_chosen_at").eq("workspace_id", ws).single()).data!.providers_chosen_at as string | null;
 const workflowOf = async (metricId: number) => {
   const { data } = await db().from("metrics").select("workflow_id").eq("id", metricId).single();
@@ -154,9 +155,34 @@ describe("a trial, before and after the Owner's own value", () => {
     expect(await contacts(w.id)).toEqual([]);
     expect(await submitters(m.id)).toEqual([owner]);
   });
+
+  it("emails an address once, also after another colleague was chosen in between", async () => {
+    const { w, o } = await fresh({ trial: true });
+    await sendFirstStepsValue(o, "1");
+    const sam = address("sam");
+    expect((await chooseProviders(o, { choice: "colleague", email: sam })).link).toBeNull();
+    await chooseProviders(o, { choice: "colleague", email: address("kim") });
+    const again = await chooseProviders(o, { choice: "colleague", email: sam });
+    const rows = await invitations(w.id);
+    expect(rows.map((i) => i.email_sends)).toEqual([1, 1, 0]);
+    expect(rows.map((i) => Boolean(i.revoked_at))).toEqual([true, true, false]);
+    expect(again.link).toContain("/invite/");
+    expect(again.lines[0]).toContain("sends no second one");
+  });
 });
 
 describe("an ordinary Workspace", () => {
+  it("takes back only the Contacts it added itself, not one the Owner added since", async () => {
+    const { w, o, owner, m } = await fresh();
+    await chooseProviders(o, { choice: "colleague", email: address("sam") });
+    // Added by hand while the screen stayed open, and given the same number on purpose.
+    const byHand = await addContact(o, { name: "Robin", email: address("robin") });
+    await addSubmitters(o, m.id, [byHand]);
+    await chooseProviders(o, { choice: "me" });
+    expect(await contacts(w.id)).toEqual([byHand]);
+    expect(await submitters(m.id)).toEqual([owner, byHand].sort());
+  });
+
   it("adds a Contact in the Owner's place, invites nobody, asks nobody now, and keeps older Contacts", async () => {
     const { w, o, owner, m } = await fresh();
     const second = await w.metric(owner, { name: "Visits", period: "week" });

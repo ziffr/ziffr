@@ -19,7 +19,7 @@ const { whatThisZiffrOffers } = await import("./what-works-here");
 const saved = { ...process.env };
 beforeEach(() => {
   process.env.ZIFFR_CLOUD_KEY = "k".repeat(40);
-  delete process.env.ZIFFR_TRIAL_DAYS; // unset on hosted Ziffr means the default, 14 days
+  delete process.env.ZIFFR_TRIAL_DAYS; // unset on hosted Ziffr means the default, 30 days
 });
 afterEach(() => { process.env = { ...saved }; });
 

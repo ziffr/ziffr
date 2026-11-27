@@ -26,7 +26,7 @@ describe("the ranges", () => {
   }
 
   it("has the spec's defaults", () => {
-    expect(trialLimitsFrom({})).toEqual({ days: 14, graceDays: 7, max: 500, people: 5, invitationsPerDay: 10, invitationsAllPerDay: 500, metrics: 25, messagesPerDay: 100, keys: 2, feeds: 2, assistants: 1, webhooks: 2, webhookSendsPerDay: 200, viewLinks: 5 });
+    expect(trialLimitsFrom({})).toEqual({ days: 30, graceDays: 7, max: 500, people: 5, invitationsPerDay: 10, invitationsAllPerDay: 500, metrics: 25, messagesPerDay: 100, keys: 2, feeds: 2, assistants: 1, webhooks: 2, webhookSendsPerDay: 200, viewLinks: 5 });
   });
 
   it("is a setting of the Installation catalogue, one each, in the Trial Limits section", () => {
