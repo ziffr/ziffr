@@ -24,6 +24,7 @@ import { periodLabel } from "@ziffr/core/periods";
 import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 import { periodValueNotes } from "@ziffr/core/value-notes";
 import { PeriodValueNotes } from "@/components/period-value-notes";
+import { periodRecordUrl } from "@/lib/period-record-url";
 
 export default async function ActionPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
@@ -50,8 +51,11 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
   // to someone who is shown the value, whatever they may read of this Thread.
   const aboutValue = a.purpose === "approval" || a.purpose === "self_check" || (isOwner && thread.some((t) => t.correction_value !== null && t.correction_status === "accepted"));
   const notes = m && aboutValue ? await periodValueNotes(actor, m.id, a.period_start) : null;
-  const noteBlock = m && notes ? <PeriodValueNotes metricId={m.id} period={a.period_start} notes={notes} metric={{ decimals: m.decimals, unit: m.unit, unit_position: m.unit_position }} numberStyle={numberStyle} className="mt-4" /> : null;
   const deciding = a.purpose === "approval" && m !== null && isAssignee && a.status === "open";
+  const noteBlock = m && notes ? (
+    <PeriodValueNotes metricId={m.id} period={a.period_start} notes={notes} metric={{ decimals: m.decimals, unit: m.unit, unit_position: m.unit_position }} numberStyle={numberStyle}
+      task={a.purpose === "approval" ? { changeAt: `${periodRecordUrl(m.slug, a.period_start)}#notes` } : "add"} className={deciding ? undefined : "mt-4"} />
+  ) : null;
 
   return (
     <div className="mx-auto max-w-3xl">

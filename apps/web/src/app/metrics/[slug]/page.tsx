@@ -365,7 +365,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <tbody>
                     {obs.map((o) => (
                       <RowWithNote key={o.id} notes={notes} row={o} metric={shown} numberStyle={numberStyle}>
-                        <td className="py-2"><Link href={periodRecordUrl(metric.slug, o.period_start)} className="hover:underline">{periodLabel(o.period_start, metric.period, yearStart)}</Link>{pending.includes(o.period_start) && <> <NotApprovedMark short /></>}</td>
+                        <td className="py-2"><Link href={periodRecordUrl(metric.slug, o.period_start)} className="hover:underline max-md:inline-flex max-md:min-h-11 max-md:items-center">{periodLabel(o.period_start, metric.period, yearStart)}</Link>{pending.includes(o.period_start) && <> <NotApprovedMark short /></>}</td>
                         <td className="py-2 text-right">
                           <span className="fig">{formatValue(metric, o.value, numberStyle)}</span>
                           {o.original_value !== null && <span className="block text-xs text-muted-foreground"><span className="line-through">{formatValue(metric, o.original_value, numberStyle)}</span> corrected</span>}

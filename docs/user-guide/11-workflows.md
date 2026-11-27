@@ -177,7 +177,7 @@ On the task's page, the Approver sees a box, **You approve this value**:
 | **Approve** | Confirms the value. If there is a next Approver, they are asked now; otherwise the value is published, and locked if the Workflow says so. |
 | **Send back** | Opens a box, **What should they check?**. Write what looks wrong and choose **Send back** (or **Cancel**). The value stays, marked as not approved yet, and the Submitter gets your comment. They can reply with a corrected value. |
 
-A [Value Note](10-metrics.md#value-notes) of the period stands on the task's page, above the buttons, always as it is now. The message that asks you quotes the newest one as the message leaves, cut at 300 characters, as a quotation above the link; a note written afterwards sends nothing. The Outbox keeps the message without the quotation. A note is never read as "approve" or "send back".
+The period's [Value Notes](10-metrics.md#value-notes) stand on the task's page, above the buttons, always as they are now; who may write one gets a link to the period's page there. The message that asks you quotes the newest one as the message leaves, cut at 300 characters, as a quotation above the link; a note written afterwards sends nothing. The Outbox keeps the message without the quotation. A note is never read as "approve" or "send back".
 
 The same works without opening Ziffr: reply "approve", or "send back:" followed by what to check, to the message on Slack or by email.
 

@@ -22,7 +22,7 @@ export function HistoryNotes({ notes, metric, yearStart, numberStyle }: { notes:
           const [newest, ...others] = notes[p]!;
           return (
             <li key={p}>
-              <Link href={`${periodRecordUrl(metric.slug, p)}#notes`} className="inline-flex items-center text-xs underline max-md:min-h-11 pointer-coarse:min-h-11">
+              <Link href={`${periodRecordUrl(metric.slug, p)}#notes`} className="inline-flex items-center text-xs underline max-md:min-h-11 max-md:min-w-11 pointer-coarse:min-h-11 pointer-coarse:min-w-11">
                 {periodLabel(p, metric.period, yearStart, true)}{others.length ? `, ${others.length} more` : ""}
               </Link>
               <ValueNoteText note={newest!} metric={metric} numberStyle={numberStyle} clamp />

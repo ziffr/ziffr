@@ -3,6 +3,7 @@
 // ones, writing, correcting and removing, and the history. The core says which of these the reader may do, and checks
 // again on every save; this only shows what it was given.
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { PencilLine, Plus, Trash2, X } from "lucide-react";
 import { correctNote, deleteNoteForGood, removeNote, writeNote } from "@/app/value-note-actions";
@@ -20,15 +21,18 @@ const FOR_GOOD = "Delete the words for good";
 
 type Run = (work: () => Promise<ActionError | void>, done: string, after?: () => void) => void;
 
-/** The notes of one period; nothing at all where there is none and the reader may not write one. */
-export function PeriodValueNotes({ metricId, period, notes, title = "Notes", className, ...numbers }: NoteNumbers & { metricId: number; period: string; notes: PeriodNotes; title?: string; className?: string }) {
+/** The notes of one period; nothing at all where there is none and the reader may not write one. On a task's page
+ * (`task`) the notes come without their controls and history: "add" offers writing right there, and an address says
+ * where notes are written instead, so that nothing stands between an Approver and their decision. */
+export function PeriodValueNotes({ metricId, period, notes, task, className, ...numbers }: NoteNumbers & { metricId: number; period: string; notes: PeriodNotes; task?: "add" | { changeAt: string }; className?: string }) {
   // The note being corrected, or "new" for the one being written.
   const [editing, setEditing] = useState<number | "new" | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const { confirm, dialog } = useConfirm();
   const { current, history, mayWrite } = notes;
-  if (!current.length && !history.length && !mayWrite) return null;
+  if (!current.length && !mayWrite && (task || !history.length)) return null;
+  const elsewhere = typeof task === "object" ? task.changeAt : null;
   const open = (which: typeof editing) => { setEditing(which); setRefused(null); };
   const run: Run = (work, done, after) => start(async () => {
     try {
@@ -50,8 +54,8 @@ export function PeriodValueNotes({ metricId, period, notes, title = "Notes", cla
   // A note with a button of its own above needs none in the history.
   const shown = new Set(current.map((n) => n.id));
   return (
-    <section aria-label={title} className={className}>
-      <h2 className="mb-2 font-medium">{title}</h2>
+    <section aria-label="Notes" className={className}>
+      <h2 className="mb-2 font-medium">Notes</h2>
       {!current.length && <p className="text-sm text-muted-foreground">No note on this value yet.</p>}
       <ul className="space-y-3">
         {current.map((n) => (
@@ -61,7 +65,7 @@ export function PeriodValueNotes({ metricId, period, notes, title = "Notes", cla
             ) : (
               <>
                 <ValueNoteText note={n} {...numbers} />
-                {(n.mayCorrect || n.mayRemove || n.mayDeleteForGood) && (
+                {!task && (n.mayCorrect || n.mayRemove || n.mayDeleteForGood) && (
                   <div className="mt-1 flex flex-wrap gap-x-1">
                     {n.mayCorrect && <Button size="sm" variant="ghost" disabled={pending} onClick={() => open(n.id)}><PencilLine aria-hidden /> Correct</Button>}
                     {n.mayRemove && <Button size="sm" variant="ghost" disabled={pending} onClick={() => remove(n.id)}><X aria-hidden /> Remove</Button>}
@@ -73,11 +77,12 @@ export function PeriodValueNotes({ metricId, period, notes, title = "Notes", cla
           </li>
         ))}
       </ul>
-      {mayWrite && (editing === "new"
+      {mayWrite && elsewhere && <Link href={elsewhere} className="mt-1 inline-flex items-center text-sm underline max-md:min-h-11 pointer-coarse:min-h-11">{current.length ? "Add or change notes" : "Add a note"}</Link>}
+      {mayWrite && !elsewhere && (editing === "new"
         ? <div className="mt-3"><NoteForm label="Note" words="" submit="Save note" pending={pending} onCancel={() => open(null)} onSave={(words) => run(() => writeNote(metricId, period, words), "Note saved", () => open(null))} /></div>
         : <Button size="sm" variant="outline" className="mt-3" disabled={pending} onClick={() => open("new")}><Plus aria-hidden /> Add a note</Button>)}
       {refused && <p role="alert" className="mt-2 text-sm text-destructive">{refused}</p>}
-      {history.length > current.length && (
+      {!task && history.length > current.length && (
         <details className="mt-3 text-sm">
           <summary className="w-fit cursor-pointer rounded-sm py-1 text-muted-foreground max-md:min-h-11 max-md:content-center">History of the notes</summary>
           <ol className="mt-1">
