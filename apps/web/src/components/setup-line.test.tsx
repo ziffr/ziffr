@@ -1,24 +1,20 @@
 // @vitest-environment happy-dom
 // The Setup line and the guide's Slide-over (spec 0052, ticket 11; GLOSSARY: Setup Guide): each state a person can be in,
-// from an Owner part-way to a Guest, with the actions mocked (the core's own rules are in setup-guide.db.test.ts).
+// from a Member part-way to a Guest, with the actions mocked (the core's own rules are in setup-guide.db.test.ts).
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let path = "/metrics";
 let panelParam: string | null = null;
-let setupParam: string | null = null;
 const refresh = vi.fn();
-vi.mock("next/navigation", () => ({ usePathname: () => path, useRouter: () => ({ refresh }), useSearchParams: () => new URLSearchParams({ ...(panelParam ? { panel: panelParam } : {}), ...(setupParam ? { setup: setupParam } : {}) }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => path, useRouter: () => ({ refresh }), useSearchParams: () => new URLSearchParams(panelParam ? { panel: panelParam } : {}) }));
 const hideSetup = vi.fn(async () => undefined);
 const reopenSetup = vi.fn(async () => undefined);
 const skipStep = vi.fn(async (step: string) => (step ? undefined : undefined));
 let steps = [
   { id: "about", ticked: true, skipped: false, next: false },
-  { id: "start", ticked: true, skipped: false, next: false },
   { id: "ways", ticked: false, skipped: false, next: true },
-  { id: "first_metric", ticked: false, skipped: false, next: false },
-  { id: "team", ticked: false, skipped: false, next: false },
 ];
 const readSetupSteps = vi.fn(async () => ({ steps, ticked: steps.filter((s) => s.ticked).length, total: steps.length }));
 vi.mock("@/app/setup/actions", () => ({ hideSetup: () => hideSetup(), reopenSetup: () => reopenSetup(), skipStep: (s: string) => skipStep(s), readSetupSteps: () => readSetupSteps() }));
@@ -49,7 +45,7 @@ async function show(state: SetupState, line: { done: number; total: number; next
 }
 
 beforeEach(() => {
-  path = "/metrics"; panelParam = null; setupParam = null;
+  path = "/metrics"; panelParam = null;
   for (const f of [hideSetup, reopenSetup, skipStep, readSetupSteps, refresh]) f.mockClear();
   steps = [
     { id: "about", ticked: true, skipped: false, next: false }, { id: "start", ticked: true, skipped: false, next: false },
@@ -79,18 +75,6 @@ describe("the Setup line", () => {
     path = "/setup";
     await show({ applies: true, shown: true }, { done: 2, total: 5, next: "ways" });
     expect(host.querySelector("section")).toBeNull();
-  });
-
-  it("is left off the new Metric page opened from the guide, and only there", async () => {
-    path = "/metrics/new"; setupParam = "1";
-    await show({ applies: true, shown: true }, { done: 2, total: 5, next: "ways" });
-    expect(host.querySelector("section")).toBeNull();
-    setupParam = null;
-    await show({ applies: true, shown: true }, { done: 2, total: 5, next: "ways" });
-    expect(host.querySelector("section")).not.toBeNull();
-    path = "/metrics"; setupParam = "1";
-    await show({ applies: true, shown: true }, { done: 2, total: 5, next: "ways" });
-    expect(host.querySelector("section")).not.toBeNull();
   });
 
   it("opens the steps beside the page with the next one marked and Skip beside the open ones", async () => {

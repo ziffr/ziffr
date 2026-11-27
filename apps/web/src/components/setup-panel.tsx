@@ -16,7 +16,7 @@ import { useOpenPanel, writePanel } from "@/lib/panel-param";
 import type { SetupStepId } from "@ziffr/core/setup-steps";
 
 /** What the layout tells the shell about the guide: whether it applies to the viewer (a Guest and the demo: no) and whether the Setup line is up. */
-export type SetupState = { applies: boolean; shown: boolean };
+export type SetupState = { applies: boolean; shown: boolean; /** Where "Continue setting up" leads while First Steps has a step left. */ continueHref?: string | null };
 
 const SetupContext = createContext<SetupState>({ applies: false, shown: false });
 
@@ -94,7 +94,7 @@ export function useOpenSetup(): (reopen?: boolean) => void {
   const panel = useSlideOver();
   const router = useRouter();
   return useCallback((reopen = false) => {
-    const show = () => panel.open({ title: "Setup Guide", description: "The steps that set up your Workspace, and where you are.", content: <SetupContent /> });
+    const show = () => panel.open({ title: "Setup Guide", description: "Your two steps, and where you are.", content: <SetupContent /> });
     if (!reopen) { show(); return; }
     void reopenSetup().then((r) => { if (!(r && "error" in r)) router.refresh(); show(); });
   }, [panel, router]);

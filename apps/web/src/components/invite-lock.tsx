@@ -12,6 +12,7 @@ import { askNow } from "@/app/metrics/[slug]/ask-now";
 import { RecordValue } from "@/app/metrics/[slug]/record-value";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { isActionError } from "@/lib/action-error";
+import { FIRST_STEPS_PATH } from "@ziffr/core/first-steps-screens";
 import type { InviteGate, InviteMetric } from "@ziffr/core/invite-gate";
 
 /** How often a closed gate that can open by itself is read again, while the page is in view. Not more often: an Owner's
@@ -83,8 +84,10 @@ export function InviteLock({ gate, was, id, onMembers, look }: SeenGate & { id: 
             <>
               <p><strong className="font-medium">To open them,</strong> send in one value yourself. You do not send values for any Metric yet: make one with yourself as its Submitter, then reply to its request or use Record a value.</p>
               <div className="flex flex-wrap gap-2">
-                <Link href="/metrics/new" className={buttonVariants({ size: "sm", className: tall })}>Make a Metric</Link>
-                <Link href="/setup?step=first_metric" className={buttonVariants({ variant: "outline", size: "sm", className: tall })}>Go to the First Metric step</Link>
+                {/* A plain link: First Steps draws its own frame, so the page is loaded anew. */}
+                {gate.firstSteps && <a href={`${FIRST_STEPS_PATH}?step=value`} className={buttonVariants({ size: "sm", className: tall })}>Send your first value</a>}
+                <Link href="/metrics/new" className={buttonVariants({ variant: gate.firstSteps ? "outline" : "default", size: "sm", className: tall })}>Make a Metric</Link>
+                {!gate.firstSteps && <Link href="/metrics" className={buttonVariants({ variant: "outline", size: "sm", className: tall })}>See Metrics</Link>}
               </div>
             </>
           )}

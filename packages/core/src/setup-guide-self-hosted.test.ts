@@ -117,7 +117,7 @@ describe("the Setup Guide on every kind of Installation", () => {
 
 describe("no step of the Setup Guide depends on Ziffr Cloud or the Marketplace", () => {
   // The guide's own code reads the Installation's settings and the Workspace, never the hosted or Marketplace checks.
-  const FILES = ["setup-guide.ts", "setup-steps.ts", "setup-first-metric.ts", "setup-from-pack.ts", "included-packs.ts", "ways-in-and-out.ts", "team-setup.ts", "first-metric-loop.ts", "test-message.ts"];
+  const FILES = ["setup-guide.ts", "setup-steps.ts", "setup-first-metric.ts", "included-packs.ts", "ways-in-and-out.ts", "first-metric-loop.ts", "test-message.ts"];
   for (const file of FILES) {
     it(file, () => {
       let text: string;

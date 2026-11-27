@@ -4,9 +4,8 @@
 // Home. The browser gets that person's own id, their Workspace's answers, the name of its first Metric, a few entries
 // of the Metric Catalog to suggest and what they may ask to join, nothing more.
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { firstStepsState } from "@ziffr/core/first-steps";
-import { FIRST_STEPS_ON } from "@ziffr/core/first-steps-screens";
 import { joinableWorkspaces } from "@ziffr/core/invitations";
 import { trialEnded } from "@ziffr/core/trials";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
@@ -22,7 +21,6 @@ export const metadata: Metadata = { title: "First steps" };
 const AFTER_NUMBERS = ["value", "sender", "done"];
 
 export default async function FirstStepsPage({ searchParams }: { searchParams: Promise<{ another?: string; unsaved?: string; step?: string }> }) {
-  if (!FIRST_STEPS_ON) notFound();
   if (demoOnly()) redirect("/login");
   if (await isDemo()) redirect("/");
   const user = await sessionUser();

@@ -218,7 +218,6 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `sendTestMessage` (test-message.ts): a Test Message to oneself, for the app's buttons; a program cannot message a person (spec 0052)
 - `setMyPromptWays` (ways-in-and-out.ts): one's own Delivery Preference for Prompts from the Setup Guide's Ways in and out step, only with ways that work here (spec 0052); a program sets its person's preference through the app
 - `waysInAndOut` (ways-in-and-out.ts): the Setup Guide's Ways in and out step for the viewer, in words; for the app's page only (spec 0052)
-- `teamSetup` (team-setup.ts): the Setup Guide's Team step for an Owner or Admin; it carries Business Functions, which no program may read, so for the app's page only (spec 0052)
 - `inviteGate` (invite-gate.ts): the words above a closed invite form in the app, with the asking Owner's own buttons; a program learns of a closed gate from the refusal of the API's invitation (spec 0040)
 - `startSetupGuide` (setup-guide.ts): the Setup Guide is for people in the app (spec 0052); programs never set up a Workspace
 - `setupGuide` (setup-guide.ts): the viewer's own guide steps, for the app
@@ -227,7 +226,6 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `reopenSetupGuide` (setup-guide.ts): a person's own Setup line, for the app
 - `setupLine` (setup-guide.ts): the Setup line's counts for the app's layout, the viewer's own
 - `markSetupGuideSeen` (setup-guide.ts): that a person opened the guide, for the app
-- `chooseExploreOnMyOwn` (setup-guide.ts): the guide's starting point, for the app
 - `saveFirstStepsAnswers` (first-steps.ts): the Owner answers First Steps again, in the app
 - `firstStepsSet` (first-steps-sets.ts): the Preview of one of First Steps' ready-made sets, for the app; a program installs no Pack
 - `makeFirstMetric` (first-steps-metric.ts): the Owner adds the first Metric in First Steps, with its dashboard; a program makes one with create_metric
@@ -250,8 +248,6 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `pickFirstMetric` (setup-first-metric.ts): the guide's choice of Metric, for the app
 - `sendFirstMetricValue` (setup-first-metric.ts): a value typed in the guide, for the app; a program sends values with submit_value
 - `setSetupFirstMetric` (setup-guide.ts): the Metric the guide tries both ways, for the app
-- `setUpGuideFromPack` (setup-from-pack.ts): the guide's first Metrics from an installed Pack, for the app (a program sets up from a Pack through the Packs page's own operation)
-- `adoptSetupFirstMetric` (setup-from-pack.ts): the Metric made from the Metric Catalog with the guide's return link becomes the guide's Metric, for the app
 - `startSlackLink` (slack-people.ts): linking oneself to Slack
 - `slackOptBackIn` (slack-people.ts): linking oneself to Slack
 - `unlinkSlack` (slack-people.ts): linking oneself to Slack

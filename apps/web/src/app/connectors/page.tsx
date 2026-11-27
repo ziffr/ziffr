@@ -17,7 +17,6 @@ import { OptedOutNote } from "./opted-out";
 import { SlackPanel } from "./slack-panel";
 import { TelegramPanel } from "./telegram-panel";
 import { whatWorksHere } from "@ziffr/core/what-works-here";
-import { DesktopOnly } from "@/components/desktop-only";
 import { practiceWays } from "@ziffr/core/practice-ways";
 import { PracticePanel } from "./practice-panel";
 
@@ -41,7 +40,6 @@ export default async function ConnectorsPage({ searchParams }: { searchParams: P
   const toYourself = demo ? null : await practiceWays(actor);
   return (
     <div className="space-y-12">
-      <DesktopOnly path="/connectors" />
       {toYourself && <PracticePanel ways={toYourself} />}
       {optedOut && <OptedOutNote />}
       {(slack.enabled || slack.team) && <SlackPanel connection={slack} link={slackLink} stopped={slackStopped} notice={outcome ? SLACK_OUTCOME[String(outcome)] : undefined} />}

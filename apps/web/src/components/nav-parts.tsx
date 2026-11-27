@@ -62,7 +62,8 @@ export function PhoneAccount({ account }: { account: Account }) {
             </select>
           </label>
         )}
-        <Link href="/welcome?another=1" className="flex h-9 items-center gap-1 rounded-[var(--radius-input)] px-2 hover:bg-muted"><Plus aria-hidden className="size-4" /> New workspace</Link>
+        {/* A plain link: First Steps draws its own frame, so the page is loaded anew. */}
+        <a href="/first-steps?another=1" className="flex h-9 items-center gap-1 rounded-[var(--radius-input)] px-2 hover:bg-muted"><Plus aria-hidden className="size-4" /> New workspace</a>
         <button type="button" disabled={pending} onClick={() => start(() => signOut())} className="flex h-9 items-center gap-1 rounded-[var(--radius-input)] px-2 hover:bg-muted"><LogOut aria-hidden className="size-4" /> Sign out</button>
       </div>
   );

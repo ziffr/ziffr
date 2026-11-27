@@ -42,7 +42,7 @@ describe("LargerScreenNote", () => {
 
   it("shows a refusal's words and lets the person try again", async () => {
     sendScreenLink.mockResolvedValue({ error: "Guests cannot send themselves links." });
-    await show("/connectors", true);
+    await show("/connectors/send", true);
     await press("Send me the link");
     expect(host.querySelector('[role="status"]')!.textContent).toBe("Guests cannot send themselves links.");
     expect((byText("Send me the link") as HTMLButtonElement).disabled).toBe(false);

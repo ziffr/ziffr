@@ -11,8 +11,9 @@ import { NO_ANSWERS, TOPICS, USED_BY, type FirstStepsAnswers, type FirstStepsRes
 import { ownerHasOwnValue } from "./invite-gate";
 import { createWorkspace } from "./page-data";
 import { HIDDEN_CHARACTERS } from "./profile";
-import { markSetupGuideSeen } from "./setup-guide";
+import { guidePerson, setGuidePerson } from "./setup-guide";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { trialEndsAt } from "./trials";
 import { knownTimeZone, setWorkspaceClock, workspaceClock } from "./workspace-clock";
 import { COUNTRIES, CURRENCIES, INDUSTRIES, SEGMENTS } from "./workspace-profile";
 import { MAX_WORKSPACE_NAME, renameWorkspace, setWorkspaceProfile, workspaceName, workspaceProfile } from "./workspace-settings";
@@ -114,8 +115,6 @@ export async function createFirstStepsWorkspace(personId: string, input: unknown
   const { error } = await db().from("setup_guides").upsert({ workspace_id: workspaceId, first_steps_at: new Date().toISOString() }, { onConflict: "workspace_id" });
   if (error) throw new Refused("Your Workspace was made, but First Steps could not be started for it. Press the button again.");
   try {
-    // First Steps takes the place of the Setup Guide for its Owner: Home does not lead them there.
-    await markSetupGuideSeen(actor);
     await save(actor, answers);
   } catch (e) {
     console.error("Saving the First Steps answers failed:", e);
@@ -179,4 +178,42 @@ export async function firstStepsState(actor: Actor): Promise<{ resume: FirstStep
       ...(who === "team" ? { role, industry: profile.industry, segment: profile.segment } : {}),
     },
   };
+}
+
+/** What the app offers an Owner whose First Steps are unfinished: the next open step, whether they hid the line at the
+ * top, and whether a trial still holds invitations back. */
+export type OpenFirstSteps = { next: Exclude<FirstStepsResume, "finished">; hidden: boolean; invitesClosed: boolean };
+
+/** The actor's unfinished First Steps, or null: for everyone but the Owner, in a Workspace First Steps did not make,
+ * and once they are finished. Never refuses an Owner, as every page asks; it says nothing about anyone else. */
+export async function openFirstSteps(actor: Actor): Promise<OpenFirstSteps | null> {
+  if (actor.key || actor.role !== "owner" || actor.workspaceId === DEMO_WORKSPACE_ID) return null;
+  if (!(await ownersFirstSteps(actor))) return null;
+  const next = await resumeAt(actor.workspaceId);
+  if (next === "finished") return null;
+  const [person, ends] = await Promise.all([guidePerson(actor), trialEndsAt(actor.workspaceId)]);
+  // The same rule that opens a trial's invitations (invite-gate.ts).
+  const invitesClosed = ends !== null && !(await ownerHasOwnValue(actor.workspaceId));
+  return { next, hidden: person.hidden, invitesClosed };
+}
+
+/** Whether Home leads this Owner to their unfinished First Steps now. It does so once, which this notes. */
+export async function leadToFirstSteps(actor: Actor): Promise<boolean> {
+  if (!(await openFirstSteps(actor)) || (await guidePerson(actor)).seen) return false;
+  await setGuidePerson(actor, { first_seen_at: new Date().toISOString() });
+  return true;
+}
+
+/** Notes that the Owner left First Steps on purpose ("Finish later", or a link of its last screen), so that Home does not
+ * lead them back. Refuses everyone but the Owner. */
+export async function noteFirstStepsLeft(actor: Actor): Promise<void> {
+  if (!(await ownersFirstSteps(actor)) || (await guidePerson(actor)).seen) return;
+  await setGuidePerson(actor, { first_seen_at: new Date().toISOString() });
+}
+
+/** Hides the line about the next open step, for the Owner only. "Continue setting up" stays on the start screen and in
+ * Help. */
+export async function hideFirstStepsLine(actor: Actor): Promise<void> {
+  if (!(await ownersFirstSteps(actor))) throw new Forbidden("First Steps did not make this Workspace.");
+  await setGuidePerson(actor, { hidden_at: new Date().toISOString() });
 }

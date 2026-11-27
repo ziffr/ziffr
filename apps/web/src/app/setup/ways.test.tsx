@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, refresh() {} }) }));
 vi.mock("sonner", () => ({ toast: { success() {}, error() {} } }));
 vi.mock("@/app/connector-actions", () => ({ sendTestMessage: async () => ({}), setTelegram: async () => ({}), slackLinkCode: async () => ({}), telegramLinkStart: async () => ({}) }));
-vi.mock("./ways-actions", () => ({ connectSlackFromGuide: async () => ({}), saveAskMeBy: async () => ({}) }));
+vi.mock("./ways-actions", () => ({ saveAskMeBy: async () => ({}) }));
 vi.mock("./actions", () => ({ skipStep: async () => ({}) }));
 import { askableWays, lockedWays, wayCards, type WaysInAndOut } from "@ziffr/core/ways-in-and-out";
 import { WAYS, type Way, type WayState } from "@ziffr/core/what-works-here";
@@ -24,7 +24,7 @@ const states = (f: Facts): WayState[] => [
 type Over = { role?: "owner" | "member"; installationAdmin?: boolean; telegramLinked?: boolean; slackLinked?: boolean; askedBy?: ("email" | "slack" | "telegram")[] };
 function data(f: Facts, over: Over = {}): WaysInAndOut {
   const ways = states(f);
-  const role = over.role ?? "owner";
+  const role = over.role ?? "member";
   const reach = { email: true, slack: over.slackLinked ?? true, telegram: over.telegramLinked ?? false };
   return {
     cards: wayCards({ ways, role, installationAdmin: over.installationAdmin ?? false, slackLink: null, telegramLinked: over.telegramLinked ?? false }),
@@ -32,7 +32,7 @@ function data(f: Facts, over: Over = {}): WaysInAndOut {
     more: role === "owner" ? [{ label: "A program", href: "/settings/keys", what: "Access Keys" }] : [],
   };
 }
-const html = (d: WaysInAndOut, notice: string | null = null) => renderToStaticMarkup(<WaysInAndOutStep data={d} following="first_metric" notice={notice} />).replaceAll("&#x27;", "'").replaceAll("&quot;", '"');
+const html = (d: WaysInAndOut) => renderToStaticMarkup(<WaysInAndOutStep data={d} following={null} />).replaceAll("&#x27;", "'").replaceAll("&quot;", '"');
 const buttons = (h: string) => [...h.matchAll(/<button[^>]*>([^<]*)<\/button>/g)].map((m) => m[1]);
 
 describe("nothing set up on the Installation", () => {
@@ -69,14 +69,10 @@ describe("mail only", () => {
 
 describe("a Slack app on the Installation", () => {
   const f: Facts = { mail: "both", slack: "not-connected", telegram: "no-bot" };
-  it("gives an Owner Add to Slack, and a Member only the words", () => {
-    expect(buttons(html(data(f)))).toContain("Add to Slack");
-    const m = html(data(f, { role: "member" }));
+  it("gives a Member the words and no button that sets up the Workspace", () => {
+    const m = html(data(f));
     expect(buttons(m)).not.toContain("Add to Slack");
     expect(m).toContain("An Owner or Admin connects Slack.");
-  });
-  it("says what Add to Slack came to when it brings the person back", () => {
-    expect(html(data(f), "Slack is connected.")).toContain("Slack is connected.");
   });
   it("offers a test and linking once Slack is connected", () => {
     const h = html(data({ ...f, slack: "connected" }));
@@ -87,9 +83,8 @@ describe("a Slack app on the Installation", () => {
 
 describe("a Telegram bot on the Installation", () => {
   const f: Facts = { mail: "both", slack: "no-app", telegram: "off" };
-  it("gives an Owner Turn on Telegram and a Member the words", () => {
-    expect(buttons(html(data(f)))).toContain("Turn on Telegram");
-    expect(buttons(html(data(f, { role: "member" })))).not.toContain("Turn on Telegram");
+  it("never offers a Member Turn on Telegram", () => {
+    expect(buttons(html(data(f)))).not.toContain("Turn on Telegram");
   });
   it("then Connect my Telegram to everyone, and a test once connected", () => {
     const on: Facts = { ...f, telegram: "on" };
@@ -101,17 +96,11 @@ describe("a Telegram bot on the Installation", () => {
 
 describe("everything on", () => {
   const all: Facts = { mail: "both", slack: "connected", telegram: "on" };
-  it("offers all three ways to be asked, keeps the saved first way and lists More ways", () => {
+  it("offers all three ways to be asked and keeps the saved first way", () => {
     const h = html(data(all, { telegramLinked: true, askedBy: ["slack"] }));
     expect(h).toContain('<option value="slack" selected="">Slack</option>');
-    expect(h).toContain("More ways");
-    expect(h).toContain('href="/settings/keys"');
     expect(h).toContain("Ask me by");
-  });
-  it("shows a Member the question about themselves, no Workspace questions and no More ways", () => {
-    const h = html(data(all, { role: "member" }));
     expect(h).toContain("How should you be asked?");
-    expect(h).not.toContain("How should people be asked and told?");
     expect(h).not.toContain("More ways");
     expect(h).not.toContain("Alerts");
   });

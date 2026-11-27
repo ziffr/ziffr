@@ -12,6 +12,8 @@ import { refuseInDemo } from "./demo";
 import { chosenHomeId, setHomeDashboard } from "./home";
 import { deleteMetric, MetricKept } from "./metrics";
 import { openOne } from "./sealed-columns";
+import { openFirstSteps, ownersFirstSteps } from "./first-steps";
+import { FIRST_STEPS_PATH } from "./first-steps-screens";
 import { setupLine } from "./setup-guide";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { drawsOnly, EXAMPLE_DASHBOARD, EXAMPLE_WORKFLOW, isRunningTrialOwner, makeTrialExample, testMetricId } from "./trial-seed";
@@ -24,8 +26,9 @@ export type StartChoices = {
   pack: boolean;
   /** Try the example: the Owner of a running trial. */
   example: boolean;
-  /** The viewer's Setup Guide, while its Setup line is shown. */
-  setup: { done: number; total: number } | null;
+  /** Where "Continue setting up" leads: an Owner's unfinished First Steps, or a Member's Setup Guide while its line is
+   * shown. */
+  setup: string | null;
   /** Someone else could share something with the viewer. */
   askColleague: boolean;
 };
@@ -57,11 +60,12 @@ export async function startChoices(actor: Actor, dashboards: DashboardAccess[]):
   if (test !== null && metrics.some((m) => m.id === test) && (seen.has(test) || dashboards.length)) {
     if (metrics.some((m) => m.id === test && m.archived_at) || (await hasValues(ws, test))) return null;
   }
-  const line = await setupLine(actor);
+  const [open, line, mayTry] = await Promise.all([openFirstSteps(actor), setupLine(actor), isRunningTrialOwner(actor)]);
   return {
     pack: actor.role === "owner" || actor.role === "admin",
-    example: await isRunningTrialOwner(actor),
-    setup: line.shown ? { done: line.done, total: line.total } : null,
+    // The coffee example is not offered to an Owner whose Workspace First Steps made (spec 0067).
+    example: mayTry && !(await ownersFirstSteps(actor)),
+    setup: open ? `${FIRST_STEPS_PATH}?step=${open.next}` : line.shown ? "/setup" : null,
     askColleague: actor.role !== "owner",
   };
 }

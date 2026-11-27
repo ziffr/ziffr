@@ -1,15 +1,14 @@
 // The Setup Guide's step bar (spec 0052; GLOSSARY: Setup Guide): an ordered list, each step a link with its state in
-// words (done, skipped, to do, comes next), never in colour alone. A step that is not built yet still opens, and says
-// what it will do, so no link leads nowhere.
+// words (done, skipped, to do), never in colour alone.
 import Link from "next/link";
 import type { SetupStep, SetupStepId } from "@ziffr/core/setup-steps";
 import { STEP_INFO } from "./step-info";
 
 function stateOf(s: SetupStep): string {
-  return s.ticked ? "Done" : s.skipped ? "Skipped" : STEP_INFO[s.id].built ? "To do" : "Comes next";
+  return s.ticked ? "Done" : s.skipped ? "Skipped" : "To do";
 }
 
-/** The viewer's steps in order, the one shown marked as the current step. On a phone: "Step 2 of 5" over one segment per step
+/** The viewer's steps in order, the one shown marked as the current step. On a phone: "Step 2 of 2" over one segment per step
  * (each a link at least 44 px tall, its state in words for screen readers); from the small breakpoint: the full list. */
 export function StepBar({ steps, current }: { steps: SetupStep[]; current: SetupStepId }) {
   const at = Math.max(0, steps.findIndex((s) => s.id === current));

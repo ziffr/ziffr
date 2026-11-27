@@ -72,7 +72,6 @@ export function didntArrive(i: CheckInput): Check[] {
     if (way === "telegram") out.push({ text: "Check that Telegram is connected for you, and that you did not block the bot.", href: "/connectors", label: "Check Telegram on Connectors" });
   }
   out.push({ text: "Check which ways Ziffr asks you by, and that the first one works for you.", href: "/settings/deliveries", label: "Your Deliveries" });
-  out.push({ text: "Send yourself a test message to see that the way reaches you at all.", href: "/setup?step=ways", label: "Send a test message" });
   if (i.quietUntil) out.push({ text: `Your Quiet Hours until ${i.quietUntil} hold it: it goes out when they end.`, href: "/settings/deliveries", label: "Quiet Hours" });
   out.push({ text: "See it in the Outbox: it says why a message stayed.", href: "/connectors/outbox", label: "Open the Outbox" });
   return out;

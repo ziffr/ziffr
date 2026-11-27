@@ -6,5 +6,5 @@ import { isDemo } from "@/lib/auth";
 
 /** The page; only ever a redirect. */
 export default async function TrialGuideMoved() {
-  redirect((await isDemo()) ? "/" : "/setup");
+  redirect("/");
 }

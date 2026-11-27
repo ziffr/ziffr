@@ -23,7 +23,7 @@ export type InviteMetric = { id: number; name: string; slug: string; canAsk: boo
 export type InviteGate =
   | { state: "open" }
   | { state: "ended" }
-  | { state: "waiting"; you: boolean; metric: InviteMetric | null }
+  | { state: "waiting"; you: boolean; metric: InviteMetric | null; firstSteps: boolean }
   | { state: "full"; limit: number };
 
 /** Whether a Trial Workspace's Owner has recorded a first value of their own (never one that came in through a Feed or
@@ -71,7 +71,11 @@ export async function inviteGate(actor: Actor): Promise<InviteGate> {
   if (ends.getTime() <= Date.now()) return { state: "ended" };
   if (!(await ownerHasOwnValue(ws))) {
     const you = actor.role === "owner";
-    return { state: "waiting", you, metric: you ? await metricToSend(actor) : null };
+    // An Owner of a Workspace First Steps made is sent to its value screen.
+    const [metric, guide] = you
+      ? await Promise.all([metricToSend(actor), db().from("setup_guides").select("first_steps_at").eq("workspace_id", actor.workspaceId).maybeSingle()])
+      : [null, null];
+    return { state: "waiting", you, metric, firstSteps: Boolean(guide?.data?.first_steps_at) };
   }
   // Members, open invitations and just-accepted ones, counted by the function the database's own refusal uses.
   const [{ data: taken, error }, limits] = await Promise.all([db().rpc("trial_people", { p_workspace: ws }), trialLimitsInEffect()]);

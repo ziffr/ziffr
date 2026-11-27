@@ -63,9 +63,10 @@ export function StartScreen({ choices }: { choices: StartChoices }) {
         )}
         {choices.setup && (
           <li>
-            <Link href="/setup" className={CHOICE}>
-              <Words icon={<ListChecks />} title={`Continue setup (${choices.setup.done} of ${choices.setup.total})`}>The Setup Guide, step by step.</Words>
-            </Link>
+            {/* A plain link: it may lead to First Steps, which draws its own frame, so the page is loaded anew. */}
+            <a href={choices.setup} className={CHOICE}>
+              <Words icon={<ListChecks />} title="Continue setting up">Carry on where you left off.</Words>
+            </a>
           </li>
         )}
       </ul>

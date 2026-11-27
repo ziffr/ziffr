@@ -194,7 +194,7 @@ function WorkspaceSwitcher({ account }: { account: Account | null }) {
       <DropdownMenuContent align="start" side={collapsed ? "right" : "bottom"} className="w-60">
         <WorkspaceChoices account={account} start={start} />
         <DropdownMenuGroup>
-          <DropdownMenuItem render={<Link href="/welcome?another=1" />}><Plus aria-hidden /> New workspace</DropdownMenuItem>
+          <DropdownMenuItem render={<a href="/first-steps?another=1" />}><Plus aria-hidden /> New workspace</DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
