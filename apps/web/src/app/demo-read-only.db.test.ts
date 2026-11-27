@@ -255,6 +255,7 @@ const CASES: Record<string, Case> = {
   // Reading or fetching a Pack is refused in the demo like a change: it would make work for an anonymous visitor.
   "pack-actions:readPack": { blocked: () => [PACK] },
   "pack-actions:exportAsPack": { reads: (i) => [{ id: "visitor/export", name: "Export", version: "1.0.0", summary: "An export.", author: "A visitor", license: "CC-BY-4.0" }, { metrics: [i.metric] }] },
+  "pack-actions:tryAsPack": { outside: "reads the file an export would write, for a try of its set-up; writes nothing; switched off" },
   "pack-actions:themeLogoPreview": { reads: () => [1] },
   "pack-guide-actions:readPackGuides": { reads: () => [] },
   "pack-guide-actions:readPackGuide": { reads: () => [1] },

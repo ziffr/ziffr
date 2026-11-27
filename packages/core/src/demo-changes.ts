@@ -124,6 +124,7 @@ const OUTSIDE: readonly string[] = [
   "installation-feedback-actions:approveFeedbackAction",
   "installation-feedback-actions:rejectFeedbackAction",
   "oauth/authorize/actions:answerConsent",
+  "pack-actions:tryAsPack",
   "settings-actions:setAppearance",
   "try/n8n/actions:makeN8nKey",
   "workspace-import-actions:openImported",

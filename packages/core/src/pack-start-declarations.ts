@@ -27,7 +27,8 @@ const plain = (v: unknown, max: number): string | undefined => (typeof v === "st
 const object = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 const some = <K extends string, V>(key: K, v: V | undefined) => (v === undefined ? {} : ({ [key]: v } as Record<K, V>));
 
-function setUpWords(raw: unknown): Partial<PackSetUpWords> {
+/** The words of a stored `setUp`, each checked again as it is read. */
+export function setUpWords(raw: unknown): Partial<PackSetUpWords> {
   const s = object(raw);
   const lines = (v: unknown, most: number) => (Array.isArray(v) ? v.slice(0, most).flatMap((x) => plain(x, L.listed) ?? []) : undefined);
   return { ...some("line", plain(s.line, L.line)), ...some("happens", lines(s.happens, L.happens)), ...some("needs", lines(s.needs, L.needs)) };
