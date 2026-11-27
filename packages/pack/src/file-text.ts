@@ -104,6 +104,8 @@ export const SLIDE_WORDS = `^${NO_ADDRESS}(?:${CHARS}|\\{(?:metrics|metric|perio
 // reverse the direction of text and invisible ones (zero-width spaces, soft hyphens, tag characters, lone surrogates). Markup and web addresses are data here, never rendered or followed as such.
 /** The pattern of what a person typed into the app. */
 export const APP_TEXT = "^[^\\p{Cc}\\p{Cs}\\u00AD\\u200B\\u2060\\uFEFF\\u{E0000}-\\u{E007F}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$";
+/** The characters `APP_TEXT` refuses, as the inside of a regular expression's class, for a rule that adds to them. */
+export const APP_REFUSED = APP_TEXT.slice("^[^".length, -"]*$".length);
 
 /** A text a person typed into the app, of at most `max` characters. */
 export const appText = (max: number, description = "text without control characters, line breaks or characters that reverse its direction"): Schema => ({ type: "string", maxLength: max, pattern: APP_TEXT, description });

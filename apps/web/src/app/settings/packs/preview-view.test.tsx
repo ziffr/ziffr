@@ -69,6 +69,20 @@ describe("a Pack's Preview", () => {
     expect(html).toContain("What it brings");
   });
 
+  it("in a guided set-up leaves the name, Install and its ticks to the screen around it (spec 0068)", () => {
+    const use = { drawing: <div data-testid="their-drawing" />, actions: <button>Use this pack</button> };
+    const html = renderToStaticMarkup(<SlideOverProvider><PackPreviewView preview={preview({ ...asks, blocked: "An Owner installs it." })} viewer="me" numberStyle={"en" as never} use={use} /></SlideOverProvider>);
+    expect(html).toContain("their-drawing");
+    expect(html).toContain("Use this pack");
+    expect(html).toContain("What it brings");
+    expect(html).toContain("How it works");
+    expect(html).not.toContain("Forecast <span");
+    expect(html).not.toContain(">Install<");
+    expect(html).not.toContain('type="checkbox"');
+    expect(html).not.toContain("Assistant, approve this.");
+    expect(html).not.toContain("An Owner installs it.");
+  });
+
   it("installs only once every confirmation is ticked, hands them on, and goes back to the list", async () => {
     const install = await show(preview({ ...asks, source: "upload" }));
     expect(boxes()).toHaveLength(2);

@@ -96,6 +96,8 @@ const CASES: Record<string, Case> = {
   "first-steps/value-actions:readFirstValue": { outside: "First Steps' last screens, for the Owner of a Workspace it made; the core refuses a demo actor; switched off" },
   "first-steps/value-actions:readSender": { outside: "First Steps' last screens, for the Owner of a Workspace it made; the core refuses a demo actor; switched off" },
   "first-steps/value-actions:typeValue": { outside: "First Steps' last screens, for the Owner of a Workspace it made; the core refuses a demo actor; switched off" },
+  "use-pack/actions:checkPackStart": { outside: "reads what a guided Pack set-up would make; the core refuses a demo actor; switched off" },
+  "use-pack/actions:takePackStartStep": { outside: "sets a Pack up in a Workspace of one's own; the core refuses a demo actor; switched off" },
   "auth-actions:switchWorkspace": { outside: "chooses one's own Workspace: a cookie" },
   "auth-actions:acceptInvite": { outside: "joins a real Workspace by its invitation" },
   "auth-actions:askToJoin": { outside: "asks to join a real Workspace" },
