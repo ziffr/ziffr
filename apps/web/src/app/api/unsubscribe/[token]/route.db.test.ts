@@ -42,6 +42,21 @@ describe("/api/unsubscribe/{token}", () => {
     const stopped = await POST(req("POST"), ctx(token));
     expect(stopped.status).toBe(200);
     expect(await emailOptedOut(w.actor(ann, "member"))).toBe(true);
+    const page = await stopped.text();
+    expect(page).not.toMatch(/Secret Project|ann-|sara-/);
+    const secret = /name="undo" value="([A-Za-z0-9_-]{43})"/.exec(page)![1];
+    // The same link again offers no Undo, and a GET never changes anything.
+    expect(await (await POST(req("POST"), ctx(token))).text()).not.toContain('name="undo"');
+    await GET(req("GET"), ctx(token));
+    expect(await emailOptedOut(w.actor(ann, "member"))).toBe(true);
+    const undo = (value: string) => POST(new Request("http://ziffr.test/api/unsubscribe/t", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ undo: value }) }), ctx(token));
+    expect((await undo("nonsense")).status).toBe(410);
+    expect(await emailOptedOut(w.actor(ann, "member"))).toBe(true);
+    expect((await undo(secret)).status).toBe(200);
+    expect(await emailOptedOut(w.actor(ann, "member"))).toBe(false);
+    // Used once: it neither switches anything on nor off again.
+    expect((await undo(secret)).status).toBe(410);
+    expect(await emailOptedOut(w.actor(ann, "member"))).toBe(false);
   });
   it("answers 404 for a token it does not know", async () => {
     expect((await GET(req("GET"), ctx("x".repeat(32)))).status).toBe(404);

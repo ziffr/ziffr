@@ -15,6 +15,7 @@ import { fromWorkflowTemplate } from "./team-templates";
 import { peopleIn } from "./submissions";
 import { getMetrics } from "./workspace-data";
 import { itemHash } from "./packs";
+import { stoppedWays } from "./prompt-reach";
 import { PLAIN, textPasses } from "./file-text";
 import { TELL_PEOPLE_PER_STEP } from "./alert-limits";
 import { PACK_POSITION_LIMITS } from "@ziffr/pack/pack-positions";
@@ -129,6 +130,16 @@ export type Blueprint = {
   /** Why this cannot be set up as asked; empty when it can. */
   problems: string[];
 };
+
+/** That Submitters of a Set up unsubscribed, so no email asks them, as one sentence; null when none did. For the
+ * person setting up, who will own these Metrics and so reads this on each of them. */
+export async function unsubscribedNote(actor: Actor, b: Blueprint): Promise<string | null> {
+  const stops = await stoppedWays(actor.workspaceId, [...new Set(b.metrics.flatMap((m) => m.submitters))]);
+  const ids = [...stops].filter(([, ways]) => ways.has("email")).map(([id]) => id);
+  if (!ids.length) return null;
+  if (ids.length === 1 && ids[0] === actor.personId) return "You unsubscribed from requests by email, so no email asks you. Switch them on under Your Deliveries.";
+  return `${listed(ids.map((id) => (id === actor.personId ? "You" : b.people.get(id)?.name ?? "Someone")))} unsubscribed from requests by email, so no email asks them.`;
+}
 
 /** A formula of a Pack's entries ({key}) with each key replaced by a Metric's slug. */
 export function withSlugs(formula: string, slug: (key: string) => string): string {

@@ -81,6 +81,13 @@ function named(ways: PromptWay[]): string {
   return labels.length > 1 ? `${labels.slice(0, -1).join(", ")} or ${labels[labels.length - 1]}` : labels[0];
 }
 
+/** Why a Delivery by a way the person stopped is not sent, as it is stored and shown in the Outbox. */
+export const STOPPED_REASON: Record<PromptWay, string> = { email: "They unsubscribed from requests by email.", slack: "They stopped reminders on Slack.", telegram: "They stopped reminders on Telegram." };
+/** A way someone stopped, as it stands beside their name under Who submits. */
+export const STOPPED_LINE: Record<PromptWay, string> = { email: "Not asked by email (unsubscribed)", slack: "Not asked on Slack (they stopped it)", telegram: "Not asked on Telegram (they stopped it)" };
+/** A way someone stopped, said to that person themselves. */
+export const STOPPED_SELF: Record<PromptWay, string> = { email: "You stopped requests for numbers by email.", slack: "You stopped requests for numbers on Slack.", telegram: "You stopped requests for numbers on Telegram." };
+
 /** Why no way reaches the person, as a sentence without any names (a stored reason holds none: Metric names are sealed):
  * "Not sent: this Metric takes values only by Slack, and they have no linked Slack account." */
 export function notSentReason(accepts: readonly SourceId[], mailReplies: boolean, reach: Record<PromptWay, boolean>): string {
@@ -93,8 +100,9 @@ export function notSentReason(accepts: readonly SourceId[], mailReplies: boolean
 /** The place to fix it for a way the person cannot be reached by: where they connect it. */
 export const FIX_HREF: Record<PromptWay, string> = { slack: "/connectors", telegram: "/connectors", email: "/settings/profile" };
 
-/** The next Prompt as the Metric page says it, per submitter: where it goes and why, or what to fix. */
-export type RouteView = { ok: boolean; text: string; why: string | null; fix: { label: string; href: string } | null };
+/** The next Prompt as the Metric page says it, per submitter: where it goes and why, or what to fix. `stopped` names a
+ * way they stopped while another way still reaches them. */
+export type RouteView = { ok: boolean; text: string; why: string | null; fix: { label: string; href: string } | null; stopped?: string };
 
 const FIX_LABEL: Record<PromptWay, string> = { slack: "Link Slack", telegram: "Connect Telegram", email: "Add an email address" };
 
@@ -125,4 +133,16 @@ export function describeRoutes(i: RoutesInput, routes: readonly Route[]): RouteV
   if (routes.length < 2) return view;
   const labels = routes.map((r) => WAY_LABEL[r.via as PromptWay]);
   return { ...view, text: `By ${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}` };
+}
+
+/** As `describeRoutes`, with the ways the person stopped taken out: nothing is sent by them (mail.ts, slack-send.ts,
+ * telegram-send.ts hold such a message back). A way they stopped is said when the Metric would allow it, also when
+ * their own choice does not name it. With every planned way stopped, nothing asks them: `ok` is false. */
+export function describeWithStops(i: RoutesInput, routes: readonly Route[], stopped: ReadonlySet<PromptWay>): RouteView {
+  const allowed = allowedWays(i.accepts, i.mailReplies);
+  const lines = PROMPT_WAYS.filter((w) => stopped.has(w) && allowed[w]).map((w) => STOPPED_LINE[w]).join(". ");
+  if (!lines) return describeRoutes(i, routes);
+  const open = routes.filter((r) => r.via !== null && !stopped.has(r.via));
+  if (!open.length && routes.length) return { ok: false, text: lines, why: null, fix: null };
+  return { ...describeRoutes(i, open), stopped: lines };
 }
