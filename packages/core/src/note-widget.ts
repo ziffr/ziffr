@@ -90,5 +90,6 @@ const ROW_PX = 36 + 16;
 export function noteRows(heading: string | null, text: string, writing: boolean): number {
   const lines = (t: string) => t.split("\n").reduce((n, line) => n + Math.max(1, Math.ceil(line.length / PHONE_LINE)), 0);
   const px = 56 + (heading ? (lines(heading) - 1) * LINE_PX : 0) + (text ? lines(text) * LINE_PX : 44) + 24;
-  return Math.min(60, Math.max(writing ? 7 : 3, Math.ceil((px + 16) / ROW_PX)));
+  // Written, it also holds the heading's field and the buttons, and its lines are larger.
+  return Math.min(60, Math.max(writing ? 8 : 3, Math.ceil((px + (writing ? 132 : 0) + 16) / ROW_PX)));
 }

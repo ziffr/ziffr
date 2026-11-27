@@ -29,11 +29,13 @@ function useOverflows(text: string) {
   return { ref, overflows };
 }
 
-/** A note's words in its card: they wrap, keep their line breaks and scroll where the card is too short. */
-export function NoteBody({ settings }: { settings: WidgetSettings }) {
+/** A note's words in its card: they wrap, keep their line breaks and scroll where the card is too short. A note with
+ * neither a heading nor words says so, rather than standing as an empty card. */
+export function NoteBody({ settings, heading }: { settings: WidgetSettings; heading?: string | null }) {
   const text = noteTextOf(settings);
   const { ref, overflows } = useOverflows(text);
   const blocks = noteBlocks(text);
+  if (!blocks.length && !heading) return <p className="widget-text-sm text-muted-foreground">Nothing written yet.</p>;
   return (
     <div ref={ref} tabIndex={overflows ? 0 : undefined} role={overflows ? "region" : undefined} aria-label={overflows ? "Note" : undefined} className="widget-text-sm h-full space-y-2 overflow-y-auto leading-relaxed [overflow-wrap:anywhere]">
       {/* Colour is not the only sign of a callout. */}

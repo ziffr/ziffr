@@ -38,8 +38,13 @@ describe("a note's words", () => {
     expect(host.textContent).toContain("Highlighted");
   });
 
-  it("draw nothing, and do not fail, for what is not words", async () => {
+  it("say that nothing is written, and do not fail, for what is not words", async () => {
     await mount(<NoteBody settings={{ note: { toString: 1 } as unknown as string }} />);
+    expect(host.textContent).toBe("Nothing written yet.");
+  });
+
+  it("leave a note with only a heading to its heading", async () => {
+    await mount(<NoteBody settings={{}} heading="Next steps" />);
     expect(host.textContent).toBe("");
   });
 });

@@ -19,7 +19,8 @@ import { DesignBoundary } from "./design-boundary";
 const StoryBody = dynamic(() => import("./story").then((m) => m.StoryBody));
 
 type Props = {
-  widget: Pick<Widget, "template" | "metric_ids" | "settings">;
+  /** The title is read only by a Note Widget, whose heading it is. */
+  widget: Pick<Widget, "template" | "metric_ids" | "settings"> & Partial<Pick<Widget, "title">>;
   data: CanvasData;
   onPointContext?: (metricId: number, period: string) => void;
   /** Right-click on one row of a breakdown. */
@@ -45,7 +46,7 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
   // A page sends only the series it draws; one placed or picked since is fetched, with a quiet placeholder meanwhile.
   const ready = useSeriesReady(widgetMetricIds(widget.metric_ids, widget.settings), data);
   // A Note Widget draws its own words and no Metric.
-  if (widget.template === "note") return <NoteBody settings={widget.settings} />;
+  if (widget.template === "note") return <NoteBody settings={widget.settings} heading={widget.title} />;
   // A widget of "all Metrics tagged X" with nothing this viewer may see says so, and nothing about what they may not (spec 0038).
   if (widget.settings.tagSource && widget.metric_ids.length === 0) return <TagEmpty view={widget.settings.tagView} />;
   if (!ready) return <div aria-busy="true" aria-label="Loading values" className="h-full min-h-16 w-full animate-pulse rounded-[var(--radius-input)] bg-muted/40" />;

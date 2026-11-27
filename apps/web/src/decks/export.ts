@@ -405,10 +405,10 @@ async function addWidget(pptx: Pptx, slide: Slide, id: TLShape["id"], widget: Sl
 function addNote(pptx: Pptx, slide: Slide, widget: SlideWidget, at: { x: number; y: number; w: number; h: number }, line?: string) {
   slide.addShape(pptx.ShapeType.roundRect, { ...at, rectRadius: 0.06, fill: { color: COTTON }, line: { color: RULE, width: 0.75 } });
   if (widget.settings.noteHighlight === true) slide.addShape(pptx.ShapeType.rect, { x: at.x, y: at.y + 0.06, w: 0.06, h: Math.max(at.h - 0.12, 0.1), fill: { color: INK_2 } });
-  const runs: Exclude<Parameters<Slide["addText"]>[0], string> = widget.title ? [{ text: widget.title, options: { fontSize: 14, bold: true, breakLine: true } }] : [];
+  const runs: Exclude<Parameters<Slide["addText"]>[0], string> = widget.title ? [{ text: widget.title, options: { fontSize: 20, bold: true, breakLine: true } }] : [];
   for (const b of noteBlocks(noteTextOf(widget.settings))) {
-    if (b.kind === "text") runs.push({ text: b.lines.join("\n"), options: { fontSize: 12, breakLine: true, paraSpaceAfter: 4 } });
-    else runs.push(...b.items.map((text, i) => ({ text, options: { fontSize: 12, breakLine: true, bullet: b.ordered ? { type: "number" as const, numberStartAt: b.start + i } : true } })));
+    if (b.kind === "text") runs.push({ text: b.lines.join("\n"), options: { fontSize: 16, breakLine: true, paraSpaceAfter: 6 } });
+    else runs.push(...b.items.map((text, i) => ({ text, options: { fontSize: 16, breakLine: true, bullet: b.ordered ? { type: "number" as const, numberStartAt: b.start + i } : true } })));
   }
   if (runs.length) slide.addText(runs, { x: at.x + 0.18, y: at.y + 0.12, w: at.w - 0.33, h: at.h - 0.24 - (line ? LINE_H : 0), color: INK, fontFace: FONT, valign: "top", margin: 0, fit: "shrink" });
   if (line) addPartLine(slide, line, at);

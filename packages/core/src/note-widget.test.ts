@@ -58,7 +58,8 @@ describe("paragraphs and lists", () => {
 describe("the room a note takes on a phone", () => {
   it("grows with its words and leaves room to write", () => {
     expect(noteRows(null, "Short.", false)).toBe(3);
-    expect(noteRows(null, "Short.", true)).toBe(7);
+    expect(noteRows(null, "Short.", true)).toBe(8);
+    expect(noteRows(null, "word ".repeat(100), true)).toBeGreaterThan(noteRows(null, "word ".repeat(100), false));
     expect(noteRows("A heading", "word ".repeat(100), false)).toBeGreaterThan(6);
     expect(noteRows(null, "x\n".repeat(500), false)).toBe(60);
   });
