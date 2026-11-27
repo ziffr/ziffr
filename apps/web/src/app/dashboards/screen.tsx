@@ -256,6 +256,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 <RecordActions offers={offers}>
                 <GridStage width={gridWidth} scale={scale} card={addCard}>
                 <ReactGridLayout
+                  key={add.gridKey}
                   layout={narrow ? stacked : layout}
                   width={gridWidth}
                   // While it can be changed the grid fills the desk, so a card can be dropped below the last widget.

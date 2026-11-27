@@ -62,7 +62,9 @@ export function useAddWidget({ dashboardId, mayChange, widgets, complete, put }:
   const [adding, setAdding] = useState(false);
   // What is being dragged: a card from the panel or a widget on the grid.
   const [carrying, setCarrying] = useState<"card" | "widget" | null>(null);
-  useEffect(() => setAdding(false), [dashboardId]);
+  const [drops, setDrops] = useState(0);
+  // Another dashboard, or the Read view, starts with the panel closed.
+  useEffect(() => setAdding(false), [dashboardId, mayChange]);
   const open = mayChange && adding;
   const opener = useRef<HTMLElement | null>(null);
   const picked = useRef<number | null>(null);
@@ -85,8 +87,9 @@ export function useAddWidget({ dashboardId, mayChange, widgets, complete, put }:
   const close = () => {
     setAdding(false);
     setCarrying(null);
-    // The Slide-over gives the focus back itself.
-    if (docked) opener.current?.focus();
+    // The Slide-over gives the focus back itself. Closed from outside the panel (Done, say), the focus stays where it is.
+    const at = document.activeElement;
+    if (docked && (!at || at === document.body || at.closest("#add-widget"))) opener.current?.focus();
   };
   const addFromPanel = (source: DropSource, from: number[]) => {
     if (docked) return void place(source, undefined, from);
@@ -109,8 +112,12 @@ export function useAddWidget({ dashboardId, mayChange, widgets, complete, put }:
      * over too, which must not stop counting as a card: its drop would then be measured twice at the grid's scale. */
     moveStart: () => setCarrying((c) => c ?? "widget"),
     moveEnd: () => setCarrying(null),
+    /** The grid's `key`: it starts afresh after each drop. The grid library can keep its drop placeholder after one,
+     * and while it does, it draws no widget that arrives, so the added one would show only after a reload. */
+    gridKey: drops,
     /** Something was dropped on the grid at `at`. */
     drop: (event: Event, at: Place) => {
+      setDrops((n) => n + 1);
       let source = getDrag();
       try {
         source = JSON.parse((event as DragEvent).dataTransfer?.getData("text/plain") ?? "") as DropSource;
