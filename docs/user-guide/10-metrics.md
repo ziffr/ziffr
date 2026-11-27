@@ -247,6 +247,8 @@ A Metric's page has one main button, and the rest sit in the **⋯** menu.
 | **⋯** → **Who can see this** | Opens a panel on the right that lists everyone with access and why: owner, a Share, a Group, a shared dashboard, or sending in values. For a Guest, people outside what is shared with them show as "Someone". | Everyone who sees the Metric |
 | **⋯** → **Versions** | Shows earlier states of the description and of how it is calculated (see below). | Everyone who sees the Metric |
 
+On [Analyze](13-analyze.md), **Add earlier values** under a question with too little history opens the same dialog with the ways that take pasted or uploaded values; the paste page then has **Back to Analyze** at the top.
+
 On a phone, **⋯** stays beside the Metric's name when it is the only button. The **Fill past periods** dialogs fit the screen: the title and **Close** stay where they are, the rest scrolls inside the dialog, and each button sits under its text.
 
 ## The Overview tab

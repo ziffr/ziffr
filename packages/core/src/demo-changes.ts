@@ -49,6 +49,7 @@ const READS: readonly string[] = [
   "metric-delete-actions:previewMetricDelete",
   "paste-actions:pasteTemplateFile",
   "paste-actions:previewPaste",
+  "picker-actions:pickerExample",
   "picker-actions:pickerList",
   "picker-actions:pickerRun",
   "quick-look-actions:metricQuickLook",

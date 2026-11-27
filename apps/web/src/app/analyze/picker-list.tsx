@@ -48,7 +48,7 @@ function EntryRow({ e, open, onPick, children }: { e: EntryView; open: boolean; 
           {!e.fit.ok && <span dir="auto" className="block break-words text-xs text-foreground/80" role="note">{e.short ? e.short.words : <><span className="font-medium">Not now.</span> {e.fit.reason}</>}</span>}
         </span>
       </button>
-      {!ok && e.short && <ShortHelp short={e.short} />}
+      {!ok && <ShortHelp entry={e} />}
       {ok && open && <div id={panel} className="space-y-3 border-t border-[var(--color-rule-2)] p-2.5"><EntryDetails e={e} />{children}</div>}
     </li>
   );

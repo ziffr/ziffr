@@ -10,6 +10,13 @@ vi.mock("server-only", () => ({}));
 const pushed: string[] = [];
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: (href: string) => pushed.push(href) }) }));
 vi.mock("@/app/paste-actions", () => ({ pasteTemplateFile: vi.fn() }));
+const asked = vi.fn();
+vi.mock("@/app/picker-actions", () => ({
+  pickerExample: async (entry: string, span: string) => {
+    asked(entry, span);
+    return { ok: true, style: "1,234.5", yearStart: { month: 1, day: 1 }, about: ["Orders"], takeaway: { kind: "answer", sentence: "Orders is usually 1,200.", refusal: null, notes: [], basis: "", cautions: [], assumptions: [], numbers: [], track: null, footer: null } };
+  },
+}));
 import { PickerGroups } from "./picker-list";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -45,6 +52,18 @@ describe("a question with too little history", () => {
     expect(dialog.textContent).not.toMatch(/Ask my assistant|Send from another system/);
     await act(async () => { [...dialog.querySelectorAll("button")].find((b) => b.textContent === "Open Paste history")!.click(); });
     expect(pushed).toEqual(["/paste-values?metric=steps&from=analyze"]);
+  });
+
+  it("shows an example on Sample Data, labelled as made up, and hides it again", async () => {
+    await mount(list());
+    const button = (words: string) => [...row("What is usual").querySelectorAll("button")].find((b) => b.textContent?.includes(words))!;
+    await act(async () => { button("See an example").click(); });
+    expect(asked).toHaveBeenCalledWith("usual", "day");
+    const example = row("What is usual").querySelector('[aria-label="Example on Sample Data"]')!;
+    expect(example.textContent).toContain("Made-up numbers of Orders, not yours. Nothing is saved.");
+    expect(example.textContent).toContain("Orders is usually 1,200.");
+    await act(async () => { button("Hide the example").click(); });
+    expect(row("What is usual").textContent).not.toContain("Orders is usually");
   });
 
   it("offers no way to add values to someone who may not", async () => {

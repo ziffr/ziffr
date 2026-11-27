@@ -12,15 +12,17 @@ import { yearStartOf } from "./fiscal-year";
 import { questionFor, sentenceFor, type Picked } from "./method-picker-names";
 import { entryOf, textsOf, type EntryId, type PickerEntry, type SettingDef, type SlotDef } from "./method-picker";
 import { fitList, groupsFor, metricsNeeded, periodsShort, type CanvasFact, type EntryFit } from "./method-picker-fit";
+import { exampleRun, type Example } from "./method-picker-example";
 import { shortWords, type History } from "./method-picker-short";
 import { readSettings, readSlotIds, recipeFileOf, runEntry, type PickWorld } from "./method-picker-run";
 import { pasteMetrics } from "./paste-values";
 import { endsOf } from "./takeaways/forecast";
 import type { AnalysisRecipe2 } from "./analysis-recipe";
 import { seriesBy, type Resolver } from "./display-periods";
-import type { Span } from "./periods";
+import { JANUARY, type Span, type YearStart } from "./periods";
+import type { NumberStyle } from "./number-style";
 import type { Takeaway } from "./takeaways/takeaway";
-import type { Metric } from "./types";
+import type { Metric, Period } from "./types";
 import { numberStyleOf } from "./workspace-settings";
 import { getMetrics } from "./workspace-data";
 
@@ -221,6 +223,23 @@ export async function runPicker(actor: Actor, request: unknown): Promise<PickerR
     recipe: recipeFileOf(entry, slots.held?.length, slots.drivers?.length),
     widget: entry.widget && settings.settings.ahead === undefined ? { template: entry.widget, metricIds: main, showTarget: entry.id === "reach-target" } : null,
   };
+}
+
+/** An example of one question, or why there is none. */
+export type PickerExample = ({ ok: true; style: NumberStyle; yearStart: YearStart } & Example) | { ok: false; message: string };
+
+const PERIODS: readonly Period[] = ["day", "week", "month", "quarter", "year"];
+
+/**
+ * The question run on Sample Data (method-picker-example.ts), counted at `span`. It takes no Metric id: no Metric or value of the
+ * Workspace is read, only how the Workspace writes numbers, and nothing is saved.
+ */
+export async function exampleFor(actor: Actor, entryId: unknown, span: unknown): Promise<PickerExample> {
+  const entry = entryOf(entryId);
+  const at = PERIODS.find((p) => p === span);
+  if (!entry || !at) return { ok: false, message: "Ziffr has no such example." };
+  const style = await numberStyleOf(actor.workspaceId);
+  return { ok: true, style, yearStart: JANUARY, ...exampleRun(entry.id, at, style) };
 }
 
 // A Metric set beside another must be counted at the same period: both are cut at the same date, period by period.

@@ -132,6 +132,7 @@ const CASES: Record<string, Case> = {
   "canvas-actions:canvasSet": { blocked: (i) => [[i.metric]] },
   "canvas-actions:canvasExplain": { nothing: "nothing is on the demo's analysis canvas to mark", blocked: (i) => [i.metric] },
   "canvas-actions:getHistory": { reads: (i) => [i.metric] },
+  "picker-actions:pickerExample": { reads: () => ["forecast", "month"] },
   "picker-actions:pickerList": { reads: (i) => [[i.metric]] },
   "picker-actions:pickerRun": { reads: (i) => [{ entry: "forecast", slots: { metric: [i.metric] } }] },
   "canvas-actions:assignInPlace": { open: (i) => [{ metricId: i.metric, period: i.period, assigneeId: "ben", kind: "task", text: "Check this" }] },
