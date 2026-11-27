@@ -2,7 +2,7 @@
   "format": "ziffr.pack/3",
   "id": "ziffr/saas-metrics",
   "name": "SaaS metrics",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "summary": "MRR and its movements, customers, churn, retention, CAC, cash and runway, with a monthly management report as dashboard and deck, a quarterly board deck, and the Workflows for the monthly and quarterly close.",
   "author": {
     "name": "Ziffr"
@@ -41,73 +41,29 @@
     "whatItsFor": [
       {
         "type": "text",
-        "text": "For a software business with subscriptions: recurring revenue and how it moved, customers, churn and retention, the cost of winning a customer, cash and runway, reported monthly and to the board each quarter."
+        "text": "For a software business with subscriptions. The month's figures are due on the third working day. Unusual ones are approved, then the month is locked. A dashboard and slides report the month, and a second deck is for the board each quarter."
       }
     ],
     "beforeYouStart": [
       {
         "type": "list",
         "items": [
-          "An **Owner** installs the Pack, because it holds a Theme. An Owner or Admin sets it up.",
+          "Recurring revenue and how it moved, customers, churn and retention.",
+          "Cost of winning a customer, cash and months of runway.",
           "The person who approves unusual values.",
-          "Room for **13 Metrics**. Tick fewer in Set up if you want fewer."
-        ]
-      }
-    ],
-    "firstSteps": [
-      {
-        "type": "heading",
-        "text": "Start here"
-      },
-      {
-        "type": "list",
-        "numbered": true,
-        "items": [
-          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
-          "Keep the Metrics ticked, with the dashboard **Monthly management report**, pick the Workflow **Monthly close** and its **Approver**, and choose **Set up**.",
-          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
-          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
-          "Open **Decks**, choose **From a Deck Template**, pick **Monthly management report** or **Quarterly board meeting** and a Metric for each Slot."
-        ]
-      }
-    ],
-    "eachPart": [
-      {
-        "type": "heading",
-        "text": "Metrics"
-      },
-      {
-        "type": "list",
-        "items": [
-          "**Monthly recurring revenue**, **New MRR**, **Expansion revenue** and **Churned MRR**.",
-          "**Active customers**, **Churn rate** and **Net revenue retention**.",
-          "**Customer acquisition cost** and **CAC payback**.",
-          "**Cash balance** and **Cash runway**.",
-          "Ziffr works out **Annual recurring revenue** and **Average revenue per account**."
-        ]
-      },
-      {
-        "type": "heading",
-        "text": "What shows and runs them"
-      },
-      {
-        "type": "list",
-        "items": [
-          "The dashboard **Monthly management report**, and the decks **Monthly management report** and **Quarterly board meeting**.",
-          "The Workflows **Monthly close**, due on the third working day, and **Quarter close**, due on the fifth, where every value is approved. Both lock the period. A figure that is still missing after its Due Date is asked from the Submitter's Stand-in. Choose a Stand-in for each Submitter in the Workflow box on the Metric's **Description** tab.",
-          "**Growth, smoothed**: a View Design that draws a Metric's growth and its three-month average.",
-          "The **SaaS metrics** Theme, which shows the Pack's logo."
+          "An **Owner** to install the Pack, because it holds a Theme.",
+          "Room for 13 Metrics in your Workspace."
         ]
       }
     ],
     "questions": [
       {
         "type": "heading",
-        "text": "How do I set up the quarterly Workflow?"
+        "text": "How do we close the quarter?"
       },
       {
         "type": "text",
-        "text": "Set up takes one Workflow. Make the other on the **Workflows** page with **New from a template**."
+        "text": "Setting up makes one Workflow. For the quarter, make **Quarter close** on the **Workflows** page with **New from a template**."
       }
     ]
   },

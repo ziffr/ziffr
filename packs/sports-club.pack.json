@@ -2,7 +2,7 @@
   "format": "ziffr.pack/3",
   "id": "ziffr/sports-club",
   "name": "Sports club",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "summary": "Members, joiners and leavers, attendance per training, fees received and volunteer hours, with a season dashboard and a Workflow that asks each coach for attendance after training.",
   "author": {
     "name": "Ziffr"
@@ -33,45 +33,16 @@
     "whatItsFor": [
       {
         "type": "text",
-        "text": "For a sports club: members coming and going, attendance at training, fees received and the hours volunteers give."
+        "text": "For a sports club. After each week of training the coaches are asked for attendance. Members, fees and volunteer hours come in monthly. A season dashboard shows them together."
       }
     ],
     "beforeYouStart": [
       {
         "type": "list",
         "items": [
-          "The coaches who report attendance, as members or Contacts of the Workspace.",
-          "Membership figures and fees, and the volunteers' hours.",
-          "Free room for the Metrics in your Workspace's size: the Set up form says how many it makes and how many fit."
-        ]
-      }
-    ],
-    "firstSteps": [
-      {
-        "type": "heading",
-        "text": "Start here"
-      },
-      {
-        "type": "list",
-        "numbered": true,
-        "items": [
-          "Open **Settings**, then **Packs**. Under this Pack, choose **Set up from this Pack**.",
-          "Keep the Metrics you want ticked, up to all 6, with the dashboard **Season overview** and the Workflow **After training**. Leave **Make me the Submitter of their values** ticked if you send the figures yourself, else untick it. Setting up sends no request unless you tick **Send the first requests now**. Choose **Set up**.",
-          "If someone else sends figures, do this right after Set up: open the **Setup Guide** from **Help**, choose **Team**, and under **Who is asked for what** pick the person for each Metric and press **Ask**. It lists your ten newest Metrics.",
-          "Send the first figures: open a Metric you submit and choose **Record a value**, or answer the request the Workflow sends at its next run.",
-          "Open **Dashboards** and then **Season overview**. It fills as values come in."
-        ]
-      }
-    ],
-    "eachPart": [
-      {
-        "type": "list",
-        "items": [
-          "**Members**, **Joiners** and **Leavers** by month.",
-          "**Attendance per training** by week, counted by the coach.",
-          "**Fees received** and **Volunteer hours** by month.",
-          "The dashboard **Season overview**.",
-          "The Workflow **After training**: due on the next working day, then published. A figure that is still missing after its Due Date is asked from the Submitter's Stand-in. Choose a Stand-in for each Submitter in the Workflow box on the Metric's **Description** tab."
+          "The coaches who report attendance.",
+          "Members, joiners, leavers, fees received and volunteer hours.",
+          "Room for 6 Metrics in your Workspace."
         ]
       }
     ],
@@ -82,7 +53,7 @@
       },
       {
         "type": "text",
-        "text": "No. Add the coach as a Contact under **Members and Groups**, then ask them for the attendance in the Setup Guide's **Team** step. A Contact answers by a personal form link, email or chat."
+        "text": "No. A coach can be a **Contact**, who answers by a personal form link, email or chat."
       }
     ]
   },

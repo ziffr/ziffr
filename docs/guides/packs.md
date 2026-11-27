@@ -282,9 +282,9 @@ Do not write it on a Derived Metric or a [Total](#totals): Ziffr calculates thos
 
 ### The Pack Guide
 
-`guide` is where you explain your Pack, read before installing (in the preview) and afterwards in Help, with the installed Pack. It has five sections, each optional, in this order and under Ziffr's own titles: `whatItsFor` (What it's for), `beforeYouStart` (Before you start), `firstSteps` (First steps), `eachPart` (Each part) and `questions` (Questions).
+`guide` is where you explain your Pack, read before installing (in the preview) and afterwards in Help, with the installed Pack. It has five sections, each optional, in this order and under Ziffr's own titles: `whatItsFor` (What it's for), `beforeYouStart` (What you need), `firstSteps` (First steps), `eachPart` (Each part) and `questions` (Questions).
 
-For a whole guide to learn from, read the one of Ziffr's [Sales forecast Pack](../../packs/sales-forecast.pack.json): what the Pack is for, what to have ready, a numbered **Start here**, each part and the questions people ask.
+Keep it short. Ziffr's own guides fill three sections, in at most 1,200 characters: what the Pack is for and how often something happens, what you need, and up to three questions. For one to learn from, read the guide of the [Sales forecast Pack](../../packs/sales-forecast.pack.json).
 
 A section is a list of blocks:
 

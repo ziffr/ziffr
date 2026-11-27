@@ -30,17 +30,22 @@ describe("the starting Packs", () => {
     expect(res.assistantTexts).toEqual([]);
   });
 
-  it.each(STARTING_PACKS)("%s has a guide in all five sections, with a numbered “Start here” that names its dashboards, decks and Workflows", (file) => {
+  // Spec 0068: what it is for, what you need and up to three Questions. The user guide holds the detail.
+  it.each(STARTING_PACKS)("%s has a short guide: what it is for, what you need and at most three Questions, in 1,200 characters", (file) => {
     const res = checkPack(startingPack(file));
     if (!res.ok) throw new Error("does not pass");
-    const { format, guide, contents } = res.pack;
+    const { format, guide = {} } = res.pack;
     expect(format).toBe("ziffr.pack/3");
-    for (const section of ["whatItsFor", "beforeYouStart", "firstSteps", "eachPart", "questions"] as const) expect(guide?.[section], section).toBeTruthy();
-    expect(guide!.firstSteps!.slice(0, 1)).toEqual([{ type: "heading", text: "Start here" }]);
-    expect(guide!.firstSteps!.some((b) => b.type === "list" && b.numbered === true && b.items.length >= 4)).toBe(true);
-    // Spelled as the Pack spells them, so the person finds them on the screens the guide sends them to.
-    const said = JSON.stringify(guide);
-    for (const item of [...(contents.dashboards ?? []), ...(contents.decks ?? []), ...(contents.workflows ?? [])]) expect(said).toContain(`**${item.template.name}**`);
+    expect(Object.keys(guide).filter((k) => k !== "questions")).toEqual(["whatItsFor", "beforeYouStart"]);
+    const questions = guide.questions ?? [];
+    expect(questions.filter((b) => b.type === "heading").length).toBeLessThanOrEqual(3);
+    if (questions.length) expect(questions[0].type).toBe("heading");
+    const shown = Object.values(guide).flat().flatMap((b) => (b.type === "list" ? b.items : [b.text])).join("").replaceAll("**", "");
+    expect(shown.length).toBeLessThanOrEqual(1200);
+    // What happens, and how often.
+    expect(JSON.stringify(guide.whatItsFor)).toMatch(/\b(?:day|daily|week|weekly|month|monthly|quarter|quarterly)\b/i);
+    // The steps of a set-up happen on its screens, so a guide sends nobody to them.
+    expect(shown).not.toMatch(/Start here|Set up from this Pack|Set up form|Setup Guide/i);
   });
 
   it.each(STARTING_PACKS)("%s says in everyday words what its set-up shows: a line, what happens and what is needed", (file) => {
@@ -167,7 +172,7 @@ describe("the starting Packs", () => {
     const res = checkPack(startingPack("saas-metrics.pack.json"));
     if (!res.ok) throw new Error("does not pass");
     const c = res.pack.contents;
-    expect(res.pack.version).toBe("2.4.0");
+    expect(res.pack.version).toBe("2.5.0");
     expect(res.pack.logo).toMatch(/^data:image\/svg\+xml;base64,/);
     expect(c.metrics!.every((e) => (e.metric.tags ?? []).length > 0)).toBe(true);
     expect(c.decks!.map((d) => d.key)).toEqual(["monthly-report", "quarterly-board"]);
