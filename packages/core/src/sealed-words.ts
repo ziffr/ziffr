@@ -8,11 +8,12 @@
 import { isSealed, type SealedAt, type WorkspaceCipher } from "./workspace-keys";
 import { mapConfigNumbers } from "./sealed-workflow";
 
-/** The words a widget keeps in its settings: a Finding's kicker, headline, subline, footnote and source. A widget's
- * title is a column of its own (`widgets.title`). Callouts and annotations are not in this list yet. */
-export const SETTING_WORDS = ["kicker", "headline", "subline", "footnote", "source"] as const;
+/** The words a widget keeps in its settings: a Finding's kicker, headline, subline, footnote and source, and a Note
+ * Widget's text. A widget's title is a column of its own (`widgets.title`). Callouts and annotations are not in this
+ * list yet. */
+export const SETTING_WORDS = ["kicker", "headline", "subline", "footnote", "source", "note"] as const;
 
-/** The words a Snapshot keeps editable: a widget's title and a Finding's words. */
+/** The words a Snapshot keeps editable: a widget's title, a Finding's words and a Note Widget's text. */
 export const WORD_KEYS = ["title", ...SETTING_WORDS] as const;
 
 type Obj = Record<string, unknown>;

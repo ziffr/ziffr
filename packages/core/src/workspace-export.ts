@@ -380,7 +380,7 @@ async function dashboardRecords(c: Ctx): Promise<void> {
     if (why) { skip("Dashboard", name, `Left out: ${why}`); continue; }
     const carried = doc.widgets.length;
     const lost = widgets.length - carried;
-    if (lost > 0) skip("Dashboard", name, `${lost} widget${lost === 1 ? "" : "s"} stay behind: free layouts and views the file does not know.`);
+    if (lost > 0) skip("Dashboard", name, `${lost} widget${lost === 1 ? "" : "s"} stay behind: note widgets, free layouts and views the file does not know.`);
     if (t.notices.length) skip("Dashboard", name, t.notices.join(" "));
     if (d.intro && String(d.intro).trim()) skip("Dashboard", name, "Its introduction stays behind: the file holds no dashboard introductions.");
     const label = `d${labelOf.dashboard.size + 1}`;

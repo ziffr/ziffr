@@ -1,6 +1,8 @@
-// Dashboards and widgets (GLOSSARY: Dashboard, Widget, Widget Template, Pool, Free Layout, Analysis Canvas). Every
-// function takes the Actor first and works only inside the actor's Workspace: owners and Editors change a dashboard,
-// saved widgets are their owner's, and every Metric a widget draws must be one the actor sees.
+// Dashboards and widgets (GLOSSARY: Dashboard, Widget, Widget Template, Pool, Note Widget, Free Layout, Analysis
+// Canvas). Every function takes the Actor first and works only inside the actor's Workspace: owners and Editors change
+// a dashboard, saved widgets are their owner's, and every Metric a widget draws must be one the actor sees. A Note
+// Widget draws none: it keeps only its words, checked here. A Free Layout is made or changed only where the slide
+// editor that draws it has its key.
 import { db } from "./db";
 import { insertSealed, openOne, openRows, sealedPatch, sealRow } from "./sealed-columns";
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
@@ -27,6 +29,9 @@ import { checkTagSource } from "./tag-widgets";
 import { tagSourceId, takesTagSource, withoutNestedTagSources } from "./tag-source";
 import { SLOPE_CHOICES } from "./view-design";
 import type { TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "./types";
+import { cleanNoteHeading, cleanNoteText, NOTE_HEADING_MAX, type NoteWords } from "./note-widget";
+import { slideEditorLicenseKey } from "./slide-editor-license";
+import { settingsInEffect } from "./settings-in-effect";
 import { explainedOf, markAfterRemoval } from "./canvas-roles";
 
 /** What can be dropped onto a dashboard or saved to the Pool. */
@@ -75,6 +80,28 @@ function fromBrowser(s: unknown, keep?: WidgetSettings["canvasSeed"]): WidgetSet
   else if (sent === null) v.canvasSeed = null;
   return v;
 }
+
+/** What a refusal says where a Free Layout cannot be drawn. */
+const NO_FREE_LAYOUTS_HERE = "Free layouts cannot be added or changed here: this Ziffr has no license key for the slide editor. The ones already made are kept.";
+
+/** Refuses what would make or change a Free Layout where it cannot be drawn: this Ziffr has no slide editor key.
+ * Showing, moving and removing one stay, so nothing is lost. */
+async function assertFreeLayouts() {
+  if (!slideEditorLicenseKey((await settingsInEffect()).ZIFFR_TLDRAW_LICENSE_KEY)) throw new Refused(NO_FREE_LAYOUTS_HERE);
+}
+
+const kept = (words: NoteWords) => {
+  if (!words.ok) throw new Refused(words.problem);
+  return words.text;
+};
+/** A Note Widget's settings as they are kept: its text and its look, and nothing else a browser sent, so a note never
+ * draws a Metric or holds a drawing. The text is untrusted and shown to others: cleaned and within its limits. */
+function noteSettings(actor: Actor, sent: unknown): WidgetSettings {
+  const s = (sent && typeof sent === "object" ? sent : {}) as WidgetSettings;
+  return visitorSettings(actor, { note: kept(cleanNoteText(s.note)), ...(s.noteHighlight === true ? { noteHighlight: true } : {}) });
+}
+/** A Note Widget's heading, kept as its title: one line within its limit, or none. */
+const noteHeading = (actor: Actor, sent: unknown) => String(visitorOptionalText(actor, kept(cleanNoteHeading(sent)), "name")) || null;
 
 /** In a demo visit, checks that a widget's settings are small, that the dashboard's widgets stay under their total and that the visit
  * has room in its window, before the write that holds them (no half-done change). Nothing elsewhere. */
@@ -137,8 +164,15 @@ async function fromTeamTemplate(actor: Actor, id: number, fills: number[][] | un
   return { ...w, w: t.w, h: t.h };
 }
 
-/** What a dropped thing becomes as a widget: checked that the actor may open it and sees every Metric it draws. */
+/** What a dropped thing becomes as a widget: checked that the actor may open it and sees every Metric it draws. A
+ * Free Layout, also a copy of one, is made only where it can be drawn. */
 export async function specFrom(actor: Actor, source: DropSource) {
+  const spec = await droppedSpec(actor, source);
+  if (spec.template === "canvas") await assertFreeLayouts();
+  return spec;
+}
+
+async function droppedSpec(actor: Actor, source: DropSource) {
   if (source?.type === "metric") {
     await assertSeesMetrics(actor, [Number(source.id)]);
     const t = TEMPLATES[DEFAULT_TEMPLATE];
@@ -157,6 +191,10 @@ export async function specFrom(actor: Actor, source: DropSource) {
   }
   if (source?.type === "template") return fromTeamTemplate(actor, Number(source.id), source.fills);
   if (source?.type !== "spec" || !isDashboardView(source.template)) throw new Forbidden();
+  if (source.template === "note") {
+    // Whatever Metrics were sent with it are dropped: a note draws none.
+    return { template: source.template, metric_ids: [] as number[], settings: noteSettings(actor, source.settings), title: noteHeading(actor, source.title), ...TEMPLATES.note.size };
+  }
   let metricIds = ids(source.metricIds);
   const s = visitorSettings(actor, fromBrowser(source.settings ?? TEMPLATES[source.template].settings));
   // "All Metrics tagged X" (spec 0038) replaces the list: nothing is stored of the Metrics the person sees now.
@@ -238,6 +276,9 @@ export async function saveLayout(actor: Actor, dashboardId: number, items: { i: 
 export async function updateWidget(actor: Actor, id: number, patch: { template?: TemplateId; settings?: WidgetSettings; title?: string | null; metricIds?: number[] }) {
   const cur = await editableWidget(actor, id);
   if (patch.template && !isDashboardView(patch.template)) throw new Forbidden();
+  // Where a Free Layout cannot be drawn it is kept as it is: not changed, and not turned into another view.
+  if (cur.template === "canvas" || patch.template === "canvas") await assertFreeLayouts();
+  if (cur.template === "note" || patch.template === "note") return updateNote(actor, cur, patch);
   const metricIds = patch.metricIds ? ids(patch.metricIds) : undefined;
   const newSettings = patch.settings !== undefined ? visitorSettings(actor, fromBrowser(patch.settings, cur.settings?.canvasSeed)) : undefined;
   // A View Design of the Workspace, or the one the widget has; any other view keeps none (spec 0024).
@@ -254,8 +295,6 @@ export async function updateWidget(actor: Actor, id: number, patch: { template?:
   if (metricIdsNow || newSettings) await assertSeesMetrics(actor, widgetMetricIds(metricIdsNow ?? cur.metric_ids ?? [], newSettings));
   if (metricIdsNow || newSettings) await visitorSharedStaysSeen(actor, "dashboard", cur.dashboard_id, widgetMetricIds(metricIdsNow ?? cur.metric_ids ?? [], newSettings ?? cur.settings));
   if (newSettings) await assertVisitorRoom(actor, cur.dashboard_id, newSettings, id);
-  await ensureBaseline("widget", id, actor.personId);
-  if (cur.dashboard_id) await ensureBaseline("dashboard", cur.dashboard_id, actor.personId);
   const update: Record<string, unknown> = {};
   if (patch.title !== undefined) update.title = title(visitorOptionalText(actor, patch.title, "name"));
   if (metricIdsNow) update.metric_ids = metricIdsNow;
@@ -274,15 +313,38 @@ export async function updateWidget(actor: Actor, id: number, patch: { template?:
     // A composed story starts with one panel: this Metric's change on the previous year, as period bars.
     if (patch.template === "story") update.settings = { ...(update.settings as object), panels: [{ type: "period-bars", metricIds: cur.metric_ids ?? [], measure: "pct-yoy", periods: 6, highlight: "projection", projections: true }] };
   }
-  const { error } = await db().from("widgets").update(await sealedPatch("widgets", actor.workspaceId, id, update)).eq("id", id).eq("workspace_id", actor.workspaceId);
+  await writeWidget(actor, cur, update);
+}
+
+/** Changes a Note Widget's heading, text or look. A note stays a note and a view stays a view: nothing a widget drew
+ * is turned into words, or the other way round. */
+async function updateNote(actor: Actor, cur: Widget, patch: Parameters<typeof updateWidget>[2]) {
+  if (cur.template !== "note" || (patch.template && patch.template !== "note")) throw new Refused("A note widget stays a note widget. Add another widget instead.");
+  if (patch.metricIds?.length) throw new Refused("A note widget draws no Metric.");
+  const update: Record<string, unknown> = {};
+  if (patch.settings !== undefined) {
+    update.settings = noteSettings(actor, patch.settings);
+    await assertVisitorRoom(actor, cur.dashboard_id, update.settings, cur.id);
+  }
+  if (patch.title !== undefined) update.title = noteHeading(actor, patch.title);
+  if (Object.keys(update).length) await writeWidget(actor, cur, update);
+}
+
+/** Writes a widget's changed columns, its words sealed, as a Version of the widget and of its dashboard. */
+async function writeWidget(actor: Actor, cur: Widget, update: Record<string, unknown>) {
+  await ensureBaseline("widget", cur.id, actor.personId);
+  if (cur.dashboard_id) await ensureBaseline("dashboard", cur.dashboard_id, actor.personId);
+  const { error } = await db().from("widgets").update(await sealedPatch("widgets", actor.workspaceId, cur.id, update)).eq("id", cur.id).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The widget could not be updated.");
-  await recordVersion("widget", id, actor.personId);
+  await recordVersion("widget", cur.id, actor.personId);
   if (cur.dashboard_id) await recordVersion("dashboard", cur.dashboard_id, actor.personId);
 }
 
 /** Turns a widget into a team template, filled with these Metrics. */
 export async function applyTemplate(actor: Actor, id: number, templateId: number, fills: number[][]) {
   const cur = await editableWidget(actor, id);
+  if (cur.template === "canvas") await assertFreeLayouts();
+  if (cur.template === "note") throw new Refused("A note widget stays a note widget. Add another widget instead.");
   const w = await fromTeamTemplate(actor, templateId, fills);
   await assertVisitorRoom(actor, cur.dashboard_id, w.settings, id);
   await visitorSharedStaysSeen(actor, "dashboard", cur.dashboard_id, widgetMetricIds(w.metric_ids ?? [], w.settings));
@@ -307,7 +369,9 @@ export async function saveToPool(actor: Actor, source: DropSource, name: string)
   assertCan(actor, "create");
   const spec = await specFrom(actor, source);
   await assertVisitorRoom(actor, null, spec.settings);
-  await insertSealed("widgets", actor.workspaceId, [{ ...spec, title: title(visitorOptionalText(actor, name, "name")), owner_id: actor.personId, dashboard_id: null, saved: true }]);
+  const named = title(visitorOptionalText(actor, name, "name"));
+  // A note's name is also its heading, so it keeps to a heading's length.
+  await insertSealed("widgets", actor.workspaceId, [{ ...spec, title: spec.template === "note" ? named?.slice(0, NOTE_HEADING_MAX) ?? null : named, owner_id: actor.personId, dashboard_id: null, saved: true }]);
 }
 
 /** Deletes one of the actor's saved widgets. */
