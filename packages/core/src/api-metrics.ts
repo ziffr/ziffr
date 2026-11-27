@@ -16,7 +16,7 @@ import { setMetricTags } from "./tags";
 import { checkWorkflowChoice, type WorkflowRef } from "./api-metric-workflow";
 import { db } from "./db";
 import { openOne } from "./sealed-columns";
-import { addSubmitters, assertSubmittersIn, createMetric, deleteMetric, editableMetric, metricEffects, removeSubmitters, sealedSeriesSaves, setMetricSources, SUBMITTERS_PER_CHANGE, TooManyMetrics, updateMetricDetails, type MetricEffects } from "./metrics";
+import { addSubmitters, assertSubmittersIn, claimFirstPrompt, createMetric, deleteMetric, editableMetric, metricEffects, removeSubmitters, sealedSeriesSaves, setMetricSources, SUBMITTERS_PER_CHANGE, TooManyMetrics, updateMetricDetails, type MetricEffects } from "./metrics";
 import { addFeedToMetric, removeFeedFromMetric } from "./feeds";
 import { archiveMetric, restoreMetric } from "./archived-metrics";
 import { yearStartFor } from "./fiscal-year";
@@ -82,9 +82,8 @@ export const FIRST_PROMPTS_PER_PERSON_PER_DAY = 5;
  * step under a lock, so parallel calls cannot each pass. */
 function keyPrompts(workspaceId: string, effects: MetricEffects): MetricEffects["promptSubmitter"] {
   return async (metricId, submitterId, by) => {
-    const { data, error } = await db().rpc("claim_first_prompt", { p_workspace: workspaceId, p_submitter: submitterId, p_metric: metricId, p_limit: FIRST_PROMPTS_PER_PERSON_PER_DAY });
-    if (error) throw new Error("The first Prompt could not be checked.");
-    return data === true ? effects.promptSubmitter(metricId, submitterId, by) : false;
+    const may = await claimFirstPrompt(workspaceId, metricId, submitterId, FIRST_PROMPTS_PER_PERSON_PER_DAY);
+    return may ? effects.promptSubmitter(metricId, submitterId, by) : false;
   };
 }
 
@@ -513,7 +512,7 @@ export async function listSubmittersWithKey(actor: Actor | KeyActor, slug: strin
 }
 
 /** Adds and removes Submitters of a Metric for a key with metrics:edit, as its creator: only when they own the Metric
- * or are its Editor, as on its page. People and Contacts get a Token and a first Prompt; a Feed is added as on the
+ * or are its Editor, as on its page (an Editor adds only people who see it already). People and Contacts get a Token and a first Prompt; a Feed is added as on the
  * Metric's page, turning the API Source on. At most SUBMITTERS_PER_CHANGE each way, all checked first. */
 export async function setSubmittersWithKey(actor: Actor | KeyActor, slug: string, change: { add?: string[]; remove?: string[] }, effects: MetricEffects = metricEffects): Promise<{ submitters: ApiSubmitter[]; added: number; removed: number }> {
   const { creator, metric } = await changeableByKey(actor, slug);
@@ -527,7 +526,8 @@ export async function setSubmittersWithKey(actor: Actor | KeyActor, slug: string
   const rmFeeds = new Set(rm.filter((x) => current.has(x)));
   const keyName = actor.key ? await nameOf(actor) : null;
   let added = 0; let removed = 0;
-  await withVersionNote(keyName ? `Changed through the API (key “${keyName}”)` : "Changed through the API", async () => {
+  // The Audit Log names the key beside its creator.
+  await asKey(actor, () => withVersionNote(keyName ? `Changed through the API (key “${keyName}”)` : "Changed through the API", async () => {
     const id = metric.id as number;
     // Additions first: they are what can still fail (a Feed deleted meanwhile), and then nothing was removed yet.
     if (add.people.length) added += (await addSubmitters(creator, id, add.people, { ...effects, promptSubmitter: keyPrompts(actor.workspaceId, effects) })).length;
@@ -535,7 +535,7 @@ export async function setSubmittersWithKey(actor: Actor | KeyActor, slug: string
     const rmPeople = [...new Set(rm.filter((x) => !rmFeeds.has(x)))];
     if (rmPeople.length) removed += (await removeSubmitters(creator, id, rmPeople)).length;
     for (const f of rmFeeds) { await removeFeedFromMetric(creator, id, f); removed++; }
-  });
+  }));
   return { submitters: await listSubmittersWithKey(creator, slug), added, removed };
 }
 

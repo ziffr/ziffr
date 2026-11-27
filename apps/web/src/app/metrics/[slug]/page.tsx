@@ -4,7 +4,7 @@ import { tagsLeftOffEntry } from "@ziffr/core/pack-tags";
 import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { KeyRound, Lock, MessageSquare, Sigma } from "lucide-react";
+import { Lock, MessageSquare, Sigma } from "lucide-react";
 import { getAllSeries, getAttainmentMethod, getBreakdowns, getLastValues, getNumberStyle, getProfiles, getSeriesValues, getYearStart } from "@/lib/data";
 import { ATTAINMENT_METHOD_LABEL, methodFor } from "@ziffr/core/attainment-method";
 import { CompareTable } from "@/components/compare-table";
@@ -24,7 +24,7 @@ import { handOverChoices } from "@ziffr/core/metric-owner";
 import { HandOver } from "./hand-over";
 import { canEditMetric } from "@ziffr/core/metrics";
 import { firstAsksFor } from "@ziffr/core/first-asks";
-import { NextPrompt } from "./next-prompt";
+import { WhoSubmits } from "./who-submits";
 import { SourcesEditor } from "./sources-editor";
 import { EditDetails } from "./edit-details";
 import { MetricTagChips, MetricTagsRow } from "./metric-tags";
@@ -36,9 +36,7 @@ import { EnteredBy, ValueMarks } from "./value-marks";
 import { can } from "@ziffr/core/actor";
 import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
-import { feedTemplates } from "@ziffr/core/feed-template-download";
 import { mcpAddress } from "@/lib/remote-mcp";
-import { FeedControls, RemoveFeed } from "./feed-picker";
 import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { FORECAST_MIN_POINTS } from "@ziffr/core/forecast";
 import { bestForecast, forecastTooWide, NO_FORECAST_WIDE, withTakeawayBand } from "@ziffr/core/methods/forecast-choice";
@@ -257,7 +255,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       {tab === "overview" && (
         <div className="space-y-6">
           {derivedProblem || points.length === 0 ? (
-            <NoValues metric={metric} problem={derivedProblem} seen={seenMetrics} aimed={aimedTargets} />
+            <NoValues metric={metric} problem={derivedProblem} seen={seenMetrics} aimed={aimedTargets} offer={record} />
           ) : (
             <MetricWorkspace numberStyle={numberStyle} metric={shown} points={points} forecast={fcBand} forecastNote={!fc && points.length > 0 ? (forecastTooWide(points) ? NO_FORECAST_WIDE : `Forecast once there are ${FORECAST_MIN_POINTS} ${metric.period}s of values`) : null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
           )}
@@ -426,27 +424,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           </section>
           {!metric.formula && <RetentionBox metric={metric} demo={demo} suggest={sp.suggest} />}
           {!metric.formula && <MetricWorkflow metric={metric} yearStart={yearStart} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for && !t.feed).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={isOwner} fillIn={fillIn} guestStandIn={guestStandIn} numberStyle={numberStyle} />}
-          {!metric.formula && (
-            <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
-              <h2 className="mb-1 flex items-center gap-2 font-medium"><KeyRound className="size-4" /> Who submits</h2>
-              <p className="mb-3 text-xs text-muted-foreground">Who may send values for this metric. Ziffr recognises them by their Slack name or mail address, or by their personal form link.</p>
-              <ul className="space-y-2">
-                {tokens.map((t) => (
-                  <li key={t.id} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
-                    <Person p={peopleById[t.submitter_id]} />
-                    {t.feed ? (
-                      <span className="flex items-center gap-2 text-xs text-muted-foreground">Feed{canEdit && <RemoveFeed metricId={metric.id} feedId={t.submitter_id} name={peopleById[t.submitter_id]?.name ?? "this Feed"} />}</span>
-                    ) : !t.code ? null : metric.sources.includes("web_form") ? (
-                      <Link href={`/submit/${t.code}`} className="text-xs underline">Open form link</Link>
-                    ) : <code className="fig text-xs text-muted-foreground">{t.code}</code>}
-                    {!t.feed && promptWays[t.submitter_id] && <NextPrompt view={promptWays[t.submitter_id]} />}
-                  </li>
-                ))}
-                {!tokens.length && <li className="text-muted-foreground">Nobody yet.</li>}
-              </ul>
-              {canEdit && <FeedControls metric={{ id: metric.id, name: metric.name }} choices={choices} taken={tokens.map((t) => t.submitter_id)} role={actor.role} demo={demo} templates={feedTemplates()} />}
-            </section>
-          )}
+          {!metric.formula && <WhoSubmits actor={actor} metric={metric} tokens={tokens} people={peopleById} promptWays={promptWays} canEdit={canEdit} demo={demo} workflow={workflowId !== null} feeds={choices} />}
         </div>
       )}
     </>

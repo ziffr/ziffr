@@ -13,6 +13,7 @@ import type { Annotation } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { periodLabel } from "@ziffr/core/periods";
 import { useWidgetScale } from "./widget-scale";
+import { hasNoValues, NoValuesNote } from "./no-values-note";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings">;
 
@@ -114,6 +115,8 @@ export function StoryBody({ widget, data, m, onRowContext }: { widget: W; data: 
           <Share numberStyle={data.numberStyle} rows={b.rows} m={m} highlight={b.highlight?.label} sum={b.sum} onRowContext={onRowContext && b.period ? (l) => onRowContext(l, b.period!) : undefined} />
         ) : widget.template === "pictogram" ? (
           <Pictogram rows={b.rows} highlight={b.highlight} sum={b.sum} />
+        ) : hasNoValues([m], data) ? (
+          <NoValuesNote metrics={[m]} template="line" past={Boolean(s.asOf)} />
         ) : (
           <StoryLine widget={widget} data={data} m={m} />
         )}
@@ -270,7 +273,9 @@ function ComposedStory({ widget, data, headline, subline, source }: { widget: W;
               panel={panel}
               data={data}
               render={(m, domain) =>
-                panel.type === "period-bars" ? <PeriodBars m={m} data={data} panel={panel} domain={domain} />
+                // Projections alone still make period bars; anything else with no value says so instead of drawing nothing.
+                hasNoValues([m], data) && !(panel.type === "period-bars" && measureSeries(m, data, panel).length) ? <NoValuesNote metrics={[m]} template={panel.type === "line" ? "line" : panel.type === "period-bars" ? "bars" : ""} past={Boolean(s.asOf)} />
+                : panel.type === "period-bars" ? <PeriodBars m={m} data={data} panel={panel} domain={domain} />
                 : panel.type === "bridge" ? <Bridge m={m} data={data} panel={panel} />
                 : panel.type === "ranked" ? <Ranked numberStyle={data.numberStyle} rows={storyBreakdown(single(panel, m), data, m).rows} m={m} highlight={storyBreakdown(single(panel, m), data, m).highlight?.label} sum={storyBreakdown(single(panel, m), data, m).additive ? storyBreakdown(single(panel, m), data, m).sum : null} annotations={panel.annotations} />
                 : panel.type === "share" ? <Share numberStyle={data.numberStyle} rows={storyBreakdown(single(panel, m), data, m).rows} m={m} highlight={storyBreakdown(single(panel, m), data, m).highlight?.label} sum={storyBreakdown(single(panel, m), data, m).sum} />
