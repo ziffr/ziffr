@@ -114,7 +114,8 @@ describe("Set-up questions", () => {
   });
 
   it("show what the core refused at its field, focus it and download nothing", async () => {
-    actions.checkPackDescription.mockResolvedValue({ guide: [], numbers: [], setUp: [{ field: "line", message: "must be plain text, without markup or web addresses." }] });
+    // The checks answer in the file's order, not the page's.
+    actions.checkPackDescription.mockResolvedValue({ guide: [], numbers: [], setUp: [{ field: "happens.0", message: "must not be empty." }, { field: "line", message: "must be plain text, without markup or web addresses." }] });
     await describing();
     await type(control(/^In one sentence/), "<b>");
     await press(/Download Pack/);

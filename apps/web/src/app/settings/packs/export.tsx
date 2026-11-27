@@ -68,9 +68,11 @@ export function ExportPack({ options, defaultAuthor = "", viewer, numberStyle }:
     const { guide, numbers, setUp } = unwrap(await checkPackDescription(description.guide, description.comesFrom, description.setUp && { choice: picked, setUp: description.setUp }));
     description.refused(guide, numbers, setUp);
     // The first field with a problem takes the focus, so it is seen on a small screen too.
-    const first = numbers.length ? `[data-number-field="${CSS.escape(numbers[0].ref)}"]` : guide.length ? `[data-guide-field="${guide[0].section ?? "whatItsFor"}"]` : setUp.length ? `[data-set-up-field="${CSS.escape(setUp[0].field)}"]` : null;
-    if (first) document.querySelector<HTMLElement>(first)?.focus();
-    return !first;
+    const above = numbers.length ? `[data-number-field="${CSS.escape(numbers[0].ref)}"]` : guide.length ? `[data-guide-field="${guide[0].section ?? "whatItsFor"}"]` : null;
+    // Of the set-up questions the first on the page: the checks answer in the file's order.
+    const first = above ? document.querySelector<HTMLElement>(above) : [...document.querySelectorAll<HTMLElement>("[data-set-up-field]")].find((e) => setUp.some((p) => p.field === e.dataset.setUpField));
+    first?.focus();
+    return !above && !setUp.length;
   };
   const file = () => [{ ...m, ...(upload ? { logo: { data: upload } } : logoTheme !== null ? { logo: { themeId: logoTheme } } : {}) }, picked, withTags, { guide: description.guide, comesFrom: description.comesFrom, setUp: description.setUp }] as const;
   const tryIt = () => start(async () => {
