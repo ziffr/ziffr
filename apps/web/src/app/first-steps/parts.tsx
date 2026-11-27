@@ -25,7 +25,7 @@ export function Choices({ columns, children }: { columns?: boolean; children: Re
 
 /** One choice: a whole card to press. `selected` gives a button that holds an answer its state, shown by a tick as well
  * as by its border; a choice that only leads on has none and may name what it does (`action`). */
-export function Choice({ title, hint, action, selected, onPick }: { title: string; hint?: string; action?: string; selected?: boolean; onPick: () => void }) {
+export function Choice({ title, hint, action, selected, onPick }: { title: string; hint?: React.ReactNode; action?: string; selected?: boolean; onPick: () => void }) {
   return (
     <button
       type="button" aria-pressed={selected} onClick={onPick}

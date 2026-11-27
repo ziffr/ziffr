@@ -22,10 +22,11 @@ export function FirstStepsFlow({ context }: { context: FirstStepsContext }) {
 // How many First Steps entries lie behind this one in the browser's history; a freshly loaded page has none.
 const depth = () => (window.history.state as { firstSteps?: number } | null)?.firstSteps ?? 0;
 
-function urlOf(screen: FirstStepsScreen): string {
+function urlOf(screen: FirstStepsScreen, more: Record<string, string> = {}): string {
   const query = new URLSearchParams(window.location.search);
   query.delete("unsaved");
   query.set("step", screen);
+  for (const [name, value] of Object.entries(more)) query.set(name, value);
   return `${window.location.pathname}?${query}`;
 }
 
@@ -51,8 +52,8 @@ function Flow({ context }: { context: FirstStepsContext }) {
     keepDraft(key, kept);
     return kept;
   }
-  function go(to: FirstStepsScreen) {
-    window.history.pushState({ firstSteps: depth() + 1 }, "", urlOf(to));
+  function go(to: FirstStepsScreen, query?: Record<string, string>) {
+    window.history.pushState({ firstSteps: depth() + 1 }, "", urlOf(to, query));
   }
   function next(patch: Partial<FirstStepsAnswers>) {
     const questions = questionScreens(update(patch).who);
@@ -60,6 +61,8 @@ function Flow({ context }: { context: FirstStepsContext }) {
   }
   function back() {
     if (depth() > 0) return window.history.back();
+    // A set opened or reloaded here: its list is the screen before it.
+    if (screen === "set") return window.history.replaceState({ firstSteps: 0 }, "", urlOf("sets"));
     // Opened or reloaded here: step to the screen before this one.
     const questions = questionScreens(answers.who);
     const at = questions.indexOf(screen);

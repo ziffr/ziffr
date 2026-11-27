@@ -20,8 +20,8 @@ export type ScreenProps = {
   answers: FirstStepsAnswers;
   /** Keeps part of the answers. */
   update: (patch: Partial<FirstStepsAnswers>) => void;
-  /** Opens a screen. */
-  go: (screen: FirstStepsScreen) => void;
+  /** Opens a screen; `query` adds to its address what the screen shows, such as which set. */
+  go: (screen: FirstStepsScreen, query?: Record<string, string>) => void;
   /** Keeps an answer and opens the next question. */
   next: (patch: Partial<FirstStepsAnswers>) => void;
   /** Drops the draft and loads a page anew, for when the server has the answers. */

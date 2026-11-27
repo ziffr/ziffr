@@ -204,6 +204,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `markSetupGuideSeen` (setup-guide.ts): that a person opened the guide, for the app
 - `chooseExploreOnMyOwn` (setup-guide.ts): the guide's starting point, for the app
 - `saveFirstStepsAnswers` (first-steps.ts): the Owner answers First Steps again, in the app
+- `firstStepsSet` (first-steps-sets.ts): the Preview of one of First Steps' ready-made sets, for the app; a program installs no Pack
 - `madeMetrics` (first-steps-value.ts): the Metrics First Steps' last screens are about, for the app; a program reads Metrics with list_metrics
 - `firstStepsValue` (first-steps-value.ts): First Steps' first value screen, for the app
 - `firstStepsProgress` (first-steps-value.ts): the Owner's own first value, polled by that screen

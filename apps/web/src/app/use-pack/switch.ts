@@ -10,6 +10,11 @@ export const PACKS_PAGE = "/settings/packs";
 
 const SLUG = /^([a-z0-9]+(?:-[a-z0-9]+)*)--([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 
+/** The flow's address for one of Ziffr's own Packs, by its id: the other way round from `packRefOf`. */
+export function packSetUpPath(packId: string): string {
+  return `/use-pack/${packId.replace("/", "--")}`;
+}
+
 /** Which Pack an address of the flow names: an install's number, or one of Ziffr's own Packs by its id written with two
  * hyphens for the slash (`ziffr--sales-forecast`). Null for anything else; the core checks that the Pack exists. */
 export function packRefOf(segment: string): { install: number } | { included: string } | null {
