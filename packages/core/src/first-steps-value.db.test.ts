@@ -126,6 +126,20 @@ describe("a trial, before and after the Owner's own value", () => {
     expect(await chosenAt(w.id)).toBeNull();
   });
 
+  it("gives the Owner the link to send when the invitation is made but not emailed", async () => {
+    const { w, o } = await fresh({ trial: true });
+    await sendFirstStepsValue(o, "1");
+    const url = process.env.ZIFFR_SMTP_URL;
+    delete process.env.ZIFFR_SMTP_URL;
+    try {
+      const r = await chooseProviders(o, { choice: "colleague", email: address("sam") });
+      const { data } = await db().from("invitations").select("token").eq("workspace_id", w.id).single();
+      expect(r.link).toBe(`https://ziffr.example.test/invite/${data!.token as string}`);
+      expect(r.lines).toEqual(["The invitation was not emailed; send the link yourself.", "Ziffr asks them once they accept."]);
+      expect(await contacts(w.id)).toHaveLength(1);
+    } finally { process.env.ZIFFR_SMTP_URL = url; }
+  });
+
   it("takes a mistyped colleague back when another choice is made: invitation revoked, Contact removed", async () => {
     const { w, o, owner, m } = await fresh({ trial: true });
     await sendFirstStepsValue(o, "1");
