@@ -7,11 +7,14 @@ import type { EntryView, PickerList, ShortView } from "@ziffr/core/analysis-pick
 import { fact, listFor } from "./picker.fixtures";
 
 vi.mock("server-only", () => ({}));
+const pushed: string[] = [];
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: (href: string) => pushed.push(href) }) }));
+vi.mock("@/app/paste-actions", () => ({ pasteTemplateFile: vi.fn() }));
 import { PickerGroups } from "./picker-list";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const SHORT: ShortView = { words: "1 of 8 days. Ready on 4 Dec 2026 if you add one each day.", metric: { id: 1, name: "Steps", slug: "steps" }, span: "day" };
+const SHORT: ShortView = { words: "1 of 8 days. Ready on 4 Dec 2026 if you add one each day.", metric: { id: 1, name: "Steps", slug: "steps" }, span: "day", mayAddEarlier: true };
 const withShort = (list: PickerList, id: EntryView["id"], short: ShortView): PickerList => ({ ...list, groups: list.groups.map((g) => ({ ...g, entries: g.entries.map((e) => (e.id === id ? { ...e, short } : e)) })) });
 
 let host: HTMLElement; let root: Root;
@@ -31,5 +34,21 @@ describe("a question with too little history", () => {
     expect(usual.textContent).not.toContain("Not now.");
     // Another reason is still said as before.
     expect(row("Does A move with B?").textContent).toContain("Not now.");
+  });
+
+  it("opens Fill past periods for that Metric, with a way back to Analyze", async () => {
+    await mount(list());
+    const add = [...row("What is usual").querySelectorAll("button")].find((b) => b.textContent?.includes("Add earlier values"))!;
+    await act(async () => { add.click(); });
+    const dialog = document.querySelector('[role="dialog"]')!;
+    expect(dialog.textContent).toContain("Fill past periods of Steps");
+    expect(dialog.textContent).not.toMatch(/Ask my assistant|Send from another system/);
+    await act(async () => { [...dialog.querySelectorAll("button")].find((b) => b.textContent === "Open Paste history")!.click(); });
+    expect(pushed).toEqual(["/paste-values?metric=steps&from=analyze"]);
+  });
+
+  it("offers no way to add values to someone who may not", async () => {
+    await mount(withShort(list(), "usual", { ...SHORT, mayAddEarlier: false }));
+    expect(row("What is usual").textContent).not.toContain("Add earlier values");
   });
 });

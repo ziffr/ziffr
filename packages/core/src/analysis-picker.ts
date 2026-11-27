@@ -11,9 +11,10 @@ import { explainedFirst } from "./canvas-roles";
 import { yearStartOf } from "./fiscal-year";
 import { questionFor, sentenceFor, type Picked } from "./method-picker-names";
 import { entryOf, textsOf, type EntryId, type PickerEntry, type SettingDef, type SlotDef } from "./method-picker";
-import { groupsFor, metricsNeeded, periodsShort, type CanvasFact, type EntryFit } from "./method-picker-fit";
+import { fitList, groupsFor, metricsNeeded, periodsShort, type CanvasFact, type EntryFit } from "./method-picker-fit";
 import { shortWords, type History } from "./method-picker-short";
 import { readSettings, readSlotIds, recipeFileOf, runEntry, type PickWorld } from "./method-picker-run";
+import { pasteMetrics } from "./paste-values";
 import { endsOf } from "./takeaways/forecast";
 import type { AnalysisRecipe2 } from "./analysis-recipe";
 import { seriesBy, type Resolver } from "./display-periods";
@@ -60,7 +61,7 @@ export type EntryView = {
 };
 
 /** How close an entry is: the line to show, and the Metric (one the person sees) whose history is short, with its period. */
-export type ShortView = { words: string; metric: { id: number; name: string; slug: string }; span: Span };
+export type ShortView = { words: string; metric: { id: number; name: string; slug: string }; span: Span; /** Whether this person may paste earlier values for that Metric, by the paste page's own rule. */ mayAddEarlier: boolean };
 
 /** The list: the canvas Metrics the person sees, and the groups of entries. */
 export type PickerList = { canvas: CanvasMetric[]; /** Why there is no list, in words, where there is a reason. */ notice?: string; groups: { want: string; question: string; entries: EntryView[] }[] };
@@ -104,7 +105,7 @@ function wholePoints(w: PickWorld, m: Metric) {
 }
 
 // How close an entry is, where history is what stops it. Every Metric in `facts` is one the actor sees.
-function shortView(w: PickWorld, entry: PickerEntry, facts: CanvasFact[], visible: Map<number, Metric>, today: string): ShortView | undefined {
+function shortView(w: PickWorld, entry: PickerEntry, facts: CanvasFact[], visible: Map<number, Metric>, today: string): Omit<ShortView, "mayAddEarlier"> | undefined {
   const short = periodsShort(entry, facts);
   if (!short) return undefined;
   const m = visible.get(short.metric)!;
@@ -171,6 +172,12 @@ export async function listPicker(actor: Actor, canvasIds: unknown, explains?: un
   const on = canvas.map((m) => m.id);
   const names = new Map(canvas.map((m) => [m.id, m.name]));
   const today = format(new Date(), "yyyy-MM-dd");
+  const shorts = new Map(fitList(facts).flatMap((f) => {
+    const short = f.ok ? undefined : shortView(world, entryOf(f.entry)!, facts, visible, today);
+    return short ? [[f.entry, short] as const] : [];
+  }));
+  // Asked only where something is short: the same rule as the paste page, so the button is shown to nobody it would turn away.
+  const pasteable = new Set(shorts.size && actor.personId && !actor.key ? (await pasteMetrics(actor)).map((m) => m.id) : []);
   return {
     canvas: canvas.map((m) => ({ id: m.id, name: m.name, period: m.period as Span })),
     groups: ranked(groupsFor(facts)).map((g) => ({
@@ -179,10 +186,10 @@ export async function listPicker(actor: Actor, canvasIds: unknown, explains?: un
       entries: g.entries.map((e): EntryView => {
         const defaults = defaultsOf(e, on, e.fit);
         const picked = pickedOf(defaults, names);
-        const short = e.fit.ok ? undefined : shortView(world, e, facts, visible, today);
+        const short = shorts.get(e.id);
         return {
         id: e.id, name: questionFor(e.id, picked, e.name), generic: e.name, sentence: sentenceFor(e.id, e.sentence, picked), technical: e.technical, ...textsOf(e), slots: e.slots, settings: e.settings,
-        needs: needsText(e), fit: e.fit, defaults, recipeFile: recipeFileOf(e) !== null, widget: e.widget, ...(short ? { short } : {}),
+        needs: needsText(e), fit: e.fit, defaults, recipeFile: recipeFileOf(e) !== null, widget: e.widget, ...(short ? { short: { ...short, mayAddEarlier: pasteable.has(short.metric.id) } } : {}),
         };
       }),
     })),

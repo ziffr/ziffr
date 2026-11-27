@@ -5,6 +5,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+// The picker offers Fill past periods, whose actions are the server's.
+vi.mock("@/app/paste-actions", () => ({ pasteTemplateFile: vi.fn() }));
 vi.mock("@/app/picker-actions", () => ({ pickerList: async () => ({ canvas: [], groups: [] }), pickerRun: async () => ({ ok: false, message: "" }) }));
 vi.mock("@/app/canvas-actions", () => ({ saveToPool: vi.fn() }));
 import { RecipesSection } from "./recipes-section";

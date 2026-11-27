@@ -9,6 +9,7 @@ import { ChevronRight, Lock } from "lucide-react";
 import type { ReactNode } from "react";
 import type { EntryView, PickerList } from "@ziffr/core/analysis-picker";
 import { cn } from "@/lib/utils";
+import { ShortHelp } from "./short-help";
 
 /** What a Method is and when to use it: plain text a person reads once they have chosen it. */
 function EntryDetails({ e }: { e: EntryView }) {
@@ -47,6 +48,7 @@ function EntryRow({ e, open, onPick, children }: { e: EntryView; open: boolean; 
           {!e.fit.ok && <span dir="auto" className="block break-words text-xs text-foreground/80" role="note">{e.short ? e.short.words : <><span className="font-medium">Not now.</span> {e.fit.reason}</>}</span>}
         </span>
       </button>
+      {!ok && e.short && <ShortHelp short={e.short} />}
       {ok && open && <div id={panel} className="space-y-3 border-t border-[var(--color-rule-2)] p-2.5"><EntryDetails e={e} />{children}</div>}
     </li>
   );
