@@ -255,7 +255,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       {tab === "overview" && (
         <div className="space-y-6">
           {derivedProblem || points.length === 0 ? (
-            <NoValues metric={metric} problem={derivedProblem} seen={seenMetrics} aimed={aimedTargets} />
+            <NoValues metric={metric} problem={derivedProblem} seen={seenMetrics} aimed={aimedTargets} offer={record} />
           ) : (
             <MetricWorkspace numberStyle={numberStyle} metric={shown} points={points} forecast={fcBand} forecastNote={!fc && points.length > 0 ? (forecastTooWide(points) ? NO_FORECAST_WIDE : `Forecast once there are ${FORECAST_MIN_POINTS} ${metric.period}s of values`) : null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
           )}

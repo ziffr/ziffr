@@ -3,7 +3,7 @@
 // the page's one main action for someone who submits the Metric. The form goes through the same intake as their form
 // link, so the Metric's rule, Locks, Workflow and Retention apply, and what comes back is the intake's own words. The
 // core checks again who may record; this only asks for the number. A slide-over (docs/specs/0036-app-layout.md).
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { recordValue } from "@/app/series-actions";
 import { AnswerBox, ValueEntry, sendValue, type Answer } from "./value-entry";
@@ -12,17 +12,23 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 /** The Record a value button with its form. */
-export function RecordValue({ offer, wide, onClose }: { offer: RecordingOffer; /** Fills its row, as in the list's slide-over. */ wide?: boolean; /** Called when the form is closed, whether or not a value was recorded. */ onClose?: () => void }) {
+export function RecordValue({ offer, wide, label = "Record a value", onClose }: { offer: RecordingOffer; /** Fills its row, as in the list's slide-over. */ wide?: boolean; label?: string; /** Called when the form is closed, whether or not a value was recorded. */ onClose?: () => void }) {
   const [open, setOpen] = useState(false);
-  const trigger = <><Plus aria-hidden /> Record a value</>;
-  const intro = `Goes the way a value sent by your form link does: ${offer.rule.toLowerCase()}, and the Metric's checks and approvals apply.`;
-  const body = <RecordForm offer={offer} />;
   return (
-    <Sheet open={open} onOpenChange={(next) => { setOpen(next); if (!next) onClose?.(); }}>
-      <SheetTrigger className={buttonVariants({ className: wide ? "w-full" : undefined })}>{trigger}</SheetTrigger>
+    <RecordSheet offer={offer} open={open} onOpenChange={(next) => { setOpen(next); if (!next) onClose?.(); }}>
+      <SheetTrigger className={buttonVariants({ className: wide ? "w-full" : "max-md:h-11" })}><Plus aria-hidden /> {label}</SheetTrigger>
+    </RecordSheet>
+  );
+}
+
+/** The slide-over with the form, for a button of its own (`children`) or one that lives elsewhere and sets `open`. */
+export function RecordSheet({ offer, open, onOpenChange, children }: { offer: RecordingOffer; open: boolean; onOpenChange: (open: boolean) => void; children?: ReactNode }) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      {children}
       <SheetContent>
-        <SheetHeader><SheetTitle>Record a value for {offer.name}</SheetTitle><SheetDescription>{intro}</SheetDescription></SheetHeader>
-        <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-4">{body}</div>
+        <SheetHeader><SheetTitle>Record a value for {offer.name}</SheetTitle><SheetDescription>Goes the way a value sent by your form link does: {offer.rule.toLowerCase()}, and the Metric&apos;s checks and approvals apply.</SheetDescription></SheetHeader>
+        <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-4"><RecordForm offer={offer} /></div>
       </SheetContent>
     </Sheet>
   );

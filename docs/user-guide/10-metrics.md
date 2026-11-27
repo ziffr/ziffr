@@ -215,6 +215,8 @@ The top of the page shows the Metric's name, a **Derived** badge if it is calcul
 - **Change vs. previous period**: an arrow and a percentage.
 - **Target**: which way is good, and the target that counts for the latest period. If that period has its own value in the **Target Series**, the box shows it and says so; other periods use the Target Range.
 
+A Metric with no values says so where its chart would be. If you submit it on the web form, the page says "The line appears after your first value." and offers **Record today's value** (**Record a value** for a Metric that is not daily).
+
 Then come five tabs: **Overview**, **Analysis**, **Targets**, **History** and **Description**. On a phone the three boxes sit two to a row, and the tabs do not all fit: swipe them sideways, a fade at the edge shows where more are, and the open tab is brought into view.
 
 ### Handing a Metric over
