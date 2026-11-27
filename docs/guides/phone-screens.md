@@ -82,6 +82,10 @@ A wide table scrolls inside its own frame, never the page. `Table` from `compone
 
 A tab strip never widens the page. A Metric's page (`app/metrics/[slug]/metric-tabs.tsx`) scrolls the strip sideways, fades the clipped side and brings the open tab into view. The Settings (`components/settings-nav.tsx`) become one "Section" menu below 768 px, which always shows where you are. Follow one of the two.
 
+### One question per screen
+
+A flow that asks one question per screen, such as First Steps, takes its frame from `components/guided-frame.tsx`. From 768 px the steps and the answers so far stand beside the screen and stay in view; below that, a bar above the screen says "Step 2 of 5" and holds the ways out. The question and choice cards are in `app/first-steps/parts.tsx`; each step's heading takes the focus.
+
 ### The desktop-only note
 
 A Desktop-first screen, and the dashboard's Edit mode, say at the top, below 640 px: "This is easier on a larger screen." A line says why, with **Send me the link** and, where a view only reads, **Look at it**. The note never blocks the screen below it. **Send me the link** is not offered in the demo, to a Guest or to a person without a Workspace.
