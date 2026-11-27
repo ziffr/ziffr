@@ -10,6 +10,7 @@ import { formTelegramLink } from "@ziffr/core/telegram-people";
 import { formLinkExtras } from "@ziffr/core/form-link-extras";
 import { formatValue, RULE_LABEL, SOURCE_LABEL } from "@ziffr/core/format";
 import { SubmitForm } from "./submit-form";
+import { StandInNote } from "@/app/submit/stand-in-note";
 import { TelegramConnect } from "./telegram-connect";
 import { CURRENT_PERIOD, periodLabel } from "@ziffr/core/periods";
 import { periodOffer } from "./period-choices";
@@ -80,12 +81,9 @@ export default async function SubmitPage({ params, searchParams }: { params: Pro
           )}
           next={extras?.next ? { href: recordValueHref(extras.next.slug, extras.next.period), name: extras.next.name, periodLabel: extras.next.periodLabel } : null}
           nothingDue={extras !== null && extras.next === null}
+          notes={form.notes}
         >
-          {form.standingInFor && (
-            <p role="note" className="mt-3 rounded-lg border px-3 py-2 text-sm">
-              You answer in place of {form.standingInFor}. The value is recorded as theirs, marked as entered by you, and they are told and can replace it with their own.
-            </p>
-          )}
+          {form.standingInFor && <StandInNote name={form.standingInFor} />}
         </SubmitForm>
       </div>
       {telegram?.telegramOn && <TelegramConnect code={code} linked={telegram.linked} help={telegram.help} />}

@@ -91,6 +91,19 @@ export async function createDeckFromTemplate(actor: Actor, input: { template: nu
   return id;
 }
 
+/** Makes a deck from a Deck Template as `createDeckFromTemplate` does, and keeps the template and its fills in it, so
+ * that it shows its filled slides however it is first opened, also presented (for the guided Pack set-up). The same
+ * checks: the actor may create, and sees every Metric. Nothing is left behind when it cannot be kept. */
+export async function createFilledDeck(actor: Actor, input: { template: number; name: string; fills: number[][] }): Promise<number> {
+  const id = await createDeckFromTemplate(actor, input);
+  const { error } = await db().from("decks").update({ document: { importSeed: { template: Number(input.template), fills: input.fills } } }).eq("id", id).eq("workspace_id", actor.workspaceId);
+  if (error) {
+    await db().from("decks").delete().eq("id", id).eq("workspace_id", actor.workspaceId);
+    throw new Error("The deck could not be created.");
+  }
+  return id;
+}
+
 /** What a new deck lays out from a Deck Template: its slides and the fills, once the template exists in the actor's
  * Workspace and every Metric is one the actor sees. Its words are filled each time a slide is shown. */
 export async function deckTemplateSeed(actor: Actor, templateId: number, fills: number[][]): Promise<{ slides: SlideBody[]; fills: number[][] } | null> {

@@ -81,19 +81,22 @@ export async function askMeNow(metricId: number): Promise<AskNowResult | { error
   }, { askNow: true }));
 }
 
-/** What the Record a value form shows after sending: the intake's own words, and whether the value counted. */
-export type RecordedValue = { ok: boolean; detail: string };
+/** What the Record a value form shows after sending: the intake's own words, whether the value counted, and `noteKept`
+ * when its note was not saved, so the field keeps its words. */
+export type RecordedValue = { ok: boolean; detail: string; noteKept?: boolean };
 
 /** A Submitter records a value for a Metric from its page, through the same intake as their form link (Submission Rule,
  * Locks, Approvals, Retention); the core checks they submit it and reads the text, so only strings are taken here. */
-export async function recordValue(metricId: number, input: { value: string; breakdown?: string; period?: string }): Promise<RecordedValue | { error: string }> {
+export async function recordValue(metricId: number, input: { value: string; breakdown?: string; period?: string; note?: string }): Promise<RecordedValue | { error: string }> {
   // A visitor's texts (the total, the Breakdown's labels) go through the text rules first (spec 0051).
   return attempt(() => inDemoVisit("series-actions:recordValue", async (visiting) => {
     const r = await recordOwnValue(await currentActor(), Number(metricId), {
       value: demoTextForVisit(visiting, String(input?.value ?? ""), "name"), breakdown: demoTextForVisit(visiting, String(input?.breakdown ?? ""), "message"), period: input?.period ? String(input.period) : undefined,
+      // The demo keeps no notes.
+      note: !visiting && typeof input?.note === "string" ? input.note : undefined,
     });
     revalidatePath("/", "layout");
-    return { ok: r.ok, detail: r.detail };
+    return { ok: r.ok, detail: r.detail, ...(r.valueNote?.saved === false ? { noteKept: true } : {}) };
   }));
 }
 

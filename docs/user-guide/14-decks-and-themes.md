@@ -53,7 +53,7 @@ If two people edit a deck at the same time, the last save wins. Let one person a
 
 The editor is made for a larger screen. On a phone a note at the top says "This is easier on a larger screen." and offers **Send me the link** and **Look at it**, which presents the deck (see [Screens made for a larger screen](07-getting-started.md#screens-made-for-a-larger-screen)); the editor stays below it, fits the width and can still be used, with a shorter canvas so the page scrolls around it.
 
-A deck that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) starts empty. The first time you open it, the editor lays out its slides, as for a deck made from a Deck Template, and saves them.
+A deck that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) starts empty. Its slides are laid out the first time you open it in the editor or present it, as for a deck made from a Deck Template, and saved if you may change the deck.
 
 The editor has three parts: a row of buttons at the top, a side panel on the left, and the deck canvas, where your slides sit.
 

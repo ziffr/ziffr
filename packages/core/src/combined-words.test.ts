@@ -59,6 +59,12 @@ describe("the words", () => {
     expect(w.body).toContain("and 12 more on the form");
     expect(w.body).not.toContain("21. ");
   });
+  it("lists fewer in a chat message with long names, so the link at its end is never cut off", () => {
+    const w = words(Array.from({ length: 20 }, (_, i) => line({ metric: `${i} ${"&".repeat(60)}` })), "slack");
+    expect(w.body.replace(/&/g, "&amp;").length).toBeLessThanOrEqual(2600);
+    expect(w.body).toMatch(/and \d+ more on the form\n/);
+    expect(w.body.endsWith("https://ziffr.example/f/x")).toBe(true);
+  });
   it("keeps a closed figure in its place and names it only when it may be named", () => {
     const w = words([line({ closed: { words: "Answered on Email", named: true } }), line({ metric: "Secret", closed: { words: "No longer asked", named: false } }), line({ metric: "NPS" })]);
     expect(w.body).toContain("1. Revenue, October 2026: Answered on Email");

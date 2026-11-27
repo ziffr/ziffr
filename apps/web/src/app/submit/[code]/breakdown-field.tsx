@@ -5,17 +5,17 @@ import { parseBreakdown } from "@ziffr/core/parse";
 import type { NumberStyle } from "@ziffr/core/number-style";
 
 /** Paste rows from Excel or Sheets, or load a CSV; shows what Ziffr read before you submit, read in the Workspace's
- * Number Style by the same rules the core applies. */
-export function BreakdownField({ numberStyle }: { numberStyle: NumberStyle }) {
+ * Number Style by the same rules the core applies. A page with several of these gives each its own `name`. */
+export function BreakdownField({ numberStyle, name = "breakdown" }: { numberStyle: NumberStyle; name?: string }) {
   const [text, setText] = useState("");
   const parsed = text.trim() ? parseBreakdown(text, numberStyle, { parents: true }) : null;
   return (
     <div className="mt-5">
-      <label htmlFor="breakdown" className="text-sm font-medium">Breakdown <span className="font-normal text-muted-foreground">(optional)</span></label>
+      <label htmlFor={name} className="text-sm font-medium">Breakdown <span className="font-normal text-muted-foreground">(optional)</span></label>
       <p className="mt-0.5 text-xs text-muted-foreground">Paste two columns from Excel or Sheets, one row per line, such as country and revenue. Leave the total empty and it becomes the sum of the rows at the top. A third column headed Parent, with the name of another row, makes that row a part of it (up to 4 levels).</p>
       <textarea
-        id="breakdown"
-        name="breakdown"
+        id={name}
+        name={name}
         rows={5}
         value={text}
         onChange={(e) => setText(e.target.value)}

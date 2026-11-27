@@ -6,7 +6,7 @@ import "tldraw/tldraw.css";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Box, type Editor, type TLEditorSnapshot } from "tldraw";
+import { Box, getSnapshot, type Editor, type TLEditorSnapshot } from "tldraw";
 import { ChevronLeft, ChevronRight, Maximize, Minimize, RotateCw, X } from "lucide-react";
 import { ThemeScope } from "@/components/theme-scope";
 import { DeckData, WidgetShapeUtil } from "./widget-shape";
@@ -15,17 +15,18 @@ import { setTextFill, textShapeUtils } from "./text/live-text";
 import { KeptNumbers } from "./kept/kept-store";
 import type { Kept } from "./kept/kept-drawing";
 import { DeckMaster, SlideFrameUtil } from "./master";
-import { orderedSlides } from "./layouts";
+import { orderedSlides, templateSlides } from "./layouts";
+import { fromDeckTemplate } from "@ziffr/core/team-templates";
 import { isDark, slideDesign, themeFor } from "@ziffr/core/themes";
 import { tokensForViewer } from "@ziffr/core/theme-dark";
 import { useViewerDark } from "@/lib/use-viewer-dark";
 import { useFullscreen, usePinchZoomed, useStepper } from "@/lib/use-stepper";
 import { SlideCanvas } from "@/decks/slide-canvas";
-import type { CanvasData } from "@ziffr/core/types";
+import type { CanvasData, SlideBody } from "@ziffr/core/types";
 
 const shapeUtils = [WidgetShapeUtil, SnapshotPartShapeUtil, SlideFrameUtil, ...textShapeUtils];
 
-export function Slideshow({ deck, data, kept = null, start, publicNote, back = `/decks/${deck.id}` }: { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; /** The Snapshot numbers the presenting person gets; a View Link gets none. */ kept?: Kept | null; start: number; publicNote?: string; /** Where leaving the presentation goes. */ back?: string }) {
+export function Slideshow({ deck, data, kept = null, start, publicNote, back = `/decks/${deck.id}`, templateSeed = null, onLaidOut }: { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; /** The Snapshot numbers the presenting person gets; a View Link gets none. */ kept?: Kept | null; start: number; publicNote?: string; /** Where leaving the presentation goes. */ back?: string; /** For a deck made from a Deck Template that was never opened: its slides and fills, laid out now. */ templateSeed?: { slides: SlideBody[]; fills: number[][] } | null; /** Takes the deck just laid out, to be kept. */ onLaidOut?: (document: unknown) => void }) {
   const pub = publicNote !== undefined;
   const router = useRouter();
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -82,6 +83,11 @@ export function Slideshow({ deck, data, kept = null, start, publicNote, back = `
                 snapshot={snapshot}
                 hideUi
                 onMount={(ed) => {
+                  // Laid out before the deck is read-only, as the editor does when it first opens it.
+                  if (templateSeed && !orderedSlides(ed).length) {
+                    templateSlides(ed, master, fromDeckTemplate({ slides: templateSeed.slides }, templateSeed.fills), templateSeed.slides.map((s) => Boolean(s.cover)));
+                    onLaidOut?.(JSON.parse(JSON.stringify(getSnapshot(ed.store).document)));
+                  }
                   ed.updateInstanceState({ isReadonly: true });
                   ed.user.updateUserPreferences({ colorScheme: shown && isDark(shown.tokens) ? "dark" : "light", locale: "en" });
                   ed.selectNone();
