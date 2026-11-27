@@ -65,6 +65,17 @@ describe("SlideOverProvider", () => {
     expect(labels().some((l) => l.includes("Back"))).toBe(false);
   });
 
+  it("draws a view of its own at the wider width, with no button to choose it", async () => {
+    await act(async () => api.open({ ...share, wide: true })); await tick();
+    expect(dialog()!.className).toContain("sm:w-[48rem]");
+    expect(labels().some((l) => /Wider|Narrower/.test(l))).toBe(false);
+  });
+
+  it("puts focus on a view of its own, not on its first control, so it opens at its top", async () => {
+    await act(async () => api.open({ ...share, wide: true })); await tick();
+    expect(document.activeElement).toBe(dialog()!.querySelector(".overflow-y-auto"));
+  });
+
   it("starts each step at its top, and leaves the scroll alone when a panel replaces itself", async () => {
     const box = () => dialog()!.querySelector<HTMLElement>(".overflow-y-auto")!;
     await act(async () => api.open({ title: "One", content: <p>first</p> })); await tick();
