@@ -20,7 +20,10 @@ export function SetsScreen({ context, go }: ScreenProps) {
   function showAll() {
     const query = new URLSearchParams(window.location.search);
     query.set("all", "1");
-    window.history.replaceState(window.history.state, "", `${window.location.pathname}?${query}`);
+    // The entry keeps its place among the steps. Next.js's own marks stay out of what is passed: with them it would not
+    // notice that the address changed.
+    const { firstSteps = 0 } = (window.history.state ?? {}) as { firstSteps?: number };
+    window.history.replaceState({ firstSteps }, "", `${window.location.pathname}?${query}`);
   }
   return (
     <>
