@@ -9,6 +9,7 @@ import nodemailer, { type SendMailOptions, type Transporter } from "nodemailer";
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
 import { archivedMetricHolds, failForGood, FORM_LINK, hashed, mayAskToResume, RESUME_NOT_SENT, RESUME_REF, withFormLink, withResumeLink } from "./internal/delivery-send";
+import { withApprovalNote } from "./internal/approval-note";
 import { STOPPED_REASON } from "./prompt-route";
 import { checkedMailHost } from "./mail-hosts";
 import { effectiveLimit } from "./limits";
@@ -307,6 +308,8 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
     if (linked === null) return fail(RESUME_NOT_SENT);
     text = linked;
   }
+  // An Approval's task quotes the note its value has now (spec 0064), in both parts of the email.
+  text = await withApprovalNote(text, claimed, "email");
   // The same words again as HTML in the Workspace's Theme; the plain text below is sent with it, always.
   const words = text;
   // The button is the link Ziffr put there: the Usage page for the digest, else the one appended to the words.

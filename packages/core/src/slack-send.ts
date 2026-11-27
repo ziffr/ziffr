@@ -4,6 +4,7 @@
 // the Delivery's workspace was found as (slack-people.ts), never in the demo, and nothing without a connection.
 import { db } from "./db";
 import { archivedMetricHolds, failForGood, withFormLink } from "./internal/delivery-send";
+import { withApprovalNote } from "./internal/approval-note";
 import { openRows } from "./sealed-columns";
 import { heldBack, mayQueue, PRACTICE_HELD } from "./practice";
 import { giveUpAfter, OPT_OUT_KINDS, type SendResult } from "./mail";
@@ -96,7 +97,7 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
   if (error) throw new Error("The Slack message could not be claimed for sending.");
   if (claim === "wait") return "waiting";
   if (claim !== "ok") return "skipped";
-  const text = await withFormLink(String(d.body), d, String(process.env.ZIFFR_SITE_URL));
+  const text = await withApprovalNote(await withFormLink(String(d.body), d, String(process.env.ZIFFR_SITE_URL)), d, "slack");
   const actions = await buttons(d);
   const blocks = [{ type: "section", text: { type: "mrkdwn", text: text.slice(0, 2900) } }, ...(actions.length ? [{ type: "actions", block_id: "ziffr", elements: actions }] : [])];
   try {
