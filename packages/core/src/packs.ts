@@ -200,6 +200,9 @@ function sampleEntries(pack: Pack, stored: ReturnType<typeof storedItems>): Pack
   }));
 }
 
+/** What there is to say of a Pack's people, or null: a Pack may keep places for the numbers its set-up asks alone. */
+const saying = (people: PackPeople) => (people.positions.length || people.repeats.length || people.shares.length ? people : null);
+
 /** A checked Pack's Positions, Repeats and proposed Shares in words, as its Preview shows them, or null. */
 export function previewPeople(pack: Pack, stored: ReturnType<typeof storedItems> = storedItems(pack)) {
   const places = placesOf(pack, stored.templates);
@@ -207,14 +210,14 @@ export function previewPeople(pack: Pack, stored: ReturnType<typeof storedItems>
     ...(pack.contents.metrics ?? []).map(({ key, metric }): [string, string] => [`metric ${key}`, metric.name]),
     ...stored.templates.map((t): [string, string] => [`${t.kind} ${t.key}`, t.name]),
   ]);
-  return places && describePlaces(places, {
+  return places && saying(describePlaces(places, {
     name: (kind, key) => names.get(`${kind} ${key}`) ?? null,
     steps: (w) => (stored.templates.find((t) => t.kind === "workflow" && t.key === w.key)?.body as WorkflowTemplateBody | undefined)?.steps ?? null,
-  });
+  }));
 }
 
-/** The manifest an install keeps, with the logo checked again; as `places`, what Set up and the Packs page read of
- * its Positions and Repeats; the Pack Guide, which Help shows; and the overview of what the Pack brings and where its
+/** The manifest an install keeps, with the logo checked again; what a /3 Pack's set-up says (`setUp`); as `places`,
+ * what Set up and the Packs page read of its Positions, Repeats and the numbers asked; the Pack Guide, which Help shows; and the overview of what the Pack brings and where its
  * numbers come from, which Help and Set up show (spec 0058). Where all of it would not fit, the overview is left out
  * first and then the guide, so that the Pack still installs. Credit is left out: nothing reads it from an install yet. */
 export const installManifest = (p: Pack, stored: ReturnType<typeof storedItems> = storedItems(p)): Omit<Pack, "contents" | "positions" | "repeats" | "basedOn"> & { places?: PackPlaces; overview?: KeptOverview } => {
@@ -354,13 +357,13 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
   for (const t of flows.data ?? []) bodies.set(at(t.pack_install_id, "workflow", String(t.pack_key)), t.body);
   const peopleOfInstall = (id: number, raw: unknown) => {
     const places = readPlaces(raw);
-    return places && describePlaces(places, {
+    return places && saying(describePlaces(places, {
       name: (kind, key) => kept.get(at(id, kind, key))?.name ?? null,
       steps: (w) => {
         const steps = (bodies.get(at(id, "workflow", w.key)) as WorkflowTemplateBody | undefined)?.steps;
         return steps && itemHash(steps) === w.mark ? steps : null;
       },
-    });
+    }));
   };
   // Which Repeats have lines recorded: only those who set up are told.
   const listedRepeats = new Set<string>();
