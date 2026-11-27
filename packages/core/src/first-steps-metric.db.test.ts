@@ -152,6 +152,15 @@ describe("a pick from the catalog", () => {
     expect([await count("tokens", owner.workspaceId), await count("deliveries", owner.workspaceId), await count("dashboards", owner.workspaceId)]).toEqual([0, 0, 1]);
   });
 
+  it("keeps a monthly entry as often as chosen, and any other as the catalog has it", async () => {
+    const weekly = await made({ who: "me" });
+    await makeFirstMetric(weekly, { catalogId: await shared("Revenue"), period: "week" });
+    expect((await metrics(weekly.workspaceId))[0]).toMatchObject({ name: "Revenue", period: "week" });
+    const daily = await made({ who: "me" });
+    await makeFirstMetric(daily, { catalogId: await shared("Body weight"), period: "week" });
+    expect((await metrics(daily.workspaceId))[0]).toMatchObject({ period: "day" });
+  });
+
   it("keeps money in the Workspace's currency", async () => {
     const owner = await made({ who: "me" });
     await makeFirstMetric(owner, { catalogId: await shared("Money saved") });

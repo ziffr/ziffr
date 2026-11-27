@@ -30,7 +30,7 @@ function trialDaysWithoutCloud(): Error {
   return new Error("New Workspaces cannot be made here right now; ask whoever runs this Ziffr.");
 }
 
-/** The one rule for trials (spec 0040): true only on hosted Ziffr (a ZIFFR_CLOUD_KEY) with a valid number of trial days (14 unless set, 0 for none).
+/** The one rule for trials (spec 0040): true only on hosted Ziffr (a ZIFFR_CLOUD_KEY) with a valid number of trial days (30 unless set, 0 for none).
  * Everything that makes a trial, shows trial words or reads a ZIFFR_TRIAL_* setting asks this or trialSettings, which
  * gives the same answer. Not a lock against someone who edits the source: it is what the product offers by itself. */
 export function trialsOffered(env: Record<string, string | undefined> = process.env): boolean {

@@ -20,7 +20,8 @@ import { namesWords } from "./providers";
 /** What the panel asks the server. */
 export type InviteActions = {
   read: () => Promise<PackInvite | ActionError>;
-  send: (metricId: number, text: string) => Promise<{ ok: boolean; detail: string } | ActionError>;
+  /** `whose`: the colleagues the screen said the number counts for, or null. */
+  send: (metricId: number, text: string, whose: string | null) => Promise<{ ok: boolean; detail: string } | ActionError>;
   /** Confirms the person's own check of a value. */
   confirm: (actionId: number) => Promise<{ words: string } | ActionError>;
   invite: (personIds: string[]) => Promise<PackInvited[] | ActionError>;
@@ -57,7 +58,7 @@ function InviteLink({ link, name }: { link: string; name: string }) {
 }
 
 /** The Owner's first number: which one, what it is, and "Record value". */
-function FirstNumber({ first, send, onSent, providersHref }: { first: NonNullable<PackInvite["first"]>; send: InviteActions["send"]; onSent: (words: string) => Promise<void>; providersHref: string }) {
+function FirstNumber({ first, send, onSent, onRefused, providersHref }: { first: NonNullable<PackInvite["first"]>; send: InviteActions["send"]; onSent: (words: string) => Promise<void>; onRefused: () => Promise<void>; providersHref: string }) {
   const [picked, setPicked] = useState<number | null>(null);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
@@ -78,7 +79,9 @@ function FirstNumber({ first, send, onSent, providersHref }: { first: NonNullabl
     if (busy || !typed.trim()) return;
     setBusy(true);
     setRefusal(null);
-    const r = await answered(() => send(number!.id, typed), setRefusal);
+    const r = await answered(() => send(number!.id, typed, number!.whose), setRefusal);
+    // Refused: what is offered may have changed since it was read, such as whose number it is.
+    if (!r) await onRefused();
     if (r && !r.ok) setRefusal(r.detail);
     if (r?.ok) await onSent(r.detail);
     setBusy(false);
@@ -202,7 +205,7 @@ export function InvitePanel({ actions, providersHref, alone }: Props) {
           <h2 id={heading} className="text-lg font-medium">Send your first number</h2>
           <p className="text-sm text-muted-foreground">Needed before colleagues can be emailed.{waiting.length > 0 ? ` Then you can invite ${namesWords(waiting)}.` : ""}</p>
         </div>
-        <FirstNumber first={data.first} send={actions.send} providersHref={providersHref} onSent={async (words) => { setSent(words); await reload(); }} />
+        <FirstNumber first={data.first} send={actions.send} providersHref={providersHref} onSent={async (words) => { setSent(words); await reload(); }} onRefused={reload} />
       </section>
     );
   }

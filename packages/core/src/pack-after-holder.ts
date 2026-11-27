@@ -135,6 +135,8 @@ type Planning = {
   opens: ReadonlySet<number>;
   /** The Snapshot lines among the changes, filled in once the Shares are known. */
   snapshots: { at: number; op: SnapshotOp; words: string }[];
+  /** The Snapshot steps that stay as they are because there is no Share to tick. */
+  stuck: string[];
   changes: string[];
   byHand: string[];
   notes: string[];
@@ -188,6 +190,7 @@ function sayingSnapshots(p: Planning) {
     else if (share) p.changes[at] = `${words} ${ONLY_IF} “${share.words}” below: they cannot open its dashboard yet.`;
     else {
       p.ops.splice(p.ops.indexOf(op), 1);
+      p.stuck.push(op.name);
       p.byHand.push(cannotOpen(p, op.name));
     }
   }
@@ -291,7 +294,7 @@ async function planFor(actor: Actor, a: PackAfter, pick: PackHolderPick): Promis
     actor, a, places, flows, holders, position: found.position, per: places.positions.get(found.position)?.per, line: found.line, to: pick.person,
     old: new Set(holders.filter((h) => h.position === found.position && sameLine(h.line, found.line)).map((h) => h.person)),
     name: (id) => (id === actor.personId ? "You" : people.get(id)?.name ?? "Someone"),
-    ops: [], offers: [], snapshots: [], changes: [], byHand: [], notes: [],
+    ops: [], offers: [], snapshots: [], stuck: [], changes: [], byHand: [], notes: [],
     opens: new Set((await visibleDashboards(actor.workspaceId, pick.person)).map((d) => d.id)),
   };
   planWorkflows(p);
@@ -350,8 +353,10 @@ export async function changePackHolder(actor: Actor, installId: number, input: P
     if (mine.length) await saveFlow(p, f, mine);
   }
   for (const op of ops) if (op.kind === "standIn") await setStandIn(actor, op.metric, op.submitter, p.to);
-  // While a Snapshot still goes to who held it, the record keeps them, so that choosing again replaces them there.
-  if ((ops.length || shares.length) && !left.length) await noteHolder(actor, a.setups, p.position, p.line, p.to);
+  // While a Snapshot still goes to who held it, the record names them beside the new holder: choosing again replaces
+  // either of them, there and in a Workflow for every line.
+  const stays = left.length > 0 || p.stuck.length > 0;
+  if (ops.length || shares.length) await noteHolder(actor, a.setups, p.position, p.line, p.to, stays);
   const kept = plan.changes.filter((words) => !left.some((name) => words.startsWith(`Gets the Snapshot of “${name}”`)));
   return { changed: [...kept.map((words) => words.split(` ${ONLY_IF} `)[0]), ...shares.map((s) => `${s.words}.`)], byHand: [...left.map((name) => cannotOpen(p, name)), ...plan.byHand] };
 }

@@ -28,7 +28,7 @@ export type PackTaskData =
 /** The invitations of one install, as the panel asks for them. */
 export const inviteActions = (installId: number): InviteActions => ({
   read: () => readPackInvite(installId),
-  send: (metricId, text) => sendPackNumber(installId, metricId, text),
+  send: (metricId, text, whose) => sendPackNumber(installId, metricId, text, whose),
   confirm: (actionId) => confirmPackCheck(installId, actionId),
   invite: (ids) => invitePeople(installId, ids),
 });

@@ -7,7 +7,7 @@ import { type Actor, Forbidden, Refused } from "./actor";
 import { createDashboard, placeWidget } from "./dashboards";
 import { db } from "./db";
 import { ownersFirstSteps } from "./first-steps";
-import { FIRST_METRIC_NAME_FIELD, OWN_PERIODS, OWN_UNITS, type FirstMetricPick, type OwnUnit } from "./first-steps-screens";
+import { FIRST_METRIC_NAME_FIELD, OWN_PERIODS, OWN_UNITS, SUGGESTED_PERIODS, type FirstMetricPick, type OwnUnit } from "./first-steps-screens";
 import { createMetric, type MetricInput } from "./metrics";
 import { metricCatalog } from "./page-data";
 import { HIDDEN_CHARACTERS } from "./profile";
@@ -30,7 +30,7 @@ const OWN: Record<OwnUnit, Pick<MetricInput, "format" | "unit" | "unitPosition" 
   hours: { format: "number", unit: "h", unitPosition: "after", decimals: 1, aggregation: "sum" },
 };
 
-/** The pick from untrusted input: a catalog id alone, or a name, a unit and how often alone. */
+/** The pick from untrusted input: a catalog id, with how often where one was chosen, or a name, a unit and how often. */
 export function checkFirstMetric(input: unknown): FirstMetricPick {
   const again = () => new FirstMetricRefused("Pick a suggestion or define your own.");
   if (!input || typeof input !== "object" || Array.isArray(input)) throw again();
@@ -38,8 +38,11 @@ export function checkFirstMetric(input: unknown): FirstMetricPick {
   const only = (...keys: string[]) => Object.keys(raw).every((k) => keys.includes(k));
   if (Object.hasOwn(raw, "catalogId")) {
     const id = raw.catalogId;
-    if (!only("catalogId") || typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0) throw again();
-    return { catalogId: id };
+    if (!only("catalogId", "period") || typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0) throw again();
+    if (raw.period === undefined) return { catalogId: id };
+    const chosen = SUGGESTED_PERIODS.find((p) => p === raw.period);
+    if (!chosen) throw new FirstMetricRefused("Pick how often.");
+    return { catalogId: id, period: chosen };
   }
   if (!only("name", "unit", "period")) throw again();
   // The length is bounded before any work on the text.
@@ -59,6 +62,7 @@ export function checkFirstMetric(input: unknown): FirstMetricPick {
 
 // What createMetric gets for a pick. From the catalog, an entry's description of the number is taken and its target is
 // not: a target is the Owner's own to set (an entry may suggest one that means nothing for them, such as a body weight).
+// How often is the entry's, except that a monthly one is kept as chosen on the screen.
 // Neither kind names Sources, Submitters or a Workflow, so every Source is open and nobody is asked.
 async function inputFor(actor: Actor, pick: FirstMetricPick): Promise<MetricInput> {
   if (!("catalogId" in pick)) return { name: pick.name, period: pick.period, submissionRule: "overwrite", polarity: "higher", ...OWN[pick.unit] };
@@ -66,7 +70,7 @@ async function inputFor(actor: Actor, pick: FirstMetricPick): Promise<MetricInpu
   const entry = ((await metricCatalog(actor)) as unknown as CatalogMetric[]).find((c) => c.id === pick.catalogId);
   if (!entry) throw new FirstMetricRefused("That suggestion is not available. Pick another one.");
   return {
-    name: entry.name, description: entry.description, calculationNote: entry.calculation_note, format: entry.format, decimals: entry.decimals, period: entry.period,
+    name: entry.name, description: entry.description, calculationNote: entry.calculation_note, format: entry.format, decimals: entry.decimals, period: entry.period === "month" ? (pick.period ?? entry.period) : entry.period,
     submissionRule: entry.submission_rule, polarity: entry.polarity, aggregation: entry.aggregation, fromCatalogId: entry.id,
     ...(entry.format === "currency" ? {} : { unit: entry.unit, unitPosition: entry.unit_position }),
   };

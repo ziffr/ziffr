@@ -55,14 +55,21 @@ function dropStaleSession<T extends NextResponse>(req: NextRequest, res: T): T {
   return res;
 }
 
+// The headers only this file sets, which the app then believes. Every one is removed first, so a browser cannot set it.
+// The matcher at the end names each too.
+const OWN_HEADERS = ["x-ziffr-view-link", "x-ziffr-no-count", "x-ziffr-first-steps", "x-ziffr-use-pack"];
+
+// The files the matcher's first entry leaves out. A path that ends like one can still render a page.
+const FILES = /^\/(?:_next\/static|_next\/image|favicon\.ico|flags\/|manifest\.webmanifest$|sw\.js$|offline\.html$|.*\.(?:svg|png|jpg|jpeg|webp|ico)$)/;
+
 export async function middleware(req: NextRequest) {
   const headers = new Headers(req.headers);
-  headers.delete("x-ziffr-view-link");
-  // A HEAD request opens nothing, but a page renders for it as for a GET: mark it so no View Count is made (spec 0031).
-  // Removed from every other request, so a browser cannot set it.
-  headers.delete("x-ziffr-no-count");
-  if (req.method === "HEAD") headers.set("x-ziffr-no-count", "1");
+  for (const name of OWN_HEADERS) headers.delete(name);
   const path = req.nextUrl.pathname;
+  // Here only because it carried one of them: it goes on without it, and nothing else happens.
+  if (FILES.test(path)) return NextResponse.next({ request: { headers } });
+  // A HEAD request opens nothing, but a page renders for it as for a GET: mark it so no View Count is made (spec 0031).
+  if (req.method === "HEAD") headers.set("x-ziffr-no-count", "1");
   // Which address serves which page (spec 0066). Server actions check again: one can be posted to any path.
   const admin = adminRoute(path, req.headers);
   if (admin === "not_found") return new NextResponse("Not found.", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
@@ -72,10 +79,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(to);
   }
   // First Steps (spec 0067) has a frame of its own: the root layout learns it from a header only this sets.
-  headers.delete("x-ziffr-first-steps");
   if (path === "/first-steps") headers.set("x-ziffr-first-steps", "1");
   // So has "Use this pack" (spec 0068).
-  headers.delete("x-ziffr-use-pack");
   if (path.startsWith("/use-pack/")) headers.set("x-ziffr-use-pack", "1");
   if (path.startsWith("/v/")) {
     headers.set("x-ziffr-view-link", "1");
@@ -158,5 +163,14 @@ export async function middleware(req: NextRequest) {
 
 // Everything except Next's own files and static assets. The installable app's files (#143) are the same for everyone
 // and must load signed out too: a browser fetches the manifest without cookies, and the offline page is shown when
-// nothing else can be reached.
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|flags/|manifest.webmanifest$|sw.js$|offline.html$|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"] };
+// nothing else can be reached. Any request carrying one of OWN_HEADERS comes here too, to have it removed. Next reads
+// this without running the file, so each entry is written out.
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|flags/|manifest.webmanifest$|sw.js$|offline.html$|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)",
+    { source: "/:path*", has: [{ type: "header", key: "x-ziffr-view-link" }] },
+    { source: "/:path*", has: [{ type: "header", key: "x-ziffr-no-count" }] },
+    { source: "/:path*", has: [{ type: "header", key: "x-ziffr-first-steps" }] },
+    { source: "/:path*", has: [{ type: "header", key: "x-ziffr-use-pack" }] },
+  ],
+};

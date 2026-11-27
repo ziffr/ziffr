@@ -13,7 +13,7 @@ import type { FirstStepsClean, FirstStepsOffer } from "./screens/types";
 /** How many suggestions First Steps offers a team. */
 const OFFERED = 5;
 
-const offer = ({ entry, line }: Suggestion): FirstStepsOffer => ({ id: entry.id, name: entry.name, line, often: HOW_OFTEN[entry.period] });
+const offer = ({ entry, line }: Suggestion): FirstStepsOffer => ({ id: entry.id, name: entry.name, line, often: HOW_OFTEN[entry.period], monthly: entry.period === "month" });
 
 /** The first Metric's name, if there is one, and the suggestions, for the Workspace's Owner. */
 export async function cleanSlate(actor: Actor, answers: FirstStepsAnswers): Promise<FirstStepsClean> {

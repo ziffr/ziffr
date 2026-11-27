@@ -322,8 +322,9 @@ export async function recordedHolders(actor: Actor, setupIds: number[]): Promise
 }
 
 /** Notes that one person holds a Position now (of a line, or of none), in each of these Set ups that recorded a holder
- * for it, and that nobody is held for there any more. */
-export async function noteHolder(actor: Actor, setupIds: number[], position: string, line: { repeat: string; name: string } | null, person: string): Promise<void> {
+ * for it, and that nobody is held for there any more. With `beside`, those recorded stay and the person is added to
+ * them: part of what they held is still theirs. */
+export async function noteHolder(actor: Actor, setupIds: number[], position: string, line: { repeat: string; name: string } | null, person: string, beside = false): Promise<void> {
   const ws = actor.workspaceId;
   for (const setup of setupIds) {
     let lineId: number | null = null;
@@ -334,11 +335,15 @@ export async function noteHolder(actor: Actor, setupIds: number[], position: str
       if (!found) continue;
       lineId = found[0];
     }
-    const held = db().from("pack_setup_people").select("id").eq("workspace_id", ws).eq("setup_id", setup).eq("position_key", position);
+    const held = db().from("pack_setup_people").select("id, person_id").eq("workspace_id", ws).eq("setup_id", setup).eq("position_key", position);
     const { data: rows, error } = await (lineId === null ? held.is("line_id", null) : held.eq("line_id", lineId)).order("id");
     failed(error);
     const [first, ...others] = (rows ?? []).map((r) => Number(r.id));
     if (first === undefined) continue;
+    if (beside) {
+      if (!rows!.some((r) => r.person_id === person)) failed((await db().from("pack_setup_people").insert({ workspace_id: ws, setup_id: setup, line_id: lineId, position_key: position, person_id: person })).error);
+      continue;
+    }
     failed((await db().from("pack_setup_people").update({ person_id: person, held_for: null }).eq("workspace_id", ws).eq("id", first)).error);
     if (others.length) failed((await db().from("pack_setup_people").delete().eq("workspace_id", ws).in("id", others)).error);
   }

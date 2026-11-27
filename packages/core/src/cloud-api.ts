@@ -274,7 +274,7 @@ export async function cloudTrialLimits(caller: CloudCaller): Promise<CloudTrialL
   const limits = { ...trialLimitsFrom(settings) } as Record<TrialLimitKey, number | null>;
   // Days of 0 switch trials off explicitly: null.
   const rawDays = settings.ZIFFR_TRIAL_DAYS?.trim();
-  // A value that is there but wrong makes no Workspace at all (trials.ts): not 14, and its source says so.
+  // A value that is there but wrong makes no Workspace at all (trials.ts): not the default, and its source says so.
   const daysInvalid = !!rawDays && rawDays !== "0" && trialLimitProblem(trialLimitOf("days"), rawDays) !== null;
   if (rawDays === "0" || daysInvalid) limits.days = null;
   // The days and grace days are pinned to Ziffr Cloud, so their source says "cloud" even when nothing is set: only a value counts.
