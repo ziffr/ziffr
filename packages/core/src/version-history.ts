@@ -10,6 +10,7 @@ import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { cleanSlides, cleanTokens } from "./theme-tokens";
 import { deckMetricIds, deckMetricIdsAdded } from "./visibility";
 import { snapshotPartProblem } from "./snapshot-parts";
+import { isDescribed, madeRestoreProblem } from "./deck-form";
 import { widgetMetricIds } from "./widget-metrics";
 import { withoutUnaskedMetrics } from "./slide-text";
 import { isDashboardView, isView } from "./widget-templates";
@@ -177,6 +178,10 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
     if (problem) throw new Refused(problem);
     const seen = await visible();
     if (deckMetricIdsAdded(cur?.document, s.document).some((m) => !seen.has(m))) throw new Error(HIDDEN);
+    // A made deck, or a form no reader knows, is held to more (spec 0069).
+    const made = isDescribed(cur?.document) || isDescribed(s.document) ? madeRestoreProblem(cur?.document, s.document, seen) : null;
+    if (made === "hidden") throw new Error(HIDDEN);
+    if (made) throw new Refused("Ziffr cannot read the slides of this Version, so it is not restored.");
   }
   // A Theme picked back then may be gone since; the dashboard or deck then follows the default.
   if ((v.object_type === "dashboard" || v.object_type === "deck") && s.theme_id) {

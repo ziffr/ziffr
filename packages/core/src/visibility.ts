@@ -5,6 +5,7 @@ import { tokenValid, type TokenRow } from "./tokens";
 import { widgetMetricIds } from "./widget-metrics";
 import { textBoxMetricIds } from "./slide-text";
 import { liveDocument } from "./snapshot-parts";
+import { describedDeck, describedMetricIds } from "./deck-form";
 import type { Action, Group, Metric, Share, ShareRole, WidgetSettings } from "./types";
 
 /** A row that belongs to a Workspace. */
@@ -87,6 +88,9 @@ export function allDeckMetricIds(document: unknown): number[] {
   // A deck's slides are read like a free layout, with the same rule: nested widgets count, and a malformed Metric
   // list yields an id no visibility check accepts, so such a deck cannot be saved, shared or restored.
   if (!document || typeof document !== "object") return [];
+  // A made deck's description lists its Metrics on its slides; a form no reader knows names none, so it opens nothing.
+  const described = describedDeck(document);
+  if (described !== undefined) return described ? describedMetricIds(described) : [];
   return [...new Set([...widgetMetricIds([], { canvas: { document } } as unknown as WidgetSettings), ...textBoxMetricIds(document)])];
 }
 

@@ -14,6 +14,7 @@ import { getCanvasData } from "./access";
 import { DELETED_MARK, deletedAmong, stillExisting } from "./deleted-metrics";
 import { assertSeesMetrics } from "./sharing";
 import { deckMetricIds } from "./visibility";
+import { isDescribed } from "./deck-form";
 import { widgetMetricIds } from "./widget-metrics";
 import { audit } from "./audit-log";
 import { mentionsPerson, nameHider } from "./hide-names";
@@ -137,6 +138,8 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
   const obj = type === "dashboard" ? await openOne("dashboards", String(stored?.workspace_id), stored) : stored;
   if (!obj) return null;
   const ws = obj.workspace_id as string;
+  // A deck Ziffr makes, or a form no reader knows, goes out through no View Link yet (spec 0069, ticket #1369).
+  if (type === "deck" && isDescribed(obj.document)) return null;
   // A link shows no Snapshot Part and nothing of a slide that keeps numbers (spec 0061): who sees those is decided
   // per person, and someone with a link is nobody Ziffr knows. They are left out before anything else is read.
   const slides = type === "deck" ? withoutKeptNumbers(obj.document as unknown).document : undefined;
