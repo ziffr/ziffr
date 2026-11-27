@@ -1,7 +1,7 @@
 "use client";
 // A Ziffr Widget as a tldraw shape: the same metric + template + settings as on a dashboard,
 // drawn by our own WidgetBody, so decks and dashboards share one View per template.
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useRef, type ReactNode } from "react";
 import { BaseBoxShapeUtil, HTMLContainer, T, type TLShape } from "tldraw";
 import { SeriesProvider } from "@/canvas/series-store";
 import { onSlide } from "./kept/kept-drawing";
@@ -13,6 +13,9 @@ import type { CanvasData, TemplateId, WidgetSettings } from "@ziffr/core/types";
 import { fillWidgetText } from "@ziffr/core/placeholders";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import { SlideElementShape } from "./elements/element-shape";
+import { noteCardClass } from "@/views/note-view";
+import { useMeasuredWidgetScale, widgetScaleStyle } from "@/views/widget-scale";
+import { cn } from "@/lib/utils";
 
 export const WIDGET_SHAPE = "ziffr-widget";
 
@@ -48,13 +51,19 @@ export const useDeckData = () => useContext(DeckData) ?? exportData;
 export function WidgetCard({ widget, data, footer }: { widget: ReturnType<typeof widgetFromShape>; data: CanvasData; footer?: ReactNode }) {
   const ms = widgetMetrics(widget, data);
   const t = templateOf(widget);
-  const title = (widget.title ? fillWidgetText(widget.title, widget, widget.settings.asOf ? dataAsOf(data, widget.settings.asOf) : data) : undefined) ?? (t.kind === "metric" ? ms[0]?.name : `${t.label}: ${ms.map((m) => m.name).join(" vs. ")}`);
+  const note = t.kind === "note";
+  // A note's title is its heading, shown as written, or none.
+  const title = note ? widget.title : (widget.title ? fillWidgetText(widget.title, widget, widget.settings.asOf ? dataAsOf(data, widget.settings.asOf) : data) : undefined) ?? (t.kind === "metric" ? ms[0]?.name : `${t.label}: ${ms.map((m) => m.name).join(" vs. ")}`);
   const story = t.kind === "story";
+  const bare = story || (note && !title);
+  // A slide is read from further away than a card: a note's words grow with its box, as on a presented dashboard.
+  const card = useRef<HTMLDivElement>(null);
+  const scale = useMeasuredWidgetScale(card);
   return (
-    <div className="stock flex h-full w-full flex-col overflow-hidden rounded-[var(--radius-card)] font-sans">
+    <div ref={card} style={note ? widgetScaleStyle(scale) : undefined} className={cn("stock flex h-full w-full flex-col overflow-hidden rounded-[var(--radius-card)] font-sans", noteCardClass(widget))}>
       {/* A story carries its own headline; other widgets get a title bar. */}
-      {!story && <div className="truncate px-4 pt-3 pb-1 text-sm font-semibold">{title}</div>}
-      <div className={story ? "min-h-0 flex-1 p-4" : "min-h-0 flex-1 px-4 pb-4"}>
+      {!bare && <div className={cn("truncate px-4 pt-3 pb-1 text-sm font-semibold", note && "widget-text-sm")}>{title}</div>}
+      <div className={bare ? "min-h-0 flex-1 p-4" : "min-h-0 flex-1 px-4 pb-4"}>
         <WidgetBody widget={widget} data={data} />
       </div>
       {footer}

@@ -298,12 +298,16 @@ _Avoid_: Token, variable, merge field
 One metric drawn with a view and its settings, such as time window, target band or visible history. A saved widget can be reused; placing it on a dashboard places an independent copy.
 _Avoid_: Tile, card, panel, chart
 
+**Note Widget**:
+A widget that holds a person's own words instead of drawing a Metric, to explain the numbers beside it: an optional heading and plain text with line breaks and simple lists, plain or highlighted as a callout. A dashboard's owner and Editors write it on the dashboard; whoever sees the dashboard reads it, also in a Snapshot (as it was kept) and through a View Link. It reads no Metric, takes no number by itself, and is never markup or a link. Templates and Packs keep none. It belongs to its place on a canvas; a Value Note belongs to one period's value of a Metric and is another thing, so "note" never stands alone where either could be meant.
+_Avoid_: Text widget, text box (a box of words on a slide), comment, annotation, sticky note, Value Note (for this)
+
 **Free Layout**:
-A widget that holds an artboard of its own, laid out like a slide: widgets from the Pool, text, arrows, shapes and drawings placed freely. On a dashboard it shows read-only with live numbers; its owner or Editors change it with *Edit layout…*. What is drawn stays where it was placed, so it says when its Metrics have newer periods than when it was drawn.
+A widget that holds an artboard of its own, laid out like a slide: widgets from the Pool, text, arrows, shapes and drawings placed freely. On a dashboard it shows read-only with live numbers; its owner or Editors change it with *Edit layout…*. What is drawn stays where it was placed, so it says when its Metrics have newer periods than when it was drawn. It is drawn by the slide editor, so it is offered, added and changed only where the Installation has that editor's license key; elsewhere those already made are kept, say that they cannot be shown, and can be moved or removed.
 _Avoid_: Canvas, drawing, board, freeform widget
 
 **Pool**:
-The panel that holds everything a user can put on a canvas: the metrics they can see, their saved widgets and the Widget Templates. On a deck, a Free Layout and the Analysis Canvas it is a list titled Pool; on a dashboard it opens with **Add widget** and shows them as cards drawn with a Metric, as the Gallery does.
+The panel that holds everything a user can put on a canvas: the metrics they can see, their saved widgets and the Widget Templates. On a deck, a Free Layout and the Analysis Canvas it is a list titled Pool; on a dashboard it opens with **Add widget** and shows them as cards drawn with a Metric, as the Gallery does, with the Note Widget beside them.
 _Avoid_: Library, palette, sidebar
 
 **Preview**:

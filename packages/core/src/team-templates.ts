@@ -215,6 +215,9 @@ export function tagFillable(slots: Slot[], body: DashboardTemplateBody): boolean
 /** Shapes a layout may hold: text, drawing and widgets. Images point at files the deck owns, so they stay behind. */
 export const SLIDE_SHAPES = ["ziffr-widget", "text", "geo", "arrow", "line", "note", "draw", "highlight"];
 
+/** Whether a slide's shape is a Note Widget, which no template keeps. */
+const isNoteShape = (sh: SlideShape) => sh.type === "ziffr-widget" && sh.props.template === "note";
+
 const widgetOf = (sh: SlideShape): W => ({
   template: sh.props.template as TemplateId,
   metric_ids: (sh.props.metricIds as number[]) ?? [],
@@ -294,8 +297,9 @@ const widgetMetricsOf = (shapes: SlideShape[], metrics: Metric[]) =>
 
 /** One slide's shapes with its widgets' and text boxes' Metrics turned into Slots of `ctx`; keys of `choices` carry
  * `prefix`. `deck` are the Metrics the whole deck names. */
-function templatizeSlide(shapes: SlideShape[], metrics: Metric[], choices: Choices, ctx: SlotCtx, deck: Metric[], typed: Typed, found: string[], prefix = "") {
-  const notices: string[] = [];
+function templatizeSlide(all: SlideShape[], metrics: Metric[], choices: Choices, ctx: SlotCtx, deck: Metric[], typed: Typed, found: string[], prefix = "") {
+  const shapes = all.filter((sh) => !isNoteShape(sh));
+  const notices: string[] = shapes.length < all.length ? ["Note widgets are left out: a template keeps no notes."] : [];
   const slideMetrics = widgetMetricsOf(shapes, metrics);
   // Widgets first: their Slots come first, as the slide fills its text boxes from them.
   const widgets = shapes.map((sh, i): SlideShape | null => {
@@ -372,9 +376,9 @@ export function fromDeckTemplate(body: DeckTemplateBody, fills: number[][]): Sli
 // Dashboard Templates (spec 0014): a whole dashboard saved as a template. Its widgets share one set of slots, so a
 // Metric drawn by three widgets is picked once; each widget keeps its own words, with its own {metric}.
 
-/** Views a Dashboard Template cannot hold: a Free Layout keeps a drawing whose Metrics cannot be left open yet, and a
- * Slide Element is for slides only. */
-export const NOT_IN_DASHBOARD_TEMPLATES: TemplateId[] = ["canvas", "slide"];
+/** Views a Dashboard Template cannot hold: a Free Layout keeps a drawing whose Metrics cannot be left open yet, a
+ * Note Widget's words are about the numbers of one dashboard and may name them, and a Slide Element is for slides only. */
+export const NOT_IN_DASHBOARD_TEMPLATES: TemplateId[] = ["canvas", "note", "slide"];
 
 /** The Dashboard Template a dashboard makes: shared slots, each widget with slot numbers instead of Metrics, where
  * it sits, the widgets left out (by title or view) and what changed on the way. Every note tied to one period or row
@@ -386,7 +390,7 @@ export function toDashboardTemplate(widgets: (W & Pick<Widget, "x" | "y" | "w" |
   const out: DashboardTemplateWidget[] = [];
   const ordered = [...widgets].sort((a, b) => a.y - b.y || a.x - b.x);
   ordered.forEach((w, i) => {
-    if (NOT_IN_DASHBOARD_TEMPLATES.includes(w.template)) { leftOut.push(w.title || "A free layout"); return; }
+    if (NOT_IN_DASHBOARD_TEMPLATES.includes(w.template)) { leftOut.push(w.title || (w.template === "note" ? "A note widget" : "A free layout")); return; }
     // A Tag widget needs its Tag's name for its Slot; one the person cannot see is left out, as nothing of it may be read.
     const tag = tagSourceId(w.settings);
     if (tag && !tagNames.has(tag)) { leftOut.push(w.title || "A widget of a Tag"); return; }

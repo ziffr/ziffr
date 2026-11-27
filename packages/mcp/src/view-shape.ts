@@ -45,7 +45,7 @@ export function shapeDashboard(data: any) {
   const d = data && data.dashboard;
   if (!d || typeof d.name !== "string" || !Array.isArray(d.widgets)) return null;
   const tiles = d.widgets.slice(0, 24).map((w: any) => ({
-    title: String((w && (w.title || (w.words && w.words.headline) || (w.metrics && w.metrics[0]) || w.view)) || "Widget").slice(0, 120),
+    title: String((w && (w.title || (w.words && w.words.headline) || (w.note && w.note.text) || (w.metrics && w.metrics[0]) || w.view)) || "Widget").slice(0, 120),
     view: String((w && w.view) || "").slice(0, 40),
     metrics: Array.isArray(w && w.metrics) ? w.metrics.slice(0, 3).map((s: any) => String(s).slice(0, 60)) : [],
   }));

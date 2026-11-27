@@ -70,8 +70,15 @@ function cleanWord(actor: Pick<Actor, "workspaceId">, o: Obj, key: string, kind:
   if (typeof o[key] === "string") o[key] = visitorOptionalText(actor, o[key] as string, kind);
 }
 
+/** Which of the demo's text rules a widget's word goes by: a note's text keeps its lines, so it is checked as a
+ * message is. */
+export function demoKindOfWord(key: string): DemoTextKind {
+  if (key === "note") return "message";
+  return key === "title" || key === "kicker" || key === "headline" ? "name" : "description";
+}
+
 /** A widget's settings with every word a visitor can type into them checked and cleaned: a Finding's kicker, headline,
- * subline, footnote and source, the highlighted row's label, callouts, and the titles, reference-line labels and notes of a
+ * subline, footnote and source, a Note Widget's text, the highlighted row's label, callouts, and the titles, reference-line labels and notes of a
  * story's panels. A free layout is refused and keys that are not a widget's settings are dropped. Unchanged outside a visit. Words in a place not named here are not a visitor's
  * to type (the editor offers no field for them), and the server drops what it does not keep. */
 export function visitorSettings(actor: Pick<Actor, "workspaceId">, settings: WidgetSettings): WidgetSettings {
@@ -82,7 +89,7 @@ export function visitorSettings(actor: Pick<Actor, "workspaceId">, settings: Wid
   const checked = checkedSettingsShape(settings);
   if (!checked.ok) throw new DemoTextRefused(checked.words);
   const s: Obj = checked.settings;
-  for (const key of SETTING_WORDS) cleanWord(actor, s, key, key === "kicker" || key === "headline" ? "name" : "description");
+  for (const key of SETTING_WORDS) cleanWord(actor, s, key, demoKindOfWord(key));
   cleanWord(actor, s, "highlight", "name");
   // Every word of a Slide Element goes through the same rules, whichever field it stands in. The spaces at its ends are
   // part of its layout (a lead-in and its words) and are kept.

@@ -42,7 +42,9 @@ import { DEMO_ROW_CAPS, DEMO_SNAPSHOT_LIMITS } from "./demo-limits";
 import { demoLimitWords } from "./demo-words";
 import { DemoSizeRefused } from "./demo-visitor-limits";
 import { demoCount, demoData } from "./demo-query";
-import { inDemoVisit, visitorOptionalText } from "./demo-visitor-words";
+import type { DemoTextKind } from "./demo-text";
+import { demoKindOfWord, inDemoVisit, visitorOptionalText } from "./demo-visitor-words";
+import { cleanNoteText, NOTE_TEXT_MAX } from "./note-widget";
 
 /** The words of a widget a Snapshot keeps editable: its title and a Finding's kicker, headline, subline, footnote
  * and source. Everything else about it is frozen. */
@@ -444,7 +446,7 @@ function cleanWords(actor: Actor, input: unknown, widgetIds: Set<string>, curren
   const out: SnapshotWords = { intro: current.intro ?? "", widgets: { ...(current.widgets ?? {}) } };
   // A visitor's words go through the demo's text rules (the cleaned text is what is kept); words left as they were are not asked
   // again, since the editor sends them all back (spec 0051, ticket 10).
-  const asked = (text: string, before: string | undefined, kind: "name" | "description") => (inDemoVisit(actor) && text !== (before ?? "") ? String(visitorOptionalText(actor, text, kind)) : text);
+  const asked = (text: string, before: string | undefined, kind: DemoTextKind) => (inDemoVisit(actor) && text !== (before ?? "") ? String(visitorOptionalText(actor, text, kind)) : text);
   if (src.intro !== undefined) out.intro = asked(String(src.intro ?? ""), current.intro, "description").slice(0, MAX_INTRO);
   if (src.widgets !== undefined) {
     if (!src.widgets || typeof src.widgets !== "object" || Array.isArray(src.widgets)) throw new Error("These words cannot be saved.");
@@ -454,7 +456,10 @@ function cleanWords(actor: Actor, input: unknown, widgetIds: Set<string>, curren
       const next: WidgetWords = {};
       for (const [k, v] of Object.entries(w as Record<string, unknown>)) {
         if (!(WORD_KEYS as readonly string[]).includes(k)) throw new Error("Only the words of a Snapshot can be changed.");
-        const text = asked(String(v ?? ""), current.widgets?.[id]?.[k as WordKey], k === "title" || k === "kicker" || k === "headline" ? "name" : "description").slice(0, MAX_WORD);
+        // A note's text is longer than a Finding's words and keeps its lines, within the note's own limits.
+        const note = k === "note" ? cleanNoteText(v ?? "") : null;
+        if (note && !note.ok) throw new Refused(note.problem);
+        const text = asked(note ? note.text : String(v ?? ""), current.widgets?.[id]?.[k as WordKey], demoKindOfWord(k)).slice(0, note ? NOTE_TEXT_MAX : MAX_WORD);
         if (text) next[k as WordKey] = text;
       }
       out.widgets![id] = next;
