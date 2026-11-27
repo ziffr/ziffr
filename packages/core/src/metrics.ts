@@ -3,6 +3,7 @@
 import { closeForSystem } from "./system-closes";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
+import { forgetInCombined } from "./internal/combined-delivery";
 import { openNames, openOne, openRows, reserveIds, sealRow, sealedPatch } from "./sealed-columns";
 import { CONNECTORS } from "./connectors/index";
 import type { FirstAsk } from "./asked-message";
@@ -277,8 +278,10 @@ export async function deleteMetric(actor: Actor, metricId: number, confirmName: 
   await db().from("shares").delete().eq("workspace_id", ws).eq("object_type", "metric").eq("object_id", metricId);
   await db().from("access_requests").delete().eq("workspace_id", ws).eq("object_type", "metric").eq("object_id", metricId);
   await removeValuesAndHistory(ws, metricId);
+  const forget = await forgetInCombined(ws, metricId);
   const { data: gone, error } = await db().from("metrics").delete().eq("id", metricId).eq("workspace_id", ws).select("id");
   if (error || !gone?.length) throw new Error("The Metric could not be deleted.");
+  await forget();
   await audit(actor, { kind: "metric.deleted", object: { type: "metric", id: metricId, name: m.name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { values: count ?? 0 } });
   return { values: count ?? 0 };
 }

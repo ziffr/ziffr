@@ -9,6 +9,7 @@ import { insertSealed } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { assertMembersIn, assertSeesMetrics } from "./sharing";
 import { deliver, deliverPrompt } from "./deliveries";
+import { startAsking, stepOf } from "./asking-run";
 import { finishTask, postReply } from "./threads";
 import { changeActionState } from "./action-state";
 import { FROM_APP, type ChangeSource } from "./webhook-events";
@@ -149,6 +150,9 @@ export async function askForMissingValues(actor: Actor): Promise<{ asked: number
     if (!has.has(id)) has.set(id, Promise.resolve(db().from("observations").select("id", { count: "exact", head: true }).eq("metric_id", id).eq("period_start", period)).then((r) => Boolean(r.count)));
     return has.get(id)!;
   };
+  // One run: the several numbers one person owes can go in one message (GLOSSARY: Combined Prompt).
+  const run = startAsking(ws, format(new Date(), "yyyy-MM-dd"));
+  const step = stepOf(run);
   const count = { asked: 0, stopped: 0 };
   for (const t of tokens ?? []) {
     const m = byId.get(t.metric_id);
@@ -160,8 +164,9 @@ export async function askForMissingValues(actor: Actor): Promise<{ asked: number
     ]);
     if (have || asked) continue; // already there, or already asked today
     // Queued: the deliveries job sends them, so asking many people never waits on the mail server.
-    const sent = await deliverPrompt({ metricId: m.id, submitterId: t.submitter_id, senderId: actor.personId, queue: true });
+    const sent = await deliverPrompt({ into: step.into, metricId: m.id, submitterId: t.submitter_id, senderId: actor.personId, queue: true });
     if (sent) count[sent.stopped ? "stopped" : "asked"]++;
   }
+  await run?.flush();
   return count;
 }

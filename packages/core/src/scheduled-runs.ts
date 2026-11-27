@@ -11,6 +11,7 @@ import { runWorkflows } from "./workflow-engine";
 import { takeDueSnapshots } from "./auto-snapshots";
 import { askingHour, isAskingDay, isAskingDue } from "./asking-schedule";
 import type { AskingSchedule, WorkflowConfig } from "./types";
+import { startAsking, type AskingRun } from "./asking-run";
 
 /** How a day's run went, counted per Metric: asked for its value, reminded, escalated. */
 export type RunCounts = { prompts: number; reminders: number; escalations: number };
@@ -50,12 +51,14 @@ function countsOf(log: string[]): RunCounts {
 
 /** Does a claimed run's work and writes how it went into its row (`table`): done with counts, or failed with only the
  * kind of failure, since the details may name people or Metrics. The first Owner of the workspace is who acts. */
-async function recorded(table: "workflow_runs" | "workflow_asking_runs", runId: number, workspaceId: string, work: (owner: string) => Promise<RunCounts>): Promise<RunCounts> {
+async function recorded(table: "workflow_runs" | "workflow_asking_runs", runId: number, workspaceId: string, work: (owner: string) => Promise<RunCounts>, asking?: AskingRun | null): Promise<RunCounts> {
   try {
     const { data: owner } = await db().from("memberships").select("user_id").eq("workspace_id", workspaceId).eq("role", "owner").order("created_at").limit(1).maybeSingle();
     if (!owner) throw Object.assign(new Error("no owner"), { kind: "no_owner" });
     const counts = await work(owner.user_id as string);
     await db().from(table).update({ ...counts, state: "done", finished_at: new Date().toISOString() }).eq("id", runId);
+    // Messages combined across runs are made after this one is done: should one fail, so has the run.
+    asking?.onFailure(() => db().from(table).update({ state: "failed", error: "not_asked" }).eq("id", runId).then());
     return counts;
   } catch (e) {
     await db().from(table).update({ state: "failed", finished_at: new Date().toISOString(), error: String((e as { kind?: string }).kind ?? (e as Error).name ?? "error").slice(0, 100) }).eq("id", runId);
@@ -65,16 +68,16 @@ async function recorded(table: "workflow_runs" | "workflow_asking_runs", runId: 
 
 /** Runs a claimed day: the Workflows as of that day, as one of the workspace's Owners (the one who asks when an
  * Escalation goes to a Metric's owner), then the due-task reminders. The run's row says how it went. */
-export function runClaimedDay(runId: number, workspaceId: string, day: string): Promise<RunCounts> {
+export function runClaimedDay(runId: number, workspaceId: string, day: string, asking?: AskingRun | null): Promise<RunCounts> {
   return recorded("workflow_runs", runId, workspaceId, async (owner) => {
     // Its emails are queued for the deliveries job, which sends them within minutes.
     // Workflows with an Asking Schedule run by their own run (runAskingWorkflowsIfDue), not here.
-    const log = await runWorkflows(workspaceId, day, owner, { queue: true, scope: "unscheduled" });
+    const log = await runWorkflows(workspaceId, day, owner, { queue: true, scope: "unscheduled", asking });
     const counts: RunCounts = { ...countsOf(log), reminders: countsOf(log).reminders + (await remindDueTasks(workspaceId, day)) };
     // Automatic Snapshots (spec 0013) of the day: a failing one never fails the Workflows' run.
     try { await takeDueSnapshots(workspaceId, day); } catch { console.error("Automatic Snapshots failed for a workspace"); }
     return counts;
-  });
+  }, asking);
 }
 
 /** Claims a Workflow's day for its own run (GLOSSARY: Asking Schedule): the run's id for the one call that may run it,
@@ -89,8 +92,8 @@ export async function claimAskingDay(workspaceId: string, workflowId: number, da
 /** Runs a claimed day of one Workflow with an Asking Schedule, as one of the workspace's Owners, as the Workspace's run
  * does. The run's row says how it went. A Workflow whose schedule was just added or removed while the Workspace's run
  * is still going could be asked about twice in that moment; the next runs never repeat a step (the period's state). */
-export function runClaimedAskingDay(runId: number, workspaceId: string, workflowId: number, day: string): Promise<RunCounts> {
-  return recorded("workflow_asking_runs", runId, workspaceId, async (owner) => countsOf(await runWorkflows(workspaceId, day, owner, { queue: true, scope: { workflowId } })));
+export function runClaimedAskingDay(runId: number, workspaceId: string, workflowId: number, day: string, asking?: AskingRun | null): Promise<RunCounts> {
+  return recorded("workflow_asking_runs", runId, workspaceId, async (owner) => countsOf(await runWorkflows(workspaceId, day, owner, { queue: true, scope: { workflowId }, asking })), asking);
 }
 
 /** A Workflow's new schedule never runs for a day that has begun: when today is a run day and its hour has already
@@ -104,19 +107,19 @@ export async function skipPassedAskingDay(workspaceId: string, workflowId: numbe
 
 /** The Workflows of one workspace that run on their own days and hour (GLOSSARY: Asking Schedule): each whose day is a
  * run day and whose hour has come runs once for the day. A failing Workflow does not stop the others. */
-export async function runAskingWorkflowsIfDue(workspace: { id: string; time_zone: string; run_hour: number }, now: Date): Promise<{ ran: number; failed: number }> {
+export async function runAskingWorkflowsIfDue(workspace: { id: string; time_zone: string; run_hour: number }, now: Date, asking?: AskingRun | null): Promise<{ ran: number; failed: number }> {
   if (workspace.id === DEMO_WORKSPACE_ID) return { ran: 0, failed: 0 };
   const flows = await openWorkflowRows(workspace.id, (await db().from("workflows").select("id, config").eq("workspace_id", workspace.id).order("id")).data);
   const local = localTime(now, workspace.time_zone);
   let ran = 0;
   let failed = 0;
   for (const f of flows ?? []) {
-    const asking = (f.config as WorkflowConfig).asking;
-    if (!asking || !isAskingDue(asking, workspace.run_hour, local)) continue;
+    const schedule = (f.config as WorkflowConfig).asking;
+    if (!schedule || !isAskingDue(schedule, workspace.run_hour, local)) continue;
     try {
       const runId = await claimAskingDay(workspace.id, f.id as number, local.day, "schedule");
       if (runId === null) continue;
-      await runClaimedAskingDay(runId, workspace.id, f.id as number, local.day);
+      await runClaimedAskingDay(runId, workspace.id, f.id as number, local.day, asking);
       ran++;
     } catch {
       failed++;
@@ -126,14 +129,14 @@ export async function runAskingWorkflowsIfDue(workspace: { id: string; time_zone
 }
 
 /** One workspace on one call of the job: runs today's steps if its run hour has come and today is not claimed yet. */
-export async function runWorkspaceIfDue(workspace: { id: string; time_zone: string; run_hour: number }, now: Date): Promise<RunOutcome> {
+export async function runWorkspaceIfDue(workspace: { id: string; time_zone: string; run_hour: number }, now: Date, asking?: AskingRun | null): Promise<RunOutcome> {
   if (workspace.id === DEMO_WORKSPACE_ID) return "not_yet";
   const { day, hour } = localTime(now, workspace.time_zone);
   if (hour < workspace.run_hour) return "not_yet";
   const runId = await claimDay(workspace.id, day, "schedule");
   if (runId === null) return "already_ran";
   try {
-    await runClaimedDay(runId, workspace.id, day);
+    await runClaimedDay(runId, workspace.id, day, asking);
     return "ran";
   } catch {
     return "failed";
@@ -154,13 +157,16 @@ export async function runDueWorkspaces(now: Date = new Date(), only?: string[]):
   let askingFailed = 0;
   for (const w of data ?? []) {
     const clock = { id: w.id, time_zone: w.time_zone, run_hour: Number(w.run_hour) };
-    const outcome = await runWorkspaceIfDue(clock, now);
+    // One run per Workspace and call: its daily run and every Asking Schedule due now (GLOSSARY: Combined Prompt).
+    const run = startAsking(w.id, localTime(now, w.time_zone).day);
+    const outcome = await runWorkspaceIfDue(clock, now, run);
     if (outcome === "ran") ran++;
     else if (outcome === "failed") failed++;
     // Whatever goes wrong in one workspace never stops the next.
-    const asking = await runAskingWorkflowsIfDue(clock, now).catch(() => ({ ran: 0, failed: 1 }));
+    const asking = await runAskingWorkflowsIfDue(clock, now, run).catch(() => ({ ran: 0, failed: 1 }));
     askingRan += asking.ran;
     askingFailed += asking.failed;
+    await run?.flush().catch(() => { failed++; console.error("Some Prompts of a workspace's run could not be made; the next run asks them."); });
   }
   return { ran, failed, askingRan, askingFailed };
 }

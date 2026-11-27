@@ -9,6 +9,7 @@ import { db } from "../db";
 import { ARCHIVED_BEFORE_SENT } from "../archived-metrics";
 import { visibleDashboards, visibleMetricIds } from "../access";
 import { getMetrics } from "../workspace-data";
+import { composeAtSend } from "./combined-delivery";
 
 /** Stands in a Prompt's stored text for the recipient's personal form link, which is added only when it is sent. */
 export const FORM_LINK = "[your personal form link]";
@@ -65,7 +66,7 @@ export async function withResumeLink(body: string, d: { workspace_id: string; re
 export const PROMPT_ANSWERED = "Not sent: the request was answered another way first.";
 
 /** What a Delivery is about, as far as its Metric goes. */
-type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; heads_up_key?: string | null; heads_up_told_id?: number | null; tell_workflow_id?: number | null; snapshot_dashboard_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null; sender_id?: string | null; filled_in_observation_id?: number | null; total_rests?: unknown };
+type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; heads_up_key?: string | null; heads_up_told_id?: number | null; tell_workflow_id?: number | null; snapshot_dashboard_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null; sender_id?: string | null; filled_in_observation_id?: number | null; total_rests?: unknown; /** A Combined Prompt, with the words read from the row: they are written anew as it leaves. */ combined?: boolean | null; subject?: unknown; body?: unknown };
 
 /** Why a message of a Workflow's (a Tell or a Checklist Item) must not go out: its recipient said "stop telling me" after it was queued. Null otherwise. */
 async function toldStop(d: AboutMetric): Promise<string | null> {
@@ -79,6 +80,8 @@ async function toldStop(d: AboutMetric): Promise<string | null> {
  * back in the queue after a stopped send, would otherwise still ask. Prompts by their Prompt or form link, task
  * reminders and Escalations by their task; other messages about a Metric (a question someone asks) still go. */
 export async function archivedMetricHolds(d: AboutMetric): Promise<string | null> {
+  // A Combined Prompt (spec 0064) says only what is still open and allowed at this moment: its words are written now.
+  if (d.combined) return composeAtSend(d);
   const ws = d.workspace_id;
   // A Checklist Item's message (spec 0045) stops when the person said "stop telling me" after it was queued; it names no Metric.
   if (d.kind === "checklist") {

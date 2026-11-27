@@ -6,6 +6,7 @@ import { CONNECTORS, type ConnectorId } from "./connectors/index";
 import { editableMetric } from "./metrics";
 import { openNames } from "./sealed-columns";
 import { firstAsksMessage, type FirstAsk } from "./asked-message";
+import { combinedListing } from "./internal/combined-delivery";
 import { stoppedWays } from "./prompt-reach";
 import type { PromptWay } from "./prompt-route";
 
@@ -24,13 +25,15 @@ export async function firstAsksFor(actor: Actor, metricId: number): Promise<stri
   ]);
   const submitters = new Set((tokens ?? []).map((t) => t.submitter_id as string)).size;
   const ids = (prompts ?? []).map((p) => p.id as number);
-  const { data: rows } = ids.length
-    ? await db().from("deliveries").select("recipient_id, connector, mail_state").eq("workspace_id", actor.workspaceId).eq("kind", "prompt").eq("sender_id", actor.personId).in("prompt_id", ids).order("id")
-    : { data: [] };
+  // Their own requests, whether each went alone or with others (GLOSSARY: Combined Prompt).
+  const own = () => db().from("deliveries").select("id, recipient_id, connector, mail_state").eq("workspace_id", actor.workspaceId).eq("kind", "prompt").eq("sender_id", actor.personId).order("id");
+  const listed = (await combinedListing(actor.workspaceId, ids)).map((l) => l.deliveryId);
+  const [alone, together] = await Promise.all([ids.length ? own().in("prompt_id", ids) : null, listed.length ? own().in("id", listed) : null]);
+  const rows = [...(alone?.data ?? []), ...(together?.data ?? [])].sort((a, b) => (a.id as number) - (b.id as number));
   // One line per person: their first request that may leave, else the first by a way they stopped, which says so.
-  const stops = await stoppedWays(actor.workspaceId, [...new Set((rows ?? []).map((r) => r.recipient_id as string))]);
+  const stops = await stoppedWays(actor.workspaceId, [...new Set(rows.map((r) => r.recipient_id as string))]);
   const first = new Map<string, { connector: ConnectorId; state: FirstAsk["state"]; stopped: boolean }>();
-  for (const r of rows ?? []) {
+  for (const r of rows) {
     const stopped = r.mail_state !== "sent" && Boolean(stops.get(r.recipient_id)?.has(r.connector as PromptWay));
     const state = (stopped ? "failed" : r.mail_state === "sending" ? "queued" : ["sent", "queued", "outbox", "failed"].includes(r.mail_state) ? r.mail_state : "outbox") as FirstAsk["state"];
     const had = first.get(r.recipient_id);

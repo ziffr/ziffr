@@ -32,6 +32,7 @@ import { getMetrics } from "./workspace-data";
 import { TEST_PER_DAY, TEST_PER_DAY_IN_TRIAL } from "./test-message-words";
 import { askForItLimitWords, cooldownWords, didntArrive, loopWorks, quietAfter, quietBefore, quietUntilWords, whatToLookFor, type Check } from "./first-metric-words";
 import { waysInAndOut } from "./ways-in-and-out";
+import { combinedListing } from "./internal/combined-delivery";
 
 /** How many Metrics "Another Metric" lists at most. */
 const MAX_CHOICES = 50;
@@ -141,10 +142,13 @@ async function askedFor(actor: Actor, metric: FirstMetricShown, ctx: { email: st
   const { data: prompts } = await db().from("prompts").select("id").eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).eq("submitter_id", actor.personId).order("id", { ascending: false }).limit(10);
   const ids = (prompts ?? []).map((p) => p.id as number);
   if (!ids.length) return [];
-  const { data } = await db().from("deliveries").select("connector, mail_state, last_error, not_before, created_at").eq("workspace_id", actor.workspaceId).eq("recipient_id", actor.personId).eq("kind", "prompt").in("prompt_id", ids).order("id", { ascending: false }).limit(10);
+  const own = () => db().from("deliveries").select("id, connector, mail_state, last_error, not_before, created_at").eq("workspace_id", actor.workspaceId).eq("recipient_id", actor.personId).eq("kind", "prompt").order("id", { ascending: false }).limit(10);
+  const listed = (await combinedListing(actor.workspaceId, ids)).map((l) => l.deliveryId);
+  const [alone, together] = await Promise.all([own().in("prompt_id", ids), listed.length ? own().in("id", listed) : null]);
+  const data = [...(alone.data ?? []), ...(together?.data ?? [])].sort((a, b) => (b.id as number) - (a.id as number));
   const seen = new Set<string>();
   const out: FirstMetricAsked[] = [];
-  for (const d of data ?? []) {
+  for (const d of data) {
     const connector = d.connector as ConnectorId;
     if (seen.has(connector) || !CONNECTORS[connector]) continue;
     seen.add(connector);
