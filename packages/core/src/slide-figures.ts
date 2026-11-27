@@ -234,8 +234,8 @@ export function columnsModel(e: ColumnsElement, ctx: SlideContext): ColumnsModel
 /** One row of a gap table; `gap` is null when the second Metric has no row of this name. */
 export type GapRow = { label: string; goal: string; actual: string; gap: number | null; gapText: string };
 /** What a gap table shows; `empty` says why it has no rows, `more` how many rows are left out, and `note` that a
- * Total adds up Metrics the viewer is not shown. */
-export type GapModel = { denied: true } | { denied: false; head: { row: string; goal: string; actual: string; gap: string }; rows: GapRow[]; empty: string | null; more: number; note: string | null };
+ * Total adds up Metrics the viewer is not shown. `period` is the one the rows are of, where there is one, and `unit` what their scale writes in ("M€"). */
+export type GapModel = { denied: true } | { denied: false; head: { row: string; goal: string; actual: string; gap: string }; rows: GapRow[]; empty: string | null; more: number; note: string | null; period?: string; unit?: string };
 
 /** The most rows a gap table holds; more are named as left out. */
 export const GAP_ROWS = 30;
@@ -283,7 +283,7 @@ function totalGapModel(e: GapTableElement, ctx: SlideContext, total: Metric): Ga
   const withheld = period ? list?.others.includes(period) : list?.hidden;
   // Where the viewer is shown none of its Metrics, the note says all there is to say.
   const empty = rows.length || (!parts.length && list?.hidden) ? null : "No value to show yet.";
-  return { denied: false, head, rows: rows.slice(0, GAP_ROWS), more: Math.max(0, rows.length - GAP_ROWS), empty, note: withheld ? OTHERS_NOT_SHOWN : null };
+  return { denied: false, head, rows: rows.slice(0, GAP_ROWS), more: Math.max(0, rows.length - GAP_ROWS), empty, note: withheld ? OTHERS_NOT_SHOWN : null, period, unit: scaleUnit(total, scale) };
 }
 
 /** Two Metrics' latest Breakdowns side by side, the largest surplus first. The first Metric is the actual one. A gap
@@ -317,7 +317,7 @@ export function gapModel(e: GapTableElement, ctx: SlideContext): GapModel {
     const gap = g === undefined ? null : r.value - g;
     return { label: r.label, goal: writeSlideValue(goal, g, scale, data), actual: writeSlideValue(actual, r.value, scale, data), gap, gapText: gap === null ? "–" : writeSlideValue(actual, gap, scale, data, { bare: true, change: true }) };
   });
-  return { denied: false, head, rows: bySurplus(rows), empty: null, more: 0, note: null };
+  return { denied: false, head, rows: bySurplus(rows), empty: null, more: 0, note: null, period, unit: scaleUnit(actual, scale) };
 }
 
 /** One row of a metric table. */

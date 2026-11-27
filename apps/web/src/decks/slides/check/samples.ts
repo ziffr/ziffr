@@ -8,13 +8,102 @@ import type { Aside, Region, SlideSource, SlideType } from "@ziffr/core/deck-dra
 import type { Role } from "@ziffr/core/deck-drawing/theme";
 import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
 import { STARTER_THEME } from "@ziffr/core/themes";
-import type { CanvasData, ThemeSlides, ThemeTokens } from "@ziffr/core/types";
+import type { BreakdownRow, CanvasData, Metric, ThemeSlides, ThemeTokens } from "@ziffr/core/types";
 
 /** One sample of a slide type: what its description says, and the data it reads. */
 export type Sample = { slide?: Partial<SlideSource>; data?: Partial<CanvasData> };
 
+const BEFORE = "2026-08-01";
+const NOW = "2026-09-01";
+const LONG = "Customer acquisition cost of the enterprise segment in German-speaking countries";
+
+type Made = { name: string; was?: number | null; is?: number | null; more?: Partial<Metric>; rows?: BreakdownRow[]; rowsBefore?: BreakdownRow[] };
+
+/** A slide's sample of made-up Metrics, listed in the order given, with their values of two months and their Breakdowns. */
+function listing(made: Made[], options: Record<string, unknown> = {}, more: Partial<CanvasData> = {}): Sample {
+  const metrics = made.map((m, i) => ({ id: i + 1, slug: `m${i + 1}`, name: m.name, formula: null, polarity: "higher", period: "month", decimals: 1, unit: "€", unit_position: "after", ...m.more }) as Metric);
+  const points = (m: Made) => [[BEFORE, m.was], [NOW, m.is]].flatMap(([period, value]) => (typeof value === "number" ? [{ period: period as string, value }] : []));
+  const rows = (m: Made) => Object.fromEntries([[BEFORE, m.rowsBefore], [NOW, m.rows]].filter(([, list]) => list));
+  return {
+    slide: { metrics: metrics.map((m) => m.id), options },
+    data: {
+      metrics,
+      series: Object.fromEntries(made.map((m, i) => [`m${i + 1}`, points(m)])),
+      breakdowns: Object.fromEntries(made.map((m, i) => [i + 1, rows(m)])),
+      targets: {},
+      projections: {},
+      yearStart: 1,
+      numberStyle: "1,234.5",
+      ...more,
+    },
+  };
+}
+
+const row = (label: string, value: number, parts?: [string, number][]): BreakdownRow => ({ label, value, ...(parts ? { parts: parts.map(([l, v]) => ({ label: l, value: v })) } : {}) });
+const sellers = (count: number, value: (i: number) => number) => Array.from({ length: count }, (_, i) => row(i === 2 ? LONG : `Salesperson ${i + 1}`, value(i)));
+const parts = (ids: number[], more: { hidden?: boolean; others?: string[] } = {}) => ids.map((part) => ({ part, first: BEFORE, last: null, ...more }));
+const totalOf = (id: number, ids: number[]) => ({ totalLists: { [id]: { parts: parts(ids), others: [], hidden: false } } });
+const asTotal = { total: { targets: "own" as const, open: true } };
+
+const gapTables: Sample[] = [
+  listing([
+    { name: "Bookings", is: 4_200_000, rows: sellers(27, (i) => (i - 4) * 31_000) },
+    { name: "Quota", is: 4_500_000, rows: sellers(25, (i) => 200_000 + (i % 3) * 40_000) },
+  ]),
+  listing(
+    [
+      { name: "Commit", was: 900, is: 1_000, more: asTotal },
+      { name: "Commit, Anna", is: 600 },
+      { name: `Commit, ${LONG}`, is: 0 },
+      { name: "Commit, Ben", is: -40 },
+    ],
+    { total: true },
+    { ...totalOf(1, [2, 3, 4]), targets: { 2: [{ period: NOW, value: 500 }], 4: [{ period: NOW, value: 100 }] } },
+  ),
+  listing([{ name: LONG }, { name: "Quota" }]),
+];
+
+const bridges: Sample[] = [
+  listing([{ name: "Revenue by region", was: 9_800_000, is: 12_400_000, rows: sellers(14, (i) => 400_000 + i * 70_000), rowsBefore: sellers(14, (i) => 900_000 - i * 40_000) }]),
+  listing([
+    { name: LONG, was: 40, is: -75.5, more: { formula: "{m2} - {m3} - {m4}" } },
+    { name: "Revenue of the enterprise segment", was: 100, is: 40 },
+    { name: "Cost of sales", was: 55, is: 70, more: { polarity: "lower" } },
+    { name: "Other operating cost", was: 5, is: 45.5, more: { polarity: "lower" } },
+  ]),
+  listing([{ name: "Headcount" }]),
+];
+
+const regions = ["Germany, Austria and Switzerland", "North America", "United Kingdom and Ireland", "Nordic countries", "Southern Europe", "Asia and Pacific", "Latin America", "Africa"];
+const segments = ["Enterprise accounts of more than 5,000 people", "Mid-market", "Small business", "Public sector", "Partners", "Self-service", "Education"];
+const mosaics: Sample[] = [
+  listing([{ name: "Revenue", is: 25_000, rows: regions.map((name, r) => row(name, 7_000 - r * 800, segments.map((p, i): [string, number] => [p, (7_000 - r * 800) / 7 + (i - 3) * 20]))) }]),
+  listing([{ name: LONG, is: 1_000_040, rows: [row(regions[0]!, 1_000_000, [[segments[0]!, 700_000]]), row(regions[1]!, 20, [[segments[1]!, 30]]), row(regions[2]!, 20, [[segments[2]!, 20]]), row(regions[3]!, 0, [[segments[3]!, 0]])] }]),
+  listing([{ name: "Net change", is: -4, rows: [row("Germany", -4, [["Enterprise", -4]])] }]),
+];
+
+const trees: Sample[] = [
+  listing(
+    [
+      { name: "Revenue from new business", was: 800_000, is: 1_000_000, more: { formula: "{m2} * {m3} + {m4}" } },
+      { name: "Deals won", was: 32, is: 50, more: { ...asTotal, unit: "" } },
+      { name: "Average price of a deal", was: 25_000, is: 19_500 },
+      { name: LONG, was: 0, is: 25_000, more: { polarity: "lower" } },
+      ...regions.map((name, i) => ({ name: `Deals won, ${name}`, was: 4, is: i === 7 ? 22 : 4, more: { unit: "" } })),
+    ],
+    {},
+    totalOf(2, [5, 6, 7, 8, 9, 10, 11, 12]),
+  ),
+  listing([
+    { name: "Gross margin", was: 61.5, is: 61.2, more: { formula: "({m2} - {m3}) / {m2} * 100", unit: "%" } },
+    { name: "Revenue", was: 11.9, is: 12.4 },
+    { name: "Cost of sales", was: 4.6, more: { polarity: "lower" } },
+  ]),
+  listing([{ name: LONG, is: 4 }]),
+];
+
 /** The samples of every slide type Ziffr has, by type: one or more, among them its hardest (long, empty, negative). */
-export const SAMPLES: Record<string, Sample[]> = { cover: [{}] };
+export const SAMPLES: Record<string, Sample[]> = { cover: [{}], "gap-table": gapTables, bridge: bridges, mosaic: mosaics, "driver-tree": trees };
 
 /** A made-up logo: three bars and a block, as a picture carried in the drawing. */
 const LOGO = `data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40" viewBox="0 0 160 40"><rect x="2" y="20" width="8" height="16" fill="#E0707F"/><rect x="14" y="12" width="8" height="24" fill="#C24B5A"/><rect x="26" y="4" width="8" height="32" fill="#9B2C3B"/><rect x="46" y="12" width="110" height="16" rx="3" fill="#44505C"/></svg>')}`;

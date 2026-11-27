@@ -69,5 +69,8 @@ export type SlideType<Content = unknown> = {
   /** True: the content needs the design's wide form, and a so-what stands under it. */
   wide?: boolean;
   fill(slide: SlideSource, data: CanvasData, deck: DeckFacts): SlideFill<Content>;
+  /** The content in as many pieces as it takes to fit the region, a slide for each, so that nothing is dropped.
+   * Absent: it is always one slide. */
+  pages?(content: Content, region: Region): Content[];
   draw(content: Content, region: Region): Obj[];
 };
