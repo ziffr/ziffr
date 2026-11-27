@@ -49,5 +49,12 @@ export const es: AnswerWords = {
     ordinal: ["º", "°", "er", "o"],
     // "12 de noviembre de 2026".
     dateWords: ["de"],
+    reply: {
+      yes: ["sí", "si", "sí por favor", "sí, por favor"],
+      no: ["no", "no gracias", "no, gracias", "gracias", "muchas gracias"],
+      greetings: ["hola", "buenos días", "buenas tardes", "buenas noches", "estimado", "estimada", "querido", "querida"],
+      closings: ["saludos", "un saludo", "un cordial saludo", "atentamente", "un abrazo", "gracias", "muchas gracias"],
+      sentFrom: ["enviado desde mi …"],
+    },
   },
 };

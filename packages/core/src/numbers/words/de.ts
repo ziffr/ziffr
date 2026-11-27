@@ -47,5 +47,12 @@ export const de: AnswerWords = {
     fiscalYear: ["gj", "fy"],
     ordinal: ["."],
     dateWords: [],
+    reply: {
+      yes: ["ja", "ja bitte", "ja, bitte"],
+      no: ["nein", "nein danke", "nein, danke", "nö", "danke", "danke schön", "dankeschön", "vielen dank", "danke dir", "danke ihnen"],
+      greetings: ["hallo", "hi", "hey", "liebe", "lieber", "liebes", "sehr geehrte", "sehr geehrter", "sehr geehrtes", "guten morgen", "guten tag", "guten abend", "moin", "servus"],
+      closings: ["viele grüße", "viele grüsse", "liebe grüße", "liebe grüsse", "beste grüße", "beste grüsse", "schöne grüße", "schöne grüsse", "herzliche grüße", "herzliche grüsse", "freundliche grüße", "freundliche grüsse", "mit freundlichen grüßen", "mit freundlichen grüssen", "mit besten grüßen", "grüße", "gruß", "gruss", "lg", "vg", "mfg", "danke", "vielen dank", "danke und viele grüße", "danke und gruß"],
+      sentFrom: ["von meinem … gesendet", "gesendet von meinem …"],
+    },
   },
 };
