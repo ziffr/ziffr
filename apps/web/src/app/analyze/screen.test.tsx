@@ -87,7 +87,7 @@ describe("the Metric to explain", () => {
   const role = (name: string) => host.querySelector<HTMLButtonElement>(`button[aria-label$="${name} the one to explain"], button[aria-label="${name} is the one to explain"]`)!;
   const pressed = () => [...host.querySelectorAll("button[aria-pressed='true'][aria-label$='is the one to explain']")].map((x) => x.getAttribute("aria-label")!.replace(" is the one to explain", ""));
   // The picker is asked for the list with the Metric to explain, which starts its Slots.
-  const askedWith = async () => { await act(async () => { [...host.querySelectorAll("button")].find((x) => x.textContent?.includes("Choose a method"))!.click(); }); return listed.mock.calls.at(-1)![1]; };
+  const askedWith = async () => { await act(async () => { [...host.querySelectorAll("button")].find((x) => x.textContent?.includes("Pick a question"))!.click(); }); return listed.mock.calls.at(-1)![1]; };
 
   it("is the first Metric when none is marked, and the marked one wherever it stands, in words", async () => {
     await mount(false, [a.id, b.id, c.id]);
@@ -127,96 +127,42 @@ describe("the Metric to explain", () => {
   });
 });
 
-const choose = () => [...host.querySelectorAll("button")].find((x) => x.textContent?.includes("Choose a method"))!;
-const panel = () => host.querySelector("aside[aria-label='Choose a method']");
-const slideOver = () => document.querySelector("[data-slide-over]");
-// A wide screen shows the methods panel beside the canvas; the default test window is narrow, where it is the Slide-over.
-const wide = (matches: boolean) => { window.matchMedia = (() => ({ matches, addEventListener() {}, removeEventListener() {} })) as never; };
+const choose = () => [...host.querySelectorAll<HTMLButtonElement>("button")].find((x) => x.textContent?.trim() === "Pick a question");
+const panel = () => document.querySelector("[data-slide-over]");
 afterEach(() => { listing = () => ({ canvas: [], groups: [] }); listed.mockClear(); });
 const fromSample = (ids: number[]) => listFor(ids.map((id) => fact(id, data.metrics.find((m) => m.id === id)!.name)));
 
 describe("the empty canvas", () => {
-  it("says what to do in three numbered steps, and the panel stays shut", async () => {
-    wide(true);
+  it("shows the three numbered steps and nothing to press, and the panel stays shut", async () => {
+    listing = fromSample;
     await mount(true);
     const steps = [...host.querySelectorAll("ol[aria-label='How it works'] li")].map((li) => li.textContent);
     expect(steps).toEqual(["1Drop Metrics here (or click + in the Pool).", "2Pick a question.", "3Read the answer."]);
+    expect(host.querySelector("[data-canvas]")!.querySelectorAll("button")).toHaveLength(0);
+    expect(choose()).toBeUndefined();
     expect(panel()).toBeNull();
-    expect(slideOver()).toBeNull();
-    expect(host.textContent).not.toMatch(/Forecast|Correlation matrix|What drives/);
-  });
-
-  it("hides the example when no question fits what the Workspace has", async () => {
-    wide(true);
-    await mount(true);
-    expect(host.textContent).not.toContain("Try:");
-  });
-
-  it("offers one example, worded by the picker's own list, that puts Metrics on the canvas and opens the question in the panel", async () => {
-    wide(true);
-    listing = fromSample;
-    await mount(true);
-    const example = [...host.querySelectorAll("button")].find((b) => b.textContent?.trim().startsWith("Try:"))!;
-    // The name in it is a Metric of this Workspace, put in by the list: nothing is written out in the page.
-    expect(data.metrics.some((m) => example.textContent!.includes(m.name))).toBe(true);
-    const title = example.textContent!.trim().replace(/^Try:\s*/, "");
-    await act(async () => { example.click(); });
-    expect(onCanvas().length).toBeGreaterThanOrEqual(2);
-    expect(panel()).not.toBeNull();
-    // The question of the example is the one open in the panel, with its fields.
-    const open = [...panel()!.querySelectorAll("button[aria-expanded='true']")].map((b) => b.textContent);
-    expect(open).toHaveLength(1);
-    expect(open[0]).toContain(title);
-    expect(panel()!.querySelector("form")).not.toBeNull();
-    expect(host.textContent).not.toContain("Try:");
+    expect(host.textContent).not.toMatch(/Forecast|Correlation matrix|What drives|Try:/);
   });
 });
 
-describe("the methods panel", () => {
-  it("is shut with Metrics on the canvas until asked for, then sits beside the canvas on a wide screen, keeping the Pool usable", async () => {
-    wide(true);
+describe("Pick a question", () => {
+  it("is on the canvas once a Metric is there, and opens the Slide-over only when asked", async () => {
     listing = fromSample;
     await mount(true, [first.id]);
     expect(panel()).toBeNull();
-    await act(async () => { choose().click(); });
-    expect(panel()).not.toBeNull();
-    expect(choose().getAttribute("aria-expanded")).toBe("true");
-    expect(slideOver()).toBeNull();
-    // The Pool is still there and still adds while the panel is open (nothing is modal).
-    await act(async () => { button(`Add ${data.metrics[1].name}`).click(); });
-    expect(onCanvas()).toEqual([first.name, data.metrics[1].name]);
-    expect(panel()).not.toBeNull();
-  });
-
-  it("closes with Escape and with its close button, and focus goes back to Choose a method", async () => {
-    wide(true);
-    listing = fromSample;
-    await mount(true, [first.id]);
-    await act(async () => { choose().click(); });
-    await act(async () => { panel()!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
-    expect(panel()).toBeNull();
-    expect(document.activeElement).toBe(choose());
-    await act(async () => { choose().click(); });
-    await act(async () => { host.querySelector<HTMLButtonElement>("button[aria-label='Close the methods panel']")!.click(); });
-    expect(panel()).toBeNull();
+    expect(host.querySelector("[data-canvas]")!.contains(choose()!)).toBe(true);
+    await act(async () => { choose()!.click(); });
+    expect(panel()!.textContent).toContain("Pick a question");
+    expect(panel()!.textContent).toContain("Where is it heading?".replace("it", first.name));
+    expect(choose()!.getAttribute("aria-expanded")).toBe("true");
+    expect(host.querySelector("aside[aria-label='Pick a question']")).toBeNull();
   });
 
   it("opens from the start when the page says so (from a Metric page)", async () => {
-    wide(true);
     listing = fromSample;
     host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
     await act(async () => { root.render(<SlideOverProvider><AnalyzeScreen data={data} onCanvas={[first.id]} explained={first.id} open demo={false} /></SlideOverProvider>); });
     expect(panel()).not.toBeNull();
     expect(listed.mock.calls.at(-1)![1]).toBe(first.id);
-  });
-
-  it("is the Slide-over on a narrow screen, with the answer left for the page", async () => {
-    wide(false);
-    listing = fromSample;
-    await mount(true, [first.id]);
-    await act(async () => { choose().click(); });
-    expect(panel()).toBeNull();
-    expect(slideOver()!.textContent).toContain("Choose a method");
-    expect(slideOver()!.textContent).toContain("Where is it heading?".replace("it", first.name));
   });
 });
