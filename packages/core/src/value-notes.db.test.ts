@@ -104,11 +104,36 @@ describe("who reads and who writes", () => {
     await expect(writeValueNote(s.as(s.ben), { metricId: s.m.id, period: P, words: "Mine" })).rejects.toBeInstanceOf(Forbidden);
     await expect(correctValueNote(s.as(s.ben), id, "Mine")).rejects.toBeInstanceOf(Forbidden);
     await expect(removeValueNote(s.as(s.ben), id)).rejects.toBeInstanceOf(Forbidden);
-    // Without the Share, even the author reads nothing.
+  });
+
+  it("gives an author who no longer sees the Metric neither the note nor a way to change it", async () => {
+    const s = await setup();
+    await s.send(45, "From Ann.");
+    const id = (await s.read())!.current[0]!.id;
+    // Ann's value and note stay; her Share and her place as Submitter go.
     await s.w.unshare(s.m.id, s.ann);
-    await db().from("tokens").delete().eq("metric_id", s.m.id);
-    const seen = await s.read(s.ann);
-    if (seen === null) await expect(removeValueNote(s.as(s.ann), id)).rejects.toBeInstanceOf(Forbidden);
+    await db().from("tokens").delete().eq("metric_id", s.m.id).throwOnError();
+    expect(await s.read(s.ann)).toBeNull();
+    await expect(writeValueNote(s.as(s.ann), { metricId: s.m.id, period: P, words: "Still me" })).rejects.toBeInstanceOf(Forbidden);
+    await expect(correctValueNote(s.as(s.ann), id, "Still me")).rejects.toBeInstanceOf(Forbidden);
+    await expect(removeValueNote(s.as(s.ann), id)).rejects.toBeInstanceOf(Forbidden);
+    expect(await s.words()).toEqual(["From Ann."]);
+  });
+
+  it("lets a Submitter write only on their own value where several send one", async () => {
+    const s = await setup({ submission_rule: "keep_both" });
+    const other = await s.w.token(s.m.id, s.ben);
+    await s.send(4, "North.");
+    await submitValue({ source: "api", sender: other, text: "6", value: { value: 6 }, period: P, workspaceId: s.w.id });
+    const annsNote = (await s.read())!.current[0]!.id;
+    const [annsValue] = await rowsOf("observations", { metric_id: s.m.id, submitter_id: s.ann });
+    await expect(writeValueNote(s.as(s.ben), { metricId: s.m.id, period: P, words: "On Ann's", observationId: Number(annsValue!.id) })).rejects.toBeInstanceOf(Forbidden);
+    await expect(correctValueNote(s.as(s.ben), annsNote, "Mine")).rejects.toBeInstanceOf(Forbidden);
+    await expect(removeValueNote(s.as(s.ben), annsNote)).rejects.toBeInstanceOf(Forbidden);
+    await writeValueNote(s.as(s.ben), { metricId: s.m.id, period: P, words: "South." });
+    const rows = await rowsOf("value_notes", { metric_id: s.m.id, author_id: s.ben });
+    expect(rows.map((r) => Number(r.observation_id))).not.toContain(Number(annsValue!.id));
+    expect(await s.words()).toEqual(["South.", "North."]);
   });
 
   it("tells a Guest no names, neither as authors nor in the words", async () => {

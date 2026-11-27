@@ -692,7 +692,7 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
     }
     // The replaced value's notes become history; the note sent with the proposal is now the period's (spec 0064).
     await notesAfterValue(actor.workspaceId, { metricId: act.metric_id, period: act.period_start, observationId: Number(writtenTo), before, after: proposed, replaces: true });
-    await decideProposedNote(actor.workspaceId, messageId, { observationId: Number(writtenTo) });
+    await decideProposedNote(actor.workspaceId, messageId, { metricId: act.metric_id, period: act.period_start, observationId: Number(writtenTo), sameNumber: before === proposed });
   }
   // A declined proposal takes its note with it: it never was a Value Note.
   if (!accept) await decideProposedNote(actor.workspaceId, messageId, null);

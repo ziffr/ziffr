@@ -146,6 +146,22 @@ export async function notesAfterValue(ws: string, value: ValueWritten, note?: No
   }
 }
 
+// Whether the proposed words are the value's note already; if they are other words, the earlier notes give way.
+async function settleSameNumber(ws: string, messageId: number, accepted: Accepted): Promise<boolean> {
+  try {
+    const { data, error } = await db().from("value_notes").select("id, words").eq("workspace_id", ws).eq("proposal", messageId);
+    if (error) throw new Error("The proposed note could not be read.");
+    const [proposed] = (await openRows("value_notes", ws, (data ?? []) as Record<string, unknown>[])) as { words?: unknown }[];
+    if (!proposed) return false;
+    const standing = noteThreads(await noteEntries(ws, accepted.metricId, accepted.period)).filter((t) => !isPast(t) && t.first.observation_id === accepted.observationId);
+    if (standing.some((t) => t.latest.words === proposed.words)) return true;
+    await retireNotes(ws, accepted.observationId);
+  } catch (error) {
+    console.error("Value Notes could not be updated:", error instanceof Error ? error.message : "unknown");
+  }
+  return false;
+}
+
 /** The notes of a contribution whose value was replaced leave the current view and stay in the history. */
 async function retireNotes(ws: string, observationId: number): Promise<void> {
   const { error } = await db().from("value_notes").update({ replaced_at: new Date().toISOString() }).eq("workspace_id", ws).eq("observation_id", observationId).is("replaced_at", null);
@@ -166,10 +182,16 @@ export async function noteWithProposal(ws: string, proposal: { messageId: number
   }
 }
 
-/** A Correction was decided: accepted, its note becomes the Value Note of the value now written; declined, it goes. */
-export async function decideProposedNote(ws: string, messageId: number, accepted: { observationId: number } | null): Promise<void> {
+/** The value an accepted Correction wrote; `sameNumber` when it is the number that stood there before. */
+export type Accepted = { metricId: number; period: string; observationId: number; sameNumber: boolean };
+
+/** A Correction was decided: accepted, its note becomes the Value Note of the value now written; declined, it goes.
+ * With the same number, its words take the place of the value's notes, and words already there add nothing. */
+export async function decideProposedNote(ws: string, messageId: number, accepted: Accepted | null): Promise<void> {
+  // A new number has retired the earlier notes already (notesAfterValue).
+  const known = accepted?.sameNumber ? await settleSameNumber(ws, messageId, accepted) : false;
   const table = db().from("value_notes");
-  const { error } = await (accepted ? table.update({ proposal: null, observation_id: accepted.observationId }) : table.delete()).eq("workspace_id", ws).eq("proposal", messageId);
+  const { error } = await (accepted && !known ? table.update({ proposal: null, observation_id: accepted.observationId }) : table.delete()).eq("workspace_id", ws).eq("proposal", messageId);
   // The decision is made either way; a note left behind stays a proposal, which nobody is shown.
   if (error) console.error("a proposed Value Note could not be settled:", error.message);
 }
