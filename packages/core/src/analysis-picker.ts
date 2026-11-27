@@ -4,13 +4,15 @@
 // and Stand-ins, through visibleMetricIds): a Metric they may not see is not on the list of Slots, not named in a reason, not counted, and
 // an id for one gets the same words as an id that does not exist. What the browser sends (ids, settings) is untrusted: read with limits in
 // method-picker-run.ts and refused in words. The screen only calls these.
+import { format } from "date-fns";
 import type { Actor } from "./actor";
 import { seriesFor, visibleMetricIds } from "./access";
 import { explainedFirst } from "./canvas-roles";
 import { yearStartOf } from "./fiscal-year";
 import { questionFor, sentenceFor, type Picked } from "./method-picker-names";
 import { entryOf, textsOf, type EntryId, type PickerEntry, type SettingDef, type SlotDef } from "./method-picker";
-import { groupsFor, metricsNeeded, type CanvasFact, type EntryFit } from "./method-picker-fit";
+import { groupsFor, metricsNeeded, periodsShort, type CanvasFact, type EntryFit } from "./method-picker-fit";
+import { shortWords, type History } from "./method-picker-short";
 import { readSettings, readSlotIds, recipeFileOf, runEntry, type PickWorld } from "./method-picker-run";
 import { endsOf } from "./takeaways/forecast";
 import type { AnalysisRecipe2 } from "./analysis-recipe";
@@ -47,6 +49,8 @@ export type EntryView = {
   /** How many Metrics it needs on the canvas, in words. */
   needs: string;
   fit: EntryFit;
+  /** Where too little history stops it: how close it is, said in place of the reason. */
+  short?: ShortView;
   /** The Metrics each Slot is filled with from the canvas where the entry fits (ids, in canvas order); a Slot the person may change. */
   defaults: Record<string, number[]>;
   /** Whether the result can be had as an Analysis Recipe file. */
@@ -54,6 +58,9 @@ export type EntryView = {
   /** The widget that shows the same Takeaway, so that the result can be saved as one the existing way. */
   widget: PickerEntry["widget"];
 };
+
+/** How close an entry is: the line to show, and the Metric (one the person sees) whose history is short, with its period. */
+export type ShortView = { words: string; metric: { id: number; name: string; slug: string }; span: Span };
 
 /** The list: the canvas Metrics the person sees, and the groups of entries. */
 export type PickerList = { canvas: CanvasMetric[]; /** Why there is no list, in words, where there is a reason. */ notice?: string; groups: { want: string; question: string; entries: EntryView[] }[] };
@@ -86,13 +93,27 @@ async function load(actor: Actor, ids: number[]): Promise<Loaded> {
   return { world, visible };
 }
 
-function factOf(w: PickWorld, m: Metric, canvas: Metric[]): CanvasFact {
+// A Metric's whole periods with a value, by its own period.
+function wholePoints(w: PickWorld, m: Metric) {
   const resolve: Resolver = (slug) => {
     const metric = w.metrics.find((x) => x.slug === slug);
     return metric && { metric, points: w.series[slug] ?? [] };
   };
   const own = seriesBy(m, resolve, m.period as Span, { yearStart: w.yearStart });
-  const points = own.ok ? own.points.filter((p) => !p.toDate) : [];
+  return own.ok ? own.points.filter((p) => !p.toDate) : [];
+}
+
+// How close an entry is, where history is what stops it. Every Metric in `facts` is one the actor sees.
+function shortView(w: PickWorld, entry: PickerEntry, facts: CanvasFact[], visible: Map<number, Metric>, today: string): ShortView | undefined {
+  const short = periodsShort(entry, facts);
+  if (!short) return undefined;
+  const m = visible.get(short.metric)!;
+  const history: History = { starts: wholePoints(w, m).map((p) => p.period), derived: Boolean(m.formula) };
+  return { words: shortWords(entry, short, facts, history, w.yearStart, today), metric: { id: m.id, name: m.name, slug: m.slug }, span: short.span };
+}
+
+function factOf(w: PickWorld, m: Metric, canvas: Metric[]): CanvasFact {
+  const points = wholePoints(w, m);
   const [before, latest] = [points.at(-2)?.period, points.at(-1)?.period];
   const ends = endsOf(m);
   const has = (period: string | undefined) => period !== undefined && (w.breakdowns[m.id]?.[period]?.length ?? 0) > 0;
@@ -149,6 +170,7 @@ export async function listPicker(actor: Actor, canvasIds: unknown, explains?: un
   const facts = canvas.map((m) => factOf(world, m, canvas));
   const on = canvas.map((m) => m.id);
   const names = new Map(canvas.map((m) => [m.id, m.name]));
+  const today = format(new Date(), "yyyy-MM-dd");
   return {
     canvas: canvas.map((m) => ({ id: m.id, name: m.name, period: m.period as Span })),
     groups: ranked(groupsFor(facts)).map((g) => ({
@@ -157,9 +179,10 @@ export async function listPicker(actor: Actor, canvasIds: unknown, explains?: un
       entries: g.entries.map((e): EntryView => {
         const defaults = defaultsOf(e, on, e.fit);
         const picked = pickedOf(defaults, names);
+        const short = e.fit.ok ? undefined : shortView(world, e, facts, visible, today);
         return {
         id: e.id, name: questionFor(e.id, picked, e.name), generic: e.name, sentence: sentenceFor(e.id, e.sentence, picked), technical: e.technical, ...textsOf(e), slots: e.slots, settings: e.settings,
-        needs: needsText(e), fit: e.fit, defaults, recipeFile: recipeFileOf(e) !== null, widget: e.widget,
+        needs: needsText(e), fit: e.fit, defaults, recipeFile: recipeFileOf(e) !== null, widget: e.widget, ...(short ? { short } : {}),
         };
       }),
     })),
