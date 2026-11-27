@@ -26,7 +26,7 @@ function Watch({ onGone, children }: { onGone: () => void; children: React.React
   return <>{children}</>;
 }
 
-/** Shows `children` in the side panel while mounted. `children` is read once, when the window opens: give it state of its own rather than props that change. */
+/** Shows `children` in the side panel while mounted. `children` is read when the window opens and when its title changes: give it state of its own rather than props that change. */
 export function SlideOverWindow({ title, description, short, onClose, children }: { title: string; description?: string; /** A bottom sheet on a phone (see SlideOverContent). */ short?: boolean; onClose: () => void; children: React.ReactNode }) {
   const { open, replace, close } = useSlideOver();
   const alive = useRef(false);
@@ -34,24 +34,29 @@ export function SlideOverWindow({ title, description, short, onClose, children }
   const started = useRef(false);
   const latest = useRef(onClose);
   latest.current = onClose;
+  const shown = useRef(title);
+  const panelOf = () => ({ title, description, short, content: <Watch onGone={() => { gone.current = true; latest.current(); }}>{children}</Watch> });
   useEffect(() => {
     alive.current = true;
     gone.current = false;
     // The second run is strict mode's: replace, so the panel does not get a step back to a copy of itself.
-    (started.current ? replace : open)({
-      title,
-      description,
-      short,
-      content: <Watch onGone={() => { gone.current = true; latest.current(); }}>{children}</Watch>,
-    });
+    (started.current ? replace : open)(panelOf());
     started.current = true;
     return () => {
       alive.current = false;
       // The screen stopped rendering the window (done, or cancelled): close the panel unless the panel was already closed from its own side.
       setTimeout(() => { if (!alive.current && !gone.current) close(); }, 0);
     };
-    // Read once, as said above: a later change of title or children must not reopen the panel.
+    // Read once, as said above: a later change of children must not reopen the panel.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // The same window under another title (a panel that switches what it lists): the heading changes where it stands, and what is
+  // inside keeps its place in the tree, so the window is neither closed nor a step further on.
+  useEffect(() => {
+    if (shown.current === title) return;
+    shown.current = title;
+    replace(panelOf());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new title redraws the panel
+  }, [title]);
   return null;
 }
