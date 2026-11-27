@@ -19,7 +19,7 @@ const EMPTY: Typed = { value: "", note: "" };
 
 type Props = { code: string; rows: CombinedFormRow[]; numberStyle: NumberStyle; notes: boolean };
 
-/** The list of numbers with one Submit. It works without JavaScript too. */
+/** The list of numbers with one Submit. */
 export function CombinedFields({ code, rows, numberStyle, notes }: Props) {
   const [result, action, pending] = useActionState<CombinedResult | null, FormData>(submitCombinedWebForm.bind(null, code), null);
   const [typed, setTyped] = useState<Record<number, Typed>>({});
@@ -47,7 +47,8 @@ export function CombinedFields({ code, rows, numberStyle, notes }: Props) {
         {rows.map((row) => (
           <li key={row.position} className="rounded-lg border p-3" aria-labelledby={`figure-${row.position}`}>
             <h2 id={`figure-${row.position}`} className="text-base font-semibold">
-              {row.position}. {row.name ?? "A number"}
+              {/* One no longer asked is not named: its number and why stand alone. */}
+              {row.position}. {row.name ?? (row.open ? "" : row.words)}
               {row.periodLabel && <span className="block text-sm font-normal text-muted-foreground">{row.periodLabel}</span>}
             </h2>
             {row.open ? (
@@ -63,14 +64,14 @@ export function CombinedFields({ code, rows, numberStyle, notes }: Props) {
             ) : (
               <>
                 {shown[row.position] && <Said result={shown[row.position]} />}
-                <p className="mt-1.5 text-sm">{row.words}</p>
+                {row.name !== null && <p className="mt-1.5 text-sm">{row.words}</p>}
               </>
             )}
           </li>
         ))}
       </ol>
       {/* On a phone Submit stays in reach however long the list is, above the tab bar of a signed-in person. */}
-      <div className={cn("mt-4", open && "max-sm:sticky max-sm:bottom-0 max-sm:z-30 max-sm:bg-background max-sm:py-3 max-sm:[body:has(nav[aria-label=Tabs])_&]:bottom-[calc(3.5rem+env(safe-area-inset-bottom))]")}>
+      <div className={cn("mt-4", open && "max-sm:sticky max-sm:bottom-0 max-sm:z-30 max-sm:border-t max-sm:bg-background max-sm:py-3 max-sm:[body:has(nav[aria-label=Tabs])_&]:bottom-[calc(3rem+1px+env(safe-area-inset-bottom))]")}>
         {result && <Summary result={result} />}
         {open ? (
           <Button type="submit" size="lg" className="w-full max-sm:h-12 max-sm:text-base" disabled={pending}>{pending ? "Sending…" : "Submit"}</Button>

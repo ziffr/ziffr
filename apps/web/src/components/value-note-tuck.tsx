@@ -44,6 +44,8 @@ export function TuckedNote({ value, onChange, name = "note", about }: Props) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           maxLength={undefined}
+          // As the number's field above it: in a dark Appearance on a phone a form keeps a field that is easy to see.
+          className="max-sm:dark:bg-card"
         />
         {[...value].length > MOST && <p role="status" className="mt-1 text-xs text-destructive">Too long: only the first 1,000 characters are saved.</p>}
       </div>

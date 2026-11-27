@@ -203,8 +203,9 @@ async function submitRow(f: Figure | undefined, entry: Entry, effects: Submissio
   try {
     // The intake checks the Token, the Metric and the period once more, as for the figure's own form link.
     const r = await submitFormLink(f.token.code, { value: entry.value, breakdown: entry.breakdown, period: f.period, note: entry.note }, effects);
-    // The intake's words for another period speak of a list of periods, which this form does not have.
-    const detail = r.outcome === "rejected_other_period" ? "Not recorded: type the number alone." : r.detail;
+    // The intake's words for another period speak of a list of periods, which this form does not have, and its words
+    // for how a value came speak of a personal link, which this one is not.
+    const detail = r.outcome === "rejected_other_period" ? "Not recorded: type the number alone." : r.detail.replace(" (via personal form link)", "");
     return { ok: !r.outcome.startsWith("rejected"), detail, ...(r.valueNote?.saved === false || (r.outcome.startsWith("rejected") && entry.note) ? { noteKept: true } : {}) };
   } catch (e) {
     // The error's own words only, never what was typed; the other rows go on.

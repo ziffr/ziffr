@@ -118,6 +118,7 @@ describe("sending the combined form", () => {
     expect(result.refused).toBeUndefined();
     expect(Object.keys(result.rows)).toEqual([String(r)]);
     expect(result.rows[r]).toMatchObject({ ok: true, detail: expect.stringContaining("Your note was saved.") });
+    expect(result.rows[r]!.detail).not.toContain("personal form link");
     expect([await values(s.revenue.id), await values(s.costs.id), await values(s.visits.id)]).toEqual([1, 0, 0]);
     const [value] = await rowsOf("observations", { metric_id: s.revenue.id });
     expect(value).toMatchObject({ submitter_id: s.ann, source: "web_form" });
