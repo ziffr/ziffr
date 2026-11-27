@@ -315,18 +315,23 @@ describe("a set-up that stops half way", () => {
     await nothingSent(t.id);
   });
 
-  it("goes on only with the lines it started with", async () => {
+  it("goes on only with the people it started with, in any order and with other answers", async () => {
     const t = await space();
     const sam = someone("Sam", address("sam"));
     vi.mocked(createFilledDeck).mockImplementationOnce(async () => { throw new Error("The deck could not be created."); });
-    await expect(startPackStep(t.by, FORECAST, forecast({ who: "me" }, sam))).rejects.toThrow(/The deck could not be created/);
+    await expect(startPackStep(t.by, FORECAST, forecast({ who: "me" }, sam, { who: "me" }))).rejects.toThrow(/The deck could not be created/);
     const before = await counts(t.id);
-    await expect(startPackStep(t.by, FORECAST, forecast({ who: "me" }, sam, { who: "me" }))).rejects.toThrow(/started with Sam\./);
+    for (const others of [forecast({ who: "me" }, sam), forecast({ who: "me" }, sam, someone("Kim"))]) {
+      await expect(startPackStep(t.by, FORECAST, others)).rejects.toThrow(/other people/);
+      expect((await checkStart(t.by, FORECAST, others)).problems[0]).toContain("other people");
+    }
     expect(await counts(t.id)).toEqual(before);
-    // Another answer that changes no line finishes it.
-    await setUp(t.by, FORECAST, { ...forecast({ who: "me" }, sam), source: "system" });
+    const finished: StartChoices = { ...forecast({ who: "me" }, { who: "me" }, sam), source: "system" };
+    await setUp(t.by, FORECAST, finished);
     expect(await count("decks", t.id)).toBe(1);
     expect(await count("metrics", t.id)).toBe(before.metrics);
+    // Pressed again, it answers the same.
+    expect((await startPackStep(t.by, FORECAST, finished)).done).toBe(true);
   });
 
   it("makes a deck once when it stops at the decks", async () => {
