@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { NO_ANSWERS, questionScreens, screenFor, type FirstStepsAnswers, type FirstStepsScreen } from "@ziffr/core/first-steps-screens";
 import { useConfirm } from "@/components/confirm-dialog";
 import { browserDefaults } from "./browser";
-import { draftKey, dropDraft, keepDraft, loadDraft } from "./draft";
+import { draftKey, dropDraft, keepDraft, keepTopic, loadDraft, loadTopic } from "./draft";
 import { SCREENS } from "./screens/registry";
 import type { FirstStepsContext } from "./screens/types";
 import { Shell } from "./shell";
@@ -33,7 +33,10 @@ function Flow({ context }: { context: FirstStepsContext }) {
   const made = context.workspace;
   const key = draftKey(context.personId, made?.id ?? null);
   // The Workspace's own answers once it exists, else what the browser says about the day and the money.
-  const fresh = (): FirstStepsAnswers => made?.answers ?? { ...NO_ANSWERS, ...browserDefaults(navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone) };
+  // The topic is the one answer the Workspace does not keep.
+  const fresh = (): FirstStepsAnswers => made
+    ? { ...made.answers, topic: made.answers.who === "me" ? loadTopic(context.personId) : null }
+    : { ...NO_ANSWERS, ...browserDefaults(navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone) };
   const [answers, setAnswers] = useState(() => loadDraft(key) ?? fresh());
   const screen = screenFor(useSearchParams().get("step"), answers.who, made?.resume ?? null);
   const { confirm, dialog } = useConfirm();
@@ -49,6 +52,7 @@ function Flow({ context }: { context: FirstStepsContext }) {
     const kept = { ...answers, ...patch };
     setAnswers(kept);
     keepDraft(key, kept);
+    if (patch.topic !== undefined) keepTopic(context.personId, patch.topic);
     return kept;
   }
   function go(to: FirstStepsScreen) {
@@ -63,8 +67,13 @@ function Flow({ context }: { context: FirstStepsContext }) {
     // Opened or reloaded here: step to the screen before this one.
     const questions = questionScreens(answers.who);
     const at = questions.indexOf(screen);
-    const before = at > 0 ? questions[at - 1] : screen === "start" ? "workspace" : screen === "sender" ? "value" : screen === "done" ? "sender" : "start";
+    const before = at > 0 ? questions[at - 1] : screen === "start" ? "workspace" : screen === "own" ? "first" : screen === "sender" ? "value" : screen === "done" ? "sender" : "start";
     window.history.replaceState({ firstSteps: 0 }, "", urlOf(before));
+  }
+  // Start over and signing out forget everything this browser kept.
+  function forget() {
+    dropDraft(key);
+    keepTopic(context.personId, null);
   }
   function leave(url: string) {
     dropDraft(key);
@@ -72,14 +81,14 @@ function Flow({ context }: { context: FirstStepsContext }) {
   }
   async function startOver() {
     if (made && !(await confirm({ title: "Start the questions again?", description: "Nothing you made is deleted.", confirmLabel: "Start over", destructive: false }))) return;
-    dropDraft(key);
+    forget();
     setAnswers(fresh());
     go("who");
   }
 
   const Screen = SCREENS[screen];
   return (
-    <Shell screen={screen} answers={answers} made={made !== null} onBack={screen === "who" ? null : back} onStartOver={() => void startOver()} onSignOut={() => dropDraft(key)}>
+    <Shell screen={screen} answers={answers} made={made !== null} onBack={screen === "who" ? null : back} onStartOver={() => void startOver()} onSignOut={forget}>
       <Screen key={screen} context={context} answers={answers} update={update} go={go} next={next} leave={leave} />
       {dialog}
     </Shell>

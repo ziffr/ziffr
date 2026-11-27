@@ -1,12 +1,12 @@
 // Replies by email (spec 0004, ticket #73; GLOSSARY: Delivery, Thread, Prompt, Correction). A provider forwards a
 // raw message to the webhook; it is taken only for a known reply token, from the address the Delivery went to,
-// within 30 days, once. Then it goes the way a simulated reply always went (reply-routing.ts, shared with Slack): a
-// Prompt's answer through submitValue (source mail), a reply about a question or task into its Thread, a
+// within 30 days, once. Then it goes where reply-routing.ts takes it, as with Slack and Telegram: a reply to a request for
+// one figure or several to the reply reading (source mail), a reply about a question or task into its Thread, a
 // "Correction:" line as a proposed Correction.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import PostalMime from "postal-mime";
 import { db } from "./db";
-import { addressIn, brandedParts, headerSafe, isAddress, mailOn, sendMail, type MailTransport } from "./mail";
+import { addressIn, brandedParts, headerSafe, inboundOn, isAddress, mailOn, replyAddress, sendMail, type MailTransport } from "./mail";
 import { settingsInEffect } from "./settings-in-effect";
 import { REPLY_DAYS, routeReply } from "./reply-routing";
 import type { SubmissionEffects } from "./submissions";
@@ -17,12 +17,14 @@ import { createHash } from "node:crypto";
 import { takeReplyTest } from "./installation-replies";
 import { holdReply } from "./held-replies";
 import { newText, stripHtml } from "./reply-cleaning";
+import { repliesAllowed } from "./prompt-reply";
+import { isPracticeWorkspace } from "./practice";
 
 export { newText };
 
 /** Largest raw message taken, in bytes. */
 export const MAX_INBOUND_BYTES = 1024 * 1024;
-/** Replies taken for one Delivery; more are ignored. */
+/** Replies taken for one Delivery (2 more for each figure of a Combined Prompt, at most 60); more are ignored. */
 export const MAX_REPLIES_PER_DELIVERY = 20;
 /** Messages taken from one sender in an hour: far more than a person replies, few enough that a flood stops soon. */
 export const INBOUND_PER_SENDER = 30;
@@ -43,7 +45,7 @@ export type InboundEmail = { tokens: string[]; from: string | null; text: string
 
 /** What became of an inbound email, for the provider's logs; it never says more than the outcome's name. */
 export type InboundOutcome =
-  | "recorded" | "refused" | "form_link" | "replied" | "corrected"
+  | "recorded" | "refused" | "form_link" | "replied" | "corrected" | "noted" | "closed"
   | "held" | "unknown_token" | "expired" | "wrong_sender" | "unverified" | "automatic" | "duplicate" | "too_many" | "empty" | "limited" | "test";
 
 /** An Authentication-Results value (RFC 8601) as its parts: the authserv-id, then one result per method, lower case.
@@ -157,7 +159,7 @@ export async function receiveEmail(email: InboundEmail, effects: { submission?: 
   if (!(await claimInbound(`all:${vouched}`, INBOUND_ALL))) return "limited";
   const token = email.tokens[0];
   if (!token) return "unknown_token";
-  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, connector, created_at").eq("reply_token", token).maybeSingle();
+  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, combined, connector, created_at").eq("reply_token", token).maybeSingle();
   // A reply to an Installation Admin's test of replies (installation-replies.ts) is no Delivery's and reaches no Workspace.
   if (!d && (await takeReplyTest(token, email))) return "test";
   if (!d || d.connector !== "email" || d.workspace_id === DEMO_WORKSPACE_ID) return "unknown_token";
@@ -177,12 +179,13 @@ export async function receiveEmail(email: InboundEmail, effects: { submission?: 
   if (!(await claimInbound("total", INBOUND_TOTAL))) return log(d, "limited");
   // Only replies that were taken count, so refused ones (from someone else) cannot use up the person's own.
   const { count } = await db().from("inbound_emails").select("id", { count: "exact", head: true }).eq("delivery_id", d.id).not("outcome", "in", "(expired,wrong_sender,unverified,too_many,limited,held)");
-  if ((count ?? 0) >= MAX_REPLIES_PER_DELIVERY) return log(d, "too_many");
+  if ((count ?? 0) >= (await repliesAllowed(d.id, MAX_REPLIES_PER_DELIVERY))) return log(d, "too_many");
   // Claimed by its Message-ID first, so the same message delivered twice is taken once.
   const { data: claim, error } = await db().from("inbound_emails").insert({ message_id: email.messageId, delivery_id: d.id, workspace_id: d.workspace_id, outcome: "taken" }).select("id").single();
   if (error?.code === "23505") return "duplicate";
   if (error || !claim) throw new Error("The email could not be recorded.");
-  const say = (subject: string, text: string, link?: string) => answer(d.workspace_id, address, subject, text, link, effects.transport);
+  // An answer that asks for a further reply carries the same reply address; every other one needs none.
+  const say = (subject: string, text: string, link?: string, how?: { invites?: boolean }) => answer(d.workspace_id, address, subject, text, { link, replyToken: how?.invites ? token : undefined }, effects.transport);
   if (email.verified) {
     const outcome = await routeReply(d, email.text, { source: "mail", sender: address, answer: say }, effects.submission);
     await db().from("inbound_emails").update({ outcome }).eq("id", claim.id);
@@ -213,13 +216,15 @@ async function log(d: DeliveryRow, outcome: InboundOutcome): Promise<InboundOutc
   return outcome;
 }
 
-/** A short answer to the person who wrote, from Ziffr's own address (no reply address: it needs no answer), in the
- * look of the Workspace whose message they answered. */
-async function answer(workspaceId: string, to: string, subject: string, text: string, link?: string, transport?: MailTransport) {
+/** A short answer to the person who wrote, from Ziffr's own address, in the look of the Workspace whose message they
+ * answered. It has a reply address only where it asks for a further reply (`replyToken`, the answered message's own),
+ * and never from a Practice Workspace. */
+async function answer(workspaceId: string, to: string, subject: string, text: string, how: { link?: string; replyToken?: string }, transport?: MailTransport) {
   if (!(await mailOn())) return;
-  const action = link ? { label: "Open your form", url: link } : undefined;
+  const action = how.link ? { label: "Open your form", url: how.link } : undefined;
+  const replyTo = how.replyToken && (await inboundOn()) && !(await isPracticeWorkspace(workspaceId)) ? replyAddress(how.replyToken, await settingsInEffect()) : undefined;
   try {
-    await sendMail({ to, subject, text, action, ...(await brandedParts(workspaceId, { text, action })) }, workspaceId, transport);
+    await sendMail({ to, subject, text, action, replyTo, ...(await brandedParts(workspaceId, { text, action })) }, workspaceId, transport);
   } catch {
     // The reply itself was taken; a lost confirmation is not worth failing it for.
   }

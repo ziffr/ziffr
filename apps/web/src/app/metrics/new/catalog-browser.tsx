@@ -11,7 +11,7 @@ import type { NumberStyle } from "@ziffr/core/number-style";
 import type { CatalogMetric, UnitPosition } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
-import { HOW_OFTEN } from "./suggestions";
+import { HOW_OFTEN } from "@/lib/metric-suggestions";
 
 /** What the workspace's Workspace Profile says about it, for suggestions: its industry and segment keys and words. */
 export type CatalogFit = { industry: string | null; segment: string | null; label: string };

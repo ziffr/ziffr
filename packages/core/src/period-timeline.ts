@@ -5,7 +5,8 @@
 // Security (AGENTS.md rule 3): every row is about a Metric of this Workflow in the actor's Workspace. A Metric the
 // viewer cannot see appears only as a count ("1 value"): never its name, its values, who sent them or what was said
 // about it. A Thread's words are shown only to someone who may read it (canReadThread), and then only their first
-// words, opened from their seal here and nowhere else.
+// words, opened from their seal here and nowhere else. A value with a Value Note (spec 0064) is only marked "with a
+// note", for whom the note core says may read it; no word of a note is on a timeline.
 import { db } from "./db";
 import { openWorkflowRow } from "./workflow-rows";
 import { mayReadItem } from "./checklist-rules";
@@ -24,6 +25,7 @@ import { workingPeriod } from "./workflow-rules";
 import { localTime } from "./workspace-clock";
 import type { Action, ChecklistItem, Metric, Period, WorkflowConfig } from "./types";
 import { combinedListing } from "./internal/combined-delivery";
+import { noteKey, periodsWithNotes } from "./value-notes";
 
 /** What kind of thing happened. */
 export type TimelineKind = "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot" | "checklist_sent" | "checklist_given" | "checklist_done" | "snapshot_sent" | "finished";
@@ -90,6 +92,8 @@ type Raw = {
   text?: string;
   /** A value that came in again, after one that was already in. */
   again?: boolean;
+  /** A value whose period has a Value Note the viewer may read; set on the Metric's latest value only. */
+  noted?: boolean;
   metricId?: number;
 };
 
@@ -315,6 +319,9 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
   }
   const counted = new Set<number>();
   for (const r of raw) if (r.kind === "in") { r.again = counted.has(r.metricId!); counted.add(r.metricId!); }
+  // The mark, never the words: only for Metrics the viewer sees, and only where the note core finds a note for them.
+  const noted = await periodsWithNotes(actor, [...counted].filter((id) => visible.has(id)).map((metricId) => ({ metricId, period })));
+  for (const r of [...raw].reverse()) if (r.kind === "in" && noted.delete(noteKey(r.metricId!, period))) r.noted = true;
   // Actions and what was said in their Threads.
   for (const a of opened) {
     const metricId = a.metric_id as number;
@@ -458,11 +465,12 @@ function line(chunk: Raw[], total: number, seenIn: Set<number>, countable: Reado
     // A Filled-in Value says who entered it for whom (GLOSSARY: Filled-in Value), by the same name rules as the others.
     const entered = chunk.filter((r) => r.enteredBy).length;
     const by = (r: Raw) => `entered by ${nameOf(r.enteredBy!)} for ${nameOf(r.person!)}`;
-    const sentence = n === 1 ? (first.metric ? `${first.metric} came in: ${first.detail}${first.enteredBy ? `, ${by(first)}` : ""}` : "1 value came in") : `${values(n)} came in${entered ? `, ${entered} entered for someone` : ""}`;
+    const mark = (r: Raw) => (r.noted ? ", with a note" : "");
+    const sentence = n === 1 ? (first.metric ? `${first.metric} came in: ${first.detail}${first.enteredBy ? `, ${by(first)}` : ""}${mark(first)}` : "1 value came in") : `${values(n)} came in${entered ? `, ${entered} entered for someone` : ""}`;
     return {
       kind, count: n, in: seenIn.size,
       text: `${sentence} (${seenIn.size} of ${total} in)`,
-      items: [...shown.map((r) => `${r.metric}: ${r.detail}${r.again ? " (a new value)" : ""}${r.enteredBy ? `, ${by(r)}` : r.person ? `, from ${nameOf(r.person)}` : ""}`), ...unseen],
+      items: [...shown.map((r) => `${r.metric}: ${r.detail}${r.again ? " (a new value)" : ""}${r.enteredBy ? `, ${by(r)}` : r.person ? `, from ${nameOf(r.person)}` : ""}${mark(r)}`), ...unseen],
     };
   }
   if (kind === "published" || kind === "locked") {

@@ -23,7 +23,10 @@ export async function fillInForSubmitter(input: { metricId: number; period: stri
       // The demo keeps no notes.
       note: !visiting && typeof input?.note === "string" ? input.note : undefined,
     });
-    revalidatePath("/", "layout");
-    return { ok: r.ok, detail: r.detail, ...(r.valueNote?.saved === false ? { noteKept: true } : {}) };
+    const noteKept = r.valueNote?.saved === false;
+    // Redrawing the page takes the panel away once nobody is left to fill in for, and with it the answer. While it says
+    // that a note was not saved, the panel redraws the page itself, when it is closed.
+    if (!noteKept) revalidatePath("/", "layout");
+    return { ok: r.ok, detail: r.detail, ...(noteKept ? { noteKept } : {}) };
   }));
 }
