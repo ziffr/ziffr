@@ -1,10 +1,11 @@
 // How the made-up numbers of Ziffr's own Packs belong together (spec 0063; GLOSSARY: Pack, Practice Workspace): the
 // sales forecast stays possible (closed, commit, best case and pipeline in their order, closed starting again each
-// quarter, a quota steady for a quarter, people above and below it), a part is never more than its whole, and the tables
-// name only entries their Pack has. Read from the Pack files themselves.
+// quarter, a quota steady for a quarter, people above and below it), figures nobody is asked for reach the last ended
+// period and leave room for those that are sent, a part is never more than its whole, and the tables name only entries
+// their Pack has. Read from the Pack files themselves.
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { MADE_UP_LEVELS, MADE_UP_SHARES, madeUpLevel, madeUpOf, madeUpRelatives, madeUpTargetsOf, type MadeUpMember, type MadeUpSet } from "./practice-relations";
+import { MADE_UP_LEVELS, MADE_UP_SHARES, madeUpLevel, madeUpOf, madeUpRelatives, madeUpTargetsOf, madeUpUntil, type MadeUpMember, type MadeUpSet } from "./practice-relations";
 import { madeUpPeriods } from "./practice-numbers";
 import { JANUARY, periodStart } from "./periods";
 import { repoFile } from "./test/repo-file";
@@ -27,15 +28,14 @@ function setOf(pack: PackFile, lines: string[] = ["Anna"], yearStart: YearStart 
 }
 
 /** Fills a set as the Practice Workspace does: one Metric after another, each reading what the earlier ones were given. */
-function fill(set: MadeUpSet, order: (members: MadeUpMember[]) => MadeUpMember[] = (m) => m): MadeUpSet {
+function fill(set: MadeUpSet, order: (members: MadeUpMember[]) => MadeUpMember[] = (m) => m, today = TODAY, valuesOf = (now: MadeUpSet, m: MadeUpMember) => madeUpOf(now, m, madeUpPeriods(m.metric.period, today, set.yearStart))): MadeUpSet {
   let members = [...set.members];
   for (const wanted of order([...set.members])) {
     const at = members.findIndex((m) => m.metric.seed === wanted.metric.seed);
     const m = members[at]!;
     const now = { ...set, members };
-    const made = madeUpOf(now, m, madeUpPeriods(m.metric.period, TODAY, set.yearStart));
-    const values = new Map([...m.values, ...made]);
-    const targets = madeUpTargetsOf(now, m, madeUpPeriods(m.metric.period, TODAY, set.yearStart, true), values);
+    const values = new Map([...m.values, ...valuesOf(now, m)]);
+    const targets = madeUpTargetsOf(now, m, madeUpPeriods(m.metric.period, today, set.yearStart, true), values);
     members = members.map((x, i) => (i === at ? { ...m, values, targets: new Map([...m.targets, ...targets]) } : x));
   }
   return { ...set, members };
@@ -151,6 +151,73 @@ describe("a made-up sales forecast", () => {
     expect(of(filled, "closed-quarter", "Anna").values.get("2026-10-19")).toBe(9_000);
     expect(of(filled, "commit", "Anna").values.get("2026-11-02")).toBe(400_000);
     expectPossible(weeks(filled, ["Anna", "Ben"]));
+  });
+});
+
+/** Salespeople send their calls themselves; a system would send the other two. */
+const ASKED = ["commit", "best-case"];
+const asSetUp = (set: MadeUpSet, today: string, order?: (members: MadeUpMember[]) => MadeUpMember[]) => fill(set, order, today, (now, m) => madeUpUntil(now, m, today, ASKED.includes(m.key!)));
+
+describe("a made-up sales forecast whose Closed and Pipeline nobody is asked for", () => {
+  // Early, mid and late in a quarter, and right after it turns: the week that ended last, with the one before it.
+  const DAYS = [[TODAY, "2026-11-16", "2026-11-09"], ["2026-12-30", "2026-12-21", "2026-12-14"], ["2027-01-06", "2026-12-28", "2026-12-21"], ["2027-01-13", "2027-01-04", "2026-12-28"], ["2026-10-14", "2026-10-05", "2026-09-28"]] as const;
+
+  it.each(DAYS)("on %s: they reach the week of %s, the calls stop at the week of %s, and the running week stays empty", (today, ended, before) => {
+    const set = asSetUp(setOf(forecast, PEOPLE), today);
+    for (const m of set.members.filter((x) => x.line !== null)) {
+      expect([m.key, m.line, [...m.values.keys()].sort().at(-1)]).toEqual([m.key, m.line, ASKED.includes(m.key!) ? before : ended]);
+    }
+  });
+
+  it.each(DAYS)("on %s: the week of %s leaves room for the calls still to be sent after that of %s", (today, ended, before) => {
+    const set = asSetUp(setOf(forecast, PEOPLE), today);
+    const sameQuarter = periodStart(ended, "quarter", JANUARY) === periodStart(before, "quarter", JANUARY);
+    for (const person of PEOPLE) {
+      const closed = of(set, "closed-quarter", person).values;
+      const pipeline = of(set, "pipeline", person).values.get(ended)!;
+      const quota = of(set, "commit", person).targets.get(ended)!;
+      const now = closed.get(ended)!;
+      const earlier = sameQuarter ? closed.get(before)! : 0;
+      // Closed has not run past a likely Commit, and never falls within its quarter.
+      expect([person, now >= earlier, now <= Math.max(earlier, quota * 0.7) + 50]).toEqual([person, true, true]);
+      // A Best case a quarter above quota still has its open deals in the Pipeline.
+      expect([person, pipeline >= quota * 1.25 - now - 50]).toEqual([person, true]);
+    }
+  });
+
+  it("keeps the weeks both sent and not in their order, whatever order the Metrics are filled in", () => {
+    const set = asSetUp(setOf(forecast, PEOPLE), TODAY);
+    const other = asSetUp(setOf(forecast, PEOPLE), TODAY, (m) => m.reverse());
+    for (const m of set.members.filter((x) => x.line !== null)) expect([...of(other, m.key!, String(m.line)).values]).toEqual([...m.values]);
+    for (const person of PEOPLE) {
+      const [commit, best, closed, pipeline] = ["commit", "best-case", "closed-quarter", "pipeline"].map((k) => of(set, k, person).values);
+      for (const [week, call] of commit!) expect([week, closed!.get(week)! <= call, call <= best!.get(week)!, pipeline!.get(week)! >= best!.get(week)! - closed!.get(week)!]).toEqual([week, true, true, true]);
+    }
+  });
+
+  it("fits a call that was sent for the last ended week before the fill", () => {
+    const start = setOf(forecast, ["Anna", "Ben"]);
+    const sent = new Map([["2026-11-16", 20_000]]);
+    const set = asSetUp({ ...start, members: start.members.map((m) => (m.line === "Anna" && ASKED.includes(m.key!) ? { ...m, values: sent } : m)) }, TODAY);
+    const closed = of(set, "closed-quarter", "Anna").values.get("2026-11-16")!;
+    expect(closed).toBeLessThanOrEqual(20_000);
+    expect(of(set, "pipeline", "Anna").values.get("2026-11-16")!).toBeGreaterThanOrEqual(20_000 - closed);
+  });
+});
+
+describe("a made-up part and its whole", () => {
+  it.each(["open-invoices", "overdue-invoices"])("stay in their share when only %s is asked for", (asked) => {
+    const finance = PACKS.find((p) => p.id === "ziffr/finance")!;
+    const set = fill(setOf(finance), (m) => m, TODAY, (now, m) => madeUpUntil(now, m, TODAY, m.key === asked));
+    const value = (key: string) => set.members.find((m) => m.key === key)!.values;
+    let compared = 0;
+    for (const [period, overdue] of value("overdue-invoices")) {
+      const open = value("open-invoices").get(period);
+      if (open === undefined) continue;
+      compared++;
+      expect([period, overdue <= open * 0.3]).toEqual([period, true]);
+    }
+    expect(compared).toBeGreaterThan(10);
   });
 });
 

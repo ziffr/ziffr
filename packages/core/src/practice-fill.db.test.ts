@@ -1,7 +1,8 @@
 // Made-up numbers after a Pack's Set up, against the database (spec 0063, #1267; GLOSSARY: Practice Workspace, Import):
 // every period from the start of the previous fiscal year gets a value and the current year a Target Series, as imports;
-// the period a request asks for and the running one stay empty; what is there stays; calculated Metrics compute; a sales
-// forecast fits together and starts no task; and only the person of a Practice Workspace may ask.
+// for a Metric someone submits, the period a request asks for and the running one stay empty, while one nobody submits
+// reaches that period; what is there stays; calculated Metrics compute; a sales forecast fits together and starts no
+// task; and only the person of a Practice Workspace may ask.
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { allSeriesFor } from "./access";
@@ -12,7 +13,7 @@ import { madeUpPeriods } from "./practice-numbers";
 import { setUpFromPack } from "./pack-setup";
 import { installPackFile } from "./packs";
 import { openRows } from "./sealed-columns";
-import { JANUARY, periodStart } from "./periods";
+import { JANUARY, periodStart, shiftPeriod } from "./periods";
 import { workspaceToday } from "./retention-setting";
 import { getMetrics } from "./workspace-data";
 import { runWorkflows } from "./workflow-engine";
@@ -94,21 +95,31 @@ describe("made-up numbers after a Set up", () => {
   });
 });
 
+/** The sales forecast's Pack set up for two salespeople in a Practice Workspace: they are asked for Commit and Best
+ * case, nobody for the two figures a CRM would send. */
+async function forecast() {
+  const w = await workspace("Forecast", { practice: true }); cleanups.push(w.cleanup);
+  const me = await w.person("owner", { id: w.practiceFor! });
+  const [anna, ben] = [await w.madeUp("member"), await w.madeUp("member")];
+  const actor = w.actor(me);
+  const install = await installPackFile(actor, readFileSync(repoFile("packs/sales-forecast.pack.json"), "utf8"), { unsigned: true, assistantTexts: true });
+  const line = (name: string, person: string) => ({ repeat: "rep", name, people: [{ position: "seller", people: [person] }] });
+  const made = await setUpFromPack(actor, install, {
+    metrics: ["commit", "best-case", "closed-quarter", "pipeline", "team-commit", "team-best-case", "team-closed", "team-pipeline", "quota", "commit-gap", "commit-share", "coverage"],
+    workflow: { key: "weekly-forecast" }, people: [{ position: "sales-lead", people: [me] }], lines: [line("Anna", anna), line("Ben", ben)],
+  });
+  /** How many tasks and questions, messages and requests there are. */
+  const asking = () => Promise.all(["actions", "deliveries", "prompts"].map(async (table) => (await db().from(table).select("id").eq("workspace_id", w.id)).data!.length));
+  const idOf = async (name: string) => (await getMetrics(w.id)).find((m) => m.name === name)!.id;
+  return { w, me, anna, ben, actor, install, made, asking, idOf };
+}
+const statesOf = async (metric: number) => (await db().from("period_states").select("period_start, state").eq("metric_id", metric)).data;
+
 describe("a made-up sales forecast and its Workflow", () => {
-  it("fits together, leaves the week a request asks for empty and the running one, and starts no task from made-up values", async () => {
-    const w = await workspace("Forecast", { practice: true }); cleanups.push(w.cleanup);
-    const me = await w.person("owner", { id: w.practiceFor! });
-    const [anna, ben] = [await w.madeUp("member"), await w.madeUp("member")];
-    const actor = w.actor(me);
-    const install = await installPackFile(actor, readFileSync(repoFile("packs/sales-forecast.pack.json"), "utf8"), { unsigned: true, assistantTexts: true });
-    const line = (name: string, person: string) => ({ repeat: "rep", name, people: [{ position: "seller", people: [person] }] });
-    const made = await setUpFromPack(actor, install, {
-      metrics: ["commit", "best-case", "closed-quarter", "pipeline", "team-commit", "team-best-case", "team-closed", "team-pipeline", "quota", "commit-gap", "commit-share", "coverage"],
-      workflow: { key: "weekly-forecast" }, people: [{ position: "sales-lead", people: [me] }], lines: [line("Anna", anna), line("Ben", ben)],
-    });
+  it("fits together, fills what nobody is asked for to the last ended week, and starts no task from made-up values", async () => {
+    const { w, me, anna, ben, actor, install, made, asking, idOf } = await forecast();
     // The targets someone sets next are each salesperson's quota.
     expect(made.targetsToSet.map((m) => m.name).sort()).toEqual(["Commit, Anna", "Commit, Ben"]);
-    const asking = () => Promise.all(["actions", "deliveries", "prompts"].map(async (table) => (await db().from(table).select("id").eq("workspace_id", w.id)).data!.length));
     const before = await asking();
     await fill(actor, install);
     // Filling asks nobody and gives nobody anything to do.
@@ -118,10 +129,16 @@ describe("a made-up sales forecast and its Workflow", () => {
     const series = (name: string) => new Map(read.series[metric(name).slug]!.map((p) => [p.period, p.value]));
     const today = await workspaceToday(w.id);
     const weeks = madeUpPeriods("week", today, JANUARY);
+    const asked = workingPeriod(today, "week", JANUARY);
     const targetsOf = async (name: string) => openRows("series_values", w.id, (await db().from("series_values").select("id, metric_id, kind, period_start, value, value_sealed").eq("metric_id", metric(name).id).eq("kind", "target")).data);
     for (const name of ["Anna", "Ben"]) {
       const [commit, best, closed, pipeline] = ["Commit", "Best case", "Closed this quarter", "Pipeline value"].map((what) => series(`${what}, ${name}`));
       expect([...commit!.keys()].sort()).toEqual(weeks);
+      expect([...best!.keys()].sort()).toEqual(weeks);
+      expect([...closed!.keys()].sort()).toEqual([...weeks, asked]);
+      expect([...pipeline!.keys()].sort()).toEqual([...weeks, asked]);
+      // Counted as through the Workflow, which publishes and locks.
+      expect(await statesOf(await idOf(`Pipeline value, ${name}`))).toEqual([{ period_start: asked, state: "locked" }]);
       for (const week of weeks) {
         expect([week, closed!.get(week)! <= commit!.get(week)!, commit!.get(week)! <= best!.get(week)!, pipeline!.get(week)! >= best!.get(week)! - closed!.get(week)!]).toEqual([week, true, true, true]);
       }
@@ -136,12 +153,31 @@ describe("a made-up sales forecast and its Workflow", () => {
     }
     // The day's run asks for the week just ended: nothing made up stands in its way.
     await runWorkflows(w.id, today, me);
-    const asked = workingPeriod(today, "week", JANUARY);
-    const { data: states } = await db().from("period_states").select("period_start, state").eq("metric_id", metric("Commit, Anna").id);
-    expect(states).toEqual([{ period_start: asked, state: "asked" }]);
+    expect(await statesOf(metric("Commit, Anna").id)).toEqual([{ period_start: asked, state: "asked" }]);
     // Nothing made up waits to be approved or checked; late in a week the run may follow up what is still missing.
     expect((await db().from("actions").select("purpose").eq("workspace_id", w.id).in("purpose", ["approval", "self_check"])).data).toEqual([]);
+    // Never what was filled.
+    expect((await db().from("actions").select("id").eq("metric_id", metric("Closed this quarter, Anna").id)).data).toEqual([]);
     const { data: prompts } = await db().from("prompts").select("submitter_id, period_start").eq("workspace_id", w.id);
     expect(prompts).toEqual(expect.arrayContaining([{ submitter_id: anna, period_start: asked }, { submitter_id: ben, period_start: asked }]));
+  });
+
+  it("fills a week a run marked asked where nobody could be asked, closes the follow-up and sends nothing", async () => {
+    const { w, me, actor, install, asking, idOf } = await forecast();
+    const today = await workspaceToday(w.id);
+    const ended = workingPeriod(today, "week", JANUARY);
+    // As of a day after the Due Date: the run follows up what is missing, the figures nobody sends included.
+    await runWorkflows(w.id, shiftPeriod(shiftPeriod(ended, "week", 1), "day", 5), me);
+    const closed = await idOf("Closed this quarter, Anna");
+    const open = async () => (await db().from("actions").select("id").eq("metric_id", closed).eq("status", "open")).data!.length;
+    expect(await open()).toBe(1);
+    const before = await asking();
+    await fill(actor, install);
+    expect(await asking()).toEqual(before);
+    expect(await open()).toBe(0);
+    expect(await statesOf(closed)).toEqual([{ period_start: ended, state: "locked" }]);
+    // Whoever is asked still is: the week stays open for them.
+    expect(await statesOf(await idOf("Commit, Anna"))).toEqual([{ period_start: ended, state: "asked" }]);
+    expect(await periodsOf("observations", await idOf("Commit, Anna"))).not.toContain(ended);
   });
 });

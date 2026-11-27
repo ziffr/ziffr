@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { shown, unwrap } from "@/lib/action-error";
 import { fillMadeUpNumbers } from "@/app/pack-setup-actions";
 
-/** What is said once it is done: why the latest periods have no values. */
-const LEFT_EMPTY = "The last ended period and the running one are left empty, so you can try asking for their values.";
+/** What is said once it is done: which of the latest periods have no values, and why. */
+const LEFT_EMPTY = "Where a Metric has a Submitter, the last ended period and the running one are left empty, so you can try asking for them. A Metric without one is filled to the last ended period.";
 
 /** The button, and under it how far it is or what was filled. */
 export function FillMadeUp({ installId }: { installId: number }) {

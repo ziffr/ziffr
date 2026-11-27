@@ -226,6 +226,17 @@ async function todayIn(ws: string): Promise<string> {
   return localTime(new Date(), String(data?.time_zone ?? "UTC")).day;
 }
 
+/** Counts a made-up value of a Practice Workspace as through its Metric's Workflow (spec 0063): published, and locked
+ * where the Workflow locks, so no run takes it for a value that just came in and asks for its Approval; a request to
+ * follow it up is done. Sends nothing, neither a lock summary nor a Snapshot. Nothing happens on a Metric without a
+ * Workflow. Internal to the core: its caller has checked the Workspace and written the value. */
+export async function settleMadeUpValue(metricId: number, period: string): Promise<void> {
+  const ctx = await metricCtx(metricId, period);
+  if (!ctx) return;
+  await closeActions(ctx.ws, { metricId, period, kind: "question", purposes: ["escalation"] }, { type: "workflow" }, "done");
+  await setState(metricId, period, { state: publishedState(ctx), approval_step: null, approval_action_id: null, note: "Made-up number for a Metric nobody submits." });
+}
+
 /** The first request for a new Metric's value (a Set up from a Pack): for the period that ended last, which is what a
  * Workflow's run asks for. On a Metric with a Workflow the period is marked asked, so the next run reminds and
  * escalates for it without asking a second time. Internal to the core: its caller has checked who may ask. */

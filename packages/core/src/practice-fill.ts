@@ -1,8 +1,10 @@
 // Filling Metrics of a Practice Workspace with made-up numbers (spec 0063, #1267; GLOSSARY: Practice Workspace, Import):
 // those a Set up from a Pack made, so its dashboards and slides show something, and what the copy of the demo lacks for
 // year on year and annual progress. Values are written as imports in batches, targets as a Target Series; nothing that
-// is there is replaced. The last ended period and the running one stay empty, as does a period a Workflow already works
-// on, so asking for values can be tried: made-up numbers start no Approval, task or message.
+// is there is replaced. Where a Metric has a Submitter, the last ended period and the running one stay empty, as does a
+// period a Workflow already works on, so asking for values can be tried. A Metric with no Submitter, such as one a
+// system would send, is filled to the last ended period and counted as through its Workflow there: made-up numbers
+// start no Approval, task or message.
 // SECURITY: only ever in a Practice Workspace, and asked only by the person it was made for. It writes to Metrics of
 // that Workspace alone, also ones its made-up people own.
 import { Forbidden, type Actor } from "./actor";
@@ -15,10 +17,12 @@ import { sealedSeriesSaves } from "./metrics";
 import { periodEnd } from "./periods";
 import { practiceFor } from "./practice";
 import { madeUpPeriods } from "./practice-numbers";
-import { madeUpLevel, madeUpOf, madeUpRelatives, madeUpTargetsOf, type MadeUpMember } from "./practice-relations";
+import { madeUpLevel, madeUpRelatives, madeUpTargetsOf, madeUpUntil, type MadeUpMember } from "./practice-relations";
 import { workspaceToday } from "./retention-setting";
 import { openRows } from "./sealed-columns";
 import type { Metric, YearStart } from "./types";
+import { settleMadeUpValue } from "./workflow-engine";
+import { workingPeriod } from "./workflow-rules";
 import { allRows, getMetrics } from "./workspace-data";
 import { ValueWriter } from "./workspace-import";
 
@@ -39,21 +43,26 @@ type Ground = { workspaceId: string; today: string; yearStart: YearStart; onlyBe
 type Origin = { pack: string | null; key: string | null; line: number | null };
 const NO_ORIGIN: Origin = { pack: null, key: null, line: null };
 
-/** What a Metric holds already, by period: its latest values and its targets, and the periods no value may be made up
- * for: those with one, and those a Workflow works on. */
+/** What a Metric holds already, by period: its latest values and its targets, whether anyone submits it, and the periods
+ * no value may be made up for: those with one, and those a Workflow works on. A period a Workflow only marked asked
+ * counts as that only where there is a Submitter to have asked; otherwise it is in `unanswered`. */
 async function holdingsOf(ws: string, metricId: number) {
   const rows = await allRows<Record<string, unknown>>((from, to) => db().from("observations").select("id, metric_id, period_start, value, value_sealed").eq("workspace_id", ws).eq("metric_id", metricId).order("id").range(from, to));
   const targetRows = await allRows<Record<string, unknown>>((from, to) => db().from("series_values").select("id, metric_id, kind, period_start, value, value_sealed").eq("workspace_id", ws).eq("metric_id", metricId).eq("kind", "target").order("id").range(from, to));
-  const states = await allRows<{ period_start: string }>((from, to) => db().from("period_states").select("period_start").eq("metric_id", metricId).order("period_start").range(from, to));
+  const states = await allRows<{ period_start: string; state: string }>((from, to) => db().from("period_states").select("period_start, state").eq("metric_id", metricId).order("period_start").range(from, to));
+  const { data: submitters, error } = await db().from("tokens").select("submitter_id").eq("metric_id", metricId).is("stands_in_for", null).limit(1);
+  if (error) throw new Error("The Submitters could not be read.");
+  const submitted = Boolean(submitters?.length);
+  const unanswered = new Set<string>(submitted ? [] : states.filter((r) => r.state === "asked").map((r) => String(r.period_start)));
   const values = new Map<string, number>();
-  const taken = new Set<string>(states.map((r) => String(r.period_start)));
+  const taken = new Set<string>(states.map((r) => String(r.period_start)).filter((p) => !unanswered.has(p)));
   for (const r of await openRows("observations", ws, rows)) {
     taken.add(String(r.period_start));
     if (typeof r.value === "number") values.set(String(r.period_start), r.value);
   }
   const targets = new Map<string, number>();
   for (const r of await openRows("series_values", ws, targetRows)) if (typeof r.value === "number") targets.set(String(r.period_start), r.value);
-  return { values, taken, targets };
+  return { values, taken, targets, submitted, unanswered };
 }
 
 type Holdings = Awaited<ReturnType<typeof holdingsOf>>;
@@ -81,25 +90,26 @@ async function fillOne(g: Ground, m: Metric, family: Family = { pack: null, metr
     return memberOf(x.metric, x.from, needed ? await holdingsOf(ws, x.metric.id) : undefined);
   }));
   const set = { pack: family.pack, members: others.length ? others : [me], yearStart: g.yearStart };
-  const periods = madeUpPeriods(m.period, g.today, g.yearStart);
   // For the copy of the demo only what lies before its first value: what it leaves open at the end is still asked for.
   const first = [...held.values.keys()].sort()[0];
-  const wanted = periods.filter((p) => !held.taken.has(p) && (!g.onlyBefore || (first !== undefined && p < first)));
   // A Metric that is calculated takes no values; a Breakdown is never made up.
-  const values = madeUpOf(set, me, periods);
+  const values = madeUpUntil(set, me, g.today, g.onlyBefore || held.submitted);
+  const wanted = [...values.keys()].filter((p) => !held.taken.has(p) && (!g.onlyBefore || (first !== undefined && p < first)));
   const writer = new ValueWriter(ws);
   const now = Date.now();
-  let written = 0;
   for (const p of wanted) {
-    const value = values.get(p);
-    if (value === undefined) continue;
     const recorded = new Date(Math.min(now, Date.parse(`${periodEnd(p, m.period)}T09:00:00Z`) + 86_400_000)).toISOString();
-    await writer.add(m.id, { kind: "value", metric: "", period: p, value, recordedAt: recorded });
-    written++;
+    await writer.add(m.id, { kind: "value", metric: "", period: p, value: values.get(p)!, recordedAt: recorded });
   }
   await writer.flush();
+  // A run looks at the period that ended last: a value just written there, or for a period marked asked, must not be
+  // taken for one that has just come in.
+  if (!g.onlyBefore) {
+    const ended = workingPeriod(g.today, m.period, g.yearStart);
+    for (const p of wanted) if (p === ended || held.unanswered.has(p)) await settleMadeUpValue(m.id, p);
+  }
   const targets = madeUpTargetsOf(set, me, madeUpPeriods(m.period, g.today, g.yearStart, true), new Map([...held.values, ...values]));
-  return { values: written, targets: await saveTargets(ws, m.id, targets) };
+  return { values: wanted.length, targets: await saveTargets(ws, m.id, targets) };
 }
 
 /** Made-up targets written as a Target Series, for periods that have none. */

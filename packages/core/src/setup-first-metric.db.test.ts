@@ -151,7 +151,8 @@ describe("Quiet Hours and the ten minutes", () => {
     const { o, m } = await fresh();
     expect((await firstMetricStep(o)).cooldown).toBeNull();
     await askForFirstMetric(o);
-    expect((await firstMetricStep(o)).cooldown).toMatch(/^You asked a moment ago\. Ziffr asks at most once every 10 minutes: you can ask again in \d+ minutes?, at \d\d:\d\d\.$/);
+    // Ten minutes from now may be tomorrow: the words then name the weekday after the time.
+    expect((await firstMetricStep(o)).cooldown).toMatch(/^You asked a moment ago\. Ziffr asks at most once every 10 minutes: you can ask again in \d+ minutes?, at \d\d:\d\d( on \w+)?\.$/);
     await expect(askForFirstMetric(o)).rejects.toThrow(/a moment ago/);
     await db().from("ask_now_claims").update({ asked_at: new Date(Date.now() - 11 * 60_000).toISOString() }).eq("metric_id", m.id);
     expect((await firstMetricStep(o)).cooldown).toBeNull();

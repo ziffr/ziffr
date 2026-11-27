@@ -4,11 +4,13 @@
 // above Commit nor Commit above Best case, the open deals of the Best case are all in the Pipeline value, a quota holds
 // for a whole quarter, and some salespeople are above it and some below. Used to fill a Practice Workspace and to draw a
 // Pack's Preview. Pure: the same input gives the same numbers, whatever the order Metrics are asked in, and what is
-// there already is never answered again but bounds the rest.
+// there already is never answered again but bounds the rest. A number nobody is asked for reaches the period that ended
+// last, one that is asked for stops before it, and the first is made so that what is then sent for that period fits.
 // Only Ziffr's own Packs are described here, by Pack id and entry key: it decides made-up numbers and nothing else.
 import { periodStart, shiftPeriod } from "./periods";
-import { chance, madeUpShares, madeUpTargets, madeUpValues, type MadeUpMetric } from "./practice-numbers";
+import { chance, madeUpPeriods, madeUpShares, madeUpTargets, madeUpValues, type MadeUpMetric } from "./practice-numbers";
 import type { YearStart } from "./types";
+import { workingPeriod } from "./workflow-rules";
 
 /** A number that is a share, or a multiple, of another of its Pack: the other's entry key and the factor's bounds. */
 type Share = readonly [of: string, low: number, high: number];
@@ -55,8 +57,10 @@ const inForecast = (set: MadeUpSet, m: MadeUpMember): m is MadeUpMember & { key:
 /** One Metric among those of a Pack: its entry's key (null for none), the Repeat's line it was made for, whether it is
  * calculated, and what it holds already. The target of a forecast's Commit is the salesperson's quota. */
 export type MadeUpMember = { key: string | null; line: string | number | null; metric: MadeUpMetric; computed: boolean; values: ReadonlyMap<string, number>; targets: ReadonlyMap<string, number> };
-/** The Metrics of one Pack that belong together, in the order of their lines, with the Workspace's year start. */
-export type MadeUpSet = { pack: string | null; members: readonly MadeUpMember[]; yearStart: YearStart };
+/** The Metrics of one Pack that belong together, in the order of their lines, with the Workspace's year start. `open` is
+ * the first day of a period whose values are still to be sent by those who are asked: what is made up for it leaves
+ * room for them. */
+export type MadeUpSet = { pack: string | null; members: readonly MadeUpMember[]; yearStart: YearStart; open?: string };
 
 /** Which entries' numbers a Metric's made-up numbers are worked out from, itself not among them: the others of its
  * salesperson, or what it is a share of, and what that is a share of. */
@@ -97,6 +101,18 @@ export function madeUpOf(set: MadeUpSet, m: MadeUpMember, periods: string[]): Ma
   return madeUpShares(m.metric, periods, m.values, (p) => share.whole.values.get(at(p)) ?? whole.get(at(p)), share.bounds);
 }
 
+/** The values a fill writes for one member as of a day, those for periods it has none for. Where nobody is asked for it
+ * (figures a system would send), up to the period that ended last, so they are not a period behind what is asked. Where
+ * someone is asked, only up to the one before, so the request for the last ended period finds it empty. Never the
+ * running period. */
+export function madeUpUntil(set: MadeUpSet, m: MadeUpMember, today: string, asked: boolean): Map<string, number> {
+  const ended = workingPeriod(today, m.metric.period, set.yearStart);
+  // Worked out over the same periods whoever is asked, so a part and its whole are made from the same numbers.
+  const made = madeUpOf({ ...set, open: ended }, m, [...madeUpPeriods(m.metric.period, today, set.yearStart), ended]);
+  if (asked) made.delete(ended);
+  return made;
+}
+
 /** Targets for periods without one. A forecast's Commit gets its quota in every such period; nothing else of a
  * salesperson has a target. Any other Metric gets a Target Series only where it has none at all, is not calculated and
  * asks for a direction. `values` are the member's own, made up ones included. */
@@ -112,6 +128,9 @@ export function madeUpTargetsOf(set: MadeUpSet, m: MadeUpMember, periods: string
 }
 
 const hundreds = (v: number) => Math.round(v / 100) * 100;
+/** In the week still to be sent: what share of the quota Closed comes to at most (never less than the week before), and
+ * how large a Best case, in quotas, the Pipeline has room for. */
+const OPEN_WEEK = { closed: 0.7, bestCase: 1.25 };
 /** A quarter's place in time, one step for each quarter. */
 const quarterNumber = (quarter: string) => Number(quarter.slice(0, 4)) * 4 + Math.floor((Number(quarter.slice(5, 7)) - 1) / 3);
 
@@ -172,14 +191,18 @@ function forecastOf(set: MadeUpSet, line: MadeUpMember["line"], periods: string[
     const end = due * attained;
     // Deals are won in lumps, more of them toward the end of the quarter.
     const weights = weeks.map((w, i) => 0.5 + chance(`${seed}:${w}:won`) + i / weeks.length);
-    const won = weights.slice(0, week + 1).reduce((a, b) => a + b, 0) / weights.reduce((a, b) => a + b, 0);
+    const total = weights.reduce((a, b) => a + b, 0);
+    const wonBy = (i: number) => end * 0.85 * (weights.slice(0, i + 1).reduce((a, b) => a + b, 0) / total);
     const open = 1 - (week + 1) / weeks.length;
+    // The calls for the week still to be sent are not known: Closed holds back, so that they are likely to be above it.
+    const toBeSent = p === set.open;
+    const won = toBeSent ? Math.min(wonBy(week), Math.max(OPEN_WEEK.closed * due, wonBy(week - 1))) : wonBy(week);
     // Closed never falls within a quarter, also between values that are there already: not below an earlier one, not
     // above a later one, nor above a call of this week or a later one.
     const inQuarter = (key: ForecastKey) => [...known(key)].filter(([w]) => periodStart(w, "quarter", set.yearStart) === q);
     const least = Math.max(0, ...inQuarter("closed-quarter").filter(([w]) => w < p).map(([, v]) => v));
     const most = Math.min(Infinity, ...inQuarter("closed-quarter").filter(([w]) => w > p).map(([, v]) => v), ...[...inQuarter("commit"), ...inQuarter("best-case")].filter(([w]) => w >= p).map(([, v]) => v));
-    const closed = known("closed-quarter").get(p) ?? Math.max(least, Math.min(most, hundreds(end * 0.85 * won)));
+    const closed = known("closed-quarter").get(p) ?? Math.max(least, Math.min(most, hundreds(won)));
     const call = hundreds(end * (1 + (chance(`${seed}:${p}:call`) - 0.5) * 0.05 * open));
     const commit = known("commit").get(p) ?? Math.max(closed, Math.min(known("best-case").get(p) ?? Infinity, call));
     const upside = due * (0.04 + 0.14 * open) * (0.7 + chance(`${seed}:${p}:upside`) * 0.6);
@@ -187,7 +210,8 @@ function forecastOf(set: MadeUpSet, line: MadeUpMember["line"], periods: string[
     const cover = 1.9 + chance(`${seed}:${q}:cover`) * 0.8 + (chance(`${seed}:${p}:cover`) - 0.5) * 0.3;
     // Every open deal of the best case is in the pipeline, and so is what else may close.
     const deals = (best - closed) * (1.15 + chance(`${seed}:${p}:deals`) * 0.3);
-    const pipeline = known("pipeline").get(p) ?? Math.max(hundreds(Math.max(deals, (due - closed) * cover)), best - closed);
+    const room = toBeSent ? OPEN_WEEK.bestCase * due - closed : 0;
+    const pipeline = known("pipeline").get(p) ?? Math.max(hundreds(Math.max(deals, (due - closed) * cover, room)), best - closed);
     out["closed-quarter"].set(p, closed);
     out.commit.set(p, commit);
     out["best-case"].set(p, best);
