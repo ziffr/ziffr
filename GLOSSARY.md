@@ -18,6 +18,10 @@ _Avoid_: Settings, config, schema
 How a Metric is calculated, in words; screens call it **How it is calculated**: exactly what counts and what does not, where the figure comes from and which adjustments are made (for annual recurring revenue: one-off fees, discounts, contracts not yet started), while the Metric's description says what the number is and why it matters. It is part of the Metric Description: its owner and Editors change it, each change is a Version that says so, it is sealed with the Workspace Key, and it is shown to nobody who may not see the Metric, never on a View Link, a Snapshot shown outside the Workspace or the form link. A Derived Metric's formula stands beside it and is not it.
 _Avoid_: Methodology, counting rules, business logic
 
+**Value Note**:
+Words about one period's value of a Metric saying what is behind it, written by who sent the value or by who looks after the Metric. It never changes a number and is seen by whoever sees the value. Not the Calculation Note (how a Metric is calculated) and not a Thread.
+_Avoid_: comment, annotation, remark, commentary
+
 **Period**:
 How often a Metric has a value: a day, week, month, quarter or year. Weeks run Monday to Sunday; quarters and years are those of the Fiscal Year. A period is named by its first day ("Week of 9 Nov 2026", "October 2026", "Q3 2026", "FY 2026/27").
 _Avoid_: Frequency, interval
@@ -299,7 +303,7 @@ A widget that holds an artboard of its own, laid out like a slide: widgets from 
 _Avoid_: Canvas, drawing, board, freeform widget
 
 **Pool**:
-The side panel that holds everything a user can drag onto a canvas: the metrics they can see, their saved widgets and the Widget Templates.
+The panel that holds everything a user can put on a canvas: the metrics they can see, their saved widgets and the Widget Templates. On a deck, a Free Layout and the Analysis Canvas it is a list titled Pool; on a dashboard it opens with **Add widget** and shows them as cards drawn with a Metric, as the Gallery does.
 _Avoid_: Library, palette, sidebar
 
 **Preview**:
@@ -530,7 +534,7 @@ The private service that runs hosted Ziffr's billing: Sizes, prices, payments, i
 _Avoid_: Billing service, SaaS, hosted edition
 
 **Pack**:
-A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Setting up from it keeps a record of what was made and who fills its Positions, which decides nothing and goes when the Pack is uninstalled. Ziffr's own Packs (the thirteen of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs. It may say whom it is for (its Pack Audience), which ranks it in the Setup Guide.
+A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Setting up from it keeps a record of what was made and who fills its Positions, which decides nothing and goes when the Pack is uninstalled. Ziffr's own Packs (the thirteen of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs. It may say whom it is for (its Pack Audience), which ranks it in the Setup Guide. It may declare what its set-up shows and asks, in short plain text only: a line, what happens and what is needed, a question for each Position and Repeat, and numbers to be written as targets. It brings no screen, markup or code for it.
 _Avoid_: Plugin, add-on, integration, app, bundle
 
 **Pack Audience**:

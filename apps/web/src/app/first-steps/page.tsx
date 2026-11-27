@@ -19,7 +19,9 @@ import type { FirstStepsContext } from "./screens/types";
 
 export const metadata: Metadata = { title: "First steps" };
 
-export default async function FirstStepsPage({ searchParams }: { searchParams: Promise<{ another?: string; unsaved?: string }> }) {
+const AFTER_NUMBERS = ["value", "sender", "done"];
+
+export default async function FirstStepsPage({ searchParams }: { searchParams: Promise<{ another?: string; unsaved?: string; step?: string }> }) {
   if (!FIRST_STEPS_ON) notFound();
   if (demoOnly()) redirect("/login");
   if (await isDemo()) redirect("/");
@@ -35,7 +37,8 @@ export default async function FirstStepsPage({ searchParams }: { searchParams: P
     // First Steps is the Owner's; an ended trial has only the screen that says so.
     if (actor.role !== "owner" || (await trialEnded(actor.workspaceId))) redirect("/");
     const state = await firstStepsState(actor);
-    if (!state || state.resume === "finished") redirect("/");
+    // Finished, only the last three screens still open: the person may be reading that their number arrived, or go Back.
+    if (!state || (state.resume === "finished" && !AFTER_NUMBERS.includes(query.step ?? ""))) redirect("/");
     workspace = { id: actor.workspaceId, ...state };
     clean = await cleanSlate(actor, state.answers);
   }

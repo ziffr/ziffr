@@ -1,8 +1,8 @@
 {
-  "format": "ziffr.pack/2",
+  "format": "ziffr.pack/3",
   "id": "ziffr/sports-club",
   "name": "Sports club",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "summary": "Members, joiners and leavers, attendance per training, fees received and volunteer hours, with a season dashboard and a Workflow that asks each coach for attendance after training.",
   "author": {
     "name": "Ziffr"
@@ -16,6 +16,18 @@
   },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "Members, training attendance and fees in one place.",
+    "happens": [
+      "Attendance is asked for after each week of training",
+      "Each month members, fees and volunteer hours are asked for",
+      "The season dashboard fills in"
+    ],
+    "needs": [
+      "Attendance at training",
+      "Member numbers, fees received and volunteer hours"
+    ]
   },
   "guide": {
     "whatItsFor": [

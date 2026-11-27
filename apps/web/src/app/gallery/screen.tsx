@@ -1,46 +1,24 @@
 "use client";
 // The Gallery's screen (GLOSSARY: Widget Template, View, Preview, Slot; ticket #861): the built-in views, each drawn with the
-// Metric picked at the top (or Sample Data), grouped as the Pool groups them. Two ways in share these cards: from a Metric
-// (open the Gallery for it and see every view drawn with it) and from a view (press Use this…, choose the Metric in the
-// slot dialog the Pool uses, then choose where it goes). Nothing is recorded by browsing; adding goes through the same
-// placeWidget as the Pool's +, so the dashboard's owner and Editors only, and every Metric must be one the person sees.
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+// Metric picked at the top (or Sample Data), grouped as the Pool groups them. A dashboard's Add widget panel draws the same
+// cards (components/view-cards). Two ways in share them: from a Metric (open the Gallery for it and see every view drawn with
+// it) and from a view (press Use this…, choose the Metric in the slot dialog a dashboard uses, then choose where it goes).
+// Nothing is recorded by browsing; adding goes through the same placeWidget as a dashboard's +, so the dashboard's owner and
+// Editors only, and every Metric must be one the person sees.
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { BUILT_IN_DESIGNS, isDesignedView } from "@ziffr/core/built-in-designs";
 import { inUse } from "@ziffr/core/metric-row";
 import type { CanvasData, TemplateId } from "@ziffr/core/types";
 import { useCanvasSeries } from "@/canvas/series-store";
 import { createDashboardNamed, placeWidget, type DropSource } from "@/app/canvas-actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Preview, TemplatePreview } from "@/components/preview";
 import { useSlotFill } from "@/components/slot-dialog";
+import { ViewCard, ViewPicture, useViewsWith } from "@/components/view-cards";
 import { TEMPLATE_GROUPS, builtinTemplates } from "@/components/template-groups";
 import { told } from "@/lib/action-toast";
 import { useMedia } from "@/lib/use-media";
-import { TEMPLATES } from "@/views/templates";
-import { slopeWith, widgetWith } from "./widget-with";
-
-/** Draws what it is given at the width the card has: the Preview scales to it and is centred, never wider than the card. */
-function Fitted({ children }: { children: (width: number) => React.ReactNode }) {
-  const box = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    setWidth(Math.floor(el.getBoundingClientRect().width));
-    const watch = new ResizeObserver(([e]) => setWidth(Math.floor(e.contentRect.width)));
-    watch.observe(el);
-    return () => watch.disconnect();
-  }, []);
-  return <div ref={box} className="flex w-full justify-center">{width > 0 && children(width)}</div>;
-}
-
-/** How many periods two series share: what a comparison (a correlation, a matrix, Drivers) has to work with. */
-const common = (a: { period: string }[] = [], b: { period: string }[] = []) => { const p = new Set(a.map((x) => x.period)); return b.filter((x) => p.has(x.period)).length; };
-/** The fewest shared periods a comparison is drawn with; below it the view says there are not enough. */
-const ENOUGH = 6;
 
 const field = "h-8 rounded-[var(--radius-input)] border border-input bg-transparent px-2 text-sm";
 type Dashboard = { id: number; name: string };
@@ -55,41 +33,7 @@ export function GalleryScreen({ data: sent, metricId, dashboards, canCreate, dem
   const choices = useMemo(() => inUse(data.metrics).sort((a, b) => a.name.localeCompare(b.name)), [data.metrics]);
   const [picked, setPicked] = useState<number | null>(metricId ?? choices[0]?.id ?? null);
   const metric = choices.find((m) => m.id === picked) ?? null;
-  // The picked Metric stands for the first Metric of a view. A view that compares gets the other Metrics of the person that
-  // share most months with it: their series are asked for here, and the best are chosen once they are in the page's data.
-  const candidates = useMemo(() => (metric ? choices.filter((m) => m.id !== metric.id && !m.formula).slice(0, 8).map((m) => m.id) : []), [metric, choices]);
-  const asked = useMemo(() => (metric ? [metric.id, ...candidates] : []), [metric, candidates]);
-  useEffect(() => { if (asked.length) void ensure(asked); }, [asked.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
-  const loaded = (id: number) => { const m = data.metrics.find((x) => x.id === id); return !m || m.slug in data.series; };
-  const ready = asked.length > 0 && asked.every(loaded);
-  const partners = useMemo(() => {
-    if (!metric || !ready) return [];
-    const mine = data.series[metric.slug] ?? [];
-    return candidates
-      .map((id) => ({ id, n: common(mine, data.series[data.metrics.find((x) => x.id === id)?.slug ?? ""]) }))
-      .filter((x) => x.n >= ENOUGH).sort((x, y) => y.n - x.n).slice(0, 2).map((x) => x.id);
-  }, [metric, ready, candidates, data]);
-  const hasBreakdown = !!metric && Object.keys(data.breakdowns[metric.id] ?? {}).length > 0;
-  /** The real widget for a view, or why it is drawn with Sample Data instead. */
-  const forView = (id: TemplateId): { widget: ReturnType<typeof widgetWith> | null; why: string | null } => {
-    if (!metric) return { widget: null, why: null };
-    const t = TEMPLATES[id];
-    if ("needsBreakdown" in t && t.needsBreakdown && !hasBreakdown) return { widget: null, why: `${metric.name} has no breakdown, so this shows sample data.` };
-    // A Slot of several needs as many Metrics as its design says (a scoreboard: three), not just one more than the Slots.
-    const fewest = isDesignedView(id) ? BUILT_IN_DESIGNS[id].slots.reduce((n, s) => n + (s.metrics === "several" ? (s.min ?? 1) : 1), 0) : 0;
-    const need = Math.max(t.slots.length, fewest);
-    if (need > 1 && partners.length + 1 < need) return { widget: null, why: `Needs other Metrics with ${ENOUGH}+ months in common with ${metric.name}, so this shows sample data.` };
-    if (id === "slope") {
-      // Rows of the picked Metric's Breakdown, else it with the partners that are counted in its unit.
-      if (hasBreakdown) return { widget: slopeWith([metric.id], metric.period, "rows"), why: null };
-      const alike = partners.filter((p) => data.metrics.find((x) => x.id === p)?.unit.trim() === metric.unit.trim());
-      if (!alike.length) return { widget: null, why: `${metric.name} has no breakdown and no other Metric in its unit, so this shows sample data.` };
-      return { widget: slopeWith([metric.id, ...alike], metric.period, "metrics"), why: null };
-    }
-    if (id === "heatmap" && (metric.period === "quarter" || metric.period === "year")) return { widget: null, why: `${metric.name} is by ${metric.period}, and a heatmap needs a Metric by day, week or month, so this shows sample data.` };
-    if (t.slots.length > 1 && partners.length + 1 < t.slots.length) return { widget: null, why: `Needs other Metrics with ${ENOUGH}+ months in common with ${metric.name}, so this shows sample data.` };
-    return { widget: widgetWith(id, [metric.id, ...partners], metric.period), why: null };
-  };
+  const { ready, viewOf } = useViewsWith(data, ensure, metric);
   const [destination, setDestination] = useState<DropSource | null>(null);
   const [pending, start] = useTransition();
 
@@ -133,20 +77,11 @@ export function GalleryScreen({ data: sent, metricId, dashboards, canCreate, dem
           <h2 id={`g-${g.kind}`} className="mb-3 flex items-center gap-2 font-medium"><g.icon className="size-4" aria-hidden /> {g.title}</h2>
           <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {g.items.map((t) => {
-              const { widget, why } = ready ? forView(t.id) : { widget: null, why: null };
+              const view = viewOf(t.id);
               return (
-                <li key={t.id} className="stock flex h-full flex-col gap-3 rounded-[var(--radius-card)] p-4 max-sm:p-2">
-                  <div className="flex flex-1 flex-col justify-center gap-2">
-                    <Fitted>{(w) => widget ? <Preview widget={widget} data={data} size={TEMPLATES[t.id].size} width={w} reflow={phone} />
-                      : metric && !why ? <p className="py-10 text-sm text-muted-foreground">Drawing…</p>
-                      : <TemplatePreview template={t.id} viewer={data.viewer} numberStyle={data.numberStyle} width={w} reflow={phone} />}</Fitted>
-                    {why && <p className="text-xs text-muted-foreground max-sm:px-2">{why}</p>}
-                  </div>
-                  <div className="flex items-end justify-between gap-3 max-sm:flex-col max-sm:items-stretch max-sm:px-2 max-sm:pb-2">
-                    <div className="min-w-0"><p className="font-medium">{t.label}</p><p className="text-sm text-muted-foreground">{t.blurb}</p></div>
-                    <Button size="sm" variant="outline" className="shrink-0" onClick={() => void use(t.id)}>Use this…</Button>
-                  </div>
-                </li>
+                <ViewCard key={t.id} name={t.label} blurb={t.blurb} why={view.why}
+                  picture={<ViewPicture template={t.id} view={view} drawing={!!metric && !ready} data={data} reflow={phone} />}
+                  action={<Button size="sm" variant="outline" className="shrink-0" onClick={() => void use(t.id)}>Use this…</Button>} />
               );
             })}
           </ul>

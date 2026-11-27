@@ -2,7 +2,8 @@
 // sample Metric (a negative id) is never left in a widget the person could place.
 import { describe, expect, it } from "vitest";
 import { OFFERED_TEMPLATES } from "@/views/templates";
-import { slopeWith, widgetWith } from "./widget-with";
+import { sampleCanvasData } from "@ziffr/core/sample-data";
+import { partnersOf, placedAtOnce, slopeWith, viewWith, widgetWith } from "./widget-with";
 
 const REAL = [101, 102, 103];
 const numbers = (x: unknown): number[] => Array.isArray(x) ? x.flatMap(numbers) : x && typeof x === "object" ? Object.entries(x).flatMap(([k, v]) => (k === "metricIds" ? numbers(v) : numbers(v))) : typeof x === "number" ? [x] : [];
@@ -42,5 +43,37 @@ describe("widgetWith", () => {
   it("draws one bar per Metric in Progress against target, never the same Metric three times", () => {
     expect(widgetWith("progress", [101], "month").metric_ids).toEqual([101]);
     expect(widgetWith("progress", [101, 102, 103], "month").metric_ids).toEqual([101, 102, 103]);
+  });
+});
+
+describe("a view with the picked Metric (the Gallery and the Add widget panel)", () => {
+  const data = sampleCanvasData("sara", "1,234.5");
+  // A monthly Metric of the sample data without a Breakdown.
+  const metric = data.metrics.find((m) => m.period === "month" && !Object.keys(data.breakdowns[m.id] ?? {}).length)!;
+  const partners = partnersOf(metric, data.metrics.filter((m) => m.id !== metric.id).map((m) => m.id), data);
+  const view = (id: string, others = partners) => viewWith(id as never, metric, others, data);
+  const atOnce = (id: string, others = partners) => placedAtOnce(id as never, metric, view(id, others));
+
+  it("places a view for one Metric at once, with that Metric only", () => {
+    for (const id of ["number", "line", "bars", "gauge", "table", "forecast", "progress", "heatmap", "story", "story-line"]) expect(atOnce(id), id).toEqual([metric.id]);
+  });
+  it("asks for a view of several Metrics, also when the card draws it with others", () => {
+    expect(partners.length).toBe(2);
+    for (const id of ["correlation", "matrix", "drivers", "scoreboard"]) {
+      expect(view(id).widget, id).not.toBeNull();
+      expect(atOnce(id), id).toEqual([]);
+    }
+    expect(atOnce("slope")).toEqual([]);
+  });
+  it("asks, and says why it shows sample data, when the Metric cannot fill the view", () => {
+    expect(view("pareto").why).toContain("has no breakdown");
+    expect(atOnce("pareto")).toEqual([]);
+    expect(view("correlation", []).why).toContain("Needs other Metrics");
+    expect(viewWith("heatmap", { ...metric, period: "year" }, [], data).widget).toBeNull();
+  });
+  it("places nothing at once before the card is drawn, without a Metric, or where there is no Slot", () => {
+    expect(placedAtOnce("number", metric, { widget: null, why: null })).toEqual([]);
+    expect(placedAtOnce("number", null, view("number"))).toEqual([]);
+    expect(atOnce("canvas")).toEqual([]);
   });
 });

@@ -6,8 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { createDashboard } from "./dashboards";
-import { createFirstStepsWorkspace } from "./first-steps";
+import { createFirstStepsWorkspace, firstStepsState } from "./first-steps";
 import { FirstMetricRefused, firstStepsMetric, makeFirstMetric } from "./first-steps-metric";
+import { firstStepsValue } from "./first-steps-value";
 import { NO_ANSWERS, OWN_UNITS } from "./first-steps-screens";
 import { createWorkspace } from "./page-data";
 import { openOne, openRows } from "./sealed-columns";
@@ -172,6 +173,16 @@ describe("a pick from the catalog", () => {
     expect(await count("dashboards", owner.workspaceId)).toBe(0);
     // A refusal leaves nothing held: the next press works at once. The Workspace's own plain entry is there to pick.
     expect(await makeFirstMetric(owner, { catalogId: await entry(owner.workspaceId) })).toMatchObject({ made: true });
+  });
+});
+
+describe("the hand-over to the first value", () => {
+  it("is the Metric that screen asks about, typed or by email", async () => {
+    const owner = await made();
+    const { metricId } = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day" });
+    expect((await firstStepsState(owner))!.resume).toBe("value");
+    expect(await firstStepsValue(owner)).toMatchObject({ metric: { id: metricId, name: "Visitors", canType: true }, others: [] });
+    expect([await count("tokens", owner.workspaceId), await count("deliveries", owner.workspaceId)]).toEqual([0, 0]);
   });
 });
 

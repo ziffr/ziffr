@@ -13,7 +13,7 @@ const PURE = new Set([
   "connectors/index", "connectors/types", "connectors/email", "connectors/slack", "connectors/tickets", "connectors/whatsapp",
   "feedback-rules", "demo-reset-line", "announcement-rules",
   "desktop-screens", "first-steps-screens", "calculation-note", "total-rules",
-  "canvas-roles", "chart-stretch", "method-picker-names", "polar-marks", "progress-bars", "stacked-marks", "pareto", "slope-chart", "running-total", "bump-marks", "heatmap-grid", "formula-tree", "breakdown-tree",
+  "canvas-roles", "chart-stretch", "free-place", "method-picker-names", "polar-marks", "progress-bars", "stacked-marks", "pareto", "slope-chart", "running-total", "bump-marks", "heatmap-grid", "formula-tree", "breakdown-tree",
 ]);
 
 const files = [];

@@ -15,13 +15,13 @@ type Card = { key: string; name: string; blurb: string; draw: () => React.ReactN
 export const BROWSE_TEMPLATES = { title: "Browse templates", description: "Drawn with sample data. Pick one to choose its metrics." } as const;
 
 /** What Browse templates shows in the side panel; `onUse` adds the chosen template the way the Pool's + does. */
-export function TemplateBrowser({ data, layouts, onUse }: { data: CanvasData; layouts: boolean; onUse: (s: DropSource) => void }) {
+export function TemplateBrowser({ data, onUse }: { data: CanvasData; onUse: (s: DropSource) => void }) {
   const [q, setQ] = useState("");
   const match = (...s: string[]) => s.some((x) => x.toLowerCase().includes(q.toLowerCase()));
   const groups: { title: string; cards: Card[] }[] = [
     ...TEMPLATE_GROUPS.map((g) => ({
       title: g.title,
-      cards: builtinTemplates(layouts).filter((t) => t.kind === g.kind && match(t.label, t.blurb)).map((t): Card => ({
+      cards: builtinTemplates(false).filter((t) => t.kind === g.kind && match(t.label, t.blurb)).map((t): Card => ({
         key: `b${t.id}`, name: t.label, blurb: t.blurb,
         draw: () => <TemplatePreview template={t.id} viewer={data.viewer} numberStyle={data.numberStyle} width={232} />,
         source: { type: "spec", template: t.id, metricIds: [] },
