@@ -24,10 +24,11 @@ import { saveSeriesRows } from "./metrics";
 import { installManifest, itemHash, storedItems } from "./packs";
 import { listed } from "./pack-places";
 import { setUpStep, wordsForPeople, type GuidedStep, type SetupRun } from "./pack-setup";
-import { setupPeople, type Blueprint, type PackSetupInput, type PlannedMetric, type SetupPerson } from "./pack-setup-build";
-import { assertSetsUp, installedForSetup, roomFor, roomNow, type TemplateRow } from "./pack-setup-install";
-import { claimGuidedRecord, dropIdleGuided, heldKey, setupStates, stillMade, type GuidedRecord, type MadeThing, type SetupState } from "./pack-setup-record";
-import { isComputed } from "./pack-setup-totals";
+import { setupPeople, unsubscribedNote, type Blueprint, type PackSetupInput, type PlannedMetric, type SetupPerson } from "./pack-setup-build";
+import { assertSetsUp, installedForSetup, roomFor, roomNow, type EntryRow, type TemplateRow } from "./pack-setup-install";
+import { claimGuidedRecord, dropIdleGuided, heldKey, recordedSetups, setupStates, stillMade, type GuidedRecord, type MadeThing, type SetupState } from "./pack-setup-record";
+import { entryTotal, isComputed } from "./pack-setup-totals";
+import type { PackSampleEntry } from "./pack-sample";
 import { declarationsFrom, type DeclaredEntry, type DeclaredTemplate } from "./pack-start-declarations";
 import { asAddress, planStart, targetPeriods, type StartContext, type StartPickable, type StartPlan } from "./pack-start-plan";
 import { START_METRICS_MAX, startSelection, startSteps, type StartChoices, type StartDeclarations, type StartPerson, type StartRoom } from "./pack-start-steps";
@@ -38,7 +39,8 @@ import { addContact } from "./team";
 import { peopleIn } from "./submissions";
 import { trialLimitsInEffect } from "./trial-limits-in-effect";
 import { trialEndsAt } from "./trials";
-import type { Period, WorkflowConfig } from "./types";
+import type { DashboardTemplateBody, DeckTemplateBody, Period, SlideBody, Slot, WorkflowConfig } from "./types";
+import { assertWidgetDesigns } from "./widget-designs";
 import { openWorkflowRows } from "./workflow-rows";
 import { workflowSchedule } from "./workflows";
 import { getMetrics } from "./workspace-data";
@@ -47,7 +49,7 @@ import { localTime, workspaceClock } from "./workspace-clock";
 /** Which Pack to start: one of Ziffr's own by its id, or one the Workspace has installed by the install's number. */
 export type PackStartRef = { included: string } | { install: number };
 
-/** What starting a Pack offers. `startSteps(declarations, room)` makes its screens and `planStart` its check screen. */
+/** What starting a Pack offers. `startSteps(declarations, room)` makes its screens; `checkStart` its check screen. */
 export type PackStartOptions = {
   pack: { id: string; name: string; version: string; installId: number | null };
   declarations: StartDeclarations;
@@ -102,7 +104,9 @@ const GONE = "This set-up cannot go on from here. Press Try again.";
 
 // ---- The Pack ----
 
-type Source = { installId: number | null; included: string | null; pack: { id: string; name: string; version: string }; declarations: StartDeclarations; assistantTexts: { path: string; text: string }[]; blocked: string | null };
+type Source = { installId: number | null; included: string | null; pack: { id: string; name: string; version: string }; declarations: StartDeclarations; entries: DrawnEntry[]; templates: DeclaredTemplate[]; assistantTexts: { path: string; text: string }[]; blocked: string | null };
+/** A Metric Catalog entry with what Sample Data reads of it. */
+type DrawnEntry = DeclaredEntry & Pick<EntryRow, "aggregation" | "unit" | "unit_position" | "format" | "decimals" | "polarity" | "target_min" | "target_max">;
 
 async function installedSource(actor: Actor, installId: number): Promise<Source> {
   const p = await installedForSetup(actor, installId);
@@ -113,9 +117,10 @@ async function installedSource(actor: Actor, installId: number): Promise<Source>
   ]);
   if (error || unread) throw new Error("The Pack could not be read.");
   const templates = [...p.dashboards.values(), ...(decks as TemplateRow[] as DeclaredTemplate[]), ...p.workflows.values()] as DeclaredTemplate[];
+  const entries = [...p.entries.values()];
   return {
     installId: p.install.id, included: null, pack: { id: String(row.pack_id), name: p.install.name, version: p.install.version },
-    declarations: declarationsFrom(row.manifest, [...p.entries.values()], templates), assistantTexts: [], blocked: null,
+    declarations: declarationsFrom(row.manifest, entries, templates), entries, templates, assistantTexts: [], blocked: null,
   };
 }
 
@@ -134,11 +139,11 @@ async function includedSource(actor: Actor, packId: string): Promise<Source> {
     return { ...source, included: packId, blocked: other };
   }
   const stored = storedItems(pack);
-  const entries = stored.catalog.map((e): DeclaredEntry => ({ pack_key: e.key, name: e.name, period: e.period, formula: e.formula, total: "total" in e ? e.total : null }));
+  const entries = stored.catalog.map((e): DrawnEntry => ({ ...(e as unknown as DrawnEntry), pack_key: e.key, total: "total" in e ? e.total : null }));
   const templates = stored.templates.map((t) => ({ kind: t.kind, pack_key: t.key, name: t.name, slots: t.slots, body: t.body }) as DeclaredTemplate);
   return {
     installId: null, included: packId, pack: { id: pack.id, name: pack.name, version: pack.version },
-    declarations: declarationsFrom(installManifest(pack, stored), entries, templates), assistantTexts: read.preview.assistantTexts, blocked: read.preview.blocked,
+    declarations: declarationsFrom(installManifest(pack, stored), entries, templates), entries, templates, assistantTexts: read.preview.assistantTexts, blocked: read.preview.blocked,
   };
 }
 
@@ -278,7 +283,7 @@ function cleanChoices(input: unknown): StartChoices {
       repeat: key(l.repeat),
       ...(l.name === undefined ? {} : { name: word(l.name, 240) }),
       ...(l.person === undefined ? {} : { person: person(l.person) }),
-      ...(l.others === undefined ? {} : { others: many(l.others, 20, (o) => ({ position: key(record(o).position), person: person(record(o).person) })) }),
+      ...(l.others === undefined ? {} : { others: many(l.others, 20, (o) => ({ position: key(record(o).position), person: person(record(o).person) })) ?? [] }),
     };
   });
   const who = many(c.who, 20, (v) => ({ position: key(record(v).position), person: person(record(v).person) }));
@@ -430,6 +435,7 @@ async function resultOf(actor: Actor, source: Source, installId: number, setupId
   const targeted = new Set(plan.targets.map((t) => `${t.metric} ${t.line ?? ""}`));
   const system = startSteps(d, room).find((s) => s.step === "source");
   const wanted = new Set(choices.source === "system" && system?.step === "source" ? system.templates : []);
+  const stoppedNote = await unsubscribedNote(actor, { metrics: asked.map((a) => ({ submitters: [a.id] })), people });
   return {
     pack: { installId, name: source.pack.name },
     metrics,
@@ -444,7 +450,7 @@ async function resultOf(actor: Actor, source: Source, installId: number, setupId
     }),
     invite: plan.invite.flatMap((i) => { const who = known(i.person); return who?.kind === "contact" ? [{ id: who.id, name: who.name, role: i.role }] : []; }),
     leftOut: plan.leftOut,
-    notes: plan.notes,
+    notes: [...plan.notes, ...(stoppedNote ? [stoppedNote] : [])],
     targets: metrics.filter((m) => targeted.has(`${m.key} ${m.line ?? ""}`) && series.some((s) => Number(s.metric_id) === m.id)).length,
     source: system ? choices.source ?? null : null,
     templates: feedTemplates().filter((t) => wanted.has(t.id)),
@@ -453,12 +459,90 @@ async function resultOf(actor: Actor, source: Source, installId: number, setupId
   };
 }
 
-/** Refuses a set-up that would add more Contacts than the Workspace keeps, before anything is written. */
-async function assertContactRoom(actor: Actor, adding: number) {
-  if (!adding) return;
+/** Why the Workspace cannot take so many more Contacts, or null. */
+async function contactRoom(actor: Actor, adding: number): Promise<string | null> {
+  if (!adding) return null;
   const [{ count, error }, most] = await Promise.all([db().from("contacts").select("person_id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId), sendingLimit("contactsPerWorkspace")]);
   if (error) throw new Error("The Contacts could not be counted.");
-  if ((count ?? 0) + adding > most) throw new Refused(`A workspace keeps at most ${most} contacts.`);
+  return (count ?? 0) + adding > most ? `A workspace keeps at most ${most} contacts.` : null;
+}
+
+/** Why the answers cannot finish a set-up that stopped, or null: it goes on with the lines it started with, since a
+ * Total or a dashboard it made already holds those and no others. */
+async function otherLines(actor: Actor, installId: number, open: SetupState, plan: StartPlan): Promise<string | null> {
+  if (!open.made) return null;
+  const { lines } = await recordedSetups(actor, installId);
+  const named = (list: { repeat: string; name: string }[]) => list.map((l) => `${l.repeat} ${l.name}`).sort().join("\n");
+  return named(lines) === named(plan.lines) ? null : `This set-up started with ${listed(lines.map((l) => l.name))}. List the same to finish it; add more afterwards on the Pack's page.`;
+}
+
+/** The plan of the answers as the Workspace is now, with everything that can be checked before anything is written;
+ * `open` is this person's set-up that stopped, whose Metrics are there already. */
+async function checkedPlan(actor: Actor, source: Source, answers: StartChoices, open: SetupState | null): Promise<StartPlan> {
+  const made = open ? (await stillMade(actor, open.id)).filter((m) => m.kind === "metric").length : 0;
+  const plan = planStart(source.declarations, await roomOf(actor, made), answers, await contextOf(actor, answers));
+  if (plan.problems.length) return plan;
+  const more = plan.metrics.length - made;
+  const why = (open ? await otherLines(actor, source.installId!, open, plan) : null) ?? (more > 0 ? await roomFor(actor, more) : null) ?? (await contactRoom(actor, plan.contacts.length));
+  return why ? { ...plan, problems: [why] } : plan;
+}
+
+/** What the check screen shows for these answers (Owners and Admins): the plan as `startPackStep` would make it, with
+ * typed addresses found among the people here (one's own is “I do”) and the Workspace's real room. `problems` says why
+ * it cannot be set up. Writes nothing. */
+export async function checkStart(actor: Actor, ref: PackStartRef, choices: StartChoices): Promise<StartPlan> {
+  assertSetsUp(actor);
+  const answers = cleanChoices(choices);
+  const source = await sourceOf(actor, ref);
+  const states = source.installId === null ? [] : await setupStates(actor, source.installId);
+  const open = states.find((s) => s.guided && !s.finished && s.by === actor.personId) ?? null;
+  const plan = await checkedPlan(actor, source, answers, open);
+  const taken = states.some((s) => s !== open && (s.finished || s.made > 0)) ? SET_UP : null;
+  const why = source.blocked ?? taken ?? (await ended(actor));
+  return why ? { ...plan, problems: [why, ...plan.problems] } : plan;
+}
+
+/** What the preview of a Pack draws: its entries for Sample Data, and its first dashboard, or, for a Pack without one,
+ * the first slides of its first deck. */
+export type PackStartDrawing = {
+  sample: { pack: string; metrics: PackSampleEntry[] };
+  dashboard: { name: string; slots: Slot[]; body: DashboardTemplateBody } | null;
+  deck: { name: string; slots: Slot[]; slides: SlideBody[] } | null;
+};
+
+/** The most slides a preview draws. */
+const PREVIEW_SLIDES = 3;
+
+/** What the preview of a Pack draws (Owners and Admins), read from Ziffr's own file or the Workspace's install: the
+ * Pack's own templates and entries, never a Metric or a number of the Workspace. Writes nothing. */
+export async function startDrawing(actor: Actor, ref: PackStartRef): Promise<PackStartDrawing> {
+  assertSetsUp(actor);
+  const source = await sourceOf(actor, ref);
+  const { declarations: d } = source;
+  const [preview] = startSteps(d, { metrics: null, trial: null, practice: false });
+  const draws = preview.step === "preview" ? preview.draws : null;
+  const template = draws ? source.templates.find((t) => t.kind === draws.kind && t.pack_key === draws.key) : undefined;
+  // Only what a Slot is: an example Metric a template may keep is not sent.
+  const slots = (template?.slots ?? []).map((s) => ({ label: s.label, multiple: s.multiple, ...(s.suggests ? { suggests: s.suggests } : {}) }));
+  const repeats = new Map((d.repeats ?? []).map((r) => [r.key, r.name]));
+  const per = new Map(d.metrics.map((m) => [m.key, m.per]));
+  const metrics = source.entries.map((e) => ({
+    key: e.pack_key, name: e.name, period: e.period, aggregation: e.aggregation, unit: e.unit, unit_position: e.unit_position, format: e.format, decimals: e.decimals, polarity: e.polarity,
+    target_min: e.target_min, target_max: e.target_max, formula: e.formula, total: entryTotal(e), repeat: repeats.get(per.get(e.pack_key) ?? "") ?? null,
+  }) as PackSampleEntry);
+  let dashboard: PackStartDrawing["dashboard"] = null;
+  let deck: PackStartDrawing["deck"] = null;
+  if (template?.kind === "dashboard") {
+    const body = template.body as DashboardTemplateBody;
+    // A template's View Designs are checked again, as when it becomes a dashboard.
+    assertWidgetDesigns(body.widgets);
+    dashboard = { name: template.name, slots, body };
+  } else if (template?.kind === "deck") {
+    const slides = (template.body as DeckTemplateBody).slides.slice(0, PREVIEW_SLIDES);
+    assertWidgetDesigns(slides);
+    deck = { name: template.name, slots, slides };
+  }
+  return { sample: { pack: source.pack.id, metrics }, dashboard, deck };
 }
 
 /** Installs one of Ziffr's own Packs for the set-up; one installed a moment ago is used. */
@@ -498,13 +582,8 @@ export async function startPackStep(actor: Actor, ref: PackStartRef, choices: St
   if (run && (!open || run.id !== open.id || run.step !== open.step)) throw new Refused(GONE);
 
   // 1. Check everything that can be checked.
-  const made = open ? (await stillMade(actor, open.id)).filter((m) => m.kind === "metric").length : 0;
-  const plan = planStart(source.declarations, await roomOf(actor, made), answers, await contextOf(actor, answers));
+  const plan = await checkedPlan(actor, source, answers, open);
   if (plan.problems.length) throw new Refused(plan.problems[0]);
-  const more = plan.metrics.length - made;
-  const full = more > 0 ? await roomFor(actor, more) : null;
-  if (full) throw new Refused(full);
-  await assertContactRoom(actor, plan.contacts.length);
 
   // 2. Install, if the Workspace does not have the Pack.
   let installedNow: string | null = null;

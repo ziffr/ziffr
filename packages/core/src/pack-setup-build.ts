@@ -140,7 +140,7 @@ export type Blueprint = {
 
 /** That Submitters of a Set up unsubscribed, so no email asks them, as one sentence; null when none did. For the
  * person setting up, who will own these Metrics and so reads this on each of them. */
-export async function unsubscribedNote(actor: Actor, b: Blueprint): Promise<string | null> {
+export async function unsubscribedNote(actor: Actor, b: { metrics: readonly { submitters: string[] }[]; people: ReadonlyMap<string, { name: string }> }): Promise<string | null> {
   const stops = await stoppedWays(actor.workspaceId, [...new Set(b.metrics.flatMap((m) => m.submitters))]);
   const ids = [...stops].filter(([, ways]) => ways.has("email")).map(([id]) => id);
   if (!ids.length) return null;
