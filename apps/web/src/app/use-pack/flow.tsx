@@ -2,8 +2,9 @@
 // "Use this pack" as the browser runs it (spec 0068; GLOSSARY: Pack): the preview, one question per screen, the check,
 // the stepped set-up and the end. Which screens there are, and what they start with, comes from the core's `startSteps`.
 // Each question is an entry in the browser's history, so a reload and the browser's Back both work; the answers are kept
-// in this tab until the set-up is done. What it reads and what it does come in as props, so that "Try it" can run the
-// same screens without writing anything. It decides nothing: the server checks every answer again.
+// in this tab until the set-up is done. What it reads and what it does come in as props, so that "Try it" (`tryOut`)
+// runs the same screens and writes nothing: it takes no step, keeps no answer and leaves the page's address and history
+// alone. It decides nothing: the server checks every answer again.
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -49,17 +50,29 @@ export type PackFlowData = {
 export type PackFlowActions = {
   /** What the answers would make, without writing anything. */
   check: (choices: StartChoices) => Promise<StartPlan | ActionError>;
-  /** One step of the set-up. */
+  /** One step of the set-up. A try never takes one. */
   takeStep: (choices: StartChoices, run: SetupRun | null) => Promise<PackStartStep | ActionError>;
   /** The first number and the invitations of what was just set up; "Try it" has none. */
   invites?: (installId: number) => InviteActions;
 };
 
+/** What a try of the screens shows in place of setting up (spec 0068, "Try it"). */
+export type PackFlowTry = {
+  /** Said above every screen: that this is a try. */
+  notice: React.ReactNode;
+  /** The way back out. */
+  onClose: () => void;
+  /** The screen after "Set it up", from the answers: nothing is set up. */
+  end: (choices: StartChoices) => React.ReactNode;
+};
+
 type Props = {
   data: PackFlowData;
-  actions: PackFlowActions;
+  /** What the screens ask; a try has no step to take. */
+  actions: Omit<PackFlowActions, "takeStep"> & Partial<Pick<PackFlowActions, "takeStep">>;
   /** Where the answers are kept in this tab; null keeps nothing. */
   keep: string | null;
+  tryOut?: PackFlowTry;
 };
 
 const never = () => () => {};
@@ -77,6 +90,26 @@ function urlOf(key: string): string {
   const query = new URLSearchParams(window.location.search);
   query.set("step", key);
   return `${window.location.pathname}?${query}`;
+}
+
+/** Which screen shows, and the ways on and back. The set-up keeps it in the address, one entry of the history for each
+ * question; a try keeps it to itself, as it stands over a page of its own. */
+function useScreens(keys: string[], blocked: boolean, own: boolean) {
+  const asked = useSearchParams().get("step");
+  const [here, setHere] = useState(0);
+  const at = own ? here : blocked ? 0 : Math.max(0, keys.indexOf(asked ?? ""));
+  function go(to: number) {
+    if (own) return setHere(to);
+    window.history.pushState({ usePack: depth() + 1 }, "", urlOf(keys[to]));
+    window.scrollTo(0, 0);
+  }
+  function back() {
+    if (own) return setHere(Math.max(0, at - 1));
+    if (depth() > 0) return window.history.back();
+    // Opened or reloaded here: step to the screen before this one.
+    window.history.replaceState({ usePack: 0 }, "", urlOf(keys[at - 1] ?? keys[0]));
+  }
+  return { at, go, back };
 }
 
 /** The answers, kept in the tab as they change. */
@@ -106,14 +139,13 @@ function usePlan(choices: StartChoices | null, check: PackFlowActions["check"]) 
   return got && got.asked === asked ? got : { plan: null, failed: null };
 }
 
-function Flow({ data, actions, keep }: Props) {
+function Flow({ data, actions, keep, tryOut }: Props) {
   const { options, numberStyle } = data;
   const { declarations, room, me, people, clock } = options;
   const steps = useMemo(() => startSteps(declarations, room), [declarations, room]);
   const preview = steps[0] as Extract<StartStep, { step: "preview" }>;
   const keys = steps.map(stepKey);
-  const asked = useSearchParams().get("step");
-  const at = options.blocked ? 0 : Math.max(0, keys.indexOf(asked ?? ""));
+  const { at, go, back } = useScreens(keys, Boolean(options.blocked), Boolean(tryOut));
   const step = steps[at];
   const { answers, change, reset } = useAnswers(keep, steps, room);
   // The choices being set up, from "Set it up" until it is done or the person goes back to the answers.
@@ -128,23 +160,17 @@ function Flow({ data, actions, keep }: Props) {
 
   const choices = toChoices(answers, steps, numberStyle);
   const { plan, failed } = usePlan(step.step === "check" && !sent && !result ? choices : null, actions.check);
+  // A try is over at "Set it up": there is nothing to set up.
+  const tried = tryOut && sent;
+  const over = Boolean(result || tried);
 
-  function go(key: string) {
-    window.history.pushState({ usePack: depth() + 1 }, "", urlOf(key));
-    window.scrollTo(0, 0);
-  }
-  const next = () => go(keys[at + 1]);
-  function back() {
-    if (depth() > 0) return window.history.back();
-    // Opened or reloaded here: step to the screen before this one.
-    window.history.replaceState({ usePack: 0 }, "", urlOf(keys[at - 1] ?? keys[0]));
-  }
+  const next = () => go(at + 1);
   async function startOver() {
     if (!(await confirm({ title: "Start the questions again?", description: "What you typed here is cleared. Nothing you made is deleted.", confirmLabel: "Start over", destructive: false }))) return;
     reset();
-    go(keys[0]);
+    go(0);
   }
-  const takeStep = useCallback((run: SetupRun | null) => actions.takeStep(sent!, run), [actions, sent]);
+  const takeStep = useCallback((run: SetupRun | null) => actions.takeStep!(sent!, run), [actions, sent]);
   const done = useCallback((r: PackStartResult) => {
     if (keep) dropDraft(keep);
     setResult(r);
@@ -153,7 +179,7 @@ function Flow({ data, actions, keep }: Props) {
   }, [keep]);
 
   const asks = steps.filter((s) => s.step !== "preview");
-  const current = result ? asks.length : sent ? asks.length - 1 : at - 1;
+  const current = over ? asks.length : sent ? asks.length - 1 : at - 1;
   const rows = steps.slice(1, result ? steps.length : Math.max(1, at)).flatMap((s): [string, string][] => {
     const words = stepAnswer(s, answers, people);
     return words ? [[stepTitle(s), words]] : [];
@@ -169,21 +195,23 @@ function Flow({ data, actions, keep }: Props) {
 
   // A plain link: the app around the Packs page is not drawn here, so it is loaded anew.
   const leave = (href: string, words: string) => <a href={href} className={cn(buttonVariants({ variant: "ghost" }), FRAME_TAP)}>{words}</a>;
-  const ways = result ? leave("/", "Go to Home") : sent ? null : (
+  const close = tryOut && <Button type="button" variant="ghost" className={FRAME_TAP} onClick={tryOut.onClose}>Close</Button>;
+  const ways = result ? leave("/", "Go to Home") : sent ? close : (
     <>
       {at > 0 && <Button type="button" variant="ghost" className={FRAME_TAP} onClick={() => void startOver()}>Start over</Button>}
-      {leave(PACKS_PAGE, "Finish later")}
+      {close || leave(PACKS_PAGE, "Finish later")}
     </>
   );
 
   const shared = { answers, onChange: change, onContinue: next };
   const everyone = { room, me, people };
   function screen() {
+    if (tried) return tryOut.end(tried);
     if (result) return <DoneScreen result={result} declarations={declarations} feeds={data.feeds} addedPeople={addedPeople} invites={invites} />;
     if (sent) return <SettingUp takeStep={takeStep} onDone={done} onChange={() => setSent(null)} />;
     switch (step.step) {
       case "preview":
-        return <PreviewScreen step={preview} view={data.view} drawing={data.drawing} drawn={preview.draws?.kind === "dashboard" ? preview.draws.key : undefined} viewer={data.viewer} numberStyle={numberStyle} blocked={options.blocked} unfinished={options.unfinished?.made ?? null} onUse={next} exit={PACKS_PAGE} />;
+        return <PreviewScreen step={preview} view={data.view} drawing={data.drawing} drawn={preview.draws?.kind === "dashboard" ? preview.draws.key : undefined} viewer={data.viewer} numberStyle={numberStyle} blocked={options.blocked} unfinished={options.unfinished?.made ?? null} onUse={next} exit={tryOut?.onClose ?? PACKS_PAGE} />;
       case "lines": return <LinesScreen key={keys[at]} step={step} {...shared} {...everyone} />;
       case "who": return <WhoScreen key={keys[at]} step={step} {...shared} {...everyone} />;
       case "providers": return <ProvidersScreen step={step} {...shared} {...everyone} />;
@@ -202,7 +230,7 @@ function Flow({ data, actions, keep }: Props) {
   }
 
   return (
-    <GuidedFrame steps={asks.map(stepTitle)} current={current} answers={rows} ways={ways} onBack={result || sent || at === 0 ? null : back} wide={!result && !sent && at === 0}>
+    <GuidedFrame steps={asks.map(stepTitle)} current={current} answers={rows} ways={ways} onBack={result || sent || at === 0 ? null : back} wide={!result && !sent && at === 0} notice={tryOut?.notice}>
       {screen()}
       {dialog}
     </GuidedFrame>

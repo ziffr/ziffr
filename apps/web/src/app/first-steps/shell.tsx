@@ -49,7 +49,7 @@ export function Shell({ screen, answers, made, onBack, onStartOver, onSignOut, c
     </>
   );
   return (
-    <GuidedFrame steps={[...FIRST_STEPS_CHAPTERS]} current={chapterOf(screen)} answers={answered(answers)} ways={ways} onBack={onBack}>
+    <GuidedFrame steps={[...FIRST_STEPS_CHAPTERS]} current={chapterOf(screen)} answers={answered(answers)} ways={ways} onBack={onBack} wide={screen === "set"}>
       {children}
     </GuidedFrame>
   );

@@ -21,6 +21,7 @@ import { bundledPacks, installIncludedPack, readIncludedPack } from "./included-
 import { ownerHasOwnValue } from "./invite-gate";
 import { mailOn } from "./mail";
 import { saveSeriesRows } from "./metrics";
+import type { Pack } from "./pack";
 import { installManifest, itemHash, storedItems } from "./packs";
 import { listed } from "./pack-places";
 import { setUpStep, wordsForPeople, type GuidedStep, type SetupRun } from "./pack-setup";
@@ -139,13 +140,15 @@ async function includedSource(actor: Actor, packId: string): Promise<Source> {
     const other = has.source !== "included" ? "This Workspace has this Pack from another source: open it on the Packs page." : null;
     return { ...source, included: packId, blocked: other };
   }
+  return { installId: null, included: packId, ...startFromPack(pack), assistantTexts: read.preview.assistantTexts, blocked: read.preview.blocked };
+}
+
+/** What the set-up reads of a checked Pack that is not installed: what installing it would keep. Nothing is written. */
+export function startFromPack(pack: Pack): Pick<Source, "pack" | "declarations" | "entries" | "templates"> {
   const stored = storedItems(pack);
   const entries = stored.catalog.map((e): DrawnEntry => ({ ...(e as unknown as DrawnEntry), pack_key: e.key, total: "total" in e ? e.total : null }));
   const templates = stored.templates.map((t) => ({ kind: t.kind, pack_key: t.key, name: t.name, slots: t.slots, body: t.body }) as DeclaredTemplate);
-  return {
-    installId: null, included: packId, pack: { id: pack.id, name: pack.name, version: pack.version },
-    declarations: declarationsFrom(installManifest(pack, stored), entries, templates), entries, templates, assistantTexts: read.preview.assistantTexts, blocked: read.preview.blocked,
-  };
+  return { pack: { id: pack.id, name: pack.name, version: pack.version }, declarations: declarationsFrom(installManifest(pack, stored), entries, templates), entries, templates };
 }
 
 function sourceOf(actor: Actor, ref: PackStartRef): Promise<Source> {
@@ -528,7 +531,11 @@ const PREVIEW_SLIDES = 3;
  * Pack's own templates and entries, never a Metric or a number of the Workspace. Writes nothing. */
 export async function startDrawing(actor: Actor, ref: PackStartRef): Promise<PackStartDrawing> {
   assertSetsUp(actor);
-  const source = await sourceOf(actor, ref);
+  return drawingOf(await sourceOf(actor, ref));
+}
+
+/** What a preview draws of a Pack's own templates and entries. */
+export function drawingOf(source: Pick<Source, "pack" | "declarations" | "entries" | "templates">): PackStartDrawing {
   const { declarations: d } = source;
   const [preview] = startSteps(d, { metrics: null, trial: null, practice: false });
   const draws = preview.step === "preview" ? preview.draws : null;

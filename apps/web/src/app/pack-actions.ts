@@ -2,11 +2,14 @@
 // Packs (spec 0030, GLOSSARY: Pack): thin calls into the core, which checks the file again on the server, and who may
 // install, update or uninstall (Owners and Admins; Owners for a Pack with Themes; never in the demo).
 import { revalidatePath } from "next/cache";
+import { notFound } from "next/navigation";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { installPackFile, readPackFile } from "@ziffr/core/packs";
 import { installFromMarketplace, readMarketplacePack, readMarketplaceUpdate, searchMarketplace, updateFromMarketplace } from "@ziffr/core/marketplace";
 import { exportPack, themeLogoForExport, type ExportChoice, type ExportManifest, type ExportOptionsChosen } from "@ziffr/core/pack-export";
+import { tryExportedPack } from "@ziffr/core/pack-export-try";
+import { PACK_SET_UP_ON } from "./use-pack/switch";
 import { installIncludedPack, readIncludedPack, readIncludedUpdate, updateIncludedPack } from "@ziffr/core/included-packs";
 import { readPackUpdate, readUninstall, takeNewVersion, uninstallPack, updatePackFile } from "@ziffr/core/pack-updates";
 
@@ -24,9 +27,19 @@ export async function installPack(text: string, confirmed: { unsigned: boolean; 
   });
 }
 
+type Described = Pick<ExportOptionsChosen, "guide" | "comesFrom" | "setUp">;
+/** What the browser sent of "Describe your Pack"; the set-up questions only while the guided set-up is switched on. */
+const chosen = (withTags: boolean, described: Described): ExportOptionsChosen => ({ tags: withTags !== false, guide: described?.guide, comesFrom: described?.comesFrom, setUp: PACK_SET_UP_ON ? described?.setUp : undefined });
+
 /** A Pack of what the viewer picked in their Workspace, as its file's text, and what had to stay out. */
-export async function exportAsPack(manifest: ExportManifest, choice: ExportChoice, withTags = true, described: Pick<ExportOptionsChosen, "guide" | "comesFrom"> = {}) {
-  return attempt(async () => exportPack(await currentActor(), manifest, choice, { tags: withTags !== false, guide: described?.guide, comesFrom: described?.comesFrom }));
+export async function exportAsPack(manifest: ExportManifest, choice: ExportChoice, withTags = true, described: Described = {}) {
+  return attempt(async () => exportPack(await currentActor(), manifest, choice, chosen(withTags, described)));
+}
+
+/** What the guided set-up would read of that file, for "Try it"; nothing is written. */
+export async function tryAsPack(manifest: ExportManifest, choice: ExportChoice, withTags = true, described: Described = {}) {
+  if (!PACK_SET_UP_ON) notFound();
+  return attempt(async () => tryExportedPack(await currentActor(), manifest, choice, chosen(withTags, described)));
 }
 
 /** The logo of one of the viewer's Themes, as the Export dialog previews it. */

@@ -84,7 +84,7 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
       {manages && included.length > 0 && <IncludedPacks packs={included} viewer={viewer} numberStyle={numberStyle} />}
       {marketplace && <MarketplaceSearch installed={installed.map((p) => ({ packId: p.packId, version: p.version }))} viewer={viewer} numberStyle={numberStyle} />}
       {manages && <InstallFromFile viewer={viewer} numberStyle={numberStyle} />}
-      {exportable && <ExportPack options={exportable} defaultAuthor={authorName} />}
+      {exportable && <ExportPack options={exportable} defaultAuthor={authorName} viewer={viewer} numberStyle={numberStyle} />}
       {demo && <p className="text-sm text-muted-foreground">The demo installs no Packs: the Workspace is shared by everyone looking at it.</p>}
     </div>
   );

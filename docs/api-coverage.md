@@ -227,6 +227,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `markSetupGuideSeen` (setup-guide.ts): that a person opened the guide, for the app
 - `chooseExploreOnMyOwn` (setup-guide.ts): the guide's starting point, for the app
 - `saveFirstStepsAnswers` (first-steps.ts): the Owner answers First Steps again, in the app
+- `firstStepsSet` (first-steps-sets.ts): the Preview of one of First Steps' ready-made sets, for the app; a program installs no Pack
 - `makeFirstMetric` (first-steps-metric.ts): the Owner adds the first Metric in First Steps, with its dashboard; a program makes one with create_metric
 - `firstStepsMetric` (first-steps-metric.ts): the name of the Owner's first Metric, for First Steps' screens; a program lists Metrics with list_metrics
 - `seenFirstMetric` (setup-guide.ts): the guide's first Metric as the viewer sees it, a read inside the core for the app's guide and First Steps
@@ -429,6 +430,8 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `seenMetrics` (pack-export.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `gatherPack` (pack-export.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `draftPackGuide` (pack-export-guide.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `checkExportSetUp` (pack-export.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `tryExportedPack` (pack-export-try.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `activityView` (page-data.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `workflowsView` (page-data.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `metricExtras` (page-data.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
