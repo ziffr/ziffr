@@ -32,7 +32,7 @@ type TokenRow = { code: string; metric_id: number; submitter_id: string };
 
 /** What "Ask for missing values now" did, never calling a request made that goes nowhere because it was stopped. */
 function missingWords({ asked, stopped }: { asked: number; stopped: number }): string {
-  const held = stopped ? `${stopped} request${stopped === 1 ? " was" : "s were"} not sent: the person asked stopped these messages.` : "";
+  const held = !stopped ? "" : stopped === 1 ? "1 request was not sent, because that person stopped these messages." : `${stopped} requests were not sent, because the people asked stopped these messages.`;
   if (asked) return [`Made ${asked} request${asked === 1 ? "" : "s"} for missing values. The Outbox shows which have gone out.`, held].filter(Boolean).join(" ");
   return held || "Nobody is missing a value for the current period";
 }

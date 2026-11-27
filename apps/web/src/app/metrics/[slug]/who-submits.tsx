@@ -76,7 +76,7 @@ export async function WhoSubmits({ actor, metric, tokens, people, promptWays, st
               {changes && !t.feed && !t.stands_in_for && <RemoveSubmitter metricId={metric.id} personId={t.submitter_id} name={people[t.submitter_id]?.name ?? "this person"} says={removingSays(t, tokens, people, metric.owner_id, editor)} />}
             </span>
             {!t.feed && promptWays[t.submitter_id] && <NextPrompt view={promptWays[t.submitter_id]} />}
-            {!t.stands_in_for && <StoppedRow metricId={metric.id} person={stopped.find((p) => p.id === t.submitter_id)} code={webForm ? t.code : null} />}
+            {!t.stands_in_for && t.submitter_id !== actor.personId && <StoppedRow metricId={metric.id} person={stopped.find((p) => p.id === t.submitter_id)} code={webForm ? t.code : null} />}
           </li>
         ))}
         {!tokens.length && <li className="text-muted-foreground">Nobody yet.</li>}
