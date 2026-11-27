@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { checkPack, checkPackValue, type Pack } from "./pack.js";
-import { comesFromGroups, comesFromWords, FEED_TEMPLATE_LABELS, includedAndNeeded, keptOverview, packOverview, readOverview, targetsRead } from "./comes-from.js";
+import { comesFromGroups, comesFromWords, FEED_TEMPLATE_LABELS, includedAndNeeded, keptOverview, packOverview, readOverview, targetKeys, targetsRead } from "./comes-from.js";
 import { FEED_TEMPLATE_IDS } from "./pack.js";
 
 const metric = (name: string, over: Record<string, unknown> = {}) => ({ format: "ziffr.metric/1" as const, name, period: "week" as const, aggregation: "last" as const, polarity: "higher" as const, ...over });
@@ -66,11 +66,23 @@ describe("the overview of a Pack", () => {
     expect(comesFromWords(rows.get("commit")!)).toEqual({ from: "Ask a person, or fill it from Microsoft Excel (template included)", delivered: "A person answers by web form, email, Slack or Telegram." });
   });
 
-  it("reads a formula that only reads a target as a number set once", () => {
+  it("reads a formula that only reads a target as that target", () => {
     const pack = { contents: { metrics: [{ key: "commit", metric: metric("Commit") }, { key: "quota", metric: metric("Quota", { formula: " target({commit}) " }) }, { key: "gap", metric: metric("Gap", { formula: "{commit} - target({commit})" }) }] } };
     expect(packOverview(pack).numbers.slice(1).map((n) => [n.by, n.of])).toEqual([["target", ["Commit"]], ["calculated", ["Commit"]]]);
     expect(targetsRead(pack)).toEqual(["Commit"]);
-    expect(includedAndNeeded(packOverview(pack), targetsRead(pack)).needed).toContain("A target, set once, on Commit");
+    expect(comesFromWords(packOverview(pack).numbers[1]!)).toEqual({ from: "The target of Commit", delivered: "You set it on Commit, on the Targets tab." });
+    expect(includedAndNeeded(packOverview(pack), targetsRead(pack)).needed).toContain("Targets on Commit");
+  });
+
+  it("says that the target of a Total of added-up targets is set on each of its Metrics", () => {
+    const file = JSON.parse(readFileSync(new URL("../../../packs/sales-forecast.pack.json", import.meta.url), "utf8")) as Pack;
+    const kept = keptOverview(file);
+    expect(kept.numbers.find((n) => n.key === "quota")).toEqual({ key: "quota", name: "Quota", by: "target", of: ["Commit"], added: true });
+    expect(comesFromWords(kept.numbers.find((n) => n.key === "quota")!)).toEqual({ from: "The targets of each Commit, added up", delivered: "You set them on each Commit, on the Targets tab, for every period." });
+    expect(targetKeys(file)).toEqual(["commit"]);
+    expect(includedAndNeeded(kept, kept.targets).needed).toContain("Targets on each Commit");
+    expect(JSON.stringify([comesFromGroups(kept.numbers), includedAndNeeded(kept, kept.targets)])).not.toMatch(/set once|target of Team commit/i);
+    expect(readOverview(JSON.parse(JSON.stringify(kept)))).toEqual(kept);
   });
 
   it("says what is included and what is still needed", () => {
@@ -85,7 +97,7 @@ describe("the overview of a Pack", () => {
         "Someone to ask, or a system that sends the values, for Hours",
         "A connection to your CRM for Closed this quarter, using a delivered n8n template that you connect",
         "A connection to your CRM for Pipeline value, which you set up yourself",
-        "A target, set once, on Quota",
+        "Targets on Quota",
         "An Approver for the Workflow Weekly",
         "The dashboard and the people for the Snapshot of the Workflow Weekly",
       ],

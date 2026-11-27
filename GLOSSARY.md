@@ -303,7 +303,7 @@ A Widget Template, Dashboard Template, saved widget or metric drawn small before
 _Avoid_: Thumbnail, mock-up
 
 **Sample Data**:
-Made-up metrics and values that a template's Preview draws, because a template has no metrics of its own. The same for everyone and never a workspace's data.
+Made-up metrics and values that a template's Preview draws, because a template has no metrics of its own; in a Pack's Preview, its Dashboard Templates are drawn under the Pack's own Metric names. The same for everyone and never a workspace's data.
 _Avoid_: Dummy data, fake data, demo data
 
 **Dashboard**:
@@ -554,7 +554,7 @@ A Webhook that one person adds for themselves in one Workspace, once an Owner or
 _Avoid_: My webhook, user webhook, private webhook
 
 **Comes From**:
-What a Pack says of each of its numbers (a person is asked for it, another system sends it, or it is set once as a target), with what Ziffr works out from the Pack: that it calculates a number, by which ways a number it says nothing of can arrive, which Automation Templates are delivered and what the installer still needs. Shown as "Where the numbers come from". Not a Source (the way a value arrives) and not a thing's origin.
+What a Pack says of each of its numbers (a person is asked for it, another system sends it, or it is a target someone sets), with what Ziffr works out from the Pack: that it calculates a number, by which ways a number it says nothing of can arrive, which Automation Templates are delivered and what the installer still needs. Shown as "Where the numbers come from". Not a Source (the way a value arrives) and not a thing's origin.
 _Avoid_: Provenance, data source, lineage
 
 **Automation Template**:

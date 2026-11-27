@@ -135,7 +135,7 @@ In the format `ziffr.deck-template/3` a `text` or `box` shape may name the Slots
 
 ### A gap table of a Total
 
-In the same format a `gap-table` element may read one [Total](#totals) instead of two Metrics. It says `"total": true`, names one Slot, which should suggest a Total entry, and draws a row for each Metric the Total adds up: that Metric's target for the period, its value and the gap, as far as the reader may see them.
+In the same format a `gap-table` element may read one [Total](#totals) instead of two Metrics. It says `"total": true`, names one Slot, which should suggest a Total entry, and draws a row for each Metric the Total adds up: that Metric's target for the period, its value and the gap, as far as the reader may see them. The column of targets is headed `Target`, or the element's `targetLabel`, such as `"Quota"`.
 
 ```json
 { "shape": "element", "x": 64, "y": 85, "w": 1152, "h": 540, "slots": [0], "element": { "kind": "gap-table", "total": true, "rowLabel": "Salesperson" } }
@@ -274,7 +274,7 @@ Say for every number somebody or something has to send where it comes from, with
 | `system` | with `system` only, and needed then: the kind of system, such as “CRM”, at most 60 characters |
 | `note` | optional, at most 300 characters |
 
-Do not write it on a Derived Metric or a [Total](#totals): Ziffr calculates those and shows from which entries. Name the n8n templates that fill an entry in [`feeds`](#filling-the-metrics-from-other-systems); say only what they really do. Ziffr shows a table **Where the numbers come from** and what is **Included** and **still needed** before installing and in Help, and Set up asks nobody for a number another system sends unless the person chooses to. A number without `comesFrom` is described by what Ziffr can do with it, from its `sources` and your `feeds`: **Ask a person**, **Ask a person, or another system sends it**, **Ask a person, or fill it from Google Sheets (template included)**, or for a number only the API takes **Another system sends it**. The Marketplace lists a Pack only when every number that takes values has `comesFrom`.
+Do not write it on a Derived Metric or a [Total](#totals): Ziffr calculates those and shows from which entries. A formula that only reads a target, such as `target({commit})`, is shown as that Metric's target; where it is a Total whose target is its parts' targets added up, as the targets of each of those parts. Name the n8n templates that fill an entry in [`feeds`](#filling-the-metrics-from-other-systems); say only what they really do. Ziffr shows a table **Where the numbers come from** and what is **Included** and **still needed** before installing and in Help, and Set up asks nobody for a number another system sends unless the person chooses to. A number without `comesFrom` is described by what Ziffr can do with it, from its `sources` and your `feeds`: **Ask a person**, **Ask a person, or another system sends it**, **Ask a person, or fill it from Google Sheets (template included)**, or for a number only the API takes **Another system sends it**. The Marketplace lists a Pack only when every number that takes values has `comesFrom`.
 
 ### Credit
 

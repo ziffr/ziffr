@@ -61,8 +61,8 @@ export function checkComesFrom(p: Pick<Pack, "contents">, at: (path: string, mes
 const ANSWERS_BY: Record<string, string> = { web_form: "web form", mail: "email", slack: "Slack", telegram: "Telegram" };
 const SOURCES = [...Object.keys(ANSWERS_BY), "api"];
 
-/** One number of a Pack as a page lists it. `calculated` names what it is worked out from, `target` whose target it is;
- * `unsaid` is an entry whose creator said nothing, which is described by the ways Ziffr has: its `sources` (left out:
+/** One number of a Pack as a page lists it. `calculated` names what it is worked out from, `target` whose target it is,
+ * with `added` where that target is the targets of the entry named there, one for each line, added up; `unsaid` is an entry whose creator said nothing, which is described by the ways Ziffr has: its `sources` (left out:
  * every Source) and the delivered n8n `templates` that fill it. */
 export type PackNumber = {
   key: string;
@@ -72,6 +72,7 @@ export type PackNumber = {
   note?: string;
   templates?: string[];
   of?: string[];
+  added?: boolean;
   sources?: string[];
 };
 
@@ -91,7 +92,7 @@ export type PackOverview = {
   themes: string[];
 };
 
-/** The target a formula only reads, as in “target({commit})”: that number is set once, as the target of another. */
+/** The target a formula only reads, as in “target({commit})”: that number is the target of another. */
 const ONLY_TARGET = /^\s*target\(\s*\{([a-z0-9-]+)\}\s*\)\s*$/;
 const TARGETS = /target\(\s*\{([a-z0-9-]+)\}\s*\)/g;
 
@@ -101,13 +102,16 @@ export function packOverview(pack: Pick<Pack, "contents" | "feeds">): PackOvervi
   const entries = c.metrics ?? [];
   const names = new Map(entries.map((m) => [m.key, m.metric.name]));
   const named = (keys: string[]) => [...new Set(keys)].flatMap((k) => names.get(k) ?? []).slice(0, L.of);
+  const parts = partsOfTargets(entries);
   const numbers = entries.map((m): PackNumber => {
     const head = { key: m.key, name: m.metric.name };
     const formula = m.metric.formula;
     if (m.total) return { ...head, by: "calculated", of: named([m.total.of]) };
     if (typeof formula === "string") {
       const only = ONLY_TARGET.exec(formula);
-      return only ? { ...head, by: "target", of: named([only[1]]) } : { ...head, by: "calculated", of: named(formulaKeys(formula)) };
+      if (!only) return { ...head, by: "calculated", of: named(formulaKeys(formula)) };
+      const part = parts.get(only[1]!);
+      return { ...head, by: "target", of: named([part ?? only[1]!]), ...(part ? { added: true } : {}) };
     }
     // In the order of Ziffr's own list, whatever order the Pack names them in.
     const fills = new Set<string>((pack.feeds ?? []).filter((f) => f.fills.includes(m.key)).map((f) => f.template));
@@ -143,12 +147,26 @@ export function packOverview(pack: Pick<Pack, "contents" | "feeds">): PackOvervi
   };
 }
 
-/** The targets a Pack's formulas read, by the name of the Metric whose target it is. */
-export function targetsRead(pack: Pick<Pack, "contents">): string[] {
+/** Of the Totals whose target is their parts' targets added up, the entry each adds up, by the Total's key. */
+const partsOfTargets = (entries: NonNullable<Pack["contents"]["metrics"]>) => new Map(entries.flatMap((m): [string, string][] => (m.total?.targets === "parts" ? [[m.key, m.total.of]] : [])));
+
+/** The entries whose targets someone has to set because a formula reads them, by key: for a Total that adds its parts'
+ * targets up, the entry it adds up, since the targets are set there. */
+export function targetKeys(pack: Pick<Pack, "contents">): string[] {
   const entries = pack.contents.metrics ?? [];
-  const names = new Map(entries.map((m) => [m.key, m.metric.name]));
-  const keys = entries.flatMap((m) => (typeof m.metric.formula === "string" ? [...m.metric.formula.matchAll(TARGETS)].map((x) => x[1]) : []));
-  return [...new Set(keys)].flatMap((k) => names.get(k) ?? []);
+  const parts = partsOfTargets(entries);
+  const keys = entries.flatMap((m) => (typeof m.metric.formula === "string" ? [...m.metric.formula.matchAll(TARGETS)].map((x) => x[1]!) : []));
+  return [...new Set(keys.map((k) => parts.get(k) ?? k))];
+}
+
+/** The targets a Pack's formulas read, as the names of the entries they are set on; “each …” for an entry made once for
+ * every line of a Repeat. */
+export function targetsRead(pack: Pick<Pack, "contents">): string[] {
+  const byKey = new Map((pack.contents.metrics ?? []).map((m) => [m.key, m]));
+  return targetKeys(pack).flatMap((k) => {
+    const entry = byKey.get(k);
+    return entry ? [`${entry.per === undefined ? "" : "each "}${entry.metric.name}`] : [];
+  });
 }
 
 const list = (names: string[], word = "and") => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} ${word} ${names.at(-1)}`);
@@ -166,7 +184,8 @@ export function comesFromWords(n: PackNumber, count = 1): { from: string; delive
   const it = count > 1 ? "them" : "it";
   const of = list(n.of ?? []);
   if (n.by === "calculated") return { from: of ? `Ziffr calculates ${it} from ${of}` : `Ziffr calculates ${it}`, delivered: "" };
-  if (n.by === "target") return { from: of ? `Set once as the target of ${of}` : `Set once as ${count > 1 ? "targets" : "a target"}`, delivered: "" };
+  if (n.by === "target" && n.added) return { from: `The targets of each ${of}, added up`, delivered: `You set them on each ${of}, on the Targets tab, for every period.` };
+  if (n.by === "target") return of ? { from: `The target of ${of}`, delivered: `You set it on ${of}, on the Targets tab.` } : { from: `Set once as ${count > 1 ? "targets" : "a target"}`, delivered: "" };
   const templates = (n.templates ?? []).map((t) => FEED_TEMPLATE_LABELS[t] ?? t);
   const included = templates.length ? `${list(templates, "or")} (${templates.length === 1 ? "template" : "templates"} included)` : "";
   const connect = "with n8n, a SQL Feed or another program";
@@ -241,7 +260,7 @@ export function includedAndNeeded(o: PackOverview, targets: string[] = []): { in
   }
   // A number said to be a target and not itself worked out from another's is set on its own Metric.
   const set = [...new Set([...targets, ...by("target").filter((n) => !n.of?.length).map((n) => n.name)])];
-  if (set.length) needed.push(`A target, set once, on ${list(set)}`);
+  if (set.length) needed.push(`Targets on ${list(set)}`);
   for (const w of o.workflows) {
     if (w.approvers) needed.push(`${w.approvers === 1 ? "An Approver" : `${w.approvers} Approvers`} for the Workflow ${w.name}`);
     if (w.does.includes("snapshot")) needed.push(`The dashboard and the people for the Snapshot of the Workflow ${w.name}`);
@@ -261,7 +280,7 @@ export const PACK_OVERVIEW_SCHEMA: Schema = {
       type: "array", maxItems: L.entries,
       items: {
         type: "object",
-        properties: { key: name(40), name: name(120), by: { enum: [...COMES_FROM_BY, "calculated", "unsaid"] }, system, note, templates: { type: "array", maxItems: 10, items: { enum: Object.keys(FEED_TEMPLATE_LABELS) } }, of: names(L.of, 120), sources: { type: "array", maxItems: SOURCES.length, items: { enum: SOURCES } } },
+        properties: { key: name(40), name: name(120), by: { enum: [...COMES_FROM_BY, "calculated", "unsaid"] }, system, note, templates: { type: "array", maxItems: 10, items: { enum: Object.keys(FEED_TEMPLATE_LABELS) } }, of: names(L.of, 120), added: { type: "boolean" }, sources: { type: "array", maxItems: SOURCES.length, items: { enum: SOURCES } } },
         required: ["key", "name", "by"], additionalProperties: false,
       },
     },

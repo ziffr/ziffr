@@ -28,7 +28,7 @@ An item you removed after installing is left out, and so are the Positions of a 
 
 **Ziffr's own Packs** lists the thirteen Packs that come with this version of Ziffr, for Owners and Admins. Each shows its name, version and summary and what it brings as counts (for example "13 Metrics, 2 dashboards, 2 Workflows"). It works on any Installation, also a self-hosted one with no Marketplace: nothing is downloaded and nothing leaves your server.
 
-Choose **Preview with Sample Data** to see everything the Pack adds, drawn with Sample Data and never your own values. Under each Metric it shows its description and, where the Pack has one, **How it is calculated**: what counts, where the figure comes from and which adjustments are made. A Metric you set up from the Pack gets that text, and it is yours to change. These Packs need no confirmation about where they came from; texts aimed at assistants, if one ever had any, would still be listed and need a tick. Choose **Install** to add it. Nothing installs until you do, and the Audit log records it as installed from Ziffr's own Packs. A Pack that holds a Theme, such as SaaS metrics, Board meeting and Sales forecast, needs an Owner. A Pack that is installed already shows its version instead of a Preview.
+Choose **Preview with Sample Data** to see everything the Pack adds, drawn with Sample Data and never your own values. Its Dashboard Templates show made-up numbers under the Pack's own Metric names; a Metric made once for each line of a Repeat is drawn for three made-up lines, such as “Commit, Salesperson A”. Under each Metric it shows its description and, where the Pack has one, **How it is calculated**: what counts, where the figure comes from and which adjustments are made. A Metric you set up from the Pack gets that text, and it is yours to change. These Packs need no confirmation about where they came from; texts aimed at assistants, if one ever had any, would still be listed and need a tick. Choose **Install** to add it. Nothing installs until you do, and the Audit log records it as installed from Ziffr's own Packs. A Pack that holds a Theme, such as SaaS metrics, Board meeting and Sales forecast, needs an Owner. A Pack that is installed already shows its version instead of a Preview.
 
 When a newer Ziffr brings a newer version of a Pack you installed, that Pack shows **Version … comes with this Ziffr…**, which shows what an update changes before it is done, as under Updating a Pack. It is never applied by itself.
 
@@ -36,9 +36,11 @@ When a newer Ziffr brings a newer version of a Pack you installed, that Pack sho
 
 In a [Practice Workspace](18-installation-settings.md#practice-workspace), a Pack you set up can be filled at once, so its dashboards and slides have something to show. After **Set up** choose **Fill with made-up numbers**; the same button stays on the installed Pack. It fills the Metrics your Set ups made, a few at a time, and says how far it is.
 
-- **Values** for every period from the start of the previous Fiscal Year up to now, and never less than 13 months back (at least 8 quarters and 3 years for quarterly and yearly Metrics), so year on year, year to date against last year and the period before all work. They follow a mild trend and season in the Metric's unit, and are marked as imports.
-- **Targets:** a Metric where higher or lower is better gets a Target Series for the previous and the whole current Fiscal Year, periods still to come included.
-- Calculated Metrics and Totals work themselves out. A Metric with a target range to stay inside keeps it, no Metric gets a Breakdown, and **nothing that is there is replaced**: a period with a value keeps it, and a Metric with a Target Series keeps its own.
+- **Values** for every period from the start of the previous Fiscal Year, and never less than 13 months back (at least 8 quarters and 3 years for quarterly and yearly Metrics), so year on year, year to date against last year and the period before all work. They follow a mild trend and season in the Metric's unit, and are marked as imports.
+- **The latest two periods stay empty:** the one that ended last, which is the one a request asks for, and the running one. So you can try the Workflow: **Run today's steps now** asks for last week's figures, you answer, and the Approver approves. A period a Workflow already asked for is left alone too. Made-up numbers start no Approval, task or message.
+- **They belong together** in Ziffr's own Packs: a part is never more than its whole (overdue invoices within open invoices, orders in line with revenue). In the [Sales forecast](#the-sales-forecast-pack) each salesperson's Closed this quarter grows through the quarter and starts again with the next, Closed is never above Commit nor Commit above Best case, every open deal of the Best case is in the Pipeline value, and some salespeople are above their quota and some below.
+- **Targets:** a Metric where higher or lower is better gets a Target Series for the previous and the whole current Fiscal Year, periods still to come included, some a little above its values and some below. In the Sales forecast only **Commit** gets targets: the salesperson's quota, the same in every week of a quarter. A quota you set yourself stays and gives the quarter's other weeks the same one.
+- Calculated Metrics and Totals work themselves out, and keep their Target Range as their only target. A Metric with a target range to stay inside keeps it, no Metric gets a Breakdown, and **nothing that is there is replaced**: a period with a value keeps it, and a target keeps its week. Outside the Sales forecast's quota, a Metric with a Target Series gets no more targets.
 
 The button is offered only to you, only in your Practice Workspace.
 
@@ -72,10 +74,10 @@ The [Setup Guide](07-getting-started.md#the-setup-guide) offers the same Packs i
 
 | What | What it does |
 | --- | --- |
-| **Commit** and **Best case**, one for each salesperson | The week's two forecast calls for the quarter, deals already won included. Each salesperson sends their own; the sales lead stands in for them. The target of a salesperson's **Commit** is their quota. |
+| **Commit** and **Best case**, one for each salesperson | The week's two forecast calls for the quarter, deals already won included. Each salesperson sends their own; the sales lead stands in for them. The target of a salesperson's **Commit** is their quota, one for each week. |
 | **Closed this quarter**, **Pipeline value**, one for each salesperson | What they won since the quarter began, and their open deals that can still close in it. A CRM sends them, so nobody is asked unless you choose it. |
 | **Team commit**, **Team best case**, **Team closed this quarter**, **Team pipeline value** | [Totals](10-metrics.md#adding-up-metrics-a-total) that add up the figures of all salespeople. Nobody sends them. |
-| **Quota** | Worked out, not sent: [the target](10-metrics.md#reading-a-target) of **Team commit** for the week, which is the salespeople's quotas added up. |
+| **Quota** | Worked out, not sent: [the target](10-metrics.md#reading-a-target) of **Team commit** for the week. That is the salespeople's weekly targets on **Commit** added up, unless you give the team a quota of its own. |
 | **Commit gap to quota**, **Commit as share of quota** | Team commit minus the quota, and Team commit as a percentage of it. 0 or more, and 100 % or more, cover the quota. |
 | **Pipeline coverage** | Team pipeline value divided by what is still missing (the quota minus Team closed this quarter). 3 times means the open deals are worth three times what is missing. |
 | The dashboard **Weekly forecast meeting** | This week's call against quota and the change on last week, then the last 13 weeks, and each salesperson's commit against their quota. On a phone the call against quota comes first. |
@@ -85,7 +87,9 @@ That is 4 Metrics for each salesperson and 8 for the team: ten salespeople make 
 
 **Who sees what.** Each salesperson sees their own figures. The check before you set up proposes to share every figure with the sales lead: choose **Tick all for** them. A team figure is shown only to someone who sees [every salesperson's figure it adds up](10-metrics.md#who-sees-its-numbers); its owner can show it to others on its page.
 
-**The team's quota.** To begin with it is the salespeople's quotas added up, so you set each quota once, on a salesperson's **Commit**. A week has a team quota only when every salesperson has a target for it.
+**Sharing the dashboard** shows its Metrics too. A salesperson you share **Weekly forecast meeting** with sees every salesperson's **Commit** and quota, and with them **Team commit**, **Quota**, the gap and the share of quota. The **Share** panel warns of this, naming what else it shows. Share the dashboard only with people who may see all of that.
+
+**The team's quota.** To begin with it is the salespeople's quotas added up: weekly targets on each salesperson's **Commit**, which is the only place you set them. A week has a team quota only when every salesperson has a target for it.
 
 To give the team a quota of its own instead, such as one with a margin on top (the owner or an Editor of **Team commit**; only the owner while it is open):
 
@@ -116,7 +120,9 @@ Three Themes come with the Pack, **Forecast Navy** (the deck starts with it), **
 
 **Which week a figure belongs to.** Each week holds the figures as they stood at the end of that week. A reply to Monday's request counts for the week just ended. The form link in it starts at that week while the request is unanswered, and you can pick the running week under **For** instead (see [While a request waits](10-metrics.md#while-a-request-waits)). Once a value is in for the week, the link no longer offers it: to change that figure, also one sent back at **Approval**, sign in, choose **Record a value** and pick the week. In a week that spans two quarters, send the figures of the quarter the week starts in, as Ziffr counts that week to it. Earlier weeks can be brought in with [Paste values](10-metrics.md#paste-values-from-a-spreadsheet).
 
-**Set the quotas.** Open each salesperson's **Commit**, go to [the Targets tab](10-metrics.md#the-targets-tab) and give every week of the quarter their quarter's quota (**Paste from a spreadsheet** takes the weeks in one go). At the start of a new quarter, add its weeks.
+**Set the quotas.** What Set up made begins with **Next: set the targets**, with a link to each salesperson's [Targets tab](10-metrics.md#the-targets-tab). Give every week of the quarter their quarter's quota (**Paste from a spreadsheet** takes the weeks in one go) and press **Save**. At the start of a new quarter, add its weeks. The targets are changed by a Commit's owner, who is whoever set the Pack up, and its [Editors](10-metrics.md#sharing-a-metric). A sales lead who did not set the Pack up only sees the figures: to let them set quotas, the owner opens each **Commit**, chooses **Share** and makes them **Editor**.
+
+**Pasting earlier weeks.** [Paste values](10-metrics.md#paste-values-from-a-spreadsheet) takes only Metrics you submit values for and refuses the others, even to their owner. First [add yourself](10-metrics.md#adding-and-removing-a-person) under **Who submits** on each of those Metrics, with **Ask them for the current value now** unticked; as their owner, tick **Record as history** so that nobody is asked to approve old weeks; then remove yourself again.
 
 **A set-up made with an earlier version of the Pack** keeps working as it is: its Metrics, formulas and decks are your own. To change to figures for each salesperson, update the Pack and set it up again.
 
@@ -125,6 +131,8 @@ Three Themes come with the Pack, **Forecast Navy** (the deck starts with it), **
 **In a Workspace of one**, nobody else can approve, so every value waits for your own check. Change the Approve step to **Unusual values only** if that is more than you want.
 
 **From your CRM.** Instead of asking people, n8n can send each salesperson's **Closed this quarter** and **Pipeline value** every Monday from HubSpot, Salesforce or Pipedrive, and from the first two also **Commit** and **Best case** if you like. Choose **Fill from n8n** on one of these Metrics and a forecast template, leave its settings for the team's figures empty, since those are Totals and take no values, and give each salesperson a line in its **Owners** node ([what they send and when](../automations/crm-forecast-feeds.md)). A figure that came from the CRM is approved like any other, but its first value is not checked for being unusual. The Pack marks **Closed this quarter** and **Pipeline value** as sent by a CRM, so **Set up from this Pack** asks nobody for them; a salesperson is proposed as their Viewer instead.
+
+**Without a CRM** or a sheet, add a person who sends them: open each **Closed this quarter** and **Pipeline value**, go to the **Description** tab and, under [Who submits](10-metrics.md#adding-and-removing-a-person), choose **Add a person**, pick the salesperson and choose **Add…**.
 
 **The Snapshot.** Set up connects the Workflow's **Send Snapshot** step with the dashboard and the sales lead. To send it to others too, open the Workflow, add them in the step (see [The steps](11-workflows.md#the-steps)) and share the dashboard with them, or the link is not sent to them.
 
@@ -139,7 +147,8 @@ The preview of a Pack shows, above what it adds, a table **Where the numbers com
 | **Ask a person, or fill it from** a system **(template included)** | The Pack comes with an n8n template for that system, which you connect. |
 | **Another system sends it** | The Metric takes no value from a person. Where the creator named the kind of system, it follows, such as CRM. |
 | **Ziffr calculates it** from other Metrics | Nothing to do. |
-| **Set once as the target** of another Metric | You set it on that Metric. |
+| **The target** of another Metric | You set it on that Metric's **Targets** tab. |
+| **The targets** of each Metric named, **added up** | The number is a [Total](10-metrics.md#adding-up-metrics-a-total)'s target: you set targets on each of the Metrics it adds up, such as each salesperson's quota on their **Commit**. |
 
 The creator may say who or what sends a number and add a note; where they say nothing, the row names the ways the Metric accepts.
 
