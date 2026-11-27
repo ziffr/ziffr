@@ -255,7 +255,7 @@ function noteReading(figure: number, lines: string[], r: Reader): ReplyReading {
   const f = r.ctx.figures[figure];
   const numbers = r.analyse(lines).flatMap((l) => l.numbers);
   // A locked period takes a proposal whatever the rule; otherwise a rule that rejects a second value leaves no offer.
-  const how = f.locked ? "correction" : f.rule === "reject" ? null : f.rule;
+  const how: ReplyOffer["how"] | null = f.locked ? "correction" : f.rule === "reject" ? null : f.rule;
   const other = numbers.length === 1 ? numbers[0].value : null;
   const offer = how && other !== null && other !== f.value ? { figure, value: other, how } : null;
   return { kind: "note", figure, note, offer, sendAlone: how !== null && numbers.length > 1 };
