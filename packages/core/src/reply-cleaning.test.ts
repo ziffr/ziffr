@@ -1,7 +1,7 @@
 // What of an email reply is read (spec 0004, spec 0064; GLOSSARY: Delivery, Correction): HTML as text, the words
 // written now, and a "Correction:" line, case by case, and how long a long message may take.
 import { parseReply } from "./connectors/types";
-import { newText, stripHtml } from "./reply-cleaning";
+import { newText, noteFrom, stripHtml } from "./reply-cleaning";
 
 describe("stripHtml", () => {
   it.each([
@@ -105,4 +105,20 @@ describe("a long message is read quickly", () => {
       expect(performance.now() - began).toBeLessThan(30_000);
     }
   }, 300_000);
+});
+
+describe("a note's hidden characters", () => {
+  it("lose tag characters, which show nothing", () => {
+    const tags = String.fromCodePoint(0xe0001, 0xe0069, 0xe0067, 0xe006e, 0xe007f);
+    expect(noteFrom([`late${tags} order`])).toEqual({ text: "late order", cut: false });
+    expect(noteFrom([tags])).toBeNull();
+  });
+
+  it("lose a lone zero-width space, and keep the joiners that words and emoji need", () => {
+    const space = String.fromCodePoint(0x200b);
+    expect(noteFrom([space])).toBeNull();
+    expect(noteFrom([`de${space}als`])?.text).toBe("deals");
+    const joined = `a${String.fromCodePoint(0x200c)}b${String.fromCodePoint(0x200d)}c`;
+    expect(noteFrom([joined])?.text).toBe(joined);
+  });
 });

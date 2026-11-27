@@ -3,6 +3,7 @@
 // or Escalation) and takes no values. It shows only under the Archived filter of the Metrics page, never in the Pool
 // or a picker; a widget that shows it keeps drawing its history. Bringing it back makes it an ordinary Metric again.
 import { db } from "./db";
+import { holdCombined } from "./internal/combined-delivery";
 import { openOne } from "./sealed-columns";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
@@ -87,6 +88,8 @@ async function holdQueuedPrompts(ws: string, metricId: number): Promise<void> {
     .eq("workspace_id", ws).eq("kind", "prompt").eq("mail_state", "queued").in(column, ids);
   for (let i = 0; i < open.length; i += 500) await hold("prompt_id", open.slice(i, i + 500).map((p) => p.id));
   for (let i = 0; i < tokens.length; i += 500) await hold("form_token_id", tokens.slice(i, i + 500).map((t) => t.id));
+  // A message with several figures names no single Prompt: it is written again without this one (spec 0064).
+  await holdCombined(ws, open.map((p) => p.id), ["queued", "outbox"], ARCHIVED_BEFORE_SENT);
 }
 
 /** Thrown when an Archived Metric cannot be brought back; its message is for people. */

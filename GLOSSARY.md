@@ -154,7 +154,7 @@ A scheduled message asking a submitter for a metric's value for the current peri
 _Avoid_: Reminder, nudge
 
 **Combined Prompt**:
-One message that carries several Prompts to one person, with one form for all of them. Each value still answers its own Prompt. One run of asking (the Workspace's run, running Workflows by hand, Ask for missing values or one Set up from a Pack) puts what it asks one person by one way into one, new numbers and, in a reminder, those still missing. Its words are written when it is sent, from the numbers still open that the person is still asked for. One number is asked as an ordinary Prompt. Its link opens the **combined form**: one page, without sign-in, with a field for each number the message listed, for 30 days. That link is no Token: every number is still checked against its own. The owner says "one request"; screens may say "your numbers". Not switched on yet.
+One message that carries several Prompts to one person, with one form for all of them. Each value still answers its own Prompt. One run of asking (the Workspace's run, running Workflows by hand, Ask for missing values or one Set up from a Pack) puts what it asks one person by one way into one, new numbers and, in a reminder, those still missing. Its words are written when it is sent, from the numbers still open that the person is still asked for. One number is asked as an ordinary Prompt. Its link opens the **combined form**: one page, without sign-in, with a field for each number the message listed, for 30 days. That link is no Token: every number is still checked against its own. The owner says "one request"; screens may say "your numbers". A text reply answers it with one line for each number ("1: 45").
 _Avoid_: Digest, batch, bundle, summary
 
 **Workflow**:
@@ -396,12 +396,20 @@ _Avoid_: Preset analysis, template
 ### Decks
 
 **Deck**:
-An ordered set of slides that a user designs from widgets, text, arrows and shapes, and exports as a presentation.
+An ordered set of slides about Metrics. Ziffr **makes** it from them, **shows** it and lets people **download** it: a person chooses and answers, and does not draw. What Ziffr stores of such a deck, its deck description, says what each slide shows and holds no numbers and no positions; the numbers are filled in for whoever looks. A deck made with the slide editor is one that a user designed from widgets, text, arrows and shapes, and exported as a presentation.
 _Avoid_: Presentation, slideshow, report
 
 **Slide**:
-One 16:9 page of a deck. Its order follows its position on the deck canvas, left to right and top to bottom. A **cover slide** shows no logo, footer or number of the Theme and is not counted in page numbers.
+One 16:9 page of a deck. In a deck Ziffr makes, each slide has a Slide Type, and the slides stand in the order of the deck description's list. In a deck made with the slide editor, the order follows a slide's position on the deck canvas, left to right and top to bottom, and a **cover slide** shows no logo, footer or number of the Theme and is not counted in page numbers.
 _Avoid_: Page, frame, board
+
+**Slide Type**:
+What a slide of a deck Ziffr makes shows, such as the cover, a chart, a gap table, questions, or **About these slides**, which Ziffr writes and which is always the last slide. It fixes how many Metrics the slide reads and what a person may set; the slide reads only the Metrics it lists.
+_Avoid_: Slide Layout, slide template, slide kind
+
+**Deck Design**:
+Where things stand on every slide of a deck Ziffr makes: **band** (a headline band) or **column** (a side column at the left). It names no colour and no font; the Theme says those, with the logo and the footer's words.
+_Avoid_: Layout, master, slide template, deck theme
 
 **Slide Element**:
 A part of a slide that draws itself in the deck's Theme and fills its words from today's data: words, a box, a figure, a column chart, a gap table, a metric table, definitions (Metrics with their description and Calculation Note), a numbered list, a logo place or cover art. It may read Metrics, and shows nothing of one the viewer may not see. It is for slides only; on a dashboard stand Widgets.

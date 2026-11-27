@@ -102,6 +102,19 @@ describe("the combined form's link", () => {
     expect(await values(s.revenue.id)).toBe(0);
   });
 
+  it("opens nothing and takes nothing while the person is a Blocked User", async () => {
+    const s = await asked();
+    const { data, error } = await db().auth.admin.createUser({ email: `blocked-${s.w.id.slice(0, 8)}@example.test`, password: `pw-${s.w.id}`, email_confirm: true });
+    if (error) throw error;
+    cleanups.push(async () => { await db().auth.admin.deleteUser(data.user.id); });
+    await db().from("profiles").update({ auth_user_id: data.user.id }).eq("id", s.ann);
+    expect(await combinedForm(s.code)).not.toBeNull();
+    await db().auth.admin.updateUserById(data.user.id, { ban_duration: "1h" });
+    expect(await combinedForm(s.code)).toBeNull();
+    expect(await submitCombinedForm(s.code, [{ position: 1, value: "4" }])).toEqual({ rows: {}, refused: COMBINED_LINK_OVER });
+    expect(await values(s.revenue.id)).toBe(0);
+  });
+
   it("gets no link once the message is more than 30 days old", async () => {
     const s = await asked();
     const text = await withFormLink(s.stored, { id: s.deliveryId, workspace_id: s.w.id, form_token_id: null, combined: true, sent_at: new Date(Date.now() - 31 * 86_400_000).toISOString() } as never, SITE);

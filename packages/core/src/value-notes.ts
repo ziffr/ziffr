@@ -210,8 +210,8 @@ async function assertTakesNotes(ws: string, metric: Metric, period: string): Pro
   if (condensed) throw new Refused(condensedRefusal(condensed));
 }
 
-// A note written once the period is locked, or after its value was approved, says "added later".
-async function isAfterApprovalOrLock(ws: string, metricId: number, period: string): Promise<boolean> {
+/** Whether a note written now says "added later": the period is locked, or its value was approved. */
+export async function isAfterApprovalOrLock(ws: string, metricId: number, period: string): Promise<boolean> {
   if (await isLocked(metricId, period)) return true;
   const { data, error } = await db().from("audit_events").select("id, details").eq("workspace_id", ws).eq("object_type", "metric").eq("object_id", String(metricId)).eq("kind", "approval.given").order("id", { ascending: false }).limit(500);
   if (error) throw new Error("The approvals could not be read.");
@@ -294,8 +294,9 @@ export async function removeValueNote(actor: Actor, noteId: number): Promise<voi
 }
 
 /** Deletes a note's words for good, for something that should never have been written: the Metric Owner only, also on
- * an Archived Metric and whatever happened to the note. Every entry of it is emptied; that it was there stays. Notes
- * are kept nowhere else yet: what later copies words (Snapshots, View Links, the intake log) must empty them here. */
+ * an Archived Metric and whatever happened to the note. Every entry of it is emptied; that it was there stays. The
+ * intake log never holds a note's words (a reply's note is left out of what is logged), and an open offer made from
+ * them takes nothing once they are gone. What later copies words (Snapshots, View Links) must empty them here. */
 export async function deleteValueNoteForGood(actor: Actor, noteId: number): Promise<void> {
   refuseInDemo(actor);
   const ws = actor.workspaceId;
