@@ -7,7 +7,7 @@ export function gapHeadline(name: string, against: string, gaps: readonly (numbe
   if (!known.length) return `${name} against ${against}`;
   const below = known.filter((g) => g < 0).length;
   if (!below) return `${name}: no row is below ${against}`;
-  return `${name}: ${below} of ${known.length} ${known.length === 1 ? "row is" : "rows are"} below ${against}`;
+  return `${name}: ${below} of ${known.length} ${known.length === 1 ? "row" : "rows"} ${below === 1 ? "is" : "are"} below ${against}`;
 }
 
 /** A bridge's: which way the number went, from what to what. */

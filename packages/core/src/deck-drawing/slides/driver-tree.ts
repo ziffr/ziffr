@@ -116,7 +116,7 @@ function draw({ title, root }: TreeContent, { x, y, w, h, pen, measure }: Region
     return shape;
   };
   place(root, 0, 0);
-  return [...chartTitle(pen, measure, { x, y, w }, title, ""), pen.group("Driver tree", `Driver tree: ${title}`, [...links, ...shapes])];
+  return [...chartTitle(pen, measure, { x, y, w }, title, "each in its own unit"), pen.group("Driver tree", `Driver tree: ${title}`, [...links, ...shapes])];
 }
 
 /** The driver tree. */

@@ -78,7 +78,7 @@ describe("the gap table", () => {
       { label: "Cleo", value: 0 },
     ];
     const out = filled(gapTable, slide("gap-table", [1, 2]), two(actual, [{ label: "Anna", value: 10 }, { label: "Ben", value: 10 }]));
-    expect(out.headline).toBe("Bookings: 1 of 2 rows are below Quota");
+    expect(out.headline).toBe("Bookings: 1 of 2 rows is below Quota");
     expect(out.content.rows.map((r) => r.gap)).toEqual([0, -15, null]);
     expect(out.source).toMatch(/^Ziffr; Bookings, Quota; .*2026/);
   });

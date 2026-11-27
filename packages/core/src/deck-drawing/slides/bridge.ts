@@ -14,7 +14,7 @@ import type { Obj } from "../objects";
 import type { Region, SlideType } from "../slide-type";
 import type { Role } from "../theme";
 import { bridgeHeadline, cannotHeadline } from "./headlines";
-import { latestPoint, listedData, nameOf, NOT_THERE, periodWords, readsMore, sourceOf, valueIn, type Listed } from "./listed";
+import { latestPoint, listedData, nameOf, NOT_THERE, periodWords, readsMore, sourceOf, unitWords, valueIn, type Listed } from "./listed";
 
 /** One column of a bridge: where it starts and ends, and its figure as written. */
 export type BridgeColumn = { label: string; from: number; to: number; text: string; kind: "end" | "part" | "rest" };
@@ -189,7 +189,7 @@ export const bridge: SlideType<BridgeContent> = {
       note: notes.join(" ") || undefined,
       content: {
         title: `${name}, change since the period before`,
-        unit: scaleUnit(metric, scale),
+        unit: unitWords(scaleUnit(metric, scale)),
         columns,
         higher: metric.polarity === "target" ? null : metric.polarity === "higher",
       },

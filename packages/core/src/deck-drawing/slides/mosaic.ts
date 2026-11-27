@@ -10,7 +10,7 @@ import type { Obj, Stroke } from "../objects";
 import type { Region, SlideType } from "../slide-type";
 import type { Role } from "../theme";
 import { cannotHeadline, mosaicHeadline } from "./headlines";
-import { breakdownPeriod, listedData, nameOf, NOT_THERE, periodWords, sourceOf, valueIn } from "./listed";
+import { breakdownPeriod, listedData, nameOf, NOT_THERE, periodWords, sourceOf, unitWords, valueIn } from "./listed";
 
 /** One piece of a column: which part it is (null: what its row holds beyond its parts) and its share of the column. */
 export type MosaicPiece = { part: number | null; share: number; text: string };
@@ -167,7 +167,7 @@ export const mosaic: SlideType<MosaicContent> = {
       headline: mosaicHeadline(name, widest.name, widest.shareText),
       source: sourceOf([metric], periodWords(metric, data, period)),
       note: notes.join(" ") || undefined,
-      content: { title: `${name} by row and part, ${periodWords(metric, data, period)}`, unit: scaleUnit(metric, scale), parts, columns },
+      content: { title: `${name} by row and part, ${periodWords(metric, data, period)}`, unit: unitWords(scaleUnit(metric, scale)), parts, columns },
     };
   },
   draw,

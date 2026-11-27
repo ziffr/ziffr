@@ -117,9 +117,12 @@ describe("the deck slides in a browser", () => {
     expect(Object.keys(SAMPLES).sort()).toEqual(Object.keys(SLIDE_TYPES).sort());
   });
 
+  // Each sample as a deck of its own, with the data it reads.
+  const sampleDecks = () => Object.entries(SAMPLES).flatMap(([type, list]) => list.map((s) => ({ slides: [slideOf(type, s.slide)], data: { ...DECK.data, ...s.data } })));
+
   it.each(DESIGNS)("pass the check in every Theme and font set, %s design", async (design) => {
-    // Beside the whole deck, each sample as a deck of its own, with the data it reads.
-    const samples = Object.entries(SAMPLES).flatMap(([type, list]) => list.map((s) => ({ slides: [slideOf(type, s.slide)], data: { ...DECK.data, ...s.data } })));
+    // The whole deck, then the samples.
+    const samples = sampleDecks();
     const found: string[] = [];
     for (const theme of Object.keys(THEMES)) {
       for (const emphasis of ["strong", "quiet"] as const) {
@@ -221,6 +224,16 @@ describe("the deck slides in a browser", () => {
         for (const [i, slide] of drawing.slides.entries()) {
           await show(slide, drawing);
           await page.locator("[data-canvas]").screenshot({ path: path.join(PICTURES!, `${design}_${theme}_${String(i + 1).padStart(2, "0")}_${slide.type}.png`) });
+        }
+      }
+      for (const theme of ["ziffr-light", "tokyo"]) {
+        for (const [n, deck] of sampleDecks().entries()) {
+          const input = realistic(design, theme, deck);
+          const drawing = drawDeck(input, TYPES);
+          for (const [i, slide] of drawing.slides.entries()) {
+            await show(slide, drawing);
+            await page.locator("[data-canvas]").screenshot({ path: path.join(PICTURES!, `${design}_sample_${theme}_${String(n).padStart(2, "0")}_${i + 1}_${slide.type}.png`) });
+          }
         }
       }
       const hard = hardDeck(packNames());

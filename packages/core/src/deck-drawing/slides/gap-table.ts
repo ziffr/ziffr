@@ -8,7 +8,7 @@ import { textBody, type Cell, type Obj, type Row } from "../objects";
 import type { Region, SlideSource, SlideType } from "../slide-type";
 import type { Role } from "../theme";
 import { cannotHeadline, gapHeadline } from "./headlines";
-import { listedData, nameOf, NOT_THERE, periodWords, readsMore, sourceOf, type Listed } from "./listed";
+import { listedData, nameOf, NOT_THERE, periodWords, readsMore, sourceOf, unitWords, type Listed } from "./listed";
 
 /** What a gap table slide shows. `rows` are those of this slide, from row `from` of `of`; `low` and `high` are the
  * ends of the bars' scale, the same on every slide the table goes on to. */
@@ -130,7 +130,7 @@ export const gapTable: SlideType<GapContent> = {
       note: notes.join(" ") || undefined,
       content: {
         title: `${nameOf(first)} against ${against}${period ? `, ${period}` : ""}`,
-        unit: model.unit ?? "",
+        unit: unitWords(model.unit ?? ""),
         head: [model.head.row, model.head.goal, model.head.actual, "Difference"],
         rows: model.rows,
         from: 1,

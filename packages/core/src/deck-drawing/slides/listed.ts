@@ -44,6 +44,9 @@ export const readsMore = (name: string) =>
 /** A Metric's name as a slide writes it. */
 export const nameOf = (metric: Metric) => plain(metric.name);
 
+/** The unit a chart's title names: the Metric's, or "number" where it has none. */
+export const unitWords = (unit: string) => unit || "number";
+
 /** The source line of a slide that reads these Metrics, for these periods. */
 export const sourceOf = (metrics: readonly Metric[], period?: string) =>
   ["Ziffr", [...new Set(metrics.map(nameOf))].join(", "), period].filter(Boolean).join("; ");
