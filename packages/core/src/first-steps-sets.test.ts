@@ -1,7 +1,8 @@
 // Which ready-made sets First Steps offers (spec 0067; GLOSSARY: First Steps, Pack): the order it is given is kept, three
-// of Ziffr's own Packs are no start, a person alone is offered private ones only, each reason is said in the words of the
+// of Ziffr's own Packs are no start, a person alone is offered private ones only (none so far), each reason is said in the words of the
 // question asked, and every offered Pack has a dashboard to show.
 import { describe, expect, it } from "vitest";
+import { offersSets, PRIVATE_SETS, TOPICS } from "./first-steps-screens";
 import { offeredSets } from "./first-steps-sets";
 import { bringsOf, bundledPacks, type RecommendedPack } from "./included-packs";
 import type { Reason } from "./pack-ranking";
@@ -21,8 +22,16 @@ describe("offeredSets", () => {
   it("says of each set what setting it up does, in the Pack's own sentence", () => {
     for (const s of offeredSets(all(), "team")) expect(s.summary, s.id).toBe(bundledPacks().get(s.id)!.pack.setUp!.line);
   });
-  it("offers a person alone the Sports club only", () => {
-    expect(ids(offeredSets(all(), "me"))).toEqual(["ziffr/sports-club"]);
+  it("offers a person alone no set while there is none for private use, and a team the Sports club among theirs", () => {
+    for (const topic of [null, ...TOPICS]) {
+      expect(offeredSets(all(), "me", topic), String(topic)).toEqual([]);
+      expect(offersSets("me", topic), String(topic)).toBe(false);
+    }
+    expect(offersSets("team", null)).toBe(true);
+    expect(ids(offeredSets(all(), "team"))).toContain("ziffr/sports-club");
+  });
+  it("names only Packs of Ziffr's own as private ones", () => {
+    for (const s of PRIVATE_SETS) expect(bundledPacks().has(s.pack), s.pack).toBe(true);
   });
   it("counts the metrics and says why a set fits, naming the two reasons that count most", () => {
     const sets = offeredSets(all({ "ziffr/online-shop": ["industry", "function", "segment"], "ziffr/sales": ["segment"], "ziffr/finance": ["employeeBand", "revenueBand"], "ziffr/people": ["country"] }), "team");

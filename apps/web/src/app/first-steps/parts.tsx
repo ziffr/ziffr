@@ -67,3 +67,8 @@ export function Skip({ onSkip }: { onSkip: () => void }) {
     </div>
   );
 }
+
+/** Said on the first screen after the Workspace is made, when not every answer was kept. */
+export function Unsaved() {
+  return <p role="status" className="mb-4 rounded-[var(--radius-input)] border border-border bg-muted p-3 text-sm">Your Workspace is made, but not every answer was saved. Use Start over to save them again.</p>;
+}
