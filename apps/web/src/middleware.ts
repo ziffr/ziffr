@@ -71,6 +71,9 @@ export async function middleware(req: NextRequest) {
     to.pathname = "/installation";
     return NextResponse.redirect(to);
   }
+  // First Steps (spec 0067) has a frame of its own: the root layout learns it from a header only this sets.
+  headers.delete("x-ziffr-first-steps");
+  if (path === "/first-steps") headers.set("x-ziffr-first-steps", "1");
   if (path.startsWith("/v/")) {
     headers.set("x-ziffr-view-link", "1");
     return NextResponse.next({ request: { headers } });

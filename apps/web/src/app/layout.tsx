@@ -38,6 +38,7 @@ import { AnnouncementLine } from "@/components/announcement-line";
 import { DEMO_RESET_ANNOUNCEMENT, announcementScope, announcementsFor, fromInstallation } from "@/lib/announcements";
 import { shellOrder } from "@/lib/announcement-state";
 import { activeInstallationAnnouncements } from "@ziffr/core/installation-announcements";
+import { FIRST_STEPS_ON } from "@ziffr/core/first-steps-screens";
 import { activeWorkspaceAnnouncements } from "@ziffr/core/workspace-announcements";
 import { DemoVisitPrefs } from "@/components/demo-visit-prefs";
 import { switchableDashboards } from "@ziffr/core/home";
@@ -107,6 +108,16 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const user = demo ? null : await sessionUser();
   const person = user ? await personFor(user) : null;
   const workspaces = person ? await myWorkspaces(person) : [];
+  // First Steps (spec 0067) draws its own frame, before a Workspace exists and after.
+  if (FIRST_STEPS_ON && !demo && (await headers()).get("x-ziffr-first-steps") === "1") {
+    const lines = user ? fromInstallation(await activeInstallationAnnouncements({ demo: false })) : [];
+    return (
+      <Plain bare appearance={await appearanceForPerson(person)} actions={null}
+        lines={lines.length > 0 && <AnnouncementLine items={shellOrder([], lines, false)} scope={await announcementScope(false)} />}>
+        {children}
+      </Plain>
+    );
+  }
   if (!demo && !workspaces.length) {
     // Signed in without a Workspace yet: the Installation's lines still show (the same read as the shell, nothing of a person).
     const lines = user ? fromInstallation(await activeInstallationAnnouncements({ demo: false })) : [];
@@ -204,8 +215,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 /** A link or button in the header of the plain shell. */
 const PLAIN_LINK = "text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline max-md:-my-3 max-md:inline-flex max-md:min-h-11 max-md:items-center";
 
-/** The page without the app around it: Ziffr's name, a few links and the page. */
-function Plain({ appearance, actions, lines, children }: { appearance: string; actions: React.ReactNode; lines?: React.ReactNode; children: React.ReactNode }) {
+/** The page without the app around it: Ziffr's name, a few links and the page. `bare` leaves the name, the links and
+ * the page's column to the page itself. */
+function Plain({ appearance, actions, lines, children, bare }: { appearance: string; actions: React.ReactNode; lines?: React.ReactNode; children: React.ReactNode; bare?: boolean }) {
   return (
     <html lang="en" data-appearance={appearance}>
       <head>
@@ -214,14 +226,16 @@ function Plain({ appearance, actions, lines, children }: { appearance: string; a
         <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
-        <header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-3 sm:px-6">
-          <span className="text-lg font-semibold tracking-[-0.03em]">Ziffr</span>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">{actions}</div>
-        </header>
+        {!bare && (
+          <header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-3 sm:px-6">
+            <span className="text-lg font-semibold tracking-[-0.03em]">Ziffr</span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3">{actions}</div>
+          </header>
+        )}
         {lines}
         {/* Pages that open a panel at the side, such as the Installation's Announcements, need its provider here too. */}
         <SlideOverProvider>
-          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+          {bare ? children : <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>}
         </SlideOverProvider>
         <LegalFooter />
         <Toaster />
