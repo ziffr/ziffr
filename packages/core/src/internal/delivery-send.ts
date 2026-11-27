@@ -9,7 +9,7 @@ import { db } from "../db";
 import { ARCHIVED_BEFORE_SENT } from "../archived-metrics";
 import { visibleDashboards, visibleMetricIds } from "../access";
 import { getMetrics } from "../workspace-data";
-import { composeAtSend } from "./combined-delivery";
+import { composeAtSend, withCombinedLink } from "./combined-delivery";
 
 /** Stands in a Prompt's stored text for the recipient's personal form link, which is added only when it is sent. */
 export const FORM_LINK = "[your personal form link]";
@@ -21,8 +21,10 @@ export async function failForGood(id: number, why: string) {
 }
 
 /** A Delivery's text with the recipient's personal form link put in where FORM_LINK stands, only as it is sent, so the
- * body the Outbox shows its sender never holds the link. Without the token, the link is the site's front page. */
-export async function withFormLink(body: string, d: { workspace_id: string; form_token_id: number | null }, siteUrl: string) {
+ * body the Outbox shows its sender never holds the link. Without the token, the link is the site's front page. A
+ * Combined Prompt gets the link to its combined form instead. */
+export async function withFormLink(body: string, d: { id: number; workspace_id: string; form_token_id: number | null; combined?: boolean | null }, siteUrl: string) {
+  if (d.combined) return withCombinedLink(body, d, siteUrl);
   if (!body.includes(FORM_LINK)) return body;
   const { data: token } = d.form_token_id ? await db().from("tokens").select("code").eq("id", d.form_token_id).eq("workspace_id", d.workspace_id).maybeSingle() : { data: null };
   const site = siteUrl.replace(/\/+$/, "");

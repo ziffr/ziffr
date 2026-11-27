@@ -10,6 +10,7 @@
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { refuseInDemo } from "./demo";
+import { formNote, withNoteWords } from "./form-submit";
 import { numberStyleOf } from "./workspace-settings";
 import { readNumber } from "./numbers";
 import { parseBreakdown } from "./parse";
@@ -24,8 +25,8 @@ const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** What the form sends: the Metric, the period's first day, the Submitter it is for, and the value as typed (or a number)
- * with an optional Breakdown as pasted lines. */
-export type FillInInput = { metricId: number; period: string; for: string; value: string | number; breakdown?: string };
+ * with an optional Breakdown as pasted lines and an optional note, which is the note of whoever enters the value. */
+export type FillInInput = { metricId: number; period: string; for: string; value: string | number; breakdown?: string; note?: string };
 
 const refused = (outcome: string, detail: string): SubmissionResult => ({ ok: false, outcome, detail });
 
@@ -59,8 +60,8 @@ export async function fillInValue(actor: Actor, input: FillInInput, effects: Sub
   const value = typeof input.value === "number" ? (Number.isFinite(input.value) ? input.value : null) : typed ? readNumber(typed, style) : bd ? (bd.total ?? sum) : null;
   if (value === null) return refused("rejected_no_value", typed ? "Couldn’t read a number in the value." : "Type a value, or paste a breakdown.");
 
-  return submitValue({
+  return withNoteWords(await submitValue({
     source: "web_form", sender: code, workspaceId: actor.workspaceId, text: typed || String(value), typed: true, filledIn: { by: actor.personId },
-    value: { value, ...(bd ? { breakdown: bd.rows } : {}) }, period,
-  }, effects);
+    value: { value, ...(bd ? { breakdown: bd.rows } : {}) }, period, ...formNote(input.note),
+  }, effects));
 }

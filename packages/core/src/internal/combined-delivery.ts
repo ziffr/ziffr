@@ -1,7 +1,9 @@
 // What a Combined Prompt may say to its reader at this moment (spec 0064; GLOSSARY: Combined Prompt, Token, Stand-in).
 // Internal to the core: these check no Actor, so only what makes or sends such a Delivery calls them. A figure is named
 // only while its recipient is still asked for it by a Token that counts and the Metric is in use (AGENTS.md rule 3): the
-// words are written when the message is made, again when it is sent, and when a chat message is edited.
+// words are written when the message is made, again when it is sent, and when a chat message is edited. The link to the
+// combined form is put in only then and never stored: the database keeps the hash of its code.
+import { createHash, randomBytes } from "node:crypto";
 import { db } from "../db";
 import { openNames, openRows, sealedPatch } from "../sealed-columns";
 import { combinedOrder, combinedWords, type CombinedLine } from "../combined-words";
@@ -12,6 +14,27 @@ import { appendedLink, unlinked } from "../mail-links";
 import { slackEscape } from "../connectors/slack";
 import type { ConnectorId } from "../connectors/index";
 import type { Period } from "../types";
+
+/** Stands in a Combined Prompt's stored words for the link to its form, so the Outbox never holds the link. */
+const LINK_PLACE = "[the one page for your numbers]";
+/** How many days the combined form's link works, counted from when the message went. */
+export const COMBINED_LINK_DAYS = 30;
+
+/** A combined form's code as it is kept: only this hash, so the database never opens a form. */
+export const combinedCodeHash = (code: string) => createHash("sha256").update(`ziffr-combined-form:${code}`).digest("hex");
+
+/** A Combined Prompt's words with a link to its form put in where its place stands, only as they leave: a new code of 32
+ * random bytes, of which only the hash is kept. It ends 30 days after the message went (`sent_at`, for one edited
+ * later); past that day the line goes. Words without a place are returned as they are. */
+export async function withCombinedLink(text: string, d: { id: number; workspace_id: string; sent_at?: string | null }, siteUrl: string): Promise<string> {
+  if (!text.includes(LINK_PLACE)) return text;
+  const until = (d.sent_at ? Date.parse(d.sent_at) : Date.now()) + COMBINED_LINK_DAYS * 86_400_000;
+  if (!(until > Date.now())) return text.split("\n").filter((line) => !line.includes(LINK_PLACE)).join("\n").trimEnd();
+  const code = randomBytes(32).toString("base64url");
+  const { error } = await db().from("combined_form_links").insert({ code_hash: combinedCodeHash(code), workspace_id: d.workspace_id, delivery_id: d.id, expires_at: new Date(until).toISOString() });
+  if (error) throw new Error("The link to the form could not be made.");
+  return text.split(LINK_PLACE).join(`${siteUrl.replace(/\/+$/, "")}/submit/all/${code}`);
+}
 
 /** Why a Combined Prompt with nothing left to ask is not sent. */
 const NOTHING_OPEN = "Not sent: nothing in it is still open.";
@@ -82,7 +105,8 @@ async function figuresOf(ws: string, deliveryId: number, recipientId: string): P
       promptId: p.id as number, position: r.position as number | null, answered: Boolean(p.answered_at), answeredOn: p.answered_source as string | null,
       allowed: asked && !m.formula && !m.archived_at && (replyHere || form),
       line: {
-        metric: String(m.name).replace(/\s+/g, " "), period: periodLabel(p.period_start as string, m.period as Period, await yearStartFor(ws, m.period as Period)),
+        // No name may stand where the link goes.
+        metric: String(m.name).replace(/\s+/g, " ").split(LINK_PLACE).join(""), period: periodLabel(p.period_start as string, m.period as Period, await yearStartFor(ws, m.period as Period)),
         due: r.due_date as string | null, stillMissing: Boolean(r.still_missing), replyHere, form,
         forName: p.stands_in_for ? (readsNames && nameOf(p.stands_in_for as string)) || "a colleague" : null,
       },
@@ -93,7 +117,7 @@ async function figuresOf(ws: string, deliveryId: number, recipientId: string): P
 
 /** The words of these numbered lines, by this way, before any escaping. */
 function wordsOf(via: ConnectorId, hello: string, lines: (CombinedLine & { position: number })[]): { subject: string; body: string } {
-  const words = combinedWords({ via, firstName: hello, lines, link: null, today: new Date().toISOString().slice(0, 10) });
+  const words = combinedWords({ via, firstName: hello, lines, link: LINK_PLACE, today: new Date().toISOString().slice(0, 10) });
   // A Metric's name must not pass for the link an email's button is read from (mail-links.ts).
   const site = (process.env.ZIFFR_SITE_URL ?? "").replace(/\/+$/, "");
   return { subject: words.subject, body: appendedLink(words.body, [site]) ? unlinked(words.body) : words.body };

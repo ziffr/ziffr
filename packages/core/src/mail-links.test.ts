@@ -21,6 +21,18 @@ describe("the address Ziffr appended", () => {
   });
 });
 
+describe("the link to the combined form", () => {
+  it("is the email's button, whether or not a reply is the other way to answer", () => {
+    const url = "https://z.example.test/submit/all/abc";
+    for (const lead of ["Enter them on one page", "Or enter them on one page"]) expect(appendedLink(`Hi\n1. Revenue\n\n${lead}: ${url}`, OWN)).toBe(url);
+    expect(buttonTo(url, OWN)).toEqual({ url, label: "Fill in your numbers" });
+    expect(buttonTo("https://z.example.test/submit/tk-1", OWN).label).toBe("Open your form");
+    // The button says the first sentence itself; the second keeps its "Or".
+    expect(aroundAction(`Hi\nEnter them on one page: ${url}`, url).before).toBe("Hi");
+    expect(aroundAction(`Hi\nOr enter them on one page: ${url}`, url).before).toBe("Hi\nOr enter them on one page.");
+  });
+});
+
 describe("a link in the words", () => {
   it("shows its host and the start of its path, never more or something else", () => {
     expect(shownTarget("https://z.example.test/api/unsubscribe/abcdefghijklmnop")).toBe("z.example.test/api/unsubscribe/abc…");
