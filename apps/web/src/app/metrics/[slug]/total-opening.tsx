@@ -51,7 +51,7 @@ export function TotalOpening({ metricId, open, period, yearStart }: { metricId: 
           {shown && (
             <>
               <DialogTitle className="pr-10 leading-snug [overflow-wrap:anywhere]">Show {shown.name} to people who do not see every Metric?</DialogTitle>
-              <DialogDescription>Each of them learns the sum of every period, past ones included, and through subtraction the sum of the Metrics they do not see. No name, row or value of those is shown to them.</DialogDescription>
+              <DialogDescription>Each of them learns the sum of every period, past ones included, and through subtraction the sum of the Metrics they do not see. No name, row or value of those is shown to them.{shown.parts.some((p) => countsFromFirstValue(p.first)) ? " Where a Metric counts from its first value, history pasted or sent later for earlier periods is shown to them too." : ""}</DialogDescription>
               <dl className="space-y-3 text-sm [overflow-wrap:anywhere]">
                 <div>
                   <dt className="font-medium">It adds up</dt>
