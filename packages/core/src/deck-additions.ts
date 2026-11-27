@@ -6,10 +6,11 @@
 // and saveDeck checks the Metrics again.
 import { recordedWidgets } from "./tag-widgets";
 import { db } from "./db";
-import { assertCan, can, Forbidden, type Actor } from "./actor";
+import { assertCan, can, Forbidden, Refused, type Actor } from "./actor";
 import { visibleDecks } from "./access";
 import { specFrom } from "./dashboards";
-import { createDeck } from "./decks";
+import { createDeck, NOT_FOR_THE_EDITOR } from "./decks";
+import { isDescribed } from "./deck-form";
 import { refuseSeeded } from "./demo-seeded-rows";
 import type { Widget } from "./types";
 
@@ -50,7 +51,8 @@ export async function deckTargets(actor: Actor): Promise<DeckTarget[]> {
   if (!editable.length) return [];
   const { data } = await db().from("decks").select("id, document").eq("workspace_id", actor.workspaceId).in("id", editable.map((d) => d.id));
   const docs = new Map((data ?? []).map((d) => [d.id as number, d.document]));
-  return editable.map((d) => ({ id: d.id, name: d.name, slides: slidesOf(docs.get(d.id)).slice(0, MAX_SLIDES) }));
+  // A deck Ziffr makes takes no Widget (spec 0069), so it is not offered.
+  return editable.filter((d) => !isDescribed(docs.get(d.id))).map((d) => ({ id: d.id, name: d.name, slides: slidesOf(docs.get(d.id)).slice(0, MAX_SLIDES) }));
 }
 
 /** What adding widget `widgetId` to deck `deckId` places, on slide `slide` or a new one: refused unless the actor may
@@ -63,12 +65,10 @@ export async function deckAddition(actor: Actor, deckId: number, widgetId: numbe
   if (role !== "owner" && role !== "editor") throw new Forbidden("Only the deck's owner and its Editors add to it.");
   // In the demo a deck the seed made is kept as it is: said now, not when the editor's save is refused.
   await refuseSeeded(actor, "decks", deckId);
+  const { data } = await db().from("decks").select("document").eq("id", deckId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (isDescribed(data?.document)) throw new Refused(NOT_FOR_THE_EDITOR);
   const spec = await specFrom(actor, { type: "widget", id: widgetId });
-  let on: string | null = null;
-  if (typeof slide === "string" && SLIDE_ID.test(slide)) {
-    const { data } = await db().from("decks").select("document").eq("id", deckId).eq("workspace_id", actor.workspaceId).maybeSingle();
-    on = slidesOf(data?.document).some((s) => s.id === slide) ? slide : null;
-  }
+  const on = typeof slide === "string" && SLIDE_ID.test(slide) && slidesOf(data?.document).some((s) => s.id === slide) ? slide : null;
   // A widget of "all Metrics tagged X" is added as the Metrics this person sees now; it follows the Tag no more (spec 0038).
   const [widget] = await recordedWidgets(actor, [{ ...spec, id: widgetId } as unknown as Widget]);
   return { widget: { template: widget.template, metric_ids: widget.metric_ids, settings: widget.settings, title: spec.title }, slide: on };

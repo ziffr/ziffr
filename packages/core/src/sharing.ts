@@ -69,7 +69,7 @@ async function ownedForSharing(actor: Actor, type: ObjectType, id: number, role:
   if (!obj || obj.owner_id !== actor.personId) throw new Forbidden();
   // In the demo a visitor shares only what a visitor made, with the demo's made-up people: the seed's Shares are everyone's (spec 0051, ticket 11).
   await refuseSeededOne(actor, table(type), id);
-  if (type === "deck" && role) await assertSeesMetrics(actor, deckMetricIds(obj.document));
+  if (type === "deck" && role) await assertSeesMetrics(actor, deckMetricIds(obj.document, obj.made));
   return obj;
 }
 

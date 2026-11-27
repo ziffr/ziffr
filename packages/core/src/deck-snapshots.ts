@@ -7,7 +7,8 @@
 // another Workspace and one nobody has answer alike.
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { getGroups, visibilityOfMany, visibleDecks } from "./access";
-import { createDeck } from "./decks";
+import { createDeck, NOT_FOR_THE_EDITOR } from "./decks";
+import { isDescribed } from "./deck-form";
 import { deletedKept } from "./deleted-metrics";
 import { db } from "./db";
 import { refuseSeeded } from "./demo-seeded-rows";
@@ -125,7 +126,10 @@ export async function snapshotAddition(actor: Actor, deckId: number, snapshotId:
   // In the demo a deck the seed made is kept as it is: said now, not when the editor's save is refused.
   await refuseSeeded(actor, "decks", deckId);
   const slides = await snapshotSlides(actor, snapshotId);
-  const shapes = keptShapes(await storedDocument(actor, deckId));
+  const document = await storedDocument(actor, deckId);
+  // A deck Ziffr makes takes no Snapshot Part (spec 0069).
+  if (isDescribed(document)) throw new Refused(NOT_FOR_THE_EDITOR);
+  const shapes = keptShapes(document);
   const { parts, snapshots } = SNAPSHOT_PART_LIMITS;
   if (shapes.filter((x) => x.part !== null).length + slides.parts.length > parts) throw new Refused(`A deck holds ${parts} Snapshot Parts at most, and this one has no room for these. Remove some, or make a new deck.`);
   if (new Set([...shapes.map((x) => x.snapshotId).filter((id) => id !== null), snapshotId]).size > snapshots) throw new Refused(`A deck draws ${snapshots} Snapshots at most. Remove the slides of one, or make a new deck.`);
@@ -169,7 +173,7 @@ function namedFor(shape: KeptShape, s: ShownSnapshot): Named | null {
 export async function deckShareGaps(actor: Actor, deckId: number): Promise<DeckShareGaps> {
   assertCan(actor, "share");
   if (!Number.isSafeInteger(deckId)) throw new Forbidden();
-  const { data: deck } = await db().from("decks").select("owner_id, document").eq("id", deckId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const { data: deck } = await db().from("decks").select("owner_id, document, made").eq("id", deckId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!deck || deck.owner_id !== actor.personId) throw new Forbidden();
   const shapes = keptShapes(deck.document);
   const none: DeckShareGaps = { who: {}, unnamed: 0 };
@@ -189,7 +193,7 @@ export async function deckShareGaps(actor: Actor, deckId: number): Promise<DeckS
   const existing = new Set(metrics.map((m) => m.id));
   const goneNamed = named.some((n) => n.metricIds.some((m) => !existing.has(m)));
   const keeps = new Map(goneNamed ? await Promise.all(people.map(async (p) => [p.id, await deletedKept(ws, p.id, existing)] as const)) : []);
-  const opened = new Set(deckMetricIds(deck.document));
+  const opened = new Set(deckMetricIds(deck.document, deck.made));
   const missing = new Map(people.filter((p) => p.id !== actor.personId).map((p) => {
     const sees = seesAs(p.id);
     return [p.id, named.filter((n) => !sees.dashboards.has(n.dashboardId) || !n.metricIds.every((m) => sees.metrics.has(m) || opened.has(m) || keeps.get(p.id)?.has(m)))] as const;

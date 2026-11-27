@@ -60,7 +60,7 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
   const asked = snapshot ? withParts(kept, snapshot.snapshotId, snapshot.parts) : kept;
   const [data, saved, shares, groups, numbers] = await Promise.all([
     // The deck's own widgets' series; one placed in the editor fetches its own.
-    getCanvasData(viewer, [...deckMetricIds(deck.document), ...(seed?.widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)) ?? []), ...(templateSeed?.fills.flat() ?? []), ...(addition ? widgetMetricIds(addition.widget.metric_ids, addition.widget.settings) : [])]),
+    getCanvasData(viewer, [...deckMetricIds(deck.document, deck.made), ...(seed?.widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)) ?? []), ...(templateSeed?.fills.flat() ?? []), ...(addition ? widgetMetricIds(addition.widget.metric_ids, addition.widget.settings) : [])]),
     savedWidgets(actor),
     getRawShares(),
     getGroups(),
@@ -79,7 +79,7 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
         snapshot={snapshot}
         kept={{ asked, read: numbers }}
         deckTemplates={(await listDeckTemplates(actor)).filter((t) => t.owner_id === actor.personId).map(({ id, name, description, slots }) => ({ id, name, description, slots }))}
-        sharing={role === "owner" ? { shares, groups, ownerId: deck.owner_id, canInvite: can(actor, "manage-members"), reveals: await revealedBy(deckMetricIds(deck.document), deck.owner_id) } : null}
+        sharing={role === "owner" ? { shares, groups, ownerId: deck.owner_id, canInvite: can(actor, "manage-members"), reveals: await revealedBy(deckMetricIds(deck.document, deck.made), deck.owner_id) } : null}
       />
     </>
   );

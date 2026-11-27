@@ -33,7 +33,7 @@ export const DEMO_WORDS_COLUMNS: Readonly<Record<string, DemoTableWords>> = {
   dashboards: { words: ["name", "intro"], kept: ["theme_id"], other: ["owner_id", "kind", "snapshot_every"], keepRows: true },
   // A widget's settings hold a Finding's words (SETTING_WORDS) and the widget a free layout started from (`canvasSeed`).
   widgets: { words: ["title", "settings"], wordKeys: { settings: DEMO_SETTING_WORD_KEYS }, other: ["owner_id", "template", "metric_ids"] },
-  decks: { words: ["name", "footer"], other: ["owner_id", "document"], keepRows: true },
+  decks: { words: ["name", "footer"], other: ["owner_id", "document", "made"], keepRows: true },
   metrics: {
     words: ["name", "description", "calculation_note", "unit"],
     kept: ["slug", "archived_at", "archived_by"],

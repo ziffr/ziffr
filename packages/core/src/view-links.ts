@@ -14,6 +14,7 @@ import { getCanvasData } from "./access";
 import { DELETED_MARK, deletedAmong, stillExisting } from "./deleted-metrics";
 import { assertSeesMetrics } from "./sharing";
 import { deckMetricIds } from "./visibility";
+import { isDescribed } from "./deck-form";
 import { widgetMetricIds } from "./widget-metrics";
 import { audit } from "./audit-log";
 import { mentionsPerson, nameHider } from "./hide-names";
@@ -137,6 +138,8 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
   const obj = type === "dashboard" ? await openOne("dashboards", String(stored?.workspace_id), stored) : stored;
   if (!obj) return null;
   const ws = obj.workspace_id as string;
+  // A deck Ziffr makes, or a form no reader knows, goes out through no View Link yet (spec 0069, ticket #1369).
+  if (type === "deck" && isDescribed(obj.document)) return null;
   // A link shows no Snapshot Part and nothing of a slide that keeps numbers (spec 0061): who sees those is decided
   // per person, and someone with a link is nobody Ziffr knows. They are left out before anything else is read.
   const slides = type === "deck" ? withoutKeptNumbers(obj.document as unknown).document : undefined;
@@ -147,7 +150,8 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
     // Nothing in a free layout may load from another site when shown through the link (spec 0009).
     widgets = ((await openRows("widgets", ws, data)) as Widget[]).map(widgetWithoutOutside);
     metricIds = [...new Set(widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))];
-  } else metricIds = deckMetricIds(slides);
+  // A made deck gets no View Link (above): these are the slide editor's slides.
+  } else metricIds = deckMetricIds(slides, false);
   // Only the series this link can show are read; it filters them further below.
   const full = await getCanvasData(ws, obj.owner_id, { seriesOf: metricIds });
   // Only Metrics the owner sees and, for a live link, agreed to when making it; added ones stay out.
@@ -187,7 +191,7 @@ export function deckForLink(document: unknown, shown: Set<number>, records: stri
   const keep = Object.entries(doc.store).filter(([key, r]) => {
     if (records && !records.includes(key)) return false;
     let ids: number[];
-    if (r?.type === "ziffr-widget") ids = deckMetricIds({ store: { x: r } }).concat(Array.isArray(r.props?.metricIds) ? (r.props!.metricIds as unknown[]).map(Number) : []);
+    if (r?.type === "ziffr-widget") ids = deckMetricIds({ store: { x: r } }, false).concat(Array.isArray(r.props?.metricIds) ? (r.props!.metricIds as unknown[]).map(Number) : []);
     // A text box stays out whole, as a widget does: its words are written around the values.
     else ids = r ? textMetricIds(r) : [];
     const stays = ids.every((m) => shown.has(m));

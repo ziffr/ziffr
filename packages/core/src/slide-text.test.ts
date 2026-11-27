@@ -79,18 +79,18 @@ describe("the Metrics a text box names", () => {
     const before = { store: Object.fromEntries([shape("shape:a", "{latest}", [1, 2])]) };
     const after = { store: Object.fromEntries([shape("shape:a", "{latest} {latest 2}", [1, 2]), shape("shape:b", "{metric}", [3], { type: "geo" })]) };
     expect(textBoxMetricIds(before)).toEqual([1]);
-    expect(deckMetricIds(after).sort()).toEqual([1, 2, 3]);
-    expect(allDeckMetricIds(after).sort()).toEqual([1, 2, 3]);
+    expect(deckMetricIds(after, false).sort()).toEqual([1, 2, 3]);
+    expect(allDeckMetricIds(after, false).sort()).toEqual([1, 2, 3]);
     // What a save newly names must be seen by whoever saves, also a Metric the box listed before without asking for it.
-    expect(deckMetricIdsAdded(before, after).sort()).toEqual([2, 3]);
+    expect(deckMetricIdsAdded(before, after, false).sort()).toEqual([2, 3]);
   });
 
   it("keep a Snapshot's numbers on a slide that keeps them, open nothing there, and stay off View Links", () => {
     const frame = ["shape:s", { id: "shape:s", typeName: "shape", type: "frame", parentId: "page:p", meta: { snapshot: 7 }, props: {} }] as const;
     const document = { store: Object.fromEntries([frame, shape("shape:k", "{latest}", [1], { parentId: "shape:s" }), shape("shape:w", "Next steps", [], { parentId: "shape:s" }), shape("shape:l", "{latest}", [2])]) };
     expect(keptRequests(document)).toEqual([{ snapshotId: 7, parts: [], metricIds: [1] }]);
-    expect(deckMetricIds(document)).toEqual([2]);
-    expect(allDeckMetricIds(document).sort()).toEqual([1, 2]);
+    expect(deckMetricIds(document, false)).toEqual([2]);
+    expect(allDeckMetricIds(document, false).sort()).toEqual([1, 2]);
     expect(Object.keys((liveDocument(document) as typeof document).store).sort()).toEqual(["shape:l", "shape:s", "shape:w"]);
     expect(Object.keys(withoutKeptNumbers(document).document.store).sort()).toEqual(["shape:l", "shape:s", "shape:w"]);
   });
