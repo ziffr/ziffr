@@ -188,7 +188,12 @@ export type OpenFirstSteps = { next: Exclude<FirstStepsResume, "finished">; hidd
  * and once they are finished. Never refuses an Owner, as every page asks; it says nothing about anyone else. */
 export async function openFirstSteps(actor: Actor): Promise<OpenFirstSteps | null> {
   if (actor.key || actor.role !== "owner" || actor.workspaceId === DEMO_WORKSPACE_ID) return null;
-  if (!(await ownersFirstSteps(actor))) return null;
+  // An actor the database no longer has as Owner gets nothing, like everyone else.
+  const ours = await ownersFirstSteps(actor).catch((e: unknown) => {
+    if (e instanceof Forbidden) return false;
+    throw e;
+  });
+  if (!ours) return null;
   const next = await resumeAt(actor.workspaceId);
   if (next === "finished") return null;
   const [person, ends] = await Promise.all([guidePerson(actor), trialEndsAt(actor.workspaceId)]);
