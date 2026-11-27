@@ -7,8 +7,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PackExportTry } from "@ziffr/core/pack-export-try";
 
-const on = vi.hoisted(() => ({ value: true }));
-vi.mock("@/app/use-pack/switch", () => ({ get PACK_SET_UP_ON() { return on.value; }, PACKS_PAGE: "/settings/packs" }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/components/preview", () => ({ DashboardTemplatePreview: () => <div data-testid="dashboard-drawing" />, Preview: () => <div /> }));
 vi.mock("@/components/slide-preview", () => ({ SlidesPreview: () => <div data-testid="slides-drawing" /> }));
@@ -69,7 +67,6 @@ async function describing() {
 }
 
 beforeEach(() => {
-  on.value = true;
   vi.clearAllMocks();
   actions.describePack.mockResolvedValue({
     contents: "", installed: [], numbers: [{ ref: "metric:1", name: "Sales", period: "week", said: null }, { ref: "metric:2", name: "Revenue", period: "year", said: null }],
@@ -125,14 +122,6 @@ describe("Set-up questions", () => {
     expect(actions.exportAsPack).not.toHaveBeenCalled();
     await press(/Try it/);
     expect(actions.tryAsPack).not.toHaveBeenCalled();
-  });
-
-  it("are not shown, nor is Try it, while the guided set-up is switched off", async () => {
-    on.value = false;
-    await describing();
-    expect(text()).not.toContain("Set-up questions");
-    expect(button(/Try it/)).toBeUndefined();
-    expect(button(/Download Pack/)).toBeDefined();
   });
 });
 

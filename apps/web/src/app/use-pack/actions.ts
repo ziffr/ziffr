@@ -1,10 +1,8 @@
 "use server";
 // The guided Pack set-up's server actions (spec 0068; GLOSSARY: Pack). They hand what the browser sent to the core
 // unread: it checks that the person is an Owner or Admin of this Workspace and never in the demo, every id, key, name,
-// address and number, and every limit, before anything is written. While the flow is switched off they answer "not
-// found": an action can be posted to any address.
+// address and number, and every limit, before anything is written.
 import { revalidatePath } from "next/cache";
-import { notFound } from "next/navigation";
 import type { Actor } from "@ziffr/core/actor";
 import { changePackHolder, packHolderPlan, type PackHolderPick } from "@ziffr/core/pack-after-holder";
 import { confirmPackNumber, invitePackPeople, packInvite, sendFirstPackNumber } from "@ziffr/core/pack-after-invite";
@@ -15,12 +13,10 @@ import type { SetupRun } from "@ziffr/core/pack-setup";
 import type { StartChoices, StartPerson } from "@ziffr/core/pack-start-steps";
 import { attempt } from "@/lib/action-result";
 import { currentActor } from "@/lib/viewer";
-import { PACK_SET_UP_ON } from "./switch";
 
 // A read after the set-up, and a change after it, whose pages are read again once it ends: one stopped half way has
 // changed things too.
 async function asked<T>(read: (actor: Actor) => Promise<T>) {
-  if (!PACK_SET_UP_ON) notFound();
   return attempt(async () => read(await currentActor()));
 }
 async function changed<T>(work: (actor: Actor) => Promise<T>) {
@@ -41,7 +37,6 @@ export async function checkPackStart(ref: PackStartRef, choices: StartChoices) {
 /** Takes one step of setting a Pack up: the first without `run`, each further one with the `run` the last answered, and
  * "Try again" without. */
 export async function takePackStartStep(ref: PackStartRef, choices: StartChoices, run: SetupRun | null = null) {
-  if (!PACK_SET_UP_ON) notFound();
   return attempt(async () => {
     let more = false;
     try {

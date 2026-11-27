@@ -10,7 +10,6 @@ import { guideFromText, type PackGuideText } from "@ziffr/core/pack-guide-text";
 import { comesFromProblems, type ComesFromChoice } from "@ziffr/core/pack-export-numbers";
 import { checkExportSetUp, type ExportChoice } from "@ziffr/core/pack-export";
 import type { PackSetUpChoice } from "@ziffr/core/pack-export-set-up";
-import { PACK_SET_UP_ON } from "./use-pack/switch";
 
 /** The viewer's Workspace's installed Packs that have a guide: ids, names and versions only. */
 export async function readPackGuides() {
@@ -34,7 +33,7 @@ export async function checkPackDescription(text: PackGuideText | undefined, come
     const actor = await currentActor();
     return {
       guide: guideFromText(text).problems, numbers: comesFromProblems(comesFrom),
-      setUp: PACK_SET_UP_ON && asked ? await checkExportSetUp(actor, asked.choice, asked.setUp) : [],
+      setUp: asked ? await checkExportSetUp(actor, asked.choice, asked.setUp) : [],
     };
   });
 }

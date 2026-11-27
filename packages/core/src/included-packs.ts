@@ -152,7 +152,7 @@ export type RecommendedPack = {
   suggested: boolean;
   /** Already installed in this Workspace: shown as Installed, never offered again. */
   installed: boolean;
-  /** The id of this Workspace's install, for "Set up from this Pack" in the guide; null when not installed. */
+  /** The id of this Workspace's install, for the link to the installed Pack in the guide; null when not installed. */
   installId: number | null;
   /** Installing it needs an Owner (it holds Themes). */
   needsOwner: boolean;

@@ -1,14 +1,15 @@
 // @vitest-environment node
 // Starting point (spec 0052, ticket 6; GLOSSARY: Setup Guide, Pack): the two choices, the ranked Packs with why they fit
-// and what they bring, an installed Pack offering "Set up from this Pack", each thing said once.
+// and what they bring, "Use this pack" to the guided set-up, each thing said once.
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, refresh() {} }) }));
 vi.mock("sonner", () => ({ toast: { success() {}, error() {} } }));
-vi.mock("./actions", () => ({ chooseExplore: async () => ({}), setUpFromPackInGuide: async () => ({}), skipStep: async () => ({}) }));
+vi.mock("./actions", () => ({ chooseExplore: async () => ({}), skipStep: async () => ({}) }));
 vi.mock("@/app/pack-actions", () => ({ readIncludedPackFile: async () => ({}), installIncludedPackFile: async () => ({}) }));
 vi.mock("@/app/pack-setup-actions", () => ({ packSetup: async () => ({}) }));
 vi.mock("@/app/settings/packs/preview-view", () => ({ useOpenPackPreview: () => () => {} }));
+vi.mock("@/app/settings/packs/after-install", () => ({ useAfterInstall: () => () => {} }));
 import { StartingPoint, whatYouGet } from "./starting-point";
 import type { RecommendedPack } from "@ziffr/core/included-packs";
 
@@ -55,9 +56,11 @@ describe("the two choices", () => {
     expect(h).toContain("13 Metrics, e.g. MRR, ARR, New MRR");
     expect(h).toContain("See all 5 Packs");
     expect(h).not.toContain("FOUR");
-    // Each shown Pack can be previewed and installed, by a click.
-    expect(h.match(/>Preview</g)).toHaveLength(3);
-    expect(h.match(/>Install</g)).toHaveLength(3);
+    // Each shown Pack that sets something up leads to its guided set-up.
+    expect(h.match(/>Use this pack</g)).toHaveLength(3);
+    expect(h).toContain('href="/use-pack/ziffr--one"');
+    expect(h).not.toContain(">Install<");
+    expect(h).not.toContain(">Preview<");
   });
   it("without suggestions links to About you, only while answering it can still bring some", () => {
     const none = packs.map((p) => ({ ...p, because: [], suggested: false }));
@@ -76,19 +79,22 @@ describe("the two choices", () => {
 });
 
 describe("installed Packs, Owners and Admins, and Metrics already there", () => {
-  it("an installed Pack is not offered again and offers Set up from this Pack", () => {
+  it("an added Pack is not offered again and leads to the Packs page", () => {
     const h = html({ packs: [pack("ziffr/one", { installed: true, installId: 7, because: ["industry"] }), ...packs.slice(1)] });
-    expect(h).toContain("Installed");
-    expect(h).toContain("Set up from this Pack");
-    expect(h.match(/>Install</g)).toHaveLength(2);
+    expect(h).toContain("Added");
+    expect(h).toContain('href="/settings/packs"');
+    expect(h).not.toContain("Set up from this Pack");
+    expect(h.match(/>Use this pack</g)).toHaveLength(2);
   });
-  it("a Pack that holds a Theme is for an Owner: an Admin sees why and cannot press Install", () => {
+  it("a Pack with no Dashboard, Deck or Workflow is previewed and added from there", () => {
+    const h = html({ packs: [pack("ziffr/one", { brings: [{ kind: "metric", count: 1, names: ["A"] }] })] });
+    expect(h.match(/>Preview</g)).toHaveLength(1);
+    expect(h).not.toContain("Use this pack");
+  });
+  it("a Pack that holds a Theme is for an Owner: an Admin reads why", () => {
     const themed = [pack("ziffr/one", { needsOwner: true }), ...packs.slice(1)];
-    const admin = html({ packs: themed, isOwner: false });
-    expect(admin).toContain("only an Owner can install this Pack");
-    expect(admin).toMatch(/<button[^>]*disabled=""[^>]*>Install<\/button>/);
-    expect(html({ packs: themed, isOwner: true })).not.toContain("only an Owner can install this Pack");
-    expect(html({ packs: themed, isOwner: true })).not.toMatch(/<button[^>]*disabled=""[^>]*>Install<\/button>/);
+    expect(html({ packs: themed, isOwner: false })).toContain("only an Owner can add this Pack");
+    expect(html({ packs: themed, isOwner: true })).not.toContain("only an Owner can add this Pack");
   });
   it("a Workspace with Metrics already asks whether to start from a Pack anyway, and names the guide's first Metric", () => {
     expect(html({ metrics: 4 })).toContain("You have 4 Metrics. Start from a Pack anyway?");

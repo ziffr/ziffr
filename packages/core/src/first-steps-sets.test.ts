@@ -18,6 +18,9 @@ describe("offeredSets", () => {
     expect(ids(offeredSets(given, "team"))).toEqual(ids(given).filter((id) => !LEFT_OUT.includes(id)));
     expect(offeredSets(given, "team")).toHaveLength(bundledPacks().size - LEFT_OUT.length);
   });
+  it("says of each set what setting it up does, in the Pack's own sentence", () => {
+    for (const s of offeredSets(all(), "team")) expect(s.summary, s.id).toBe(bundledPacks().get(s.id)!.pack.setUp!.line);
+  });
   it("offers a person alone the Sports club only", () => {
     expect(ids(offeredSets(all(), "me"))).toEqual(["ziffr/sports-club"]);
   });

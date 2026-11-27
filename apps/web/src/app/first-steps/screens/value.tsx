@@ -108,7 +108,7 @@ export function SendFirst({ ws, view, reload, go }: SendProps) {
     if (!r.ok) { setRefusal(r.detail); return; }
     await look();
   });
-  const later = <Quiet onClick={() => go("sender")}>Do this later</Quiet>;
+  const later = <Quiet onClick={() => go(view.chosen ? "done" : "sender")}>Do this later</Quiet>;
   const alert = <p role="alert" className="text-sm text-destructive empty:hidden">{refusal}</p>;
 
   if (value) {

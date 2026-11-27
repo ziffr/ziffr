@@ -17,12 +17,12 @@ import type { UpdatePlan } from "@ziffr/core/pack-updates";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import { LogoChange } from "./pack-logo";
 import { useOpenPackPreview } from "./preview-view";
-import { useInstalledToast } from "@/components/pack-guide-help";
+import { useAfterInstall } from "./after-install";
 
 /** Browsing and searching the Marketplace, and installing a Pack from it. `installed` marks what the Workspace has. */
 export function MarketplaceSearch({ installed, viewer, numberStyle }: { installed: { packId: string; version: string }[]; viewer: string; numberStyle: NumberStyle }) {
   const router = useRouter();
-  const installedToast = useInstalledToast();
+  const added = useAfterInstall();
   const [q, setQ] = useState("");
   // What was asked for with what came back; null while the first question is out.
   const [found, setFound] = useState<{ query: string; packs: MarketplaceListing[] } | null>(null);
@@ -47,9 +47,7 @@ export function MarketplaceSearch({ installed, viewer, numberStyle }: { installe
       openPreview({
         preview: res.preview, viewer, numberStyle,
         install: async ({ assistantTexts }) => {
-          const id = unwrap(await installFromTheMarketplace(l.id, l.version, { assistantTexts }));
-          installedToast(id, res.preview.manifest);
-          router.refresh();
+          added(unwrap(await installFromTheMarketplace(l.id, l.version, { assistantTexts })), res.preview);
         },
       });
     } catch (e) { toast.error("Not done", { description: shown(e) }); }

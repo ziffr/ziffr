@@ -9,7 +9,6 @@ import { installPackFile, readPackFile } from "@ziffr/core/packs";
 import { installFromMarketplace, readMarketplacePack, readMarketplaceUpdate, searchMarketplace, updateFromMarketplace } from "@ziffr/core/marketplace";
 import { exportPack, themeLogoForExport, type ExportChoice, type ExportManifest, type ExportOptionsChosen } from "@ziffr/core/pack-export";
 import { tryExportedPack } from "@ziffr/core/pack-export-try";
-import { PACK_SET_UP_ON } from "./use-pack/switch";
 import { installIncludedPack, readIncludedPack, readIncludedUpdate, updateIncludedPack } from "@ziffr/core/included-packs";
 import { readPackUpdate, readUninstall, takeNewVersion, uninstallPack, updatePackFile } from "@ziffr/core/pack-updates";
 
@@ -29,7 +28,7 @@ export async function installPack(text: string, confirmed: { unsigned: boolean; 
 
 type Described = Pick<ExportOptionsChosen, "guide" | "comesFrom" | "setUp">;
 /** What the browser sent of "Describe your Pack"; the set-up questions only while the guided set-up is switched on. */
-const chosen = (withTags: boolean, described: Described): ExportOptionsChosen => ({ tags: withTags !== false, guide: described?.guide, comesFrom: described?.comesFrom, setUp: PACK_SET_UP_ON ? described?.setUp : undefined });
+const chosen = (withTags: boolean, described: Described): ExportOptionsChosen => ({ tags: withTags !== false, guide: described?.guide, comesFrom: described?.comesFrom, setUp: described?.setUp });
 
 /** A Pack of what the viewer picked in their Workspace, as its file's text, and what had to stay out. */
 export async function exportAsPack(manifest: ExportManifest, choice: ExportChoice, withTags = true, described: Described = {}) {
@@ -38,7 +37,6 @@ export async function exportAsPack(manifest: ExportManifest, choice: ExportChoic
 
 /** What the guided set-up would read of that file, for "Try it"; nothing is written. */
 export async function tryAsPack(manifest: ExportManifest, choice: ExportChoice, withTags = true, described: Described = {}) {
-  if (!PACK_SET_UP_ON) notFound();
   return attempt(async () => tryExportedPack(await currentActor(), manifest, choice, chosen(withTags, described)));
 }
 

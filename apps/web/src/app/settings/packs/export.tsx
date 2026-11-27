@@ -14,7 +14,6 @@ import { checkPackDescription, describePack } from "@/app/pack-guide-actions";
 import { TEXT_BUTTON } from "@/app/use-pack/parts";
 import { DescribeStep, useDescription } from "./describe";
 import { TryIt } from "./try-it";
-import { PACK_SET_UP_ON } from "@/app/use-pack/switch";
 import { PACK_LICENSES } from "@ziffr/core/pack";
 import type { ExportChoice, ExportOptions } from "@ziffr/core/pack-export";
 import type { PackExportTry } from "@ziffr/core/pack-export-try";
@@ -169,7 +168,7 @@ export function ExportPack({ options, defaultAuthor = "", viewer, numberStyle }:
             {describing
               ? <>
                   <Button variant="outline" className={TEXT_BUTTON} onClick={() => setDescribing(false)} autoFocus><ArrowLeft aria-hidden /> Back</Button>
-                  {PACK_SET_UP_ON && <Button variant="outline" className={TEXT_BUTTON} disabled={pending} onClick={tryIt}><Play aria-hidden /> Try it</Button>}
+                  <Button variant="outline" className={TEXT_BUTTON} disabled={pending} onClick={tryIt}><Play aria-hidden /> Try it</Button>
                   <Button className={TEXT_BUTTON} disabled={pending} onClick={make}><FileDown aria-hidden /> Download Pack</Button>
                 </>
               : <>

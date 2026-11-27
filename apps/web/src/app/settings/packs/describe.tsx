@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { PackNumberFields } from "./describe-numbers";
 import { PackSetUpFields, type SetUpState } from "./describe-set-up";
-import { PACK_SET_UP_ON } from "@/app/use-pack/switch";
 import type { ComesFromChoice, ComesFromProblem } from "@ziffr/core/pack-export-numbers";
 import { PACK_GUIDE_SECTIONS, type PackGuideSection } from "@ziffr/pack/pack-guide";
 import type { PackGuideDraft } from "@ziffr/core/pack-export-guide";
@@ -52,7 +51,7 @@ export function useDescription() {
       comesFrom: Object.fromEntries(draft.numbers.map((n) => [n.ref, s.comesFrom[n.ref] ?? n.said ?? { by: "person" as const }])) }));
   }, []);
   const refused = useCallback((problems: GuideProblem[], numberProblems: ComesFromProblem[], setUpProblems: PackSetUpProblem[]) => setState((s) => ({ ...s, problems, numberProblems, setUpProblems })), []);
-  return { state, setState, drafted, refused, /** What goes with the export: the guide only when it is ticked. */ guide: state.include ? state.text : undefined, comesFrom: state.comesFrom, setUp: PACK_SET_UP_ON ? state.setUp : undefined };
+  return { state, setState, drafted, refused, /** What goes with the export: the guide only when it is ticked. */ guide: state.include ? state.text : undefined, comesFrom: state.comesFrom, setUp: state.setUp };
 }
 
 /** The fields of the step, each problem under the field it is in. */
@@ -93,7 +92,7 @@ export function DescribeStep({ state, setState }: { state: Description; setState
           </div>
         );
       })}
-      {PACK_SET_UP_ON && <PackSetUpFields state={state} setState={setState} />}
+      <PackSetUpFields state={state} setState={setState} />
     </div>
   );
 }

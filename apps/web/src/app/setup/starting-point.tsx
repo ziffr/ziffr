@@ -2,26 +2,22 @@
 // Starting point, the Setup Guide's second step (spec 0052, ticket 6; GLOSSARY: Setup Guide, Pack, Preview, Sample Data,
 // Metric Catalog): two clear choices. "Explore on my own" starts from scratch and opens the Metric Catalog with a way
 // back here; "Start from a Pack" lists Ziffr's own Packs ranked for this Workspace, each with why it fits, what it
-// brings, a Preview drawn with Sample Data in the Slide-over and Install by a click. After installing, "Set up from this
-// Pack" makes the first Metrics in place. Nothing installs or is made without a click; the core checks every one again.
-import { useMemo, useState, useTransition } from "react";
+// brings and "Use this pack", which opens the guided set-up (spec 0068); a Pack with nothing to set up opens its Preview
+// in the Slide-over and is added from it. Nothing is added or made without a click; the core checks every one again.
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { isActionError, shown, unwrap, UNEXPECTED } from "@/lib/action-error";
 import { installIncludedPackFile, readIncludedPackFile } from "@/app/pack-actions";
-import { packSetup } from "@/app/pack-setup-actions";
 import { useOpenPackPreview } from "@/app/settings/packs/preview-view";
-import { dashboardNeeds, guideStart } from "@/app/settings/packs/setup-defaults";
-import { chooseExplore, setUpFromPackInGuide, skipStep } from "./actions";
-import { ownRequests, RequestsAfterSetUp, SendFirstRequests } from "@/components/first-requests";
+import { useAfterInstall } from "@/app/settings/packs/after-install";
+import { packSetUpPath, setsUp } from "@/app/use-pack/paths";
+import { chooseExplore, skipStep } from "./actions";
 import { becauseText } from "@ziffr/core/pack-ranking";
 import type { RecommendedPack } from "@ziffr/core/included-packs";
-import type { PackSetupOptions, PackSetupRoom } from "@ziffr/core/pack-setup";
-import type { PackPreview } from "@ziffr/core/packs";
 import type { NumberStyle } from "@ziffr/core/number-style";
-import type { GuidePackSetupResult } from "@ziffr/core/setup-from-pack";
 
 const KIND: Record<RecommendedPack["brings"][number]["kind"], [string, string]> = {
   metric: ["Metric", "Metrics"], dashboard: ["Dashboard", "Dashboards"], deck: ["Deck", "Decks"], workflow: ["Workflow", "Workflows"],
@@ -133,46 +129,25 @@ export function StartingPoint(p: Props) {
   );
 }
 
-/** One Pack: why it fits, what it brings, Preview, Install, and once installed, Set up from this Pack. */
+/** One Pack: why it fits, what it brings, and the way to use it or add it; once added, the way to the Packs page. */
 function PackRow({ pack, p }: { pack: RecommendedPack; p: Props }) {
-  const router = useRouter();
   const openPreview = useOpenPackPreview();
+  const added = useAfterInstall();
   const [pending, start] = useTransition();
-  const [form, setForm] = useState<PackSetupOptions | null>(null);
   const blocked = pack.needsOwner && !p.isOwner;
+  const sets = setsUp(pack.brings.map((b) => b.kind));
 
-  const installed = () => {
-    toast.success(`${pack.name} installed`, { description: "Set up its first Metrics next, or go on." });
-    router.refresh();
-  };
-  // The same Preview as on the Packs page. For anyone but an Owner, a Pack with a Theme says why it cannot be installed.
-  const show = (preview: PackPreview, heading?: { title: string; description: string }) => openPreview({
-    ...heading, viewer: p.viewer, numberStyle: p.numberStyle,
-    preview: blocked ? { ...preview, blocked: "This Pack holds a Theme, so an Owner installs it." } : preview,
-    install: async ({ assistantTexts }) => { unwrap(await installIncludedPackFile(pack.id, { assistantTexts })); installed(); },
-  });
+  // The same Preview as on the Packs page. For anyone but an Owner, a Pack with a Theme says why it cannot be added.
   const preview = () => start(async () => {
     try {
       const r = unwrap(await readIncludedPackFile(pack.id));
       if (!r.ok) throw new Error();
-      show(r.preview);
+      openPreview({
+        viewer: p.viewer, numberStyle: p.numberStyle,
+        preview: blocked ? { ...r.preview, blocked: "This Pack holds a Theme, so an Owner adds it." } : r.preview,
+        install: async ({ assistantTexts }) => added(unwrap(await installIncludedPackFile(pack.id, { assistantTexts })), r.preview),
+      });
     } catch (e) { toast.error("Not opened", { description: shown(e) }); }
-  });
-  // Installing is the click: a Pack that holds words aimed at assistants shows its Preview first, with the confirmation.
-  const install = () => start(async () => {
-    try {
-      const r = unwrap(await readIncludedPackFile(pack.id));
-      if (!r.ok) throw new Error();
-      if (r.preview.blocked || r.preview.assistantTexts.length > 0) {
-        show(r.preview, { title: `Install ${r.preview.manifest.name}`, description: "Read this first." });
-        return;
-      }
-      unwrap(await installIncludedPackFile(pack.id, { assistantTexts: false }));
-      installed();
-    } catch (e) { toast.error("Not installed", { description: shown(e) }); }
-  });
-  const openSetUp = () => start(async () => {
-    try { setForm(unwrap(await packSetup(pack.installId!))); } catch (e) { toast.error("Not opened", { description: shown(e) }); }
   });
 
   const gets = whatYouGet(pack.brings);
@@ -186,142 +161,16 @@ function PackRow({ pack, p }: { pack: RecommendedPack; p: Props }) {
           <p className="mt-1 text-muted-foreground">{pack.summary}</p>
           <p className="mt-2 text-xs font-medium">What you get</p>
           <ul className="list-disc pl-4 text-xs text-muted-foreground">{gets.map((g) => <li key={g}>{g}</li>)}</ul>
-          {blocked && <p className="mt-2 text-xs text-muted-foreground">Includes a Theme (a look for your Workspace); only an Owner can install this Pack.</p>}
+          {blocked && <p className="mt-2 text-xs text-muted-foreground">Includes a Theme (a look for your Workspace); only an Owner can add this Pack.</p>}
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          {!pack.installed && <Button type="button" size="sm" variant="outline" className="h-11 data-disabled:opacity-50 sm:h-8" disabled={pending} focusableWhenDisabled onClick={preview}>Preview</Button>}
-          {!pack.installed && <Button type="button" size="sm" className="h-11 sm:h-8" disabled={pending || blocked} onClick={install}>Install</Button>}
-          {pack.installed && <span className="text-xs text-muted-foreground">Installed</span>}
-          {pack.installed && pack.installId !== null && !form && <Button type="button" size="sm" className="h-11 sm:h-8" disabled={pending} onClick={openSetUp}>Set up from this Pack</Button>}
+          {pack.installed && <span className="text-xs text-muted-foreground">Added</span>}
+          {pack.installed && <Link href="/settings/packs" className={buttonVariants({ size: "sm", variant: "outline", className: "h-11 sm:h-8" })}>See it in Packs<span className="sr-only">: {pack.name}</span></Link>}
+          {/* The guided set-up draws its own frame, so it is loaded as a whole page; its first screen is the preview. */}
+          {!pack.installed && sets && <a href={packSetUpPath(pack.id)} className={buttonVariants({ size: "sm", className: "h-11 sm:h-8" })}>Use this pack<span className="sr-only">: {pack.name}</span></a>}
+          {!pack.installed && !sets && <Button type="button" size="sm" variant="outline" className="h-11 data-disabled:opacity-50 sm:h-8" disabled={pending} focusableWhenDisabled onClick={preview}>Preview</Button>}
         </div>
       </div>
-      {form && (form.positions ? <SetUpOnPacks name={form.install.name} onClose={() => setForm(null)} /> : <SetUpHere options={form} viewer={p.viewer} following={p.following} onClose={() => setForm(null)} />)}
     </li>
-  );
-}
-
-/** What making `n` Metrics does to the limit, in words, from the counts the core gave: it fits, or it does not. The core checks again. */
-function fitWords(room: PackSetupRoom | null, refusal: string | null, n: number): string | null {
-  if (refusal) return refusal;
-  if (!room || n === 0) return null;
-  if (n > room.allowed) return `Makes ${n} Metric${n === 1 ? "" : "s"}, but only ${room.allowed} fit now. Untick some.`;
-  return null;
-}
-
-/** The entries to make: those ticked, the inputs of a calculated one, and what a ticked dashboard's Slots suggest. */
-function withInputs(picked: Set<string>, byKey: Map<string, PackSetupOptions["entries"][number]>, extra: string[] | null): Set<string> {
-  const out = new Set(picked);
-  for (const k of picked) for (const i of byKey.get(k)?.inputs ?? []) out.add(i);
-  for (const k of extra ?? []) out.add(k);
-  return out;
-}
-
-/** One Metric to make, as a checkbox with its period and unit; one that another needs is shown ticked and cannot be unticked. */
-function EntryBox({ entry, on, forced, onChange }: { entry: PackSetupOptions["entries"][number]; on: boolean; forced: boolean; onChange: (on: boolean) => void }) {
-  const detail = [`by ${entry.period}`, entry.unit && `in ${entry.unit}`, entry.derived && "calculated from others, which are made too", forced && "made for another"].filter(Boolean).join(", ");
-  return (
-    <label className="flex items-start gap-2">
-      <input type="checkbox" checked={on} disabled={forced} onChange={(ev) => onChange(ev.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
-      <span>{entry.name} <span className="text-xs text-muted-foreground">{detail}</span></span>
-    </label>
-  );
-}
-
-/** A Pack that asks who does what is set up on the Packs page, which has the pickers and shows who will see what. */
-function SetUpOnPacks({ name, onClose }: { name: string; onClose: () => void }) {
-  return (
-    <div className="mt-3 space-y-2 rounded-[var(--radius-input)] border border-input p-3">
-      <p>{name} asks who does what. <Link href="/settings/packs" className="underline">Set it up on the Packs page</Link>, where you pick the people and see who will see what.</p>
-      <Button type="button" size="sm" variant="ghost" onClick={onClose}>Close</Button>
-    </div>
-  );
-}
-
-/** "Set up from this Pack": the first Metrics ticked, the person asked for them, then made in place. */
-function SetUpHere({ options, viewer, following, onClose }: { options: PackSetupOptions; viewer: string; following: string; onClose: () => void }) {
-  const router = useRouter();
-  const [begin] = useState(() => guideStart(options, viewer));
-  const [picked, setPicked] = useState<Set<string>>(begin.picked);
-  const [askMe, setAskMe] = useState(true);
-  // Off until chosen: setting up sends nothing by itself.
-  const [askNow, setAskNow] = useState(false);
-  const first = options.dashboards[0];
-  const needs = first ? dashboardNeeds(options, first.key) : null;
-  const [dashboardOn, setDashboardOn] = useState(begin.dashboard !== "");
-  const flow = options.workflows[0] && options.workflows[0].approvers <= 1 ? options.workflows[0] : null;
-  const [workflowOn, setWorkflowOn] = useState(begin.workflow !== "");
-  const [made, setMade] = useState<GuidePackSetupResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-  const byKey = useMemo(() => new Map(options.entries.map((e) => [e.key, e])), [options.entries]);
-  const making = useMemo(() => withInputs(picked, byKey, dashboardOn ? needs : null), [picked, byKey, dashboardOn, needs]);
-  const why = fitWords(options.room, options.refusal, making.size);
-  const ready = making.size > 0 && !why && !pending;
-
-  const toggle = (key: string, on: boolean) => setPicked((s) => { const n = new Set(s); if (on) n.add(key); else n.delete(key); return n; });
-  const submit = () => start(async () => {
-    setError(null);
-    try {
-      const r = await setUpFromPackInGuide(options.install.id, {
-        metrics: [...making],
-        submitters: askMe ? [viewer] : [],
-        askNow,
-        dashboard: dashboardOn && first && needs ? { key: first.key, fills: first.slots.map(() => null) } : null,
-        workflow: workflowOn && flow ? { key: flow.key, approvers: flow.approvers === 1 ? [viewer] : [] } : null,
-      });
-      if (isActionError(r)) { setError(r.error); return; }
-      setMade(r);
-      toast.success(`Set up from ${options.install.name}`);
-      router.refresh();
-    } catch { setError(UNEXPECTED); }
-  });
-
-  if (made) {
-    const names = made.metrics.length ? made.metrics : made.existing;
-    return (
-      <div className="mt-3 space-y-2 rounded-[var(--radius-input)] border border-input p-3" aria-live="polite">
-        <p className="font-medium">{made.metrics.length ? `Made from ${options.install.name}` : "Already made from this Pack"}</p>
-        <ul className="list-disc space-y-0.5 pl-5">
-          {names.map((m) => <li key={m.id}><Link href={`/metrics/${m.slug}`} className="underline">{m.name}</Link></li>)}
-          {made.dashboardId !== null && <li><Link href={`/dashboards/${made.dashboardId}`} className="underline">The dashboard</Link></li>}
-          {made.workflowId !== null && <li><Link href={`/workflows?id=${made.workflowId}`} className="underline">The Workflow</Link></li>}
-        </ul>
-        {made.metrics.length > 0 && <RequestsAfterSetUp made={made} />}
-        <div className="flex gap-2">
-          <Link href={`/setup?step=${following}`} className={buttonVariants({ size: "sm" })}>Go on</Link>
-          <Button type="button" size="sm" variant="ghost" onClick={onClose}>Close</Button>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="mt-3 space-y-3 rounded-[var(--radius-input)] border border-input p-3">
-      <fieldset className="space-y-1">
-        <legend className="mb-1 text-xs font-medium">Metrics to make</legend>
-        {options.entries.map((e) => (
-          <EntryBox key={e.key} entry={e} on={making.has(e.key)} forced={!picked.has(e.key) && making.has(e.key)} onChange={(on) => toggle(e.key, on)} />
-        ))}
-      </fieldset>
-      <label className="flex items-start gap-2"><input type="checkbox" checked={askMe} onChange={(e) => setAskMe(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> Make me the Submitter of their values</label>
-      {first && (
-        <label className="flex items-start gap-2">
-          <input type="checkbox" checked={dashboardOn} disabled={!needs} onChange={(e) => setDashboardOn(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
-          <span>Also make the dashboard “{first.name}”{needs ? ` (adds ${needs.filter((k) => !picked.has(k)).length} Metric${needs.filter((k) => !picked.has(k)).length === 1 ? "" : "s"})` : ": its Slots need Metrics you pick on the Packs page"}</span>
-        </label>
-      )}
-      {flow && (
-        <label className="flex items-start gap-2">
-          <input type="checkbox" checked={workflowOn} onChange={(e) => setWorkflowOn(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
-          <span>Also make the Workflow “{flow.name}”, which asks for these Metrics{flow.approvers === 1 ? " and has you approve them" : ""}</span>
-        </label>
-      )}
-      <SendFirstRequests to={askMe ? ownRequests(options.entries, making, false) : []} checked={askNow} onChange={setAskNow} followed={Boolean(flow && workflowOn)} />
-      {why && <p role="alert" className="font-medium">{why}</p>}
-      <p role="alert" className="min-h-5 text-sm text-destructive">{error}</p>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-        <Button type="button" size="sm" disabled={!ready} onClick={submit}>Make them</Button>
-      </div>
-    </div>
   );
 }

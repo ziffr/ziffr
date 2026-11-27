@@ -6,7 +6,7 @@ import { planStart } from "@ziffr/core/pack-start-plan";
 import { startSteps, type StartDeclarations, type StartRoom } from "@ziffr/core/pack-start-steps";
 import { addPasted, eligible, limitWords, readPeopleList, startAnswers, stepProblem, tickedShares, toChoices, type Answers, type LinesStep } from "./answers";
 import { draftKey, dropAllDrafts, keepDraft, loadDraft, readDraft } from "./draft";
-import { packRefOf } from "./switch";
+import { packRefOf } from "./paths";
 import { askedWhen } from "./when";
 
 const room: StartRoom = { metrics: null, trial: null, practice: false };

@@ -1,5 +1,5 @@
 "use client";
-// Set up from this Pack (spec 0030, ticket 277, spec 0058; GLOSSARY: Pack, Metric Catalog, Derived Metric, Slot,
+// Choose parts yourself, the detailed set-up of a Pack (spec 0030, ticket 277, spec 0058, spec 0068; GLOSSARY: Pack, Metric Catalog, Derived Metric, Slot,
 // Workflow Template, Position, Repeat, Workspace Limit): an installed Pack's entries made into Metrics, its Dashboard
 // Templates into dashboards and its Workflow Templates into Workflows, as the person picks, with the lines of its
 // Repeats and the people of its Positions. A large set is made in steps. The same form adds one line to what was set
@@ -33,7 +33,7 @@ export function SetUpFromPack({ installId, viewer, practice = false }: { install
   const open = () => start(async () => {
     try { setOptions(unwrap(await packSetup(installId))); } catch (e) { toast.error("Not opened", { description: shown(e) }); }
   });
-  if (!options) return <Button variant="outline" size="sm" className="mt-3" disabled={pending} onClick={open}><Wand2 aria-hidden /> Set up from this Pack</Button>;
+  if (!options) return <Button variant="outline" size="sm" className="mt-3 max-sm:h-11" disabled={pending} onClick={open}><Wand2 aria-hidden /> Choose parts yourself</Button>;
   return <SetUpForm options={options} viewer={viewer} practice={practice} onClose={() => setOptions(null)} />;
 }
 
@@ -52,7 +52,7 @@ export function AddLine({ installId, repeat, name, viewer, practice = false }: {
       setForm({ options: found, adding: { repeat: found.repeats.find((r) => r.key === repeat)!, start: unwrap(begin) } });
     } catch (e) { toast.error("Not opened", { description: shown(e) }); }
   });
-  if (!form) return <Button variant="outline" size="sm" className="mt-3" disabled={pending} onClick={open}><Plus aria-hidden /> Add a {name}</Button>;
+  if (!form) return <Button variant="outline" size="sm" className="mt-3 max-sm:h-11" disabled={pending} onClick={open}><Plus aria-hidden /> Add a {name}</Button>;
   return <SetUpForm options={form.options} viewer={viewer} adding={form.adding} practice={practice} onClose={() => setForm(null)} />;
 }
 

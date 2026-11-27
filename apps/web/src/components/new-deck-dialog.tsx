@@ -28,7 +28,7 @@ export function NewDeckFromTemplate({ templates, metrics, people }: { templates:
   const pick = (x: DeckTemplateSummary) => {
     setPicked(x.id);
     // Each Slot starts with the first Metric it was made with that this viewer sees; a Slot with none, such as a Pack's,
-    // with the one Metric of its name, as Set up from this Pack names them.
+    // with the one Metric of its name, as setting up from a Pack names them.
     setFills(x.slots.map((s) => {
       const made = (s.exampleIds ?? []).filter((m) => metrics.some((y) => y.id === m)).slice(0, s.multiple ? 50 : 1);
       const named = metrics.filter((y) => y.name === s.label);

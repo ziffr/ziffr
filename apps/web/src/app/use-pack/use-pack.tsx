@@ -4,7 +4,7 @@
 import { useMemo } from "react";
 import { checkPackStart, takePackStartStep } from "./actions";
 import { PackFlow, type PackFlowActions, type PackFlowData } from "./flow";
-import { packRefOf } from "./switch";
+import { packRefOf } from "./paths";
 import { inviteActions } from "./task";
 
 /** The flow for the Pack of one address. */

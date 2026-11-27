@@ -1,6 +1,6 @@
 "use client";
 // The Packs page (spec 0030, GLOSSARY: Pack, Preview, Sample Data): installed Packs with what each added, and for
-// Owners and Admins installing one from a file, after its Preview (preview-view.tsx). Everything in a Pack is shown
+// Owners and Admins adding one from a file, after its Preview (preview-view.tsx). Everything in a Pack is shown
 // as text; its only links are its listing's, shown as plain links that tell the site nothing.
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -8,7 +8,9 @@ import { TriangleAlert, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
-import { PackGuideButton, useInstalledToast } from "@/components/pack-guide-help";
+import { PackGuideButton } from "@/components/pack-guide-help";
+import { useAfterInstall } from "./after-install";
+import { setsUp } from "@/app/use-pack/paths";
 import { installPack, readPack } from "@/app/pack-actions";
 import { PACK_LIMITS, UNSIGNED_WARNING as UNSIGNED } from "@ziffr/core/pack";
 import type { InstalledPack } from "@ziffr/core/packs";
@@ -36,7 +38,7 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
       <section aria-labelledby="installed-packs">
         <h2 id="installed-packs" className="mb-2 text-sm font-medium">Installed in this Workspace</h2>
         {guest ? <p className="text-sm text-muted-foreground">Guests do not see the Workspace&rsquo;s Packs.</p>
-          : !installed.length ? <p className="text-sm text-muted-foreground">No Pack yet.{manages ? " Install one of Ziffr\u2019s own below, or from a file." : ""}</p>
+          : !installed.length ? <p className="text-sm text-muted-foreground">No Pack yet.{manages ? " Use one of Ziffr\u2019s own below, or one from a file." : ""}</p>
             : (
               <ul className="space-y-3">
                 {installed.map((p) => (
@@ -67,13 +69,13 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
                     {manages && <PackActions installId={p.id} name={p.name} />}
                     {manages && included.filter((i) => i.installed?.installId === p.id && i.update).map((i) => <div key={i.update} className="mt-2"><IncludedUpdate installId={p.id} name={p.name} version={i.update!} /></div>)}
                     {updates.filter((u) => u.installId === p.id).map((u) => <div key={u.version} className="mt-2"><MarketplaceUpdate installId={p.id} name={p.name} version={u.version} /></div>)}
+                    {manages && <AfterSetUp installId={p.id} name={p.name} sets={setsUp(p.added.map((a) => a.kind))} card={after.find((c) => c.installId === p.id) ?? null} />}
                     {manages && (
                       <div className="flex flex-wrap items-start gap-x-2">
                         <div className="max-w-full has-[>div]:w-full"><SetUpFromPack installId={p.id} viewer={viewer} practice={practice} /></div>
                         {p.addable.map((r) => <div key={r.repeat} className="max-w-full has-[>div]:w-full"><AddLine installId={p.id} repeat={r.repeat} name={r.name} viewer={viewer} practice={practice} /></div>)}
                       </div>
                     )}
-                    {after.filter((c) => c.installId === p.id).map((c) => <AfterSetUp key={c.installId} card={c} name={p.name} />)}
                     {practice && <FillMadeUp installId={p.id} />}
                     {reports.filter((r) => r.installId === p.id).map((r) => <p key={r.installId} className="mt-2"><ReportLink href={r.address} name={p.name} /></p>)}
                   </li>
@@ -106,8 +108,7 @@ function AddedList({ added }: { added: InstalledPack["added"] }) {
 }
 
 function InstallFromFile({ viewer, numberStyle }: { viewer: string; numberStyle: NumberStyle }) {
-  const router = useRouter();
-  const installedToast = useInstalledToast();
+  const added = useAfterInstall();
   const openPreview = useOpenPackPreview();
   const input = useRef<HTMLInputElement>(null);
   const [problems, setProblems] = useState<Problem[]>([]);
@@ -126,9 +127,7 @@ function InstallFromFile({ viewer, numberStyle }: { viewer: string; numberStyle:
         openPreview({
           preview: res.preview, viewer, numberStyle,
           install: async (confirmed) => {
-            const id = unwrap(await installPack(text, confirmed));
-            installedToast(id, res.preview.manifest, "Its entries are in the Metric Catalog, its templates, designs and Themes where you start from them.");
-            router.refresh();
+            added(unwrap(await installPack(text, confirmed)), res.preview);
           },
         });
       } catch (e) {
@@ -139,8 +138,8 @@ function InstallFromFile({ viewer, numberStyle }: { viewer: string; numberStyle:
   return (
     <section aria-labelledby="install-pack" className="space-y-4">
       <div>
-        <h2 id="install-pack" className="text-sm font-medium">Install a Pack from a file</h2>
-        <p className="text-sm text-muted-foreground">Ziffr checks the whole file first and shows everything it adds. Installing makes no Metric, sends nothing and changes nothing already here.</p>
+        <h2 id="install-pack" className="text-sm font-medium">Add a Pack from a file</h2>
+        <p className="text-sm text-muted-foreground">Ziffr checks the whole file first and shows everything it adds. Nothing is made or sent before you confirm.</p>
       </div>
       <input ref={input} type="file" accept="application/json,.json" className="hidden" onChange={(e) => read(e.target.files?.[0])} />
       <Button variant="outline" disabled={pending} onClick={() => input.current?.click()}><Upload aria-hidden /> Choose a Pack file…</Button>

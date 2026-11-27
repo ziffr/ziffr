@@ -6,7 +6,7 @@
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { USED_BY, type UsedBy } from "./first-steps-screens";
-import { readIncludedPack, recommendedPacks, type RecommendedPack } from "./included-packs";
+import { bundledPacks, readIncludedPack, recommendedPacks, type RecommendedPack } from "./included-packs";
 import type { Reason } from "./pack-ranking";
 import type { PackPreview } from "./packs";
 
@@ -29,6 +29,7 @@ export type FirstStepsSet = {
   /** The Pack's id. */
   id: string;
   name: string;
+  /** The Pack's one sentence about what setting it up does, or its summary when it has none. */
   summary: string;
   /** How many Metric Catalog entries it brings. */
   metrics: number;
@@ -44,7 +45,7 @@ export type FirstStepsSets = { alone: boolean; sets: FirstStepsSet[] };
 export function offeredSets(recommended: readonly RecommendedPack[], usedBy: UsedBy): FirstStepsSet[] {
   const offered = (id: string) => (usedBy === "me" ? FOR_ONE_PERSON.includes(id) : !NOT_OFFERED.includes(id));
   return recommended.filter((p) => offered(p.id)).map((p) => ({
-    id: p.id, name: p.name, summary: p.summary,
+    id: p.id, name: p.name, summary: bundledPacks().get(p.id)?.pack.setUp?.line || p.summary,
     metrics: p.brings.find((b) => b.kind === "metric")?.count ?? 0,
     match: matchWords(p.because),
   }));

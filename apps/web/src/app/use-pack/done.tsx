@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { InvitePanel, type InviteActions } from "./invite";
 import { Lines, NOTE } from "./parts";
 import { namesWords } from "./providers";
-import { afterHref } from "./switch";
+import { afterHref, FIRST_STEPS_VALUE } from "./paths";
 
 type Props = {
   result: PackStartResult;
@@ -25,6 +25,8 @@ type Props = {
   addedPeople: boolean;
   /** The first number and the invitations; without them (as in "Try it") the screen only says what waits. */
   invites?: InviteActions;
+  /** Whether the set-up began in First Steps, which then goes on. */
+  firstSteps?: boolean;
 };
 
 const count = (n: number) => `${n} ${n === 1 ? "number" : "numbers"}`;
@@ -39,7 +41,7 @@ const askedLines = (result: Pick<PackStartResult, "asked">) => result.asked.map(
 });
 
 /** What was made, who is asked, what is missing. */
-export function DoneScreen({ result, declarations, feeds, addedPeople, invites }: Props) {
+export function DoneScreen({ result, declarations, feeds, addedPeople, invites, firstSteps = false }: Props) {
   const system = new Set(declarations.metrics.filter((m) => m.comesFrom === "system").map((m) => m.key));
   const fromSystem = result.metrics.filter((m) => system.has(m.key));
   // Those of them somebody provides: choosing a person opens the ways a person answers.
@@ -50,17 +52,18 @@ export function DoneScreen({ result, declarations, feeds, addedPeople, invites }
   // Where invitations wait, the first number comes first, and the ways to what was made step back.
   const first = result.needsFirstValue && invites !== undefined;
   const panel = invites && (first || result.invite.length > 0) && <InvitePanel actions={invites} providersHref={afterHref(result.pack.installId, "providers")} />;
+  // From First Steps the one way on is its next screen: opening a dashboard would leave it.
   const main = first ? ALSO : OPEN;
   return (
     <>
       <ScreenHeading title={`${result.pack.name} is set up`}>{result.asked.length ? "Nothing was sent just now." : "Nothing asks anyone yet."}</ScreenHeading>
       <div className="space-y-5">
         {first && panel}
-        <div className={PHONE_ACTIONS}>
+        {firstSteps ? <div className={PHONE_ACTIONS}><FullLoadLink href={FIRST_STEPS_VALUE} className={main}>Continue</FullLoadLink></div> : <div className={PHONE_ACTIONS}>
           {board && <FullLoadLink href={`/dashboards/${board.id}`} className={main}>Open the dashboard</FullLoadLink>}
           {deck && <FullLoadLink href={`/decks/${deck.id}/present`} className={board ? ALSO : main}>Open the slides</FullLoadLink>}
           {!board && !deck && <FullLoadLink href="/metrics" className={main}>Open your Metrics</FullLoadLink>}
-        </div>
+        </div>}
         {!first && panel}
         <Lines title="Who is asked" items={askedLines(result)} />
         {waits && <p className={NOTE}>Where nothing asks by itself, ask from the Metric&rsquo;s page, or give it a Workflow.</p>}

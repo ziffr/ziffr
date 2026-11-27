@@ -11,7 +11,6 @@ import * as clock from "@ziffr/core/workspace-clock";
 import * as fiscalYear from "@ziffr/core/fiscal-year";
 import * as guide from "@ziffr/core/setup-guide";
 import { refuseInDemo } from "@ziffr/core/demo";
-import { setUpGuideFromPack } from "@ziffr/core/setup-from-pack";
 import type { PackSetupInput } from "@ziffr/core/pack-setup";
 
 /** What About you sends: each part only when the person answered it. */
@@ -57,18 +56,6 @@ export async function chooseExplore() {
     refuseInDemo(actor);
     await guide.chooseExploreOnMyOwn(actor);
     revalidatePath("/setup");
-  });
-}
-
-/** Makes the first Metrics from an installed Pack for the Starting point. Untrusted input: the core checks the install,
- * every key and every person, and leaves out what an earlier click already made. */
-export async function setUpFromPackInGuide(installId: number, input: PackSetupInput) {
-  return attempt(async () => {
-    const actor = await currentActor();
-    refuseInDemo(actor);
-    const made = await setUpGuideFromPack(actor, Number(installId), input);
-    revalidatePath("/", "layout");
-    return made;
   });
 }
 

@@ -1,6 +1,5 @@
 // "Use this pack" (spec 0068; GLOSSARY: Pack): one Pack set up from its preview to done, one question per screen.
-// Switched off (not found) until every entry point switches over, and never in the demo. Only an Owner or Admin runs
-// it; anyone else is told to ask one. The browser gets what `startOptions` and `startDrawing` answer to this person
+// Never in the demo. Only an Owner or Admin runs it; anyone else is told to ask one. The browser gets what `startOptions` and `startDrawing` answer to this person
 // (the Pack's words, the room as counts, the people of the Workspace by name), the Pack's Preview, and the names of the
 // Feeds and n8n templates a template download offers.
 import type { Metadata } from "next";
@@ -16,13 +15,13 @@ import { isDemo } from "@/lib/auth";
 import { currentActor } from "@/lib/viewer";
 import { AskAnOwner } from "../ask-owner";
 import { draftKey } from "../draft";
-import { PACK_SET_UP_ON, packRefOf } from "../switch";
+import { packRefOf } from "../paths";
 import { UsePack } from "../use-pack";
 
 export const metadata: Metadata = { title: "Use this pack" };
 
 export default async function UsePackPage({ params }: { params: Promise<{ ref: string }> }) {
-  if (!PACK_SET_UP_ON || (await isDemo())) notFound();
+  if (await isDemo()) notFound();
   const segment = (await params).ref;
   const ref = packRefOf(segment);
   if (!ref) notFound();

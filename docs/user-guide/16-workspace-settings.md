@@ -606,7 +606,7 @@ To make a key, type a **Key name** (such as "Nightly run"; if you leave it empty
 
 Only Owners and Admins see Feed Keys and their Access Logs.
 
-To fill Metrics from a sheet or another system without writing a Feed, use **Fill from n8n** under a Metric's **Who submits** (see [The Metrics screens](10-metrics.md#who-submits)) or on the page after **Set up from this Pack**: it makes the Feed and its key for you and downloads the n8n workflow.
+To fill Metrics from a sheet or another system without writing a Feed, use **Fill from n8n** under a Metric's **Who submits** (see [The Metrics screens](10-metrics.md#who-submits)) or on the page after [Choose parts yourself](19-packs.md#set-up-with-positions): it makes the Feed and its key for you and downloads the n8n workflow.
 
 ## Webhooks
 
@@ -671,7 +671,7 @@ Under the Metrics not opened, **Archive these Metrics?** lists the ones that are
 
 ### Your Usage as Metrics
 
-If you want these figures as Metrics of their own, with a dashboard, Targets and Alerts, install the **Workspace usage** Pack (**Workspace → Packs → Ziffr's own Packs**, or **Choose a Pack file…** with `packs/workspace-usage.pack.json`) and use **Set up from this Pack**. A program then sends the figures: make an Access Key with **Read usage figures** and a Feed with a Feed Key, and run the Usage Feed with `--workspace` (see the [Usage guide](../guides/usage.md#your-own-workspaces-figures)). They are ordinary Metrics: the Pack has 18 of them, they count towards the Workspace Limit, and everyone who sees them sees the numbers, so while fewer than three people are in the Workspace the values, views and Submitters without values stay out. They count only what the key's creator sees (a Workspace Role grants no Metric), so a Metric that is private to someone else is not in them.
+If you want these figures as Metrics of their own, with a dashboard, Targets and Alerts, install the **Workspace usage** Pack (**Workspace → Packs → Ziffr's own Packs**, or **Choose a Pack file…** with `packs/workspace-usage.pack.json`) and set it up with [Use this pack](19-packs.md#use-this-pack). A program then sends the figures: make an Access Key with **Read usage figures** and a Feed with a Feed Key, and run the Usage Feed with `--workspace` (see the [Usage guide](../guides/usage.md#your-own-workspaces-figures)). They are ordinary Metrics: the Pack has 18 of them, they count towards the Workspace Limit, and everyone who sees them sees the numbers, so while fewer than three people are in the Workspace the values, views and Submitters without values stay out. They count only what the key's creator sees (a Workspace Role grants no Metric), so a Metric that is private to someone else is not in them.
 
 ### The monthly email
 
