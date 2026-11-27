@@ -83,6 +83,8 @@ const OUTSIDE: readonly string[] = [
   "first-steps/actions:makeWorkspace",
   "first-steps/actions:saveAnswers",
   "first-steps/actions:addFirstMetric",
+  "first-steps/actions:readSet",
+  "first-steps/actions:readSets",
   "first-steps/value-actions:askByEmail",
   "first-steps/value-actions:chooseProvider",
   "first-steps/value-actions:emailAgain",
