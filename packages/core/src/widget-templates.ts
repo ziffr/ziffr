@@ -10,12 +10,12 @@ export type TemplateDef = {
   id: TemplateId;
   label: string;
   blurb: string;
-  kind: "metric" | "analysis" | "story" | "layout" | "slide";
+  kind: "metric" | "analysis" | "story" | "layout" | "note" | "slide";
   /** Templates that draw a Breakdown (a Finding of one period's, or a View of every period's): offered only for a Metric that has one. */
   needsBreakdown?: boolean;
   /** Templates that add a Metric up over the year: only a Metric whose Aggregation is sum can be drawn by them. */
   needsSum?: boolean;
-  /** The metrics it asks for when it is added (GLOSSARY: Slot); none for a free layout, which starts empty. */
+  /** The metrics it asks for when it is added (GLOSSARY: Slot); none for a free layout or a note, which start empty. */
   slots: Slot[];
   size: { w: number; h: number };
   settings: WidgetSettings;
@@ -56,6 +56,8 @@ export const TEMPLATES: Record<TemplateId, TemplateDef> = {
   // A View Design of the Workspace: its name, Slots and settings come from the design the widget carries (designTemplate).
   design: { id: "design", label: "View Design", blurb: "A View your Workspace added as a View Design.", kind: "metric", slots: one, size: { w: 6, h: 6 }, settings: {} },
   canvas: { id: "canvas", label: "Free layout", blurb: "Place widgets, text, arrows and shapes freely, like on a slide.", kind: "layout", slots: [], size: { w: 8, h: 10 }, settings: {} },
+  // A Note Widget: the person's own words (note-widget.ts). It reads no Metric, so it has no Slot.
+  note: { id: "note", label: "Note widget", blurb: "Your own words, to explain your numbers.", kind: "note", slots: [], size: { w: 4, h: 5 }, settings: {} },
   // A Slide Element (spec 0057): what it draws is in its settings. For slides only, and never offered as a Widget.
   slide: { id: "slide", label: "Slide Element", blurb: "A part of a slide drawn in the deck's Theme.", kind: "slide", slots: [], size: { w: 6, h: 6 }, settings: {} },
   "story-line": { id: "story-line", label: "Finding: annotated line", blurb: "The trend with callouts at moments that matter.", kind: "story", slots: one, size: { w: 8, h: 9 }, settings: { window: 12, callouts: [] } },
@@ -71,9 +73,10 @@ export const STORY_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.kind ===
 /** Templates one metric can be shown in: story templates that need a breakdown only when it has one. */
 export const templatesFor = (hasBreakdown: boolean) => [...METRIC_TEMPLATES, ...STORY_TEMPLATES, TEMPLATES.canvas].filter((t) => !t.needsBreakdown || hasBreakdown);
 
-/** The built-in templates offered to choose from: every one but the stand-in for a Workspace's View Design, which is
- * offered by its own name (GLOSSARY: View Design). */
-export const OFFERED_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.id !== "design" && t.kind !== "slide");
+/** The built-in templates offered to choose from to draw Metrics: every one but the stand-in for a Workspace's View
+ * Design, which is offered by its own name (GLOSSARY: View Design), and the Note Widget, which draws none and is
+ * offered by itself. */
+export const OFFERED_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.id !== "design" && t.kind !== "slide" && t.kind !== "note");
 
 /** Whether a view of this name exists. Only the list's own entries count: the name may come from a browser, and
  * "constructor" is `in` every object. */

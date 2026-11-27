@@ -22,12 +22,14 @@ import { Publisher } from "./pack-logo";
 import { PackPeopleList } from "./pack-people";
 import { ExportPack } from "./export";
 import { AddLine, SetUpFromPack } from "./setup";
+import { AfterSetUp } from "./after-set-up";
+import type { PackCard } from "@ziffr/core/pack-after-card";
 import { FillMadeUp } from "./fill-made-up";
 import { KIND_LABEL, ListingLink, ORDER, ReportLink, useOpenPackPreview } from "./preview-view";
 import type { Problem } from "@ziffr/core/json-check";
 import type { IncludedPackListing } from "@ziffr/core/included-packs";
 
-export function PacksScreen({ installed, manages, exportable = null, authorName = "", offers = [], included = [], marketplace = false, updates = [], reports = [], withdrawn = [], demo, guest, viewer, numberStyle, practice = false }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; authorName?: string; offers?: OfferedItem[]; included?: IncludedPackListing[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; reports?: { installId: number; address: string }[]; withdrawn?: { installId: number; reason: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle; /** The viewer's own Practice Workspace (spec 0063). */ practice?: boolean }) {
+export function PacksScreen({ installed, manages, exportable = null, authorName = "", offers = [], included = [], marketplace = false, updates = [], reports = [], withdrawn = [], demo, guest, viewer, numberStyle, practice = false, after = [] }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; authorName?: string; offers?: OfferedItem[]; included?: IncludedPackListing[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; reports?: { installId: number; address: string }[]; withdrawn?: { installId: number; reason: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle; /** The viewer's own Practice Workspace (spec 0063). */ practice?: boolean; /** The ways after a Pack's set-up (spec 0068), for Owners and Admins. */ after?: PackCard[] }) {
   return (
     <div className="space-y-8">
       {manages && <Offers offers={offers} />}
@@ -71,6 +73,7 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
                         {p.addable.map((r) => <div key={r.repeat} className="max-w-full has-[>div]:w-full"><AddLine installId={p.id} repeat={r.repeat} name={r.name} viewer={viewer} practice={practice} /></div>)}
                       </div>
                     )}
+                    {after.filter((c) => c.installId === p.id).map((c) => <AfterSetUp key={c.installId} card={c} name={p.name} />)}
                     {practice && <FillMadeUp installId={p.id} />}
                     {reports.filter((r) => r.installId === p.id).map((r) => <p key={r.installId} className="mt-2"><ReportLink href={r.address} name={p.name} /></p>)}
                   </li>

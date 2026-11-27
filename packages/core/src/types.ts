@@ -212,7 +212,7 @@ export type Dashboard = {
 };
 
 /** The built-in Widget Templates. */
-export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "stacked" | "pareto" | "slope" | "running-total" | "bump" | "heatmap" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design" | "slide";
+export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "stacked" | "pareto" | "slope" | "running-total" | "bump" | "heatmap" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "note" | "design" | "slide";
 
 /** A callout sits at one period, or (in templates) at whatever period a rule picks. */
 export type Callout = { period: string; text: string; rule?: AnchorRule };
@@ -281,6 +281,10 @@ export type WidgetSettings = {
   /** Comparison strip (GLOSSARY: Comparison); undefined means the default. */
   compare?: import("./compare").CompareKey[];
   fullPeriods?: boolean;
+  /** What a Note Widget says (GLOSSARY: Note Widget): plain text, drawn as text only. Its heading is the widget's title. */
+  note?: string;
+  /** Whether a Note Widget is drawn highlighted, as a callout. */
+  noteHighlight?: boolean;
   /** Free layout: a tldraw document with its artboard, and the latest period per metric when it was drawn. */
   canvas?: { document: unknown; stamp: Record<string, string> } | null;
   /** Draws only the Metric periods complete by this day (yyyy-mm-dd): a deck made from a Snapshot (spec 0013). */

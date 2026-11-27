@@ -508,7 +508,7 @@ const ENDPOINTS: Endpoint[] = [
   {
     method: "get", path: "/dashboards/{id}", scope: "dashboards:read", ok: { status: 200, name: "Dashboard", schema: S.ApiDashboard },
     summary: "Describe a dashboard",
-    description: "One dashboard with its introduction and its widgets (Findings with their words) in reading order. Metrics are named by slug; values are read per Metric.",
+    description: "One dashboard with its introduction and its widgets (Findings with their words, note widgets with their text) in reading order. Metrics are named by slug; values are read per Metric.",
   },
   {
     method: "patch", path: "/dashboards/{id}", scope: "dashboards:write", body: S.UpdateDashboard, ok: { status: 200, name: "Dashboard", schema: S.ApiDashboard },

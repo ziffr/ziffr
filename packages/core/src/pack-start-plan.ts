@@ -305,9 +305,33 @@ function plannedTargets(p: Planning, answers: NonNullable<StartChoices["numbers"
   }
 }
 
+/** The people who answered "Who provides these numbers?", each once. */
+function plannedProviders(p: Planning, choices: StartPerson[]) {
+  for (const choice of choices) {
+    const person = personOf(p, choice);
+    if (!person || p.plan.providers.includes(person.ref)) continue;
+    p.plan.providers.push(person.ref);
+    provider(p, person);
+  }
+  if (p.plan.providers.filter((x) => x !== ME).length > START_PROVIDERS_MAX) p.plan.problems.push(`Pick at most ${START_PROVIDERS_MAX} other people; add more on each Metric's page.`);
+}
+
+const emptyPlan = (): StartPlan => ({ problems: [], people: [], contacts: [], fills: [], lines: [], held: [], providers: [], metrics: [], dashboards: [], workflows: [], decks: [], leftOut: [], asked: [], invite: [], shares: [], targets: [], notes: [] });
+
+/** Who the people named as providers after a set-up are, checked as a set-up checks them: whom to add as a Contact and
+ * what is wrong. */
+export function planProviders(room: StartRoom, ctx: StartContext, choices: StartPerson[]): Pick<StartPlan, "problems" | "people" | "contacts" | "providers" | "invite"> {
+  const plan = emptyPlan();
+  const p: Planning = { d: { name: "", metrics: [] }, room, ctx, people: new Map(), plan };
+  personOf(p, { who: "me" });
+  plannedProviders(p, choices);
+  if (!plan.providers.length && !plan.problems.length) plan.problems.push("Say who provides these numbers.");
+  return { problems: [...new Set(plan.problems)], people: [...p.people.values()], contacts: plan.contacts, providers: plan.providers, invite: plan.invite };
+}
+
 /** What the answers would make of this Pack here. */
 export function planStart(d: StartDeclarations, room: StartRoom, choices: StartChoices, ctx: StartContext): StartPlan {
-  const plan: StartPlan = { problems: [], people: [], contacts: [], fills: [], lines: [], held: [], providers: [], metrics: [], dashboards: [], workflows: [], decks: [], leftOut: [], asked: [], invite: [], shares: [], targets: [], notes: [] };
+  const plan = emptyPlan();
   const p: Planning = { d, room, ctx, people: new Map(), plan };
   const steps = startSteps(d, room);
   const selection = startSelection(d);
@@ -324,13 +348,7 @@ export function planStart(d: StartDeclarations, room: StartRoom, choices: StartC
     }
     if (s.step === "providers") {
       if (!choices.providers) plan.problems.push("Say who provides these numbers.");
-      for (const choice of choices.providers ?? []) {
-        const person = personOf(p, choice);
-        if (!person || plan.providers.includes(person.ref)) continue;
-        plan.providers.push(person.ref);
-        provider(p, person);
-      }
-      if (plan.providers.filter((x) => x !== ME).length > START_PROVIDERS_MAX) plan.problems.push(`Pick at most ${START_PROVIDERS_MAX} other people; add more on each Metric's page.`);
+      plannedProviders(p, choices.providers ?? []);
     }
   }
   if ((choices.lines ?? []).some((l) => !steps.some((s) => s.step === "lines" && s.repeat === l.repeat))) plan.problems.push("Add lines to the Repeats of this Pack.");

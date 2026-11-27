@@ -23,6 +23,10 @@ function localStatus(): { API_URL?: string; SERVICE_ROLE_KEY?: string } {
   throw new Error("Local Supabase does not answer: start it with `supabase start`.");
 }
 
+// Free Layouts are made and changed only where the slide editor has a license key: tests that use them run with one
+// of the right shape (made here, so none stands in the repository). The tests of an Installation without one take it away.
+process.env.ZIFFR_TLDRAW_LICENSE_KEY ??= ["tldraw-tests/", "bWFkZQ", ".", "dXA"].join("");
+
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   const status = localStatus();
   process.env.SUPABASE_URL ??= status.API_URL;

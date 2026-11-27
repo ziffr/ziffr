@@ -22,6 +22,8 @@ import { largeHref } from "@/lib/open-large";
 import { SeriesProvider, useCanvasSeries } from "@/canvas/series-store";
 import { placeWidget, saveDashboardText, saveLayout, type DropSource } from "@/app/canvas-actions";
 import { getDrag } from "@/lib/drag";
+import { noteRows } from "@ziffr/core/note-widget";
+import { noteTextOf } from "@/views/note-view";
 import { TEMPLATES, DEFAULT_TEMPLATE, templateOf } from "@/views/templates";
 import type { CanvasData, Share, Widget } from "@ziffr/core/types";
 import type { DashboardAccess } from "@/lib/access";
@@ -139,10 +141,17 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   // narrow one keeps its columns and is drawn smaller.
   const { gridWidth, scale } = fitGrid(width, add.beside);
   const narrow = mounted && gridWidth < ONE_COLUMN_BELOW;
+  // A note is as high as its words need there, with room to write where it can be written; every other widget keeps its own.
+  const rowsOf = (it: Layout[number]) => {
+    const w = widgets.find((x) => String(x.id) === it.i);
+    if (w?.template !== "note") return Math.max(it.h, 5);
+    const text = noteTextOf(w.settings);
+    return noteRows(w.title, text, changing || (mayChange && !text));
+  };
   const stacked: Layout = [...layout]
     .sort((a, b) => a.y - b.y || a.x - b.x)
     .reduce<{ items: Layout; y: number }>((acc, it) => {
-      const h = Math.max(it.h, 5);
+      const h = rowsOf(it);
       acc.items = [...acc.items, { ...it, x: 0, y: acc.y, w: 1, h }];
       acc.y += h;
       return acc;
@@ -279,7 +288,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                       ) : (
                         // Outside Edit mode a tap on the card opens it large, as Present does one at a time (#826).
                         <OpenLarge className="h-full" title={frameTitle(w, widgetMetrics(w, data), data)} onOpen={() => router.push(largeHref(current.id, w.id!))}>
-                          <WidgetFrame widget={w} data={data} targets={targets.filter((d) => d.id !== current.id)} editable={false} saved={saved} />
+                          <WidgetFrame widget={w} data={data} targets={targets.filter((d) => d.id !== current.id)} editable={false} saved={saved} mayWrite={mayChange} />
                         </OpenLarge>
                       )}
                     </div>

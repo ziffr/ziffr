@@ -145,6 +145,7 @@ export type SampleWidget = { template: TemplateId; metric_ids: number[]; setting
 // sample of what a team would write, so the Preview shows what the template is for.
 function sampleSettings(id: TemplateId, fills: number[][], period: Period): WidgetSettings {
   const periods = samplePeriods(period);
+  if (id === "note") return { note: "Why this period looks the way it does:\n- the new price from the 3rd\n- two more regions", noteHighlight: true };
   if (id === "story") {
     return {
       kicker: "{metric}, {period}",

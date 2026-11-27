@@ -11,8 +11,10 @@ import { formatDate } from "@ziffr/core/format";
 import type { PackStartResult } from "@ziffr/core/pack-start";
 import type { StartDeclarations } from "@ziffr/core/pack-start-steps";
 import { cn } from "@/lib/utils";
+import { InvitePanel, type InviteActions } from "./invite";
 import { Lines, NOTE } from "./parts";
 import { namesWords } from "./providers";
+import { afterHref } from "./switch";
 
 type Props = {
   result: PackStartResult;
@@ -21,6 +23,8 @@ type Props = {
   feeds: { id: string; name: string }[];
   /** Someone who is not in Ziffr yet was added. */
   addedPeople: boolean;
+  /** The first number and the invitations; without them (as in "Try it") the screen only says what waits. */
+  invites?: InviteActions;
 };
 
 const count = (n: number) => `${n} ${n === 1 ? "number" : "numbers"}`;
@@ -35,7 +39,7 @@ const askedLines = (result: Pick<PackStartResult, "asked">) => result.asked.map(
 });
 
 /** What was made, who is asked, what is missing. */
-export function DoneScreen({ result, declarations, feeds, addedPeople }: Props) {
+export function DoneScreen({ result, declarations, feeds, addedPeople, invites }: Props) {
   const system = new Set(declarations.metrics.filter((m) => m.comesFrom === "system").map((m) => m.key));
   const fromSystem = result.metrics.filter((m) => system.has(m.key));
   // Those of them somebody provides: choosing a person opens the ways a person answers.
@@ -43,15 +47,21 @@ export function DoneScreen({ result, declarations, feeds, addedPeople }: Props) 
   const waits = result.asked.some((a) => !a.from);
   const [board, ...boards] = result.dashboards;
   const [deck, ...decks] = result.decks;
+  // Where invitations wait, the first number comes first, and the ways to what was made step back.
+  const first = result.needsFirstValue && invites !== undefined;
+  const panel = invites && (first || result.invite.length > 0) && <InvitePanel actions={invites} providersHref={afterHref(result.pack.installId, "providers")} />;
+  const main = first ? ALSO : OPEN;
   return (
     <>
       <ScreenHeading title={`${result.pack.name} is set up`}>{result.asked.length ? "Nothing was sent just now." : "Nothing asks anyone yet."}</ScreenHeading>
       <div className="space-y-5">
+        {first && panel}
         <div className={PHONE_ACTIONS}>
-          {board && <FullLoadLink href={`/dashboards/${board.id}`} className={OPEN}>Open the dashboard</FullLoadLink>}
-          {deck && <FullLoadLink href={`/decks/${deck.id}/present`} className={board ? ALSO : OPEN}>Open the slides</FullLoadLink>}
-          {!board && !deck && <FullLoadLink href="/metrics" className={OPEN}>Open your Metrics</FullLoadLink>}
+          {board && <FullLoadLink href={`/dashboards/${board.id}`} className={main}>Open the dashboard</FullLoadLink>}
+          {deck && <FullLoadLink href={`/decks/${deck.id}/present`} className={board ? ALSO : main}>Open the slides</FullLoadLink>}
+          {!board && !deck && <FullLoadLink href="/metrics" className={main}>Open your Metrics</FullLoadLink>}
         </div>
+        {!first && panel}
         <Lines title="Who is asked" items={askedLines(result)} />
         {waits && <p className={NOTE}>Where nothing asks by itself, ask from the Metric&rsquo;s page, or give it a Workflow.</p>}
         {alsoTyped.length > 0 && <p className={NOTE}>{namesWords(alsoTyped.map((m) => m.name))} can come from a system. Because you chose someone to provide {alsoTyped.length === 1 ? "it" : "them"}, the web form, email, Slack and Telegram are open for {alsoTyped.length === 1 ? "it" : "them"} too.</p>}
@@ -64,14 +74,17 @@ export function DoneScreen({ result, declarations, feeds, addedPeople }: Props) 
                 <li key={m.id} className="py-1 break-words"><FullLoadLink href={`/metrics/${m.slug}`} className="inline-flex min-h-11 items-center underline underline-offset-4 sm:min-h-8">{m.name}</FullLoadLink></li>
               ))}
             </ul>
-            <p className="text-sm text-muted-foreground">Open one to choose who provides it.</p>
+            {invites
+              ? <FullLoadLink href={afterHref(result.pack.installId, "providers")} className={ALSO}>Choose who provides them</FullLoadLink>
+              : <p className="text-sm text-muted-foreground">Open one to choose who provides it.</p>}
           </section>
         )}
         <Lines title="Good to know" items={[
           ...result.held.map((h) => (h.approves ? `You approve until ${h.for.name} has joined.` : `You are ${h.name} until ${h.for.name} has joined.`)),
+          ...(invites && result.held.some((h) => h.approves) ? ["After they joined, use “Change who approves” on the Packs page."] : []),
           ...(result.targets ? [`Targets are set for ${count(result.targets)}.`] : []),
           ...(addedPeople && result.dashboards.length ? ["Share the dashboard with new people once they have joined."] : []),
-          ...(result.needsFirstValue && result.invite.length ? ["Your colleagues can be invited once you have sent one value yourself."] : []),
+          ...(!invites && result.needsFirstValue && result.invite.length ? ["Your colleagues can be invited once you have sent one value yourself."] : []),
         ].filter((v, i, all) => all.indexOf(v) === i)} />
         <Lines title="Left out" items={result.leftOut.map((l) => `Not made: ${l.name}. ${l.why}`)} />
         {result.source === "system" && fromSystem.length > 0 && (

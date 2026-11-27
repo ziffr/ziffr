@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { filledLines, personName, startAnswers, stepAnswer, stepKey, stepTitle, tickedShares, toChoices, type Answers, type LinesStep } from "./answers";
 import { CheckScreen } from "./check";
 import { DoneScreen } from "./done";
+import type { InviteActions } from "./invite";
 import { dropDraft, keepDraft, loadDraft } from "./draft";
 import { LinesScreen } from "./lines";
 import { NumbersScreen, type Unit } from "./numbers";
@@ -51,6 +52,8 @@ export type PackFlowActions = {
   check: (choices: StartChoices) => Promise<StartPlan | ActionError>;
   /** One step of the set-up. A try never takes one. */
   takeStep: (choices: StartChoices, run: SetupRun | null) => Promise<PackStartStep | ActionError>;
+  /** The first number and the invitations of what was just set up; "Try it" has none. */
+  invites?: (installId: number) => InviteActions;
 };
 
 /** What a try of the screens shows in place of setting up (spec 0068, "Try it"). */
@@ -151,6 +154,9 @@ function Flow({ data, actions, keep, tryOut }: Props) {
   // Whether "Set it up" added someone who is not in Ziffr yet: nothing can be shared with them for now.
   const [addedPeople, setAddedPeople] = useState(false);
   const { confirm, dialog } = useConfirm();
+  // One object for the finished set-up, so the panel that reads with it does not start again on every draw.
+  const installed = result?.pack.installId;
+  const invites = useMemo(() => (installed === undefined ? undefined : actions.invites?.(installed)), [actions, installed]);
 
   const choices = toChoices(answers, steps, numberStyle);
   const { plan, failed } = usePlan(step.step === "check" && !sent && !result ? choices : null, actions.check);
@@ -201,7 +207,7 @@ function Flow({ data, actions, keep, tryOut }: Props) {
   const everyone = { room, me, people };
   function screen() {
     if (tried) return tryOut.end(tried);
-    if (result) return <DoneScreen result={result} declarations={declarations} feeds={data.feeds} addedPeople={addedPeople} />;
+    if (result) return <DoneScreen result={result} declarations={declarations} feeds={data.feeds} addedPeople={addedPeople} invites={invites} />;
     if (sent) return <SettingUp takeStep={takeStep} onDone={done} onChange={() => setSent(null)} />;
     switch (step.step) {
       case "preview":

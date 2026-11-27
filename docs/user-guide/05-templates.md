@@ -37,7 +37,9 @@ A **Widget Template** is a starting point for one Widget: a way of drawing a num
 | | 7 in 10 | The largest share as ten figures |
 | | Annotated line | The trend with callouts at moments that matter |
 | | Composed | A frame around one or more panels: period bars, bridges, small multiples |
-| Layout | Free layout | Widgets, text, arrows and shapes placed freely, like on a slide |
+| Layout | Free layout | Widgets, text, arrows and shapes placed freely, like on a slide. Only where Ziffr has a license key for the slide editor |
+
+A dashboard also offers the [Note widget](12-dashboards.md#note-widget), your own words beside the numbers. It is no template: templates keep no notes.
 
 Anyone can save a Widget they made, with its words and annotations, as a team Widget Template. Only the person who saved it can change it; everyone else can use it.
 

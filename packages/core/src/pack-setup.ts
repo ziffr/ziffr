@@ -151,6 +151,7 @@ function targetsToSet(entries: Iterable<EntryRow>, made: PackSetupResult["metric
 async function makeWorkflows(actor: Actor, b: Blueprint, record: SetupRecord, done: Progress) {
   for (const w of b.workflows) {
     if (done.workflows.has(w)) continue;
+    await record.beat?.();
     const id = await saveWorkflow(actor, null, w.name, w.config, { message: `Made from the Workflow Template “${w.templateName}”` });
     done.workflows.set(w, id);
     await record.made({ kind: "workflow", key: w.key, line: w.line, id });
@@ -160,6 +161,7 @@ async function makeWorkflows(actor: Actor, b: Blueprint, record: SetupRecord, do
 /** Makes some of the Metrics, in the order given: a Derived Metric after its inputs. */
 async function makeMetrics(actor: Actor, b: Blueprint, todo: PlannedMetric[], record: SetupRecord, done: Progress) {
   for (const planned of todo) {
+    await record.beat?.();
     const e = planned.entry;
     // A Total counts the Metrics of the lines, all made before it.
     const m = entryTotal(e) ? await makeTotal(actor, planned, planned.parts!.map((x) => done.metrics.get(x)!.id)) : await createMetric(actor, {
@@ -185,7 +187,7 @@ async function makeMetrics(actor: Actor, b: Blueprint, todo: PlannedMetric[], re
 /** Puts the people and the Feed on the Metrics just made: Submitters, who are asked at once only when sending the
  * first requests was chosen (the actor no differently from anyone else), for the period that ended last, then their
  * Stand-ins. */
-async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | null, askNow: boolean, done: Progress) {
+async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | null, askNow: boolean, record: SetupRecord, done: Progress) {
   // A whole set up is one run: whoever sends several of its numbers can be asked in one message (GLOSSARY: Combined Prompt).
   const run = askNow ? startAsking(actor.workspaceId, new Date().toISOString().slice(0, 10)) : null;
   const effects: MetricEffects = {
@@ -199,7 +201,10 @@ async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | nul
   };
   const taking = todo.filter((m) => !isComputed(m.entry)).map((m) => ({ ...m, id: done.metrics.get(m.plan)!.id }));
   try {
-    for (const m of taking) for (let i = 0; i < m.submitters.length; i += SUBMITTERS_PER_CHANGE) await addSubmitters(actor, m.id, m.submitters.slice(i, i + SUBMITTERS_PER_CHANGE), effects);
+    for (const m of taking) {
+      await record.beat?.();
+      for (let i = 0; i < m.submitters.length; i += SUBMITTERS_PER_CHANGE) await addSubmitters(actor, m.id, m.submitters.slice(i, i + SUBMITTERS_PER_CHANGE), effects);
+    }
   } finally {
     await run?.flush();
   }
@@ -212,6 +217,7 @@ async function addPeople(actor: Actor, todo: PlannedMetric[], feed: string | nul
 async function makeDashboards(actor: Actor, b: Blueprint, ticked: ProposedShare[], record: SetupRecord, done: Progress) {
   for (const d of b.dashboards) {
     if (done.dashboards.has(d.plan)) continue;
+    await record.beat?.();
     const id = await createDashboardFromTemplate(actor, { template: d.template.id, name: d.name, fills: d.fills.map((f) => f.map((x) => (x < 0 ? done.metrics.get(x)!.id : x))) });
     done.dashboards.set(d.plan, { id, name: d.name });
     await record.made({ kind: "dashboard", key: d.key, line: d.line, id });
@@ -328,7 +334,7 @@ export async function setUpStep(actor: Actor, installId: number, input: PackSetu
     await makeMetrics(actor, b, todo, record!, done);
     const staffing = [...unstaffed, ...todo];
     // A guided set-up sends nothing, whatever the input says.
-    await addPeople(actor, staffing, b.feed, !guided && input?.askNow === true, done);
+    await addPeople(actor, staffing, b.feed, !guided && input?.askNow === true, record!, done);
     await guided?.record.staffed(staffing.map((m) => done.metrics.get(m.plan)!.id));
     if (done.metrics.size < b.metrics.length) {
       await record!.keep(done.messages);
