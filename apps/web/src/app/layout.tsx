@@ -39,6 +39,7 @@ import { DEMO_RESET_ANNOUNCEMENT, announcementScope, announcementsFor, fromInsta
 import { shellOrder } from "@/lib/announcement-state";
 import { activeInstallationAnnouncements } from "@ziffr/core/installation-announcements";
 import { FIRST_STEPS_ON } from "@ziffr/core/first-steps-screens";
+import { PACK_SET_UP_ON } from "@/app/use-pack/switch";
 import { activeWorkspaceAnnouncements } from "@ziffr/core/workspace-announcements";
 import { DemoVisitPrefs } from "@/components/demo-visit-prefs";
 import { switchableDashboards } from "@ziffr/core/home";
@@ -108,8 +109,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const user = demo ? null : await sessionUser();
   const person = user ? await personFor(user) : null;
   const workspaces = person ? await myWorkspaces(person) : [];
-  // First Steps (spec 0067) draws its own frame, before a Workspace exists and after.
-  if (FIRST_STEPS_ON && !demo && (await headers()).get("x-ziffr-first-steps") === "1") {
+  // First Steps (spec 0067) draws its own frame, before a Workspace exists and after, and so does "Use this pack"
+  // (spec 0068) for someone who has a Workspace.
+  const asks = await headers();
+  if (!demo && ((FIRST_STEPS_ON && asks.get("x-ziffr-first-steps") === "1") || (PACK_SET_UP_ON && workspaces.length > 0 && asks.get("x-ziffr-use-pack") === "1"))) {
     const lines = user ? fromInstallation(await activeInstallationAnnouncements({ demo: false })) : [];
     return (
       <Plain bare appearance={await appearanceForPerson(person)} actions={null}

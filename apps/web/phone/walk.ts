@@ -54,6 +54,7 @@ export const WALK: Record<string, Walk> = {
   "/setup": { skip: SIGNED_IN },
   "/try": { skip: SIGNED_IN },
   "/try/start": { skip: SIGNED_IN },
+  "/use-pack/[ref]": { skip: "switched off until every entry point switches over (spec 0068)" },
   "/demo/confirm": { open: "/demo/confirm", sees: "Open the demo?" },
   "/oauth/authorize": { skip: "Needs an assistant's own request and a signed-in account." },
 };

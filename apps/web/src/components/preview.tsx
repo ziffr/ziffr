@@ -79,16 +79,19 @@ export function TemplatePreview({ template, viewer, numberStyle, width, classNam
   return <Preview widget={widget} data={data} size={size} width={width} sample className={className} reflow={reflow} />;
 }
 
+/** The Sample Data a Preview draws from, with a Pack's own Metrics, series and targets under its names when it is one
+ * of a Pack's. */
+export function withPackSample(sample: CanvasData, pack?: ReturnType<typeof packSample>): CanvasData {
+  return pack ? { ...sample, metrics: [...pack.data.metrics, ...sample.metrics], series: { ...sample.series, ...pack.data.series }, targets: { ...sample.targets, ...pack.data.targets } } : sample;
+}
+
 /** A Dashboard Template's Preview (spec 0014, #191): its widgets where they sit on the 12-column grid, drawn with
  * Sample Data and scaled to `width`. A Pack's template is drawn with `pack`, Sample Data under the Pack's own Metric
  * names. Like a template's Preview, it shows none of the workspace's numbers. */
 export function DashboardTemplatePreview({ template, viewer, numberStyle, width = 520, className, pack, stacked }: { template: { slots: DashboardTemplate["slots"]; body: DashboardTemplate["body"] }; viewer: string; numberStyle: NumberStyle; width?: number; className?: string; pack?: ReturnType<typeof packSample>;
   /** On a narrow screen: only this many of its first widgets, one below the other, with their words at the usual size. */
   stacked?: number }) {
-  const data = useMemo(() => {
-    const sample = sampleCanvasData(viewer, numberStyle);
-    return pack ? { ...sample, metrics: [...pack.data.metrics, ...sample.metrics], series: { ...sample.series, ...pack.data.series }, targets: { ...sample.targets, ...pack.data.targets } } : sample;
-  }, [viewer, numberStyle, pack]);
+  const data = useMemo(() => withPackSample(sampleCanvasData(viewer, numberStyle), pack), [viewer, numberStyle, pack]);
   const widgets = useMemo(() => sampleDashboard(template, "month", pack?.fills(template.slots)), [template, pack]);
   const natural = { width: cellsToPixels({ w: 12, h: 1 }).width, height: Math.max(1, ...widgets.map((w) => w.y + w.h)) * (ROW + GAP) - GAP };
   const scale = Math.min(1, width / natural.width);
