@@ -8,6 +8,8 @@ import { POLARITY_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import { periodLabel, type YearStart } from "@ziffr/core/periods";
 import { noValuesWords } from "@ziffr/core/total-rules";
+import { targetInEffect } from "@ziffr/core/target-in-effect";
+import { getNumberStyle, getToday } from "@/lib/data";
 import { totalPage, totalsCounting } from "@ziffr/core/total-page";
 import type { Actor } from "@ziffr/core/actor";
 import type { Metric, Point } from "@ziffr/core/types";
@@ -20,15 +22,18 @@ import { cn } from "@/lib/utils";
 
 /** What the page needs to know of a Metric's kind: the Total (null for any other Metric) and the Totals archiving it
  * would ask about, whether it is worked out by a formula someone wrote (then written with the names of the Metrics in
- * `seen`), the periods not approved yet, and its targets: its own, or for a Total that takes them its Metrics' added up
+ * `seen`), the periods not approved yet, the target in effect for the `latest` value's period, and its targets: its own, or for a Total that takes them its Metrics' added up
  * for this person, never a series stored under its own name. */
-export async function aboutKind(actor: Actor, metric: Metric, page: { archivable: boolean; yearStart: YearStart; seen: Metric[]; pending: string[]; own: Record<number, Point[]>; aimed: Record<number, Point[]> }) {
+export async function aboutKind(actor: Actor, metric: Metric, page: { archivable: boolean; yearStart: YearStart; seen: Metric[]; pending: string[]; latest?: string; own: Record<number, Point[]>; aimed: Record<number, Point[]> }) {
   const [total, counting] = await Promise.all([metric.total ? totalPage(actor, metric.id) : null, page.archivable ? totalsCounting(actor, metric.id) : []]);
   const asked: CountingTotal[] = counting.map((t) => ({ id: t.id, name: t.name, open: t.open, last: t.last, periods: periodChoices(metric.period, page.yearStart, t.last) }));
   const derived = Boolean(metric.formula) && !metric.total;
   const addedUp = metric.total?.targets === "parts";
+  const targets = (addedUp ? page.aimed : page.own)[metric.id] ?? [];
+  const [today, style] = await Promise.all([getToday(), getNumberStyle()]);
   return {
     total,
+    now: targetInEffect(metric, { latest: page.latest, today, yearStart: page.yearStart }, targets, style),
     asked,
     derived,
     // A Total has no formula anyone wrote: what it adds up is listed on its own (TotalPanel).
@@ -38,7 +43,7 @@ export async function aboutKind(actor: Actor, metric: Metric, page: { archivable
     breakdown: !metric.total,
     unapproved: total?.unapproved ?? page.pending,
     addedUp,
-    targets: (addedUp ? page.aimed : page.own)[metric.id] ?? [],
+    targets,
     /** Whether targets of its own are set for it. */
     ownTargets: !derived && !addedUp,
     /** Said before it is shared. */
@@ -46,13 +51,16 @@ export async function aboutKind(actor: Actor, metric: Metric, page: { archivable
   };
 }
 
+/** Whether the Metric has a Target Range, with one bound or two. */
+const hasRange = (m: Metric) => m.target_min !== null || m.target_max !== null;
+
 /** How the targets of a Metric work, above their editor. Nothing for a Total that takes its Metrics' targets, which has
  * no range of its own. */
 export function TargetsExplained({ metric, style }: { metric: Metric; style: NumberStyle }) {
   if (metric.total?.targets === "parts") return null;
   return (
     <p className="mt-1 mb-4 text-sm text-muted-foreground">
-      The target range ({targetText(metric, style).toLowerCase()}, {POLARITY_LABEL[metric.polarity].toLowerCase()}) applies to every period. A period with its own target here, such as a monthly budget, uses that one instead. Projections are values expected for future periods; they never count as real values.
+      {hasRange(metric) ? `The target range (${targetText(metric, style).toLowerCase()}, ${POLARITY_LABEL[metric.polarity].toLowerCase()}) applies to every period.` : `There is no target range (${POLARITY_LABEL[metric.polarity].toLowerCase()}).`} A period with its own target here, such as a monthly budget, uses that one instead. Projections are values expected for future periods; they never count as real values.
     </p>
   );
 }
@@ -66,8 +74,9 @@ export function NoOwnTargets({ addedUp }: { addedUp: boolean }) {
 export function targetNote(metric: Metric, period: string | undefined, series: boolean, yearStart: YearStart, style: NumberStyle): string | undefined {
   const label = period ? periodLabel(period, metric.period, yearStart) : null;
   if (metric.total?.targets === "parts") return label ? `Its Metrics’ targets for ${label}, added up.` : "Added up where each of its Metrics has one.";
-  if (label) return `From the target series for ${label}. Other periods without one use ${targetText(metric, style).toLowerCase()}.`;
-  return series ? "The target range; periods in the target series use their own target." : undefined;
+  if (label) return `From the target series for ${label}.${hasRange(metric) ? ` Other periods without one use ${targetText(metric, style).toLowerCase()}.` : ""}`;
+  if (!series) return undefined;
+  return hasRange(metric) ? "The target range; periods in the target series use their own target." : "This period has none. See the Targets tab.";
 }
 
 /** What stands in place of the chart while there is no value to draw. `problem` is why a formula's inputs cannot be
