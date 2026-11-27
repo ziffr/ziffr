@@ -1,11 +1,12 @@
 "use client";
 // Changing a Metric's description (GLOSSARY: Metric, Target Range, Polarity, Submission Rule, Aggregation): for its
-// owner, in a dialog on the Settings tab. The core checks the owner and every field, refuses a new period once the
+// owner, in a dialog on the Description tab, opened there or by Edit in the page header (`?panel=edit`). The core checks the owner and every field, refuses a new period once the
 // Metric has values, and keeps each change as a Version. The target range is read in the Workspace's Number Style by
 // the core's one reader, and a number it cannot read is refused rather than dropped.
 import { isActionError, UNEXPECTED } from "@/lib/action-error";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { usePanel } from "@/lib/panel-param";
 import { toast } from "sonner";
 import { PencilLine } from "lucide-react";
 import { updateMetricDetails } from "@/app/series-actions";
@@ -25,6 +26,7 @@ import type { AttainmentMethod } from "@ziffr/core/attainment-method";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
 import { NUMBER_STYLE_MARKS, type NumberStyle } from "@ziffr/core/number-style";
 import { readNumber } from "@ziffr/core/numbers";
+import { EDIT_PANEL } from "./edit-panel";
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 type M = Pick<Metric, "id" | "name" | "description" | "calculation_note" | "unit" | "unit_position" | "format" | "decimals" | "period" | "submission_rule" | "polarity" | "aggregation" | "target_min" | "target_max" | "formula" | "total" | "attainment_method" | "ask_note">;
@@ -32,7 +34,8 @@ type M = Pick<Metric, "id" | "name" | "description" | "calculation_note" | "unit
 /** "Edit details…" with the Metric's description as a form. `fixed` keeps the period as it is, and says why: the
  * Metric has values, or targets or projections by period. */
 export function EditDetails({ metric, fixed, money, numberStyle, attainmentMethod }: { metric: M; fixed: "values" | "series" | null; money: { unit: string; unit_position: UnitPosition }; numberStyle: NumberStyle; attainmentMethod: AttainmentMethod }) {
-  const [open, setOpen] = useState(false);
+  // In the address, so Edit in the page header opens the form on this tab; the dialog then takes the focus.
+  const [open, setOpen] = usePanel(EDIT_PANEL);
   const [pending, start] = useTransition();
   const router = useRouter();
   // Empty is no target; anything else must read as a number, or nothing is saved.
