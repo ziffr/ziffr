@@ -93,7 +93,7 @@ describe("Browse templates in the side panel", () => {
   const data = sampleCanvasData("sara", "1,234.5");
   function Pool({ onAdd }: { onAdd: (s: unknown) => void }) {
     const p = useSlideOver();
-    return <button onClick={() => p.open({ ...BROWSE_TEMPLATES, content: <TemplateBrowser data={data} layouts={false} onUse={(s) => { p.close(); onAdd(s); }} /> })}>Browse…</button>;
+    return <button onClick={() => p.open({ ...BROWSE_TEMPLATES, content: <TemplateBrowser data={data} onUse={(s) => { p.close(); onAdd(s); }} /> })}>Browse…</button>;
   }
 
   it("opens with the filter and a card per template, and Use closes it and hands the template on", async () => {

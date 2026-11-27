@@ -40,14 +40,16 @@ type Props = {
   /** Lay the widget out at the width given, with its words at their usual size, instead of scaling it down: how a
    * phone's dashboard shows it. */
   reflow?: boolean;
+  /** The most height it takes: a taller widget is drawn smaller, so cards in a grid keep one height. Not when reflowed. */
+  maxHeight?: number;
 };
 
 /** A widget drawn small and inert at its own proportions. */
-export function Preview({ widget, data, size, width = 280, sample, className, reflow = false }: Props) {
+export function Preview({ widget, data, size, width = 280, sample, className, reflow = false, maxHeight }: Props) {
   const cells = cellsToPixels(size);
   const narrow = Math.max(width, REFLOW_MIN_WIDTH[widget.template] ?? 0);
   const natural = reflow && cells.width > narrow ? { width: narrow, height: cells.height + REFLOW_ROOM } : cells;
-  const scale = Math.min(1, width / natural.width);
+  const scale = Math.min(1, width / natural.width, maxHeight && !reflow ? maxHeight / natural.height : 1);
   const free = TEMPLATES[widget.template]?.kind === "layout" && !widget.settings.canvas?.document;
   const badge = (place: string) => <span className={cn("rounded-[var(--radius-input)] bg-[var(--color-cotton)] px-1.5 py-0.5 text-xs text-muted-foreground shadow-[var(--edge-stock)]", place)}>Sample data</span>;
   const frame = (
@@ -70,13 +72,13 @@ export function Preview({ widget, data, size, width = 280, sample, className, re
 }
 
 /** A built-in or team Widget Template's Preview, drawn with Sample Data. */
-export function TemplatePreview({ template, viewer, numberStyle, width, className, reflow }: { template: TemplateId | Pick<WidgetTemplate, "view" | "body" | "slots" | "w" | "h">; viewer: string; numberStyle: NumberStyle; width?: number; className?: string; reflow?: boolean }) {
+export function TemplatePreview({ template, viewer, numberStyle, width, className, reflow, maxHeight }: { template: TemplateId | Pick<WidgetTemplate, "view" | "body" | "slots" | "w" | "h">; viewer: string; numberStyle: NumberStyle; width?: number; className?: string; reflow?: boolean; maxHeight?: number }) {
   const data = useMemo(() => sampleCanvasData(viewer, numberStyle), [viewer, numberStyle]);
   const { widget, size } = useMemo((): { widget: SampleWidget; size: { w: number; h: number } } => {
     if (typeof template === "string") return { widget: sampleWidget(template), size: TEMPLATES[template].size };
     return { widget: sampleTeamWidget(template), size: { w: template.w, h: template.h } };
   }, [template]);
-  return <Preview widget={widget} data={data} size={size} width={width} sample className={className} reflow={reflow} />;
+  return <Preview widget={widget} data={data} size={size} width={width} sample className={className} reflow={reflow} maxHeight={maxHeight} />;
 }
 
 /** A Dashboard Template's Preview (spec 0014, #191): its widgets where they sit on the 12-column grid, drawn with
