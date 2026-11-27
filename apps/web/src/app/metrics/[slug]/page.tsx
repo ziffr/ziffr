@@ -39,7 +39,7 @@ import { can } from "@ziffr/core/actor";
 import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
 import { mcpAddress } from "@/lib/remote-mcp";
-import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
+import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL } from "@ziffr/core/format";
 import { ASK_NOTE_DEFAULT, ASK_NOTE_LABEL, ASK_NOTE_SETTING } from "@ziffr/core/ask-note";
 import { FORECAST_MIN_POINTS } from "@ziffr/core/forecast";
 import { bestForecast, forecastTooWide, NO_FORECAST_WIDE, withTakeawayBand } from "@ziffr/core/methods/forecast-choice";
@@ -192,8 +192,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   // Breakdown (GLOSSARY: Breakdown): any uploaded period, the latest by default.
   const bdByPeriod = (await getBreakdowns([metric.id]))[metric.id] ?? {};
   const { targets, projections } = await getSeriesValues([metric.id]);
-  const kind = await aboutKind(actor, metric, { archivable, yearStart, seen: seenMetrics, pending, own: targets, aimed: aimedTargets });
-  const { derived, formula, targets: tSeries } = kind;
+  const kind = await aboutKind(actor, metric, { archivable, yearStart, seen: seenMetrics, pending, latest: last?.period, own: targets, aimed: aimedTargets });
+  const { derived, formula, targets: tSeries, now } = kind;
   const pSeries = projections[metric.id] ?? [];
   const { bdPeriods, bdPeriod, bdRows, bdSum, bdTotal, bdAdds } = breakdownShown(bdByPeriod, sp.bp, all);
   // Tables on this page read like the chart: oldest on top, newest at the bottom. Which were pasted shows in History (spec 0026).
@@ -207,8 +207,6 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const canEdit = isOwner || (await canEditMetric(actor, metric.id));
   // Where each submitter's next Prompt goes and why (owner and Editors see everyone's, others only their own).
   const [promptWays, stops] = await Promise.all([nextPromptWays(actor, metric.id), askingStops(actor, metric.id)]);
-  // Which target counts for the latest period: its own Target Series value if there is one, else the Target Range.
-  const periodTarget = last ? tSeries.find((t) => t.period === last.period) : undefined;
   // A Derived Metric's formula by its inputs' names, only for someone who sees every one of them.
   // Says nothing of the inputs but that their periods differ: it may be read by someone who cannot see them.
   const derivedProblem = inputsProblem(metric, named);
@@ -232,9 +230,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         sub={metric.description}
         besideTitle={!isOwner && !record}
       >
-        {/* Record a value is the one main button, for someone who submits the Metric; Share is the owner's; the rest is in the ⋯ menu. */}
+        {/* Record a value is the one main button, for someone who submits the Metric; Edit is for who may change it; Share is the owner's; the rest is in the ⋯ menu. */}
         <MetricToolbar
-          id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug, description: metric.description, calculationNote: metric.calculation_note, unit: metric.unit, period: metric.period }} mcp={mcpAddress()} record={record} askable={askable}
+          id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug, description: metric.description, calculationNote: metric.calculation_note, unit: metric.unit, period: metric.period }} mcp={mcpAddress()} record={record} askable={askable} canEdit={canEdit}
           share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups, canInvite: can(actor, "manage-members"), warning: kind.shareWarning } : null} alert={alertMe ? { mine: alertMe.mine, choices: alertMe.choices, webhooks: alertMe.webhooks } : null}
           canDuplicate={can(actor, "create") && !metric.formula} canPaste={mayPaste(metric, tokens, actor.personId)} canCreateDashboard={can(actor, "create")} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
           archive={{ allowed: archivable && (!demo || demoChanges), archived: Boolean(metric.archived_at), totals: kind.asked }} canDelete={isOwner && !demo}
@@ -247,13 +245,13 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
         <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, yearStart)}` : "Latest"}>
-          <span className="flex flex-wrap items-center gap-2">{last ? formatValue(metric, last.value, numberStyle) : "–"}{last && kind.unapproved.includes(last.period) && <NotApprovedMark />}<TargetChip numberStyle={numberStyle} metric={periodTarget && metric.polarity !== "target" ? { ...shown, target_min: metric.polarity === "lower" ? null : periodTarget.value, target_max: metric.polarity === "lower" ? periodTarget.value : null } : shown} value={last?.value} /></span>
+          <span className="flex flex-wrap items-center gap-2">{last ? formatValue(metric, last.value, numberStyle) : "–"}{last && kind.unapproved.includes(last.period) && <NotApprovedMark />}<TargetChip numberStyle={numberStyle} metric={{ ...shown, target_min: now.min, target_max: now.max }} value={last?.value} /></span>
         </Stat>
         <Stat label="Change vs. previous period">
           <Change numberStyle={numberStyle} pct={change} size="size-5" />
         </Stat>
-        <Stat wide label={`Target, ${POLARITY_LABEL[metric.polarity].toLowerCase()}`} note={targetNote(metric, periodTarget?.period, tSeries.length > 0, yearStart, numberStyle)}>
-          <span className="fig">{periodTarget ? formatValue(metric, periodTarget.value, numberStyle) : kind.addedUp ? "–" : targetText(metric, numberStyle)}</span>
+        <Stat wide label={`Target, ${POLARITY_LABEL[metric.polarity].toLowerCase()}`} note={targetNote(metric, now.fromSeries ? now.period : undefined, tSeries.length > 0, yearStart, numberStyle)}>
+          <span className="fig">{kind.addedUp && !now.fromSeries ? "–" : now.words}</span>
         </Stat>
       </div>
 
@@ -422,7 +420,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               <Row k="Period">{PERIOD_LABEL[metric.period]}</Row>
               <Row k="Format">{metric.format}{metric.unit && metric.format === "number" ? ` (${metric.unit})` : ""}, {metric.decimals} decimals</Row>
               <Row k="Which way is good">{POLARITY_LABEL[metric.polarity]}</Row>
-              <Row k="Target">{targetText(metric, numberStyle)}</Row>
+              <Row k="Target">{now.words}{now.fromSeries ? ` for ${periodLabel(now.period, metric.period, yearStart)}` : ""}</Row>
               <Row k="Attainment">{ATTAINMENT_METHOD_LABEL[methodFor(metric, attainmentMethod)]}{metric.attainment_method ? "" : ", as the workspace"}</Row>
               {!metric.formula && (
                 <>

@@ -2,6 +2,7 @@ import "server-only";
 // Data of the current Workspace (GLOSSARY: Metric, Observation, Action). The loaders live in the core
 // (@ziffr/core/workspace-data) and take the workspace; these pass in the one the person is working in. The ones a
 // page and its layout often both call read once per request (React cache; it does not cache outside a render).
+import { workspaceToday } from "@ziffr/core/retention-setting";
 import { cache } from "react";
 import { currentActor, currentWorkspaceId } from "./viewer";
 import { schedule } from "@ziffr/core/schedule";
@@ -47,6 +48,8 @@ export const getAllSeries = (opts?: { points?: number }) => allSeries(opts?.poin
 const allSeries = cache(async (points: number) => allSeriesFor(await currentActor(), points ? { points } : {}));
 /** Target Series and Projections of the current workspace. */
 export const getSeriesValues = async (metricIds: number[]) => data.getSeriesValues(await currentWorkspaceId(), metricIds);
+/** Today's date in the current workspace's time zone. */
+export const getToday = async () => workspaceToday(await currentWorkspaceId());
 /** Breakdowns of the current workspace. */
 export const getBreakdowns = async (metricIds: number[]) => data.getBreakdowns(await currentWorkspaceId(), metricIds);
 

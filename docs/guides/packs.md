@@ -94,6 +94,8 @@ An entry in the format `ziffr.metric/2` may carry a `calculationNote`: exactly w
 
 Write `ziffr.metric/1` for an entry without a note. A Ziffr from before the note refuses a Pack with a `ziffr.metric/2` entry and names the formats it reads, so set the Pack's `ziffr` minimum to the release you tested it with. A Metric made from the entry gets the note, which its owner may then change. A slide shows it with the `definitions` Slide Element, or with the `{calculation note}` Placeholder in a widget's words or a Slide Element. A slide's `text` and `box` shapes hold that Placeholder only in `ziffr.deck-template/3` ([Live values in text and boxes](#live-values-in-text-and-boxes)); like their other values it is filled each time the slide is shown.
 
+A widget of a Dashboard or Deck Template shows the Attainment of its Metric's target before its Comparisons. `"compareTarget": false` in its `settings` hides that; `"compare": []` asks for no period Comparisons. An older Ziffr refuses `compareTarget` as unknown, so give a Pack that uses it a `ziffr` minimum that has it.
+
 ## Slides that look designed
 
 A Deck Template in the format `ziffr.deck-template/2` may put **Slide Elements** on its slides: parts that draw themselves in the deck's Theme and fill their words from the data each time they are shown. A shape of the kind `element` names where it stands, the Slots it reads, in order, and what it draws:

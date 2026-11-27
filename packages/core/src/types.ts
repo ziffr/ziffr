@@ -280,6 +280,8 @@ export type WidgetSettings = {
   period?: string | null;
   /** Comparison strip (GLOSSARY: Comparison); undefined means the default. */
   compare?: import("./compare").CompareKey[];
+  /** Whether the Comparison strip shows Attainment of the target, whatever `compare` holds; undefined means it does. */
+  compareTarget?: boolean;
   fullPeriods?: boolean;
   /** What a Note Widget says (GLOSSARY: Note Widget): plain text, drawn as text only. Its heading is the widget's title. */
   note?: string;

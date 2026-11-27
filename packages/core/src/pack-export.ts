@@ -357,7 +357,10 @@ export function settingsOf(s: WidgetSettings | undefined, designKey: ReadonlyMap
   if (s.display) out.display = s.display;
   for (const k of ["showTarget", "showForecast", "fullPeriods"] as const) if (s[k] !== undefined) out[k] = s[k];
   if (s.rows !== undefined) out.rows = s.rows;
-  if (s.compare?.length) out.compare = s.compare;
+  // An empty list is a choice of its own (no period Comparisons), so it is kept.
+  if (s.compare) out.compare = s.compare;
+  // Written only when the target is hidden: left out means shown.
+  if (s.compareTarget === false) out.compareTarget = false;
   for (const k of ["kicker", "headline", "subline", "footnote", "source"] as const) { const w = fit.words(s[k], 200); if (w) out[k] = w; }
   const callouts = (s.callouts ?? []).filter((c) => c.rule).map((c) => ({ rule: c.rule!, ...(fit.words(c.text, 200) ? { text: fit.words(c.text, 200) } : {}) }));
   if (callouts.length) out.callouts = callouts;

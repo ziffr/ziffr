@@ -72,7 +72,7 @@ const SETTINGS: Record<Exclude<keyof WidgetSettings, "tagView">, Check> = {
   element, window: number, display: (v) => (isDisplayPeriod(v) ? v : BAD), showTarget: flag, showForecast: flag, rows: number,
   slope: oneOf(SLOPE_CHOICES), kicker: text(), footnote: text(), panels: list(panel, 20), headline: text(), subline: text(), source: text(),
   highlight: text(), callouts: list(callout, 50), period: text(40), compare: list(oneOf(Object.keys(COMPARE_LABEL)), 7),
-  fullPeriods: flag, note: text(2000), noteHighlight: flag, canvas: (v) => (isObj(v) ? { document: v.document ?? null, stamp: {} } : BAD), asOf: day,
+  compareTarget: flag, fullPeriods: flag, note: text(2000), noteHighlight: flag, canvas: (v) => (isObj(v) ? { document: v.document ?? null, stamp: {} } : BAD), asOf: day,
   // The widget a free layout started from: its own settings are checked by the caller, as the top level's are.
   canvasSeed: (v) => (isObj(v) && typeof v.template === "string" && v.template.length <= 40 && isObj(v.settings)
     ? { template: v.template, metric_ids: list(number, 50)(v.metric_ids ?? []), settings: v.settings } : BAD),

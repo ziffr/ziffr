@@ -1,7 +1,7 @@
 // A Metric's quick look (GLOSSARY: Quick look, Metric): what the slide-over beside a list or Widget draws, for one
 // Metric by its slug. Security: only a Metric the person sees (visibility through visibleMetricIds), and a Metric that
 // is not there is answered exactly like one that is not shared, so the quick look never confirms that a Metric exists.
-// Only the fields the panel draws leave here: no description, owner id or settings; the Calculation Note (spec 0060), a
+// Only the fields the panel draws leave here (of its Target Series only the target in effect): no description, owner id or settings; the Calculation Note (spec 0060), a
 // Derived Metric's formula only written with names of Metrics the person sees, all of them, and the latest period's
 // Value Notes as the note core gives them to this person (spec 0064).
 import type { Actor } from "./actor";
@@ -13,6 +13,9 @@ import { currentValueNotes, type ShownNote } from "./value-notes";
 import { peopleIn } from "./submissions";
 import { noValuesWords } from "./total-rules";
 import { numberStyleOf } from "./workspace-settings";
+import { workspaceToday } from "./retention-setting";
+import { targetInEffect, type TargetInEffect } from "./target-in-effect";
+import { getSeriesValues } from "./workspace-data";
 import type { NumberStyle } from "./number-style";
 import type { YearStart } from "./periods";
 import type { Metric, Point } from "./types";
@@ -26,8 +29,8 @@ export type QuickLookMetric = Pick<Metric, "name" | "slug" | "period" | "sources
   empty: string;
 };
 
-/** What the quick look draws: the Metric, its last 30 values, the latest one's Value Notes, newest first, the owner's name, how this Workspace writes periods and numbers, and the form behind Record a value when the person submits the Metric. */
-export type QuickLook = { record: RecordingOffer | null; metric: QuickLookMetric; points: Point[]; notes: ShownNote[]; ownerName: string | null; yearStart: YearStart; numberStyle: NumberStyle };
+/** What the quick look draws: the Metric, its last 30 values, the target in effect, the latest one's Value Notes, newest first, the owner's name, how this Workspace writes periods and numbers, and the form behind Record a value when the person submits the Metric. */
+export type QuickLook = { record: RecordingOffer | null; metric: QuickLookMetric; points: Point[]; notes: ShownNote[]; target: TargetInEffect; ownerName: string | null; yearStart: YearStart; numberStyle: NumberStyle };
 
 /** The same words for a Metric that is not there and one the person may not see. */
 export const QUICK_LOOK_REFUSAL = "This Metric is not shared with you.";
@@ -35,7 +38,7 @@ export const QUICK_LOOK_REFUSAL = "This Metric is not shared with you.";
 /** The quick look of the Metric with this slug, or a refusal that says nothing of whether it exists. */
 export async function metricQuickLook(actor: Actor, slug: string): Promise<QuickLook> {
   const ws = actor.workspaceId;
-  const [{ metrics, series }, people, yearStart, numberStyle] = await Promise.all([allSeriesFor(actor, { points: 30 }), peopleIn(ws), yearStartOf(ws), numberStyleOf(ws)]);
+  const [{ metrics, series, targets: aimed }, people, yearStart, numberStyle] = await Promise.all([allSeriesFor(actor, { points: 30 }), peopleIn(ws), yearStartOf(ws), numberStyleOf(ws)]);
   const metric = metrics.find((m) => m.slug === String(slug ?? ""));
   // Looked up either way, so a missing Metric costs the same work as an unshared one.
   const visible = await visibleMetricIds(ws, actor.personId, metrics);
@@ -49,5 +52,8 @@ export async function metricQuickLook(actor: Actor, slug: string): Promise<Quick
   const points = series[metric.slug] ?? [];
   const latest = points.at(-1)?.period;
   const notes = latest ? (await currentValueNotes(actor, metric.id, [latest]))[latest] ?? [] : [];
-  return { record, metric: { name, slug: metric.slug, period, sources, decimals, unit, unit_position, polarity, target_min, target_max, calculation_note, derived: Boolean(metric.formula) && !metric.total, formula, total: metric.total, empty: noValuesWords(metric) }, points, notes, ownerName: people.find((p) => p.id === metric.owner_id)?.name ?? null, yearStart, numberStyle };
+  // Read only after the visibility check; a Total that takes its Metrics' targets has those, added up for this person.
+  const [targets, today] = await Promise.all([metric.total?.targets === "parts" ? aimed : getSeriesValues(ws, [metric.id]).then((v) => v.targets), workspaceToday(ws)]);
+  const target = targetInEffect(metric, { latest, today, yearStart }, targets[metric.id], numberStyle);
+  return { record, target, metric: { name, slug: metric.slug, period, sources, decimals, unit, unit_position, polarity, target_min, target_max, calculation_note, derived: Boolean(metric.formula) && !metric.total, formula, total: metric.total, empty: noValuesWords(metric) }, points, notes, ownerName: people.find((p) => p.id === metric.owner_id)?.name ?? null, yearStart, numberStyle };
 }

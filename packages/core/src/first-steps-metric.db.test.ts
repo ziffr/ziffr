@@ -119,16 +119,22 @@ describe("a metric of one's own", () => {
 
   it.each(OWN_UNITS)("makes a %s with the spec's defaults, every Source open and no target", async (unit) => {
     const owner = await made();
-    expect(await makeFirstMetric(owner, { name: "  Signed   offers ", unit, period: "week" })).toMatchObject({ made: true });
+    expect(await makeFirstMetric(owner, { name: "  Signed   offers ", unit, period: "week", polarity: "higher" })).toMatchObject({ made: true });
     const [m, ...more] = await metrics(owner.workspaceId);
     expect(more).toEqual([]);
     expect(m).toMatchObject({ ...WANTED[unit], name: "Signed offers", owner_id: owner.personId, period: "week", polarity: "higher", submission_rule: "overwrite", target_min: null, target_max: null, workflow_id: null, from_catalog_id: null });
     expect([...(m.sources as string[])].sort()).toEqual(SOURCES);
   });
 
+  it("keeps which way is good as chosen", async () => {
+    const owner = await made();
+    await makeFirstMetric(owner, { name: "Complaints", unit: "number", period: "week", polarity: "lower" });
+    expect((await metrics(owner.workspaceId))[0]).toMatchObject({ name: "Complaints", polarity: "lower" });
+  });
+
   it("puts it on a dashboard named after the Workspace, keeps it as the first Metric, and asks nobody", async () => {
     const owner = await made();
-    const { metricId } = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day" });
+    const { metricId } = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day", polarity: "higher" });
     const ws = owner.workspaceId;
     const { data: dashboards } = await db().from("dashboards").select("id, name, owner_id").eq("workspace_id", ws);
     expect(dashboards).toEqual([{ id: expect.any(Number), name: "Nord Co", owner_id: owner.personId }]);
@@ -149,6 +155,12 @@ describe("a pick from the catalog", () => {
     expect(m).toMatchObject({ name: "Body weight", unit: "kg", decimals: 1, period: "day", from_catalog_id: id, target_min: null, target_max: null });
     expect([...(m.sources as string[])].sort()).toEqual(SOURCES);
     expect([await count("tokens", owner.workspaceId), await count("deliveries", owner.workspaceId), await count("dashboards", owner.workspaceId)]).toEqual([0, 0, 1]);
+  });
+
+  it("keeps which way the entry says is good", async () => {
+    const owner = await made({ who: "me" });
+    await makeFirstMetric(owner, { catalogId: await entry(owner.workspaceId, { polarity: "lower" }) });
+    expect((await metrics(owner.workspaceId))[0]).toMatchObject({ polarity: "lower" });
   });
 
   it("keeps a monthly entry as often as chosen, and any other as the catalog has it", async () => {
@@ -187,7 +199,7 @@ describe("a pick from the catalog", () => {
 describe("the hand-over to the first value", () => {
   it("is the Metric that screen asks about, typed or by email", async () => {
     const owner = await made();
-    const { metricId } = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day" });
+    const { metricId } = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day", polarity: "higher" });
     expect((await firstStepsState(owner))!.resume).toBe("value");
     expect(await firstStepsValue(owner)).toMatchObject({ metric: { id: metricId, name: "Visitors", canType: true }, others: [] });
     expect([await count("tokens", owner.workspaceId), await count("deliveries", owner.workspaceId)]).toEqual([0, 0]);
@@ -197,8 +209,8 @@ describe("the hand-over to the first value", () => {
 describe("pressing twice", () => {
   it("makes nothing twice, whatever is picked the second time", async () => {
     const owner = await made();
-    const first = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day" });
-    expect(await makeFirstMetric(owner, { name: "Orders", unit: "number", period: "day" })).toEqual({ metricId: first.metricId, made: false });
+    const first = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day", polarity: "higher" });
+    expect(await makeFirstMetric(owner, { name: "Orders", unit: "number", period: "day", polarity: "higher" })).toEqual({ metricId: first.metricId, made: false });
     expect(await metrics(owner.workspaceId)).toHaveLength(1);
     expect(await count("dashboards", owner.workspaceId)).toBe(1);
     expect(await count("widgets", owner.workspaceId)).toBe(1);
@@ -206,7 +218,7 @@ describe("pressing twice", () => {
 
   it("makes one Metric and one dashboard for two presses at once", async () => {
     const owner = await made();
-    const press = () => makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day" });
+    const press = () => makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day", polarity: "higher" });
     const outcomes = await Promise.allSettled([press(), press(), press()]);
     expect(outcomes.filter((o) => o.status === "fulfilled" && o.value.made)).toHaveLength(1);
     for (const o of outcomes) if (o.status === "rejected") expect(o.reason).toBeInstanceOf(FirstMetricRefused);
@@ -216,10 +228,10 @@ describe("pressing twice", () => {
 
   it("finishes what a press left half done instead of starting again", async () => {
     const owner = await made();
-    const first = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day" });
+    const first = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day", polarity: "higher" });
     // As if the server had stopped after the Metric: no dashboard.
     await db().from("dashboards").delete().eq("workspace_id", owner.workspaceId);
-    expect(await makeFirstMetric(owner, { name: "Orders", unit: "number", period: "day" })).toEqual({ metricId: first.metricId, made: false });
+    expect(await makeFirstMetric(owner, { name: "Orders", unit: "number", period: "day", polarity: "higher" })).toEqual({ metricId: first.metricId, made: false });
     expect(await metrics(owner.workspaceId)).toHaveLength(1);
     expect(await count("widgets", owner.workspaceId)).toBe(1);
   });
@@ -230,7 +242,7 @@ describe("pressing twice", () => {
     await db().from("setup_guides").upsert({ workspace_id: owner.workspaceId, first_metric_id: id }, { onConflict: "workspace_id" });
     expect(await makeFirstMetric(owner, null)).toEqual({ metricId: id, made: false });
     expect(await shownOn(owner.workspaceId)).toEqual([[expect.any(Number), [id]]]);
-    expect(await makeFirstMetric(owner, { name: "Orders", unit: "number", period: "day" })).toEqual({ metricId: id, made: false });
+    expect(await makeFirstMetric(owner, { name: "Orders", unit: "number", period: "day", polarity: "higher" })).toEqual({ metricId: id, made: false });
     expect([await count("dashboards", owner.workspaceId), await count("widgets", owner.workspaceId)]).toEqual([1, 1]);
   });
 
@@ -243,10 +255,10 @@ describe("pressing twice", () => {
 
   it("makes another once the first is archived", async () => {
     const owner = await made();
-    const first = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day" });
+    const first = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day", polarity: "higher" });
     await db().from("metrics").update({ archived_at: new Date().toISOString() }).eq("id", first.metricId);
     expect(await firstStepsMetric(owner)).toBeNull();
-    const second = await makeFirstMetric(owner, { name: "Orders", unit: "number", period: "day" });
+    const second = await makeFirstMetric(owner, { name: "Orders", unit: "number", period: "day", polarity: "higher" });
     expect(second).toMatchObject({ made: true });
     expect(second.metricId).not.toBe(first.metricId);
     const m = await openOne("metrics", owner.workspaceId, (await db().from("metrics").select("id, name").eq("id", second.metricId).single()).data);
@@ -258,7 +270,7 @@ describe("what others come to see", () => {
   it("never puts a Metric on a shared dashboard, nor takes an older one for the first", async () => {
     const owner = await made();
     const older = await ownMetric(owner);
-    const first = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day" });
+    const first = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day", polarity: "higher" });
     expect(first.made).toBe(true);
     const [[given]] = await shownOn(owner.workspaceId);
     const colleague = await sharedWith(owner, given);
@@ -276,7 +288,7 @@ describe("what others come to see", () => {
     const given = await createDashboard(owner, "Nord Co");
     const colleague = await sharedWith(owner, given);
     const unused = await createDashboard(owner, "Nord Co");
-    const { metricId } = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day" });
+    const { metricId } = await makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day", polarity: "higher" });
     expect(await shownOn(owner.workspaceId)).toEqual([[unused, [metricId]]]);
     expect(await canSee(colleague, "metric", metricId)).toBe(false);
     expect(await count("dashboards", owner.workspaceId)).toBe(2);
@@ -286,7 +298,7 @@ describe("what others come to see", () => {
 describe("the mark that holds a press", () => {
   const guide = async (ws: string) => (await db().from("setup_guides").select("starting_point, updated_at").eq("workspace_id", ws).single()).data!;
   const mark = (ws: string, starting_point: "scratch" | "pack" | null, at: Date) => db().from("setup_guides").update({ starting_point, updated_at: at.toISOString() }).eq("workspace_id", ws);
-  const press = (owner: Actor) => makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day" });
+  const press = (owner: Actor) => makeFirstMetric(owner, { name: "Visitors", unit: "number", period: "day", polarity: "higher" });
 
   it.each([null, "pack", "scratch"] as const)("puts back what the guide said before: %s", async (before) => {
     const owner = await made();
@@ -327,7 +339,7 @@ describe("limits and who may", () => {
     process.env.ZIFFR_TRIAL_MAX = "100000";
     const owner = await made();
     await db().from("workspaces").update({ trial_ends_at: new Date(Date.now() - 60_000).toISOString() }).eq("id", owner.workspaceId);
-    await expect(makeFirstMetric(owner, { name: "Late", unit: "number", period: "day" })).rejects.toThrow(/trial has ended/);
+    await expect(makeFirstMetric(owner, { name: "Late", unit: "number", period: "day", polarity: "higher" })).rejects.toThrow(/trial has ended/);
     await expect(makeFirstMetric(owner, null)).rejects.toBeInstanceOf(Forbidden);
     expect(await metrics(owner.workspaceId)).toEqual([]);
     expect(await count("dashboards", owner.workspaceId)).toBe(0);
@@ -346,7 +358,7 @@ describe("limits and who may", () => {
       full = Boolean(error);
     }
     expect(full).toBe(true);
-    await expect(makeFirstMetric(owner, { name: "One too many", unit: "number", period: "day" })).rejects.toThrow(/Metrics/);
+    await expect(makeFirstMetric(owner, { name: "One too many", unit: "number", period: "day", polarity: "higher" })).rejects.toThrow(/Metrics/);
     expect(await firstStepsMetric(owner)).toBeNull();
     expect(await count("dashboards", owner.workspaceId)).toBe(0);
   });
@@ -364,7 +376,7 @@ describe("limits and who may", () => {
     refused.push({ personId: owner.personId, workspaceId: DEMO_WORKSPACE_ID, role: "owner" });
     const person = await newcomer();
     refused.push({ personId: person, workspaceId: await createWorkspace(person, "Made elsewhere"), role: "owner" });
-    for (const actor of refused) await expect(makeFirstMetric(actor, { name: "Mine", unit: "number", period: "day" })).rejects.toBeInstanceOf(Forbidden);
+    for (const actor of refused) await expect(makeFirstMetric(actor, { name: "Mine", unit: "number", period: "day", polarity: "higher" })).rejects.toBeInstanceOf(Forbidden);
     expect(await metrics(owner.workspaceId)).toEqual([]);
     await db().from("memberships").delete().eq("workspace_id", owner.workspaceId).neq("user_id", owner.personId);
   });

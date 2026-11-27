@@ -13,15 +13,18 @@ const SHORT: Record<CompareKey, string> = { ...COMPARE_LABEL, prev: "vs prev." }
 const sign = (n: number) => (n > 0 ? "+" : n < 0 ? MINUS : "±");
 const arrow = (n: number) => (n > 0 ? "↗ " : n < 0 ? "↘ " : "→ ");
 
-/** The attainment and comparisons under a widget's value. */
-export function CompareStrip({ metric, data, keys = DEFAULT_COMPARE, full }: { metric: Metric; data: CanvasData; keys?: CompareKey[]; full?: boolean }) {
-  if (!keys.length) return null;
+/** The attainment and comparisons under a widget's value. The target (`target`) and the period Comparisons (`keys`) are
+ * chosen apart; with neither to show there is no strip. */
+export function CompareStrip({ metric, data, keys = DEFAULT_COMPARE, target = true, full }: { metric: Metric; data: CanvasData; keys?: CompareKey[]; target?: boolean; full?: boolean }) {
+  if (!keys.length && !target) return null;
   const s = summary(metric, resolverFrom(data.metrics, data.series, data), data.targets[metric.id], { keys, full, yearStart: data.yearStart, attainmentMethod: data.attainmentMethod });
   if (s.value === undefined) return null;
+  // Without period Comparisons and without a target to speak of, an empty ruled line would be left.
+  if (!keys.length && s.gap === null && !attainmentShown(s.attainment)) return null;
   const style = data.numberStyle;
   return (
     <div className="widget-text-xs flex flex-wrap items-baseline gap-x-[1em] gap-y-0.5 border-t border-border pt-[0.5em] leading-snug text-muted-foreground">
-      {attainmentShown(s.attainment) ? (
+      {!target ? null : attainmentShown(s.attainment) ? (
         // The tooltip names the method, so the same number is never read two ways (spec 0022, #130).
         <span title={`Target ${formatValue(metric, s.target?.value ?? null, style)}${s.target?.fromSeries ? " from the target series" : ""}. ${attainmentMethodNote(s.method)}`}>
           <span className={cn("fig font-medium", s.onTarget ? "text-[var(--color-success)]" : "text-destructive")}>{attainmentText(s.attainment, style)}</span> of target

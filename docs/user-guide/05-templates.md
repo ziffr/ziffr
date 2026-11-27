@@ -29,7 +29,7 @@ A **Widget Template** is a starting point for one Widget: a way of drawing a num
 | | Correlation matrix | Every pair of several Metrics at once |
 | | Drivers | Which Metrics move most with this one |
 | | Progress against target | Each Metric's latest value against its target, one compact bar each |
-| | Scoreboard | Several Metrics in one table: latest value, change, status and a small trend |
+| | Scoreboard | Several Metrics in one table: latest value, change, status against the target for that value’s period (the **Target Series**, else the **Target Range**) and a small trend |
 | | Slope chart | Two moments side by side: who rose and who fell between them |
 | | Running total against target | The year so far, added up, against the target and last year |
 | Findings | Ranked bars | A Breakdown, largest first, one row highlighted |

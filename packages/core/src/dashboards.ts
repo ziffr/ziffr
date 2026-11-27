@@ -57,6 +57,8 @@ function settings(s: unknown): WidgetSettings {
   if (v.display !== undefined && !isDisplayPeriod(v.display)) throw new Error("A widget is shown by a week, month, quarter, half-year or year.");
   // What a slope chart compares (spec 0024): one of the known choices, never other text.
   if (v.slope !== undefined && !(SLOPE_CHOICES as readonly unknown[]).includes(v.slope)) throw new Error("A slope chart compares rows against the period before or a year earlier, or several Metrics.");
+  // Whether the Comparison strip shows the target: yes or no, never other text.
+  if (v.compareTarget !== undefined && typeof v.compareTarget !== "boolean") throw new Error("A widget shows its target or hides it.");
   // A free layout keeps a tldraw document: nothing in it may load from another site (spec 0009).
   assertNoOutsideContent((v as { canvas?: { document?: unknown } | null }).canvas?.document, "layout");
   // A Snapshot Part is shown to who may open its Snapshot, which only a deck's slides ask (spec 0061).
