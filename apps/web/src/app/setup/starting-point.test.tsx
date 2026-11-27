@@ -1,6 +1,6 @@
 // @vitest-environment node
 // Starting point (spec 0052, ticket 6; GLOSSARY: Setup Guide, Pack): the two choices, the ranked Packs with why they fit
-// and what they bring, an installed Pack offering "Set up from this Pack", a trial that starts with its Test Metric.
+// and what they bring, an installed Pack offering "Set up from this Pack", each thing said once.
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, refresh() {} }) }));
@@ -22,7 +22,7 @@ const packs = [
   pack("ziffr/one", { because: ["industry", "function"], suggested: true }), pack("ziffr/two", { because: ["function"], suggested: true }), pack("ziffr/three"),
   pack("ziffr/four"), pack("ziffr/five"),
 ];
-const base = { packs, startingPoint: null, metrics: 0, firstMetric: null, trial: false, isOwner: true, viewer: "me", numberStyle: {} as never, following: "ways", ticked: false };
+const base = { packs, startingPoint: null, metrics: 0, firstMetric: null, canAnswerAbout: true, isOwner: true, viewer: "me", numberStyle: {} as never, following: "ways", ticked: false };
 const html = (over: Partial<Parameters<typeof StartingPoint>[0]> = {}) => renderToStaticMarkup(<StartingPoint {...base} {...over} />);
 
 describe("what a Pack brings", () => {
@@ -35,10 +35,18 @@ describe("what a Pack brings", () => {
 
 describe("the two choices", () => {
   const h = html();
-  it("offers Explore on my own and Start from a Pack", () => {
+  it("offers Explore on my own and Start from a Pack, one short sentence each", () => {
     expect(h).toContain("How do you want to start?");
     expect(h).toContain("Explore on my own");
     expect(h).toContain("Start from a Pack");
+    expect(h).toContain("Pick or write your first Metric yourself.");
+    expect(h).toContain("Get ready-made Metrics for your kind of work.");
+    expect(html({ functionLabel: "Finance" })).toContain("Get ready-made Metrics for Finance.");
+  });
+  it("says nothing twice: no box before the choice and no paragraph explaining a Pack again", () => {
+    expect(h).not.toContain("trial");
+    expect(h).not.toContain("A Pack gives you");
+    expect(h).not.toContain('role="status"');
   });
   it("shows the first three Packs ranked, each with its reason and what you get, and the rest behind See all", () => {
     expect(h).toContain("Packs suggested for you");
@@ -52,10 +60,13 @@ describe("the two choices", () => {
     expect(h.match(/>Preview</g)).toHaveLength(3);
     expect(h.match(/>Install</g)).toHaveLength(3);
   });
-  it("without answers says so and lists the Packs in their fixed order", () => {
-    const h2 = html({ packs: packs.map((p) => ({ ...p, because: [], suggested: false })) });
-    expect(h2).toContain("Answer About you to get suggestions");
+  it("without suggestions links to About you, only while answering it can still bring some", () => {
+    const none = packs.map((p) => ({ ...p, because: [], suggested: false }));
+    const h2 = html({ packs: none });
+    expect(h2).toMatch(/<a[^>]*href="\/setup\?step=about"[^>]*>Answer About you to get suggestions<\/a>/);
     expect(h2).not.toContain("Suggested because");
+    expect(html({ packs: none, canAnswerAbout: false })).not.toContain("to get suggestions");
+    expect(h).not.toContain("to get suggestions");
   });
   it("offers Skip until the step is ticked, then Go on to the next step", () => {
     expect(html()).toContain(">Skip<");
@@ -65,7 +76,7 @@ describe("the two choices", () => {
   });
 });
 
-describe("installed Packs, Owners and Admins, trials and Metrics already there", () => {
+describe("installed Packs, Owners and Admins, and Metrics already there", () => {
   it("an installed Pack is not offered again and offers Set up from this Pack", () => {
     const h = html({ packs: [pack("ziffr/one", { installed: true, installId: 7, because: ["industry"] }), ...packs.slice(1)] });
     expect(h).toContain("Installed");
@@ -79,13 +90,6 @@ describe("installed Packs, Owners and Admins, trials and Metrics already there",
     expect(admin).toMatch(/<button[^>]*disabled=""[^>]*>Install<\/button>/);
     expect(html({ packs: themed, isOwner: true })).not.toContain("only an Owner can install this Pack");
     expect(html({ packs: themed, isOwner: true })).not.toMatch(/<button[^>]*disabled=""[^>]*>Install<\/button>/);
-  });
-  it("a trial's step is done by itself and points at the example without making anything", () => {
-    const trial = html({ trial: true, ticked: true });
-    expect(trial).toContain("In a trial this step is done.");
-    expect(trial).not.toContain("coffee");
-    expect(html()).not.toContain("In a trial this step is done.");
-    expect(html({ functionLabel: "Finance" })).toContain("Ready-made Metrics for Finance");
   });
   it("a Workspace with Metrics already asks whether to start from a Pack anyway, and names the guide's first Metric", () => {
     expect(html({ metrics: 4 })).toContain("You have 4 Metrics. Start from a Pack anyway?");

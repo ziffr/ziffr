@@ -22,7 +22,6 @@ import { AboutYouMember, AboutYouWorkspace } from "./about-you";
 import { StartingPoint } from "./starting-point";
 import { recommendedPacks } from "@ziffr/core/included-packs";
 import { metricsOfLimit } from "@ziffr/core/workspace-usage";
-import { trialEndsAt } from "@ziffr/core/trials";
 import { getNumberStyle } from "@/lib/data";
 import { waysInAndOut } from "@ziffr/core/ways-in-and-out";
 import { SLACK_OUTCOMES } from "@/lib/slack-back";
@@ -86,10 +85,10 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
       body = <AboutYouMember answers={answersOf(profile)} businessFunction={fn} following={following} />;
     }
   } else if (current === "start") {
-    const [packs, usage, trial, numberStyle, fn] = await Promise.all([recommendedPacks(actor), metricsOfLimit(actor), trialEndsAt(actor.workspaceId), getNumberStyle(), myBusinessFunction(actor)]);
+    const [packs, usage, numberStyle, fn] = await Promise.all([recommendedPacks(actor), metricsOfLimit(actor), getNumberStyle(), myBusinessFunction(actor)]);
     const step = guide.steps.find((x) => x.id === "start");
-    // A trial's Starting point is ticked by itself, so the step has nothing to ask; the Packs may still be installed.
-    body = <StartingPoint packs={packs} startingPoint={guide.startingPoint} metrics={usage.metrics} firstMetric={guide.firstMetric} trial={Boolean(trial)} isOwner={actor.role === "owner"} viewer={actor.personId} numberStyle={numberStyle} functionLabel={fn ? BUSINESS_FUNCTION_LABELS[fn] : null} following={ids[Math.min(ids.indexOf("start") + 1, ids.length - 1)]} ticked={Boolean(step?.ticked)} />;
+    const about = guide.steps.find((x) => x.id === "about");
+    body = <StartingPoint packs={packs} startingPoint={guide.startingPoint} metrics={usage.metrics} firstMetric={guide.firstMetric} canAnswerAbout={!about?.ticked} isOwner={actor.role === "owner"} viewer={actor.personId} numberStyle={numberStyle} functionLabel={fn ? BUSINESS_FUNCTION_LABELS[fn] : null} following={ids[Math.min(ids.indexOf("start") + 1, ids.length - 1)]} ticked={Boolean(step?.ticked)} />;
   } else if (current === "ways") {
     const slack = (SLACK_OUTCOMES as readonly string[]).includes(query.slack ?? "") ? SLACK_NOTICE[query.slack as (typeof SLACK_OUTCOMES)[number]] : null;
     body = <WaysInAndOutStep data={await waysInAndOut(actor)} following={ids[ids.indexOf("ways") + 1] ?? null} notice={slack} />;
@@ -108,7 +107,7 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
     );
   }
 
-  // The phone note comes once, before step 1, for someone who has not done or skipped About you yet (a trial ticks Starting point by itself, so only step 1 counts).
+  // The phone note comes once, before step 1, for someone who has not done or skipped About you yet.
   const first = current === "about" && guide.steps.some((s) => s.id === "about" && !s.ticked && !s.skipped);
   return (
     <PhoneNoteGate first={first}>
