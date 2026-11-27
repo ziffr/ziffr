@@ -10,7 +10,7 @@ import { installIncludedPack } from "./included-packs";
 import { packAfter } from "./pack-after";
 import { packCards } from "./pack-after-card";
 import { changePackHolder, packHolderPlan, packHolders } from "./pack-after-holder";
-import { invitePackPeople, packInvite, sendFirstPackNumber } from "./pack-after-invite";
+import { confirmPackNumber, invitePackPeople, packInvite, sendFirstPackNumber } from "./pack-after-invite";
 import { packNumbers, setPackNumbers } from "./pack-after-numbers";
 import { packProviders, setPackProviders } from "./pack-after-providers";
 import { claimGuidedRecord, setupStates } from "./pack-setup-record";
@@ -20,6 +20,10 @@ import { periodEnd, periodStart, shiftPeriod } from "./periods";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 import type { WorkflowConfig } from "./types";
+import { inviteGate } from "./invite-gate";
+import { saveWorkflow } from "./workflows";
+import { saveSeriesRows } from "./metrics";
+import { getSeriesValues } from "./workspace-data";
 import { openWorkflowRows } from "./workflow-rows";
 
 vi.setConfig({ testTimeout: 180_000, hookTimeout: 180_000 });
@@ -119,8 +123,66 @@ describe("a trial after the set-up", () => {
     const result = await setUp(t.by, FORECAST, forecast({ who: "me" }, { who: "me" }));
     const admin = await t.person("admin");
     const view = await packInvite(t.actor(admin, "admin"), result.pack.installId);
-    expect(view.first).toEqual({ you: false, numbers: [] });
+    expect(view.first).toEqual({ you: false, numbers: [], choose: false });
     await expect(sendFirstPackNumber(t.actor(admin, "admin"), result.pack.installId, result.metrics[0].id, "5")).rejects.toThrow(/not needed from you/);
+  });
+});
+
+describe("which number is offered first", () => {
+  const set = async (trial: boolean, choices: StartChoices, ref: PackStartRef = FORECAST) => {
+    const t = await space({ trial });
+    return { t, result: await setUp(t.by, ref, choices) };
+  };
+
+  it("offers the Owner's own and nobody's, and no colleague's beside them", async () => {
+    const { t, result } = await set(true, forecast({ who: "me" }, someone("Sam Seller"), { who: "me" }));
+    const numbers = (await packInvite(t.by, result.pack.installId)).first!.numbers;
+    const mine = result.metrics.filter((m) => m.line !== null && m.line !== "Sam Seller").map((m) => m.id);
+    expect(numbers.every((n) => n.whose === null)).toBe(true);
+    expect(mine).toContain(numbers[0].id);
+    const sams = result.metrics.filter((m) => m.line === "Sam Seller").map((m) => m.id);
+    expect(numbers.filter((n) => sams.includes(n.id))).toEqual([]);
+    await expect(sendFirstPackNumber(t.by, result.pack.installId, sams[0], "5")).rejects.toBeInstanceOf(Forbidden);
+  });
+
+  it("offers a colleague's only where there is no other, naming whose it becomes", async () => {
+    const { t, result } = await set(true, forecast({ who: "me" }, someone("Sam Seller")));
+    const numbers = (await packInvite(t.by, result.pack.installId)).first!.numbers;
+    expect(numbers.length).toBeGreaterThan(0);
+    expect(new Set(numbers.map((n) => n.whose))).toEqual(new Set(["Sam Seller"]));
+  });
+});
+
+describe("a first number that waits for the Owner's own check", () => {
+  it("keeps its Self-check after the Owner is a Submitter no more, opens invitations while it waits, and is confirmed", async () => {
+    const t = await space({ trial: true });
+    const result = await setUp(t.by, FORECAST, forecast(someone("Lea Lead"), someone("Sam Seller")));
+    const id = result.pack.installId;
+    const number = (await packInvite(t.by, id)).first!.numbers[0];
+    const tokens = await count("tokens", t.id);
+    expect((await sendFirstPackNumber(t.by, id, number.id, "12500")).ok).toBe(true);
+    expect(await count("tokens", t.id)).toBe(tokens);
+
+    const task = async () => (await rows("actions", t.id, "id, purpose, status, assignee_id, metric_id")).filter((a) => a.purpose === "self_check");
+    expect(await task()).toMatchObject([{ status: "open", assignee_id: t.owner, metric_id: number.id }]);
+    const state = async () => (await rows("period_states", t.id, "metric_id, state")).find((s) => s.metric_id === number.id)?.state;
+    expect(await state()).toBe("approval");
+    // The value counts for the gate while it waits: invitations are open.
+    expect(await inviteGate(t.by)).toEqual({ state: "open" });
+    const view = await packInvite(t.by, id);
+    expect(view.first).toBeNull();
+    expect(view.checks).toMatchObject([{ metric: number.name }]);
+    expect(view.checks[0].value).toContain("12");
+    expect((await invitePackPeople(t.by, id, [view.people[0].id], mail))[0].state).not.toBe("refused");
+
+    // Only the person it is for confirms it.
+    const admin = await t.person("admin");
+    await expect(confirmPackNumber(t.actor(admin, "admin"), id, view.checks[0].actionId)).rejects.toBeInstanceOf(Forbidden);
+    await expect(confirmPackNumber(t.by, id, 999_999_999)).rejects.toBeInstanceOf(Forbidden);
+    expect((await confirmPackNumber(t.by, id, view.checks[0].actionId)).words).toContain("Confirmed by you");
+    expect(await task()).toMatchObject([{ status: "closed" }]);
+    expect(await state()).not.toBe("approval");
+    expect((await packInvite(t.by, id)).checks).toEqual([]);
   });
 });
 
@@ -201,6 +263,33 @@ describe("choosing who provides the numbers", () => {
 });
 
 describe("the asked numbers for a new period", () => {
+  // Early in a quarter that starts mid week: the last ended week and the week across the start began in the quarter before.
+  it("never writes over a target of a period that began before the span, and writes every period that begins in it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2027-01-05T12:00:00Z"));
+    try {
+      const t = await space();
+      const result = await setUp(t.by, FORECAST, forecast({ who: "me" }, { who: "me" }));
+      const id = result.pack.installId;
+      const [row] = (await packNumbers(t.by, id)).asks[0].rows;
+      const target = async () => new Map(((await getSeriesValues(t.id, [row.id])).targets[row.id] ?? []).map((p) => [p.period, p.value]));
+      // The week of 28 December began in the old quarter (it was set there), 21 December has nothing.
+      await saveSeriesRows(t.by, row.id, "target", [{ period: "2026-12-28", value: 111 }, { period: "2027-01-11", value: 111 }, { period: "2027-03-29", value: 222 }], "old");
+      await setPackNumbers(t.by, id, { span: "this", numbers: [{ id: row.id, value: 300 }] });
+      let now = await target();
+      expect(now.get("2026-12-28")).toBe(111);
+      expect(now.has("2026-12-21")).toBe(false);
+      // Every week that begins in the quarter takes the new number, over what it had.
+      expect([now.get("2027-01-04"), now.get("2027-01-11"), now.get("2027-03-29")]).toEqual([300, 300, 300]);
+      await setPackNumbers(t.by, id, { span: "next", numbers: [{ id: row.id, value: 400 }] });
+      now = await target();
+      expect([now.get("2026-12-28"), now.get("2027-01-04"), now.get("2027-03-29")]).toEqual([111, 300, 300]);
+      expect([now.get("2027-04-05"), now.get("2027-06-28")]).toEqual([400, 400]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("writes the next quarter without changing this one, and this one again", async () => {
     const t = await space();
     const result = await setUp(t.by, FORECAST, { ...forecast({ who: "me" }, { who: "me" }, someone("Sam")), numbers: [{ metric: "commit", line: 1, value: 100 }] });
@@ -248,6 +337,37 @@ describe("the asked numbers for a new period", () => {
 });
 
 describe("changing who approves", () => {
+  const snapshotPeople = async (ws: string) => ((await flows(ws))[0].config as WorkflowConfig).steps.flatMap((s) => (s.type === "send_snapshot" ? s.people : []));
+
+  it("gives the Snapshot only to a holder who may open its dashboard, which saving a Workflow alone does not ask", async () => {
+    const t = await space();
+    const result = await setUp(t.by, FORECAST, forecast({ who: "me" }, someone("Sam Seller")));
+    const id = result.pack.installId;
+    const ben = await t.person("member");
+    const pick = { position: "sales-lead", line: null, person: ben };
+    const plan = await packHolderPlan(t.by, id, pick);
+    expect(plan.changes.join(" ")).toContain("Only if you tick");
+    const done = await changePackHolder(t.by, id, { ...pick, shares: [], mark: plan.mark });
+    expect(await snapshotPeople(t.id)).toEqual([t.owner]);
+    expect(done.changed.join(" ")).not.toContain("Gets the Snapshot");
+    expect(done.byHand.join(" ")).toContain("cannot open the dashboard");
+
+    // Chosen again with the dashboard shared, the step changes and who held it leaves it.
+    const again = await packHolderPlan(t.by, id, pick);
+    const dashboard = again.shares.find((s) => s.id.startsWith("dashboard"))!;
+    const second = await changePackHolder(t.by, id, { ...pick, shares: [dashboard.id], mark: again.mark });
+    expect(await snapshotPeople(t.id)).toEqual([ben]);
+    expect(second.changed.join(" ")).toContain("Gets the Snapshot");
+    expect(second.changed.join(" ")).not.toContain("Only if you tick");
+
+    // saveWorkflow takes any Member as a recipient: who may open the dashboard is asked when it is sent.
+    const stranger = await t.person("member");
+    const [flow] = await flows(t.id);
+    const config = flow.config as WorkflowConfig;
+    await saveWorkflow(t.by, Number(flow.id), String(flow.name), { ...config, steps: config.steps.map((s) => (s.type === "send_snapshot" ? { ...s, people: [stranger] } : s)) });
+    expect(await snapshotPeople(t.id)).toEqual([stranger]);
+  });
+
   it("shows the changes first and then puts a Member into the Position's places", async () => {
     const t = await space();
     const result = await setUp(t.by, FORECAST, forecast(someone("Lea Lead"), someone("Sam Seller")));
@@ -268,6 +388,7 @@ describe("changing who approves", () => {
     await expect(changePackHolder(t.by, id, { ...pick, shares: [], mark: "other" })).rejects.toThrow(/changed since you looked/);
     const ticked = plan.shares.find((s) => s.id.startsWith("dashboard"))!;
     await changePackHolder(t.by, id, { ...pick, shares: [ticked.id, "metric 1 editor"], mark: plan.mark });
+    // The dashboard was ticked, so the Snapshot moves too.
     const config = (await flows(t.id))[0].config as WorkflowConfig;
     expect(config.steps.flatMap((s) => (s.type === "approve" ? s.approvers : []))).toEqual([ben]);
     expect(config.steps.flatMap((s) => (s.type === "send_snapshot" ? s.people : []))).toEqual([ben]);

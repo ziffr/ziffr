@@ -11,7 +11,7 @@ import type { PackHolders } from "@ziffr/core/pack-after-holder";
 import type { PackNumbers } from "@ziffr/core/pack-after-numbers";
 import type { PackProviders } from "@ziffr/core/pack-after-providers";
 import { cn } from "@/lib/utils";
-import { changeHolder, choosePackProviders, invitePeople, readHolderPlan, readPackInvite, savePackNumbers, sendPackNumber } from "./actions";
+import { changeHolder, choosePackProviders, confirmPackCheck, invitePeople, readHolderPlan, readPackInvite, savePackNumbers, sendPackNumber } from "./actions";
 import { HolderTask } from "./holder-task";
 import { InvitePanel, type InviteActions } from "./invite";
 import { NumbersTask } from "./numbers-task";
@@ -29,6 +29,7 @@ export type PackTaskData =
 export const inviteActions = (installId: number): InviteActions => ({
   read: () => readPackInvite(installId),
   send: (metricId, text) => sendPackNumber(installId, metricId, text),
+  confirm: (actionId) => confirmPackCheck(installId, actionId),
   invite: (ids) => invitePeople(installId, ids),
 });
 

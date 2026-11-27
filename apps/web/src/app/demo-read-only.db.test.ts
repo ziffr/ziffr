@@ -98,6 +98,7 @@ const CASES: Record<string, Case> = {
   "first-steps/value-actions:typeValue": { outside: "First Steps' last screens, for the Owner of a Workspace it made; the core refuses a demo actor; switched off" },
   "use-pack/actions:changeHolder": { outside: "changes who approves in a Workspace of one's own; the core refuses a demo actor; switched off" },
   "use-pack/actions:choosePackProviders": { outside: "chooses providers in a Workspace of one's own; the core refuses a demo actor; switched off" },
+  "use-pack/actions:confirmPackCheck": { outside: "confirms one's own check of a value after a set-up; the core refuses a demo actor; switched off" },
   "use-pack/actions:invitePeople": { outside: "invites the people of a set-up; the core refuses a demo actor; switched off" },
   "use-pack/actions:readHolderPlan": { outside: "reads what changing who approves would do; the core refuses a demo actor; switched off" },
   "use-pack/actions:readPackInvite": { outside: "reads where the invitations of a set-up stand; the core refuses a demo actor; switched off" },

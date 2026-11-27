@@ -192,7 +192,7 @@ export function ListingLink({ href, children, unsigned = false }: { href?: strin
   try { host = new URL(href).host; } catch { return null; }
   return (
     <span>
-      <a href={href} target="_blank" rel="noopener noreferrer nofollow ugc" className="underline">{children}</a>
+      <a href={href} target="_blank" rel="noopener noreferrer nofollow ugc" className="inline-flex min-h-11 items-center underline sm:min-h-0">{children}</a>
       {unsigned && <span className="text-muted-foreground"> ({host}, given by the Pack, not checked by the Marketplace)</span>}
     </span>
   );

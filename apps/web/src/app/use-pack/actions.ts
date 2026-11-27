@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
 import type { Actor } from "@ziffr/core/actor";
 import { changePackHolder, packHolderPlan, type PackHolderPick } from "@ziffr/core/pack-after-holder";
-import { invitePackPeople, packInvite, sendFirstPackNumber } from "@ziffr/core/pack-after-invite";
+import { confirmPackNumber, invitePackPeople, packInvite, sendFirstPackNumber } from "@ziffr/core/pack-after-invite";
 import { setPackNumbers } from "@ziffr/core/pack-after-numbers";
 import { setPackProviders } from "@ziffr/core/pack-after-providers";
 import { checkStart, startPackStep, type PackStartRef } from "@ziffr/core/pack-start";
@@ -63,6 +63,11 @@ export async function readPackInvite(installId: number) {
 /** Records the Owner's first number of a set-up, without any message. */
 export async function sendPackNumber(installId: number, metricId: number, text: string) {
   return changed((actor) => sendFirstPackNumber(actor, installId, metricId, text));
+}
+
+/** Confirms the person's own check of a value of a set-up. */
+export async function confirmPackCheck(installId: number, actionId: number) {
+  return changed((actor) => confirmPackNumber(actor, installId, actionId));
 }
 
 /** Invites the ticked people of a set-up, one invitation each. */

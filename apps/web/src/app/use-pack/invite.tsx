@@ -1,16 +1,18 @@
 "use client";
 // After a Pack's set-up: "Send your first number" and "Invite them" (spec 0068; GLOSSARY: Pack, Invitation, Contact,
-// Guest, Trial Workspace). Where a trial's invitations wait for the Owner's own value, the screen says so, takes the
-// number, and then offers the invitations on the same spot. Nothing is sent before "Invite them" is pressed.
-// It draws what the core answered to this Owner or Admin: names, roles and, once, the link of an invitation just made
-// that was not emailed.
+// Guest, Self-check, Trial Workspace). Where a trial's invitations wait for the Owner's own value, the screen says so,
+// takes the number, and then offers the invitations on the same spot; a number that is a colleague's says so before it
+// is sent, and a value that waits for the person's own check has its button here. Nothing is sent before "Invite them"
+// is pressed. It draws what the core answered to this Owner or Admin: names, roles, their own values and, once, the
+// link of an invitation just made that was not emailed.
 import { useId, useState } from "react";
 import { answered, Panel, Reading, useShown } from "@/app/first-steps/closing-parts";
-import { PHONE_BUTTON, PHONE_FIELD, PHONE_TEXT_LINK } from "@/app/setup/phone";
+import { PHONE_ACTIONS, PHONE_BUTTON, PHONE_FIELD, PHONE_TEXT_LINK } from "@/app/setup/phone";
+import { FullLoadLink } from "@/components/guided-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ActionError } from "@/lib/action-error";
-import type { PackInvite, PackInvited, PackInvitee } from "@ziffr/core/pack-after-invite";
+import type { PackCheck, PackInvite, PackInvited, PackInvitee } from "@ziffr/core/pack-after-invite";
 import { cn } from "@/lib/utils";
 import { Card, NOTE, TEXT_BUTTON, TEXT_FIELD, Tick } from "./parts";
 import { namesWords } from "./providers";
@@ -19,6 +21,8 @@ import { namesWords } from "./providers";
 export type InviteActions = {
   read: () => Promise<PackInvite | ActionError>;
   send: (metricId: number, text: string) => Promise<{ ok: boolean; detail: string } | ActionError>;
+  /** Confirms the person's own check of a value. */
+  confirm: (actionId: number) => Promise<{ words: string } | ActionError>;
   invite: (personIds: string[]) => Promise<PackInvited[] | ActionError>;
 };
 
@@ -64,7 +68,9 @@ function FirstNumber({ first, send, onSent, providersHref }: { first: NonNullabl
   if (!number) {
     return (
       <p className={NOTE}>
-        None of these numbers takes a typed value from you yet. <a href={providersHref} className={PHONE_TEXT_LINK}>Choose yourself as provider</a>, then type one here.
+        None of these numbers takes a typed value from you here. {first.choose
+          ? <><FullLoadLink href={providersHref} className={PHONE_TEXT_LINK}>Choose yourself as provider</FullLoadLink>, then type one here.</>
+          : <>Record one value on the page of any number you send: <FullLoadLink href="/metrics" className={PHONE_TEXT_LINK}>your Metrics</FullLoadLink>. Invitations open once it is in.</>}
       </p>
     );
   }
@@ -91,9 +97,39 @@ function FirstNumber({ first, send, onSent, providersHref }: { first: NonNullabl
         <label htmlFor={value} className="block text-sm font-medium break-words">{number.name}{number.unit ? ` (${number.unit})` : ""}, {number.period}</label>
         <Input id={value} className={TEXT_FIELD} inputMode="decimal" autoComplete="off" maxLength={40} value={typed} onChange={(e) => setTyped(e.target.value)} />
       </div>
+      {number.whose && <p className={NOTE}>This will count as {number.whose}&rsquo;s number for {number.period}.</p>}
       <p role="alert" className="text-sm text-destructive empty:hidden">{refusal}</p>
       <Button type="submit" className={cn(PHONE_BUTTON, "sm:px-6")} disabled={busy || !typed.trim()}>{busy ? "Recording…" : "Record value"}</Button>
     </form>
+  );
+}
+
+/** The person's values that wait for their own check, each with the button that confirms it. */
+function Checks({ checks, confirm, onDone }: { checks: PackCheck[]; confirm: InviteActions["confirm"]; onDone: (words: string) => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  async function press(actionId: number) {
+    if (busy) return;
+    setBusy(true);
+    setRefusal(null);
+    const r = await answered(() => confirm(actionId), setRefusal);
+    if (r) await onDone(r.words);
+    setBusy(false);
+  }
+  return (
+    <>
+      {checks.map((c) => (
+        <Panel key={c.actionId}>
+          <p className="font-medium">Waits for your check: {c.value}</p>
+          <p>{c.metric}, {c.period}. Nobody else can approve it, so it counts as final once you confirm it.</p>
+          <div className={PHONE_ACTIONS}>
+            <Button type="button" className={cn(PHONE_BUTTON, "sm:px-6")} disabled={busy} onClick={() => void press(c.actionId)}>Yes, it is right<span className="sr-only">: {c.value} for {c.metric}</span></Button>
+            <FullLoadLink href={`/actions/${c.actionId}`} className={PHONE_TEXT_LINK}>Correct it</FullLoadLink>
+          </div>
+        </Panel>
+      ))}
+      <p role="alert" className="text-sm text-destructive empty:hidden">{refusal}</p>
+    </>
   );
 }
 
@@ -155,6 +191,7 @@ function InviteList({ view, invite, reload }: { view: PackInvite; invite: Invite
 export function InvitePanel({ actions, providersHref, alone }: Props) {
   const { data, failed, reload } = useShown(actions.read);
   const [sent, setSent] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState<string | null>(null);
   const heading = useId();
   if (!data) return <Reading failed={failed} onRetry={() => void reload()} />;
   if (data.first) {
@@ -170,11 +207,15 @@ export function InvitePanel({ actions, providersHref, alone }: Props) {
     );
   }
   const list = !data.closed && data.people.length > 0;
-  if (!sent && !list && !alone) return null;
+  // Why nobody can be invited is said wherever there is someone to invite.
+  const closed = data.closed && (data.people.length > 0 || alone) ? data.closed : null;
+  if (!sent && !confirmed && !list && !closed && !data.checks.length && !alone) return null;
   return (
     <div className="space-y-4">
-      {sent && <Panel role="status"><p className="font-medium">Your number is on record.</p><p>{sent}</p></Panel>}
-      {data.closed && (data.people.length > 0 || alone) && <p className={NOTE}>{data.closed}</p>}
+      {sent && !confirmed && <Panel role="status"><p className="font-medium">Your number is on record.</p><p>{sent}</p></Panel>}
+      {confirmed && <Panel role="status"><p>{confirmed}</p></Panel>}
+      <Checks checks={data.checks} confirm={actions.confirm} onDone={async (words) => { setConfirmed(words); await reload(); }} />
+      {closed && <p className={NOTE}>{closed}</p>}
       {list && <InviteList view={data} invite={actions.invite} reload={reload} />}
       {!list && !data.closed && <p className={NOTE}>Nobody from this set-up is waiting for an invitation.</p>}
     </div>

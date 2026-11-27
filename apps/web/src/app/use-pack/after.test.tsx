@@ -33,18 +33,20 @@ async function type(field: HTMLInputElement | HTMLSelectElement, value: string) 
 const people: PackInvite["people"] = [
   { id: "lea", name: "Lea", role: "member", state: "open" }, { id: "sam", name: "Sam", role: "guest", state: "open" }, { id: "kim", name: "Kim", role: "guest", state: "open" },
 ];
-const view = (over: Partial<PackInvite> = {}): PackInvite => ({ pack: "Sales forecast", first: null, closed: null, people, places: null, mail: true, ...over });
+const view = (over: Partial<PackInvite> = {}): PackInvite => ({ pack: "Sales forecast", first: null, checks: [], closed: null, people, places: null, mail: true, ...over });
 
 describe("the first number and the invitations", () => {
   it("asks for the number first, says why, and then offers the invitations without sending any", async () => {
-    let now = view({ first: { you: true, numbers: [{ id: 4, name: "Commit, Sam", unit: "€", period: "week 48" }] }, places: 2 });
+    let now = view({ first: { you: true, numbers: [{ id: 4, name: "Commit", unit: "€", period: "week 48", whose: null }], choose: false }, places: 2 });
     const actions: InviteActions = {
       read: vi.fn(async () => now),
       send: vi.fn(async () => { now = view({ places: 2 }); return { ok: true, detail: "Recorded 5." }; }),
+      confirm: vi.fn(),
       invite: vi.fn(async (ids: string[]) => ids.map((id) => ({ id, name: id, state: "link" as const, words: "Not emailed. Send them this link.", link: `https://example.test/invite/${id}` }))),
     };
     await show(<InvitePanel actions={actions} providersHref="/use-pack/3/providers" />);
     expect(text()).toContain("Needed before colleagues can be emailed. Then you can invite Lea, Sam, Kim.");
+    expect(text()).not.toContain("This will count as");
     expect(button("Invite them")).toBeUndefined();
     await type(host.querySelector("input")!, "5");
     await press("Record value");
@@ -59,15 +61,44 @@ describe("the first number and the invitations", () => {
   });
 
   it("closes the loop where no number can be typed yet, and keeps a refusal beside its person", async () => {
-    const none: InviteActions = { read: async () => view({ first: { you: true, numbers: [] } }), send: vi.fn(), invite: vi.fn() };
+    const none: InviteActions = { read: async () => view({ first: { you: true, numbers: [], choose: true } }), send: vi.fn(), confirm: vi.fn(), invite: vi.fn() };
     await show(<InvitePanel actions={none} providersHref="/use-pack/3/providers" />);
     expect(host.querySelector("a")?.getAttribute("href")).toBe("/use-pack/3/providers");
     act(() => root.unmount()); root = createRoot(host);
-    const refusing: InviteActions = { read: async () => view({ people: people.slice(0, 1) }), send: vi.fn(), invite: async () => [{ id: "lea", name: "Lea", state: "refused", words: "This trial is full.", link: null }] };
+    const refusing: InviteActions = { read: async () => view({ people: people.slice(0, 1) }), send: vi.fn(), confirm: vi.fn(), invite: async () => [{ id: "lea", name: "Lea", state: "refused", words: "This trial is full.", link: null }] };
     await show(<InvitePanel actions={refusing} providersHref="/x" />);
     await press("Invite them");
     expect(host.querySelector("li")?.textContent).toContain("This trial is full.");
     expect(button("Invite them").disabled).toBe(true);
+  });
+});
+
+describe("what could keep the loop open", () => {
+  it("says whose number a colleague's becomes before it is sent", async () => {
+    const actions: InviteActions = { read: async () => view({ first: { you: true, numbers: [{ id: 4, name: "Commit, Sam", unit: "€", period: "week 48", whose: "Sam" }], choose: false } }), send: vi.fn(), confirm: vi.fn(), invite: vi.fn() };
+    await show(<InvitePanel actions={actions} providersHref="/x" />);
+    expect(text()).toContain("This will count as Sam’s number for week 48.");
+    expect(actions.send).not.toHaveBeenCalled();
+  });
+
+  it("shows a value that waits for the person's check, with the button that confirms it", async () => {
+    let now = view({ people: [], checks: [{ actionId: 8, metric: "Commit, Sam", value: "12,500 €", period: "week 48" }] });
+    const actions: InviteActions = { read: async () => now, send: vi.fn(), invite: vi.fn(), confirm: vi.fn(async () => { now = view({ people: [] }); return { words: "Confirmed by you." }; }) };
+    await show(<InvitePanel actions={actions} providersHref="/x" />);
+    expect(text()).toContain("Waits for your check: 12,500 €");
+    expect(host.querySelector("a")?.getAttribute("href")).toBe("/actions/8");
+    await act(async () => [...host.querySelectorAll("button")].find((b) => b.textContent?.startsWith("Yes, it is right"))!.click());
+    await tick();
+    expect(actions.confirm).toHaveBeenCalledWith(8);
+    expect(text()).toContain("Confirmed by you.");
+    expect(text()).not.toContain("Waits for your check");
+  });
+
+  it("says why nobody can be invited, also at the end of a set-up", async () => {
+    const actions: InviteActions = { read: async () => view({ closed: "Your trial holds 5 people, and every place is taken." }), send: vi.fn(), confirm: vi.fn(), invite: vi.fn() };
+    await show(<InvitePanel actions={actions} providersHref="/x" />);
+    expect(text()).toContain("every place is taken");
+    expect(button("Invite them")).toBeUndefined();
   });
 });
 

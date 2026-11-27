@@ -1,6 +1,9 @@
 // After a Pack's set-up: "Change who approves" (spec 0068, #1345; GLOSSARY: Pack, Position, Repeat, Approver, Share,
 // Stand-in, Snapshot, Workflow). A Member takes a Position's places among what the set-up made: the Approve step, the
 // proposed Shares, the Stand-in and who gets the Snapshot. The person first sees each change; only that is then made.
+// The Snapshot goes to the new holder only if they may open its dashboard, already or by a Share ticked here: else the
+// step stays as it is and the person is told. (Saving a Workflow takes any Member as a recipient; sending skips whoever
+// may not open the dashboard.)
 // Security: only Owners and Admins, and only changes to things they own: each goes through the operation used by hand
 // (saveWorkflow, setStandIn, share), which checks it again; what is someone else's is only named as left to do. The new
 // holder is a Member of this Workspace, never a Guest or a Contact, and no Workspace Role changes. Shares are offered
@@ -8,7 +11,7 @@
 // record of the Set up says where to look and grants nothing. A browser names ids and keys, all matched against what is
 // worked out here.
 import { Forbidden, Refused, type Actor } from "./actor";
-import { getShares } from "./access";
+import { getShares, visibleDashboards } from "./access";
 import { db } from "./db";
 import { assertStillOpen, packAfter, type AfterMetric, type PackAfter } from "./pack-after";
 import { listed, type PlacedStep } from "./pack-places";
@@ -107,8 +110,10 @@ export async function packHolders(actor: Actor, installId: number): Promise<Pack
 
 type Op =
   | { kind: "approve"; flow: number; from: string }
-  | { kind: "snapshot"; flow: number; people: string[] }
+  | SnapshotOp
   | { kind: "standIn"; metric: number; submitter: string };
+/** `needs`: the dashboard the new holder cannot open yet, so the step changes only with its Share ticked. */
+type SnapshotOp = { kind: "snapshot"; flow: number; people: string[]; needs: number | null; name: string };
 type ShareOffer = { id: string; object: "metric" | "dashboard"; objectId: number; role: ShareRole; words: string; showsMore: boolean; suggested: boolean };
 
 type Planning = {
@@ -126,6 +131,10 @@ type Planning = {
   name: (id: string) => string;
   ops: Op[];
   offers: ShareOffer[];
+  /** The dashboards the new holder may open now. */
+  opens: ReadonlySet<number>;
+  /** The Snapshot lines among the changes, filled in once the Shares are known. */
+  snapshots: { at: number; op: SnapshotOp; words: string }[];
   changes: string[];
   byHand: string[];
   notes: string[];
@@ -161,9 +170,31 @@ function planSnapshot(p: Planning, f: Flow, keys: string[]) {
   const people = [...new Set([...send.people.filter((x) => !leaving.includes(x)), p.to])];
   if (!leaving.length && send.people.includes(p.to)) return;
   if (people.length > TELL_PEOPLE_PER_STEP) return void p.byHand.push(`The Snapshot of “${f.name}” reaches at most ${TELL_PEOPLE_PER_STEP} people: choose them in the Workflow.`);
-  p.ops.push({ kind: "snapshot", flow: f.id, people });
-  p.changes.push(`Gets the Snapshot of “${f.name}”: ${p.name(p.to)}${leaving.length ? `, and no longer ${listed(leaving.map(p.name))}` : ""}.`);
+  const needs = p.opens.has(send.dashboardId) ? null : send.dashboardId;
+  const op: SnapshotOp = { kind: "snapshot", flow: f.id, people, needs, name: f.name };
+  p.ops.push(op);
+  p.snapshots.push({ at: p.changes.length, op, words: `Gets the Snapshot of “${f.name}”: ${p.name(p.to)}${leaving.length ? `, and no longer ${listed(leaving.map(p.name))}` : ""}.` });
+  p.changes.push("");
 }
+
+const ONLY_IF = "Only if you tick";
+
+/** The Snapshot lines, said once the Shares are known: with the dashboard's Share to tick where the new holder cannot
+ * open it, or as left to do by hand where there is none to tick. */
+function sayingSnapshots(p: Planning) {
+  for (const { at, op, words } of p.snapshots) {
+    const share = p.offers.find((o) => o.object === "dashboard" && o.objectId === op.needs);
+    if (op.needs === null) p.changes[at] = words;
+    else if (share) p.changes[at] = `${words} ${ONLY_IF} “${share.words}” below: they cannot open its dashboard yet.`;
+    else {
+      p.ops.splice(p.ops.indexOf(op), 1);
+      p.byHand.push(cannotOpen(p, op.name));
+    }
+  }
+  p.changes = p.changes.filter(Boolean);
+}
+
+const cannotOpen = (p: Planning, flow: string) => `${p.name(p.to)} cannot open the dashboard of the Snapshot of “${flow}”, so who gets it stays as it is. Share the dashboard with them, then change it here again.`;
 
 function planWorkflows(p: Planning) {
   for (const f of p.flows.filter((x) => inScope(p, x.line))) {
@@ -260,11 +291,13 @@ async function planFor(actor: Actor, a: PackAfter, pick: PackHolderPick): Promis
     actor, a, places, flows, holders, position: found.position, per: places.positions.get(found.position)?.per, line: found.line, to: pick.person,
     old: new Set(holders.filter((h) => h.position === found.position && sameLine(h.line, found.line)).map((h) => h.person)),
     name: (id) => (id === actor.personId ? "You" : people.get(id)?.name ?? "Someone"),
-    ops: [], offers: [], changes: [], byHand: [], notes: [],
+    ops: [], offers: [], snapshots: [], changes: [], byHand: [], notes: [],
+    opens: new Set((await visibleDashboards(actor.workspaceId, pick.person)).map((d) => d.id)),
   };
   planWorkflows(p);
   planStandIns(p);
   await planShares(p);
+  sayingSnapshots(p);
   if (a.installed.places?.metrics.some((m) => m.submitters?.includes(found.position))) p.byHand.push("Who sends the numbers stays as it is: change it on each Metric's page.");
   return p;
 }
@@ -298,7 +331,7 @@ async function saveFlow(p: Planning, f: Flow, ops: Op[]) {
 }
 
 /** Puts a Member into a Position's places, as `packHolderPlan` showed it: refused when anything differs since (`mark`).
- * Of the Shares only those ticked are made. */
+ * Of the Shares only those ticked are made, first, so that a Snapshot goes only to someone who may open its dashboard. */
 export async function changePackHolder(actor: Actor, installId: number, input: PackHolderPick & { shares?: unknown; mark?: unknown }): Promise<{ changed: string[]; byHand: string[] }> {
   const a = await packAfter(actor, installId);
   await assertStillOpen(actor);
@@ -308,12 +341,17 @@ export async function changePackHolder(actor: Actor, installId: number, input: P
   if (plan.problem) throw new Refused(plan.problem);
   const ticked = new Set(Array.isArray(input.shares) ? input.shares.slice(0, 1000).map(String) : []);
   const shares = p.offers.filter((o) => ticked.has(o.id));
-  for (const f of p.flows) {
-    const ops = p.ops.filter((o) => o.kind !== "standIn" && o.flow === f.id);
-    if (ops.length) await saveFlow(p, f, ops);
-  }
-  for (const op of p.ops) if (op.kind === "standIn") await setStandIn(actor, op.metric, op.submitter, p.to);
   for (const s of shares) await share(actor, s.object, s.objectId, p.to, s.role);
-  if (p.ops.length || shares.length) await noteHolder(actor, a.setups, p.position, p.line, p.to);
-  return { changed: [...p.changes, ...shares.map((s) => `${s.words}.`)], byHand: plan.byHand };
+  const opens = (o: Op) => o.kind !== "snapshot" || o.needs === null || shares.some((s) => s.object === "dashboard" && s.objectId === o.needs);
+  const ops = p.ops.filter(opens);
+  const left = p.ops.flatMap((o) => (o.kind === "snapshot" && !opens(o) ? [o.name] : []));
+  for (const f of p.flows) {
+    const mine = ops.filter((o) => o.kind !== "standIn" && o.flow === f.id);
+    if (mine.length) await saveFlow(p, f, mine);
+  }
+  for (const op of ops) if (op.kind === "standIn") await setStandIn(actor, op.metric, op.submitter, p.to);
+  // While a Snapshot still goes to who held it, the record keeps them, so that choosing again replaces them there.
+  if ((ops.length || shares.length) && !left.length) await noteHolder(actor, a.setups, p.position, p.line, p.to);
+  const kept = plan.changes.filter((words) => !left.some((name) => words.startsWith(`Gets the Snapshot of “${name}”`)));
+  return { changed: [...kept.map((words) => words.split(` ${ONLY_IF} `)[0]), ...shares.map((s) => `${s.words}.`)], byHand: [...left.map((name) => cannotOpen(p, name)), ...plan.byHand] };
 }

@@ -1,6 +1,8 @@
 // After a Pack's set-up: "Set quotas for a new quarter" (spec 0068, #1345; GLOSSARY: Pack, Target Series, Total). The
 // numbers a Pack asks at set-up are asked again, for the running span or the next one, and written unchanged as the
-// target of each period of that span. A target of an earlier span is never written over.
+// target of each period that begins in that span, over any target it has. A period that began before the span (the week
+// across its start, and for the running span the last ended one) gets the number only while it has no target: an
+// earlier span's target is never written over.
 // Security: only Owners and Admins, only Metrics the set-up made whose targets this person may change (their own, or as
 // Editor), written through saveSeriesRows with its checks. A browser names ids, numbers and "this" or "next", all
 // checked here.
@@ -108,8 +110,9 @@ function cleanNumbers(input: unknown, offered: ReturnType<typeof askedMetrics>) 
   return { span: raw.span as PackSpan, numbers };
 }
 
-/** Writes each number as the target of every period of the span chosen: from the running span's last ended period, or
- * from the next span's start. A period that began before the span keeps a target it has. */
+/** Writes each number as the target of every period that begins in the span chosen, over what it has. Of the periods
+ * that began before it (for the running span from the last ended one, for the next span the one across its start) only
+ * those without a target take it. */
 export async function setPackNumbers(actor: Actor, installId: number, input: unknown): Promise<{ set: number }> {
   const a = await packAfter(actor, installId);
   await assertStillOpen(actor);
