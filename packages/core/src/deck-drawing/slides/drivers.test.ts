@@ -1,58 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import { STARTER_THEME } from "../../themes";
-import type { BreakdownRow, CanvasData, Metric, Point } from "../../types";
+import type { BreakdownRow, Metric } from "../../types";
 import { drawDeck } from "../draw-deck";
-import { flatten, type Obj } from "../objects";
-import type { DeckFacts, SlideSource, SlideType } from "../slide-type";
+import { flatten } from "../objects";
+import type { SlideType } from "../slide-type";
 import { bridge, BRIDGE_STEPS, type BridgeContent } from "./bridge";
 import { DRIVER_TREE, driverTree, type TreeContent } from "./driver-tree";
 import { gapTable } from "./gap-table";
 import { SLIDE_TYPES } from "./index";
 import { NOT_THERE } from "./listed";
 import { mosaic, type MosaicContent } from "./mosaic";
-
-const DECK: DeckFacts = { name: "Review", period: "September 2026", date: "9 October 2026", footer: "", agenda: [] };
-const AUG = "2026-08-01";
-const SEP = "2026-09-01";
-
-const metric = (id: number, name: string, more: Partial<Metric> = {}) =>
-  ({ id, slug: `m${id}`, name, formula: null, polarity: "higher", period: "month", decimals: 0, unit: "", unit_position: "after", ...more }) as Metric;
-
-const months = (before: number | null, after: number | null): Point[] =>
-  [before === null ? null : { period: AUG, value: before }, after === null ? null : { period: SEP, value: after }].filter((p): p is Point => !!p);
-
-const data = (metrics: Metric[], values: Record<number, [number | null, number | null]> = {}, more: Partial<CanvasData> = {}) =>
-  ({
-    metrics,
-    series: Object.fromEntries(metrics.map((m) => [m.slug, months(...(values[m.id] ?? [null, null]))])),
-    targets: {},
-    projections: {},
-    breakdowns: {},
-    yearStart: 1,
-    numberStyle: "en",
-    ...more,
-  }) as unknown as CanvasData;
-
-const slide = (type: string, metrics: number[], options: Record<string, unknown> = {}): SlideSource => ({ id: `sl_${type}`, type, metrics, options, headline: null });
-
-function filled<C>(type: SlideType<C>, source: SlideSource, from: CanvasData) {
-  const out = type.fill(source, from, DECK);
-  if (!("content" in out)) throw new Error(out.cannot);
-  return out;
-}
-function refused<C>(type: SlideType<C>, source: SlideSource, from: CanvasData): string {
-  const out = type.fill(source, from, DECK);
-  if (!("cannot" in out)) throw new Error("It was drawn.");
-  // A refused slide says no figure.
-  expect(out.headline).not.toMatch(/\d/);
-  return out.cannot;
-}
-const breakdown = (id: number, periods: Record<string, BreakdownRow[]>) => ({ breakdowns: { [id]: periods } });
-const text = (objects: Obj[]) =>
-  flatten(objects)
-    .flatMap((o) => (o.type === "text" ? o.body.paras.map((p) => p.runs.map((r) => r.t).join("")) : []))
-    .join(" ");
+import { AUG, breakdown, data, DECK, filled, metric, refused, SEP, slide, text } from "./test-slides";
 
 describe("a slide reads only the Metrics it lists", () => {
   const all = data([metric(1, "Revenue"), metric(2, "Secret plan")], { 1: [1, 2], 2: [3, 4] });
@@ -95,6 +54,7 @@ describe("the gap table", () => {
         theme: { ...STARTER_THEME, slides: { ...STARTER_THEME.slides, show_slide_number: true } },
         period: DECK.period,
         date: DECK.date,
+        today: DECK.today,
       },
       SLIDE_TYPES,
     );
@@ -145,7 +105,7 @@ describe("the bridge", () => {
 
   it("takes the inputs of a formula with their signs", () => {
     const out = filled(bridge, slide("bridge", [1, 2, 3]), data(sum("{m2} - {m3}"), values));
-    expect(out.headline).toBe("Margin fell from 40 to 20");
+    expect(out.headline).toBe("Margin fell 20 in September 2026; largest parts: Revenue −10 and Cost −10");
     expect(kinds(out.content)).toEqual(["end", "part", "part", "end"]);
     expect(out.content.columns.slice(1, 3).map((c) => c.to - c.from)).toEqual([-10, -10]);
     ends(out.content);
@@ -195,7 +155,7 @@ describe("the bridge", () => {
   });
   it("says that a number stayed", () => {
     const out = filled(bridge, slide("bridge", [1]), data([metric(1, "Sales")], { 1: [0, 0] }, breakdown(1, { [AUG]: [{ label: "A", value: 0 }], [SEP]: [{ label: "A", value: 0 }] })));
-    expect(out.headline).toBe("Sales stayed at 0");
+    expect(out.headline).toBe("Sales was unchanged at 0 in September 2026");
     expect(kinds(out.content)).toEqual(["end", "part", "end"]);
   });
 });
@@ -228,7 +188,7 @@ describe("the mosaic", () => {
   it("draws very uneven rows and a row of 0, and names the narrow ones", () => {
     const out = filled(mosaic, source, from([row("Huge", 1e9, [["A", 1e9]]), row("Tiny", 1, [["A", 1]]), row("Nothing", 0, [["A", 0]])]));
     full(out.content);
-    expect(out.headline).toMatch(/^Huge holds /);
+    expect(out.headline).toBe("Sales, September 2026");
   });
   it.each([
     ["negative rows", [row("A", -1, [["x", -1]])], "negative"],

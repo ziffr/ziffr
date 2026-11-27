@@ -118,7 +118,7 @@ describe("the deck slides in a browser", () => {
   });
 
   // Each sample as a deck of its own, with the data it reads.
-  const sampleDecks = () => Object.entries(SAMPLES).flatMap(([type, list]) => list.map((s) => ({ slides: [slideOf(type, s.slide)], data: { ...DECK.data, ...s.data } })));
+  const sampleDecks = () => Object.entries(SAMPLES).flatMap(([type, list]) => list.map((s) => ({ slides: [...(s.before ?? []), slideOf(type, s.slide)], data: { ...DECK.data, ...s.data } })));
 
   it.each(DESIGNS)("pass the check in every Theme and font set, %s design", async (design) => {
     // The whole deck, then the samples.

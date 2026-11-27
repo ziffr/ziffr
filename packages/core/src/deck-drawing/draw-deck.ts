@@ -28,6 +28,10 @@ export type DeckDrawingInput = {
   fonts?: FontSet;
   period: string;
   date: string;
+  /** The day the deck shows, yyyy-mm-dd. */
+  today: string;
+  /** The Installation's own address, for the about slide's links. Left out through a View Link, which gets none. */
+  address?: string;
 };
 
 /** How a drawn deck looks: its design, emphasis, fonts and colours. */
@@ -61,6 +65,13 @@ const unknown = (id: string): SlideType => ({
   draw: () => [],
 });
 
+/** An address a link may be built from: http or https, with no sign-in, query or fragment kept. */
+function ownAddress(address: string | undefined): string | null {
+  const url = address && URL.canParse(address) ? new URL(address) : null;
+  if (!url || !/^https?:$/.test(url.protocol) || url.username || url.password) return null;
+  return `${url.origin}${url.pathname}`.replace(/\/+$/, "");
+}
+
 /** The first headline of each section the agenda names, four at most. */
 function agendaOf(slides: { type: SlideType; headline: string }[]): AgendaEntry[] {
   const entries = new Map<string, string>();
@@ -81,9 +92,18 @@ export function drawDeck(input: DeckDrawingInput, types: Record<string, SlideTyp
   // Only a checked picture carried as data is drawn: never an address that would be fetched.
   const src = cleanLogo(theme.logo);
   const logo: Logo = src ? { src, ratio: theme.logo_ratio } : null;
-  const facts: DeckFacts = { name: input.name, period: input.period, date: input.date, footer: input.footer ?? theme.footer, agenda: [] };
-
   const shown = input.slides.filter((s) => !s.hidden).map((source) => ({ source, type: Object.hasOwn(types, source.type) ? types[source.type]! : unknown(source.type) }));
+  const held = new Set(input.data.metrics.map((m) => m.id));
+  const facts: DeckFacts = {
+    name: input.name,
+    period: input.period,
+    date: input.date,
+    today: input.today,
+    footer: input.footer ?? theme.footer,
+    agenda: [],
+    listed: [...new Set(shown.flatMap(({ source }) => source.metrics.filter((id) => held.has(id))))],
+    address: ownAddress(input.address),
+  };
   // The content slides say what they say first: the cover's agenda is made from their headlines.
   const content = shown.filter((s) => !s.type.cover).map((s) => {
     const filled = s.type.fill(s.source, input.data, facts);

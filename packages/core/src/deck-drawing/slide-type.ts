@@ -32,6 +32,13 @@ export type DeckFacts = {
   period: string;
   /** The day it shows, in words. */
   date: string;
+  /** The day it shows, yyyy-mm-dd: it decides whether a period is over. */
+  today: string;
+  /** The ids of the Metrics the other shown slides list and the data holds, in the order of the slides: what the
+   * about slide names. */
+  listed: number[];
+  /** Ziffr's own address, without a slash at the end, for links to a Metric; null: no links. */
+  address: string | null;
   /** The Theme's or the deck's footer words. */
   footer: string;
   agenda: AgendaEntry[];

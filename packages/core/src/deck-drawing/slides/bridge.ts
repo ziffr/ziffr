@@ -13,7 +13,7 @@ import { chartTitle } from "../chart";
 import type { Obj } from "../objects";
 import type { Region, SlideType } from "../slide-type";
 import type { Role } from "../theme";
-import { bridgeHeadline, cannotHeadline } from "./headlines";
+import { cannotHeadline, headlineOf } from "./headlines";
 import { latestPoint, listedData, nameOf, NOT_THERE, periodWords, readsMore, sourceOf, unitWords, valueIn, type Listed } from "./listed";
 
 /** One column of a bridge: where it starts and ends, and its figure as written. */
@@ -144,7 +144,7 @@ export const bridge: SlideType<BridgeContent> = {
   section: "Drivers",
   wide: true,
   /** The change of the first Metric since the period before, split into its parts. */
-  fill(slide, data) {
+  fill(slide, data, deck) {
     const listed = listedData(slide, data);
     if (!listed) return NOT_THERE;
     const metric = listed.metrics[0]!;
@@ -184,7 +184,7 @@ export const bridge: SlideType<BridgeContent> = {
       oneSided.length ? `No value in one of the two periods, counted as 0 there: ${oneSided.join(", ")}.` : "",
     ].filter(Boolean);
     return {
-      headline: bridgeHeadline(name, worked.change, writeSlideValue(metric, was, scale, data), writeSlideValue(metric, is, scale, data)),
+      headline: headlineOf({ show: "change", metric, period: after, parts: found.parts }, listed.data, deck.today),
       source: sourceOf(listed.metrics, `${periodWords(metric, data, before)} to ${periodWords(metric, data, after)}`),
       note: notes.join(" ") || undefined,
       content: {
