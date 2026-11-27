@@ -1,24 +1,29 @@
 "use client";
 // Export as Pack (spec 0030, GLOSSARY: Pack): pick Metrics, catalog entries, templates, View Designs and Themes of the
-// Workspace, name the Pack, describe it (the Pack Guide, spec 0058) and download its file. The core makes and checks the
-// file; it holds no value and no person.
+// Workspace, name the Pack, describe it (the Pack Guide, spec 0058, and the set-up questions, spec 0068), try its set-up
+// without writing anything, and download its file. The core makes and checks the file; it holds no value and no person.
 import { useState, useTransition } from "react";
-import { ArrowLeft, ArrowRight, FileDown, PackagePlus } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileDown, PackagePlus, Play } from "lucide-react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { exportAsPack, themeLogoPreview } from "@/app/pack-actions";
+import { exportAsPack, themeLogoPreview, tryAsPack } from "@/app/pack-actions";
 import { checkPackDescription, describePack } from "@/app/pack-guide-actions";
+import { TEXT_BUTTON } from "@/app/use-pack/parts";
 import { DescribeStep, useDescription } from "./describe";
+import { TryIt } from "./try-it";
+import { PACK_SET_UP_ON } from "@/app/use-pack/switch";
 import { PACK_LICENSES } from "@ziffr/core/pack";
 import type { ExportChoice, ExportOptions } from "@ziffr/core/pack-export";
+import type { PackExportTry } from "@ziffr/core/pack-export-try";
+import type { NumberStyle } from "@ziffr/core/number-style";
 
 const GROUPS: [keyof ExportOptions, string][] = [["metrics", "Metrics, as Metric Catalog entries"], ["catalog", "Metric Catalog entries from Packs"], ["dashboards", "Dashboard Templates"], ["decks", "Deck Templates"], ["workflows", "Workflow Templates"], ["designs", "View Designs"], ["themes", "Themes"]];
 
 /** The Export as Pack button and its dialog. */
-export function ExportPack({ options, defaultAuthor = "" }: { options: ExportOptions; defaultAuthor?: string }) {
+export function ExportPack({ options, defaultAuthor = "", viewer, numberStyle }: { options: ExportOptions; defaultAuthor?: string; viewer: string; numberStyle: NumberStyle }) {
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<ExportChoice>({});
   const [m, setM] = useState({ id: "", name: "", version: "1.0.0", summary: "", author: defaultAuthor, license: "CC-BY-4.0" });
@@ -56,14 +61,29 @@ export function ExportPack({ options, defaultAuthor = "" }: { options: ExportOpt
       toast.error("The next step could not be opened", { description: shown(e) });
     }
   });
+  // The try being walked, over the dialog, which keeps every word meanwhile.
+  const [tried, setTried] = useState<PackExportTry | null>(null);
+  // Whether the step's fields may go into a file; what may not is said at its field.
+  const described = async () => {
+    const { guide, numbers, setUp } = unwrap(await checkPackDescription(description.guide, description.comesFrom, description.setUp && { choice: picked, setUp: description.setUp }));
+    description.refused(guide, numbers, setUp);
+    // The first field with a problem takes the focus, so it is seen on a small screen too.
+    const first = numbers.length ? `[data-number-field="${CSS.escape(numbers[0].ref)}"]` : guide.length ? `[data-guide-field="${guide[0].section ?? "whatItsFor"}"]` : setUp.length ? `[data-set-up-field="${CSS.escape(setUp[0].field)}"]` : null;
+    if (first) document.querySelector<HTMLElement>(first)?.focus();
+    return !first;
+  };
+  const file = () => [{ ...m, ...(upload ? { logo: { data: upload } } : logoTheme !== null ? { logo: { themeId: logoTheme } } : {}) }, picked, withTags, { guide: description.guide, comesFrom: description.comesFrom, setUp: description.setUp }] as const;
+  const tryIt = () => start(async () => {
+    try {
+      if (await described()) setTried(unwrap(await tryAsPack(...file())));
+    } catch (e) {
+      toast.error("It cannot be tried yet", { description: shown(e) });
+    }
+  });
   const make = () => start(async () => {
     try {
-      const { guide, numbers } = unwrap(await checkPackDescription(description.guide, description.comesFrom));
-      description.refused(guide, numbers);
-      // The first field with a problem takes the focus, so it is seen on a small screen too.
-      const first = numbers.length ? `[data-number-field="${CSS.escape(numbers[0].ref)}"]` : guide.length ? `[data-guide-field="${guide[0].section ?? "whatItsFor"}"]` : null;
-      if (first) { document.querySelector<HTMLElement>(first)?.focus(); return; }
-      const res = unwrap(await exportAsPack({ ...m, ...(upload ? { logo: { data: upload } } : logoTheme !== null ? { logo: { themeId: logoTheme } } : {}) }, picked, withTags, { guide: description.guide, comesFrom: description.comesFrom }));
+      if (!(await described())) return;
+      const res = unwrap(await exportAsPack(...file()));
       const url = URL.createObjectURL(new Blob([res.text], { type: "application/json" }));
       const a = Object.assign(document.createElement("a"), { href: url, download: res.fileName });
       a.click();
@@ -143,17 +163,19 @@ export function ExportPack({ options, defaultAuthor = "" }: { options: ExportOpt
               </div>
             )}
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             {describing
               ? <>
-                  <Button variant="outline" onClick={() => setDescribing(false)} autoFocus><ArrowLeft aria-hidden /> Back</Button>
-                  <Button disabled={pending} onClick={make}><FileDown aria-hidden /> Download Pack</Button>
+                  <Button variant="outline" className={TEXT_BUTTON} onClick={() => setDescribing(false)} autoFocus><ArrowLeft aria-hidden /> Back</Button>
+                  {PACK_SET_UP_ON && <Button variant="outline" className={TEXT_BUTTON} disabled={pending} onClick={tryIt}><Play aria-hidden /> Try it</Button>}
+                  <Button className={TEXT_BUTTON} disabled={pending} onClick={make}><FileDown aria-hidden /> Download Pack</Button>
                 </>
               : <>
-                  <Button variant="outline" onClick={() => setOpen(false)}>Close</Button>
-                  <Button disabled={!count || !m.name.trim() || !m.id.trim() || pending} onClick={next}>Next: describe it <ArrowRight aria-hidden /></Button>
+                  <Button variant="outline" className={TEXT_BUTTON} onClick={() => setOpen(false)}>Close</Button>
+                  <Button className={TEXT_BUTTON} disabled={!count || !m.name.trim() || !m.id.trim() || pending} onClick={next}>Next: describe it <ArrowRight aria-hidden /></Button>
                 </>}
           </div>
+          {tried && <TryIt made={tried} viewer={viewer} numberStyle={numberStyle} onClose={() => setTried(null)} />}
         </DialogContent>
       </Dialog>
     </section>

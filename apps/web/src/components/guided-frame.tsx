@@ -32,12 +32,16 @@ type FrameProps = {
   onBack: (() => void) | null;
   /** For a screen that shows a drawing: more room across. */
   wide?: boolean;
+  /** Words above every screen, such as that this is a try. A frame with one stands over a page of its own, so it adds
+   * no main landmark. */
+  notice?: React.ReactNode;
   children: React.ReactNode;
 };
 
 /** The steps and answers beside a screen, and Back and the ways out. */
-export function GuidedFrame({ steps, current, answers, ways, onBack, wide, children }: FrameProps) {
+export function GuidedFrame({ steps, current, answers, ways, onBack, wide, notice, children }: FrameProps) {
   const within = current >= 0 && current < steps.length;
+  const Body = notice ? "div" : "main";
   return (
     <div className="flex min-h-svh flex-col bg-background md:flex-row">
       {/* It stays in view beside a long screen, so the ways out are always at its foot. */}
@@ -70,14 +74,15 @@ export function GuidedFrame({ steps, current, answers, ways, onBack, wide, child
         </div>
         {within && <p className="text-sm text-muted-foreground">Step {current + 1} of {steps.length}: {steps[current]}</p>}
       </div>
-      <main className={cn("mx-auto w-full min-w-0 flex-1 px-4 py-6 md:py-12", wide ? "max-w-3xl" : "max-w-xl")}>
+      <Body className={cn("mx-auto w-full min-w-0 flex-1 px-4 py-6 md:py-12", wide ? "max-w-3xl" : "max-w-xl")}>
+        {notice && <p className="mb-4 rounded-[var(--radius-input)] border border-input bg-muted p-2.5 text-sm break-words">{notice}</p>}
         {onBack && (
           <Button type="button" variant="ghost" className={cn("-ml-3 mb-2", FRAME_TAP)} onClick={onBack}>
             <ArrowLeft aria-hidden /> Back
           </Button>
         )}
         {children}
-      </main>
+      </Body>
     </div>
   );
 }
