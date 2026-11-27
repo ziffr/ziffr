@@ -8,7 +8,7 @@ import { slackUserFor } from "./slack-people";
 import { telegramSends } from "./telegram-send";
 import { telegramChatOf } from "./telegram-people";
 import { settingsInEffect } from "./settings-in-effect";
-import { allowedWays, routePrompts, type PromptWay, type Route } from "./prompt-route";
+import { allowedWays, PROMPT_WAYS, routePrompts, type PromptWay, type Route } from "./prompt-route";
 import type { SourceId } from "./types";
 
 /** Whether an email asking for a reply is answered in Ziffr: inbound mail is set up, or mail is only simulated here. */
@@ -49,4 +49,28 @@ export async function planPrompt(workspaceId: string, personId: string, accepts:
     routes = routePrompts({ chosen: list, accepts, mailReplies, reach });
   }
   return { route: routes[0] ?? { via: null }, routes, mailReplies, reach };
+}
+
+/** Where each way keeps who stopped it. */
+const STOPS = { email: "email_opt_outs", slack: "slack_opt_outs", telegram: "telegram_opt_outs" } as const;
+
+/** The ways each of these people stopped requests for numbers by, in this Workspace; someone who stopped none has no
+ * entry. Checks no Actor: the caller decides who may be told. */
+export async function stoppedWays(workspaceId: string, personIds: readonly string[]): Promise<Map<string, Set<PromptWay>>> {
+  const out = new Map<string, Set<PromptWay>>();
+  if (!personIds.length) return out;
+  await Promise.all(PROMPT_WAYS.map(async (way) => {
+    const { data, error } = await db().from(STOPS[way]).select("person_id").eq("workspace_id", workspaceId).in("person_id", [...personIds]);
+    if (error) throw new Error("Who stopped these messages could not be read.");
+    for (const r of data ?? []) out.set(r.person_id as string, (out.get(r.person_id as string) ?? new Set<PromptWay>()).add(way));
+  }));
+  return out;
+}
+
+/** The ways a request for a Metric with these Sources really reaches a person who chose `chosen` (the planned ways less
+ * those they stopped), and the ways they stopped. Checks no Actor, and asks no provider. */
+export async function openWays(workspaceId: string, personId: string, accepts: readonly SourceId[], chosen: readonly string[]): Promise<{ open: PromptWay[]; stopped: Set<PromptWay> }> {
+  const [plan, stops] = await Promise.all([planPrompt(workspaceId, personId, accepts, chosen), stoppedWays(workspaceId, [personId])]);
+  const stopped = stops.get(personId) ?? new Set<PromptWay>();
+  return { open: plan.routes.map((r) => r.via).filter((w) => !stopped.has(w)), stopped };
 }

@@ -355,7 +355,7 @@ describe("mail", () => {
     const { data: d } = await db().from("deliveries").select("unsubscribe_token, body, alert_id").eq("workspace_id", w.id).eq("kind", "alert").single();
     expect(d).toMatchObject({ alert_id: one, unsubscribe_token: expect.stringMatching(/^[A-Za-z0-9_-]{32}$/) });
     expect(await unsubscribeIsAlert(d!.unsubscribe_token as string)).toBe(true);
-    expect(await optOutByToken(d!.unsubscribe_token as string)).toBe(true);
+    expect(await optOutByToken(d!.unsubscribe_token as string)).toEqual({ undo: null });
     expect((await listMyAlerts(a)).map((x) => [x.id, x.pausedByPerson]).sort()).toEqual([[one, true], [one + 1, false]].sort());
     expect((await db().from("email_opt_outs").select("person_id").eq("workspace_id", w.id)).data).toEqual([]);
     expect(await optOutByToken("x".repeat(32))).toBe(false);

@@ -53,7 +53,7 @@ describe("running the schedule by hand", () => {
     const w = await ws(); const sara = await w.person("owner"); const ada = await w.person("admin"); const ben = await w.person("member");
     await expect(askForMissingValues(w.actor(ben, "member"))).rejects.toEqual(forbidden);
     await expect(sendDueReminders(w.actor(ben, "member"))).rejects.toEqual(forbidden);
-    expect(await askForMissingValues(w.actor(sara))).toBe(0);
+    expect(await askForMissingValues(w.actor(sara))).toEqual({ asked: 0, stopped: 0 });
     expect(await sendDueReminders(w.actor(ada, "admin"))).toBe(0);
   });
 });

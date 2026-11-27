@@ -127,7 +127,7 @@ describe("queued email", () => {
     const annAddress = address("ann"); const ann = await w.person("member", { email: annAddress });
     const m = await w.metric(sara, { name: "Field visits", sources: ["web_form", "mail"] });
     await w.token(m.id, ann);
-    expect(await askForMissingValues(w.actor(sara))).toBe(1);
+    expect(await askForMissingValues(w.actor(sara))).toEqual({ asked: 1, stopped: 0 });
     const queued = await deliveryOf(w.id, ann);
     expect(queued).toMatchObject({ kind: "prompt", mail_state: "queued", sent_at: null, attempts: 0 });
     expect(await inbox(annAddress)).toEqual([]);

@@ -83,7 +83,7 @@ describe("buttons on Telegram", () => {
     expect(await receiveTelegramUpdate(press(annUser, prompt, "s"))).toBe("stopped");
     expect(await telegramOptedOut(w.actor(ann, "member"))).toBe(true);
     const notice = await opened("deliveries", w.id, (await db().from("deliveries").select("id, subject").eq("workspace_id", w.id).eq("recipient_id", sara).eq("kind", "notice")).data, { dropId: true });
-    expect(notice?.[0]?.subject).toMatch(/stopped reminders on Telegram/);
+    expect(notice?.[0]?.subject).toMatch(/is no longer asked for numbers on Telegram$/);
     await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "telegram" });
     expect(await latest(w.id, ann)).toMatchObject({ mail_state: "failed", last_error: "They stopped reminders on Telegram." });
 
