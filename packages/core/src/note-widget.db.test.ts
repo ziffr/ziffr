@@ -10,7 +10,6 @@ import { applyTemplate, createDashboard, placeWidget, removeWidget, saveLayout, 
 import { db } from "./db";
 import { DemoTextRefused } from "./demo-visitor-words";
 import { visitingDemo } from "./demo-visiting";
-import { resetDemoWorkspace } from "./demo-reset";
 import { NOTE_TEXT_MAX } from "./note-widget";
 import { dashboardWidgets, savedWidgets } from "./page-data";
 import { forgetStoredSettings } from "./settings-in-effect";
@@ -18,7 +17,7 @@ import { share } from "./sharing";
 import { editSnapshotWords, openSnapshot, showSnapshot, takeSnapshot } from "./snapshots";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { saveDashboardTemplate, saveTemplate } from "./templates";
-import { assertDemoIsOnlyWorkspace, demoBackToSeed } from "./test/demo-walk";
+import { assertDemoIsOnlyWorkspace, demoBackToSeed, demoOpenForVisitors } from "./test/demo-walk";
 import { workspace } from "./test/db-fixtures";
 import { listVersions, restoreVersion } from "./version-history";
 import { createViewLink, openViewLink } from "./view-links";
@@ -27,7 +26,7 @@ import { forgetWorkspaceKey } from "./workspace-keys";
 const savedEnv = { ...process.env };
 const NAMES = ["ZIFFR_SECRETS_KEY", "ZIFFR_TLDRAW_LICENSE_KEY", "ZIFFR_DEMO_CHANGES", "ZIFFR_DEMO_ONLY"] as const;
 const cleanups: (() => Promise<void>)[] = [];
-beforeEach(() => { process.env.ZIFFR_SECRETS_KEY = Buffer.alloc(32, 59).toString("base64"); forgetStoredSettings(); });
+beforeEach(() => forgetStoredSettings());
 afterEach(async () => {
   for (const c of cleanups.splice(0)) await c().catch(() => {});
   for (const name of NAMES) { if (savedEnv[name] === undefined) delete process.env[name]; else process.env[name] = savedEnv[name]; }
@@ -40,6 +39,8 @@ const october = { kind: "month", start: "2026-10-01" };
 
 /** A Workspace with Sara's dashboard, shared with Ed as Editor, Vera as Viewer and the Guest Gus as Viewer; Olga sees nothing of it. */
 async function setup() {
+  // A sealing key for this Workspace alone: the demo test below runs with what the run has.
+  process.env.ZIFFR_SECRETS_KEY = Buffer.alloc(32, 59).toString("base64");
   const w = await workspace("Notes");
   cleanups.push(async () => { forgetWorkspaceKey(w.id); await w.cleanup(); });
   const [sara, ed, vera, gus, olga] = [await w.person("owner"), await w.person("member"), await w.person("member"), await w.person("guest"), await w.person("member")];
@@ -204,7 +205,7 @@ describe("a Note Widget in the demo", () => {
   it("takes a visitor's words only through the demo's text rules, and keeps a seeded widget's", async () => {
     await assertDemoIsOnlyWorkspace();
     reset = true;
-    await resetDemoWorkspace({ openToVisitors: true });
+    await demoOpenForVisitors();
     process.env.ZIFFR_DEMO_CHANGES = "1"; process.env.ZIFFR_DEMO_ONLY = "1"; forgetStoredSettings();
     const sara = { personId: "sara", workspaceId: DEMO_WORKSPACE_ID, role: "owner" as const };
     const generation = Number((await db().from("demo_state").select("generation").single()).data?.generation);
