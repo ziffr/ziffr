@@ -36,11 +36,19 @@ function paragraphs(body: TextBody, paint: Paint): ReactNode {
       <div key={i} style={style}>
         {/* A bullet or number takes the weight of the paragraph's first words, as PowerPoint's does. */}
         {p.bullet && <span style={{ display: "inline-block", width: 16, textIndent: 0, fontWeight: strong ? 700 : 400 }}>{p.bullet === "dot" ? "•" : `${counter}.`}</span>}
-        {p.runs.map((r, j) => (
-          <span key={j} style={{ color: r.color && paint.colour(r.color), fontSize: r.size, fontFamily: r.face && paint.font(r.face), fontWeight: r.bold === undefined ? undefined : r.bold ? 700 : 400 }}>
-            {r.t}
-          </span>
-        ))}
+        {p.runs.map((r, j) => {
+          const style: CSSProperties = { color: r.color && paint.colour(r.color), fontSize: r.size, fontFamily: r.face && paint.font(r.face), fontWeight: r.bold === undefined ? undefined : r.bold ? 700 : 400 };
+          // A drawing's links are Ziffr's own (about.ts); nothing but a web address is ever followed.
+          return r.href && /^https?:\/\//i.test(r.href) ? (
+            <a key={j} href={r.href} target="_blank" rel="noreferrer" style={{ ...style, color: style.color ?? "inherit", textDecoration: "underline" }}>
+              {r.t}
+            </a>
+          ) : (
+            <span key={j} style={style}>
+              {r.t}
+            </span>
+          );
+        })}
       </div>
     );
   });

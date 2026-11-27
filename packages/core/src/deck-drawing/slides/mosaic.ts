@@ -9,7 +9,7 @@ import { chartTitle } from "../chart";
 import type { Obj, Stroke } from "../objects";
 import type { Region, SlideType } from "../slide-type";
 import type { Role } from "../theme";
-import { cannotHeadline, mosaicHeadline } from "./headlines";
+import { cannotHeadline, headlineOf } from "./headlines";
 import { breakdownPeriod, listedData, nameOf, NOT_THERE, periodWords, sourceOf, unitWords, valueIn } from "./listed";
 
 /** One piece of a column: which part it is (null: what its row holds beyond its parts) and its share of the column. */
@@ -117,7 +117,7 @@ export const mosaic: SlideType<MosaicContent> = {
   section: "Drivers",
   wide: true,
   /** The latest Breakdown with parts as shares, or the sentence that says why it cannot be one. */
-  fill(slide, data) {
+  fill(slide, data, deck) {
     const listed = listedData(slide, data);
     if (!listed) return NOT_THERE;
     const metric = listed.metrics[0]!;
@@ -162,9 +162,8 @@ export const mosaic: SlideType<MosaicContent> = {
       off.length ? `The parts do not add up to their row in: ${off.join(", ")}.` : "",
       own !== null && differ(own, all) ? `The rows come to ${written(all)}, not to the ${written(own)} of ${name}.` : "",
     ].filter(Boolean);
-    const widest = columns[raw.findIndex((c) => !c.others)]!;
     return {
-      headline: mosaicHeadline(name, widest.name, widest.shareText),
+      headline: headlineOf({ show: "shares", metric, period, rows }, listed.data, deck.today),
       source: sourceOf([metric], periodWords(metric, data, period)),
       note: notes.join(" ") || undefined,
       content: { title: `${name} by row and part, ${periodWords(metric, data, period)}`, unit: unitWords(scaleUnit(metric, scale)), parts, columns },

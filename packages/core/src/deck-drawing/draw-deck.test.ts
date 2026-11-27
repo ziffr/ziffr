@@ -43,6 +43,7 @@ const input = (more: Partial<DeckDrawingInput> = {}): DeckDrawingInput => ({
   theme: STARTER_THEME,
   period: "Third quarter 2026",
   date: "9 October 2026",
+  today: "2026-10-09",
   ...more,
 });
 

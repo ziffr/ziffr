@@ -1,5 +1,14 @@
-// The headlines of the gap table, bridge, mosaic and driver tree (spec 0069; GLOSSARY: Slide Type): one sentence from
-// the figures, never a cause. A small seam: the headline rules of spec 0069 (ticket #1363) take its place. Pure.
+// The headline of a slide (spec 0069; GLOSSARY: Slide Type): the first proposal of the headline rules
+// (deck-headlines.ts) for what the slide shows. The gap table keeps a sentence of its own, as its figures come written
+// and the rules need them as numbers. Visibility: the rules are handed the slide's own cut of the data. Pure.
+import { deckHeadlines, type HeadlineSubject } from "../../deck-headlines";
+import type { CanvasData, Metric } from "../../types";
+
+/** What a slide of these Metrics is about, the first leading. */
+export const subjectOf = (metrics: Metric[]): HeadlineSubject => (metrics.length === 1 ? { show: "metric", metric: metrics[0]! } : { show: "metrics", metrics });
+
+/** Ziffr's headline for a slide that shows this, on this day. */
+export const headlineOf = (subject: HeadlineSubject, data: CanvasData, today: string): string => deckHeadlines(subject, { ...data, today })[0]?.text ?? "";
 
 /** A gap table's: how many of its rows are below what they are held against. */
 export function gapHeadline(name: string, against: string, gaps: readonly (number | null)[]): string {
@@ -9,18 +18,6 @@ export function gapHeadline(name: string, against: string, gaps: readonly (numbe
   if (!below) return `${name}: no row is below ${against}`;
   return `${name}: ${below} of ${known.length} ${known.length === 1 ? "row" : "rows"} ${below === 1 ? "is" : "are"} below ${against}`;
 }
-
-/** A bridge's: which way the number went, from what to what. */
-export function bridgeHeadline(name: string, change: number, from: string, to: string): string {
-  if (change === 0) return `${name} stayed at ${to}`;
-  return `${name} ${change > 0 ? "rose" : "fell"} from ${from} to ${to}`;
-}
-
-/** A mosaic's: the widest column and its share. */
-export const mosaicHeadline = (name: string, widest: string, share: string) => `${widest} holds ${share} of the rows of ${name}`;
-
-/** A driver tree's: the number at its root. */
-export const treeHeadline = (name: string, value: string, period: string) => `${name} was ${value} in ${period}`;
 
 /** What stands over a slide whose data cannot carry it. */
 export const cannotHeadline = (what: string, name: string) => `The ${what} of ${name} cannot be shown`;

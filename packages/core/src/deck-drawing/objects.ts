@@ -16,8 +16,9 @@ export type Box = { x: number; y: number; w: number; h: number };
 /** A Theme font: the heading face or the text face. */
 export type Face = "head" | "body";
 
-/** A stretch of words with one look. Anything left out comes from the paragraph or the text body. */
-export type Run = { t: string; bold?: boolean; color?: Role; size?: number; face?: Face };
+/** A stretch of words with one look. Anything left out comes from the paragraph or the text body. `href` makes it a
+ * link: only an address Ziffr built itself, never one a person typed. */
+export type Run = { t: string; bold?: boolean; color?: Role; size?: number; face?: Face; href?: string };
 
 /** One paragraph. Anything left out comes from the text body. */
 export type Para = {

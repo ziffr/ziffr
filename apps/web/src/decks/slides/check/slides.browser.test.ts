@@ -118,7 +118,7 @@ describe("the deck slides in a browser", () => {
   });
 
   // Each sample as a deck of its own, with the data it reads.
-  const sampleDecks = () => Object.entries(SAMPLES).flatMap(([type, list]) => list.map((s) => ({ slides: [slideOf(type, s.slide)], data: { ...DECK.data, ...s.data } })));
+  const sampleDecks = () => Object.entries(SAMPLES).flatMap(([type, list]) => list.map((s) => ({ slides: [...(s.before ?? []), slideOf(type, s.slide)], data: { ...DECK.data, ...s.data } })));
 
   it.each(DESIGNS)("pass the check in every Theme and font set, %s design", async (design) => {
     // The whole deck, then the samples.
@@ -132,6 +132,19 @@ describe("the deck slides in a browser", () => {
           }
         }
       }
+    }
+    expect(found.slice(0, 60)).toEqual([]);
+  });
+
+  // Each sample again, its Metrics named with the longest names of the shipped Packs. Not yet the gap table, whose
+  // column headings take a second line under such names (#1366).
+  it.each(DESIGNS)("pass the check with every sample under the longest names of the shipped Packs, %s design", async (design) => {
+    const names = packNames();
+    const found: string[] = [];
+    for (const [i, deck] of sampleDecks().entries()) {
+      if (deck.slides.some((s) => s.type === "gap-table")) continue;
+      const metrics = (deck.data.metrics ?? []).map((m, j) => ({ ...m, name: names[j % names.length]! }));
+      found.push(...(await deckFaults(`${design}/${i}`, realistic(design, "ziffr-light", { ...deck, data: { ...deck.data, metrics } }))));
     }
     expect(found.slice(0, 60)).toEqual([]);
   });

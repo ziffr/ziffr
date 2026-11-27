@@ -13,7 +13,7 @@ import type { CanvasData, Metric } from "../../types";
 import { chartTitle } from "../chart";
 import { para, textBody, type Obj, type ShapeObj } from "../objects";
 import type { Region, SlideType } from "../slide-type";
-import { cannotHeadline, treeHeadline } from "./headlines";
+import { cannotHeadline, headlineOf } from "./headlines";
 import { latestPoint, listedData, nameOf, NOT_THERE, periodWords, readsMore, sourceOf, valueIn, type Listed } from "./listed";
 
 /** One Metric of the tree: its figures in words, whether its change is good, how it is calculated where it is opened,
@@ -125,7 +125,7 @@ export const driverTree: SlideType<TreeContent> = {
   section: "Drivers",
   wide: true,
   /** The tree below the first Metric for its newest period. */
-  fill(slide, data) {
+  fill(slide, data, deck) {
     const listed = listedData(slide, data);
     if (!listed) return NOT_THERE;
     const metric = listed.metrics[0]!;
@@ -138,7 +138,7 @@ export const driverTree: SlideType<TreeContent> = {
     if ("cannot" in root) return cannot(root.cannot);
     const words = periodWords(metric, data, period);
     return {
-      headline: treeHeadline(name, root.value, words),
+      headline: headlineOf({ show: "metric", metric }, listed.data, deck.today),
       source: sourceOf(listed.metrics, words),
       content: { title: `${name} and what it is calculated from, ${words}`, root },
     };

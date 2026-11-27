@@ -11,18 +11,20 @@ import { STARTER_THEME } from "@ziffr/core/themes";
 import type { BreakdownRow, CanvasData, Metric, ThemeSlides, ThemeTokens } from "@ziffr/core/types";
 
 /** One sample of a slide type: what its description says, and the data it reads. */
-export type Sample = { slide?: Partial<SlideSource>; data?: Partial<CanvasData> };
+export type Sample = { slide?: Partial<SlideSource>; data?: Partial<CanvasData>; /** Other slides of the same deck, drawn before it. */ before?: SlideSource[] };
 
 const BEFORE = "2026-08-01";
 const NOW = "2026-09-01";
+const MONTHS = ["2025-10-01", "2025-11-01", "2025-12-01", "2026-01-01", "2026-02-01", "2026-03-01", "2026-04-01", "2026-05-01", "2026-06-01", "2026-07-01", BEFORE, NOW];
 const LONG = "Customer acquisition cost of the enterprise segment in German-speaking countries";
 
-type Made = { name: string; was?: number | null; is?: number | null; more?: Partial<Metric>; rows?: BreakdownRow[]; rowsBefore?: BreakdownRow[] };
+type Made = { name: string; was?: number | null; is?: number | null; /** The values of the months up to the newest, oldest first, in place of `was` and `is`. */ past?: (number | null)[]; more?: Partial<Metric>; rows?: BreakdownRow[]; rowsBefore?: BreakdownRow[] };
 
 /** A slide's sample of made-up Metrics, listed in the order given, with their values of two months and their Breakdowns. */
 function listing(made: Made[], options: Record<string, unknown> = {}, more: Partial<CanvasData> = {}): Sample {
-  const metrics = made.map((m, i) => ({ id: i + 1, slug: `m${i + 1}`, name: m.name, formula: null, polarity: "higher", period: "month", decimals: 1, unit: "€", unit_position: "after", ...m.more }) as Metric);
-  const points = (m: Made) => [[BEFORE, m.was], [NOW, m.is]].flatMap(([period, value]) => (typeof value === "number" ? [{ period: period as string, value }] : []));
+  const metrics = made.map((m, i) => ({ id: i + 1, slug: `m${i + 1}`, name: m.name, formula: null, polarity: "higher", period: "month", decimals: 1, unit: "€", unit_position: "after", target_min: null, target_max: null, ...m.more }) as Metric);
+  const dated = (m: Made) => m.past?.map((value, i) => [MONTHS[MONTHS.length - m.past!.length + i]!, value] as const) ?? ([[BEFORE, m.was], [NOW, m.is]] as const);
+  const points = (m: Made) => dated(m).flatMap(([period, value]) => (typeof value === "number" ? [{ period: period as string, value }] : []));
   const rows = (m: Made) => Object.fromEntries([[BEFORE, m.rowsBefore], [NOW, m.rows]].filter(([, list]) => list));
   return {
     slide: { metrics: metrics.map((m) => m.id), options },
@@ -102,8 +104,87 @@ const trees: Sample[] = [
   listing([{ name: LONG, is: 4 }]),
 ];
 
+const grows = (from: number, step: number, months = 12) => Array.from({ length: months }, (_, i) => from + i * step + (i % 3) * step);
+const targets = (value: number) => ({ target_min: value, target_max: null });
+
+const summaries: Sample[] = [
+  listing(
+    [
+      { name: "Revenue", past: grows(8_200_000, 310_000), more: targets(11_000_000) },
+      { name: LONG, past: grows(6_400, -90), more: { polarity: "lower", ...targets(5_000) } },
+      { name: "Net change in customers", past: [4, -6, 2, 9, -12, -3, 5, 1, -8, 6, -2, -14], more: { unit: "" } },
+      { name: "Headcount", more: { unit: "" } },
+    ],
+    { periods: 12, target: true },
+  ),
+  listing([{ name: "Gross margin", past: [61, 62, null, 60.5, 61.2], more: { unit: "%", ...targets(63) } }], { form: "line", target: true }),
+  listing([{ name: LONG }]),
+];
+
+const chartSamples: Sample[] = [
+  listing([{ name: "Revenue", past: grows(8_200_000, 310_000), more: targets(11_000_000) }, { name: LONG, past: [4, -6, 2, 9, -12, -3, 5, 1, -8, 6, -2, -14] }], { periods: 12, target: true }),
+  listing(
+    [
+      { name: LONG, past: grows(900_000, 40_000) },
+      { name: `Of which won through partners, ${LONG}`, past: grows(200_000, 30_000) },
+      { name: `The plan agreed for ${LONG}`, past: grows(1_000_000, 20_000) },
+    ],
+    { periods: 12, part: true, reference: true },
+  ),
+  listing([{ name: "Net revenue retention", past: [111, 109, null, null, 108, 112, 110], more: { unit: "%", ...targets(112) } }], { form: "line", target: true }),
+  listing([{ name: "Revenue", is: 100 }, { name: "Headcount", is: 4, more: { unit: "" } }], { part: true }),
+];
+
+const figureTables: Sample[] = [
+  listing(
+    Array.from({ length: 12 }, (_, i): Made => ({
+      name: i % 3 ? `${regions[i % regions.length]}, ${i}` : `${LONG}, ${i}`,
+      ...(i === 4 ? {} : { past: grows(i * 1_000_000 - 3_000_000, (i % 2 ? -1 : 1) * 45_000, i === 7 ? 1 : 12) }),
+      more: i % 4 ? targets(2_000_000) : {},
+    })),
+  ),
+  listing([{ name: LONG }, { name: "Headcount" }]),
+];
+
+const answer = "We lost two large renewals in the north.\nBoth moved to a rival that bundles support, and we had not offered a bundle. ".repeat(3).slice(0, 400);
+const question = `Why did ${LONG} rise again, and what are we doing about it before the end of the year?`.slice(0, 140);
+const asked = (count: number, text: string) => Array.from({ length: count }, (_, i) => ({ question: i ? `${i + 1}. ${question}`.slice(0, 140) : question, text, writtenOn: "2026-07-14" }));
+const questionSample = (answers: SlideSource["answers"]): Sample => {
+  const sample = listing([{ name: LONG, is: 4 }]);
+  return { ...sample, slide: { ...sample.slide, answers } };
+};
+const questionSamples: Sample[] = [questionSample(asked(3, answer)), questionSample([...asked(1, "Pricing changed in July."), { question: "What next?", text: "", writtenOn: null }]), questionSample([])];
+
+const note = "Counts every signed order of the month, net of cancellations received before the books close, in euros at the rate of the day it was signed. ";
+const definitionSamples: Sample[] = [
+  listing(
+    Array.from({ length: 9 }, (_, i): Made => ({
+      name: i % 3 ? `${regions[i % regions.length]}, ${i}` : `${LONG}, ${i}`,
+      more: { description: i === 2 ? "" : note.repeat(1 + (i % 4)), calculation_note: i === 1 ? note.repeat(14) : null, ...(i === 5 ? { formula: "{m1} + {m2}" } : i === 6 ? asTotal : {}) },
+    })),
+  ),
+];
+
+/** The about slide with a table slide before it, whose Metrics it names. */
+function aboutSample(count: number): Sample {
+  const sample = listing(Array.from({ length: count }, (_, i): Made => ({ name: i % 3 ? `${regions[i % regions.length]}, ${i}` : `${LONG}, ${i}`, ...(i === 1 ? {} : { is: i }), more: { sources: i % 2 ? ["api"] : ["web_form", "api"], ...(i === 2 ? { formula: "{m1} + {m2}" } : {}) } })));
+  return { data: sample.data, before: count ? [{ id: "sl_listed", type: "table", metrics: sample.slide!.metrics!, options: {}, headline: null }] : [] };
+}
+
 /** The samples of every slide type Ziffr has, by type: one or more, among them its hardest (long, empty, negative). */
-export const SAMPLES: Record<string, Sample[]> = { cover: [{}], "gap-table": gapTables, bridge: bridges, mosaic: mosaics, "driver-tree": trees };
+export const SAMPLES: Record<string, Sample[]> = {
+  cover: [{}],
+  summary: summaries,
+  chart: chartSamples,
+  table: figureTables,
+  "gap-table": gapTables,
+  bridge: bridges,
+  mosaic: mosaics,
+  "driver-tree": trees,
+  questions: questionSamples,
+  definitions: definitionSamples,
+  about: [aboutSample(14), aboutSample(0)],
+};
 
 /** A made-up logo: three bars and a block, as a picture carried in the drawing. */
 const LOGO = `data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40" viewBox="0 0 160 40"><rect x="2" y="20" width="8" height="16" fill="#E0707F"/><rect x="14" y="12" width="8" height="24" fill="#C24B5A"/><rect x="26" y="4" width="8" height="32" fill="#9B2C3B"/><rect x="46" y="12" width="110" height="16" rx="3" fill="#44505C"/></svg>')}`;
@@ -247,7 +328,7 @@ export const slideOf = (type: string, more: Partial<SlideSource> = {}): SlideSou
 const NO_DATA = { metrics: [], series: {} } as unknown as CanvasData;
 
 /** The made-up deck of the check, without its design, Theme and slides. */
-export const DECK = { name: "Northwind quarterly business review", period: "Third quarter 2026", date: "9 October 2026", data: NO_DATA };
+export const DECK = { today: "2026-10-09", address: "https://ziffr.example.com", name: "Northwind quarterly business review", period: "Third quarter 2026", date: "9 October 2026", data: NO_DATA };
 
 /** A deck made to be hard to draw, from the longest names the shipped Packs use. */
 export function hardDeck(names: string[]): { name: string; period: string; footer: string; slides: SlideSource[] } {
