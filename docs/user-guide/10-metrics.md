@@ -202,6 +202,8 @@ The four Submission Rules:
 | **Add up all values** | It is added to the first. Values that arrive at the same moment all count. | Counts reported in pieces: "3 deals", then "2 more". |
 | **Keep every value** | Both are kept. | Repeated measurements, such as weight twice a day. |
 
+What is replaced, kept and undone is on one page: [How your numbers are kept](08-how-your-numbers-are-kept.md).
+
 After **Create metric**, the Metric's page opens with the note "Metric created. It has no values yet." Under it, one sentence says what really happened: who got a form link and a first request and by which way ("Ana got a form link and a first request by email."); that nobody submits it yet, with where to add Submitters; or, when this Ziffr sends no email, that nothing was sent and the request waits in the Outbox. Only the Metric's owner, who made it, sees who was asked. In the demo, where nothing is really sent, the note ends with **Go to Sources**, which opens the **Sources** tab of **Connectors** so you can answer the request there.
 
 ## A Metric's page
@@ -783,9 +785,11 @@ Guests never fill in for anyone, and are not told that a value was entered for s
 
 ## Locks and corrections on a Metric
 
+For a worked example, see [How your numbers are kept](08-how-your-numbers-are-kept.md#one-week-step-by-step).
+
 A **Lock**ed period takes no more values. When someone sends a value for it anyway, it is not recorded. Instead the Metric Owner gets a question, "… is locked. … sent … late: accept it as a correction?", with **Accept** and **Decline**. The sender sees that their value went to the Metric Owner as a proposed Correction.
 
-Anyone answering a question or task about a value can also propose a Correction in its Thread. It takes effect only when the Metric Owner accepts it. The earlier value is then kept and shown struck through, and the corrected value goes through the Metric's Workflow again, so a locked period is checked and approved anew. See [Workflows and approvals](11-workflows.md#locks).
+Anyone answering a question or task about a value can also propose a Correction in its Thread. It takes effect only when the Metric Owner accepts it. The earlier value is then kept and shown struck through, and the corrected value goes through the Metric's Workflow again. A locked period is then no longer locked, unless the Workflow's Publish step locks it again. See [Workflows and approvals](11-workflows.md#locks).
 
 ## Several numbers in one request
 

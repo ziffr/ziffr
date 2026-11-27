@@ -234,7 +234,7 @@ Finding things from the sidebar's Search field (⌘K or Ctrl+K): a Metric (also 
 _Avoid_: Global search, omnibox, command palette
 
 **Lock**:
-A published period of a metric that takes no more values. A late value or a correction becomes a proposal that needs Approval again; only the metric owner unlocks it, with a reason.
+A period of a metric that takes no more values. A late value or a correction becomes a proposed Correction that the metric owner accepts or declines; only the metric owner unlocks it, with a reason.
 _Avoid_: Freeze, finalize, close
 
 ### Presentation
