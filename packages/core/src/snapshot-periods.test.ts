@@ -1,6 +1,6 @@
 // The periods a Snapshot is taken for (spec 0013, ticket #175).
 import { describe, expect, it } from "vitest";
-import { completePeriods, cutPoints, dataAsOf, dataAsOfEach, firstValueEnd, inSnapshot, isFree, noValuesWords, snapshotChoicesFor, MAX_METRIC_PERIODS, metricPeriodsIn, periodContaining, snapshotPeriod } from "./snapshot-periods";
+import { completePeriods, cutPoints, dataAsOf, dataAsOfEach, firstValueEnd, inSnapshot, isFree, noValuesWords, offeredPeriods, snapshotChoicesFor, MAX_METRIC_PERIODS, metricPeriodsIn, periodContaining, snapshotPeriod } from "./snapshot-periods";
 import { JANUARY } from "./periods";
 
 describe("Snapshot periods", () => {
@@ -167,6 +167,16 @@ describe("which periods a Snapshot would hold values in", () => {
     expect(firstValueEnd({ ...data({}), breakdowns: { 1: { "2026-09-01": [] } } })).toBe("2026-09-30");
     expect(firstValueEnd(data({ rev: [{ period: "2026-10-01", value: 0 }], orders: [{ period: "2026-11-03", value: 2 }] }))).toBe("2026-10-31");
     expect(firstValueEnd(data({ rev: [{ period: "2026-10-01", value: 1 }] }, { 2: [{ periodEnd: "2025-12-31" }] }))).toBe("2025-12-31");
+  });
+
+  it("reads data without Breakdowns, as an older Snapshot keeps it", () => {
+    expect(firstValueEnd({ ...data({ rev: [{ period: "2026-10-01", value: 1 }] }), breakdowns: undefined as never })).toBe("2026-10-31");
+  });
+
+  it("offers the last twelve weeks and the last eight of every longer period", () => {
+    expect((["week", "month", "quarter", "half", "year"] as const).map(offeredPeriods)).toEqual([12, 8, 8, 8, 8]);
+    const choices = snapshotChoicesFor(null, "2026-11-27", JANUARY);
+    expect([choices.week.periods.length, choices.month.periods.length]).toEqual([12, 8]);
   });
 
   it("rules out only the periods that end before the first value, so earlier values keep later periods open", () => {

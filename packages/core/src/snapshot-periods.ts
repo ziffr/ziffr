@@ -93,14 +93,12 @@ export function dataAsOf(data: CanvasData, end: string): CanvasData {
  * span) with a value. Null without any value. A Snapshot keeps values from earlier periods too (`dataAsOf`), so one
  * ending on or after this day holds a value and one ending before it holds none. */
 export function firstValueEnd(data: CanvasData): string | null {
-  let first: string | null = null;
-  const take = (end: string) => { if (first === null || end < first) first = end; };
-  for (const m of data.metrics) {
-    for (const p of data.series[m.slug] ?? []) take(periodEnd(p.period, m.period));
-    for (const start of Object.keys(data.breakdowns?.[m.id] ?? {})) take(periodEnd(start, m.period));
-    for (const c of data.condensed?.[m.id] ?? []) take(c.periodEnd);
-  }
-  return first;
+  const ends = data.metrics.flatMap((m) => [
+    ...(data.series[m.slug] ?? []).map((p) => periodEnd(p.period, m.period)),
+    ...Object.keys(data.breakdowns?.[m.id] ?? {}).map((start) => periodEnd(start, m.period)),
+    ...(data.condensed?.[m.id] ?? []).map((c) => c.periodEnd),
+  ]);
+  return ends.sort()[0] ?? null;
 }
 
 /** One finished period offered for a Snapshot: whether a Snapshot of it would hold any value, and the id of the one
@@ -119,12 +117,12 @@ export const isFree = (p: SnapshotChoice) => p.hasValues && p.takenId === null;
 
 /** The periods offered on `today`, for values first complete on `first` (`firstValueEnd`); undefined rules none out
  * (a dashboard without Metrics). `taken` are the Snapshots there are, as far as the asker may open them. */
-export function snapshotChoicesFor(first: string | null | undefined, today: string, yearStart: YearStart, taken: readonly { id: number; kind: SnapshotPeriodKind; start: string }[] = []): SnapshotChoices {
+export function snapshotChoicesFor(first: string | null | undefined, today: string, yearStart: YearStart, taken?: readonly { id: number; kind: SnapshotPeriodKind; start: string }[]): SnapshotChoices {
   return Object.fromEntries(SNAPSHOT_PERIOD_KINDS.map((kind) => {
     const periods = completePeriods(kind, today, offeredPeriods(kind), yearStart).map((p) => ({
       ...p,
       hasValues: first === undefined || (first !== null && first <= p.end),
-      takenId: taken.find((s) => s.kind === kind && s.start === p.start)?.id ?? null,
+      takenId: taken?.find((s) => s.kind === kind && s.start === p.start)?.id ?? null,
     }));
     const firstFrom = !first || periods[0].hasValues ? null : shiftPeriod(periodContaining(kind, first, yearStart).end, "day", 1);
     return [kind, { periods, firstFrom }];
