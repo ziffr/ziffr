@@ -10,7 +10,7 @@ What replaces what, what stays, and what you can undo.
 | **Value** | A Metric's number for one period. | A second value follows the **Submission Rule**: it replaces the first, adds up with it, is kept beside it, or is refused. A number that is replaced, added to or corrected stays as a **Superseded Value**. With both kept, charts show the latest. | Submitters send values, as does whoever stands in or fills in for them. |
 | **Lock** | Stops one Metric's period from taking values. | Nothing. A late value waits as a proposed **Correction**. | The **Metric Owner** locks and unlocks. A **Workflow** can lock too. |
 | **Snapshot** | Keeps what a dashboard showed for a week, month, quarter, half-year or year that is over. | Nothing. One per dashboard and period. A later correction does not change it; it lists the difference. | Taken by the dashboard's owner or an Editor, who must see all its Metrics. Never by a Guest. |
-| **Version** | The history of how something was set up, such as a Metric's description or a dashboard and its widgets. | Nothing: restoring one adds a new Version. It never changes a value. | Whoever may change the thing. For a Metric, only the Metric Owner. |
+| **Version** | The history of how something was set up, such as a Metric's description or a dashboard and its widgets. | Nothing: restoring one adds a new Version. It never changes a stored value. | Whoever may change the thing. For a Metric, only the Metric Owner. |
 
 Two exceptions to the Submission Rule: your own value replaces, under any rule, one that someone else [filled in](10-metrics.md#filling-in-a-value-for-someone) for you, and a form link answering an earlier period only fills a period that is still empty.
 
@@ -33,7 +33,7 @@ On the period's page the struck-through number beside 45 is still 42, the one be
 
 Keep in mind:
 
-- An accepted Correction replaces the latest value, also where the rule adds up or keeps both. A late "3 more" that you accept makes the number 3.
+- A Correction is the new number, never an amount to add, also where the rule adds up or keeps both. A late "3 more" that you accept makes the number 3.
 - An accepted Correction removes the Lock, unless the Workflow's Publish step locks the period again.
 - On a Metric with no Workflow, a period that was locked and then corrected counts as not approved yet, and you cannot lock it again.
 - Had Ben declined, 43 would have stayed, locked.
@@ -43,7 +43,7 @@ Keep in mind:
 | Action | Can it be undone? | Who |
 | --- | --- | --- |
 | Delete one value | There is no such action. Send it again if the rule allows, or correct it. | |
-| Replace or correct a value | No button brings the earlier number back. Enter it again as a Correction. | The Metric Owner accepts Corrections. |
+| Replace or correct a value | No button brings the earlier number back. Enter it again: send it where the rule overwrites, or propose it as a Correction. | The Metric Owner accepts Corrections, except for a value they filled in. In a [Self-check](11-workflows.md#checking-your-own-value) a submitter's correction applies at once. |
 | Lock a period | Yes, **Unlock** with a reason. The Workflow box offers it only for the last period that has ended. | The Metric Owner |
 | Show a Snapshot | No. It cannot become a draft again. | The dashboard's owner and Editors |
 | Delete a Snapshot | No: its numbers, words and Versions are gone. You can take the period again by hand, from the dashboard and values as they are then. It is not taken by itself again. | Only the dashboard's owner |

@@ -181,7 +181,7 @@ The period's [Value Notes](10-metrics.md#value-notes) stand on the task's page, 
 
 The same works without opening Ziffr: reply "approve", or "send back:" followed by what to check, to the message on Slack or by email.
 
-**To correct the value yourself**, propose a Correction in the task's Thread: type the right value in **Propose a correction** and reply. A Correction takes effect once the Metric Owner accepts it, and then goes through Approval again.
+**To correct the value yourself**, propose a Correction in the task's Thread: type the right value in **Propose a correction** and reply. A Correction takes effect once the Metric Owner accepts it, and then goes through the Metric's Workflow again.
 
 A new value for the same period, such as one sent after a send back, starts Approval over: earlier Approval tasks for that period are closed and no longer decide anything.
 

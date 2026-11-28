@@ -12,7 +12,7 @@ Ziffr turns that into a routine that runs by itself:
 - **Every number is described once.** What it means, how it is counted, how often, what a good value is, and who is responsible for it.
 - **Ziffr asks for the numbers.** On the right day, through the channel each person already uses (email, Slack or a personal form link), and it reminds them when a number is late.
 - **Unusual values are checked.** A number that jumps or falls outside its target is approved by a person before it counts as final.
-- **Finished periods are locked.** Once a month is closed, its numbers stay as they are. A late correction needs approval again.
+- **Finished periods are locked.** Once a month is closed, its numbers stay as they are. A late correction waits until the Metric's owner accepts it.
 - **Everyone sees what they may see.** Dashboards, decks and comparisons show each person only the numbers shared with them.
 - **Questions stay with the number.** "Why is cost so high in March?" is asked on the March value itself, and the answer stays there.
 

@@ -32,7 +32,7 @@ A **Workflow** is the path a Metric's value takes each period. A typical one, su
 1. **Ask.** When the period ends, Ziffr sends each Submitter a **Prompt**: "What was revenue in October?"
 2. **Remind.** Before the **Due Date**, counted in working days (for example the 3rd working day), Ziffr reminds whoever has not answered.
 3. **Escalate.** If the value is still missing, an **Escalation** asks the person's **Stand-in** or tells the Metric Owner. People who are **Away** are skipped and their Stand-in is asked instead.
-4. **Check.** A value that changes much more than usual, or falls outside its target, is an **Unusual Value**. It needs **Approval**: the Approver confirms it, corrects it, or sends it back with a comment. Until then it shows, marked as not approved yet.
+4. **Check.** A value that changes much more than usual, or falls outside its target, is an **Unusual Value**. It needs **Approval**: the Approver confirms it, proposes a **Correction**, or sends it back with a comment. Until then it shows, marked as not approved yet.
 5. **Lock.** A period can be **Locked**, by the Workflow or by hand. A late value or a correction then waits as a proposed **Correction** until the Metric Owner accepts or declines it. Only the Metric Owner can unlock a period, with a reason.
 
 Several Metrics can share one Workflow, and its owner can close a period for all of them at once.
