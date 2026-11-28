@@ -81,7 +81,7 @@ Values come in as anywhere: Feeds, Access Keys, connected assistants and form li
 - **Targets:** a Metric where higher or lower is better gets a Target Series for the previous fiscal year and the whole current one, periods still to come included, some a few percent above its values and some below. A calculated Metric gets none: its Target Range applies.
 - Believable: a trend, a season, noise, in the Metric's unit and period, never below zero where that makes no sense. Metrics with a Breakdown get none. Derived Metrics and Totals compute. A period that has a value, or a target, is never overwritten.
 - **The numbers of one Pack belong together.** For Ziffr's own Packs, described in `practice-relations.ts` (not in the Pack format): a part is a share of its whole, and the sales forecast follows its Pack (Closed this quarter grows within a quarter and starts again; Closed <= Commit <= Best case; the Pipeline value holds the Best case's open deals; each salesperson's quota is the same in every week of a quarter, and only Commit gets targets; some salespeople end above it and some below). A quota that is there gives the weeks without one theirs.
-- A Pack's Preview draws its Dashboard Templates with numbers made the same way, under the Pack's own Metric names.
+- A Pack's Preview draws its Dashboard Templates with numbers made the same way, under the Pack's own Metric names. One exception: in the Preview, a Pack for private use gets no made-up targets: it asks for none, so its Preview shows no Attainment.
 - Written in batches as imports, a few Metrics per step, with progress shown.
 
 ### Everything else

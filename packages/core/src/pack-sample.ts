@@ -1,7 +1,9 @@
 // GLOSSARY: Sample Data, Preview, Pack. The Sample Data a Pack's Preview draws its Dashboard Templates with: made-up
 // numbers under the Pack's own Metric names, units and targets, a Repeat's Metrics for a few made-up lines, Totals and
 // formulas worked out from them, and the numbers belonging together as in a filled Practice Workspace
-// (practice-relations.ts). Pure, from the Pack's entries alone and a fixed date: nothing of a Workspace is in it.
+// (practice-relations.ts). A Pack for private use gets no made-up targets: it asks for none, and "104 % of target" would
+// say it does. Pure, from the Pack's entries alone and a fixed date: nothing of a Workspace is in it.
+import { PRIVATE_SETS } from "./first-steps-screens";
 import { evaluate, formulaInputs, targetReader } from "./formula";
 import { JANUARY } from "./periods";
 import { madeUpLevel, madeUpOf, madeUpTargetsOf, type MadeUpMember, type MadeUpSet } from "./practice-relations";
@@ -41,12 +43,13 @@ function emptyMetrics(pack: string, entries: PackSampleEntry[]): Made[] {
   return wanted.map(([entry, line], i) => made(entry, line, -(1000 + i)));
 }
 
-/** Values and targets of the Metrics that take values. */
+/** Values of the Metrics that take values and, except in a Pack for private use, their targets. */
 function takeValues(set: MadeUpSet, all: Made[]) {
+  const aimed = !PRIVATE_SETS.some((s) => s.pack === set.pack);
   for (const m of all.filter((x) => !x.member.computed)) {
     const periods = samplePeriods(m.entry.period);
     const values = madeUpOf(set, m.member, periods);
-    m.member = { ...m.member, values, targets: madeUpTargetsOf(set, m.member, periods, values) };
+    m.member = { ...m.member, values, targets: aimed ? madeUpTargetsOf(set, m.member, periods, values) : m.member.targets };
   }
 }
 

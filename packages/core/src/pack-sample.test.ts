@@ -2,6 +2,7 @@
 // Packs is drawn with the Pack's own Metric names, and each of them has numbers.
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { PRIVATE_SETS } from "./first-steps-screens";
 import { checkPack } from "./pack";
 import { packSample, type PackSampleEntry } from "./pack-sample";
 import { storedItems } from "./packs";
@@ -35,6 +36,29 @@ describe("a Pack's Preview", () => {
         expect([m!.name, sample.data.series[m!.slug]!.length > 3]).toEqual([m!.name, true]);
       }
     }
+  });
+
+  // What one person's week can be, for every period the Preview draws.
+  const BELIEVABLE: Record<string, Record<string, [number, number]>> = {
+    "ziffr/my-money": { "Money saved": [50, 220], Spending: [250, 700], "Net worth": [15_000, 50_000] },
+    "ziffr/health-and-habits": { "Hours of sleep": [5.5, 8.5], Exercise: [100, 300], "Pages read": [50, 180] },
+    "ziffr/my-time": { "Focus hours": [8, 25], "Screen time": [1.5, 5] },
+  };
+
+  it.each(PRIVATE_SETS.map((s) => s.pack))("draws %s without targets, with numbers one person could have", (id) => {
+    const sample = packSample(id, PACKS.find((p) => p.id === id)!.entries);
+    expect(sample.data.targets).toEqual({});
+    expect(sample.data.metrics.map((m) => m.name).sort()).toEqual(Object.keys(BELIEVABLE[id]!).sort());
+    for (const m of sample.data.metrics) {
+      const [low, high] = BELIEVABLE[id]![m.name]!;
+      expect([m.name, m.target_min, m.target_max]).toEqual([m.name, null, null]);
+      expect([m.name, sample.data.series[m.slug]!.filter((p) => p.value < low || p.value > high)]).toEqual([m.name, []]);
+    }
+  });
+
+  it("still gives a business Pack's Metrics made-up targets", () => {
+    const pack = PACKS.find((p) => p.id === "ziffr/sales")!;
+    expect(Object.keys(packSample(pack.id, pack.entries).data.targets).length).toBeGreaterThan(0);
   });
 
   it("shows the sales forecast by its own names, a line for each made-up salesperson, its team figures added up", () => {
