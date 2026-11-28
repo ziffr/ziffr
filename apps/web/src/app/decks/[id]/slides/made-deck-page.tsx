@@ -32,10 +32,11 @@ export function MadeDeckPage({ id, name, footer, themeId, themes, description, d
   const [edits, setEdits] = useState<Record<string, { hidden: boolean; headline: string; answers: string[] }>>(() => Object.fromEntries(description.slides.map((s) => [s.id, { hidden: s.hidden, headline: s.headline ?? "", answers: s.answers.map((a) => a.text) }])));
   const set = (slideId: string, change: Partial<(typeof edits)[string]>) => setEdits((all) => ({ ...all, [slideId]: { ...all[slideId]!, ...change } }));
 
-  const run = (work: () => Promise<unknown>, done: string) =>
+  const run = (work: () => Promise<unknown>, done: string, then?: () => void) =>
     start(async () => {
       try {
         unwrap(await work());
+        then?.();
         toast.success(done);
         router.refresh();
       } catch (err) {
@@ -55,6 +56,9 @@ export function MadeDeckPage({ id, name, footer, themeId, themes, description, d
       if (deckFooter.trim() !== (footer ?? "")) unwrap(await footerOfMadeDeck(id, deckFooter));
       return first;
     }, "Saved");
+
+  // The boxes empty with the stored answers, or the next save would write the old words back. Other changes stay.
+  const clear = () => run(() => clearMadeAnswers(id), "Answers cleared", () => setEdits((all) => Object.fromEntries(Object.entries(all).map(([slideId, e]) => [slideId, { ...e, answers: e.answers.map(() => "") }]))));
 
   return (
     <div>
@@ -126,7 +130,7 @@ export function MadeDeckPage({ id, name, footer, themeId, themes, description, d
 
       <div className="sticky bottom-0 mt-6 flex flex-wrap items-center gap-2 border-t border-border bg-background py-3 max-md:bottom-16">
         <Button onClick={save} disabled={pending} className="min-h-11">{pending ? "Saving…" : "Save changes"}</Button>
-        {description.slides.some((s) => s.answers.length > 0) && <Button variant="outline" disabled={pending} onClick={() => run(() => clearMadeAnswers(id), "Answers cleared")} className="min-h-11">Clear answers</Button>}
+        {description.slides.some((s) => s.answers.length > 0) && <Button variant="outline" disabled={pending} onClick={clear} className="min-h-11">Clear answers</Button>}
       </div>
     </div>
   );
