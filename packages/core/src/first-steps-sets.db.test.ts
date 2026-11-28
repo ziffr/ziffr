@@ -47,7 +47,7 @@ describe("firstStepsSets", () => {
     }
     expect((await firstStepsSets(owner, "money")).sets.map((s) => s.id)).toEqual(["ziffr/my-money"]);
     expect((await firstStepsSets(owner, "habits")).sets.map((s) => s.id).sort()).toEqual(["ziffr/health-and-habits", "ziffr/my-time"]);
-    expect((await firstStepsSet(owner, "ziffr/my-money", "money")).name).toBe("My money");
+    expect((await firstStepsSet(owner, "ziffr/my-money", "money")).manifest.name).toBe("My money");
     for (const id of ["ziffr/sales", "ziffr/sports-club"]) await expect(firstStepsSet(owner, id, "club")).rejects.toThrow("not offered");
     await expect(firstStepsSet(owner, "ziffr/my-time", "money")).rejects.toThrow("not offered");
   });
