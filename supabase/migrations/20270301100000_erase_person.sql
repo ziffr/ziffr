@@ -72,7 +72,9 @@ select split_part(c, '.', 1), split_part(c, '.', 2), 'kept', null from unnest(ar
   'pack_installs.installed_by', 'pack_setups.made_by', 'prompts.stands_in_for', 'prompts.submitter_id',
   'slack_installations.installed_by', 'slack_sends.sender_id', 'tags.created_by', 'telegram_sends.sender_id',
   'telegram_workspaces.changed_by', 'thread_messages.author_id', 'usage_keys.created_by', 'value_notes.author_id',
-  'versions.author_id', 'view_designs.added_by', 'view_links.created_by', 'webhooks.created_by',
+  'versions.author_id',
+  -- The two people of a hand-over, kept with its version so its message can be rewritten by id.
+  'versions.handover_from_person_id', 'versions.handover_to_person_id', 'view_designs.added_by', 'view_links.created_by', 'webhooks.created_by',
   'workspace_announcements.created_by', 'workspace_announcements.updated_by', 'workspace_imports.created_by',
   'workspace_limits.set_by_person'
 ]) c
@@ -86,6 +88,12 @@ select split_part(c, '.', 1), split_part(c, '.', 2), 'not_a_person', null from u
   'installation_settings.set_by', 'share_proposals.email_state', 'slack_installations.bot_user_id', 'slack_links.matched_by',
   'workspace_limits.set_by', 'workspaces.used_by'
 ]) c;
+
+-- Who a hand-over was between (hand-over versions made from now on). No foreign key: a version is history and never
+-- holds up the removal of a profile.
+alter table versions add column handover_from_person_id text, add column handover_to_person_id text;
+create index on versions (handover_from_person_id) where handover_from_person_id is not null;
+create index on versions (handover_to_person_id) where handover_to_person_id is not null;
 
 -- The columns the inventory misses ('table.column'), and its rows whose column is gone ('gone: table.column'). A column
 -- counts when it references a person or a sign-in, or its name reads like a person, an address or a chat handle. The
@@ -123,8 +131,9 @@ language sql stable set search_path = public as $$
   order by 1
 $$;
 
--- A check for the test of this ticket and for whoever runs the Installation: every column of the schema ('table.column')
--- whose text holds the given words. Sealed columns cannot be searched.
+-- For the database tests only, and callable by the service role only: every column of the schema ('table.column') whose
+-- text holds the given words. It reads across all Workspaces, so nothing offers it to a person. Sealed columns cannot be
+-- searched.
 create or replace function person_text_found(p_needle text) returns setof text
 language plpgsql stable set search_path = public as $$
 declare r record; found_it boolean;
@@ -205,48 +214,118 @@ begin
   end loop;
 end $$;
 
--- Version messages Ziffr wrote with the person's name ("Handed over from … to …") say "Deleted person" instead. Their
--- names are today's and those the Audit Log saw them use. A name somebody else has too is rewritten only in the
--- Workspaces that know this person.
-create or replace function erase_person_from_versions(p_person text) returns void
+-- The inventory's columns that hold a person's id in a table whose rows belong to a Workspace.
+create or replace function workspace_person_columns() returns table (table_name text, column_name text)
+language sql stable security definer set search_path = public as $$
+  select p.table_name, p.column_name from person_references p
+    join information_schema.columns c on c.table_schema = 'public' and c.table_name = p.table_name and c.column_name = p.column_name
+      and c.data_type in ('text', 'character varying')
+    join information_schema.columns w on w.table_schema = 'public' and w.table_name = p.table_name and w.column_name = 'workspace_id'
+      and w.data_type = 'uuid'
+    where p.treatment <> 'not_a_person' and p.erasing is distinct from 'statement'
+    order by 1, 2
+$$;
+
+-- The Workspaces tied to a person by their id: the Audit Log, or a column of the inventory that holds them in a row of
+-- a Workspace (their memberships and hand-overs among them). Never the demo.
+create or replace function person_workspaces(p_person text) returns uuid[]
+language plpgsql stable security definer set search_path = public as $$
+declare r record; known uuid[]; more uuid[];
+begin
+  select coalesce(array_agg(workspace_id), '{}') into known from audit_events
+    where actor_id = p_person or (object_type = 'person' and object_id = p_person);
+  for r in select table_name, column_name from workspace_person_columns() loop
+    execute format('select coalesce(array_agg(distinct workspace_id), ''{}'') from %I where %I = $1 and workspace_id is not null', r.table_name, r.column_name)
+      into more using p_person;
+    known := known || more;
+  end loop;
+  return array(select distinct w from unnest(known) w where w <> 'd3e00000-0000-4000-8000-000000000001' order by 1);
+end $$;
+
+-- For the core, before step one: in each Workspace tied to the person, every name that anyone it knows by id has or had,
+-- the person's own among them, as [{workspace_id, person_id, name}]. A Contact's name comes sealed; only the core opens
+-- it, to tell whether the person's name is theirs alone there. One value, so no row limit cuts it short.
+create or replace function person_version_names(p_person text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare r record; known uuid[]; seen jsonb := '[]'; more jsonb;
+begin
+  known := person_workspaces(p_person);
+  for r in select table_name, column_name from workspace_person_columns() loop
+    execute format('select coalesce(jsonb_agg(jsonb_build_array(workspace_id, person)), ''[]'') from (select distinct workspace_id, %I as person from %I where workspace_id = any ($1) and %I is not null) x', r.column_name, r.table_name, r.column_name)
+      into more using known;
+    seen := seen || more;
+  end loop;
+  return (
+    with named as (
+      select (e ->> 0)::uuid as w, e ->> 1 as person from jsonb_array_elements(seen) e
+      union select workspace_id, actor_id from audit_events where workspace_id = any (known) and actor_id is not null
+      union select workspace_id, object_id from audit_events where workspace_id = any (known) and object_type = 'person' and object_id is not null
+      union select contact_workspace, id from profiles where contact_workspace = any (known)
+      union select w, p_person from unnest(known) w
+    ), used as (
+      select id as person, name from profiles where id in (select person from named)
+      union select actor_id, actor_name from audit_events where actor_id in (select person from named)
+      union select actor_id, actor_name from installation_audit_events where actor_id in (select person from named)
+    )
+    select coalesce(jsonb_agg(jsonb_build_object('workspace_id', n.w, 'person_id', n.person, 'name', u.name)), '[]')
+      from named n join used u on u.person = n.person
+      where coalesce(u.name, '') not in ('', 'Deleted person')
+  );
+end $$;
+
+-- Version messages Ziffr wrote with the person's name ("Handed over from … to …") say "Deleted person" instead.
+-- A version that holds the two ids is rewritten by them alone. An older one holds only names: it is rewritten only in a
+-- Workspace tied to this person, and only for a name the core found nobody else there carries (`p_names`:
+-- [{workspace_id, name}]); both are checked again here. A word Ziffr writes when it has no name is never matched.
+create or replace function erase_person_from_versions(p_person text, p_names jsonb) returns void
 language plpgsql security definer set search_path = public as $$
 declare
-  n text; shared boolean; known uuid[]; first_part text; last_part text;
+  r record; known uuid[]; first_part text; last_part text;
   demo constant uuid := 'd3e00000-0000-4000-8000-000000000001';
 begin
-  select coalesce(array_agg(distinct w), '{}') into known from (
-    select workspace_id as w from audit_events where actor_id = p_person or (object_type = 'person' and object_id = p_person)
-    union all select workspace_id from versions where author_id = p_person
-    union all select workspace_id from observations where submitter_id = p_person or entered_by = p_person
-    union all select workspace_id from actions where assignee_id = p_person or asker_id = p_person
-  ) x;
-  for n in
-    select distinct names.name from (
-      select name from profiles where id = p_person
-      union all select actor_name from audit_events where actor_id = p_person
-      union all select actor_name from installation_audit_events where actor_id = p_person
-    ) names where coalesce(names.name, '') not in ('', 'Deleted person')
+  -- The other side is named as they are now; a program's note, after "; changed through", stays.
+  update versions v set message = 'Handed over from '
+      || case when v.handover_from_person_id = p_person then 'Deleted person'
+         else coalesce((select name from profiles where id = v.handover_from_person_id and name not like 'w1.%'), 'a former member') end
+      || ' to '
+      || case when v.handover_to_person_id = p_person then 'Deleted person'
+         else coalesce((select name from profiles where id = v.handover_to_person_id and name not like 'w1.%'), 'a member') end
+      || coalesce(substring(v.message from '; changed through .*$'), '')
+    where (v.handover_from_person_id = p_person or v.handover_to_person_id = p_person)
+      and v.workspace_id <> demo and starts_with(v.message, 'Handed over from ');
+
+  known := person_workspaces(p_person);
+  for r in
+    select distinct x.workspace_id as w, x.name as n from jsonb_to_recordset(coalesce(p_names, '[]')) x(workspace_id uuid, name text)
+    where x.workspace_id = any (known) and x.workspace_id <> demo
+      and lower(btrim(x.name)) not in ('', 'someone', 'a former member', 'a member', 'an owner or admin', 'a contact', 'deleted person')
+      and x.name in (
+        select name from profiles where id = p_person
+        union select actor_name from audit_events where actor_id = p_person
+        union select actor_name from installation_audit_events where actor_id = p_person)
   loop
-    shared := exists (select 1 from profiles where id <> p_person and contact_workspace is null and name = n);
-    first_part := 'Handed over from ' || n || ' to ';
-    last_part := ' to ' || n;
+    first_part := 'Handed over from ' || r.n || ' to ';
+    last_part := ' to ' || r.n;
     update versions set message = 'Handed over from Deleted person to ' || substr(message, length(first_part) + 1)
-      where starts_with(message, first_part) and workspace_id <> demo and (not shared or workspace_id = any (known));
+      where workspace_id = r.w and handover_from_person_id is null and handover_to_person_id is null
+        and starts_with(message, first_part);
     -- The Workflow's or a program's note may follow, after "; ".
     update versions set message = case
-        when right(message, length(last_part)) = last_part then left(message, length(message) - length(n)) || 'Deleted person'
+        when right(message, length(last_part)) = last_part then left(message, length(message) - length(r.n)) || 'Deleted person'
         else replace(message, last_part || '; ', ' to Deleted person; ') end
-      where starts_with(message, 'Handed over from ')
-        and (right(message, length(last_part)) = last_part or strpos(message, last_part || '; ') > 0)
-        and workspace_id <> demo and (not shared or workspace_id = any (known));
+      where workspace_id = r.w and handover_from_person_id is null and handover_to_person_id is null
+        and starts_with(message, 'Handed over from ')
+        and (right(message, length(last_part)) = last_part or strpos(message, last_part || '; ') > 0);
   end loop;
 end $$;
 
 -- Step one, in one transaction. The core passes the address as it read it, with the two forms of it other tables are
--- keyed by, and the addresses the server names as Installation Admins. Answers {outcome, auth_user_id}: 'ok', 'none'
+-- keyed by, the addresses the server names as Installation Admins, and in `p_found` what only the core can find, as it
+-- is sealed: {names: see erase_person_from_versions; intake: [{id, sender}], the intake rows from the person's mailbox
+-- that matched nobody, each with the sender to keep instead}. Answers {outcome, auth_user_id}: 'ok', 'none'
 -- (no such person), 'not_a_person' (a Contact, a Feed or a made-up person), 'member' (still in a Workspace),
 -- 'only_admin', or 'changed' (the address is another by now).
-create or replace function erase_person(p_person text, p_address text, p_mailbox text, p_sign_in_key text, p_server_admins text[])
+create or replace function erase_person(p_person text, p_address text, p_mailbox text, p_sign_in_key text, p_server_admins text[], p_found jsonb default '{}')
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare who profiles%rowtype; address text; is_admin boolean;
 begin
@@ -272,9 +351,12 @@ begin
     return jsonb_build_object('outcome', 'only_admin');
   end if;
 
-  perform erase_person_from_versions(p_person);
+  perform erase_person_from_versions(p_person, p_found -> 'names');
   if address is not null then
-    delete from invitations where lower(email) = address;
+    update intake_log i set sender = x.sender from jsonb_to_recordset(coalesce(p_found -> 'intake', '[]')) x(id bigint, sender text)
+      where i.id = x.id and i.sender_id is null;
+    -- Also an Invitation sent to another spelling of the same mailbox.
+    delete from invitations where lower(email) = address or address_key = p_mailbox;
     delete from share_proposals where lower(recipient_email) = address or recipient_key = p_mailbox;
     delete from invitation_stops where address_key = p_mailbox;
     delete from practice_ways where address_key = p_mailbox or lower(destination) = address;
@@ -315,10 +397,14 @@ revoke execute on function person_text_found(text) from public, anon, authentica
 revoke execute on function deleted_person_fixed() from public, anon, authenticated;
 revoke execute on function deleted_person_joins_nothing() from public, anon, authenticated;
 revoke execute on function erase_person_rows(text) from public, anon, authenticated;
-revoke execute on function erase_person_from_versions(text) from public, anon, authenticated;
-revoke execute on function erase_person(text, text, text, text, text[]) from public, anon, authenticated;
+revoke execute on function workspace_person_columns() from public, anon, authenticated;
+revoke execute on function person_workspaces(text) from public, anon, authenticated;
+revoke execute on function person_version_names(text) from public, anon, authenticated;
+revoke execute on function erase_person_from_versions(text, jsonb) from public, anon, authenticated;
+revoke execute on function erase_person(text, text, text, text, text[], jsonb) from public, anon, authenticated;
 revoke execute on function finish_erasing_person(text) from public, anon, authenticated;
 grant execute on function person_reference_gaps() to service_role;
 grant execute on function person_text_found(text) to service_role;
-grant execute on function erase_person(text, text, text, text, text[]) to service_role;
+grant execute on function person_version_names(text) to service_role;
+grant execute on function erase_person(text, text, text, text, text[], jsonb) to service_role;
 grant execute on function finish_erasing_person(text) to service_role;

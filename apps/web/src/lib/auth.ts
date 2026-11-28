@@ -8,6 +8,7 @@ import { authSettings } from "./auth-settings";
 import { db } from "./db";
 import type { SignedIn } from "@ziffr/core/invitations";
 import { PERSON_COLORS } from "@ziffr/core/profile";
+import { linkedPerson } from "@ziffr/core/erase-person";
 
 import { demoEnabled, demoOnly } from "./demo-mode";
 import { visitIdOf } from "./demo-visit-cookie";
@@ -58,7 +59,9 @@ export const sessionUser = cache(async () => {
   const user = data.user ?? null;
   // A Blocked User is signed out whatever their browser still holds (spec 0066): the block ends their sessions, and
   // this holds even if one were left.
-  return user && !blockedNow(user) ? user : null;
+  if (!user || blockedNow(user)) return null;
+  // Nor is a sign-in anyone's that outlived its person: erasing them stopped before it was removed.
+  return (await linkedPerson(user.id))?.erased ? null : user;
 });
 
 /** Whether Auth says the account is banned now. */
@@ -88,8 +91,9 @@ type SessionAccount = { id: string; email?: string | null; email_confirmed_at?: 
 /** The person an account belongs to. The first time, an existing person with the same proven email is linked;
  * otherwise a new person is created. Safe to call twice at once. Returns their id. */
 export async function personFor(user: SessionAccount): Promise<string> {
-  const { data: linked } = await db.from("profiles").select("id").eq("auth_user_id", user.id).maybeSingle();
-  if (linked) return linked.id;
+  const linked = await linkedPerson(user.id);
+  if (linked?.erased) throw new Error("This account was deleted.");
+  if (linked) return linked.personId;
   // Only a verified email is kept, and only a proven one may claim an existing person; otherwise anyone could sign
   // up with someone else's address and take over their place, or keep the real owner out.
   const proven = provenEmail(user);
@@ -109,7 +113,7 @@ export async function personFor(user: SessionAccount): Promise<string> {
   );
   if (error) throw new Error("Your account could not be set up. Try signing in again.");
   // Read back: when two requests raced, both get the one person that was stored.
-  const { data: person } = await db.from("profiles").select("id").eq("auth_user_id", user.id).single();
-  if (!person) throw new Error("Your account could not be set up. Try signing in again.");
-  return person.id;
+  const person = await linkedPerson(user.id);
+  if (!person || person.erased) throw new Error("Your account could not be set up. Try signing in again.");
+  return person.personId;
 }

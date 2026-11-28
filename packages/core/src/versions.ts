@@ -111,8 +111,9 @@ export async function openVersionSnapshot(ws: string, type: VersionType, id: num
   return mapVersionWords(type, snapshot, opening(cipher, "versions", row));
 }
 
-/** Records the object's current state. Edits by the same person within ten minutes merge into one version. */
-export async function recordVersion(type: VersionType, id: number, author: string, given: { message?: string; name?: string; always?: boolean } = {}) {
+/** Records the object's current state. Edits by the same person within ten minutes merge into one version. A hand-over
+ * gives the ids of its two people, so that its message can be rewritten when one of them is erased. */
+export async function recordVersion(type: VersionType, id: number, author: string, given: { message?: string; name?: string; always?: boolean; handover?: { from: string; to: string } } = {}) {
   const noted = note.getStore();
   const opts = noted ? { ...given, message: given.message ? `${given.message}; ${noted.charAt(0).toLowerCase()}${noted.slice(1)}` : noted } : given;
   const loaded = await loadSnapshot(type, id);
@@ -148,6 +149,7 @@ export async function recordVersion(type: VersionType, id: number, author: strin
     await db().from("versions").insert({
       object_type: type, object_id: id, version, snapshot: await sealedSnapshot(ws, type, id, version, snapshot), author_id: author,
       message: opts.message ?? null, name: opts.name ?? null,
+      handover_from_person_id: opts.handover?.from ?? null, handover_to_person_id: opts.handover?.to ?? null,
     });
   } catch (e) {
     if (inVisit && !opts.name && e instanceof DemoLimit) return;
