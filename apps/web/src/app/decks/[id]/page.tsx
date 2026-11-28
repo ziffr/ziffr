@@ -18,6 +18,7 @@ import { cookies } from "next/headers";
 import { followDemoSuccessor } from "@/lib/demo-follow";
 import { DECK_ADD_COOKIE, readIntent } from "@/lib/deck-add-intent";
 import { DesktopOnly } from "@/components/desktop-only";
+import { MADE_DECKS_ON } from "@ziffr/core/made-decks-on";
 
 export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; template?: string; fills?: string; add?: string }> }) {
   const id = Number((await params).id);
@@ -37,6 +38,8 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
       </div>
     );
   }
+  // A deck Ziffr makes has a page of its own, which a phone does well (spec 0069).
+  if (deck.made === true && MADE_DECKS_ON) redirect(role === "viewer" ? `/decks/${id}/present` : `/decks/${id}/slides`);
   if (role === "viewer") redirect(`/decks/${id}/present`); // which counts the open
   void countView(actor, { kind: "deck", id });
   // A new, empty deck made from a dashboard (spec 0010) gets that one's widgets as its first slides; the

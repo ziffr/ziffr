@@ -7,6 +7,8 @@ import { countView } from "@/lib/count-view";
 import { followDemoSuccessor } from "@/lib/demo-follow";
 import { readKeptNumbers } from "@ziffr/core/deck-snapshots";
 import { keptRequests } from "@ziffr/core/snapshot-parts";
+import { MADE_DECKS_ON } from "@ziffr/core/made-decks-on";
+import { MadePresentation } from "./made-present";
 import { deckTemplateSeed, importSeedOf } from "@ziffr/core/deck-templates";
 
 export default async function DeckPresentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ at?: string }> }) {
@@ -18,6 +20,8 @@ export default async function DeckPresentPage({ params, searchParams }: { params
   const deck = view?.deck;
   if (!deck) notFound();
   void countView(actor, { kind: "deck", id });
+  // A deck Ziffr makes is read, drawn and presented as such: only the slides this person is sent (spec 0069).
+  if (deck.made === true && MADE_DECKS_ON) return <MadePresentation id={id} role={view.role!} start={Number((await searchParams).at) || 0} />;
   // A deck made from a Deck Template that nobody opened yet holds only the template and its fills: its slides are laid
   // out now. The core gives them only to someone who sees every Metric that fills them.
   const waiting = importSeedOf(deck.document);

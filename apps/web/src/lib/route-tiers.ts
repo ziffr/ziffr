@@ -72,6 +72,7 @@ export const ROUTE_TIERS = {
   "/sources": "phone-ok",
   "/decks": "phone-ok",
   "/decks/[id]/present": "phone-ok",
+  "/decks/[id]/slides": "phone-ok",
   "/guide": "phone-ok",
   "/guide/[chapter]": "phone-ok",
   "/themes": "phone-ok",

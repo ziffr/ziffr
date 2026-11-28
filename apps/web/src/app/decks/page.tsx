@@ -2,7 +2,9 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Presentation } from "lucide-react";
 import { can } from "@ziffr/core/actor";
-import { visibleDecks } from "@/lib/access";
+import { visibleDashboards, visibleDecks } from "@/lib/access";
+import { MADE_DECKS_ON } from "@ziffr/core/made-decks-on";
+import { makeDeckFromDashboardForm } from "@/app/made-deck-actions";
 import { getProfileMap } from "@/lib/data";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { deckDocuments } from "@ziffr/core/page-data";
@@ -22,6 +24,8 @@ export default async function DecksPage() {
   // The team's Deck Templates and the Metrics this person may fill them with; nothing for a Guest. Only the names of
   // their creators go to the browser, never the rest of a profile.
   const choices = await deckTemplateChoices(actor);
+  // Spec 0069: a deck made from a dashboard; only the dashboards this person opens are offered.
+  const dashboards = MADE_DECKS_ON && can(actor, "create") ? await visibleDashboards(viewer) : [];
   const [people, decks] = [await getProfileMap(), access.map((d) => ({ ...d, document: rows.find((r) => r.id === d.id)?.document }))];
   return (
     <>
@@ -31,6 +35,14 @@ export default async function DecksPage() {
           <AnsweredForm action={createDeck} className="flex gap-2 max-sm:flex-wrap">
             <Input name="name" placeholder="Name of the new deck" aria-label="Name of the new deck" className="w-56 max-sm:w-auto max-sm:min-w-40 max-sm:flex-1" />
             <Button type="submit">New deck</Button>
+          </AnsweredForm>
+        )}
+        {dashboards.length > 0 && (
+          <AnsweredForm action={makeDeckFromDashboardForm} className="flex gap-2 max-sm:flex-wrap">
+            <select name="dashboard" aria-label="Dashboard to make a deck from" className="h-11 rounded-[var(--radius-input)] border border-input bg-card px-2 text-base max-sm:min-w-40 max-sm:flex-1 md:h-9 md:text-sm">
+              {dashboards.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+            <Button type="submit" variant="outline" className="min-h-11">Make a deck from a dashboard</Button>
           </AnsweredForm>
         )}
         {choices.templates.length > 0 && <NewDeckFromTemplate templates={choices.templates} metrics={choices.metrics} people={Object.fromEntries(choices.templates.map((t) => [t.owner_id, { name: people[t.owner_id]?.name ?? "" }]))} />}
@@ -44,6 +56,7 @@ export default async function DecksPage() {
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {decks.map((d) => {
+            // A deck Ziffr makes keeps its slides in a list its page reads; only the editor's are counted here.
             const slides = d.document ? Object.values((d.document as { store?: Record<string, { typeName?: string; type?: string }> }).store ?? {}).filter((r) => r.typeName === "shape" && r.type === "frame").length : 0;
             return (
               <li key={d.id}>
@@ -51,7 +64,7 @@ export default async function DecksPage() {
                   <div className="desk mb-3 aspect-video rounded-[var(--radius-input)]" aria-hidden />
                   <div className="font-medium">{d.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    <span className="fig">{slides}</span> slide{slides === 1 ? "" : "s"}, edited {formatDistanceToNow(new Date(d.updated_at), { addSuffix: true })}
+                    {d.document ? <><span className="fig">{slides}</span> slide{slides === 1 ? "" : "s"}</> : "Slides made by Ziffr"}, edited {formatDistanceToNow(new Date(d.updated_at), { addSuffix: true })}
                     {d.role !== "owner" && <span className="block">From {people[d.owner_id]?.name.split(" ")[0]}, you {d.role === "editor" ? "can edit it" : "can present it"}</span>}
                   </div>
                 </Link>
