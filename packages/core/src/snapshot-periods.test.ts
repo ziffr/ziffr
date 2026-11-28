@@ -1,6 +1,6 @@
 // The periods a Snapshot is taken for (spec 0013, ticket #175).
 import { describe, expect, it } from "vitest";
-import { completePeriods, cutPoints, dataAsOf, dataAsOfEach, inSnapshot, MAX_METRIC_PERIODS, metricPeriodsIn, periodContaining, snapshotPeriod } from "./snapshot-periods";
+import { completePeriods, cutPoints, dataAsOf, dataAsOfEach, firstValueEnd, inSnapshot, isFree, noValuesWords, offeredPeriods, snapshotChoicesFor, MAX_METRIC_PERIODS, metricPeriodsIn, periodContaining, snapshotPeriod } from "./snapshot-periods";
 import { JANUARY } from "./periods";
 
 describe("Snapshot periods", () => {
@@ -155,5 +155,63 @@ describe("data as of a day, from data that is missing parts", () => {
     expect(cut.pending[9]).toEqual(["2026-09-30"]);
     const bare = dataAsOf({ metrics: [], series: {} } as never, "2026-09-30");
     expect([bare.breakdowns, bare.pending, bare.locked]).toEqual([{}, {}, {}]);
+  });
+});
+
+describe("which periods a Snapshot would hold values in", () => {
+  const data = (series: Record<string, { period: string; value: number }[]>, condensed?: Record<number, { periodEnd: string }[]>) =>
+    ({ metrics: [{ id: 1, slug: "rev", period: "month" }, { id: 2, slug: "orders", period: "day" }], series, condensed, breakdowns: {} }) as unknown as Parameters<typeof firstValueEnd>[0];
+
+  it("finds the first day by which any value is complete, condensed ones too", () => {
+    expect(firstValueEnd(data({}))).toBeNull();
+    expect(firstValueEnd({ ...data({}), breakdowns: { 1: { "2026-09-01": [] } } })).toBe("2026-09-30");
+    expect(firstValueEnd(data({ rev: [{ period: "2026-10-01", value: 0 }], orders: [{ period: "2026-11-03", value: 2 }] }))).toBe("2026-10-31");
+    expect(firstValueEnd(data({ rev: [{ period: "2026-10-01", value: 1 }] }, { 2: [{ periodEnd: "2025-12-31" }] }))).toBe("2025-12-31");
+  });
+
+  it("reads data without Breakdowns, as an older Snapshot keeps it", () => {
+    expect(firstValueEnd({ ...data({ rev: [{ period: "2026-10-01", value: 1 }] }), breakdowns: undefined as never })).toBe("2026-10-31");
+  });
+
+  it("offers the last twelve weeks and the last eight of every longer period", () => {
+    expect((["week", "month", "quarter", "half", "year"] as const).map(offeredPeriods)).toEqual([12, 8, 8, 8, 8]);
+    const choices = snapshotChoicesFor(null, "2026-11-27", JANUARY);
+    expect([choices.week.periods.length, choices.month.periods.length]).toEqual([12, 8]);
+  });
+
+  it("rules out only the periods that end before the first value, so earlier values keep later periods open", () => {
+    const month = snapshotChoicesFor("2026-09-30", "2026-11-27", JANUARY).month;
+    expect(month.periods.slice(0, 3).map((p) => [p.label, p.hasValues])).toEqual([["October 2026", true], ["September 2026", true], ["August 2026", false]]);
+    expect(month.firstFrom).toBeNull();
+  });
+
+  it("says from when the first one can be taken and points to a length that has one", () => {
+    const choices = snapshotChoicesFor("2026-11-20", "2026-11-27", JANUARY);
+    expect(choices.week.periods[0]).toMatchObject({ start: "2026-11-16", hasValues: true });
+    expect(noValuesWords(choices, "week", "2026-11-27")).toBeNull();
+    expect(choices.month.firstFrom).toBe("2026-12-01");
+    expect(noValuesWords(choices, "month", "2026-11-27")).toBe("No finished month has values yet. Your first monthly Snapshot can be taken from Tuesday 1 December. Or choose Week under Period, which has a finished period you can take.");
+    expect(noValuesWords(choices, "year", "2026-11-27")).toContain("from Friday 1 January 2027.");
+    expect(noValuesWords(snapshotChoicesFor("2026-11-25", "2026-11-27", JANUARY), "week", "2026-11-27")).toBe("No finished week has values yet. Your first weekly Snapshot can be taken from Monday 30 November.");
+  });
+
+  it("rules out a period that has a Snapshot, and says so when every one with values is taken", () => {
+    const taken = [{ id: 7, kind: "month" as const, start: "2026-10-01" }];
+    const two = snapshotChoicesFor("2026-09-30", "2026-11-27", JANUARY, taken);
+    expect(two.month.periods.slice(0, 2).map((p) => [p.takenId, isFree(p)])).toEqual([[7, false], [null, true]]);
+    expect(two.week.periods[0].takenId).toBeNull();
+    const one = snapshotChoicesFor("2026-10-31", "2026-11-27", JANUARY, taken);
+    expect(noValuesWords(one, "month", "2026-11-27")).toBe("Every finished month with values has a Snapshot already. Or choose Week under Period, which has a finished period you can take.");
+  });
+
+  it("rules none out for want of values on a dashboard without Metrics", () => {
+    expect(snapshotChoicesFor(undefined, "2026-11-27", JANUARY).year.periods.every(isFree)).toBe(true);
+  });
+
+  it("gives no day when there is no value at all", () => {
+    const choices = snapshotChoicesFor(null, "2026-11-27", JANUARY);
+    expect(choices.week.periods.every((p) => !p.hasValues)).toBe(true);
+    expect(choices.week.firstFrom).toBeNull();
+    expect(noValuesWords(choices, "week", "2026-11-27")).toBe("The Metrics on this dashboard have no values yet. Take a Snapshot once a period with values is over.");
   });
 });

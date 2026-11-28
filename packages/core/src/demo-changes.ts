@@ -56,6 +56,7 @@ const READS: readonly string[] = [
   "search-actions:searchEverything",
   "search-actions:searchStart",
   "series-actions:sameNamedMetrics",
+  "snapshot-actions:snapshotChoices",
   "tag-actions:tagImpact",
   "team-actions:inviteGateNow",
   "theme-actions:themeLogoSource",

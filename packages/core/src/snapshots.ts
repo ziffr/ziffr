@@ -24,7 +24,7 @@ import { openRows, reserveIds } from "./sealed-columns";
 import { workspaceCipher } from "./workspace-keys";
 import { widgetWithoutOutside } from "./deck-content";
 import { assertSeesMetrics } from "./sharing";
-import { dataAsOf, snapshotPeriod, type SnapshotPeriodKind } from "./snapshot-periods";
+import { dataAsOf, firstValueEnd, snapshotChoicesFor, snapshotPeriod, type SnapshotChoices, type SnapshotPeriodKind } from "./snapshot-periods";
 import { ensureBaseline, recordVersion } from "./versions";
 import { shownData } from "./view-links";
 import { widgetMetricIds } from "./widget-metrics";
@@ -152,6 +152,32 @@ export async function mayTakeSnapshot(actor: Actor, dashboardId: number): Promis
   }
 }
 
+/** Which finished periods can be taken as a Snapshot of the dashboard, for the person about to take one. It asks
+ * what `takeSnapshot` asks (may create; the dashboard's owner or an Editor; sees every Metric on it) and reads the
+ * values the same way. What leaves the core is only which periods have values, when none does the day the first can be
+ * taken, and the id of a period's Snapshot where the person may open it (the rule of `listSnapshots`): no values and
+ * no Metrics. A dashboard without Metrics (Notes, free layouts) has no period ruled out for want of values. `today`
+ * (yyyy-mm-dd) is the workspace's own day unless given. */
+export async function snapshotChoices(actor: Actor, dashboardId: number, opts: { today?: string } = {}): Promise<SnapshotChoices> {
+  assertCan(actor, "create");
+  if (!Number.isInteger(dashboardId)) throw new Forbidden();
+  const dash = await roleOn(actor, dashboardId);
+  if (!dash || (dash.role !== "owner" && dash.role !== "editor")) throw new Forbidden();
+  const { metricIds } = await snapshotWidgets(actor, dashboardId);
+  await assertSeesMetrics(actor, metricIds);
+  const ws = actor.workspaceId;
+  let first: string | null | undefined;
+  if (metricIds.length) {
+    const full = await getCanvasData(ws, actor.personId, { seriesOf: metricIds });
+    first = firstValueEnd(shownData(full, new Set(metricIds), dash.theme_id ?? null, () => true));
+  }
+  // Every one the dashboard keeps (at most a few hundred), not only the newest a list shows.
+  const { data, error } = await db().from("dashboard_snapshots").select(SUMMARY).eq("workspace_id", ws).eq("dashboard_id", dashboardId).is("deleted_at", null);
+  if (error) throw error;
+  const taken = (await listable(actor, (data ?? []) as Row[])).map(summary);
+  return snapshotChoicesFor(first, opts.today ?? (await workspaceToday(ws)), await yearStartOf(ws), taken);
+}
+
 /** In a demo visit, refuses in plain words, without computing anything, a Snapshot that is certain to fail at the write: the demo
  * holds its most (visitors' Snapshots since the seed), or there is one of that dashboard and period already. Asked before the
  * demo's one turn is taken, so a script cannot keep the turn busy with Snapshots that could never be saved, and again by
@@ -239,11 +265,15 @@ export async function listSnapshots(actor: Actor, dashboardId: number): Promise<
   // Newest first by the period's last day; of those ending on the same day the longer first: 2026, H2 2026, Q4
   // 2026, December 2026.
   const { data } = await q.order("period_end", { ascending: false }).order("period_start").order("id", { ascending: false }).limit(200);
-  const rows = (data ?? []) as Row[];
-  // A draft is listed only to those who could open it: its label and period say what it covers, so an owner or Editor
-  // who does not see every Metric it kept gets neither (#448, the same rule as `readable`).
+  return (await listable(actor, (data ?? []) as Row[])).map(summary);
+}
+
+/** Of a dashboard's Snapshot rows, those that may be told to someone who already passed the dashboard's own check. A
+ * draft is listed only to those who could open it: its label and period say what it covers, so an owner or Editor who
+ * does not see every Metric it kept gets neither (#448, the same rule as `readable`). */
+async function listable(actor: Actor, rows: Row[]): Promise<Row[]> {
   const drafts = rows.filter((r) => !r.shown_at).map((r) => r.id);
-  if (!drafts.length) return rows.map(summary);
+  if (!drafts.length) return rows;
   const [{ data: kept, error }, { visible }] = await Promise.all([
     db().from("dashboard_snapshots").select("id, ids:frozen->metricIds, legacy:frozen->data->metrics").eq("workspace_id", actor.workspaceId).in("id", drafts),
     seenInSnapshots(actor.workspaceId, actor.personId),
@@ -252,7 +282,7 @@ export async function listSnapshots(actor: Actor, dashboardId: number): Promise<
   // Allowed ones are listed, so a draft that did not come back is left out rather than shown.
   const allowed = new Set(((kept ?? []) as unknown as { id: number; ids?: unknown; legacy?: unknown }[])
     .filter((k) => (keptIds(k) ?? [-1]).every((m) => visible.has(m))).map((k) => k.id));
-  return rows.filter((r) => r.shown_at || allowed.has(r.id)).map(summary);
+  return rows.filter((r) => r.shown_at || allowed.has(r.id));
 }
 
 /** The Snapshot with its dashboard role, if the actor may open it; Forbidden otherwise. */

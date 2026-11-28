@@ -7,7 +7,7 @@ import { createDashboard, placeWidget, removeWidget, saveDashboardText } from ".
 import { dashboardWidgets } from "./page-data";
 import { share } from "./sharing";
 import { createViewLink, openViewLink } from "./view-links";
-import { deleteSnapshot, editSnapshotWords, listSnapshots, MAX_SNAPSHOTS, openSnapshot, showSnapshot, takeSnapshot } from "./snapshots";
+import { deleteSnapshot, editSnapshotWords, listSnapshots, MAX_SNAPSHOTS, openSnapshot, showSnapshot, snapshotChoices, takeSnapshot } from "./snapshots";
 import { snapshotSlides } from "./deck-snapshots";
 import { listVersions, restoreVersion, saveNamedVersion } from "./version-history";
 import { activityView } from "./page-data";
@@ -83,6 +83,32 @@ describe("taking a Snapshot", () => {
     await placeWidget(ben, dash, { type: "metric", id: payroll.id });
     await expect(takeSnapshot(owner, dash, october)).rejects.toEqual(forbidden);
     await expect(takeSnapshot(ben, dash, october)).resolves.toBeGreaterThan(0);
+  });
+
+  it("says which periods have values or are taken, only to who may take the Snapshot", async () => {
+    const { w, owner, ben, ann, gus, dash } = await setup();
+    const today = { today: "2026-11-27" };
+    const month = (await snapshotChoices(owner, dash, today))!.month.periods;
+    // Values from August on: later months keep earlier values, the months before August hold none.
+    expect(month.slice(0, 4).map((p) => [p.start, p.hasValues])).toEqual([["2026-10-01", true], ["2026-09-01", true], ["2026-08-01", true], ["2026-07-01", false]]);
+    expect(Object.keys(month[0]).sort()).toEqual(["end", "hasValues", "kind", "label", "start", "takenId"]);
+    const taken = await takeSnapshot(owner, dash, october, today);
+    expect((await snapshotChoices(owner, dash, today)).month.periods.slice(0, 2).map((p) => p.takenId)).toEqual([taken, null]);
+    await expect(snapshotChoices(ann, dash, today)).rejects.toEqual(forbidden);
+    await expect(snapshotChoices(gus, dash, today)).rejects.toEqual(forbidden);
+    await expect(snapshotChoices((await setup()).owner, dash, today)).rejects.toEqual(forbidden);
+    // Ben's own Metric, which Sara does not see.
+    const payroll = await w.metric(ben.personId, { name: "Payroll" });
+    await placeWidget(ben, dash, { type: "metric", id: payroll.id });
+    await expect(snapshotChoices(owner, dash, today)).rejects.toEqual(forbidden);
+    // Ben's draft keeps Payroll: once it is off the dashboard, Sara may ask again but is told nothing of that draft.
+    const draft = await takeSnapshot(ben, dash, { kind: "month", start: "2026-09-01" }, today);
+    const widget = (await dashboardWidgets(ben, dash)).find((x) => x.metric_ids?.includes(payroll.id))!;
+    await removeWidget(ben, widget.id);
+    expect((await snapshotChoices(owner, dash, today)).month.periods[1].takenId).toBeNull();
+    expect((await snapshotChoices(ben, dash, today)).month.periods[1].takenId).toBe(draft);
+    const words = await snapshotChoices(owner, await createDashboard(owner, "Words only"), today);
+    expect(words.month.periods.every((p) => p.hasValues && p.takenId === null)).toBe(true);
   });
 
   it("keeps the values of the Metric periods complete by the period's last day, for any Metric period", async () => {
