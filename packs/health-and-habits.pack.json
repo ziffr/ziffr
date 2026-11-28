@@ -1,0 +1,244 @@
+{
+  "format": "ziffr.pack/3",
+  "id": "ziffr/health-and-habits",
+  "name": "Health and habits",
+  "version": "1.0.0",
+  "summary": "Sleep, exercise and pages read, week by week, with a dashboard and a weekly question.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.21",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "How you sleep, move and read, week by week.",
+    "happens": [
+      "Every Monday you are asked for last week's three numbers",
+      "The dashboard fills in"
+    ],
+    "needs": [
+      "About how long you slept each night",
+      "Your minutes of exercise and pages read"
+    ]
+  },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For one person who looks after their own habits. Every Monday Ziffr asks how you slept, moved and read last week, and a dashboard shows how each has gone."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "From your watch, app or notes: sleep, minutes of exercise and pages read.",
+          "Room for 3 Metrics in your Workspace."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "Do I have to be exact?"
+      },
+      {
+        "type": "text",
+        "text": "No. A good guess each week is enough to see the way things are going."
+      }
+    ]
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "sleep",
+        "comesFrom": {
+          "by": "person"
+        },
+        "metric": {
+          "format": "ziffr.metric/2",
+          "name": "Hours of sleep",
+          "description": "How long you slept per night, on average over the week.",
+          "calculationNote": "Hours slept per night, averaged over the seven nights of the week. A rough figure is fine.",
+          "category": "Personal",
+          "period": "week",
+          "aggregation": "average",
+          "polarity": "higher",
+          "unit": "h",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "exercise",
+        "comesFrom": {
+          "by": "person"
+        },
+        "metric": {
+          "format": "ziffr.metric/2",
+          "name": "Exercise",
+          "description": "Minutes you were active in the week.",
+          "calculationNote": "Minutes of walking, sport or other exercise from Monday to Sunday, added up.",
+          "category": "Personal",
+          "period": "week",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "min",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "pages-read",
+        "comesFrom": {
+          "by": "person"
+        },
+        "metric": {
+          "format": "ziffr.metric/2",
+          "name": "Pages read",
+          "description": "Pages you read in the week.",
+          "calculationNote": "Pages read from Monday to Sunday, added up. Count the pages you finished, not the ones you opened.",
+          "category": "Personal",
+          "period": "week",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "pages",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "habits-weekly",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "Health and habits",
+          "description": "Sleep, exercise and reading, week by week.",
+          "slots": [
+            {
+              "label": "Hours of sleep",
+              "suggests": "sleep"
+            },
+            {
+              "label": "Exercise",
+              "suggests": "exercise"
+            },
+            {
+              "label": "Pages read",
+              "suggests": "pages-read"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 4,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                1
+              ],
+              "x": 4,
+              "y": 0,
+              "w": 4,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                2
+              ],
+              "x": 8,
+              "y": 0,
+              "w": 4,
+              "h": 4
+            },
+            {
+              "view": "line",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 13
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                1
+              ],
+              "x": 6,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 13
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "key": "monday-habits",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "Monday habits",
+          "description": "Last week's sleep, exercise and pages read, asked on Monday.",
+          "dueWorkingDays": 1,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 0
+            },
+            {
+              "type": "publish",
+              "lock": false
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

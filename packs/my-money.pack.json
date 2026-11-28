@@ -1,0 +1,238 @@
+{
+  "format": "ziffr.pack/3",
+  "id": "ziffr/my-money",
+  "name": "My money",
+  "version": "1.0.0",
+  "summary": "Money saved, spending and net worth, week by week, with a dashboard and a weekly question; in whatever currency you use.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.21",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "Your savings, spending and net worth, week by week.",
+    "happens": [
+      "Every Monday you are asked for last week's three numbers",
+      "The dashboard fills in"
+    ],
+    "needs": [
+      "What you saved and spent last week",
+      "What you own minus what you owe, if you want to follow it"
+    ]
+  },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For one person who keeps an eye on their own money. Every Monday Ziffr asks what you saved and spent last week and what you are worth, and a dashboard shows how each has gone."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "From your bank or your notes: what you put aside, what you spent and your net worth.",
+          "Room for 3 Metrics in your Workspace."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "Which currency does it use?"
+      },
+      {
+        "type": "text",
+        "text": "None. The numbers have no currency sign: use the one you use, and keep to it."
+      }
+    ]
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "saved",
+        "comesFrom": {
+          "by": "person"
+        },
+        "metric": {
+          "format": "ziffr.metric/2",
+          "name": "Money saved",
+          "description": "What you put aside in the week.",
+          "calculationNote": "Money you moved into savings from Monday to Sunday. Money you only moved between your own accounts is left out.",
+          "category": "Personal",
+          "period": "week",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "spending",
+        "comesFrom": {
+          "by": "person"
+        },
+        "metric": {
+          "format": "ziffr.metric/2",
+          "name": "Spending",
+          "description": "What you spent in the week.",
+          "calculationNote": "Everything you paid from Monday to Sunday, including bills. Savings you put aside are not spending.",
+          "category": "Personal",
+          "period": "week",
+          "aggregation": "sum",
+          "polarity": "lower",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "net-worth",
+        "comesFrom": {
+          "by": "person"
+        },
+        "metric": {
+          "format": "ziffr.metric/2",
+          "name": "Net worth",
+          "description": "What you own minus what you owe, at the end of the week.",
+          "calculationNote": "The value of everything you own, minus your debts, on Sunday. You decide what you count; keep to the same list.",
+          "category": "Personal",
+          "period": "week",
+          "aggregation": "last",
+          "polarity": "higher",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "money-weekly",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "My money",
+          "description": "What you saved, what you spent and what you are worth, week by week.",
+          "slots": [
+            {
+              "label": "Money saved",
+              "suggests": "saved"
+            },
+            {
+              "label": "Spending",
+              "suggests": "spending"
+            },
+            {
+              "label": "Net worth",
+              "suggests": "net-worth"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 4,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                1
+              ],
+              "x": 4,
+              "y": 0,
+              "w": 4,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                2
+              ],
+              "x": 8,
+              "y": 0,
+              "w": 4,
+              "h": 4
+            },
+            {
+              "view": "line",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 13
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                1
+              ],
+              "x": 6,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 13
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "key": "monday-money",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "Monday money",
+          "description": "Last week's savings, spending and net worth, asked on Monday.",
+          "dueWorkingDays": 1,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 0
+            },
+            {
+              "type": "publish",
+              "lock": false
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -139,7 +139,7 @@ describe("suggestedPacks and becauseText", () => {
   });
 });
 
-describe("the thirteen starting Packs", () => {
+describe("the sixteen starting Packs", () => {
   const packs = [...bundledPacks().values()].map(({ id, pack: p }) => ({ id, name: p.name, audience: p.audience }));
   const top3 = (answers: RankAnswers) => ids(suggestedPacks(rankPacks(answers, packs, INCLUDED_PACK_ORDER)));
   const firstOf = (a: PackAudience | undefined): RankAnswers => ({
@@ -173,10 +173,10 @@ describe("the thirteen starting Packs", () => {
     for (const id of ["ziffr/workspace-usage", "ziffr/ziffr-operations"]) expect(r.find((x) => x.id === id)).toMatchObject({ score: 0, because: [] });
   });
 
-  it("lists all thirteen for every row, none hidden", () => {
+  it("lists all sixteen for every row, none hidden", () => {
     for (const answers of [none, ans({ industry: "saas", segment: "b2b", functions: ["finance"], country: "DE" }), ans({ industry: "healthcare" })]) {
       expect(ids(rankPacks(answers, packs, INCLUDED_PACK_ORDER)).sort()).toEqual(packs.map((p) => p.id).sort());
-      expect(packs).toHaveLength(13);
+      expect(packs).toHaveLength(16);
     }
   });
 

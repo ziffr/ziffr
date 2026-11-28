@@ -16,10 +16,10 @@ describe("the Packs that come with Ziffr", () => {
     expect(INCLUDED_PACK_FILES.map(([n]) => n)).toEqual(files);
   });
 
-  it("are the thirteen, in the order Ziffr ships them in, each passing every check and aiming no text at an assistant", () => {
+  it("are the sixteen, in the order Ziffr ships them in, each passing every check and aiming no text at an assistant", () => {
     const all = bundledPacks();
     expect([...all.keys()]).toEqual([...INCLUDED_PACK_ORDER]);
-    expect(all.size).toBe(13);
+    expect(all.size).toBe(16);
     for (const { id, text, pack } of all.values()) {
       const res = checkPack(text);
       expect(res.ok ? [] : res.problems, id).toEqual([]);

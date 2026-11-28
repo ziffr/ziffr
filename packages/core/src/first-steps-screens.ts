@@ -34,9 +34,13 @@ export type Topic = (typeof TOPICS)[number];
 /** The words for each topic. */
 export const TOPIC_LABEL: Record<Topic, string> = { health: "Health and fitness", money: "Money", habits: "Habits and time", club: "A club or hobby", other: "Something else" };
 
-/** Ziffr's own Packs for private use, each with the topics it fits. None so far: a Pack added here switches the
- * ready-made sets on for "Just me" with one of its topics. */
-export const PRIVATE_SETS: readonly { pack: string; topics: readonly Topic[] }[] = [];
+/** Ziffr's own Packs for private use, each with the topics it fits: a Pack added here switches the ready-made sets on
+ * for "Just me" with one of its topics, and is never offered to a team. */
+export const PRIVATE_SETS: readonly { pack: string; topics: readonly Topic[] }[] = [
+  { pack: "ziffr/my-money", topics: ["money"] },
+  { pack: "ziffr/health-and-habits", topics: ["health", "habits"] },
+  { pack: "ziffr/my-time", topics: ["habits"] },
+];
 
 /** The Pack ids of the private sets for a topic; none while no topic was chosen. */
 export function privateSets(topic: Topic | null): string[] {

@@ -1,7 +1,8 @@
-// The thirteen starting Packs (spec 0030, #279; five for business functions, one for the weekly sales forecast, #1151): Ziffr's own Packs in packs/, kept in this repository so they work
+// The sixteen starting Packs (spec 0030, #279; five for business functions, one for the weekly sales forecast, #1151): Ziffr's own Packs in packs/, kept in this repository so they work
 // offline. Each passes the checks Ziffr runs on any Pack, on this version of Ziffr, and says nothing to an assistant.
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { PRIVATE_SETS } from "./first-steps-screens";
 import { evaluate } from "./formula";
 import { checkPack } from "./pack";
 import { buildSeries } from "./series";
@@ -17,8 +18,8 @@ export const STARTING_PACKS = readdirSync(repoFile("packs/")).filter((f) => f.en
 export const startingPack = (file: string) => readFileSync(repoFile(`packs/${file}`), "utf8");
 
 describe("the starting Packs", () => {
-  it("are the seven the specs name, the five for business functions and the sales forecast", () => {
-    expect(STARTING_PACKS).toEqual(["agency.pack.json", "board-meeting.pack.json", "customer-support.pack.json", "finance.pack.json", "fulfilment.pack.json", "online-shop.pack.json", "people.pack.json", "saas-metrics.pack.json", "sales-forecast.pack.json", "sales.pack.json", "sports-club.pack.json", "workspace-usage.pack.json", "ziffr-operations.pack.json"]);
+  it("are the seven the specs name, the five for business functions, the sales forecast and three for private use", () => {
+    expect(STARTING_PACKS).toEqual(["agency.pack.json", "board-meeting.pack.json", "customer-support.pack.json", "finance.pack.json", "fulfilment.pack.json", "health-and-habits.pack.json", "my-money.pack.json", "my-time.pack.json", "online-shop.pack.json", "people.pack.json", "saas-metrics.pack.json", "sales-forecast.pack.json", "sales.pack.json", "sports-club.pack.json", "workspace-usage.pack.json", "ziffr-operations.pack.json"]);
   });
 
   it.each(STARTING_PACKS)("%s passes every check, is Ziffr's under CC BY 4.0, and aims no text at an assistant", (file) => {
@@ -57,6 +58,36 @@ describe("the starting Packs", () => {
     expect(setUp!.needs?.length).toBeGreaterThan(0);
     // Not the words of a programmer or of Ziffr's own screens for what the person has not met yet.
     expect(JSON.stringify(setUp)).not.toMatch(/\b(?:Submitter|Approver|Position|Repeat|Slot|Source)s?\b/);
+  });
+
+  // Packs for one person on their own: plain words, no business wording, no invented targets, no currency.
+  const PRIVATE_FILES = PRIVATE_SETS.map((s) => `${s.pack.replace("ziffr/", "")}.pack.json`);
+  it("lists three Packs for private use, those First Steps offers a person alone", () => {
+    expect(PRIVATE_FILES).toEqual(["my-money.pack.json", "health-and-habits.pack.json", "my-time.pack.json"]);
+  });
+  it.each(PRIVATE_FILES)("%s is for one person: a dashboard, a weekly question, one-sentence descriptions, no targets, no currency, no business words", (file) => {
+    const res = checkPack(startingPack(file));
+    if (!res.ok) throw new Error("does not pass");
+    const { metrics = [], dashboards = [], workflows = [] } = res.pack.contents;
+    expect(res.pack.audience).toBeUndefined();
+    expect(metrics.length).toBeGreaterThanOrEqual(2);
+    expect(dashboards).toHaveLength(1);
+    expect(workflows).toHaveLength(1);
+    expect(JSON.stringify(workflows[0].template)).toMatch(/"dueWorkingDays":1/);
+    expect(JSON.stringify(workflows[0].template)).not.toMatch(/escalate|approve|"to"/);
+    for (const e of metrics) {
+      const m = e.metric as Record<string, unknown>;
+      expect(String(m.description).match(/[.!?]/g)?.length, `${e.key} says one sentence`).toBe(1);
+      expect(m.period, e.key).toBe("week");
+      expect(m.category, e.key).toBe("Personal");
+      expect(m.valueFormat, `${e.key} assumes no currency`).not.toBe("currency");
+      expect(String(m.unit ?? ""), e.key).not.toMatch(/[€$£¥]/);
+      expect(Object.keys(m), `${e.key} has no invented target`).not.toEqual(expect.arrayContaining(["targetMin"]));
+      expect(Object.keys(m), e.key).not.toContain("targetMax");
+    }
+    const everything = startingPack(file);
+    expect(everything).not.toMatch(/\b(?:business|company|customers?|clients?|team|colleagues?|revenue|profit|employees?|invoices?)\b/i);
+    expect(everything).not.toMatch(/[€$£¥]|\b(?:EUR|USD|GBP|euros?|dollars?)\b/);
   });
 
   it("Sales forecast asks its set-up in the spec's words, the quota for every quarter", () => {
