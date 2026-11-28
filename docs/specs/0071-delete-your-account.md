@@ -35,7 +35,7 @@ A person deletes their account in their own profile settings. If none of their W
 - **Where:** Settings, the person's profile. Not in Demo Mode.
 - **What the page lists first:** each Workspace with what happens to it (deleted, or continues; who becomes Owner; who takes over what the person owns), what is erased, what stays, and the day. For each Workspace that will be deleted and that the person owns, it offers the **Workspace Export**.
 - **Confirmation:** a code sent to the person's address, asked for even in a fresh session. Only the person themself can ask; no Admin and no key can.
-- **Refused** for the only Installation Admin of an Installation while other people use it: they name another first.
+- **Refused** for the only Installation Admin of an Installation while other people use it: they name another first. If nobody else uses it, the confirmation says that the Installation is left without an Installation Admin, and that whoever next restarts it and reads the server log can claim it.
 - **During the seven days** nothing changes: the account works, prompts go out, keys work. Every page shows the day and **Keep my account**, and an email says the same, with a link to keep it. Keeping it needs a signed-in session only.
 
 ### What happens when it runs
