@@ -94,7 +94,7 @@ export function MadeDeckPage({ id, name, footer, themeId, themes, description, d
             <option value="column">Column</option>
           </select>
         </label>
-        <div className="text-sm">
+        <div className="min-w-0 text-sm">
           <span className="text-muted-foreground">Theme</span>
           <div className="mt-1"><ThemePicker themes={themes} value={themeId} onChange={(v) => themeOfMadeDeck(id, v).then((r) => { router.refresh(); return r; })} /></div>
         </div>

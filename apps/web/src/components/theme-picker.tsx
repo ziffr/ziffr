@@ -16,8 +16,8 @@ export function ThemePicker({ themes, value, onChange, disabled }: { themes: The
   const { confirm, dialog } = useConfirm();
   const def = themes.find((t) => t.is_default);
   return (
-    <span className="flex items-center gap-2 text-sm">
-      <label className="flex items-center gap-1.5">
+    <span className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+      <label className="flex min-w-0 items-center gap-1.5">
         <Palette aria-hidden className="size-4 text-muted-foreground" />
         <span className="sr-only">Theme</span>
         <select
@@ -27,14 +27,14 @@ export function ThemePicker({ themes, value, onChange, disabled }: { themes: The
             const from = v === null ? null : unwrap(await themeLogoSource(v));
             if (from && !(await confirm({ title: `Use ${themes.find((t) => t.id === v)?.name ?? "this Theme"}?`, description: `This Theme shows ${from.author || "the author"}\u2019s logo, from the Pack ${from.pack}. It will show wherever this is drawn, in presentations and View Links too.`, confirmLabel: "Use this Theme", destructive: false }))) return;
             unwrap(await onChange(v)); } catch (err) { toast.error("Theme not changed", { description: shown(err) }); } }); }}
-          className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2"
+          className="h-9 min-w-0 rounded-[var(--radius-input)] border border-input bg-card px-2 max-md:h-11 max-md:text-base pointer-coarse:h-11 pointer-coarse:text-base"
         >
           <option value="">{def ? `${def.name} (team default)` : "Team default"}</option>
           {themes.filter((t) => !t.is_default).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       </label>
       {dialog}
-      <Link href="/themes" className="text-sm underline">Themes</Link>
+      <Link href="/themes" className="inline-flex items-center text-sm underline max-md:min-h-11 max-md:min-w-11 pointer-coarse:min-h-11 pointer-coarse:min-w-11">Themes</Link>
     </span>
   );
 }
