@@ -18,6 +18,8 @@ export type TeamData = {
   viewer: string;
   canEdit: boolean;
   isOwner: boolean;
+  /** The viewer may transfer ownership: an Owner, outside the demo and a Practice Workspace. */
+  canTransfer: boolean;
   people: Member[];
   contacts: Profile[];
   /** The Groups a person can be put in (not "Everyone in the workspace", which Ziffr keeps itself). */

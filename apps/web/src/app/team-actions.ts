@@ -139,6 +139,14 @@ export async function changeRole(personId: string, role: WorkspaceRoleName) {
   });
 }
 
+/** Transfers the signed-in Owner's ownership to an Admin or Member, who becomes Owner; the Owner becomes an Admin. */
+export async function transferOwnership(personId: string) {
+  return attempt(async () => {
+    await inv.transferOwnership(await currentActor(), String(personId));
+    done();
+  });
+}
+
 /** Switches domain joining on (for the Owner's own verified domain) or off. */
 export async function setDomainJoining(on: boolean) {
   return attempt(async () => {

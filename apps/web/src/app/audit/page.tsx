@@ -49,6 +49,7 @@ function detailText(e: AuditEvent, nameOf: (id: string) => string | undefined): 
   const role = (r: unknown) => ROLE[String(r)] ?? String(r);
   switch (e.kind) {
     case "member.role_changed": return `${role(d.from)} → ${role(d.to)}`;
+    case "member.ownership_transferred": return `${role(d.from)} → ${role("owner")}; the former Owner is now an ${role("admin")}`;
     case "member.removed": return `was ${role(d.role)}; ${d.handed_over ?? 0} things handed to ${d.successor_name ?? "someone"}`;
     case "invitation.created": case "invitation.revoked": case "invitation.accepted": case "join_request.approved": return d.role ? `as ${role(d.role)}` : "";
     case "domain_joining.on": case "domain_joining.off": return String(d.domain ?? "");

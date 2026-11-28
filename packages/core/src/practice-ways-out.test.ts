@@ -14,7 +14,7 @@ const KEPT_BY: Record<string, string> = {
   // Email.
   "packages/core/src/mail.ts": "sendMail is refused for a Practice Workspace; sendDelivery asks heldBack with the very address it sends to; the SMTP transport takes no .invalid address",
   "packages/core/src/auth-email.ts": "a sign-in email, nobody's Workspace; a .invalid address is refused by sendMail",
-  "packages/core/src/invitations.ts": "no invitation is made (assertMayLeave, and the database); sendMail gets the Workspace",
+  "packages/core/src/invitations.ts": "no invitation is made (assertMayLeave, and the database); sendMail gets the Workspace, for invitations and the Transfer ownership emails",
   "packages/core/src/inbound-email.ts": "the answer to an email goes through sendMail with the Workspace",
   "packages/core/src/share-proposals.ts": "no proposal by email is made or confirmed; sendMail gets the Workspace",
   "apps/web/src/app/auth-actions.ts": "signing in: a .invalid address is refused before the sign-in service is asked",

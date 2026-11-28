@@ -1,5 +1,6 @@
 // Invitations, domain joining and roles (GLOSSARY: Invitation, Domain Joining, Workspace Role, Contact). Owners and
-// Admins invite and change roles; only Owners make or remove Owners, and a workspace never loses its last Owner.
+// Admins invite and change roles; only Owners make or remove Owners, an Owner can transfer ownership, and a workspace
+// never loses its last Owner.
 // Joining by domain is off until an Owner sets the domain, and every request is approved by an Owner or Admin.
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
@@ -10,7 +11,8 @@ import { openNames } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor, type WorkspaceRoleName } from "./actor";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { linkTo } from "./deliveries";
-import { brandedParts, headerSafe, sentByLine, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
+import { addressIn, brandedParts, headerSafe, sentByLine, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
+import { sendingHeldBack } from "./user-block";
 import { assertMayLeave } from "./practice";
 import { audit, recordAudit } from "./audit-log";
 import { assertNotTrial, trialEnded, trialEndsAt, trialInvitationMessage, trialLimitMessage } from "./trials";
@@ -55,6 +57,10 @@ const RESEND_AFTER = 60_000;
 
 const ROLE_LABEL: Record<WorkspaceRoleName, string> = { owner: "an Owner", admin: "an Admin", member: "a Member", guest: "a Guest" };
 
+/** A name somebody chose, as it goes into an email: one line, no link, no quote marks of its own, at most 80
+ * characters. Always put inside quotes after fixed text, never in a subject. */
+const named = (s: string) => unlinked(headerSafe(s)).replace(/[“”"«»„]/g, "'").slice(0, 80);
+
 /** Invitation emails one workspace may send in 24 hours, unless ZIFFR_LIMIT_INVITATION_EMAILS_PER_WORKSPACE_PER_DAY says otherwise (the default). With the next, it keeps an invitation from being a way to
  * mail strangers: anyone who may invite could otherwise send any address mail. */
 export const INVITATION_EMAILS_PER_WORKSPACE = sendingLimitDefault("invitationsPerWorkspace");
@@ -95,7 +101,6 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
   if (claim !== "ok") return false;
   // Names people chose go in the body, quoted, never in the subject, so the subject cannot pass for another sender's.
   // Each on one line, at most 80 characters, without quote marks of its own, and always inside quotes after fixed text.
-  const named = (s: string) => unlinked(headerSafe(s)).replace(/[“”"«»„]/g, "'").slice(0, 80);
   const workspace = named((inv.workspaces as unknown as { name: string } | null)?.name ?? "a workspace");
   const inviterRow = inv.profiles as unknown as { id?: string; name: string; email: string | null } | null;
   // Read through openNames, as the accept page does, so a sealed name is never mailed as its sealed form.
@@ -319,6 +324,56 @@ export async function setRole(actor: Actor, personId: string, role: WorkspaceRol
   // A Guest has no Personal Webhooks: they ended with the change (the database removed them); the Audit Log says so.
   if (role === "guest" && current.role !== "guest") await recordPersonalWebhookEnds({ workspaceId: actor.workspaceId, personId, by: actor.personId });
   if (current.role !== role) await audit(actor, { kind: "member.role_changed", object: { type: "person", id: personId, name: await personName(personId, actor.workspaceId) }, details: { from: current.role, to: role } });
+}
+
+const ONLY_OWNER_TRANSFERS = "Only an Owner can transfer ownership.";
+
+/** Transfers the acting Owner's ownership (spec 0071): an Admin or Member becomes Owner and the actor becomes an Admin,
+ * in one database step that checks both roles again. Only a signed-in Owner, for their own role: never a key, an Admin
+ * or the demo. Other Owners keep their role and what anyone owns does not move. Both are emailed. */
+export async function transferOwnership(actor: Actor, personId: string, transport?: MailTransport): Promise<void> {
+  notDemo(actor);
+  if (actor.key || actor.role !== "owner") throw new Forbidden(ONLY_OWNER_TRANSFERS);
+  const to = String(personId);
+  const { data: was, error } = await db().rpc("transfer_ownership", { p_workspace: actor.workspaceId, p_from: actor.personId, p_to: to });
+  if (error) {
+    if (/transfer_not_owner/.test(error.message)) throw new Forbidden(ONLY_OWNER_TRANSFERS);
+    throw new Error(/transfer_target/.test(error.message) ? "Pick an Admin or a Member of this Workspace." : "Ownership could not be transferred; nothing was changed.");
+  }
+  await audit(actor, { kind: "member.ownership_transferred", object: { type: "person", id: to, name: await personName(to, actor.workspaceId) }, details: { from: was as string } });
+  await tellOwnershipTransfer(actor, to, transport);
+}
+
+/** Emails the new and the former Owner that ownership moved. Never throws: the transfer stands whatever mail does. Each
+ * gets only their own message, at the address this Workspace has for them; a Blocked User gets nothing. */
+async function tellOwnershipTransfer(actor: Actor, to: string, transport?: MailTransport): Promise<void> {
+  try {
+    if (!(await mailOn())) return;
+    const ws = actor.workspaceId;
+    const { data: row } = await db().from("workspaces").select("name").eq("id", ws).maybeSingle();
+    const workspace = named((row?.name as string | undefined) ?? "a workspace");
+    const former = named((await personName(actor.personId, ws)) ?? "someone");
+    const next = named((await personName(to, ws)) ?? "someone");
+    const by = { name: former, email: await addressIn(ws, actor.personId), did: "transferred ownership of" };
+    const action = { label: "See the members", url: linkTo("/team") };
+    const messages = [
+      { person: to, said: `“${former}” transferred ownership of the workspace “${workspace}” on Ziffr to you. You are now an Owner, so billing and removing Owners are open to you. “${former}” is now an Admin.` },
+      { person: actor.personId, said: `You transferred ownership of the workspace “${workspace}” on Ziffr to “${next}”, who is now an Owner. You are now an Admin. If this was not you, tell “${next}” or another Owner right away.` },
+    ];
+    for (const { person, said } of messages) {
+      try {
+        const address = await addressIn(ws, person);
+        if (!address || (await sendingHeldBack(ws, person))) continue;
+        const words = ["Hi,", "", said, "", "The names above were chosen by the people in that workspace.", "", sentByLine(by, workspace)].join("\n");
+        await sendMail({ to: address, subject: "Ownership of a workspace on Ziffr was transferred", text: `${words}\n\n${action.label}: ${action.url}`, action, ...(await brandedParts(ws, { text: words, action }, by)) }, ws, transport);
+      } catch (e) {
+        // Only the kind of failure: the server's own words may hold addresses or settings.
+        console.error(`Transfer ownership: an email could not be sent (${(e as { code?: string }).code ?? "error"}).`);
+      }
+    }
+  } catch {
+    console.error("Transfer ownership: the emails could not be prepared.");
+  }
 }
 
 /** The company domain Domain Joining could be switched on for, from an Owner's verified address: null when the address is

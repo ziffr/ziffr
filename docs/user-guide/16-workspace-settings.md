@@ -287,7 +287,7 @@ In the demo nobody changes these settings, also where visitors may change the re
 
 ### Members and their roles
 
-The list shows each person with their role. Choose a person and a panel opens beside the page with their role (Owners and Admins get a menu to change it), their Groups, their Away dates and, for Owners and Admins, **Remove…** at the bottom.
+The list shows each person with their role. Choose a person and a panel opens beside the page with their role (Owners and Admins get a menu to change it), their Groups, their Away dates and, for Owners and Admins, **Remove…** at the bottom. An Owner also finds [Transfer ownership](#transfer-ownership) there.
 
 | Role | What the person may do |
 | --- | --- |
@@ -297,6 +297,17 @@ The list shows each person with their role. Choose a person and a panel opens be
 | **Guest** | Sees only what is shared with them, answers questions and sends in values; creates nothing. Pages and lists show no buttons for what they cannot do (no **New metric**, **Paste values**, **New deck** or **Create dashboard**), and an empty list says "Nothing has been shared with you yet. Ask whoever invited you." |
 
 Pick another role and it changes at once. Only an Owner can make someone an Owner or change an Owner's role. The last Owner cannot step down: make someone else Owner first.
+
+### Transfer ownership
+
+An Owner can hand their own role to someone else in one step. Choose an Admin or a Member in the list, choose **Transfer ownership…** in their panel and confirm with **Transfer ownership**. That person becomes an **Owner** and you become an **Admin**.
+
+- Billing and making or removing Owners go with the role: afterwards you can do neither, and only an Owner can make you an Owner again.
+- Other Owners keep their role.
+- What each of you owns, such as Metrics, dashboards and decks, does not move.
+- Both of you are emailed, if email is set up, and the [Audit Log](#audit-log) records the transfer.
+
+Only an Owner can do this, for their own role: not an Admin, and no key, so no program or assistant. A Guest or a Contact cannot be picked. The demo and a Practice Workspace do not offer it. To change the roles of other people one at a time, use the menu in their panel.
 
 ### Removing someone and handing over
 
@@ -695,7 +706,7 @@ On a phone the filter (**Person**, **What happened**, **From**, **To**, **Show**
 
 ### What is recorded
 
-Role changes and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, Webhooks (added, changed, given a new secret, switched on or off, deleted), new dashboards, new, deleted, archived and brought back Metrics, a Metric's Workflow, each person added to or removed from a Metric's Submitters after it was made (who, and whether a first request was made for them), a Metric's Retention (set or cancelled) and the Workspace's default Retention, Locks, Workflow runs, Approvals (and values counted without one because nobody else could approve them), Self-checks, Corrections, each Filled-in Value (who filled in a value, for whom, for which period and as whom: the Stand-in, the Metric's owner or the Workflow's owner, and who set the Away that opened it; never the value), the Workspace's name, time, fiscal year and profile, each person's Business Function (the old and the new choice), the steps of the Setup Guide a Member skipped (step names only), each Test Message a person sends themselves (the way and whether it was sent, never an address), Packs installed from Ziffr's own Packs, its Workspace Limit (old and new, and who set it), Slack, each Slack or Telegram account disconnected with the button in [the email about it](#when-an-account-is-connected-to-you) (whose, and which of the two), Snapshots taken, shown and deleted, exports, sign-ins, and each time an Owner or Admin reads a teammate's Schedule through the API or an assistant (whose, and for which days). When an Access Key (also an assistant's) changes a Metric's name, description, unit, format, period or Submission Rule, the event names the key and the fields, never the new words.
+Role changes, transfers of ownership and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, Webhooks (added, changed, given a new secret, switched on or off, deleted), new dashboards, new, deleted, archived and brought back Metrics, a Metric's Workflow, each person added to or removed from a Metric's Submitters after it was made (who, and whether a first request was made for them), a Metric's Retention (set or cancelled) and the Workspace's default Retention, Locks, Workflow runs, Approvals (and values counted without one because nobody else could approve them), Self-checks, Corrections, each Filled-in Value (who filled in a value, for whom, for which period and as whom: the Stand-in, the Metric's owner or the Workflow's owner, and who set the Away that opened it; never the value), the Workspace's name, time, fiscal year and profile, each person's Business Function (the old and the new choice), the steps of the Setup Guide a Member skipped (step names only), each Test Message a person sends themselves (the way and whether it was sent, never an address), Packs installed from Ziffr's own Packs, its Workspace Limit (old and new, and who set it), Slack, each Slack or Telegram account disconnected with the button in [the email about it](#when-an-account-is-connected-to-you) (whose, and which of the two), Snapshots taken, shown and deleted, exports, sign-ins, and each time an Owner or Admin reads a teammate's Schedule through the API or an assistant (whose, and for which days). When an Access Key (also an assistant's) changes a Metric's name, description, unit, format, period or Submission Rule, the event names the key and the fields, never the new words.
 
 Each event names the person, what happened, what it was about (as it was named then), the time and a few details, such as the old and new role. It never holds a value or a message. A Metric, dashboard or deck you may not see appears without its name, as "a Metric you do not see".
 

@@ -1,4 +1,6 @@
 import { currentWorkspaceId, viewerId } from "@/lib/viewer";
+import { isDemo } from "@/lib/auth";
+import { isPracticeWorkspace } from "@ziffr/core/practice";
 import { getPeopleIn, getProfiles } from "@/lib/data";
 import { getGroups } from "@/lib/access";
 import { PageHeader } from "@/components/page-header";
@@ -29,12 +31,14 @@ export default async function TeamPage() {
   // Business Functions go to Owners and Admins only (GLOSSARY: Business Function): for a Member the loader is not even
   // called, so nothing of them reaches this page's props, HTML or data.
   const functions = canEdit ? await businessFunctions(actor) : null;
+  // Transfer ownership is offered to Owners only; the core and the database check again.
+  const canTransfer = actor.role === "owner" && !(await isDemo()) && !(await isPracticeWorkspace(actor.workspaceId));
   // Away dates of this workspace's people only (teamView); nobody else's reach the browser.
   const members = people.filter((p) => !p.contact).map((p) => ({ ...p, workspaceRole: (team.roles.find((r) => r.user_id === p.id)?.role ?? "member") as WorkspaceRoleName }));
   return (
     <>
       <PageHeader title="Members and Groups" sub="The people in this workspace and their groups." />
-      <TeamTabs data={{ viewer, canEdit, isOwner: actor.role === "owner", people: members, contacts, groups: groups.filter((g) => !g.everyone), away: team.away ?? [], functions, invitations, joinRequests, mailOn: await mailOn(), joinDomain: team.joinDomain, myDomain: who?.verifiedEmail?.split("@")[1] ?? null, trial: Boolean(await trialEndsAt(actor.workspaceId)) }} />
+      <TeamTabs data={{ viewer, canEdit, isOwner: actor.role === "owner", canTransfer, people: members, contacts, groups: groups.filter((g) => !g.everyone), away: team.away ?? [], functions, invitations, joinRequests, mailOn: await mailOn(), joinDomain: team.joinDomain, myDomain: who?.verifiedEmail?.split("@")[1] ?? null, trial: Boolean(await trialEndsAt(actor.workspaceId)) }} />
     </>
   );
 }
