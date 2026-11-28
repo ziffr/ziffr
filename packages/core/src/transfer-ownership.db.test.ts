@@ -2,10 +2,11 @@
 // the local Mailpit: who may do it, to whom, that both are told and the Audit Log has it, and that no Workspace is ever
 // left without an Owner.
 import { randomUUID } from "node:crypto";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { setRole, transferOwnership } from "./invitations";
+import { acceptInvitation, inviteByEmail, openInvitations, setRole, transferOwnership } from "./invitations";
+import { PracticeRefused } from "./practice";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 
@@ -85,6 +86,61 @@ describe("Transfer ownership", () => {
 
   it("is refused in the demo", async () => {
     await expect(transferOwnership({ personId: "sara", workspaceId: DEMO_WORKSPACE_ID, role: "owner" }, "ben")).rejects.toEqual(forbidden);
+  });
+
+  it("is refused in a Practice Workspace", async () => {
+    const w = await workspace("Practice", { practice: true }); cleanups.push(w.cleanup);
+    const me = await w.person("owner", { id: w.practiceFor! }); const ad = await w.madeUp("admin");
+    await expect(transferOwnership(w.actor(me), ad)).rejects.toBeInstanceOf(PracticeRefused);
+    expect(await roles(w.id)).toEqual({ [me]: "owner", [ad]: "admin" });
+    expect(await logged(w.id)).toEqual([]);
+  });
+
+  it("revokes the former Owner's open invitations for the Owner role, and no other", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ola = await w.person("owner"); const ben = await w.person("member");
+    const other = await ws("Other"); await other.person("owner", { id: `${sara}-x` });
+    const invite = (by: string, role: "owner" | "admin", email = address(role)) => inviteByEmail(w.actor(by), { email, role }, undefined, false).then((r) => ({ ...r, email }));
+    const mine = await invite(sara, "owner");
+    const kept = [await invite(sara, "admin"), await invite(ola, "owner")];
+    // The same person's Owner invitation in another Workspace is none of this transfer's.
+    await db().from("memberships").insert({ workspace_id: other.id, user_id: sara, role: "owner" });
+    const elsewhere = await inviteByEmail(other.actor(sara, "owner"), { email: address("elsewhere"), role: "owner" }, undefined, false);
+
+    await transferOwnership(w.actor(sara), ben);
+    expect((await openInvitations(w.actor(ben, "owner"))).map((i) => i.email).sort()).toEqual(kept.map((k) => k.email).sort());
+    await expect(acceptInvitation({ personId: `t-${randomUUID()}`, verifiedEmail: mine.email }, mine.token)).rejects.toThrow(/does not work any more/);
+    expect((await db().from("invitations").select("revoked_at").eq("token", elsewhere.token).single()).data!.revoked_at).toBeNull();
+    const { data: events } = await db().from("audit_events").select("*").eq("workspace_id", w.id).eq("kind", "invitation.revoked");
+    expect(events).toHaveLength(1);
+  });
+
+  it("is not undone by a role change that read the role before the transfer", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ad = await w.person("admin"); const ben = await w.person("member");
+    // The transfer lands between setRole's read of Ben's role and its write: held at the Metric count a change to Guest makes.
+    const client = db();
+    const from = client.from.bind(client);
+    let raced = false;
+    const spy = vi.spyOn(client, "from").mockImplementation(((table: string) => {
+      const query = from(table);
+      if (table !== "metrics" || raced) return query;
+      raced = true;
+      const select = query.select.bind(query);
+      query.select = ((...args: Parameters<typeof select>) => {
+        const filter = select(...args);
+        const then = filter.then.bind(filter);
+        filter.then = ((done, failed) => transferOwnership(w.actor(sara), ben).then(() => then(done, failed), failed)) as typeof filter.then;
+        return filter;
+      }) as typeof query.select;
+      return query;
+    }) as typeof client.from);
+    try {
+      await expect(setRole(w.actor(ad, "admin"), ben, "guest")).rejects.toThrow("The role changed meanwhile; try again.");
+    } finally {
+      spy.mockRestore();
+    }
+    expect(raced).toBe(true);
+    expect(await roles(w.id)).toEqual({ [sara]: "admin", [ad]: "admin", [ben]: "owner" });
+    expect((await db().from("audit_events").select("*").eq("workspace_id", w.id).eq("kind", "member.role_changed")).data).toEqual([]);
   });
 
   it("never leaves a Workspace without an Owner when two changes arrive at once", async () => {

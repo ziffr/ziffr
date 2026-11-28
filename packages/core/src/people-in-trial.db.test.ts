@@ -7,7 +7,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { Forbidden } from "./actor";
 import { setCloudTrialLimits } from "./cloud-api";
 import { db } from "./db";
-import { acceptInvitation, createInviteLink, inviteByEmail, openInvitations, resendInvitation, revokeInvitation } from "./invitations";
+import { inviteGate } from "./invite-gate";
+import { acceptInvitation, createInviteLink, inviteByEmail, openInvitations, resendInvitation, revokeInvitation, transferOwnership } from "./invitations";
 import type { MailTransport } from "./mail";
 import { forgetStoredSettings } from "./settings-in-effect";
 import { resetTrialLimits, workspace } from "./test/db-fixtures";
@@ -71,6 +72,19 @@ describe("the first-value gate", () => {
     await expect(invite(t)).rejects.toThrow(/Invitations open once/);
     await t.value(m.id, "2026-11-01", 3, t.owner);
     expect((await invite(t)).emailed).toBe(true);
+  });
+  it("stays open after a transfer of ownership: the former Owner, now an Admin, has the value", async () => {
+    const t = await trial();
+    const next = await t.person("member");
+    await transferOwnership(t.actor, next);
+    const owner = t.actorOf(next, "owner");
+    expect(await inviteGate(owner)).toEqual({ state: "open" });
+    expect((await inviteByEmail(owner, { email: address(), role: "member" }, transport)).emailed).toBe(true);
+    expect((await inviteByEmail(t.actorOf(t.owner, "admin"), { email: address(), role: "member" }, transport)).emailed).toBe(true);
+    // The value of somebody who is neither Owner nor Admin opens nothing.
+    await db().from("memberships").update({ role: "member" }).eq("workspace_id", t.id).eq("user_id", t.owner);
+    expect(await inviteGate(owner)).toMatchObject({ state: "waiting" });
+    await expect(inviteByEmail(owner, { email: address(), role: "member" }, transport)).rejects.toThrow(/Invitations open once/);
   });
   it("is the database's: a direct insert is refused too, with ZF439", async () => {
     const t = await trial(false);

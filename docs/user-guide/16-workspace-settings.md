@@ -304,6 +304,8 @@ An Owner can hand their own role to someone else in one step. Choose an Admin or
 
 - Billing and making or removing Owners go with the role: afterwards you can do neither, and only an Owner can make you an Owner again.
 - Other Owners keep their role.
+- Open [invitations](#inviting-people) you made for the Owner role are revoked: their links stop working.
+- In a trial, invitations stay open: a value an Owner or an Admin sent in themself counts.
 - What each of you owns, such as Metrics, dashboards and decks, does not move.
 - Both of you are emailed, if email is set up, and the [Audit Log](#audit-log) records the transfer.
 

@@ -97,7 +97,7 @@ export function PersonPanel({ id }: { id: string }) {
           <Button size="sm" variant="outline" disabled={pending} onClick={async () => {
             if (await confirm({
               title: `Transfer ownership to ${person.name}?`,
-              description: `${person.name} becomes an Owner and you become an Admin. Billing and removing Owners go with the role, so you can no longer do either, and only an Owner can make you one again. Other Owners keep their role. What each of you owns, such as Metrics and dashboards, does not move.${data.mailOn ? " Both of you are emailed." : ""}`,
+              description: `${person.name} becomes an Owner and you become an Admin. Billing and removing Owners go with the role, so you can no longer do either, and only an Owner can make you one again. Other Owners keep their role. Open invitations you made for the Owner role are revoked. What each of you owns, such as Metrics and dashboards, does not move.${data.mailOn ? " Both of you are emailed." : ""}`,
               confirmLabel: "Transfer ownership",
             })) run(() => transferOwnership(person.id), "Ownership transferred; you are now an Admin");
           }}>Transfer ownership…</Button>

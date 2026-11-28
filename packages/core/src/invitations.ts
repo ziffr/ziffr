@@ -154,7 +154,7 @@ export async function inviteByEmail(actor: Actor, input: { email: string; role: 
     workspace_id: actor.workspaceId, token: t, email, role: input.role, contact_person_id: input.contactPersonId ?? null,
     created_by: actor.personId, expires_at: new Date(Date.now() + 14 * DAY).toISOString(), address_key: mailboxKey(email),
   }).select("id").single();
-  // The trial's limits (people, one open invitation per address, no invitation before the Owner's first value) are the database's.
+  // The trial's limits (people, one open invitation per address, no invitation before an Owner's or Admin's first value) are the database's.
   if (error?.code === "ZF436") throw new Error(trialInvitationMessage(error));
   if (error?.code === "ZF435" || error?.code === "ZF439") throw new Error(trialLimitMessage(error.code)!);
   if (error || !made) throw new Error("The invitation could not be made.");
@@ -318,9 +318,11 @@ export async function setRole(actor: Actor, personId: string, role: WorkspaceRol
     const { count } = await db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("owner_id", personId);
     if (count) throw new Error(`They own ${count} Metric${count === 1 ? "" : "s"}. Hand ${count === 1 ? "it" : "them"} over first, or remove them and pick who takes over.`);
   }
-  const { error } = await db().from("memberships").update({ role }).eq("workspace_id", actor.workspaceId).eq("user_id", personId);
+  // Written only over the role that was checked above: a change made meanwhile (a transfer of ownership) stands.
+  const { data: changed, error } = await db().from("memberships").update({ role }).eq("workspace_id", actor.workspaceId).eq("user_id", personId).eq("role", current.role).select("user_id");
   // The database refuses to leave a workspace without an Owner, also when two changes race.
   if (error) throw new Error(/at least one Owner/.test(error.message) ? "A workspace keeps at least one Owner. Make someone else Owner first." : /cannot own a Metric/.test(error.message) ? "They own Metrics. Hand them over first, or remove them and pick who takes over." : "The role could not be changed.");
+  if (!changed?.length) throw new Error("The role changed meanwhile; try again.");
   // A Guest has no Personal Webhooks: they ended with the change (the database removed them); the Audit Log says so.
   if (role === "guest" && current.role !== "guest") await recordPersonalWebhookEnds({ workspaceId: actor.workspaceId, personId, by: actor.personId });
   if (current.role !== role) await audit(actor, { kind: "member.role_changed", object: { type: "person", id: personId, name: await personName(personId, actor.workspaceId) }, details: { from: current.role, to: role } });
@@ -329,18 +331,22 @@ export async function setRole(actor: Actor, personId: string, role: WorkspaceRol
 const ONLY_OWNER_TRANSFERS = "Only an Owner can transfer ownership.";
 
 /** Transfers the acting Owner's ownership (spec 0071): an Admin or Member becomes Owner and the actor becomes an Admin,
- * in one database step that checks both roles again. Only a signed-in Owner, for their own role: never a key, an Admin
- * or the demo. Other Owners keep their role and what anyone owns does not move. Both are emailed. */
+ * in one database step that checks both roles again and revokes the actor's open invitations for the Owner role. Only a
+ * signed-in Owner, for their own role: never a key, an Admin, the demo or a Practice Workspace. Other Owners keep their
+ * role and what anyone owns does not move. Both are emailed. */
 export async function transferOwnership(actor: Actor, personId: string, transport?: MailTransport): Promise<void> {
   notDemo(actor);
   if (actor.key || actor.role !== "owner") throw new Forbidden(ONLY_OWNER_TRANSFERS);
+  await assertMayLeave(actor.workspaceId, "invitation");
   const to = String(personId);
-  const { data: was, error } = await db().rpc("transfer_ownership", { p_workspace: actor.workspaceId, p_from: actor.personId, p_to: to });
+  const { data, error } = await db().rpc("transfer_ownership", { p_workspace: actor.workspaceId, p_from: actor.personId, p_to: to });
   if (error) {
     if (/transfer_not_owner/.test(error.message)) throw new Forbidden(ONLY_OWNER_TRANSFERS);
     throw new Error(/transfer_target/.test(error.message) ? "Pick an Admin or a Member of this Workspace." : "Ownership could not be transferred; nothing was changed.");
   }
-  await audit(actor, { kind: "member.ownership_transferred", object: { type: "person", id: to, name: await personName(to, actor.workspaceId) }, details: { from: was as string } });
+  const { was, revoked } = data as { was: string; revoked: { id: number; email: string | null; role: string; contact_person_id: string | null }[] };
+  await audit(actor, { kind: "member.ownership_transferred", object: { type: "person", id: to, name: await personName(to, actor.workspaceId) }, details: { from: was } });
+  for (const inv of revoked) await audit(actor, { kind: "invitation.revoked", object: { type: "invitation", id: inv.id, name: await invitationName(inv, actor.workspaceId) }, details: { role: inv.role } });
   await tellOwnershipTransfer(actor, to, transport);
 }
 

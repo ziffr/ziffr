@@ -8,7 +8,7 @@ import { Forbidden, type Actor, Refused } from "./actor";
 import { myBusinessFunction, setMyBusinessFunction } from "./business-function";
 import { db } from "./db";
 import { NO_ANSWERS, TOPICS, USED_BY, type FirstStepsAnswers, type FirstStepsResume } from "./first-steps-screens";
-import { ownerHasOwnValue } from "./invite-gate";
+import { ownerOrAdminHasOwnValue } from "./invite-gate";
 import { createWorkspace } from "./page-data";
 import { HIDDEN_CHARACTERS } from "./profile";
 import { guidePerson, setGuidePerson } from "./setup-guide";
@@ -143,8 +143,8 @@ export async function saveFirstStepsAnswers(actor: Actor, input: unknown): Promi
   await save(actor, checkFirstStepsAnswers(input));
 }
 
-// Worked out from facts, never from a stored screen: a Metric, an Owner's own value (the rule that opens a trial's
-// invitations), and whether it was chosen who sends the values.
+// Worked out from facts, never from a stored screen: a Metric, an Owner's or Admin's own value (the rule that opens a
+// trial's invitations), and whether it was chosen who sends the values.
 async function resumeAt(workspaceId: string): Promise<FirstStepsResume> {
   const [metrics, guide] = await Promise.all([
     db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).is("archived_at", null),
@@ -152,7 +152,7 @@ async function resumeAt(workspaceId: string): Promise<FirstStepsResume> {
   ]);
   if (metrics.error || guide.error) throw new Error("First Steps could not be read.");
   if (!metrics.count) return "start";
-  const own = await ownerHasOwnValue(workspaceId);
+  const own = await ownerOrAdminHasOwnValue(workspaceId);
   const chosen = Boolean(guide.data?.providers_chosen_at);
   if (own) return chosen ? "finished" : "sender";
   return chosen ? "done" : "value";
@@ -198,7 +198,7 @@ export async function openFirstSteps(actor: Actor): Promise<OpenFirstSteps | nul
   if (next === "finished") return null;
   const [person, ends] = await Promise.all([guidePerson(actor), trialEndsAt(actor.workspaceId)]);
   // The same rule that opens a trial's invitations (invite-gate.ts).
-  const invitesClosed = ends !== null && !(await ownerHasOwnValue(actor.workspaceId));
+  const invitesClosed = ends !== null && !(await ownerOrAdminHasOwnValue(actor.workspaceId));
   return { next, hidden: person.hidden, invitesClosed };
 }
 
