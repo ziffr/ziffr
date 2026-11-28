@@ -29,6 +29,8 @@ const DAYS_SHOWN = 14;
 
 const dayName = (d: string) => format(parseISO(d), "EEE d MMM");
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+/** When the earliest reminder goes out, counted in days before the Due Date. */
+const reminderDay = (daysBefore: number) => (daysBefore === 0 ? "on the due date" : daysBefore === 1 ? "the day before" : `${daysBefore} days before`);
 
 /** What else to say about an entry, in a few words. */
 function notes(e: ScheduleEntry): string[] {
@@ -37,7 +39,7 @@ function notes(e: ScheduleEntry): string[] {
   if (e.standingInFor) out.push(`standing in for ${e.standingInFor.name}`);
   if (e.noDueDate) out.push("no Due Date set");
   if (e.escalation) out.push("Escalation");
-  if (e.kind === "value_due" && !e.overdue && e.remindDaysBefore !== null) out.push(`Ziffr reminds you ${plural(e.remindDaysBefore, "day")} before`);
+  if (e.kind === "value_due" && !e.overdue && e.remindDaysBefore !== null) out.push(`Ziffr reminds you ${reminderDay(e.remindDaysBefore)}`);
   if (e.text && e.kind !== "value_due") out.push(`${e.metric?.name ?? e.workflow?.name}, ${e.period.label}`);
   return out;
 }

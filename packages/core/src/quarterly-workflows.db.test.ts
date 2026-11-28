@@ -27,7 +27,8 @@ async function setup(period: "quarter" | "year", config: WorkflowConfig) {
   // "owner" in an approval step stands for the workspace's owner, made above.
   const steps = config.steps.map((s) => (s.type === "approve" ? { ...s, approvers: [sara] } : s));
   const workflowId = await saveWorkflow(w.actor(sara), null, "Board pack", { ...config, steps });
-  const m = await w.metric(sara, { name: "NPS", period, workflow_id: workflowId });
+  // Made long before the pretended run days: a Workflow asks for nothing that was due before its Metric existed.
+  const m = await w.metric(sara, { name: "NPS", period, workflow_id: workflowId, created_at: "2020-01-06T10:00:00Z" });
   await w.token(m.id, ann);
   return { w, sara, ann, m, workflowId };
 }

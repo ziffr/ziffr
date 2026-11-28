@@ -208,8 +208,10 @@ describe("not in by its Due Date", () => {
     const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("member");
     const config = { dueWorkingDays: 2, steps: [] };
     const flow = await saveWorkflow(w.actor(sara), null, "Close", config);
-    const missing = await w.metric(sara, { name: "Missing" }); const there = await w.metric(sara, { name: "There" });
-    for (const m of [missing, there]) { await setMetricWorkflow(w.actor(sara), m.id, flow); await share(w, m.id, ann); }
+    // Both followed the Workflow long before the Due Date: a Workflow asks for nothing that was due before that.
+    const old = { workflow_id: flow, created_at: "2020-01-06T10:00:00Z" };
+    const missing = await w.metric(sara, { name: "Missing", ...old }); const there = await w.metric(sara, { name: "There", ...old });
+    for (const m of [missing, there]) await share(w, m.id, ann);
     const a = w.actor(ann, "member");
     await createAlert(a, { metricId: missing.id, condition: { kind: "missing_after_due" } });
     await createAlert(a, { metricId: there.id, condition: { kind: "missing_after_due" } });

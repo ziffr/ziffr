@@ -239,13 +239,15 @@ function PackItems({ items, drawn, pack, viewer, numberStyle, width }: { items: 
   );
 }
 
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
 const detail = (i: PackPreviewItem): string => {
   switch (i.kind) {
     case "metric": return `${i.total ? "A Total, " : i.derived ? "A Derived Metric, " : ""}by ${i.period}${i.unit ? `, in ${i.unit}` : ""}`;
-    case "dashboard": return `${i.body.widgets.length} widgets, ${i.slots.length} Slot${i.slots.length === 1 ? "" : "s"}`;
-    case "deck": return `${i.slides} slide${i.slides === 1 ? "" : "s"}, ${i.slots.length} Slot${i.slots.length === 1 ? "" : "s"}`;
-    case "workflow": return `Due ${i.body.dueWorkingDays} working days after the period, ${i.body.steps.length} steps`;
-    case "view": return `A View Design of ${i.body.slots.length} Slot${i.body.slots.length === 1 ? "" : "s"}`;
+    case "dashboard": return `${plural(i.body.widgets.length, "widget")}, ${plural(i.slots.length, "Slot")}`;
+    case "deck": return `${plural(i.slides, "slide")}, ${plural(i.slots.length, "Slot")}`;
+    case "workflow": return `Due ${i.body.dueWorkingDays ? `${plural(i.body.dueWorkingDays, "working day")} after the period` : "on the last day of the period"}, ${plural(i.body.steps.length, "step")}`;
+    case "view": return `A View Design of ${plural(i.body.slots.length, "Slot")}`;
     case "theme": return i.logo ? "A Theme: colours, fonts and slides, with the Pack’s logo" : "A Theme: colours, fonts and slides, no logo";
   }
 };
