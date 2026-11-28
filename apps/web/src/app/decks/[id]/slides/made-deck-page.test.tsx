@@ -57,6 +57,16 @@ describe("Clear answers", () => {
   });
 });
 
+describe("a hidden slide", () => {
+  it("is labelled by the tick, before it is saved", async () => {
+    await show(description("", true));
+    expect(host.textContent).toContain("Hidden: not in the presentation");
+    await press(host.querySelector<HTMLInputElement>('input[type="checkbox"]')!);
+    expect(host.textContent).not.toContain("Hidden: not in the presentation");
+    expect(host.textContent).toContain("Saved to show");
+  });
+});
+
 describe("Present", () => {
   const present = () => host.querySelector("a")!;
 

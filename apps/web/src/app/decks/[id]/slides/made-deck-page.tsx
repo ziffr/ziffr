@@ -111,7 +111,7 @@ export function MadeDeckPage({ id, name, footer, themeId, themes, description, d
           return (
             <li key={s.id} className="grid gap-3 rounded-[var(--radius-card)] border border-[var(--color-rule-2)] p-3 sm:p-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
               <div className={e.hidden ? "opacity-50" : undefined}>
-                {drawing && drawn ? <SlideView slide={drawn} look={drawing.look} /> : <div className="grid aspect-video place-items-center rounded-[var(--radius-input)] bg-muted text-sm text-muted-foreground">{s.hidden ? "Hidden: not in the presentation" : "Saved to show"}</div>}
+                {drawing && drawn ? <SlideView slide={drawn} look={drawing.look} /> : <div className="grid aspect-video place-items-center rounded-[var(--radius-input)] bg-muted text-sm text-muted-foreground">{e.hidden ? "Hidden: not in the presentation" : "Saved to show"}</div>}
               </div>
               <div className="grid content-start gap-3">
                 <div className="flex items-center justify-between gap-2">
