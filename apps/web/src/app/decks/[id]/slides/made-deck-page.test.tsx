@@ -9,6 +9,7 @@ const calls = vi.hoisted(() => ({ clear: vi.fn(async () => ({ ok: true })), save
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: calls.push }) }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock("@/app/made-deck-actions", () => ({ clearMadeAnswers: calls.clear, saveMadeSlides: calls.save, renameMadeDeck: vi.fn(), footerOfMadeDeck: vi.fn(), themeOfMadeDeck: vi.fn() }));
+vi.mock("next/link", () => ({ default: ({ href, children, onClick, ...rest }: { href: string; children: React.ReactNode; onClick?: (e: React.MouseEvent) => void }) => <a href={href} {...rest} onClick={(e) => { onClick?.(e); if (!e.defaultPrevented) calls.push(href); e.preventDefault(); }}>{children}</a> }));
 vi.mock("@/components/theme-picker", () => ({ ThemePicker: () => null }));
 vi.mock("@/decks/slides/slide-view", () => ({ SlideView: () => null }));
 
@@ -53,5 +54,32 @@ describe("Clear answers", () => {
     await show(description("Hire two people"));
     await press(button("Clear answers"));
     expect(answer().value).toBe("Hire two people");
+  });
+});
+
+describe("Present", () => {
+  const present = () => host.querySelector("a")!;
+
+  it("goes straight to the presentation when nothing waits to be saved", async () => {
+    await show(description("Hire two people"));
+    await type(answer(), "Hire two people ");
+    await press(present());
+    expect(calls.push).toHaveBeenCalledWith("/decks/5/present");
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+  });
+
+  it("asks before it drops changes that are not saved", async () => {
+    await show(description("Hire two people"));
+    await type(headline(), "My headline");
+    await press(present());
+    await act(async () => { await new Promise((r) => setTimeout(r, 5)); });
+    expect(calls.push).not.toHaveBeenCalled();
+    await press(button("Cancel"));
+    expect(calls.push).not.toHaveBeenCalled();
+    expect(headline().value).toBe("My headline");
+    await press(present());
+    await act(async () => { await new Promise((r) => setTimeout(r, 5)); });
+    await press(button("Present without saving"));
+    expect(calls.push).toHaveBeenCalledWith("/decks/5/present");
   });
 });

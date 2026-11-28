@@ -4,9 +4,10 @@
 // only the presentation, so this page is for the owner and Editors. It sends changes, never a document.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type MouseEvent } from "react";
 import { toast } from "sonner";
 import { clearMadeAnswers, footerOfMadeDeck, renameMadeDeck, saveMadeSlides, themeOfMadeDeck } from "@/app/made-deck-actions";
+import { useConfirm } from "@/components/confirm-dialog";
 import { ThemePicker } from "@/components/theme-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ const TYPE_WORDS: Record<string, string> = { cover: "Cover", summary: "Summary",
 export function MadeDeckPage({ id, name, footer, themeId, themes, description, drawing, leftOut }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const { confirm, dialog } = useConfirm();
   const [design, setDesign] = useState(description.design);
   const [deckName, setDeckName] = useState(name);
   const [deckFooter, setDeckFooter] = useState(footer ?? "");
@@ -44,13 +46,24 @@ export function MadeDeckPage({ id, name, footer, themeId, themes, description, d
       }
     });
 
+  // What differs from the stored deck. Words are compared as they are stored: trimmed, with plain line ends.
+  const slides = description.slides.flatMap((s) => {
+    const e = edits[s.id]!;
+    const same = e.hidden === s.hidden && e.headline.trim() === (s.headline ?? "") && e.answers.every((t, i) => t.replace(/\r\n?/g, "\n").trim() === s.answers[i]!.text);
+    return same ? [] : [{ id: s.id, hidden: e.hidden, headline: e.headline.trim() || null, answers: s.answers.map((a, i) => ({ question: a.question, text: e.answers[i] ?? "" })) }];
+  });
+  const unsaved = slides.length > 0 || design !== description.design || deckName.trim() !== name || deckFooter.trim() !== (footer ?? "");
+
+  // Present shows the stored deck and leaving this page drops the form, so it asks first. A click that opens another tab
+  // leaves the form as it is.
+  const present = async (e: MouseEvent) => {
+    if (!unsaved || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    if (await confirm({ title: "Present without saving?", description: "What you changed here is not saved. It is lost if you present now.", confirmLabel: "Present without saving" })) router.push(`/decks/${id}/present`);
+  };
+
   const save = () =>
     run(async () => {
-      const slides = description.slides.flatMap((s) => {
-        const e = edits[s.id]!;
-        const same = e.hidden === s.hidden && e.headline.trim() === (s.headline ?? "") && e.answers.every((t, i) => t === s.answers[i]!.text);
-        return same ? [] : [{ id: s.id, hidden: e.hidden, headline: e.headline.trim() || null, answers: s.answers.map((a, i) => ({ question: a.question, text: e.answers[i] ?? "" })) }];
-      });
       const first = await saveMadeSlides(id, { ...(design === description.design ? {} : { design }), slides });
       if (deckName.trim() !== name) unwrap(await renameMadeDeck(id, deckName));
       if (deckFooter.trim() !== (footer ?? "")) unwrap(await footerOfMadeDeck(id, deckFooter));
@@ -68,7 +81,7 @@ export function MadeDeckPage({ id, name, footer, themeId, themes, description, d
           <span className="text-sm text-muted-foreground">Name</span>
           <Input value={deckName} maxLength={120} onChange={(e) => setDeckName(e.target.value)} className="h-11 text-base md:h-9" />
         </label>
-        <Link href={`/decks/${id}/present`} className="inline-flex min-h-11 items-center rounded-[var(--radius-input)] bg-primary px-4 text-sm font-medium text-primary-foreground no-underline">Present</Link>
+        <Link href={`/decks/${id}/present`} onClick={present} className="inline-flex min-h-11 items-center rounded-[var(--radius-input)] bg-primary px-4 text-sm font-medium text-primary-foreground no-underline">Present</Link>
       </div>
 
       {leftOut > 0 && <p className="mb-4 rounded-[var(--radius-input)] border border-dashed border-[var(--color-rule-2)] p-3 text-sm">{leftOut === 1 ? "1 slide is left out" : `${leftOut} slides are left out`}: it shows a Metric you cannot see.</p>}
@@ -132,6 +145,7 @@ export function MadeDeckPage({ id, name, footer, themeId, themes, description, d
         <Button onClick={save} disabled={pending} className="min-h-11">{pending ? "Saving…" : "Save changes"}</Button>
         {description.slides.some((s) => s.answers.length > 0) && <Button variant="outline" disabled={pending} onClick={clear} className="min-h-11">Clear answers</Button>}
       </div>
+      {dialog}
     </div>
   );
 }
