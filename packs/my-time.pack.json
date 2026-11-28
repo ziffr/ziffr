@@ -1,0 +1,202 @@
+{
+  "format": "ziffr.pack/3",
+  "id": "ziffr/my-time",
+  "name": "My time",
+  "version": "1.0.0",
+  "summary": "Focus hours and screen time, week by week, with a dashboard and a weekly question.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.21",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "setUp": {
+    "line": "Where your time went, week by week.",
+    "happens": [
+      "Every Monday you are asked for last week's two numbers",
+      "The dashboard fills in"
+    ],
+    "needs": [
+      "The hours you worked without interruption",
+      "Your daily screen time, from your phone"
+    ]
+  },
+  "guide": {
+    "whatItsFor": [
+      {
+        "type": "text",
+        "text": "For one person who wants to see how they use their time. Every Monday Ziffr asks for last week's focus hours and screen time, and a dashboard shows how each has gone."
+      }
+    ],
+    "beforeYouStart": [
+      {
+        "type": "list",
+        "items": [
+          "Your focus hours from your own notes, and screen time from your phone's settings.",
+          "Room for 2 Metrics in your Workspace."
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "type": "heading",
+        "text": "What counts as a focus hour?"
+      },
+      {
+        "type": "text",
+        "text": "An hour of work or study without being interrupted. You decide what counts; keep to it."
+      }
+    ]
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "focus",
+        "comesFrom": {
+          "by": "person"
+        },
+        "metric": {
+          "format": "ziffr.metric/2",
+          "name": "Focus hours",
+          "description": "Hours of work or study without interruption, in the week.",
+          "calculationNote": "Hours from Monday to Sunday spent on one thing without interruption, added up. You decide what counts; keep to it.",
+          "category": "Personal",
+          "period": "week",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "h",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "screen-time",
+        "comesFrom": {
+          "by": "person"
+        },
+        "metric": {
+          "format": "ziffr.metric/2",
+          "name": "Screen time",
+          "description": "Hours a day you spent looking at your phone, on average over the week.",
+          "calculationNote": "Your phone's daily screen time, averaged over the seven days of the week.",
+          "category": "Personal",
+          "period": "week",
+          "aggregation": "average",
+          "polarity": "lower",
+          "unit": "h",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "time-weekly",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "My time",
+          "description": "Focus hours and screen time, week by week.",
+          "slots": [
+            {
+              "label": "Focus hours",
+              "suggests": "focus"
+            },
+            {
+              "label": "Screen time",
+              "suggests": "screen-time"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 6,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                1
+              ],
+              "x": 6,
+              "y": 0,
+              "w": 6,
+              "h": 4
+            },
+            {
+              "view": "line",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 13
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                1
+              ],
+              "x": 6,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 13
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "key": "monday-time",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "Monday time",
+          "description": "Last week's focus hours and screen time, asked on Monday.",
+          "dueWorkingDays": 1,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 0
+            },
+            {
+              "type": "publish",
+              "lock": false
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

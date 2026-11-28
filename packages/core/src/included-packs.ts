@@ -19,11 +19,11 @@ import { DEMO_WORKSPACE_ID } from "./team";
 /** Where an install of one of Ziffr's own Packs is recorded: signed, because it is part of Ziffr's code. */
 export const INCLUDED: PackOrigin = { source: "included", signed: true };
 
-/** The order Ziffr ships its Packs in (and First Steps ranks ties by): the five business Packs, the function Packs, the rest. */
+/** The order Ziffr ships its Packs in (and First Steps ranks ties by): the five business Packs, the function Packs, the rest, and those for private use. */
 export const INCLUDED_PACK_ORDER = [
   "ziffr/saas-metrics", "ziffr/online-shop", "ziffr/agency", "ziffr/sports-club", "ziffr/board-meeting",
   "ziffr/sales", "ziffr/sales-forecast", "ziffr/finance", "ziffr/people", "ziffr/customer-support", "ziffr/fulfilment",
-  "ziffr/workspace-usage", "ziffr/ziffr-operations",
+  "ziffr/workspace-usage", "ziffr/ziffr-operations", "ziffr/my-money", "ziffr/health-and-habits", "ziffr/my-time",
 ] as const;
 
 /** One bundled Pack: its id, exact file text and the Pack checked from it. */

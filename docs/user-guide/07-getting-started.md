@@ -57,7 +57,7 @@ Making a Workspace is part of **First Steps**, which the next section describes.
 | About you (a team) | Your role, the kind of business and who your customers are, so that suggestions fit. Each can be skipped. |
 | About you (just me) | What you would like to track: health and fitness, money, habits and time, a club or hobby, or something else. It can be skipped. |
 | **Set up your Workspace** | Its name. Time zone, currency and first day of the week are read from your browser; **Change** adjusts them and the country. **Create Workspace** makes it. A trial says after how many days it ends and is deleted. On a Ziffr you run, **Coming from another Ziffr?** starts from a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) instead. |
-| **How would you like to start?** (a team) | **Start with a ready-made set** or **Start from a clean slate**. With **Just me** this question is left out, as there is no ready-made set for private use yet: you add your first metric right away. |
+| **How would you like to start?** (a team) | **Start with a ready-made set** or **Start from a clean slate**. With **Just me** you are offered a ready-made set only when one fits what you would like to track: **My money** for money, **Health and habits** for health and fitness, and **Health and habits** and **My time** for habits and time. For a club or hobby or something else, this question is left out and you add your first metric right away. |
 
 Before the Workspace exists, your answers are kept in this browser only: reloading the page brings them back, and another device starts again. What you answer stays in your Workspace and is sent to nobody else.
 

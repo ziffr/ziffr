@@ -1,4 +1,4 @@
-// The thirteen starting Packs installed (spec 0030, #279): all of them into one Workspace, by upload, as a self-hoster
+// The sixteen starting Packs installed (spec 0030, #279): all of them into one Workspace, by upload, as a self-hoster
 // without the Marketplace would. They add catalog entries, templates, designs and a Theme, and make no Metric.
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
@@ -12,7 +12,7 @@ const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 
 describe("installing the starting Packs", () => {
-  it("installs all thirteen into one Workspace, shared names and all, and makes no Metric", async () => {
+  it("installs all sixteen into one Workspace, shared names and all, and makes no Metric", async () => {
     const w = await workspace(); cleanups.push(w.cleanup);
     const ann = await w.person("owner");
     for (const file of STARTING_PACKS) await installPackFile(w.actor(ann), startingPack(file), { unsigned: true, assistantTexts: true });

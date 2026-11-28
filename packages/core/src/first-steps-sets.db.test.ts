@@ -38,14 +38,25 @@ describe("firstStepsSets", () => {
     expect(await firstStepsSets(admin)).toEqual(r);
   });
 
-  it("gives a Workspace for one person no set, whatever the topic says", async () => {
+  it("gives a Workspace for one person only the private sets of the topic, and no other set", async () => {
     const { owner } = await fresh();
     const { error } = await db().from("workspaces").update({ used_by: "me" }).eq("id", owner.workspaceId);
     expect(error).toBeNull();
-    for (const topic of [undefined, "money", "club", "nonsense", { topic: "club" }]) {
+    for (const topic of [undefined, "club", "other", "nonsense", { topic: "club" }]) {
       expect(await firstStepsSets(owner, topic)).toEqual({ alone: true, sets: [] });
     }
+    expect((await firstStepsSets(owner, "money")).sets.map((s) => s.id)).toEqual(["ziffr/my-money"]);
+    expect((await firstStepsSets(owner, "habits")).sets.map((s) => s.id).sort()).toEqual(["ziffr/health-and-habits", "ziffr/my-time"]);
+    expect((await firstStepsSet(owner, "ziffr/my-money", "money")).manifest.name).toBe("My money");
     for (const id of ["ziffr/sales", "ziffr/sports-club"]) await expect(firstStepsSet(owner, id, "club")).rejects.toThrow("not offered");
+    await expect(firstStepsSet(owner, "ziffr/my-time", "money")).rejects.toThrow("not offered");
+  });
+
+  it("never offers a team a set for private use", async () => {
+    const { owner } = await fresh();
+    const ids = (await firstStepsSets(owner, "money")).sets.map((s) => s.id);
+    for (const id of ["ziffr/my-money", "ziffr/health-and-habits", "ziffr/my-time"]) expect(ids).not.toContain(id);
+    await expect(firstStepsSet(owner, "ziffr/my-money", "money")).rejects.toThrow("not offered");
   });
 
   it("gives a Member, a Guest, an Access Key and the demo none", async () => {

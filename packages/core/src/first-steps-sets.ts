@@ -5,7 +5,7 @@
 // what Ziffr's own Pack files say and why each fits, in words: nothing of a person.
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
-import { privateSets, TOPICS, USED_BY, type Topic, type UsedBy } from "./first-steps-screens";
+import { PRIVATE_SETS, privateSets, TOPICS, USED_BY, type Topic, type UsedBy } from "./first-steps-screens";
 import { bundledPacks, readIncludedPack, recommendedPacks, type RecommendedPack } from "./included-packs";
 import type { Reason } from "./pack-ranking";
 import type { PackPreview } from "./packs";
@@ -38,11 +38,12 @@ export type FirstStepsSet = {
 /** The sets offered, best fit first, and whether the Workspace is for one person alone. */
 export type FirstStepsSets = { alone: boolean; sets: FirstStepsSet[] };
 
-/** Of Ziffr's own Packs, in the order given, those First Steps offers: a team gets all but the three that are no start,
+/** Of Ziffr's own Packs, in the order given, those First Steps offers: a team gets all but the three that are no start and those for private use,
  * a person alone only those for private use that fit their topic (spec 0067, decision 6). */
 export function offeredSets(recommended: readonly RecommendedPack[], usedBy: UsedBy, topic: Topic | null = null): FirstStepsSet[] {
   const own = privateSets(topic);
-  const offered = (id: string) => (usedBy === "me" ? own.includes(id) : !NOT_OFFERED.includes(id));
+  const isPrivate = (id: string) => PRIVATE_SETS.some((s) => s.pack === id);
+  const offered = (id: string) => (usedBy === "me" ? own.includes(id) : !NOT_OFFERED.includes(id) && !isPrivate(id));
   return recommended.filter((p) => offered(p.id)).map((p) => ({
     id: p.id, name: p.name, summary: bundledPacks().get(p.id)?.pack.setUp?.line || p.summary,
     metrics: p.brings.find((b) => b.kind === "metric")?.count ?? 0,

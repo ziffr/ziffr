@@ -42,6 +42,12 @@ export const MADE_UP_SHARES: ReadonlyMap<string, Readonly<Record<string, Share>>
 /** Where a unit and a format say too little for a believable level, by Pack id and entry key. */
 export const MADE_UP_LEVELS: ReadonlyMap<string, Readonly<Record<string, readonly [number, number]>>> = new Map(Object.entries<Readonly<Record<string, readonly [number, number]>>>({
   "ziffr/agency": { "hourly-rate": [70, 140] },
+  // One person's week: hours of sleep a night, minutes of exercise and pages read.
+  "ziffr/health-and-habits": { sleep: [7.3, 7.7], exercise: [150, 220], "pages-read": [70, 130] },
+  // Money in no particular currency: put aside and spent in a week, and what is owned minus what is owed.
+  "ziffr/my-money": { saved: [80, 160], spending: [350, 550], "net-worth": [20_000, 40_000] },
+  // Focus hours in a week, and hours of screen time a day.
+  "ziffr/my-time": { focus: [12, 18], "screen-time": [2.8, 3.8] },
   "ziffr/people": { engagement: [60, 80] },
   "ziffr/saas-metrics": { cac: [300, 1500] },
 }));
