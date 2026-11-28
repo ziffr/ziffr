@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ReadDeck } from "@ziffr/core/deck-read";
 import type { Theme } from "@ziffr/core/types";
@@ -7,6 +7,8 @@ import type { Theme } from "@ziffr/core/types";
 import { Presenter } from "@/app/decks/[id]/present/presenter";
 import { DECK, slideOf, THEMES } from "./check/samples";
 import { drawMadeDeck } from "./made-drawing";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 const theme: Theme = { id: 1, owner_id: "", name: "Light", ...THEMES["ziffr-light"]!, is_default: true, updated_at: "" };
 const slide = (type: string, hidden = false) => ({ ...slideOf(type), hidden, answers: [] }) as ReadDeck["deck"]["description"]["slides"][number];

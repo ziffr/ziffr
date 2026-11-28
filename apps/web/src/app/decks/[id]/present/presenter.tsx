@@ -1,8 +1,9 @@
 "use client";
 // Present for a deck Ziffr makes (GLOSSARY: Deck, Slide; spec 0069): one slide at a time, as large as the screen allows,
-// held at 16:9 upright or sideways. Next and Previous by buttons, arrow keys, space, or a swipe; Escape goes back. It only
-// reads: it writes nothing, and holds only the drawing the server sent for this person.
+// held at 16:9 upright or sideways. Next and Previous by buttons, arrow keys, space (with Shift: back), or a swipe; Escape
+// leaves. It only reads: it writes nothing, and holds only the drawing the server sent for this person.
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { slideFontsHref } from "@/decks/slides/fonts";
@@ -13,6 +14,7 @@ import type { DeckDrawing } from "@ziffr/core/deck-drawing/draw-deck";
 export function Presenter({ name, drawing, start, back }: { name: string; drawing: DeckDrawing; start: number; back: string }) {
   const last = drawing.slides.length - 1;
   const [at, setAt] = useState(Math.min(Math.max(0, Math.trunc(start)), Math.max(0, last)));
+  const router = useRouter();
   const touch = useRef<{ x: number; y: number } | null>(null);
   const go = useCallback((to: (now: number) => number) => setAt((now) => Math.min(Math.max(0, to(now)), Math.max(0, last))), [last]);
   const step = useCallback((by: number) => go((now) => now + by), [go]);
@@ -20,7 +22,16 @@ export function Presenter({ name, drawing, start, back }: { name: string; drawin
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(e.key)) step(1);
+      // A focused button or link keeps Enter and Space for itself.
+      const control = e.key === "Enter" || e.key === " " ? (e.target as Element).closest?.<HTMLElement>("button:not(:disabled), a[href]") : null;
+      if (control) {
+        // A link does not answer Space by itself.
+        if (e.key === " " && control.tagName === "A") { e.preventDefault(); control.click(); }
+        return;
+      }
+      if (e.key === "Escape") router.push(back);
+      else if (e.key === " " && e.shiftKey) step(-1);
+      else if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(e.key)) step(1);
       else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(e.key)) step(-1);
       else if (e.key === "Home") go(() => 0);
       else if (e.key === "End") go(() => last);
@@ -29,7 +40,7 @@ export function Presenter({ name, drawing, start, back }: { name: string; drawin
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [step, go, last]);
+  }, [step, go, last, router, back]);
 
   const slide = drawing.slides[at];
   if (!slide) return <p className="p-8 text-center">This deck has no slides you can see.</p>;
