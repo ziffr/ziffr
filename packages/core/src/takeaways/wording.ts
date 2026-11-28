@@ -7,6 +7,7 @@ import { formatNumber, formatValue, type ValueUnit } from "../format";
 import type { NumberStyle } from "../number-style";
 import type { StrengthWord } from "./strength";
 import { periodLabel, type Span, type YearStart } from "../periods";
+import { HEADLINE_EN } from "./headline-wording";
 import { HEADS_UP_EN } from "./heads-up-wording";
 
 /** The languages Takeaways are written in. */
@@ -372,6 +373,7 @@ const EN = {
   "numbers-kind-estimated": "estimated from what has gone together",
   "numbers-rests-on": "{name}: estimated effects it rests on",
   ...HEADS_UP_EN,
+  ...HEADLINE_EN,
 } as const;
 
 /** One case of wording: a sentence, line or label. */

@@ -39,7 +39,8 @@ export function darkProblems(d: ThemeDarkColours): string[] {
 }
 
 const parts = (h: string): [number, number, number] => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
-function toHsl(h: string): [number, number, number] {
+/** A #RRGGBB colour as hue (degrees), saturation and lightness (0 to 1). */
+export function toHsl(h: string): [number, number, number] {
   const [r, g, b] = parts(h).map((v) => v / 255);
   const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
   if (d === 0) return [0, 0, l];
@@ -47,7 +48,8 @@ function toHsl(h: string): [number, number, number] {
   const hue = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
   return [(hue * 60 + 360) % 360, s, l];
 }
-function fromHsl(h: number, s: number, l: number): string {
+/** A colour from hue (degrees), saturation and lightness (0 to 1), as #RRGGBB. */
+export function fromHsl(h: number, s: number, l: number): string {
   const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
   const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
   return `#${[r, g, b].map((v) => Math.round((v + m) * 255).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
