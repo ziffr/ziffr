@@ -262,6 +262,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `unlinkTelegram` (telegram-people.ts): linking oneself to Telegram
 - `requestAccess` (sharing.ts): asking an owner for access is a person's own request; through a key it would show which things exist
 - `setUsageDigest` (usage-digest.ts): one's own usage digest
+- `erasePerson` (erase-person.ts): deleting your own account and details: only ever the person's own, signed-in choice; a key never does it
 
 ## app-only: Workspace and Installation administration
 
