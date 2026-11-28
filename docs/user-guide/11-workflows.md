@@ -139,7 +139,7 @@ If the panel says that nothing has run by the clock yet, whoever runs Ziffr for 
 
 ### Close the period
 
-**Close the period** locks the last ended period for every Metric on this Workflow that has a value for it, all at once. Metrics still missing their value are left open, and so are values still waiting for Approval or sent back: closing a period approves nothing. Ziffr asks you to confirm first: late values and corrections then need Approval, and only a Metric's owner can unlock it. A message says how many Metrics were locked.
+**Close the period** locks the last ended period for every Metric on this Workflow that has a value for it, all at once. Metrics still missing their value are left open, and so are values still waiting for Approval or sent back: closing a period approves nothing. Ziffr asks you to confirm first: afterwards a late value or a correction waits for the Metric Owner to accept it, and only a Metric's owner can unlock it. A message says how many Metrics were locked.
 
 Only the Workflow's owner sees this button, and only while Metrics use the Workflow.
 
@@ -181,7 +181,7 @@ The period's [Value Notes](10-metrics.md#value-notes) stand on the task's page, 
 
 The same works without opening Ziffr: reply "approve", or "send back:" followed by what to check, to the message on Slack or by email.
 
-**To correct the value yourself**, propose a Correction in the task's Thread: type the right value in **Propose a correction** and reply. A Correction takes effect once the Metric Owner accepts it, and then goes through Approval again.
+**To correct the value yourself**, propose a Correction in the task's Thread: type the right value in **Propose a correction** and reply. A Correction takes effect once the Metric Owner accepts it, and then goes through the Metric's Workflow again.
 
 A new value for the same period, such as one sent after a send back, starts Approval over: earlier Approval tasks for that period are closed and no longer decide anything.
 
@@ -210,7 +210,7 @@ A **Lock**ed period takes no more values. A period is locked in one of three way
 - by the Metric Owner, with **Lock …** in the Metric's Workflow box,
 - by the Workflow's owner, with **Close the period**.
 
-When a value arrives for a locked period, it is not recorded. It becomes a proposed **Correction**: the Metric Owner gets a question ("… is locked. … sent … late: accept it as a correction?") with **Accept** and **Decline**. The same holds for a Correction proposed in any Thread. An accepted Correction replaces the value, keeps the earlier one as a **Superseded Value**, and goes through the Metric's Workflow again: it is checked, may need Approval, and is published anew.
+When a value arrives for a locked period, it is not recorded. It becomes a proposed **Correction**: the Metric Owner gets a question ("… is locked. … sent … late: accept it as a correction?") with **Accept** and **Decline**. The same holds for a Correction proposed in any Thread. An accepted Correction replaces the value, keeps the earlier one as a **Superseded Value**, and goes through the Metric's Workflow again: it is checked, may need Approval, and is published anew. It is locked again only if the Publish step locks.
 
 **Unlocking** is for the Metric Owner only, and needs a reason. **Unlock …** asks "Why unlock …? It shows in the history." The reason is shown with the period's status, as "Unlocked by … on …". Locking, unlocking and closing a period are all recorded in the Audit Log.
 
