@@ -281,6 +281,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "team-actions:setDomainJoining",
     "team-actions:setHeldRole",
     "team-actions:setWorkspaceClock",
+    "team-actions:transferOwnership",
     "usage-actions:archiveUnused",
     "theme-actions:setDefaultTheme",
   ],

@@ -381,6 +381,7 @@ const CASES: Record<string, Case> = {
   "team-actions:setDomainJoining": { nothing: "it needs the Owner's own signed-in address, which a demo visit has not", blocked: () => [true] },
   "team-actions:decideJoin": { nothing: "the demo has no requests to join", blocked: () => [1, true] },
   "team-actions:removeMemberWithHandover": { blocked: () => ["ben", "anna"] },
+  "team-actions:transferOwnership": { blocked: () => ["ben"] },
   "template-actions:saveSlideLayout": { open: (i) => [{ deckId: i.deck, shapes: [], name: "Layout", description: "", labels: [], choices: {} }] },
   "template-actions:saveTemplate": { open: (i) => [{ widgetId: i.widget, name: "Visitor template", description: "", labels: [], choices: {} }] },
   "template-actions:renameTemplate": { open: (i) => [i.template, "Renamed", ""] },

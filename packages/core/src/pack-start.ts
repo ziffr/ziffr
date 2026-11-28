@@ -18,7 +18,7 @@ import { createFilledDeck } from "./deck-templates";
 import { feedTemplates, type FeedTemplateInfo } from "./feed-template-download";
 import { yearStartFor } from "./fiscal-year";
 import { bundledPacks, installIncludedPack, readIncludedPack } from "./included-packs";
-import { ownerHasOwnValue } from "./invite-gate";
+import { ownerOrAdminHasOwnValue } from "./invite-gate";
 import { mailOn } from "./mail";
 import { saveSeriesRows } from "./metrics";
 import type { Pack } from "./pack";
@@ -464,7 +464,7 @@ async function resultOf(actor: Actor, source: Source, installId: number, setupId
     targets: metrics.filter((m) => targeted.has(`${m.key} ${m.line ?? ""}`) && series.some((s) => Number(s.metric_id) === m.id)).length,
     source: system ? choices.source ?? null : null,
     templates: feedTemplates().filter((t) => wanted.has(t.id)),
-    needsFirstValue: trial !== null && !(await ownerHasOwnValue(ws)),
+    needsFirstValue: trial !== null && !(await ownerOrAdminHasOwnValue(ws)),
     mail,
   };
 }

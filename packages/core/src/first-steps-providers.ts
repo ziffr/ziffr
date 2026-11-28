@@ -13,7 +13,7 @@ import { linkTo } from "./deliveries";
 import { yearStartFor } from "./fiscal-year";
 import { assertFirstSteps, ASK_NOBODY, firstStepsGuide, firstStepsProgress, madeMetrics, sentByPeople, type MadeMetric } from "./first-steps-value";
 import { colleagueWords, contactName, nameList, whenWords, type ColleagueState } from "./first-steps-words";
-import { inviteGate, ownerHasOwnValue } from "./invite-gate";
+import { inviteGate, ownerOrAdminHasOwnValue } from "./invite-gate";
 import { inviteByEmail, revokeInvitation } from "./invitations";
 import { isAddress, type MailTransport } from "./mail";
 import { addSubmitters, removeSubmitters } from "./metrics";
@@ -276,7 +276,7 @@ export async function firstStepsDone(actor: Actor): Promise<FirstStepsDone> {
   const guide = await firstStepsGuide(actor);
   const made = await madeMetrics(actor);
   const [name, own, gate, install, board, asked] = await Promise.all([
-    workspaceName(actor), ownerHasOwnValue(ws), inviteGate(actor),
+    workspaceName(actor), ownerOrAdminHasOwnValue(ws), inviteGate(actor),
     db().from("pack_installs").select("manifest").eq("workspace_id", ws).order("id").limit(1).maybeSingle(),
     db().from("dashboards").select("id").eq("workspace_id", ws).eq("owner_id", actor.personId).order("id").limit(1).maybeSingle(),
     askedWords(actor, made, Boolean(guide.chosenAt)),

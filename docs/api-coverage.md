@@ -271,6 +271,7 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `createAccessKey` (access-keys.ts): Access Keys: a key must not make or end keys
 - `revokeAccessKey` (access-keys.ts): Access Keys: a key must not make or end keys
 - `setJoinDomain` (invitations.ts): domain joining rests on the Owner's own verified address, which only a sign-in proves
+- `transferOwnership` (invitations.ts): Transfer ownership is the Owner's own act at the screen; a key must not change who runs the Workspace (spec 0071)
 - `setAutoSnapshots` (auto-snapshots.ts): Workspace settings
 - `createFeed` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `renameFeed` (feeds.ts): Feeds and their keys are set up by a person in Settings

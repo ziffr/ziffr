@@ -18,19 +18,20 @@ const MAX_TRIED = 20;
 /** A Metric the asking Owner can send a first value for: by Ask me now, by Record a value, or both. */
 export type InviteMetric = { id: number; name: string; slug: string; canAsk: boolean; offer: RecordingOffer | null };
 
-/** Open, or why invitations are refused: the trial ended, it waits for an Owner's first value (`you` when the asker is
- * an Owner, who can send it), or every place of the trial is taken. */
+/** Open, or why invitations are refused: the trial ended, it waits for a first value (`you` when the asker is
+ * an Owner, who is told how to send it), or every place of the trial is taken. */
 export type InviteGate =
   | { state: "open" }
   | { state: "ended" }
   | { state: "waiting"; you: boolean; metric: InviteMetric | null; firstSteps: boolean }
   | { state: "full"; limit: number };
 
-/** Whether a Trial Workspace's Owner has recorded a first value of their own (never one that came in through a Feed or
- * an Import), which opens invitations in a trial. The same rule as the database's. */
-export async function ownerHasOwnValue(ws: string): Promise<boolean> {
-  const { data: owners } = await db().from("memberships").select("user_id").eq("workspace_id", ws).eq("role", "owner");
-  const ids = (owners ?? []).map((o) => o.user_id as string);
+/** Whether an Owner or Admin of a Trial Workspace has recorded a first value of their own (never one that came in through
+ * a Feed or an Import), which opens invitations in a trial. An Admin's counts so that a former Owner's value still does
+ * after a transfer of ownership. The same rule as the database's. */
+export async function ownerOrAdminHasOwnValue(ws: string): Promise<boolean> {
+  const { data: managers } = await db().from("memberships").select("user_id").eq("workspace_id", ws).in("role", ["owner", "admin"]);
+  const ids = (managers ?? []).map((m) => m.user_id as string);
   if (!ids.length) return false;
   const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).in("submitter_id", ids).eq("imported", false);
   return (count ?? 0) > 0;
@@ -69,7 +70,7 @@ export async function inviteGate(actor: Actor): Promise<InviteGate> {
   const ends = ws === DEMO_WORKSPACE_ID ? null : await trialEndsAt(ws);
   if (!ends) return { state: "open" };
   if (ends.getTime() <= Date.now()) return { state: "ended" };
-  if (!(await ownerHasOwnValue(ws))) {
+  if (!(await ownerOrAdminHasOwnValue(ws))) {
     const you = actor.role === "owner";
     // An Owner of a Workspace First Steps made is sent to its value screen.
     const [metric, guide] = you

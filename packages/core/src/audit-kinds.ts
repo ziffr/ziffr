@@ -5,6 +5,7 @@
 export const AUDIT_KINDS = {
   "member.role_changed": "changed the Workspace Role of",
   "member.removed": "removed and handed over the things of",
+  "member.ownership_transferred": "transferred ownership to",
   "invitation.created": "invited",
   "invitation.revoked": "revoked the invitation for",
   "invitation.accepted": "accepted an invitation",

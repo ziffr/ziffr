@@ -1,6 +1,6 @@
 "use client";
 // GLOSSARY: Slide-over, Workspace Role, Group, Away, Invitation. The side panels of Members and Groups: one person
-// (role, Groups, Away dates, Remove), one Group (its people, rename, delete) and Invite. Each reads the page's latest
+// (role, Groups, Away dates, Transfer ownership, Remove), one Group (its people, rename, delete) and Invite. Each reads the page's latest
 // data from the team store, so what it shows follows every change. Controls a person may not use are not drawn; the
 // server actions check the same rules again.
 import { useState, useTransition } from "react";
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useSlideOver } from "@/components/slide-over-host";
 import { InviteLock, useInviteGate } from "@/components/invite-lock";
-import { changeRole, createInviteLink, deleteGroup, inviteMember, removeMemberWithHandover, renameGroup, setDomainJoining, setMember } from "@/app/team-actions";
+import { changeRole, createInviteLink, deleteGroup, inviteMember, removeMemberWithHandover, renameGroup, setDomainJoining, setMember, transferOwnership } from "@/app/team-actions";
 import type { WorkspaceRoleName } from "@ziffr/core/actor";
 import { WORKSPACE_ROLE_ORDER, WORKSPACE_ROLE_WORDS } from "@ziffr/core/role-words";
 import { BUSINESS_FUNCTION_LABELS } from "@ziffr/pack/business-functions";
@@ -36,13 +36,14 @@ function invitationMessage(emailed: boolean, email: string, mailOn: boolean): st
   return mailOn ? "Invitation made, but the email could not be sent: copy the link and send it yourself" : "Invitation made: copy the link and send it yourself, email is not set up";
 }
 
-/** The panel of one person: role, Groups, Away dates and, at the bottom, Remove. */
+/** The panel of one person: role, Groups, Away dates, Transfer ownership for an Owner and, at the bottom, Remove. */
 export function PersonPanel({ id }: { id: string }) {
   const data = useTeamData();
   const panel = useSlideOver();
   const { pending, run } = useRun();
   const [leaving, setLeaving] = useState(false);
   const [successor, setSuccessor] = useState("");
+  const { confirm, dialog } = useConfirm();
   const person = data?.people.find((p) => p.id === id);
   if (!data || !person) return <p className="text-sm text-muted-foreground">This person is no longer in the workspace.</p>;
   const { canEdit, isOwner, viewer } = data;
@@ -89,6 +90,19 @@ export function PersonPanel({ id }: { id: string }) {
         <p className="text-muted-foreground">While someone is away, Prompts meant for them go to their Stand-in.</p>
         <AwayDates userId={person.id} current={data.away.find((a) => a.user_id === person.id)} can={canEdit || person.id === viewer} />
       </section>
+      {data.canTransfer && person.id !== viewer && (person.workspaceRole === "admin" || person.workspaceRole === "member") && (
+        <section aria-labelledby="person-transfer" className="space-y-2 border-t border-border pt-4">
+          <h3 id="person-transfer" className="font-medium">Transfer ownership</h3>
+          <p className="text-muted-foreground">{person.name} becomes an Owner and you become an Admin.</p>
+          <Button size="sm" variant="outline" disabled={pending} onClick={async () => {
+            if (await confirm({
+              title: `Transfer ownership to ${person.name}?`,
+              description: `${person.name} becomes an Owner and you become an Admin. Billing and removing Owners go with the role, so you can no longer do either, and only an Owner can make you one again. Other Owners keep their role. Open invitations you made for the Owner role are revoked. What each of you owns, such as Metrics and dashboards, does not move.${data.mailOn ? " Both of you are emailed." : ""}`,
+              confirmLabel: "Transfer ownership",
+            })) run(() => transferOwnership(person.id), "Ownership transferred; you are now an Admin");
+          }}>Transfer ownership…</Button>
+        </section>
+      )}
       {mayChange && person.id !== viewer && (
         <section aria-labelledby="person-remove" className="space-y-2 border-t border-border pt-4">
           <h3 id="person-remove" className="font-medium">Remove from the workspace</h3>
@@ -109,6 +123,7 @@ export function PersonPanel({ id }: { id: string }) {
           )}
         </section>
       )}
+      {dialog}
     </div>
   );
 }
