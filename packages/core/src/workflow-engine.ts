@@ -29,6 +29,8 @@ import { refreshAlertSight } from "./alerts";
 import { checkTells } from "./tell-firing";
 import { runChecklistItems } from "./checklist";
 import { startAsking, stepOf, type AskingRun } from "./asking-run";
+import { isPracticeWorkspace } from "./practice";
+import { DEMO_WORKSPACE_ID } from "./team";
 
 /** A Metric with its Workflow and the period at hand. */
 type Ctx = { m: Metric; wf: Workflow; period: string; yearStart: YearStart; numberStyle: NumberStyle; ws: string };
@@ -92,6 +94,21 @@ async function latestValue(ws: string, metricId: number, period: string) {
   return row && typeof row.value === "number" ? (row as { id: number; value: number; submitter_id: string | null; /** Who entered it, when it is a Filled-in Value (spec 0046). */ entered_by: string | null }) : null;
 }
 
+/** Whether a period with no state and no value was over before anyone could be asked for it: its Due Date is before the
+ * day, in the Workspace's time zone, on which the Metric was made or last began following a Workflow. Such a period gets
+ * nothing: no Prompt, reminder, Escalation or missing-value Alert. One somebody was asked for anyway ("ask now") is not. */
+async function dueBeforeFollowing(metric: { id: number; created_at: string }, period: string, due: string, timeZone: string): Promise<boolean> {
+  const dayOf = (at: string) => localTime(new Date(at), timeZone).day;
+  if (due >= dayOf(metric.created_at)) {
+    // Made before the Due Date, so only a later start with the Workflow can count. The Audit Log keeps when that was
+    // (nothing else does), for at least a year; with no event, the day the Metric was made stands.
+    const { data } = await db().from("audit_events").select("at").eq("object_type", "metric").eq("object_id", String(metric.id)).eq("kind", "metric.workflow_set").order("at", { ascending: false }).limit(1);
+    if (!data?.[0] || due >= dayOf(String(data[0].at))) return false;
+  }
+  const { data: asked } = await db().from("prompts").select("id").eq("metric_id", metric.id).eq("period_start", period).limit(1);
+  return !asked?.length;
+}
+
 /** Which Workflows a run covers (GLOSSARY: Asking Schedule): all of them (the demo, which ignores schedules), only
  * those that run with the Workspace's daily run, or one Workflow that runs on its own days and hour. */
 export type RunScope = "all" | "unscheduled" | { workflowId: number };
@@ -108,7 +125,10 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
   const rows = await openRows("metrics", workspaceId, sealedRows);
   const flows = await openWorkflowRows(workspaceId, sealedFlows);
   const workflows = new Map((flows ?? []).map((w) => [w.id as number, w as Workflow]));
-  const [yearStart, numberStyle] = await Promise.all([yearStartOf(workspaceId), numberStyleOf(workspaceId)]);
+  const [yearStart, numberStyle, timeZone] = await Promise.all([yearStartOf(workspaceId), numberStyleOf(workspaceId), timeZoneOf(workspaceId)]);
+  // The demo runs pretended days over seeded history, and a Practice Workspace leaves the last ended period empty so its
+  // Workflow can be tried (spec 0063): both ask for it whenever they were made.
+  const asksOverdue = workspaceId === DEMO_WORKSPACE_ID || (await isPracticeWorkspace(workspaceId));
   const log: string[] = [];
   // Alerts whose person lost or regained sight of their Metric, or whose Metric is archived: bookkeeping, no messages.
   if (typeof scope === "string") await refreshAlertSight(workspaceId).catch((e) => console.error("Alerts could not be refreshed:", e instanceof Error ? e.message : e));
@@ -133,6 +153,7 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
       continue;
     }
     const due = dueDate(period, m.period, ctx.wf.config);
+    if (!state && !asksOverdue && (await dueBeforeFollowing({ id: m.id, created_at: String(row.created_at) }, period, due, timeZone))) continue;
     // The day after the Due Date, with still no value: the Alerts that wait for that fire, once per period.
     await checkMissingAlerts(workspaceId, m.id, period, due, asOf);
     const done = new Set(state?.done_steps ?? []);
@@ -231,10 +252,15 @@ async function beforeWorkingPeriod(ctx: Ctx, period: string): Promise<boolean> {
   return period < workingPeriod(await todayIn(ctx.ws), ctx.m.period, ctx.yearStart);
 }
 
+/** The Workspace's own time zone. */
+async function timeZoneOf(ws: string): Promise<string> {
+  const { data } = await db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle();
+  return String(data?.time_zone ?? "UTC");
+}
+
 /** Today in the Workspace's own time zone. */
 async function todayIn(ws: string): Promise<string> {
-  const { data } = await db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle();
-  return localTime(new Date(), String(data?.time_zone ?? "UTC")).day;
+  return localTime(new Date(), await timeZoneOf(ws)).day;
 }
 
 /** Counts a made-up value of a Practice Workspace as through its Metric's Workflow (spec 0063): published, and locked

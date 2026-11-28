@@ -148,7 +148,8 @@ describe("an Archived Metric asks for nothing", () => {
   it("no Prompt from its Workflow, Ask for missing values or a direct ask, and no task reminder", async () => {
     const { w, sara, ben, cleo, m } = await setup();
     const workflowId = await saveWorkflow(w.actor(sara), null, "Monthly", { dueWorkingDays: 3, steps: [{ type: "remind", daysBefore: 1 }, { type: "escalate", daysAfter: 1, to: "owner" }] } as never);
-    await db().from("metrics").update({ workflow_id: workflowId }).eq("id", m.id);
+    // Made long before the period this runs for was due, as a Workflow asks for nothing older than its Metric.
+    await db().from("metrics").update({ workflow_id: workflowId, created_at: "2020-01-06T10:00:00Z" }).eq("id", m.id);
     // A Prompt queued before archiving does not go out after it.
     expect(await deliverPrompt({ metricId: m.id, submitterId: cleo, senderId: sara, queue: true })).toMatchObject({ connector: "email" });
     await db().from("deliveries").update({ mail_state: "queued" }).eq("workspace_id", w.id);
