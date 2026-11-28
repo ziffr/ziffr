@@ -322,6 +322,13 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   // leaves two of its own here on purpose: deleting a Metric and handing one over (the hand-over rewrites Shares and open Questions of
   // the seed's people and sends Notices; a deletion removes what dashboards of other visitors may show) wait for a decision of the owner.
   "not-yet": [
+    // Made decks (spec 0069) are opened to a visit by a ticket of their own; until then the demo's are as read-only as the seed's.
+    "made-deck-actions:clearMadeAnswers",
+    "made-deck-actions:footerOfMadeDeck",
+    "made-deck-actions:makeDeckFromDashboardForm",
+    "made-deck-actions:renameMadeDeck",
+    "made-deck-actions:saveMadeSlides",
+    "made-deck-actions:themeOfMadeDeck",
     "deck-workflow-template-actions:createWorkflowFromTemplate",
     "deck-workflow-template-actions:saveAsWorkflowTemplate",
     "metric-delete-actions:archiveInstead",
