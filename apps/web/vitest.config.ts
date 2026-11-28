@@ -7,5 +7,5 @@ export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   // Component tests (*.test.tsx) render to a string on the server: no browser needed.
   esbuild: { jsx: "automatic" },
-  test: { include: ["src/**/*.test.ts", "src/**/*.test.tsx"], exclude: ["src/**/*.db.test.ts", "node_modules/**"] },
+  test: { include: ["src/**/*.test.ts", "src/**/*.test.tsx"], exclude: ["src/**/*.db.test.ts", "src/**/*.browser.test.ts", "node_modules/**"] },
 });
