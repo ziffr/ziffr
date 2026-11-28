@@ -514,6 +514,8 @@ Search engines are asked not to list these pages.
 
 ## Snapshots
 
+How Snapshots, Locks and corrections fit together: [How your numbers are kept](08-how-your-numbers-are-kept.md).
+
 A **Snapshot** keeps what the dashboard showed for one week, month, quarter, half-year or year (quarters, half-years and years of the Workspace's fiscal year, such as "Q1 FY 2026/27" when the year starts in April, or "H2 2026" and "2026" when it starts in January): its layout and the values of every Metric period complete by the period's last day. Its values never change, even when someone corrects one later. Its words (the introduction and each Finding's headline and lines) you write afterwards, such as "What happened in October".
 
 ### The Snapshots menu
@@ -536,7 +538,7 @@ A period holds only one Snapshot, and nothing is overwritten: the dialog says "O
 
 When no finished period of the kind you chose can be taken, **Take Snapshot** cannot be pressed. If none has values yet, the dialog says from which day the first one can be taken, for example "Your first weekly Snapshot can be taken from Monday 30 November"; if all with values are taken, it says so. It also names another **Period** that has one you can take, if there is one. On a dashboard without Metrics, such as one of Notes only, no period is ruled out for want of values.
 
-Press **Take Snapshot**. Ziffr keeps the dashboard as it is now, with the values up to the end of that period, and opens the Snapshot so you can write it up. To take one, you must see every Metric on the dashboard. A dashboard has at most one Snapshot per period, at most 500 in all, going back at most ten years.
+Press **Take Snapshot**. Ziffr keeps the dashboard as it is now, with the values up to the end of that period, and opens the Snapshot so you can write it up. To take one, you must see every Metric on the dashboard. A dashboard has at most one Snapshot per period, at most 500 in all unless your Installation sets another limit, going back at most ten years.
 
 ### Reading and writing a Snapshot
 
