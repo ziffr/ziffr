@@ -26,13 +26,16 @@ export function inboxOf(address: string): string {
   return `${domain === "gmail.com" || domain === "googlemail.com" ? base.replace(/\./g, "") : base}@${domain === "googlemail.com" ? "gmail.com" : domain}`;
 }
 
+/** The key the sign-in links of an address are counted under; erasing a person removes the rows under theirs. */
+export const signInAddressKey = (address: string) => hash("address", inboxOf(address));
+
 /** Whether another sign-in link may go to this address from this network address, and counts it if so. The network
  * address may be unknown (see networkAddress); the address's own limits always hold. */
 export async function claimSignInLink(address: string, network: string | null): Promise<boolean> {
   const inbox = inboxOf(address);
   const place = network ? String(network).trim().toLowerCase().slice(0, 64) : "";
   const { data, error } = await db().rpc("claim_sign_in_link", {
-    p_address_key: hash("address", inbox),
+    p_address_key: signInAddressKey(address),
     // Without a network address there is no place to count per: the low limit would then hold for the address from
     // anywhere and let anyone lock a person out, so only the address's higher ceiling applies.
     p_pair_key: place ? hash("pair", `${inbox} ${place}`) : null,

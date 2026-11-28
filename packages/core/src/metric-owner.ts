@@ -51,7 +51,7 @@ export async function handOverMetric(actor: Actor, metricId: number, toId: strin
   await audit(actor, { kind: "metric.handed_over", object: { type: "metric", id: m.id as number, name: m.name as string }, details: { from_id: from, from_name: fromName, to_id: toId, to_name: toName } });
   // The database closed an open Total in the same write; its new owner opens it anew.
   if (m.total_opened_at) await audit(actor, { kind: "metric.total_closed", object: { type: "metric", id: m.id as number, name: m.name as string }, details: { reason: "handed over" } });
-  await recordVersion("metric", m.id as number, actor.personId, { message: `Handed over from ${fromName} to ${toName}`, always: true });
+  await recordVersion("metric", m.id as number, actor.personId, { message: `Handed over from ${fromName} to ${toName}`, always: true, handover: { from, to: toId } });
   // Told like a reminder: by their own way, and not during their Quiet Hours; the old owner too, when someone else did it.
   const link = `/metrics/${m.slug}`;
   const lose = "If a Share of theirs on it ends, their Derived Metrics, Alerts and Personal Webhooks on it stop.";

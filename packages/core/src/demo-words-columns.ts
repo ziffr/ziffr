@@ -57,7 +57,7 @@ export const DEMO_WORDS_COLUMNS: Readonly<Record<string, DemoTableWords>> = {
     words: ["subject", "body"],
     other: ["connector", "recipient_id", "sender_id", "kind", "external_ref", "status", "mail_state", "provider_id", "last_error", "reply_token", "unsubscribe_token", "slack_channel", "slack_ts", "answer_source", "heads_up_key", "total_rests"],
   },
-  versions: { words: ["name", "message", "snapshot"], other: ["object_type", "author_id"] },
+  versions: { words: ["name", "message", "snapshot"], other: ["object_type", "author_id", "handover_from_person_id", "handover_to_person_id"] },
   observations: { words: [], other: ["submitter_id", "source", "value_sealed", "original_value_sealed", "submitted_by_name", "entered_by", "entered_by_name"] },
   observation_history: { words: [], other: ["submitter_id", "source", "change", "value_sealed", "entered_by"] },
   shares: { words: [], other: ["object_type", "user_id", "role"] },

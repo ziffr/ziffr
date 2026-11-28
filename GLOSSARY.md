@@ -438,7 +438,7 @@ _Avoid_: Copy, freeze, archived copy, export data
 ### Sharing
 
 **Workspace**:
-One team's own space in Ziffr, with its people, metrics, dashboards, decks, themes and connectors. A person can belong to several and switches between them; nothing is shared across workspaces.
+One team's own space in Ziffr, with its people, metrics, dashboards, decks, themes and connectors. A person can belong to several and switches between them; nothing is shared across workspaces. The word "account" means a person's sign-in and details, never a Workspace.
 _Avoid_: Tenant, organisation, account, company
 
 **Trial Workspace**:
@@ -639,6 +639,10 @@ _Avoid_: Auto-join, SSO
 **Contact**:
 A person known to a Workspace who has no login, such as a field worker or an outside bookkeeper who submits values by Slack, email or the form. A Contact who connects Telegram on their personal form confirms it from an email to the address the Workspace keeps for them; until then nothing goes to or comes from that account. A contact can be invited later and then becomes a Member or Guest.
 _Avoid_: External user, anonymous submitter
+
+**Deleted person**:
+What stays of a person who was erased because they deleted their account, where something still refers to them, such as a value, a Thread, an approval or the version history: no sign-in, no address and no name, only the name "Deleted person". A person nothing refers to is deleted entirely. The Audit Log keeps the name until its entries expire, and text that copied it, such as a typed sentence or a Snapshot, stays as written. A Deleted person joins no Workspace; the same address may sign up again, as a new person. Not a Contact, and not a person who only left a Workspace.
+_Avoid_: Anonymised user, deactivated user, former user
 
 **Access Key**:
 A secret a person creates so a program can use the API on their behalf, limited to some actions (reading metrics, submitting values, creating metrics owned by that person, changing the Target Range, Target Series, Projections, Sources and Submitters of the metrics that person owns or edits and the Unusual Value check of the Workflows they own, reading dashboards, building dashboards and taking Snapshots as that person, and, only for a program's key and never an assistant's, approving values making View Links to that person's dashboards, sharing what that person owns, managing Groups and inviting or removing people as that person's role allows), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace; Admins can see every key and its Access Log. An assistant that connects by address, such as Claude.ai, holds an access key of the kind assistant: made when a person approves it on Ziffr's consent screen, and used through short-lived OAuth tokens instead of a secret anyone sees; disconnecting it revokes the key. An assistant may also hold the scope to propose sharing, which only prepares a Share Proposal. Not to be confused with a Token, which lets a submitter record values for one metric.
