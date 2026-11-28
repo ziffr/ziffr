@@ -3,4 +3,4 @@
 
 /** Off until the switch-on ticket (#1371). While off no made deck is read, changed or made, and a stored description
  * names no Metric, so a Share of it opens nothing. */
-export const MADE_DECKS_ON: boolean = false;
+export const MADE_DECKS_ON: boolean = true;
