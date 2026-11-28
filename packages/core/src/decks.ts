@@ -10,6 +10,7 @@ import { allDeckMetricIds, deckMetricIds, deckMetricIdsAdded } from "./visibilit
 import { assertWidgetDesigns } from "./widget-designs";
 import { ensureBaseline, recordVersion } from "./versions";
 import { assertNoOutsideContent } from "./deck-content";
+import { isDescribed } from "./deck-form";
 import { withoutUnaskedMetrics } from "./slide-text";
 import { snapshotPartProblem } from "./snapshot-parts";
 import { refuseSeeded } from "./demo-seeded-rows";
@@ -19,6 +20,9 @@ import { visitorOptionalText } from "./demo-visitor-words";
 
 /** The largest deck document stored, so a browser cannot fill the database. */
 const MAX_DOCUMENT = 8_000_000;
+
+/** What the slide editor is refused with on a deck Ziffr makes, or when it sends a form of its own (spec 0069). */
+export const NOT_FOR_THE_EDITOR = "The slide editor does not change slides that Ziffr makes.";
 
 /** The actor's role on a deck of their workspace, or null. */
 export async function deckRole(actor: Actor, id: number) {
@@ -39,10 +43,11 @@ const GOES_LIVE = "This change would show live numbers of a Metric you cannot se
 /** Refuses in plain words a save that draws live a Metric the deck named only on slides that keep numbers, by someone
  * who does not see it: a part or a slide's mark was removed, or the Widget moved to another slide. */
 async function assertSeesWhatGoesLive(actor: Actor, before: unknown, after: unknown) {
-  const named = new Set(allDeckMetricIds(before));
-  const live = new Set(deckMetricIds(before));
+  // saveDeck refuses a description on either side: these are the slide editor's forms.
+  const named = new Set(allDeckMetricIds(before, false));
+  const live = new Set(deckMetricIds(before, false));
   try {
-    await assertSeesMetrics(actor, deckMetricIds(after).filter((m) => named.has(m) && !live.has(m)));
+    await assertSeesMetrics(actor, deckMetricIds(after, false).filter((m) => named.has(m) && !live.has(m)));
   } catch (err) {
     if (err instanceof Forbidden) throw new Refused(GOES_LIVE);
     throw err;
@@ -52,7 +57,7 @@ async function assertSeesWhatGoesLive(actor: Actor, before: unknown, after: unkn
 /** A deck's name as saved: cut to 120, "Untitled deck" when blank. A name a visitor of the demo typed goes through the text rules
  * first (the cleaned text is saved); `derived` is a name taken from something that exists already (a dashboard, a widget, a
  * template), whose words were checked when it was made or are the seed's, so it only has to fit. */
-function deckName(actor: Actor, name: string, derived = false): string {
+export function deckName(actor: Actor, name: string, derived = false): string {
   const text = String(name ?? "").trim();
   return (derived ? text : String(visitorOptionalText(actor, text, "name")).trim()).slice(0, 120) || "Untitled deck";
 }
@@ -81,16 +86,18 @@ export async function saveDeck(actor: Actor, id: number, document: unknown) {
   const partProblem = snapshotPartProblem(document);
   if (partProblem) throw new Refused(partProblem);
   const { data: before } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", actor.workspaceId).single();
+  // Neither a made deck nor a form no reader knows is saved over, and none comes in this way (spec 0069).
+  if (isDescribed(before?.document) || isDescribed(document)) throw new Refused(NOT_FOR_THE_EDITOR);
   // In a demo visit the document is rebuilt from words and shapes the demo accepts, within its size, before the write below.
   document = await visitorDeckDocument(actor, document, before?.document);
   // A text box is stored listing only the Metrics its words ask for: those are what is checked here.
   document = withoutUnaskedMetrics(document);
-  const added = deckMetricIdsAdded(before?.document, document);
+  const added = deckMetricIdsAdded(before?.document, document, false);
   if (added.some((m) => !Number.isFinite(m))) throw new Error("A widget or text box on this deck names its metrics in a way Ziffr cannot read. Remove or recreate it, then save.");
   await assertSeesWhatGoesLive(actor, before?.document, document);
   await assertSeesMetrics(actor, added);
   // A deck that is shared shows only Metrics its recipients see (spec 0051, ticket 11).
-  await visitorSharedStaysSeen(actor, "deck", id, deckMetricIds(document));
+  await visitorSharedStaysSeen(actor, "deck", id, deckMetricIds(document, false));
   await ensureBaseline("deck", id, actor.personId);
   await db().from("decks").update({ document, updated_at: touch() }).eq("id", id).eq("workspace_id", actor.workspaceId);
   await recordVersion("deck", id, actor.personId);

@@ -99,7 +99,7 @@ export async function workspaceUsage(actor: Actor, now: Date = new Date()): Prom
     allRows<{ day: string; subject_kind: string; subject_id: number; n_app: number; n_link: number; n_api: number }>((from, to) =>
       db().from("view_counts").select("day, subject_kind, subject_id, n_app, n_link, n_api").eq("workspace_id", ws).gte("day", cutoff).order("day").order("subject_id").range(from, to)),
     allRows<{ id: number; name: string; created_at: string }>((from, to) => db().from("dashboards").select("id, name, created_at").eq("workspace_id", ws).order("id").range(from, to)),
-    allRows<{ id: number; name: string; created_at: string; document: unknown }>((from, to) => db().from("decks").select("id, name, created_at, document").eq("workspace_id", ws).order("id").range(from, to)),
+    allRows<{ id: number; name: string; created_at: string; document: unknown; made: unknown }>((from, to) => db().from("decks").select("id, name, created_at, document, made").eq("workspace_id", ws).order("id").range(from, to)),
     allRows<{ dashboard_id: number; template: string; metric_ids: number[]; settings: WidgetSettings }>((from, to) =>
       db().from("widgets").select("dashboard_id, template, metric_ids, settings").eq("workspace_id", ws).not("dashboard_id", "is", null).order("id").range(from, to)),
     allRows<{ metric_id: number; submitter_id: string; stands_in_for: string | null; created_at: string }>((from, to) =>
@@ -130,7 +130,7 @@ export async function workspaceUsage(actor: Actor, now: Date = new Date()): Prom
       if (ANALYSING.has(w.template) || (w.settings?.compare?.length ?? 0) > 0) analysed.add(id);
     }
   }
-  for (const d of allDecks) for (const id of deckMetricIds(d.document).filter(Number.isInteger)) bump(id, lastOpen.get(`deck:${d.id}`));
+  for (const d of allDecks) for (const id of deckMetricIds(d.document, d.made).filter(Number.isInteger)) bump(id, lastOpen.get(`deck:${d.id}`));
 
   const old = (created: string) => created.slice(0, 10) <= cutoff;
   const dashById = new Map(allDash.map((d) => [d.id, d]));

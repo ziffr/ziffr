@@ -23,7 +23,7 @@ export default async function DeckPresentPage({ params, searchParams }: { params
   const waiting = importSeedOf(deck.document);
   const templateSeed = waiting ? await deckTemplateSeed(actor, waiting.template, waiting.fills).catch(() => null) : null;
   // A slideshow draws only the deck's widgets: only their series go to the browser.
-  const data = await getCanvasData(viewer, templateSeed ? templateSeed.fills.flat() : deckMetricIds(deck.document));
+  const data = await getCanvasData(viewer, templateSeed ? templateSeed.fills.flat() : deckMetricIds(deck.document, deck.made));
   // And of the Snapshots its slides keep numbers from, what this viewer may see (spec 0061).
   const asked = keptRequests(deck.document);
   const kept = { asked, read: await readKeptNumbers(actor, asked) };

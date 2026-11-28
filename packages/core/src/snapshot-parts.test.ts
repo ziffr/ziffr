@@ -31,41 +31,41 @@ describe("slides that keep numbers", () => {
   });
 
   it("open no Metric through the deck, a free layout's and a panel's included", () => {
-    expect(deckMetricIds(mixed)).toEqual([1]);
-    expect(allDeckMetricIds(mixed).sort()).toEqual([1, 2, 3]);
+    expect(deckMetricIds(mixed, false)).toEqual([1]);
+    expect(allDeckMetricIds(mixed, false).sort()).toEqual([1, 2, 3]);
     const nested = deck(frame("kept"), part("p", "kept", 7, 0), widget("canvas", "kept", [], { canvas: { document: deck(widget("inner", "page:page", [4])) } }), widget("story", "kept", [], { panels: [{ metricIds: [5] }] }));
-    expect(deckMetricIds(nested)).toEqual([]);
+    expect(deckMetricIds(nested, false)).toEqual([]);
     // A Metric drawn live elsewhere is opened as before.
-    expect(deckMetricIds(deck(frame("a"), widget("w", "a", [2]), frame("b"), part("p", "b", 7, 0), widget("x", "b", [2])))).toEqual([2]);
+    expect(deckMetricIds(deck(frame("a"), widget("w", "a", [2]), frame("b"), part("p", "b", 7, 0), widget("x", "b", [2])), false)).toEqual([2]);
   });
 
   it("draw no other numbers when they hold parts of two Snapshots and no mark says which", () => {
     const two = deck(frame("s"), part("a", "s", 7, 0), part("b", "s", 8, 0), widget("w", "s", [1]));
     expect(keptShapes(two).find((s) => s.id === "w")?.snapshotId).toBeNull();
-    expect(deckMetricIds(two)).toEqual([]);
+    expect(deckMetricIds(two, false)).toEqual([]);
     const marked = deck(frame("s", { snapshot: 8 }), part("a", "s", 7, 0), part("b", "s", 8, 0), widget("w", "s", [1]));
     expect(keptShapes(marked).find((s) => s.id === "w")?.snapshotId).toBe(8);
   });
 
   it("ask the saver to see every Metric newly named, and one newly drawn live", () => {
-    expect(deckMetricIdsAdded(null, mixed).sort()).toEqual([1, 2, 3]);
-    expect(deckMetricIdsAdded(mixed, mixed)).toEqual([]);
+    expect(deckMetricIdsAdded(null, mixed, false).sort()).toEqual([1, 2, 3]);
+    expect(deckMetricIdsAdded(mixed, mixed, false)).toEqual([]);
     // The kept widget moved to a live slide: named before, drawn live only now.
     const moved = deck(frame("live"), widget("liveWidget", "live", [1]), widget("beside", "live", [2]));
-    expect(deckMetricIdsAdded(mixed, moved)).toEqual([2]);
+    expect(deckMetricIdsAdded(mixed, moved, false)).toEqual([2]);
     const unreadable = deck(frame("s", { snapshot: 7 }), widget("w", "s", "x" as unknown as number[]));
-    expect(deckMetricIdsAdded(unreadable, unreadable)).toEqual([Number.NaN]);
+    expect(deckMetricIdsAdded(unreadable, unreadable, false)).toEqual([Number.NaN]);
   });
 
   it("stay kept with a mark that is no id, which draws nothing", () => {
     const broken = deck(frame("s", { snapshot: "7" }), widget("w", "s", [1]));
     expect(keptShapes(broken)).toEqual([{ id: "w", slideId: "s", snapshotId: null, part: null, metricIds: [1] }]);
-    expect(deckMetricIds(broken)).toEqual([]);
+    expect(deckMetricIds(broken, false)).toEqual([]);
   });
 
   it("are read from a document that loops or is not one without failing", () => {
     const loop = deck(shape("a", "group", "b"), shape("b", "group", "a"), widget("w", "a", [1]), part("p", "a", 7, 0));
-    expect(deckMetricIds(loop)).toEqual([1]);
+    expect(deckMetricIds(loop, false)).toEqual([1]);
     for (const junk of [null, 1, "x", [], { store: 3 }, { store: { a: null } }]) {
       expect(keptShapes(junk)).toEqual([]);
       expect(snapshotPartProblem(junk)).toBeNull();

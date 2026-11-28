@@ -28,6 +28,7 @@ import { publicLook } from "./brand-logo";
 import { createTrialWorkspace, trialSettingsInEffect } from "./trials";
 import { assertMayOwnDefault } from "./workspace-limits";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
+import { isDescribed } from "./deck-form";
 import { snapshotAccess } from "./snapshots";
 import { nameHider } from "./hide-names";
 import type { Action, Metric, Period, Point, Token, Widget } from "./types";
@@ -281,6 +282,10 @@ export async function savedWidgets(actor: Actor): Promise<Widget[]> {
   return resolveTagWidgets(actor, ((await openRows("widgets", actor.workspaceId, data)) as Widget[]).map(widgetWithoutOutside), true);
 }
 
+/** A deck's slides as the slide editor and the decks list get them. A made deck's description never leaves here: it holds
+ * headlines and answers about Metrics this person may not see, and only readDeck cuts it to them (spec 0069). */
+const editorDocument = (document: unknown) => (isDescribed(document) ? null : stripOutsideContent(document));
+
 /** A deck of the workspace with the actor's role on it; for one not shared with them, only who to ask. */
 export async function deckView(actor: Actor, id: number) {
   const { data: deck } = await db().from("decks").select("*").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
@@ -292,7 +297,7 @@ export async function deckView(actor: Actor, id: number) {
     return { role: null, ownerFirstName: (owner?.name as string | undefined)?.split(" ")[0] ?? "the owner", deck: null };
   }
   // Saved before content from other sites was refused, a deck still loads nothing from them (spec 0009).
-  return { role, ownerFirstName: null, deck: { ...deck, document: stripOutsideContent(deck.document) } };
+  return { role, ownerFirstName: null, deck: { ...deck, document: editorDocument(deck.document) } };
 }
 
 /** The documents of the decks the actor sees, for the decks list. */
@@ -300,7 +305,7 @@ export async function deckDocuments(actor: Actor) {
   const ids = (await visibleDecks(actor.workspaceId, actor.personId)).map((d) => d.id);
   if (!ids.length) return [];
   const { data } = await db().from("decks").select("id, document").eq("workspace_id", actor.workspaceId).in("id", ids);
-  return (data ?? []).map((d) => ({ ...d, document: stripOutsideContent(d.document) }));
+  return (data ?? []).map((d) => ({ ...d, document: editorDocument(d.document) }));
 }
 
 /** The widgets of a dashboard the actor sees, in reading order; Forbidden otherwise. */
