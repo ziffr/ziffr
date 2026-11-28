@@ -21,7 +21,7 @@ concurrency:
   # the push run of the very commit it tags. The merge queue replaces groups itself.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  # Everything quick, in jobs that run side by side (hygiene, bookkeeping, static and the unit tests) and one `check` that answers for them (branch protection asks for
+  # Everything quick, in jobs that run side by side (hygiene, bookkeeping, static, the slides and the unit tests) and one `check` that answers for them (branch protection asks for
   # `check`): the quick hygiene scripts (a missing release note or guide chapter, a client component importing the database,
   # an edited migration, prose, secrets) need no install and fail in about a minute; types, lint and code health, the docs site
   # build and the audit of dependencies need the install; the unit tests (with the calculation modules' 100 % coverage) need it too.
@@ -116,6 +116,38 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: bash scripts/bookkeeping-tests.sh
 
+  # The deck slides (spec 0069): every slide type, in both Deck Designs and several Themes, drawn in a headless browser
+  # and measured (apps/web/src/decks/slides/check/). The fonts it draws with are downloaded once and checked by their
+  # hashes (scripts/deck-fonts.mjs).
+  slides:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: node_modules/.cache/deck-fonts
+          key: deck-fonts-${{ hashFiles('scripts/deck-fonts.mjs') }}
+      - run: pnpm --filter @ziffr/web exec playwright install chromium-headless-shell
+      - name: The slides pass the check
+        run: pnpm --filter @ziffr/web test:slides
+        env:
+          ZIFFR_SLIDE_PICTURES: ${{ runner.temp }}/slides
+      # Pictures of the slides: made-up data only.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: slide-pictures
+          path: ${{ runner.temp }}/slides
+          if-no-files-found: ignore
+          retention-days: 7
+
   # The unit tests, in three jobs that run side by side. The core's tests (6,000 of them, 11 minutes in one job, most of it the
   # tests against the references) run in four shards that each write a blob report with their coverage; the modules under the 100 %
   # coverage rule (spec 0022) are checked on the merged coverage, in `unit` below, so no threshold is lower and no test skipped.
@@ -195,7 +227,7 @@ jobs:
 
   # The one job branch protection asks for. It must fail when a part did not pass: a skipped required job would count as passed.
   check:
-    needs: [hygiene, bookkeeping, static, unit]
+    needs: [hygiene, bookkeeping, static, unit, slides]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -204,7 +236,7 @@ jobs:
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          echo "hygiene, bookkeeping, static, unit: $RESULTS"
+          echo "hygiene, bookkeeping, static, unit, slides: $RESULTS"
           for r in $RESULTS; do [ "$r" = success ] || { echo "::error::A part of check did not pass ($r)."; exit 1; }; done
 
   # The full verification of calculations (spec 0022, docs/guides/calculation-tests.md): every Aggregation, Display

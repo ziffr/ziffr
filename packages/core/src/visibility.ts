@@ -5,6 +5,7 @@ import { tokenValid, type TokenRow } from "./tokens";
 import { widgetMetricIds } from "./widget-metrics";
 import { textBoxMetricIds } from "./slide-text";
 import { liveDocument } from "./snapshot-parts";
+import { describedDeck, describedMetricIds } from "./deck-form";
 import type { Action, Group, Metric, Share, ShareRole, WidgetSettings } from "./types";
 
 /** A row that belongs to a Workspace. */
@@ -77,27 +78,30 @@ export function objectRoles(ws: string, person: string, type: "dashboard" | "dec
 /** Every metric a deck draws live, in its widgets and in the words of its text boxes, which is what its Share opens.
  * Snapshot Parts name no Metric, and what stands on a slide that keeps a Snapshot's numbers opens none (spec 0061):
  * each reader needs the Snapshot's own dashboard. */
-export function deckMetricIds(document: unknown): number[] {
-  return allDeckMetricIds(liveDocument(document));
+export function deckMetricIds(document: unknown, made: unknown): number[] {
+  return allDeckMetricIds(liveDocument(document), made);
 }
 
 /** Every metric named by any widget or text box on a deck's slides, slides that keep numbers included: for knowing
  * whether a Metric is still on a deck, never for who may see it. */
-export function allDeckMetricIds(document: unknown): number[] {
+export function allDeckMetricIds(document: unknown, made: unknown): number[] {
   // A deck's slides are read like a free layout, with the same rule: nested widgets count, and a malformed Metric
   // list yields an id no visibility check accepts, so such a deck cannot be saved, shared or restored.
   if (!document || typeof document !== "object") return [];
+  // A made deck's description lists its Metrics on its slides; a form no reader knows names none, so it opens nothing.
+  const described = describedDeck(document, made);
+  if (described !== undefined) return described ? describedMetricIds(described) : [];
   return [...new Set([...widgetMetricIds([], { canvas: { document } } as unknown as WidgetSettings), ...textBoxMetricIds(document)])];
 }
 
 /** The Metrics a changed deck names that whoever stores it must see: those it newly draws live, and those newly named
  * by any widget or text box at all. So none can be put on a slide that keeps numbers by someone who does not see it, to be drawn
  * live under another's save later, or to stand in the way of its owner deleting it. */
-export function deckMetricIdsAdded(before: unknown, after: unknown): number[] {
+export function deckMetricIdsAdded(before: unknown, after: unknown, made: unknown): number[] {
   const added = [deckMetricIds, allDeckMetricIds].flatMap((ids) => {
     // A malformed marker (NaN) never counts as "already there": only real ids are.
-    const had = new Set(ids(before).filter(Number.isFinite));
-    return ids(after).filter((m) => !had.has(m));
+    const had = new Set(ids(before, made).filter(Number.isFinite));
+    return ids(after, made).filter((m) => !had.has(m));
   });
   return [...new Set(added)];
 }
@@ -111,7 +115,7 @@ export type MetricFacts = {
   /** Widgets on dashboards shared with the person (not owned by them). */
   sharedDashboardWidgets: readonly ({ metric_ids: number[]; settings: WidgetSettings } & InWorkspace)[];
   /** Documents of decks shared with the person (not owned by them). */
-  sharedDeckDocuments: readonly ({ document: unknown } & InWorkspace)[];
+  sharedDeckDocuments: readonly ({ document: unknown; made: unknown } & InWorkspace)[];
 };
 
 /** The metrics a person sees: owned, submitted to (a stand-in only while valid), shared, shown on a dashboard or deck shared with them, and derived metrics they own whose inputs they all see. */
@@ -124,7 +128,7 @@ export function visibleMetricIdsFrom(ws: string, person: string, f: MetricFacts)
   for (const t of tokens) if (t.submitter_id === person && tokenValid(t, tokens)) ids.add(t.metric_id);
   for (const s of mine(ws, f.shares)) if (s.object_type === "metric" && s.user_id === person) ids.add(s.object_id);
   for (const w of mine(ws, f.sharedDashboardWidgets)) for (const id of widgetMetricIds(w.metric_ids, w.settings)) ids.add(id);
-  for (const d of mine(ws, f.sharedDeckDocuments)) for (const id of deckMetricIds(d.document)) ids.add(id);
+  for (const d of mine(ws, f.sharedDeckDocuments)) for (const id of deckMetricIds(d.document, d.made)) ids.add(id);
   // PROTOTYPE: owners already see their own metrics above, so this only matters once derived metrics can be
   // shown to people who see all their inputs (decided with the metrics ticket, #12).
   const bySlug = new Map(metrics.map((m) => [m.slug, m.id] as const).reverse()); // the first Metric with a slug, as find() would

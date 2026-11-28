@@ -2,6 +2,7 @@
 // words a person types to confirm, the order Metrics that read each other are deleted in, and how a widget or a slide
 // lets go of one. No database and nothing about who asks, so the browser may read the confirm words.
 import { BUILT_IN_DESIGNS } from "./built-in-designs";
+import { describedDeck } from "./deck-form";
 import { TEXT_SHAPE_TYPES, textList, textMetricIds } from "./slide-text";
 import { tagSourceId } from "./tag-source";
 import type { Widget, WidgetSettings } from "./types";
@@ -65,7 +66,7 @@ type Shape = { id?: string; typeName?: string; type?: string; props?: Record<str
 
 /** What a deck's slides say once they let go of Metrics, and what changed: Widgets that must go whole, Widgets that
  * keep their other Metrics, and text boxes whose live values of them are left empty. */
-export type DeckWithout = { document: unknown; removed: number; trimmed: number; emptied: number };
+export type DeckWithout = { document: unknown; slides: number; removed: number; trimmed: number; emptied: number };
 
 /** A widget shape's settings, kept as a JSON string on slides. */
 function shapeSettings(raw: unknown): WidgetSettings {
@@ -79,9 +80,16 @@ function shapeSettings(raw: unknown): WidgetSettings {
 
 /** A deck's document without these Metrics, on every slide, those that keep a Snapshot's numbers included. Snapshot
  * Parts name no Metric and stay. */
-export function deckWithout(document: unknown, gone: ReadonlySet<number>): DeckWithout {
+export function deckWithout(document: unknown, gone: ReadonlySet<number>, made: unknown): DeckWithout {
   const doc = document as { store?: Record<string, Shape> } | null;
-  const out: DeckWithout = { document, removed: 0, trimmed: 0, emptied: 0 };
+  const out: DeckWithout = { document, slides: 0, removed: 0, trimmed: 0, emptied: 0 };
+  const description = describedDeck(document, made);
+  if (description !== undefined) {
+    // A made deck loses each slide that lists one of them; its cover and its last slide list none, so it stays valid.
+    const slides = description?.slides.filter((s) => !s.metrics.some((id) => gone.has(id))) ?? [];
+    if (!description || slides.length === description.slides.length) return out;
+    return { ...out, document: { ...description, slides }, slides: description.slides.length - slides.length };
+  }
   if (!doc?.store) return out;
   const dropped = new Set<string>();
   const entries = Object.entries(doc.store).flatMap(([key, shape]): [string, Shape][] => {

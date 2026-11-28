@@ -219,9 +219,16 @@ export async function visitorDeckDocument(actor: Pick<Actor, "workspaceId">, doc
     store[id] = value(actor, r, "record", 0);
   } });
   const clean = { store, ...(document.schema === undefined ? {} : { schema: schemaOf(document.schema) }) };
-  const bytes = visitorSize(actor, clean, DEMO_DECK_STORE_MAX_BYTES, DECK_TOO_LARGE);
+  await chargeVisitorDeckGrowth(actor, clean, before);
+  return clean;
+}
+
+/** In a demo visit, holds a deck's document to 512 KB and counts what it grows by over the deck as stored (`before`)
+ * against the visit's writes in this window, before the write that holds it. Nothing outside a demo visit. */
+export async function chargeVisitorDeckGrowth(actor: Pick<Actor, "workspaceId">, document: unknown, before: unknown): Promise<void> {
+  if (!inDemoVisit(actor)) return;
+  const bytes = visitorSize(actor, document, DEMO_DECK_STORE_MAX_BYTES, DECK_TOO_LARGE);
   const had = new TextEncoder().encode(JSON.stringify(before ?? null)).length;
   // A deck saves itself after each change: only what it grows by is counted, so working on a deck does not use the window up.
   if (bytes > had) await chargeVisitorBytes(actor, bytes - had);
-  return clean;
 }

@@ -54,14 +54,14 @@ export async function visitorMetricUnused(actor: Pick<Actor, "workspaceId">, met
   // Every read fails closed: a query that failed is a refusal, never "nothing uses it".
   const [w, d, s, all] = await Promise.all([
     db().from("widgets").select("metric_ids, settings").eq("workspace_id", ws),
-    db().from("decks").select("document").eq("workspace_id", ws),
+    db().from("decks").select("document, made").eq("workspace_id", ws),
     db().from("shares").select("id").eq("workspace_id", ws).eq("object_type", "metric").eq("object_id", metricId).limit(1),
     getMetrics(ws),
   ]);
   const widgets = demoData(w), decks = demoData(d), shares = demoData(s);
   if (shares?.length) throw used;
   if ((widgets ?? []).some((w) => widgetMetricIds((w.metric_ids ?? []) as number[], w.settings).includes(metricId))) throw used;
-  if ((decks ?? []).some((d) => deckMetricIds(d.document).includes(metricId))) throw used;
+  if ((decks ?? []).some((d) => deckMetricIds(d.document, d.made).includes(metricId))) throw used;
   if (all.some((m) => m.id !== metricId && m.formula && formulaInputs(m.formula).includes(slug))) throw used;
 }
 
@@ -78,8 +78,8 @@ export async function visitorShowsOnlySeen(actor: Pick<Actor, "workspaceId">, ty
     const data = demoData(await db().from("widgets").select("metric_ids, settings").eq("workspace_id", ws).eq("dashboard_id", id));
     for (const w of data ?? []) for (const m of widgetMetricIds((w.metric_ids ?? []) as number[], w.settings)) shown.add(m);
   } else {
-    const data = demoData(await db().from("decks").select("document").eq("workspace_id", ws).eq("id", id).maybeSingle());
-    for (const m of deckMetricIds(data?.document)) shown.add(m);
+    const data = demoData(await db().from("decks").select("document, made").eq("workspace_id", ws).eq("id", id).maybeSingle());
+    for (const m of deckMetricIds(data?.document, data?.made)) shown.add(m);
   }
   withInputs(all, shown);
   if (type === "metric") shown.delete(id);

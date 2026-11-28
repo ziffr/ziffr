@@ -19,4 +19,16 @@ Third-party software and assets
 - flag-icons (apps/web/public/flags) is MIT licensed.
 - Paper and felt textures (apps/web/src/app/cotton.svg, felt.svg) are SVG noise
   filters made for Ziffr and part of the Licensed Work.
+- The deck slides' font width tables
+  (packages/core/src/deck-drawing/font-widths.generated.ts) hold the character
+  widths of these fonts, each under the SIL Open Font License 1.1
+  (https://openfontlicense.org). No font file is part of Ziffr.
+  Arimo (Copyright 2020 The Arimo Project Authors), Gelasio (Copyright 2022
+  The Gelasio Project Authors), Inter (Copyright 2020 The Inter Project
+  Authors), IBM Plex Sans and IBM Plex Mono (Copyright 2017 IBM Corp., with
+  Reserved Font Name "Plex"), Libre Franklin (Copyright 2020 The Libre Franklin
+  Project Authors), Source Serif 4 (Copyright 2014 The Source Serif 4 Project
+  Authors), Playfair Display (Copyright 2017 The Playfair Display Project
+  Authors, with Reserved Font Name "Playfair Display") and Geist Mono
+  (Copyright 2024 The Geist Project Authors).
 - All npm dependencies keep their own licenses; see `pnpm licenses list`.

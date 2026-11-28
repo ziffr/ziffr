@@ -259,7 +259,7 @@ export async function deleteMetric(actor: Actor, metricId: number, confirmName: 
   const [{ data: derived }, { data: widgets }, { data: decks }, { data: links }] = await Promise.all([
     db().from("metrics").select("id, name, formula").eq("workspace_id", ws).not("formula", "is", null),
     db().from("widgets").select("metric_ids, settings").eq("workspace_id", ws),
-    db().from("decks").select("document").eq("workspace_id", ws),
+    db().from("decks").select("document, made").eq("workspace_id", ws),
     db().from("view_links").select("metric_ids").eq("workspace_id", ws).is("revoked_at", null).gte("expires_at", today),
   ]);
   // Names of what blocks it only where the owner may see them: Derived Metrics are named, other things only counted.
@@ -270,7 +270,7 @@ export async function deleteMetric(actor: Actor, metricId: number, confirmName: 
   if (unread) throw new Error("The Metric could not be deleted. Try again in a moment.");
   if (addedUp) throw new MetricKept(`Totals add it up (${addedUp}). Remove it from them first.`);
   const inWidgets = (widgets ?? []).filter((w) => widgetMetricIds(w.metric_ids ?? [], w.settings).includes(metricId)).length;
-  const inDecks = (decks ?? []).filter((d) => allDeckMetricIds(d.document).includes(metricId)).length;
+  const inDecks = (decks ?? []).filter((d) => allDeckMetricIds(d.document, d.made).includes(metricId)).length;
   if (inWidgets || inDecks) throw new MetricKept(`It is shown in ${inWidgets} widget${inWidgets === 1 ? "" : "s"} and ${inDecks} deck${inDecks === 1 ? "" : "s"}. Take it out of them first.`);
   if ((links ?? []).some((l) => (l.metric_ids ?? []).map(Number).includes(metricId))) throw new MetricKept("A View Link that still works shows it. Revoke the link first.");
   const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("metric_id", metricId);

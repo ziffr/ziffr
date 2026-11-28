@@ -48,6 +48,23 @@ describe("every writer of a deck in decks.ts", () => {
   });
 });
 
+describe("every writer of a made deck in deck-write.ts", () => {
+  it("refuses the seed's decks and holds a visit's slides to their size before it writes", () => {
+    gatedBefore("deck-write.ts", "writableDeck", 'refuseSeeded(actor, "decks", id)');
+    for (const fn of ["saveMadeDeck", "clearDeckAnswers", "dropSlidesOfMetrics"]) gatedBefore("deck-write.ts", fn, "writableDeck(");
+    const store = body("deck-write.ts", "store");
+    expect(store.indexOf("chargeVisitorDeckGrowth(")).toBeGreaterThan(-1);
+    expect(store.indexOf("chargeVisitorDeckGrowth(")).toBeLessThan(store.indexOf("ensureBaseline("));
+    gatedBefore("deck-write.ts", "makeDeckFromDashboard", "chargeVisitorDeckGrowth(");
+    expect(body("deck-write.ts", "saveMadeDeck")).toContain("visitorOptionalText(");
+  });
+
+  it("names its writers, so a new one fails here until it is gated or says why it is not", () => {
+    // store (update) and makeDeckFromDashboard (insert).
+    expect([...src("deck-write.ts").matchAll(/from\("decks"\)\.(?:insert|update|delete)\(/g)].length).toBe(2);
+  });
+});
+
 describe("what makes a deck, or puts onto one, besides decks.ts", () => {
   it("names a deck after what exists already only through createDeck's derived name, and a typed name through the rules", () => {
     expect(body("deck-templates.ts", "createDeckFromTemplate")).toContain("{ derived: !given }");

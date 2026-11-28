@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:db": "vitest run --config vitest.db.config.ts",
     "test:phone": "playwright test",
+    "test:slides": "vitest run --config vitest.slides.config.ts",
     "api:reference": "UPDATE_REFERENCE=1 vitest run src/app/api/v1/openapi.test.ts",
     "help:index": "node scripts/help-index.mjs",
     "postinstall": "node scripts/help-index.mjs",
